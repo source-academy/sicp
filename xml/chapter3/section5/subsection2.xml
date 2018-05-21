@@ -1,0 +1,873 @@
+    <SUBSECTION>
+      <NAME>
+        Infinite Streams
+      </NAME>
+
+      <LABEL NAME="sec:infinite-streams"/>
+      <INDEX>infinite stream(s)|(</INDEX>
+      <TEXT>
+        We have seen how to support the illusion of manipulating streams
+        as complete entities even though, in actuality, we compute only
+        as much of the stream as we need to access.  We can exploit this
+        technique to represent sequences efficiently as streams, even if the
+        sequences are very long.  What is more striking, we can use streams to
+        represent sequences that are infinitely long.  For instance, consider
+        the following definition of the stream of positive integers:
+
+        <SNIPPET EVAL="yes">
+          <NAME>integers_starting_from</NAME>
+          <SCHEME>
+            <!--  \indcode*{integers-starting-from} -->
+            (define (integers-starting-from n)
+            (cons-stream n (integers-starting-from (+ n 1))))
+
+            <!-- \indcodeplus*{integers}{(infinite stream)}-->
+            (define integers (integers-starting-from 1))
+          </SCHEME>
+    <JAVASCRIPT>
+function integers_starting_from(n) {
+    return pair(n,
+                function() {
+                    return integers_starting_from(n + 1);
+                });
+}
+    </JAVASCRIPT>
+        </SNIPPET>
+      </TEXT>
+
+      <TEXT>
+        This makes sense because <SCHEMEINLINE>integers</SCHEMEINLINE> will be a pair whose <SPLITINLINE><SCHEME><SCHEMEINLINE>car</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>head</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>
+        is 1 and whose <SPLITINLINE><SCHEME><SCHEMEINLINE>cdr</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>tail</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> is a promise to produce the integers
+        beginning with 2. This is an infinitely long stream, but in any given
+        time we can examine only a finite portion of it.  Thus, our programs
+        will never know that the entire infinite stream is not there.
+      </TEXT>
+
+      <TEXT>
+        Using <SCHEMEINLINE>integers</SCHEMEINLINE> we can define other infinite streams, such as
+        the stream of integers that are not divisible by 7:
+
+        <SNIPPET EVAL="yes">
+          <REQUIRES>stream_filter</REQUIRES>
+          <REQUIRES>integers_definition</REQUIRES>
+          <NAME>is_divisible2</NAME>
+          <SCHEME>
+            <!--  \indcode*{divisible?} -->
+            (define (divisible? x y) (= (remainder x y) 0))
+
+            (define no-sevens
+            (stream-filter (lambda (x) (not (divisible? x 7)))
+            integers))
+          </SCHEME>
+    <JAVASCRIPT>
+function is_divisible(x, y) {
+    return x % y === 0;
+}
+
+var no_sevens = stream_filter(function(x) {
+                                  return ! is_divisible(x, 7);
+                              },
+                              integers);
+    </JAVASCRIPT>
+        </SNIPPET>
+      </TEXT>
+
+      <TEXT>
+        Then we can find integers not divisible by 7 simply by accessing
+        elements of this stream:
+
+        <SNIPPET EVAL="yes">
+          <REQUIRES>is_divisible2</REQUIRES>
+          <REQUIRES>stream_functions</REQUIRES>
+          <SCHEME>
+            (stream-ref no-sevens 100)
+          </SCHEME>
+    <JAVASCRIPT>
+stream_ref(no_sevens, 100);
+    </JAVASCRIPT>
+          <SCHEMEOUTPUT>
+            117
+          </SCHEMEOUTPUT>
+        </SNIPPET>
+      </TEXT>
+
+      <TEXT>
+        In analogy with <SCHEMEINLINE>integers</SCHEMEINLINE>, we can define the infinite stream of
+        Fibonacci numbers:
+
+        <SNIPPET EVAL="yes">
+          <NAME>fibgen</NAME>
+          <SCHEME>
+            (define (fibgen a b)
+            (cons-stream a (fibgen b (+ a b))))
+
+            <!-- \indcodeplus*{fibs}{(infinite stream)}-->
+            (define fibs (fibgen 0 1))
+          </SCHEME>
+    <JAVASCRIPT>
+function fibgen(a, b) {
+    return pair(a, function() {
+                       return fibgen(b, a + b);
+                   });
+}
+
+var fibs = fibgen(0, 1);
+    </JAVASCRIPT>
+        </SNIPPET>
+      </TEXT>
+
+      <TEXT>
+  <SPLITINLINE><SCHEME><SCHEMEINLINE>Fibs</SCHEMEINLINE></SCHEME><JAVASCRIPT>The function <JAVASCRIPTINLINE>fibs</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>
+  is a pair whose <SPLITINLINE><SCHEME><SCHEMEINLINE>car</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>head</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>
+  is 0 and whose
+  <SPLITINLINE><SCHEME><SCHEMEINLINE>cdr</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>tail</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>
+  is a
+        promise to evaluate <SPLITINLINE><SCHEME><SCHEMEINLINE>(fibgen 1 1)</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>fibgen(1, 1)</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>.
+  When we evaluate this delayed
+        <SPLITINLINE><SCHEME><SCHEMEINLINE>(fibgen 1 1)</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>fibgen(1, 1)</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>,
+  it will produce a pair whose
+  <SPLITINLINE><SCHEME><SCHEMEINLINE>car</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>head</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>
+  is 1 and whose
+  <SPLITINLINE><SCHEME><SCHEMEINLINE>cdr</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>tail</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> is a
+        promise to evaluate
+  <SPLITINLINE><SCHEME><SCHEMEINLINE>(fibgen<SPACE/>1<SPACE/>2)</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>fibgen(1, 2)</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>, and so on.
+      </TEXT>
+
+      <TEXT>
+        <INDEX>prime number(s)<SUBINDEX>Eratosthenes<APOS/>s sieve for</SUBINDEX></INDEX>
+        For a look at a more exciting infinite stream, we can generalize the
+        <SPLITINLINE><SCHEME><SCHEMEINLINE>no-sevens</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>no_sevens</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>
+  example to construct the infinite stream of prime
+        numbers, using a method known as the
+        <INDEX>sieve of Eratosthenes</INDEX>
+        <EM>sieve of
+          Eratosthenes</EM>.<FOOTNOTE>Eratosthenes, a third-century <SC>b.c.</SC>
+          <INDEX>Eratosthenes</INDEX>
+          <INDEX>Earth, measuring circumference of</INDEX>
+          Alexandrian Greek philosopher, is famous for giving the first accurate
+          estimate of the circumference of the Earth, which he computed by
+          observing shadows cast at noon on the day of the summer solstice.
+          Eratosthenes<APOS/>s sieve method, although ancient, has formed the basis
+          for special-purpose hardware <QUOTE>sieves</QUOTE> that, until the 1970s,
+    were the
+          most powerful tools in existence for locating large primes.  Since then,
+          however, these methods have been superseded by outgrowths of the
+          <INDEX>probabilistic algorithm</INDEX>
+          probabilistic techniques discussed in Section<SPACE/><REF NAME="sec:primality"/>.</FOOTNOTE> We
+        start with the integers beginning with 2, which is the first prime.
+        To get the rest of the primes, we start by filtering the multiples of
+        2 from the rest of the integers.  This leaves a stream beginning with
+        3, which is the next prime.  Now we filter the multiples of 3 from the
+        rest of this stream.  This leaves a stream beginning with 5, which is
+        the next prime, and so on.  In other words, we construct the primes by
+        a sieving process, described as follows: To sieve a stream <SCHEMEINLINE>S</SCHEMEINLINE>,
+        form a stream whose first element is the first element of <SCHEMEINLINE>S</SCHEMEINLINE> and
+        the rest of which is obtained by filtering all multiples of the first element
+        of <SCHEMEINLINE>S</SCHEMEINLINE> out of the rest of <SCHEMEINLINE>S</SCHEMEINLINE> and sieving the result. This
+        process is readily described in terms of stream operations:
+
+        <!-- \ind*{sieve of Eratosthenes}[sieve@<SCHEMEINLINE>sieve</SCHEMEINLINE>]-->
+        <SNIPPET EVAL="yes">
+          <REQUIRES>stream_filter</REQUIRES>
+          <REQUIRES>is_divisible2</REQUIRES>
+          <REQUIRES>stream_tail</REQUIRES>
+          <NAME>sieve</NAME>
+          <SCHEME>
+            (define (sieve stream)
+            (cons-stream
+            (stream-car stream)
+            (sieve (stream-filter
+            (lambda (x)
+            (not (divisible? x (stream-car stream))))
+            (stream-cdr stream)))))
+
+            <!-- \indcodeplus*{primes}{(infinite stream)}-->
+            (define primes (sieve (integers-starting-from 2)))
+          </SCHEME>
+    <JAVASCRIPT>
+function sieve(stream) {
+    return pair(head(stream),
+                function() {
+                  return sieve(stream_filter(function(x) {
+                                             return !is_divisible(x,
+                                                                  head(stream));
+                                            },
+                                            stream_tail(stream)));
+              });
+}
+    </JAVASCRIPT>
+        </SNIPPET>
+      </TEXT>
+
+      <TEXT>
+        Now to find a particular prime we need only ask for it:
+
+        <SNIPPET EVAL="no">
+          <REQUIRES>stream_functions</REQUIRES>
+          <SCHEME>
+            (stream-ref primes 50)
+          </SCHEME>
+    <JAVASCRIPT>
+stream_ref(primes, 50);
+    </JAVASCRIPT>
+          <SCHEMEOUTPUT>
+            233
+          </SCHEMEOUTPUT>
+        </SNIPPET>
+      </TEXT>
+
+      <TEXT>
+        It is interesting to contemplate the signal-processing system set up
+        by <SCHEMEINLINE>sieve</SCHEMEINLINE>, shown in the
+        <INDEX>Henderson, Peter<SUBINDEX>Henderson diagram</SUBINDEX></INDEX>
+        <QUOTE>Henderson diagram</QUOTE> in
+        Figure<SPACE/><REF NAME="fig:primesieve"/>.<FOOTNOTE>We
+    have named these figures after
+          <INDEX>Henderson, Peter</INDEX>
+          Peter Henderson, who
+          was the first person to show us diagrams of this sort as a way of
+          thinking about stream processing.  Each solid line represents a stream
+          of values being transmitted.  The dashed line from the <SPLITINLINE><SCHEME><SCHEMEINLINE>car</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>head</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> to
+          the <SPLITINLINE><SCHEME><SCHEMEINLINE>cons</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>pair</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> and the <SCHEMEINLINE>filter</SCHEMEINLINE> indicates that this is a single
+          value rather than a stream.</FOOTNOTE>
+        The input stream feeds into an
+        <QUOTE>un<SPLITINLINE><SCHEME><SCHEMEINLINE>cons</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>pair</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>er</QUOTE> that separates the first element of the stream from the
+        rest of the stream.
+        The first element is used to construct a divisibility filter, through
+        which the rest is passed, and the output of the filter is fed to
+        another sieve box.  Then the original first element is <SPLITINLINE><SCHEME><SCHEMEINLINE>cons</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>pair</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>ed onto the
+        output of the internal sieve to form the output stream.  Thus, not
+        only is the stream infinite, but the signal processor is also
+        infinite, because the sieve contains a sieve within it.
+
+      <FIGURE>
+        <FIGURE src="img_original/ch3-Z-G-35.gif"></FIGURE>
+        <CAPTION>The prime sieve viewed as a signal-processing system.
+  </CAPTION>
+        <LABEL NAME="fig:primesieve"/>
+      </FIGURE>
+
+      </TEXT>
+
+      <SUBHEADING>
+        <NAME>Defining streams implicitly</NAME>
+      </SUBHEADING>
+
+      <INDEX>stream(s)<SUBINDEX>implicit definition|(</SUBINDEX></INDEX>
+      <TEXT>
+        The <SCHEMEINLINE>integers</SCHEMEINLINE> and <SCHEMEINLINE>fibs</SCHEMEINLINE> streams above were defined by
+        specifying <QUOTE>generating</QUOTE>
+        <SPLITINLINE><SCHEME>procedures</SCHEME><JAVASCRIPT>functions</JAVASCRIPT></SPLITINLINE>
+        that explicitly compute the
+        stream elements one by one. An alternative way to specify streams is
+        to take advantage of delayed evaluation to define streams implicitly.
+        For example, the following expression defines the stream <SCHEMEINLINE>ones</SCHEMEINLINE> to
+        be an infinite stream of ones:
+
+        <SNIPPET EVAL="yes">
+          <NAME>ones_definition</NAME>
+          <SCHEME>
+            <!-- \indcodeplus*{ones}{(infinite stream)}-->
+            (define ones (cons-stream 1 ones))
+          </SCHEME>
+    <JAVASCRIPT>
+var ones = pair(1, function() { return ones; });
+    </JAVASCRIPT>
+        </SNIPPET>
+      </TEXT>
+
+      <TEXT>
+        This works much like the definition of a recursive
+        <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>: <SCHEMEINLINE>ones</SCHEMEINLINE> is a pair whose <SPLITINLINE><SCHEME><SCHEMEINLINE>car</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>head</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> is 1 and whose <SPLITINLINE><SCHEME><SCHEMEINLINE>cdr</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>tail</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> is a promise
+        to evaluate <SCHEMEINLINE>ones</SCHEMEINLINE>.  Evaluating the <SPLITINLINE><SCHEME><SCHEMEINLINE>cdr</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>tail</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> gives us again a 1
+        and a promise to evaluate <SCHEMEINLINE>ones</SCHEMEINLINE>, and so on.
+      </TEXT>
+
+      <TEXT>
+        We can do more interesting things by manipulating streams with
+        operations such as
+  <SPLITINLINE><SCHEME><SCHEMEINLINE>add-streams</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>add_streams</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>,
+  which produces the elementwise
+        sum of two given streams:<FOOTNOTE>This uses the generalized version
+          of
+    <SPLITINLINE><SCHEME><SCHEMEINLINE>stream-map</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>stream_map</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>
+    from Exercise<SPACE/><REF NAME="ex:general-stream-map"/>.</FOOTNOTE>
+
+        <SNIPPET EVAL="yes">
+          <REQUIRES>stream_functions</REQUIRES>
+          <NAME>add_streams</NAME>
+          <SCHEME>
+            <!--  \indcode*{add-streams} -->
+            (define (add-streams s1 s2)
+            (stream-map + s1 s2))
+          </SCHEME>
+    <JAVASCRIPT>
+function add_streams(s1, s2) {
+    return stream_map(function(x, y) {
+                          return x + y;
+                      },
+                      s1,
+                      s2);
+}
+    </JAVASCRIPT>
+        </SNIPPET>
+      </TEXT>
+
+      <TEXT>
+        Now we can define the integers as follows:
+
+        <SNIPPET EVAL="yes">
+          <REQUIRES>add_streams</REQUIRES>
+          <REQUIRES>ones_definition</REQUIRES>
+          <NAME>integers_definition</NAME>
+          <SCHEME>
+            <!-- \indcodeplus*{integers}{(infinite stream)}[implicit definition]-->
+            (define integers (cons-stream 1 (add-streams ones integers)))
+          </SCHEME>
+    <JAVASCRIPT>
+var integers = pair(1,
+                    function() {
+                        return add_streams(ones, integers);
+                    });
+          </JAVASCRIPT>
+  </SNIPPET>
+      </TEXT>
+
+      <TEXT>
+        This defines <SCHEMEINLINE>integers</SCHEMEINLINE> to be a stream whose first element is 1
+        and the rest of which is the sum of <SCHEMEINLINE>ones</SCHEMEINLINE> and <SCHEMEINLINE>integers</SCHEMEINLINE>.  Thus, the
+        second element of <SCHEMEINLINE>integers</SCHEMEINLINE> is 1 plus the first element of <SCHEMEINLINE>integers</SCHEMEINLINE>,
+        or 2; the third element of <SCHEMEINLINE>integers</SCHEMEINLINE> is 1 plus the second
+        element of <SCHEMEINLINE>integers</SCHEMEINLINE>, or 3; and so on.  This definition works
+        because, at any point, enough of the <SCHEMEINLINE>integers</SCHEMEINLINE> stream has been
+        generated so that we can feed it back into the definition to produce
+        the next integer.
+      </TEXT>
+
+      <TEXT>
+        We can define the Fibonacci numbers in the same style:
+
+        <SNIPPET EVAL="yes">
+          <REQUIRES>add_streams</REQUIRES>
+          <SCHEME>
+            <!-- \indcodeplus*{fibs}{(infinite stream)}[implicit definition]-->
+            (define fibs
+            (cons-stream 0
+            (cons-stream 1
+            (add-streams (stream-cdr fibs)
+            fibs))))
+          </SCHEME>
+    <JAVASCRIPT>
+var fibs = pair(0,
+               function() {
+                   return pair(1,
+                               function() {
+                                   return add_streams(stream_tail(fibs));
+                               });
+               });
+    </JAVASCRIPT>
+        </SNIPPET>
+      </TEXT>
+
+      <TEXT>
+        This definition says that <SCHEMEINLINE>fibs</SCHEMEINLINE> is a stream beginning with 0 and
+        1, such that the rest of the stream can be generated by adding <SCHEMEINLINE>fibs</SCHEMEINLINE>
+        to itself shifted by one place:
+  <SPLIT>
+    <SCHEME>
+        <FIGURE src="img_tex/ch3_5_2-1.png"></FIGURE>
+    </SCHEME>
+    <JAVASCRIPT>
+        <FIGURE src="img_tex/ch3_5_2-1.png"></FIGURE>
+ </TREETAB>
+    </JAVASCRIPT>
+  </SPLIT>
+      </TEXT>
+
+      <TEXT>
+  <SPLITINLINE><SCHEME>
+  <SCHEMEINLINE>Scale-stream</SCHEMEINLINE>
+  is another useful
+        procedure</SCHEME><JAVASCRIPT>The function
+  <JAVASCRIPTINLINE>scale_stream</JAVASCRIPTINLINE>
+  is also useful</JAVASCRIPT></SPLITINLINE>
+        in formulating such stream definitions.
+        This multiplies each item in a stream by a given
+        constant:
+
+        <SNIPPET EVAL="yes">
+          <REQUIRES>stream_functions</REQUIRES>
+          <NAME>scale_stream</NAME>
+          <SCHEME>
+            <!--  \indcode*{scale-stream} -->
+            (define (scale-stream stream factor)
+            (stream-map (lambda (x) (* x factor)) stream))
+          </SCHEME>
+    <JAVASCRIPT>
+function scale_stream(stream, factor) {
+    return stream_map(function(x) {
+                          return x * factor;
+                      },
+                      stream);
+}
+    </JAVASCRIPT>
+        </SNIPPET>
+      </TEXT>
+
+      <TEXT>
+        For example,
+        <SNIPPET EVAL="yes">
+          <REQUIRES>scale_stream</REQUIRES>
+          <SCHEME>
+            (define double (cons-stream 1 (scale-stream double 2)))
+          </SCHEME>
+    <JAVASCRIPT>
+var double = pair(1, function() {
+                         return scale_stream(double, 2);
+                     });
+    </JAVASCRIPT>
+        </SNIPPET>
+        produces the stream of powers of 2: <LATEXINLINE>$1, 2, 4, 8, 16, 32,$</LATEXINLINE> <ELLIPSIS/>.
+      </TEXT>
+
+      <TEXT>
+        An alternate definition of the stream of primes can be given by
+        starting with the integers and filtering them by testing for
+        primality.  We will need the first prime, 2, to get started:
+
+        <SNIPPET EVAL="yes">
+          <REQUIRES>prime_definition</REQUIRES>
+          <REQUIRES>stream_filter</REQUIRES>
+          <REQUIRES>integers_starting_from</REQUIRES>
+          <SCHEME>
+            <!-- \indcodeplus*{primes}{(infinite stream)}[implicit definition]-->
+            (define primes
+            (cons-stream
+            2
+            (stream-filter prime? (integers-starting-from 3))))
+          </SCHEME>
+    <JAVASCRIPT>
+var primes = pair(2,
+                  function() {
+                    return stream_filter(is_prime, integers_starting_from(3));
+                  });
+    </JAVASCRIPT>
+        </SNIPPET>
+      </TEXT>
+
+      <TEXT>
+        This definition is not so straightforward as it appears, because we
+        will test whether a number <LATEXINLINE>$n$</LATEXINLINE> is prime by checking whether <LATEXINLINE>$n$</LATEXINLINE> is
+        divisible by a prime (not by just any integer) less than or equal to
+        <LATEXINLINE>$\sqrt{n}$</LATEXINLINE>:
+
+        <SNIPPET EVAL="yes">
+          <REQUIRES>square_definition</REQUIRES>
+          <REQUIRES>is_divisible2</REQUIRES>
+          <NAME>is_prime2</NAME>
+          <SCHEME>
+            <!--  \indcode*{prime?} -->
+            (define (prime? n)
+            (define (iter ps)
+            (cond ((&gt; (square (stream-car ps)) n) true)
+            ((divisible? n (stream-car ps)) false)
+            (else (iter (stream-cdr ps)))))
+            (iter primes))
+          </SCHEME>
+    <JAVASCRIPT>
+function is_prime(n) {
+    function iter(ps) {
+        if (square(head(ps)) &gt; n) {
+            return true;
+        } else if (is_divisible(n, head(ps))) {
+            return false;
+        } else {
+            return iter(stream_tail(ps));
+        }
+    }
+    return iter(primes);
+}
+    </JAVASCRIPT>
+        </SNIPPET>
+      </TEXT>
+
+      <TEXT>
+        This is a recursive definition, since <SCHEMEINLINE>primes</SCHEMEINLINE> is defined in terms
+        of the
+  <SPLITINLINE><SCHEME><SCHEMEINLINE>prime?</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>is_prime</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>
+  predicate,
+  which itself uses the <SCHEMEINLINE>primes</SCHEMEINLINE>
+        stream.  The reason this
+        <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+        works is that, at any point, enough
+        of the <SCHEMEINLINE>primes</SCHEMEINLINE> stream has been generated to test the primality of
+        the numbers we need to check next.  That is, for every <LATEXINLINE>$n$</LATEXINLINE> we test for
+        primality, either <LATEXINLINE>$n$</LATEXINLINE> is not prime (in which case there is a prime
+        already generated that divides it) or <LATEXINLINE>$n$</LATEXINLINE> is prime (in which case
+        there is a prime already generated<EMDASH/>i.e., a prime less than
+        <LATEXINLINE>$n$</LATEXINLINE><EMDASH/>that is greater than <LATEXINLINE>$\sqrt{n}$</LATEXINLINE>).<FOOTNOTE>This last point is
+          very subtle and relies on the fact that <LATEXINLINE>$p_{n+1} \leq p_{n}^2$</LATEXINLINE>.
+          (Here, <LATEXINLINE>$p_{k}$</LATEXINLINE> denotes the <LATEXINLINE>$k$</LATEXINLINE>th prime.)  Estimates such as these are
+          very difficult to establish.  The ancient proof by
+          <INDEX>Euclid<APOS/>s proof of infinite number of primes</INDEX>
+          Euclid that there
+          are an infinite number of primes shows that <LATEXINLINE>$p_{n+1}\leq p_{1} p_{2}\,
+            \cdots\,\, p_{n} +1$</LATEXINLINE>, and no substantially better result was proved
+          until 1851, when the Russian mathematician P. L. Chebyshev established
+          <INDEX>Chebyshev, Pafnutii L<APOS/>vovich</INDEX>
+          <INDEX>Bertrand<APOS/>s Hypothesis</INDEX>
+          <INDEX>Hardy, Godfrey Harold</INDEX>
+          <INDEX>Wright, E. M.</INDEX>
+          that <LATEXINLINE>$p_{n+1}\leq 2p_{n}$</LATEXINLINE> for all <LATEXINLINE>$n$</LATEXINLINE>.  This result, originally
+          conjectured in 1845, is known as <EM>Bertrand<APOS/>s hypothesis</EM>.  A proof
+          can be found in section 22.3 of
+          <CITATION>Hardy and Wright 1960</CITATION>.</FOOTNOTE>
+        <INDEX>stream(s)<SUBINDEX>implicit definition|)</SUBINDEX></INDEX>
+      </TEXT>
+
+      <EXERCISE>
+        Without running the program, describe the elements of the
+        stream defined by
+        <SNIPPET EVAL="yes">
+          <REQUIRES>add_streams</REQUIRES>
+          <SCHEME>
+            (define s (cons-stream 1 (add-streams s s)))
+          </SCHEME>
+    <JAVASCRIPT>
+var s = pair(1,
+             function() {
+                 return add_streams(s, s);
+             });
+    </JAVASCRIPT>
+        </SNIPPET>
+      </EXERCISE>
+
+      <EXERCISE>
+        Define a
+        <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+
+        <!--  \indcode{mul-streams} -->
+        <INDEX>infinite stream(s)<SUBINDEX>of factorials</SUBINDEX></INDEX>
+        <INDEX>factorial<SUBINDEX>infinite stream</SUBINDEX></INDEX>
+<SPLITINLINE><SCHEME><SCHEMEINLINE>mul-streams</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>mul_streams</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>,
+  analogous to
+  <SPLITINLINE><SCHEME><SCHEMEINLINE>add-streams</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>add_streams</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>,
+        that produces the elementwise product of its two input streams.
+        Use this together with the stream of <SCHEMEINLINE>integers</SCHEMEINLINE> to complete the
+        following definition of the stream whose <LATEXINLINE>$n$</LATEXINLINE>th element (counting from 0)
+        is <LATEXINLINE>$n+1$</LATEXINLINE> factorial:
+        <SNIPPET EVAL="yes">
+          <SCHEME>
+            (define factorials (cons-stream 1 (mul-streams ^??^ ^??^)))
+          </SCHEME>
+    <JAVASCRIPT>
+// mul_streams to be written by students
+var factorials = pair(1,
+                      function() {
+                        return mul_streams(???, ???);
+                      });
+    </JAVASCRIPT>
+        </SNIPPET>
+      </EXERCISE>
+
+      <EXERCISE>
+        Define a
+        <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+        <!--  \indcode{partial-sums} -->
+        <SPLITINLINE><SCHEME><SCHEMEINLINE>partial-sums</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>partial-sums</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>
+  that takes as argument a
+        stream <LATEXINLINE>$S$</LATEXINLINE> and returns the stream whose
+        elements are <LATEXINLINE>$S_0, S_0+S_1, S_0+S_1+S_2,$</LATEXINLINE> <ELLIPSIS/>.  For example, <SPLITINLINE><SCHEME><SCHEMEINLINE>(partial-sums integers)</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>partial_sums(integers)</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> should be the stream
+        <LATEXINLINE>$1, 3, 6, 10, 15,$</LATEXINLINE> <ELLIPSIS/>.
+        <LABEL NAME="ex:partial-sums"/>
+      </EXERCISE>
+
+      <EXERCISE>
+        A famous problem, first raised by
+        <INDEX>Hamming, Richard Wesley</INDEX>
+        R. Hamming, is to enumerate, in
+        ascending order with no repetitions, all positive integers with no
+        prime factors other than 2, 3, or 5.  One obvious way to do this is to
+        simply test each integer in turn to see whether it has any factors
+        other than 2, 3, and 5.  But this is very inefficient, since, as the
+        integers get larger, fewer and fewer of them fit the requirement.  As
+        an alternative, let us call the required stream of numbers <SCHEMEINLINE>S</SCHEMEINLINE> and
+        notice the following facts about it.
+        <UL>
+          <LI>
+            <SCHEMEINLINE>S</SCHEMEINLINE> begins with 1.
+
+          </LI>
+          <LI>
+            The elements of <SPLITINLINE><SCHEME><SCHEMEINLINE>(scale-stream S 2)</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>scale_stream(S, 2)</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> are also
+            elements of <SCHEMEINLINE>S</SCHEMEINLINE>.
+
+          </LI>
+          <LI>
+            The same is true for <SPLITINLINE><SCHEME><SCHEMEINLINE>(scale-stream S 3)</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>scale_stream(S, 3)</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>
+            and <SPLITINLINE><SCHEME><SCHEMEINLINE>(scale-stream 5 S)</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>scale_stream(5, S)</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>.
+
+          </LI>
+          <LI>
+            These are all the elements of <SCHEMEINLINE>S</SCHEMEINLINE>.
+          </LI>
+        </UL>
+
+
+        <INDEX>infinite stream(s)<SUBINDEX>merging</SUBINDEX></INDEX>
+        Now all we have to do is combine elements from these sources.
+        For this we define a
+        <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+        <SCHEMEINLINE>merge</SCHEMEINLINE> that combines two ordered
+        streams into one ordered result stream, eliminating repetitions:
+
+        <SNIPPET EVAL="yes">
+          <REQUIRES>stream_tail</REQUIRES>
+          <NAME>merge_function</NAME>
+          <SCHEME>
+            <!--  \indcode*{merge} -->
+            (define (merge s1 s2)
+            (cond ((stream-null? s1) s2)
+            ((stream-null? s2) s1)
+            (else
+            (let ((s1car (stream-car s1))
+            (s2car (stream-car s2)))
+            (cond ((&lt; s1car s2car)
+            (cons-stream s1car (merge (stream-cdr s1) s2)))
+            ((&gt; s1car s2car)
+            (cons-stream s2car (merge s1 (stream-cdr s2))))
+            (else
+            (cons-stream s1car
+            (merge (stream-cdr s1)
+            (stream-cdr s2)))))))))
+          </SCHEME>
+    <JAVASCRIPT>
+function merge(s1, s2) {
+    if (is_empty_list(s1)) {
+        return s2;
+    } else if (is_empty_list(s2)) {
+        return s1;
+    } else {
+        var s1head = head(s1);
+        var s2head = head(s2);
+        if (s1head &lt; s2head) {
+            return pair(s1head,
+                        function() {
+                            return merge(stream_tail(s1), s2);
+                        });
+        } else if (s1head &gt; s2head) {
+            return pair(s2head,
+                        function() {
+                            return merge(s1, stream_tail(s2));
+                        });
+        } else {
+            return merge(stream_tail(s1), stream_tail(s2));
+        }
+    }
+}
+    </JAVASCRIPT>
+        </SNIPPET>
+
+        Then the required stream may be constructed with <SCHEMEINLINE>merge</SCHEMEINLINE>, as
+        follows:
+
+        <SNIPPET EVAL="yes">
+          <REQUIRES>merge_function</REQUIRES>
+          <SCHEME>
+            (define S (cons-stream 1 (merge ^??^ ^??^)))
+          </SCHEME>
+    <JAVASCRIPT>
+var S = pair(1,
+             function() {
+                 return merge(??, ??);
+             });
+    </JAVASCRIPT>
+        </SNIPPET>
+
+        Fill in the missing expressions in the places marked <LATEXINLINE>??</LATEXINLINE> above.
+        <LABEL NAME="ex:merge"/>
+      </EXERCISE>
+
+      <EXCLUDE>
+      <EXERCISE>
+        <!-- \indsf{delay}[memoized]-->
+        How many additions are performed when we compute the <LATEXINLINE>$n$</LATEXINLINE>th Fibonacci
+        number using the definition of <SCHEMEINLINE>fibs</SCHEMEINLINE> based on the <SCHEMEINLINE>add-streams</SCHEMEINLINE>
+        <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>?  Show that the number of additions would be
+        exponentially greater if we had implemented
+        <SPLITINLINE><SCHEME><SCHEMEINLINE>(delay ^exp^)</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>???</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> simply as <SPLITINLINE><SCHEME><SCHEMEINLINE>(lambda () ^exp^)</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>???</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>,
+        without using the optimization provided by the <SCHEMEINLINE>memo-proc</SCHEMEINLINE>
+        <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+        described in Section<SPACE/><REF NAME="sec:delayed-lists"/>.<FOOTNOTE>This exercise shows how call-by-need is closely related to
+          <INDEX>call-by-need argument passing<SUBINDEX>memoization and</SUBINDEX></INDEX>
+          <INDEX>memoization<SUBINDEX>call-by-need and</SUBINDEX></INDEX>
+          ordinary memoization as described in Exercise<SPACE/><REF NAME="ex:memoization"/>.
+          In that exercise, we used assignment to explicitly construct a local
+          table.  Our call-by-need stream optimization effectively constructs
+          such a table automatically, storing values in the previously forced
+          parts of the stream.</FOOTNOTE>
+        <LABEL NAME="ex:fib-stream-efficiency"/>
+      </EXERCISE>
+
+      <EXERCISE>
+        Give an interpretation of the stream computed by the following
+        <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>:
+
+        <SNIPPET>
+          <SCHEME>
+            (define (expand num den radix)
+            (cons-stream
+            (quotient (* num radix) den)
+            (expand (remainder (* num radix) den) den radix)))
+          </SCHEME>
+        </SNIPPET>
+
+        <!-- \indprim*{quotient}-->
+        <!-- \ind*{primitive
+            <SPLITINLINE><SCHEME>procedures</SCHEME><JAVASCRIPT>functions</JAVASCRIPT></SPLITINLINE>
+            (those marked <EM>ns</EM> are not in the IEEE Scheme standard)}[quotient@<SCHEMEINLINE>quotient</SCHEMEINLINE>]
+            -->
+        (<SCHEMEINLINE>Quotient</SCHEMEINLINE> is a primitive that returns the integer quotient of
+        two integers.)  What are the successive elements produced by <SPLITINLINE><SCHEME><SCHEMEINLINE>(expand 1 7 10)</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>???</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE><LATEXINLINE>$\,$</LATEXINLINE>?  What is produced by <SPLITINLINE><SCHEME><SCHEMEINLINE>(expand 3 8 10)</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>???</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE><LATEXINLINE>$\,$</LATEXINLINE>?
+        <LABEL NAME="ex:quotient"/>
+      </EXERCISE>
+
+      <EXERCISE><LABEL NAME="ex:powerseries"/>
+        <INDEX>power series, as stream</INDEX>
+        <INDEX>infinite stream(s)<SUBINDEX>representing power series</SUBINDEX></INDEX>
+        In Section<SPACE/><REF NAME="sec:symbolic-algebra"/> we saw how to implement a
+        polynomial arithmetic system representing polynomials as lists of
+        terms.  In a similar way, we can work with <EM>power series</EM>, such as
+        <INDEX>e@<LATEXINLINE>$e^x$</LATEXINLINE>, power series for</INDEX>
+        <LATEX>
+          \[ e^{x} =
+          1+x+\frac{x^{2}}{2}+\frac{x^{3}}{3\cdot2}+\frac{x^{4}}{4\cdot 3\cdot 2}+\cdots, \]
+        </LATEX>
+        <INDEX>cosine<SUBINDEX>power series for</SUBINDEX></INDEX>
+        <LATEX>
+          \[ \cos x =1-\frac{x^{2}}{2}+\frac{x^{4}}{4\cdot 3\cdot 2}-\cdots, \]
+        </LATEX>
+        <INDEX>sine<SUBINDEX>power series for</SUBINDEX></INDEX>
+        <LATEX>
+          \[ \sin x =x-\frac{x^{3}}{3\cdot 2}+\frac{x^{5}}{5\cdot 4\cdot 3\cdot 2}- \cdots, \]
+        </LATEX>
+        represented as infinite streams.
+        We will represent the series
+        <LATEXINLINE>$a_0 + a_1 x + a_2 x^2 + a_3 x^3 + \cdots$</LATEXINLINE>
+        as the stream whose elements are the coefficients <LATEXINLINE>$a_0, a_1, a_2, a_3,$</LATEXINLINE> <ELLIPSIS/>.
+        <INDEX>integral<SUBINDEX>of a power series</SUBINDEX></INDEX>
+        <INDEX>power series, as stream<SUBINDEX>integrating</SUBINDEX></INDEX>
+        <OL>
+          <LI>
+            The integral of the series <LATEXINLINE>$a_0 + a_1 x + a_2 x^2 + a_3 x^3 + \cdots$</LATEXINLINE>
+            is the series
+            <LATEX>
+              \[ c + a_0 x + \frac{1}{2}a_1 x^2 + \frac{1}{3}a_2 x^3 + \frac{1}{4}a_3
+              x^4 + \cdots \]
+            </LATEX>
+            where <LATEXINLINE>$c$</LATEXINLINE> is any constant.
+            Define a
+            <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+            <!--  \indcode{integrate-series} -->
+            <SCHEMEINLINE>integrate-series</SCHEMEINLINE> that takes as input a stream
+            <LATEXINLINE>$a_0, a_1, a_2,$</LATEXINLINE> <ELLIPSIS/><SPACE/>representing a power series and returns the stream
+            <LATEXINLINE>$a_0, \frac{1}{2}a_1, \frac{1}{3}a_2,$</LATEXINLINE> <ELLIPSIS/><SPACE/>of coefficients of
+            the non-constant terms of the integral of the series.
+            (Since the result has no constant term, it doesn<APOS/>t represent a power
+            series; when we use <SCHEMEINLINE>integrate-series</SCHEMEINLINE>, we will <SPLITINLINE><SCHEME><SCHEMEINLINE>cons</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>pair</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> on
+            the appropriate constant.)
+          </LI>
+          <LI>
+            The function <LATEXINLINE>$x\mapsto e^x$</LATEXINLINE> is its own
+            derivative.  This implies that <LATEXINLINE>$e^x$</LATEXINLINE> and the integral of <LATEXINLINE>$e^x$</LATEXINLINE> are the
+            same series, except for the constant term, which is <LATEXINLINE>$e^0 =1$</LATEXINLINE>.
+            Accordingly, we can generate the series for
+            <LATEXINLINE>$e^x$</LATEXINLINE> as
+            <SNIPPET>
+              <SCHEME>
+                (define exp-series
+                (cons-stream 1 (integrate-series exp-series)))
+              </SCHEME>
+            </SNIPPET>
+            Show how to generate the series for sine and cosine, starting from the facts
+            that the derivative of sine is cosine and the derivative of cosine is
+            the negative of sine:
+            <SNIPPET EVAL="no">
+              <SCHEME>
+          (define cosine-series
+    (cons-stream 1 ^??^))
+
+    (define sine-series
+    (cons-stream 0 ^??^))
+        </SCHEME>
+      </SNIPPET>
+    </LI>
+  </OL>
+      </EXERCISE>
+
+      <EXERCISE>
+  <INDEX>power series, as stream<SUBINDEX>adding</SUBINDEX></INDEX>
+  <INDEX>power series, as stream<SUBINDEX>multiplying</SUBINDEX></INDEX>
+  <INDEX>arithmetic<SUBINDEX>on power series</SUBINDEX></INDEX>
+  <!--  \indcode{mul-series} -->
+  With power series represented as streams of coefficients as in
+  Exercise<SPACE/><REF NAME="ex:powerseries"/>, adding series is implemented by <SCHEMEINLINE>add-streams</SCHEMEINLINE>.  Complete the definition of the following
+  <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+  for
+  multiplying series:
+  <SNIPPET EVAL="no">
+    <SCHEME>
+      (define (mul-series s1 s2)
+      (cons-stream ^??^ (add-streams ^??^ ^??^)))
+    </SCHEME>
+  </SNIPPET>
+
+  You can test your
+  <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+  by verifying that
+  <LATEXINLINE>$sin^2 x + cos^2 x = 1$</LATEXINLINE>, using the series from Exercise<SPACE/><REF NAME="ex:powerseries"/>.
+  <LABEL NAME="ex:mul-series"/>
+      </EXERCISE>
+
+      <EXERCISE>
+  Let <LATEXINLINE>$S$</LATEXINLINE> be a power series (Exercise<SPACE/><REF NAME="ex:powerseries"/>)
+  whose constant term is 1.  Suppose we want
+  to find the power series <LATEXINLINE>$1/S$</LATEXINLINE>, that is, the series <LATEXINLINE>$X$</LATEXINLINE> such that
+  <LATEXINLINE>$S\cdot X= 1$</LATEXINLINE>.  Write <LATEXINLINE>$S=1+S_R$</LATEXINLINE> where <LATEXINLINE>$S_R$</LATEXINLINE> is the part of <LATEXINLINE>$S$</LATEXINLINE> after
+  the constant term.  Then we can solve for <LATEXINLINE>$X$</LATEXINLINE> as follows:
+  \begin{eqnarray*}
+  S \cdot X &amp;=&amp; 1 \cr
+  (1+S_R)\cdot X &amp;=&amp; 1 \cr
+  X + S_R \cdot X &amp;=&amp; 1 \cr
+  X &amp;=&amp; 1 - S_R \cdot X
+  \end{eqnarray*}
+  In other words, <LATEXINLINE>$X$</LATEXINLINE> is the power series whose constant term is 1 and
+  whose higher-order terms are given by the negative of <LATEXINLINE>$S_R$</LATEXINLINE> times <LATEXINLINE>$X$</LATEXINLINE>.
+  Use this idea to write a
+  <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+  <SCHEMEINLINE>invert-unit-series</SCHEMEINLINE> that computes <LATEXINLINE>$1/S$</LATEXINLINE> for a power series <LATEXINLINE>$S$</LATEXINLINE> with
+  constant term 1.
+  You will need to use <SCHEMEINLINE>mul-series</SCHEMEINLINE> from Exercise<SPACE/><REF NAME="ex:mul-series"/>.
+  <LABEL NAME="ex:invert-unit-series"/>
+      </EXERCISE>
+
+      <EXERCISE>
+  <INDEX>power series, as stream<SUBINDEX>dividing</SUBINDEX></INDEX>
+  <INDEX>arithmetic<SUBINDEX>on power series</SUBINDEX></INDEX>
+  <!--  \indcode{div-series} -->
+  Use the results of exercises<SPACE/><REF NAME="ex:mul-series"/>
+  and<SPACE/><REF NAME="ex:invert-unit-series"/> to define a
+  <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+  <SCHEMEINLINE>div-series</SCHEMEINLINE>
+  that divides two power series.  <SCHEMEINLINE>Div-series</SCHEMEINLINE> should work for any
+  two series, provided that the denominator series begins with a
+  nonzero constant term.  (If the denominator has a zero constant term,
+  then <SCHEMEINLINE>div-series</SCHEMEINLINE> should signal an error.)
+  Show how to use <SCHEMEINLINE>div-series</SCHEMEINLINE>
+  together with the result of Exercise<SPACE/><REF NAME="ex:powerseries"/> to generate
+  <INDEX>tangent<SUBINDEX>power series for</SUBINDEX></INDEX>
+  the power series for tangent.
+      </EXERCISE>
+      <INDEX>infinite stream(s)|)</INDEX>
+    </EXCLUDE>
+    </SUBSECTION>

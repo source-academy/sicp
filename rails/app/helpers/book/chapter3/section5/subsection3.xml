@@ -1,0 +1,1124 @@
+    <SUBSECTION>
+      <NAME>
+  Exploiting the Stream Paradigm
+      </NAME>
+
+      <LABEL NAME="sec:exploiting-streams"/>
+      <TEXT>
+  Streams with delayed evaluation can be a powerful modeling tool,
+  providing many of the benefits of local state and assignment.
+  Moreover, they avoid some of the theoretical tangles that accompany
+  the introduction of assignment into a programming language.
+      </TEXT>
+
+      <TEXT>
+  <INDEX>modularity<SUBINDEX>streams and</SUBINDEX></INDEX>
+  The stream approach can be illuminating because it allows us to build
+  systems with different module boundaries than systems organized around
+  assignment to state variables.  For example, we can think of an entire
+  time series (or signal) as a focus of interest, rather than the values
+  of the state variables at individual moments.  This makes it
+  convenient to combine and compare components of state from different
+  moments.
+      </TEXT>
+
+      <SUBHEADING>
+  <NAME>Formulating iterations as stream processes</NAME>
+      </SUBHEADING>
+
+      <INDEX>iterative process<SUBINDEX>as a stream process|(</SUBINDEX></INDEX>
+      <TEXT>
+  In Section<SPACE/><REF NAME="sec:recursion-and-iteration"/>, we introduced iterative
+  processes, which proceed by updating state variables.  We know now
+  that we can represent state as a <QUOTE>timeless</QUOTE> stream of values rather
+  than as a set of variables to be updated.  Let<APOS/>s adopt this
+  perspective in revisiting the square-root
+  <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+  from
+  Section<SPACE/><REF NAME="sec:sqrt"/>.  Recall that the idea is to generate a
+  sequence of better and better guesses for the square root of <LATEXINLINE>$x$</LATEXINLINE> by
+  applying over and over again the
+  <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+  that improves guesses:
+
+  <SNIPPET EVAL="no">
+    <SCHEME>
+      (define (sqrt-improve guess x)
+      (average guess (/ x guess)))
+    </SCHEME>
+    <JAVASCRIPT>
+      function sqrt_improve(guess, x) {
+          return average(guess, x / guess);
+      }
+    </JAVASCRIPT>
+  </SNIPPET>
+      </TEXT>
+
+      <TEXT>
+  <INDEX>square root<SUBINDEX>stream of approximations</SUBINDEX></INDEX>
+  In our original <SCHEMEINLINE>sqrt</SCHEMEINLINE>
+  <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>, we made these guesses be the
+  successive values of a state variable. Instead we can generate the
+  infinite stream of guesses, starting with an initial guess of 1:<FOOTNOTE>We can<APOS/>t use <SCHEMEINLINE>let</SCHEMEINLINE> to bind the local variable
+    <SCHEMEINLINE>guesses</SCHEMEINLINE>, because the value of <SCHEMEINLINE>guesses</SCHEMEINLINE> depends on <SCHEMEINLINE>guesses</SCHEMEINLINE> itself.  Exercise<SPACE/><REF NAME="ex:stream-internal-def"/> addresses why
+    we want a local variable here.<LABEL NAME="foot:define-for-streams"/></FOOTNOTE>
+
+  <SNIPPET EVAL="no">
+    <SCHEME>
+      <!--  \indcode*{sqrt-stream} -->
+      (define (sqrt-stream x)
+      (define guesses
+      (cons-stream 1.0
+            (stream-map (lambda (guess)
+            (sqrt-improve guess x))
+            guesses)))
+      guesses)
+
+      (display-stream (sqrt-stream 2))
+    </SCHEME>
+    <JAVASCRIPT>
+      function sqrt_stream(x) {
+          var guesses = pair(1.0, function() {
+              return stream_map(function(guess) { 
+                  return sqrt_improve(guess, x);
+                      }, guesses);
+          });
+          return guesses;
+      }
+      display(eval_stream(sqrt_stream(2), 5));
+      // [1, [1.5, [1.4166666666666665, [1.4142156862745097,
+      // [1.4142135623746899, []]]]]]
+    </JAVASCRIPT>
+    <SCHEMEOUTPUT>
+      1.
+      1.5
+      1.4166666666666665
+      1.4142156862745097
+      1.4142135623746899
+      ^$\ldots$^
+    </SCHEMEOUTPUT>
+  </SNIPPET>
+      </TEXT>
+
+      <TEXT>
+  We can generate more and more terms of the stream to get better and
+  better guesses.  If we like, we can write a
+  <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+  that keeps
+  generating terms until the answer is good enough.  (See
+  Exercise<SPACE/><REF NAME="ex:stream-limit"/>.)
+      </TEXT>
+
+      <TEXT>
+  <INDEX>pi@<LATEXINLINE>$\pi$</LATEXINLINE> (pi)<SUBINDEX>Leibniz<APOS/>s series for</SUBINDEX></INDEX>
+  <INDEX>Leibniz, Baron Gottfried Wilhelm von<SUBINDEX>series for <LATEXINLINE>$\pi$</LATEXINLINE></SUBINDEX></INDEX>
+  <INDEX>pi@<LATEXINLINE>$\pi$</LATEXINLINE> (pi)<SUBINDEX>stream of approximations|(</SUBINDEX></INDEX>
+  <INDEX>series, summation of<SUBINDEX>with streams</SUBINDEX></INDEX>
+  <INDEX>summation of a series<SUBINDEX>with streams</SUBINDEX></INDEX>
+  <INDEX>infinite stream(s)<SUBINDEX>to sum a series</SUBINDEX></INDEX>
+  Another iteration that we can treat in the same way is to generate an
+  approximation to <LATEXINLINE>$\pi$</LATEXINLINE>, based upon the alternating series that we saw
+  in Section<SPACE/><REF NAME="sec:procedures-as-parameters"/>:
+
+  <LATEX>
+    \[
+    \frac {\pi}{4} = 1-\frac{1}{3}+\frac{1}{5}-\frac{1}{7}+\cdots
+    \]
+  </LATEX>
+      </TEXT>
+
+      <TEXT>
+  We first generate the stream of summands of the series (the reciprocals
+  of the odd integers, with alternating signs).  Then we take the stream
+  of sums of more and more terms (using the 
+  <SPLITINLINE><SCHEME><SCHEMEINLINE>partial-sums</SCHEMEINLINE> procedure</SCHEME>
+  <JAVASCRIPT><JAVASCRIPTINLINE>partial_sums</JAVASCRIPTINLINE> function</JAVASCRIPT></SPLITINLINE>
+  of Exercise<SPACE/><REF NAME="ex:partial-sums"/>) and scale the result by 4:
+  <SNIPPET EVAL="no">
+    <SCHEME>
+      (define (pi-summands n)
+      (cons-stream (/ 1.0 n)
+            (stream-map - (pi-summands (+ n 2)))))
+
+      <!--  \indcode*{pi-stream} -->
+      (define pi-stream
+      (scale-stream (partial-sums (pi-summands 1)) 4))
+
+      (display-stream pi-stream)
+    </SCHEME>
+    <JAVASCRIPT>
+      function pi_summands(n) {
+          return pair(1.0 / n, function() {
+              return stream_map(function(x) {
+                  return -x;
+              }, pi_summands(n + 2));
+          });
+      }
+      
+      var pi_stream = scale_stream(partial_sums(pi_summands(1)), 4);
+      display(eval_stream(pi_stream, 8));
+      // [4, [2.666666666666667, [3.466666666666667,
+      // [2.8952380952380956, [3.3396825396825403, [2.9760461760461765,
+      // [3.2837384837384844, [3.017071817071818, []]]]]]]]]
+    </JAVASCRIPT>
+    <SCHEMEOUTPUT>
+      4.
+      2.666666666666667
+      3.466666666666667
+      2.8952380952380956
+      3.3396825396825403
+      2.9760461760461765
+      3.2837384837384844
+      3.017071817071818
+      ^$\ldots$^
+    </SCHEMEOUTPUT>
+  </SNIPPET>
+      </TEXT>
+
+      <TEXT>
+  This gives us a stream of better and better approximations to <LATEXINLINE>$\pi$</LATEXINLINE>,
+  although the approximations converge rather slowly.  Eight terms of
+  the sequence bound the value of <LATEXINLINE>$\pi$</LATEXINLINE> between 3.284 and 3.017.
+      </TEXT>
+
+      <TEXT>
+  <INDEX>series, summation of<SUBINDEX>accelerating sequence of approximations</SUBINDEX></INDEX>
+  So far, our use of the stream of states approach is not much different
+  from updating state variables.  But streams give us an opportunity to
+  do some interesting tricks.  For example, we can transform a stream
+  with a 
+  <INDEX>sequence accelerator</INDEX>
+  <EM>sequence accelerator</EM> that converts a sequence of
+  approximations to a new sequence that converges to the same value as
+  the original, only faster.
+      </TEXT>
+
+      <TEXT>
+  One such accelerator, due to the eighteenth-century Swiss mathematician
+  <INDEX>Euler, Leonhard<SUBINDEX>series accelerator</SUBINDEX></INDEX>
+  Leonhard Euler, works well with sequences that are partial sums of
+  alternating series (series of terms with alternating signs).
+  In Euler<APOS/>s technique, if <LATEXINLINE>$S_n$</LATEXINLINE> is the <LATEXINLINE>$n$</LATEXINLINE>th term
+  of the original sum sequence, then the accelerated sequence has terms
+  <LATEX>
+    \[ 
+    S_{n+1} - \frac{(S_{n+1}-S_n)^2}{S_{n-1}-2S_n+S_{n+1}}
+    \]
+  </LATEX> 
+  Thus, if the original sequence is represented as a stream of values,
+  the transformed sequence is given by
+
+  <SNIPPET EVAL="no">
+    <SCHEME>
+      <!--  \indcode*{euler-transform} -->
+      (define (euler-transform s)
+      (let ((s0 (stream-ref s 0))           ; ^$S_{n-1}$^
+            (s1 (stream-ref s 1))           ; ^$S_{n}$^
+            (s2 (stream-ref s 2)))          ; ^$S_{n+1}$^
+      (cons-stream (- s2 (/ (square (- s2 s1))
+            (+ s0 (* -2 s1) s2)))
+            (euler-transform (stream-cdr s)))))
+    </SCHEME>
+    <JAVASCRIPT>
+      function euler_transform(s) {
+          var s0 = stream_ref(s, 0);
+          var s1 = stream_ref(s, 1);
+          var s2 = stream_ref(s, 2);
+          return pair(s2 - 
+              square(s2 - s1) / (s0 + (-2) * s1 + s2),
+                        function() {
+              return euler_transform(stream_tail(s));
+          });
+      }
+    </JAVASCRIPT>
+  </SNIPPET>
+      </TEXT>
+
+      <TEXT>
+  We can demonstrate Euler acceleration with our sequence of
+  approximations to <LATEXINLINE>$\pi$</LATEXINLINE>:
+
+  <SNIPPET EVAL="no">
+    <SCHEME>
+      (display-stream (euler-transform pi-stream))
+    </SCHEME>
+    <JAVASCRIPT>
+    display(eval_stream(euler_transform(pi_stream), 8));
+    // [3.166666666666667, [3.1333333333333337, [3.1452380952380956,
+    // [3.13968253968254, [3.1427128427128435, [3.1408813408813416,
+    // [3.142071817071818, [3.1412548236077655, []]]]]]]]]
+    </JAVASCRIPT>
+    <SCHEMEOUTPUT>
+      3.166666666666667
+      3.1333333333333337
+      3.1452380952380956
+      3.13968253968254
+      3.1427128427128435
+      3.1408813408813416
+      3.142071817071818
+      3.1412548236077655
+      ^$\ldots$^
+    </SCHEMEOUTPUT>
+  </SNIPPET>
+      </TEXT>
+
+      <TEXT>
+  Even better, we can accelerate the accelerated sequence, and
+  recursively accelerate that, and so on.  Namely, we create a stream of
+  streams (a structure we<APOS/>ll call a 
+  <INDEX>tableau</INDEX>
+  <EM>tableau</EM>) in which each stream
+  is the transform of the preceding one:
+
+  <SNIPPET EVAL="no">
+    <SCHEME>
+      <!--  \indcode*{make-tableau} -->
+      (define (make-tableau transform s)
+      (cons-stream s
+            (make-tableau transform
+            (transform s))))
+    </SCHEME>
+    <JAVASCRIPT>
+      function make_tableau(transform, s) {
+          return pair(s, function() {
+              return make_tableau(transform, transform(s));
+          });
+      }
+    </JAVASCRIPT>
+  </SNIPPET>
+      </TEXT>
+
+      <TEXT>
+  The tableau has the form
+
+  <LATEX>
+    \[
+    \begin{array}{llllll}
+    s_{00} &amp; s_{01} &amp; s_{02} &amp; s_{03} &amp; s_{04} &amp; \ldots\cr
+    &amp; s_{10} &amp; s_{11} &amp; s_{12} &amp; s_{13} &amp; \ldots\cr
+    &amp;        &amp; s_{20} &amp; s_{21} &amp; s_{22} &amp; \ldots\cr
+    &amp;        &amp;        &amp;        &amp; \ldots &amp;
+    \end{array}
+    \]
+  </LATEX>
+      </TEXT>
+
+      <TEXT>
+  Finally, we form a sequence by taking the first term in each row of
+  the tableau:
+
+  <SNIPPET EVAL="no">
+    <SCHEME>
+      <!--  \indcode*{accelerated-sequence} -->
+      (define (accelerated-sequence transform s)
+      (stream-map stream-car
+            (make-tableau transform s)))
+    </SCHEME>
+    <JAVASCRIPT>
+      function accelerated_sequence(transform, s) {
+        return stream_map(head, make_tableau(transform, s));
+      }
+    </JAVASCRIPT>
+  </SNIPPET>
+
+  We can demonstrate this kind of <QUOTE>super-acceleration</QUOTE> of the <LATEXINLINE>$\pi$</LATEXINLINE>
+  sequence:
+
+  <SNIPPET EVAL="no">
+    <SCHEME>
+      (display-stream (accelerated-sequence euler-transform
+            pi-stream))
+    </SCHEME>
+    <JAVASCRIPT>
+      display(eval_stream(accelerated_sequence(euler_transform,
+                                               pi_stream),
+                          8));
+      // [4, [3.166666666666667, [3.142105263157895,
+      // [3.141599357319005, [3.1415927140337785, [3.1415926539752927,
+      // [3.1415926535911765, [3.141592653589778, []]]]]]]]]
+    </JAVASCRIPT>
+    <SCHEMEOUTPUT>
+      4.
+      3.166666666666667
+      3.142105263157895
+      3.141599357319005
+      3.1415927140337785
+      3.1415926539752927
+      3.1415926535911765
+      3.141592653589778
+      ^$\ldots$^
+    </SCHEMEOUTPUT>
+  </SNIPPET>
+      </TEXT>
+
+      <TEXT>
+  The result is impressive.  Taking eight terms of the sequence yields
+  the correct value of <LATEXINLINE>$\pi$</LATEXINLINE> to 14 decimal places.  If we had used only
+  the original <LATEXINLINE>$\pi$</LATEXINLINE> sequence, we would need to compute on the order of
+  <LATEXINLINE>$10^{13}$</LATEXINLINE> terms (i.e., expanding the series far enough so that the
+  individual terms are less then <LATEXINLINE>$10^{-13}$</LATEXINLINE>) to get that much accuracy!
+  <INDEX>pi@<LATEXINLINE>$\pi$</LATEXINLINE> (pi)<SUBINDEX>stream of approximations|)</SUBINDEX></INDEX>
+      </TEXT>
+
+      <TEXT>
+  We could have implemented these acceleration techniques without
+  using streams.  But the stream formulation is particularly elegant and
+  convenient because the entire sequence of states is available to us as a
+  data structure that can be manipulated with a uniform set of
+  operations.
+      </TEXT>
+
+  <EXCLUDE>
+      <EXERCISE>
+  Louis Reasoner asks why the 
+  <SPLITINLINE><SCHEME><SCHEMEINLINE>sqrt-stream</SCHEMEINLINE> procedure</SCHEME>
+  <JAVASCRIPT><JAVASCRIPTINLINE>sqrt_stream</JAVASCRIPTINLINE> function</JAVASCRIPT></SPLITINLINE>
+  was not
+  written in the following more straightforward way, without
+  the local variable <SCHEMEINLINE>guesses</SCHEMEINLINE>:
+  <SNIPPET EVAL="no">
+    <SCHEME>
+      (define (sqrt-stream x)
+      (cons-stream 1.0
+            (stream-map (lambda (guess)
+            (sqrt-improve guess x))
+            (sqrt-stream x))))
+    </SCHEME>
+    <JAVASCRIPT>
+      function sqrt_stream(x) {
+          return pair(1.0, function() {
+              return stream_map(function(guess) {
+                  return sqrt_improve(guess, x);
+              }, sqrt_stream(x));
+          });
+      }
+    </JAVASCRIPT>
+  </SNIPPET>
+  Alyssa P. Hacker replies that this version of the
+  <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+  is
+  considerably less efficient because it performs redundant computation.
+  Explain Alyssa<APOS/>s answer.  Would the two versions still differ in
+  efficiency if our implementation of <SCHEMEINLINE>delay</SCHEMEINLINE> used only <SPLITINLINE><SCHEME><SCHEMEINLINE>(lambda
+        () ^exp^)</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>???</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> without using the optimization provided by <SCHEMEINLINE>memo-proc</SCHEMEINLINE> (Section<SPACE/><REF NAME="sec:delayed-lists"/>)?
+  <LABEL NAME="ex:stream-internal-def"/>
+      </EXERCISE>
+    </EXCLUDE>
+
+      <EXERCISE><LABEL NAME="ex:stream-limit"/>
+  Write a
+  <SPLITINLINE><SCHEME>procedure <SCHEMEINLINE>stream-limit</SCHEMEINLINE></SCHEME>
+  <JAVASCRIPT>function <JAVASCRIPTINLINE>stream_limit</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>
+
+  <!--  \indcode{stream-limit} -->
+   that takes as arguments a stream
+  and a number (the tolerance).  It should examine the stream until it
+  finds two successive elements that differ in absolute value by less
+  than the tolerance, and return the second of the two elements.  Using
+  this, we could compute square roots up to a given tolerance by
+  <SNIPPET EVAL="no">
+    <SCHEME>
+      <!--  \indcode*{sqrt}[stream@as stream limit] -->
+      (define (sqrt x tolerance)
+      (stream-limit (sqrt-stream x) tolerance))
+    </SCHEME>
+    <JAVASCRIPT>
+      function sqrt(x, tolerance) {
+          return stream_limit(sqrt_stream(x), tolerance);
+      }
+    </JAVASCRIPT>
+  </SNIPPET>
+      </EXERCISE>
+
+      <EXERCISE>
+  <INDEX>logarithm, approximating <LATEXINLINE>$\ln 2$</LATEXINLINE></INDEX>
+  Use the series
+  <LATEX>
+    \[
+    \ln 2 = 1-\frac{1}{2}+\frac{1}{3}-\frac{1}{4}+\cdots
+    \]
+  </LATEX>
+  to compute three sequences of approximations to the natural logarithm of 2,
+  in the same way we did above for <LATEXINLINE>$\pi$</LATEXINLINE>.
+  How rapidly do these sequences converge?
+      </EXERCISE>
+      <INDEX>iterative process<SUBINDEX>as a stream process|)</SUBINDEX></INDEX>
+
+      <SUBHEADING>
+  <NAME>Infinite streams of pairs</NAME>
+      </SUBHEADING>
+
+      <INDEX>pair(s)<SUBINDEX>infinite stream of|(</SUBINDEX></INDEX>
+      <INDEX>infinite stream(s)<SUBINDEX>of pairs|(</SUBINDEX></INDEX>
+      <INDEX>mapping<SUBINDEX>nested|(</SUBINDEX></INDEX>
+      <TEXT>
+  In Section<SPACE/><REF NAME="sec:nested-mappings"/>, we saw how the sequence paradigm
+  handles traditional nested loops as processes defined on sequences of
+  pairs.  If we generalize this technique to infinite streams, then we
+  can write programs that are not easily represented as loops, because
+  the <QUOTE>looping</QUOTE> must range over an infinite set.
+      </TEXT>
+
+      <TEXT>
+  <!--  \indcode{prime-sum-pairs}[infinite stream] -->
+  For example, suppose we want to generalize the 
+  <SPLITINLINE><SCHEME><SCHEMEINLINE>prime-sum-pairs</SCHEMEINLINE> procedure</SCHEME>
+  <JAVASCRIPT><JAVASCRIPTINLINE>prime_sum_pairs</JAVASCRIPTINLINE> function</JAVASCRIPT></SPLITINLINE>
+  of Section<SPACE/><REF NAME="sec:nested-mappings"/> to produce the stream
+  of pairs of <EM>all</EM> integers <LATEXINLINE>$(i,j)$</LATEXINLINE> with <LATEXINLINE>$i \leq j$</LATEXINLINE> such that <LATEXINLINE>$i+j$</LATEXINLINE>
+  is prime.  If <SPLITINLINE><SCHEME><SCHEMEINLINE>int-pairs</SCHEMEINLINE></SCHEME>
+  <JAVASCRIPT><JAVASCRIPTINLINE>int_pairs</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> is the sequence of all pairs of integers <LATEXINLINE>$(i,j)$</LATEXINLINE>
+  with <LATEXINLINE>$i \leq j$</LATEXINLINE>, then our required stream is simply<FOOTNOTE>As in Section<SPACE/><REF NAME="sec:sequences-conventional-interfaces"/>,
+    we represent a pair of integers as a list rather than a <SPLITINLINE><SCHEME>Lisp</SCHEME><JAVASCRIPT>JavaScript</JAVASCRIPT></SPLITINLINE> pair.</FOOTNOTE>
+
+  <SNIPPET EVAL="no">
+    <SCHEME>
+      (stream-filter (lambda (pair)
+            (prime? (+ (car pair) (cadr pair))))
+            int-pairs)
+    </SCHEME>
+    <JAVASCRIPT>
+      stream_filter(function(pair) {
+          return is_prime(head(pair) + head(tail(pair)));
+      }, int_pairs);
+    </JAVASCRIPT>
+  </SNIPPET>
+      </TEXT>
+
+      <TEXT>
+  Our problem, then, is to produce the stream <SPLITINLINE><SCHEME><SCHEMEINLINE>int-pairs</SCHEMEINLINE></SCHEME>
+  <JAVASCRIPT><JAVASCRIPTINLINE>int_pairs</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>.  More
+  generally, suppose we have two streams <LATEXINLINE>$S = (S_i)$</LATEXINLINE> and <LATEXINLINE>$T = (T_j)$</LATEXINLINE>,
+  and imagine the infinite rectangular array
+  <LATEX>
+    \[
+    \begin{array}{cccc}
+    (S_0,T_0) &amp; (S_0,T_1) &amp; (S_0, T_2) &amp; \ldots\cr
+    (S_1,T_0) &amp; (S_1,T_1) &amp; (S_1, T_2) &amp; \ldots\cr
+    (S_2,T_0) &amp; (S_2,T_1) &amp; (S_2, T_2) &amp; \ldots\cr
+    \ldots
+    \end{array}
+    \]
+  </LATEX>
+  We wish to generate a stream that contains all the pairs in the array
+  that lie on or above the diagonal, i.e., the pairs
+  <LATEX>
+    \[
+    \begin{array}{cccc}
+    (S_0,T_0) &amp; (S_0,T_1) &amp; (S_0, T_2) &amp; \ldots\cr
+          &amp; (S_1,T_1) &amp; (S_1, T_2) &amp; \ldots\cr
+          &amp;           &amp; (S_2, T_2) &amp; \ldots\cr
+          &amp;           &amp;            &amp; \ldots
+    \end{array}
+    \]
+  </LATEX>
+  (If we take both <LATEXINLINE>$S$</LATEXINLINE> and <LATEXINLINE>$T$</LATEXINLINE> to be the stream of integers, then this
+  will be our desired stream <SPLITINLINE><SCHEME><SCHEMEINLINE>int-pairs</SCHEMEINLINE></SCHEME>
+  <JAVASCRIPT><JAVASCRIPTINLINE>int_pairs</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>.)  
+      </TEXT>
+
+      <TEXT>
+  Call the general stream of pairs <SPLITINLINE><SCHEME><SCHEMEINLINE>(pairs S T)</SCHEMEINLINE></SCHEME>
+  <JAVASCRIPT><JAVASCRIPTINLINE>pairs(S, T)</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>, and consider it to
+  be composed of three parts: the pair <LATEXINLINE>$(S_0,T_0)$</LATEXINLINE>, the
+  rest of the pairs in the first row, and the remaining pairs:<FOOTNOTE>See Exercise<SPACE/><REF NAME="ex:pairs-array"/> for some insight
+    into why we chose this decomposition.</FOOTNOTE>
+  <LATEX>
+    \[
+    \begin{array}{c|ccc}
+    (S_0,T_0) &amp; (S_0,T_1) &amp; (S_0, T_2) &amp; \ldots\cr
+    \hline
+          &amp; (S_1,T_1) &amp; (S_1, T_2) &amp; \ldots\cr
+          &amp;           &amp; (S_2, T_2) &amp; \ldots\cr
+          &amp;           &amp;            &amp; \ldots
+    \end{array}
+    \]
+  </LATEX>
+  Observe that the third piece in this decomposition (pairs that are not in the first row) is (recursively) the pairs formed from 
+  <SPLITINLINE><SCHEME><SCHEMEINLINE>(stream-cdr S)</SCHEMEINLINE></SCHEME>
+  <JAVASCRIPT><JAVASCRIPTINLINE>stream_tail(S)</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>
+  and <SPLITINLINE><SCHEME><SCHEMEINLINE>(stream-cdr T)</SCHEMEINLINE></SCHEME>
+  <JAVASCRIPT><JAVASCRIPTINLINE>stream_tail(T)</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>.  
+  Also note that the second piece (the rest of the first row) is
+  <SNIPPET EVAL="no">
+    <SCHEME>
+      (stream-map (lambda (x) (list (stream-car s) x))
+            (stream-cdr t))
+    </SCHEME>
+    <JAVASCRIPT>
+      stream_map(function(x) {
+          return list(head(s), x);
+      }, stream_tail(t));
+    </JAVASCRIPT>
+  </SNIPPET>
+      </TEXT>
+
+      <TEXT>
+  Thus we can form our stream of pairs as follows:
+  <SNIPPET EVAL="no">
+    <SCHEME>
+      (define (pairs s t)
+      (cons-stream
+      (list (stream-car s) (stream-car t))
+      (^combine-in-some-way^
+      (stream-map (lambda (x) (list (stream-car s) x))
+            (stream-cdr t))
+      (pairs (stream-cdr s) (stream-cdr t)))))
+    </SCHEME>
+    <JAVASCRIPT>
+      function pairs(s, t) {
+          return pair(list(head(s), head(t)), function() {
+              return &lt;<EM>combine_in_some_way</EM>&gt;(
+                  stream_map(function(x) {
+                      return list(head(s), x);
+                  }, stream_tail(t)),
+                  pairs(stream_tail(s), stream_tail(t))
+              );
+          });
+      }
+    </JAVASCRIPT>
+  </SNIPPET>
+      </TEXT>
+
+      <TEXT>
+  <INDEX>infinite stream(s)<SUBINDEX>merging</SUBINDEX></INDEX>
+  In order to complete the
+  <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>, we must choose some way to combine
+  the two inner streams.  One idea is to use the stream analog of the
+  <SCHEMEINLINE>append</SCHEMEINLINE>
+  <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+  from Section<SPACE/><REF NAME="sec:sequences"/>:
+
+  <SNIPPET EVAL="no">
+    <SCHEME>
+      <!--  \indcode*{stream-append} -->
+      (define (stream-append s1 s2)
+      (if (stream-null? s1)
+      s2
+      (cons-stream (stream-car s1)
+            (stream-append (stream-cdr s1) s2))))
+    </SCHEME>
+    <JAVASCRIPT>
+      function stream_append(s1, s2) {
+          if (is_empty_list(s1)) {
+              return s2;
+          } else {
+              return pair(head(s1), function() {
+                  return stream_append(stream_tail(s1), s2);
+              });
+          }
+      }
+    </JAVASCRIPT>
+  </SNIPPET>
+      </TEXT>
+
+      <TEXT>
+  This is unsuitable for infinite streams, however,
+  because it takes all the elements from the first stream before
+  incorporating the second stream.
+  In particular, if we try to generate all pairs of positive integers using
+
+  <SNIPPET EVAL="no">
+    <SCHEME>
+      (pairs integers integers)
+    </SCHEME>
+    <JAVASCRIPT>
+      pairs(integers, integers);
+    </JAVASCRIPT>
+  </SNIPPET>
+
+  our stream of results will first try to run through all pairs with the
+  first integer equal to 1, and hence will never produce pairs with any
+  other value of the first integer.
+      </TEXT>
+
+      <TEXT>
+  To handle infinite streams, we need to devise an order of combination
+  that ensures that every element will eventually be reached if we let
+  our program run long enough.  An elegant way to accomplish this is
+  with the following <SCHEMEINLINE>interleave</SCHEMEINLINE>
+  <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>:<FOOTNOTE>The precise statement of the
+    required property on the order of combination is as follows: There
+    should be a function <LATEXINLINE>$f$</LATEXINLINE> of two arguments such that the pair
+    corresponding to element<SPACE/><LATEXINLINE>$i$</LATEXINLINE> of the first stream and element<SPACE/><LATEXINLINE>$j$</LATEXINLINE> of
+    the second stream will appear as element number <LATEXINLINE>$f(i,j)$</LATEXINLINE> of the output
+    stream.  The trick of using <SCHEMEINLINE>interleave</SCHEMEINLINE> to accomplish this was
+    shown to us by 
+    <INDEX>Turner, David</INDEX>
+    David Turner, who employed it in the language 
+    <INDEX>KRC</INDEX>
+    KRC
+    (<CITATION>Turner 1981</CITATION>).</FOOTNOTE>
+
+  <SNIPPET EVAL="no">
+    <SCHEME>
+      <!--  \indcode*{interleave} -->
+      (define (interleave s1 s2)
+      (if (stream-null? s1)
+      s2
+      (cons-stream (stream-car s1)
+            (interleave s2 (stream-cdr s1)))))
+    </SCHEME>
+    <JAVASCRIPT>
+      function interleave(s1, s2) {
+          if (is_empty_list(s1)) {
+              return s2;
+          } else {
+              return pair(head(s1), function() {
+                return interleave(s2, stream_tail(s1));
+              });
+          }
+      }
+    </JAVASCRIPT>
+  </SNIPPET>
+      </TEXT>
+
+      <TEXT>
+  Since <SCHEMEINLINE>interleave</SCHEMEINLINE> takes elements alternately from the two streams,
+  every element of the second stream will eventually find its way into
+  the interleaved stream, even if the first stream is infinite.
+      </TEXT>
+
+      <TEXT>
+  We can thus generate the required stream of pairs as
+  <SNIPPET EVAL="no">
+    <SCHEME>
+      <!--  \indcode*{pairs} -->
+      (define (pairs s t)
+      (cons-stream
+      (list (stream-car s) (stream-car t))
+      (interleave
+      (stream-map (lambda (x) (list (stream-car s) x))
+            (stream-cdr t))
+      (pairs (stream-cdr s) (stream-cdr t)))))
+    </SCHEME>
+    <JAVASCRIPT>
+      function pairs(s, t) {
+          return pair(list(head(s), head(t)), function() {
+              return interleave(stream_map(function(x) {
+                  return list(head(s), x);
+              }, stream_tail(t)),
+              pairs(stream_tail(s), stream_tail(t)));
+          });
+      }
+    </JAVASCRIPT>
+  </SNIPPET>
+      </TEXT>
+
+
+      <EXERCISE>
+  Examine the stream <SPLITINLINE><SCHEME><SCHEMEINLINE>(pairs integers integers)</SCHEMEINLINE></SCHEME>
+  <JAVASCRIPT><JAVASCRIPTINLINE>pairs(integers, integers)</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>. Can you make any general
+  comments about the order in which the pairs are placed into the
+  stream? For example, about how many pairs precede the pair (1,100)?
+  the pair (99,100)? the pair (100,100)? (If you can make precise
+  mathematical statements here, all the better. But feel free to give
+  more qualitative answers if you find yourself getting bogged down.)
+  <LABEL NAME="ex:stream-pair-order"/>
+      </EXERCISE>
+
+      <EXERCISE>
+  Modify the <SCHEMEINLINE>pairs</SCHEMEINLINE>
+  <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+  so that <SPLITINLINE><SCHEME><SCHEMEINLINE>(pairs integers integers)</SCHEMEINLINE></SCHEME>
+  <JAVASCRIPT><JAVASCRIPTINLINE>pairs(integers, integers)</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> will produce the stream of <EM>all</EM> pairs of integers
+  <LATEXINLINE>$(i,j)$</LATEXINLINE> (without the condition <LATEXINLINE>$i \leq j$</LATEXINLINE>).  Hint: You will need to
+  mix in an additional stream.
+      </EXERCISE>
+
+      <EXERCISE>
+  Louis Reasoner thinks that building a stream of pairs from three
+  parts is unnecessarily complicated.  Instead of separating the
+  pair <LATEXINLINE>$(S_0,T_0)$</LATEXINLINE> from the rest of the pairs in the first row,
+  he proposes to work with the whole first row, as follows:
+  <SNIPPET EVAL="no">
+    <SCHEME>
+      (define (pairs s t)
+      (interleave
+      (stream-map (lambda (x) (list (stream-car s) x))
+            t)
+      (pairs (stream-cdr s) (stream-cdr t))))
+    </SCHEME>
+    <JAVASCRIPT>
+      function pairs(s, t) {
+          return interleave(stream_map(function(x) {
+              return list(head(s), x);
+          }, t), pair(stream_tail(s), stream_tail(t)));
+      }
+    </JAVASCRIPT>
+  </SNIPPET>
+  Does this work?  Consider what happens if we evaluate
+  <SPLITINLINE><SCHEME><SCHEMEINLINE>(pairs integers integers)</SCHEMEINLINE></SCHEME>
+  <JAVASCRIPT><JAVASCRIPTINLINE>pairs(integers, integers)</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> using Louis<APOS/>s definition of <SCHEMEINLINE>pairs</SCHEMEINLINE>.
+  <LABEL NAME="ex:pairs-array"/>
+      </EXERCISE>
+
+      <EXERCISE>
+  Write a
+  <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+  <SCHEMEINLINE>triples</SCHEMEINLINE> that takes three infinite
+  streams, <LATEXINLINE>$S$</LATEXINLINE>, <LATEXINLINE>$T$</LATEXINLINE>, and <LATEXINLINE>$U$</LATEXINLINE>, and produces the stream of triples
+  <LATEXINLINE>$(S_i,T_j,U_k)$</LATEXINLINE> such that <LATEXINLINE>$i \leq j \leq k$</LATEXINLINE>.
+  Use <SCHEMEINLINE>triples</SCHEMEINLINE> to
+  generate the stream of all 
+  <INDEX>Pythagorean triples<SUBINDEX>with streams</SUBINDEX></INDEX>
+  Pythagorean triples of positive integers,
+  i.e., the triples <LATEXINLINE>$(i,j,k)$</LATEXINLINE> such that <LATEXINLINE>$i \leq j$</LATEXINLINE> and <LATEXINLINE>$i^2 + j^2 =k^2$</LATEXINLINE>.
+  <LABEL NAME="ex:stream-pythagorean-triples"/>
+      </EXERCISE>
+
+      <EXERCISE>
+  <LABEL NAME="ex:weighted-pairs"/>
+  <INDEX>infinite stream(s)<SUBINDEX>merging</SUBINDEX></INDEX>
+  <!--  \indcode{merge-weighted} -->
+  It would be nice to be able to generate streams in which the pairs
+  appear in some useful order, rather than in the order that results
+  from an <EM>ad hoc</EM> interleaving process.  We can use a technique
+  similar to the <SCHEMEINLINE>merge</SCHEMEINLINE>
+  <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+  of Exercise<SPACE/><REF NAME="ex:merge"/>, if we
+  define a way to say that one pair of integers is <QUOTE>less than</QUOTE>
+  another.  One way to do this is to define a <QUOTE>weighting function</QUOTE>
+  <LATEXINLINE>$W(i,j)$</LATEXINLINE> and stipulate that <LATEXINLINE>$(i_1,j_1)$</LATEXINLINE> is less than <LATEXINLINE>$(i_2,j_2)$</LATEXINLINE> if
+  <LATEXINLINE>$W(i_1,j_1) &lt; W(i_2,j_2)$</LATEXINLINE>.  Write a
+  <SPLITINLINE><SCHEME>procedure <SCHEMEINLINE>merge-weighted</SCHEMEINLINE></SCHEME>
+  <JAVASCRIPT>function <JAVASCRIPTINLINE>merge_weighted</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>
+  that is like <SCHEMEINLINE>merge</SCHEMEINLINE>, except that <SPLITINLINE><SCHEME><SCHEMEINLINE>merge-weighted</SCHEMEINLINE></SCHEME>
+  <JAVASCRIPT><JAVASCRIPTINLINE>merge_weighted</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> takes an
+  additional argument <SCHEMEINLINE>weight</SCHEMEINLINE>, which is a
+  <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+  that computes
+  the weight of a pair, and is used to determine the order in which
+  elements should appear in the resulting merged stream.<FOOTNOTE>We will require that the weighting function be such that
+    the weight of a pair increases as we move out along a row or down
+    along a column of the array of pairs.</FOOTNOTE>
+  Using this,
+  generalize <SCHEMEINLINE>pairs</SCHEMEINLINE> to a
+  <SPLITINLINE><SCHEME>procedure <SCHEMEINLINE>weighted-pairs</SCHEMEINLINE></SCHEME>
+  <JAVASCRIPT>function <JAVASCRIPTINLINE>weighted_pairs</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>
+   that
+  takes two streams, together with a
+  <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+  that computes a weighting
+  function, and generates the stream of pairs, ordered according to
+  weight.  Use your
+  <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+  to generate
+  <OL>
+    <LI>
+      the stream of all pairs of positive integers <LATEXINLINE>$(i,j)$</LATEXINLINE> with <LATEXINLINE>$i \leq
+        j$</LATEXINLINE> ordered according to the sum <LATEXINLINE>$i + j$</LATEXINLINE>
+    </LI>
+    <LI>
+      the stream of all pairs of positive integers <LATEXINLINE>$(i,j)$</LATEXINLINE> with <LATEXINLINE>$i \leq
+        j$</LATEXINLINE>, where neither <LATEXINLINE>$i$</LATEXINLINE> nor <LATEXINLINE>$j$</LATEXINLINE> is divisible by 2, 3, or 5, and the
+      pairs are ordered according to the sum <LATEXINLINE>$2 i + 3 j + 5 i j$</LATEXINLINE>.
+    </LI>
+  </OL>
+      </EXERCISE>
+
+      <EXERCISE>
+  <INDEX>Ramanujan numbers</INDEX>
+  Numbers that can be expressed as the sum of two cubes in more than one
+  way are sometimes called <EM>Ramanujan numbers</EM>, in honor of the
+  mathematician Srinivasa Ramanujan.<FOOTNOTE>To quote from G. H. Hardy<APOS/>s obituary of
+    <INDEX>Hardy, Godfrey Harold</INDEX>
+    <INDEX>Ramanujan, Srinivasa</INDEX>
+    <INDEX>Leiserson, Charles E.</INDEX>
+    Ramanujan (<CITATION>Hardy 1921</CITATION>): <QUOTE>It was Mr. Littlewood (I believe) who remarked that
+      <QUOTE>every positive integer was one of his friends.</QUOTE>  I remember once
+      going to see him when he was lying ill at Putney.  I had ridden in
+      taxi-cab No. 1729, and remarked that the number seemed to me a rather
+      dull one, and that I hoped it was not an unfavorable omen.  
+      <QUOTE>No,</QUOTE> he
+      replied, <QUOTE>it is a very interesting number; it is the smallest number
+        expressible as the sum of two cubes in two different ways.</QUOTE></QUOTE>
+    The trick of using weighted pairs to generate the Ramanujan numbers
+    was shown to us by Charles Leiserson.</FOOTNOTE>
+  Ordered streams of pairs provide an elegant solution to the problem of
+  computing these numbers.  To find a number that can be written as the
+  sum of two cubes in two different ways, we need only generate the
+  stream of pairs of integers <LATEXINLINE>$(i,j)$</LATEXINLINE> weighted according to the sum <LATEXINLINE>$i^3
+    + j^3$</LATEXINLINE> (see Exercise<SPACE/><REF NAME="ex:weighted-pairs"/>),
+  then search the stream for two consecutive pairs with the same
+  weight.  Write a
+  <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+  to generate the Ramanujan numbers.  The first
+  such number is 1,729.  What are the next five?
+  <LABEL NAME="ex:ramanujan-nums"/>
+      </EXERCISE>
+
+      <EXERCISE>
+  In a similar way to Exercise<SPACE/><REF NAME="ex:ramanujan-nums"/> generate
+  a stream of
+  all numbers that can be written as the sum of two squares in three
+  different ways (showing how they can be so written).
+      </EXERCISE>
+      <INDEX>pair(s)<SUBINDEX>infinite stream of|)</SUBINDEX></INDEX>
+      <INDEX>infinite stream(s)<SUBINDEX>of pairs|)</SUBINDEX></INDEX>
+      <INDEX>mapping<SUBINDEX>nested|)</SUBINDEX></INDEX>
+
+      <SUBHEADING> 
+  <NAME>Streams as signals</NAME>
+      </SUBHEADING>
+
+      <INDEX>signal processing<SUBINDEX>stream model of|(</SUBINDEX></INDEX>
+      <INDEX>infinite stream(s)<SUBINDEX>to model signals|(</SUBINDEX></INDEX>
+      <TEXT>
+  We began our discussion of streams by describing them as computational
+  analogs of the <QUOTE>signals</QUOTE> in signal-processing systems.  In fact, we
+  can use streams to model signal-processing systems in a very direct
+  way, representing the values of a signal at successive time intervals
+  as consecutive elements of a stream.  For instance, we can implement
+  an 
+  <INDEX>integrator, for signals</INDEX>
+  <EM>integrator</EM> or 
+  <EM>summer</EM> that, for an input stream
+  <LATEXINLINE>$x=(x_{i})$</LATEXINLINE>, an initial value <LATEXINLINE>$C$</LATEXINLINE>, and a small increment <LATEXINLINE>$dt$</LATEXINLINE>,
+  accumulates the sum
+  <LATEX>
+    \[ S_i =C +\sum_{j=1}^{i} x_{j} \, dt \]
+  </LATEX>
+  and returns the stream of values <LATEXINLINE>$S=(S_{i})$</LATEXINLINE>.  The following <SCHEMEINLINE>integral</SCHEMEINLINE>
+  <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+  is reminiscent of the <QUOTE>implicit style</QUOTE> definition of the
+  stream of integers (Section<SPACE/><REF NAME="sec:infinite-streams"/>):
+
+  <SNIPPET EVAL="no">
+    <SCHEME>
+      <!--  \indcode*{integral} -->
+      (define (integral integrand initial-value dt)
+      (define int
+      (cons-stream initial-value
+            (add-streams (scale-stream integrand dt)
+            int)))
+      int)
+    </SCHEME>
+    <JAVASCRIPT>
+      function integral(integrand, initial_value, dt) {
+          var integ = pair(initial_value, function() {
+              return add_streams(scale_stream(integrand, dt),
+                                 integ);
+          });
+          return integ;
+      }
+    </JAVASCRIPT>
+  </SNIPPET>
+
+  <FIGURE src="img_original/ch3-Z-G-49.gif">
+    <CAPTION>The <SCHEMEINLINE>integral</SCHEMEINLINE>
+  <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+  viewed as a signal-processing system.
+  </CAPTION>
+    <LABEL NAME="fig:integral"/>
+    </FIGURE>
+      </TEXT>
+
+      <TEXT>
+  Figure<SPACE/><REF NAME="fig:integral"/> is a picture of a signal-processing system that
+  corresponds to the <SCHEMEINLINE>integral</SCHEMEINLINE>
+  <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>.  The input stream is
+  scaled by <LATEXINLINE>$dt$</LATEXINLINE> and passed through an adder, whose output is passed
+  back through the same adder.  The self-reference in the definition of
+  <SCHEMEINLINE>int</SCHEMEINLINE> is reflected in the figure by the feedback loop that
+  connects the output of the adder to one of the inputs.
+      </TEXT>
+
+      <EXERCISE>
+  <P>
+    <!-- How to add the small diagram into the figure?
+\begin{figure}
+    \centerline
+    {\hbox{\epsfbox{/zu/hal/sicp/chapter-3/figs/rca.eps}}
+          \hskip 30pt
+          \vbox{
+          \hbox
+          {<LATEXINLINE>${\displaystyle{
+            v = v_0 + \frac{1}{C}\int_0^{t}i dt + R i}}$</LATEXINLINE>}
+          \hbox{\hskip 20pt}}}
+    \vskip 20pt
+    \epsffile{/zu/hal/sicp/chapter-3/figs/rc.eps}
+    \figcaption {An RC circuit and the associated signal-flow diagram.}
+    <INDEX>signal-flow diagram</INDEX>
+    <LABEL NAME="fig:rc"/>
+    \end{figure}
+ -->
+
+      <FIGURE src="img_original/ch3-Z-G-51.gif">
+    <CAPTION>An RC circuit and the associated signal-flow diagram.
+    </CAPTION>
+    <LABEL NAME="fig:rc"/>
+    </FIGURE>
+    
+    <INDEX>RC circuit</INDEX>
+    <INDEX>circuit<SUBINDEX>modeled with streams</SUBINDEX></INDEX>
+    <INDEX>electrical circuits, modeled with streams</INDEX>
+    We can model electrical circuits using streams to represent the values
+    of currents or voltages at a sequence of times.  For instance, suppose
+    we have an <EM>RC circuit</EM> consisting of a resistor of resistance <LATEXINLINE>$R$</LATEXINLINE>
+    and a capacitor of capacitance <LATEXINLINE>$C$</LATEXINLINE> in series.  The voltage response
+    <LATEXINLINE>$v$</LATEXINLINE> of the circuit to an injected current <LATEXINLINE>$i$</LATEXINLINE> is determined by the
+    formula in Figure<SPACE/><REF NAME="fig:rc"/>, whose structure is shown by the accompanying
+    signal-flow diagram.
+  </P>
+
+  <P>
+    Write a
+    <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+    <SCHEMEINLINE>RC</SCHEMEINLINE> that models this circuit.  <SCHEMEINLINE>RC</SCHEMEINLINE> should
+    take as inputs the values of <LATEXINLINE>$R$</LATEXINLINE>, <LATEXINLINE>$C$</LATEXINLINE>, and <LATEXINLINE>$dt$</LATEXINLINE> and should return a
+    <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+    that takes as inputs a stream representing the current <LATEXINLINE>$i$</LATEXINLINE>
+    and an initial value for the capacitor voltage <LATEXINLINE>$v_{0}$</LATEXINLINE> and produces as
+    output the stream of voltages <LATEXINLINE>$v$</LATEXINLINE>.  For example, you should be able to
+    use <SCHEMEINLINE>RC</SCHEMEINLINE> to model an RC circuit with <LATEXINLINE>$R = 5$</LATEXINLINE> ohms, <LATEXINLINE>$C = 1$</LATEXINLINE> farad,
+    and a 0.5-second time step by evaluating <SPLITINLINE><SCHEME><SCHEMEINLINE>(define RC1 (RC 5 1
+    0.5))</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>var RC1 = RC(5, 1, 0.5)</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>.  This defines <SCHEMEINLINE>RC1</SCHEMEINLINE> as a
+    <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+    that takes a stream
+    representing the time sequence of currents and an initial capacitor
+    voltage and produces the output stream of voltages.
+  </P>
+  <LABEL NAME="ex:rc-circuit"/>
+      </EXERCISE>
+
+      <EXERCISE>
+  <INDEX>signal processing<SUBINDEX>zero crossings of a signal</SUBINDEX></INDEX>
+  <INDEX>zero crossings of a signal</INDEX>
+  Alyssa P. Hacker is designing a system to process signals coming from
+  physical sensors.  One important feature she wishes to produce is a
+  signal that describes the <EM>zero crossings</EM> of the input signal.
+  That is, the resulting signal should be <LATEXINLINE>$+1$</LATEXINLINE> whenever the input signal
+  changes from negative to positive, <LATEXINLINE>$-1$</LATEXINLINE> whenever the input signal changes from positive to negative, and 0 otherwise.  (Assume that the
+  sign of a 0 input is positive.)  For example, a typical input signal
+  with its associated zero-crossing signal would be
+  <SNIPPET EVAL="no">
+    <SCHEME>
+      ^$\ldots$^ 1  2  1.5  1  0.5  -0.1  -2  -3  -2  -0.5  0.2  3  4 ^$\ldots$^
+      ^$\ldots$^  0  0    0  0    0     -1  0   0   0     0    1  0  0 ^$\ldots$^
+    </SCHEME>
+  </SNIPPET>
+
+  In Alyssa<APOS/>s system, the signal from the sensor is represented as a
+  stream <SPLITINLINE><SCHEME><SCHEMEINLINE>sense-data</SCHEMEINLINE></SCHEME>
+  <JAVASCRIPT><JAVASCRIPTINLINE>sense_data</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> 
+  and the stream <SPLITINLINE><SCHEME><SCHEMEINLINE>zero-crossings</SCHEMEINLINE></SCHEME>
+  <JAVASCRIPT><JAVASCRIPTINLINE>zero_crossings</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> is
+  the corresponding stream of zero crossings.  Alyssa first writes a
+  <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+  <SPLITINLINE><SCHEME><SCHEMEINLINE>sign-change-detector</SCHEMEINLINE></SCHEME>
+  <JAVASCRIPT><JAVASCRIPTINLINE>sign_change_detector</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> that takes two values as
+  arguments and compares the signs of the values to produce an
+  appropriate <LATEXINLINE>$0$</LATEXINLINE>, <LATEXINLINE>$1$</LATEXINLINE>, or <LATEXINLINE>$-1$</LATEXINLINE>.  She then constructs her zero-crossing
+  stream as follows:
+
+  <SNIPPET EVAL="no">
+    <SCHEME>
+      (define (make-zero-crossings input-stream last-value)
+      (cons-stream
+      (sign-change-detector (stream-car input-stream) last-value)
+      (make-zero-crossings (stream-cdr input-stream)
+            (stream-car input-stream))))
+
+      (define zero-crossings (make-zero-crossings sense-data 0))
+    </SCHEME>
+    <JAVASCRIPT>
+      function make_zero_crossings(input_stream, last_value) {
+          return pair(sign_change_detector(head(input_stream),
+                                           last_value),
+                      function() {
+            return make_zero_crossings(stream_tail(input_stream),
+                head(input_stream));
+          });
+      }
+
+    var zero_crossings = make_zero_crossings(sense_data, 0);
+    </JAVASCRIPT>
+  </SNIPPET>
+
+  Alyssa<APOS/>s boss, Eva Lu Ator, walks by and suggests that this program is
+  approximately equivalent to the following one, which
+  uses the generalized version
+  of <SPLITINLINE><SCHEME><SCHEMEINLINE>stream-map</SCHEMEINLINE></SCHEME>
+  <JAVASCRIPT><JAVASCRIPTINLINE>stream_map</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> from Exercise<SPACE/><REF NAME="ex:general-stream-map"/>:
+
+  <SNIPPET EVAL="no">
+    <SCHEME>
+      (define zero-crossings
+      (stream-map sign-change-detector sense-data ^expression^))
+    </SCHEME>
+    <JAVASCRIPT>
+      var zero_crossing = stream_map(sign_change_detector,
+                                     sense_data,
+                                     &lt;<EM>expression</EM>&gt;);
+    </JAVASCRIPT>
+  </SNIPPET>
+
+  Complete the program by supplying the indicated &lt;<EM>expression</EM>&gt;.
+  <LABEL NAME="ex:zero-crossing"/>
+      </EXERCISE>
+
+      <EXERCISE>
+  <INDEX>signal processing<SUBINDEX>zero crossings of a signal</SUBINDEX></INDEX>
+  <INDEX>zero crossings of a signal</INDEX>
+  <INDEX>signal processing<SUBINDEX>smoothing a signal</SUBINDEX></INDEX>
+  <INDEX>smoothing a signal</INDEX>
+  Unfortunately, Alyssa<APOS/>s zero-crossing detector in
+  Exercise<SPACE/><REF NAME="ex:zero-crossing"/> proves to be insufficient, because the
+  noisy signal from the sensor leads to spurious zero crossings.  Lem E.
+  Tweakit, a hardware specialist, suggests that Alyssa smooth the signal
+  to filter out the noise before extracting the zero crossings.  Alyssa
+  takes his advice and decides to extract the zero crossings from the
+  signal constructed by averaging each value of the sense data with the
+  previous value.  She explains the problem to her assistant, Louis
+  Reasoner, who attempts to implement the idea, altering Alyssa<APOS/>s program as
+  follows:
+
+  <SNIPPET EVAL="no">
+    <SCHEME>
+      (define (make-zero-crossings input-stream last-value)
+      (let ((avpt (/ (+ (stream-car input-stream) last-value) 2)))
+      (cons-stream (sign-change-detector avpt last-value)
+            (make-zero-crossings (stream-cdr input-stream)
+            avpt))))
+    </SCHEME>
+    <JAVASCRIPT>
+      function make_zero_crossings(input_stream, last_value) {
+          var avpt = (head(input_stream) + last_value) / 2;
+          return pair(sign_change_detector(avpt, last_value),
+              function() {
+                  return make_zero_crossings(stream_tail(input_stream), avpt);
+          });
+      }
+    </JAVASCRIPT>
+  </SNIPPET>
+
+  This does not correctly implement Alyssa<APOS/>s plan.
+  Find the bug that Louis has installed
+  and fix it without changing the structure of the program.  (Hint: You
+  will need to increase the number of arguments to <SPLITINLINE><SCHEME><SCHEMEINLINE>make-zero-crossings</SCHEMEINLINE></SCHEME>
+  <JAVASCRIPT><JAVASCRIPTINLINE>make_zero_crossings</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>.)
+  <LABEL NAME="ex:zero-crossing-2"/>
+      </EXERCISE>
+
+      <EXERCISE>
+  <INDEX>signal processing<SUBINDEX>zero crossings of a signal</SUBINDEX></INDEX>
+  <INDEX>zero crossings of a signal</INDEX>
+  <INDEX>signal processing<SUBINDEX>smoothing a signal</SUBINDEX></INDEX>
+  <INDEX>smoothing a signal</INDEX>
+  Eva Lu Ator has a criticism of Louis<APOS/>s approach in
+  Exercise<SPACE/><REF NAME="ex:zero-crossing-2"/>.  The program he wrote is not modular,
+  because it intermixes the operation of smoothing with the
+  zero-crossing extraction.  For example, the extractor should not have
+  to be changed if Alyssa finds a better way to condition her input
+  signal.  Help Louis by writing a
+  <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+  <SCHEMEINLINE>smooth</SCHEMEINLINE> that takes a
+  stream as input and produces a stream in which each element is the
+  average of two successive input stream elements.  Then use <SCHEMEINLINE>smooth</SCHEMEINLINE> as a component to implement the zero-crossing detector in a
+  more modular style.
+      </EXERCISE>
+      <INDEX>signal processing<SUBINDEX>stream model of|)</SUBINDEX></INDEX>
+      <INDEX>infinite stream(s)<SUBINDEX>to model signals|)</SUBINDEX></INDEX>
+
+    </SUBSECTION>

@@ -1,0 +1,596 @@
+    <SUBSECTION>
+      <NAME>
+        Combining Data of Different Types
+      </NAME>
+
+      <LABEL NAME="sec:combining-data-of-different-types"/>
+
+      <TEXT>
+      We have seen how to define a unified arithmetic system that
+      encompasses ordinary numbers, complex numbers, rational numbers, and
+      any other type of number we might decide to invent, but we have
+      ignored an important issue.  The operations we have defined so far
+      treat the different data types as being completely independent.  Thus,
+      there are separate packages for adding, say, two ordinary numbers, or
+      two complex numbers.  What we have not yet considered is the fact that
+      it is meaningful to define operations that cross the type boundaries,
+      such as the addition of a complex number to an ordinary number.  We
+      have gone to great pains to introduce barriers between parts of our
+      programs so that they can be developed and understood separately.  We
+      would like to introduce the cross-type operations in some carefully
+      controlled way, so that we can support them
+      without seriously violating our module boundaries.
+      </TEXT>
+      <TEXT>
+      <INDEX>operation<SUBINDEX>cross-type</SUBINDEX></INDEX>
+      <INDEX>cross-type operations</INDEX>
+      <INDEX>type(s)<SUBINDEX>cross-type operations</SUBINDEX></INDEX>
+      One way to handle cross-type operations is to design a different
+      <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+      for each possible combination of types for which the
+      operation is valid.  For example, we could extend the complex-number
+      package so that it provides a
+      <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+      for adding complex numbers to
+      ordinary numbers and installs this in the table using the tag <SPLITINLINE><SCHEME><SCHEMEINLINE>(complex scheme-number)</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>list("complex","javascript_number")</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>:<FOOTNOTE>We also have to supply an almost identical
+        <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+        to handle the types <SPLITINLINE><SCHEME><SCHEMEINLINE>(scheme_number complex)</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>list("javascript_number","complex")</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>.</FOOTNOTE>
+      <SNIPPET>
+        <SCHEME>
+          <EM>;; to be included in the complex package</EM>
+          <!-- \indcode*{add-complex-to-schemenum} -->
+(define (add-complex-to-schemenum z x)
+  (make-from-real-imag (+ (real-part z) x)
+                       (imag-part z)))
+
+(put 'add '(complex scheme-number)
+     (lambda (z x) (tag (add-complex-to-schemenum z x))))
+        </SCHEME>
+        <JAVASCRIPT>
+function add_complex_to_javascript_num(z,x) {
+   return make_from_real_imag(add(real_part(z), x),
+                              imag_part(z));
+}
+put("add",list("complex","javascript_number"),
+    function(z,x) { return tag(add_complex_to_javascript_num(z,x)); })
+        </JAVASCRIPT>
+      </SNIPPET>
+      </TEXT>
+      <TEXT>
+      This technique works, but it is cumbersome.  With such a system, the
+      cost of introducing a new type is not just the construction of the
+      package of
+      <SPLITINLINE><SCHEME>procedures</SCHEME><JAVASCRIPT>functions</JAVASCRIPT></SPLITINLINE>
+      for that type but also the construction and
+      installation of the
+      <SPLITINLINE><SCHEME>procedures</SCHEME><JAVASCRIPT>functions</JAVASCRIPT></SPLITINLINE>
+      that implement the cross-type
+      operations.  This can easily be much more code than is needed to
+      define the operations on the type itself.  The method also undermines
+      our ability to combine separate packages additively, or
+      least to limit the extent to which the implementors of the individual
+      packages need to take account of other packages.  For instance, in the
+      example above, it seems reasonable that handling mixed operations on
+      complex numbers and ordinary numbers should be the responsibility of
+      the complex-number package.  Combining rational numbers and complex
+      numbers, however, might be done by the complex package, by the
+      rational package, or by some third package that uses operations
+      extracted from these two packages.  Formulating coherent policies on the
+      division of responsibility among packages can be an overwhelming task
+      in designing systems with many packages and many cross-type
+      operations.
+      </TEXT>
+
+      <SUBHEADING>
+        <NAME>Coercion</NAME>
+      </SUBHEADING>
+
+      <INDEX>coercion|(</INDEX>
+      <TEXT>
+      In the general situation of completely unrelated operations acting on
+      completely unrelated types, implementing explicit cross-type
+      operations, cumbersome though it may be, is the best that one can hope
+      for.  Fortunately, we can usually do better by taking advantage of
+      additional structure that may be latent in our type system.  Often the
+      different data types are not completely independent, and there may be
+      ways by which objects of one type may be viewed as being of another
+      type.  This process is called <EM>coercion</EM>.  For example, if we are
+      asked to arithmetically combine an ordinary number with a complex
+      number, we can view the ordinary number as a complex number whose
+      imaginary part is zero.  This transforms the problem to that of
+      combining two complex numbers, which can be handled in the ordinary
+      way by the complex-arithmetic package.
+      </TEXT>
+      <TEXT>
+      <INDEX>coercion<SUBINDEX><SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE></SUBINDEX></INDEX>
+      In general, we can implement this idea by designing coercion
+      <SPLITINLINE><SCHEME>procedures</SCHEME><JAVASCRIPT>functions</JAVASCRIPT></SPLITINLINE>
+      that transform an object of one type into an equivalent
+      object of another type.  Here is a typical coercion
+      <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>, which
+      transforms a given ordinary number to a complex number with that real
+      part and zero imaginary part:
+
+      <SNIPPET>
+        <SCHEME>
+          <!-- \indcode*{scheme-number-&gt;complex} -->
+(define (scheme-number-&gt;complex n)
+  (make-complex-from-real-imag (contents n) 0))
+        </SCHEME>
+        <JAVASCRIPT>
+function javascript_number_to_complex(n) {
+   return make_complex_from_real_imag(contents(n),0);
+}
+      </JAVASCRIPT>
+      </SNIPPET>
+
+      <INDEX>table<SUBINDEX>coercion@for coercion</SUBINDEX></INDEX>
+      <INDEX>coercion<SUBINDEX>table</SUBINDEX></INDEX>
+      We install these coercion
+      <SPLITINLINE><SCHEME>procedures</SCHEME><JAVASCRIPT>functions</JAVASCRIPT></SPLITINLINE>
+      in a special coercion table,
+      indexed under the names of the two types:
+
+      <SNIPPET>
+        <SCHEME>
+(put-coercion 'scheme-number 'complex scheme-number-&gt;complex)
+        </SCHEME>
+        <JAVASCRIPT>
+put_coercion("javascipt_number","complex",javascript_number_to_complex)
+      </JAVASCRIPT>
+      </SNIPPET>
+
+        (We assume that there are <SPLITINLINE><SCHEME><SCHEMEINLINE>put-coercion</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>put_coercion</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> and <SPLITINLINE><SCHEME><SCHEMEINLINE>get-coercion</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>get_coercion</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>
+      <SPLITINLINE><SCHEME>procedures</SCHEME><JAVASCRIPT>functions</JAVASCRIPT></SPLITINLINE>
+      available for manipulating this table.)  Generally some of
+      the slots in the table will be empty, because it is not generally
+      possible to coerce an arbitrary data object of each type into all
+      other types.  For example, there is no way to coerce an arbitrary
+      complex number to an ordinary number, so there will be no general <SPLITINLINE><SCHEME><SCHEMEINLINE>complex-&gt;scheme-number</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>complex_to_javascript_number</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>
+      <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+      included in the table.
+      </TEXT>
+      <TEXT>
+      Once the coercion table has been set up, we can handle coercion in a
+      uniform manner by modifying the <SPLITINLINE><SCHEME><SCHEMEINLINE>apply-generic</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>apply_generic</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>
+      <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+      of
+      Section<SPACE/><REF NAME="sec:data-directed"/>.  When asked to apply an operation, we
+      first check whether the operation is defined for the arguments<APOS/> types,
+      just as before.  If so, we dispatch to the
+      <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+      found in the
+      operation-and-type table.
+      Otherwise, we try coercion.  For simplicity, we consider only the case
+      where there are two arguments.<FOOTNOTE>See
+        Exercise<SPACE/><REF NAME="ex:multi-coercion"/> for generalizations.</FOOTNOTE>  We
+      check the coercion table to see if objects of the first type can
+      be coerced to the second type.  If so, we coerce the first argument and try the
+      operation again.  If objects of the first type cannot in general be coerced to
+      the second type, we try the coercion the other way around to see if there is a
+      way to coerce the second argument to the type of the first argument.
+      Finally, if there
+      is no known way to coerce either type to the other type, we give up.
+      Here is the
+      <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>:
+
+      <!-- \indcode*{apply-generic}[with coercion] -->
+      <SNIPPET>
+        <SCHEME>
+(define (apply-generic op . args)
+  (let ((type-tags (map type-tag args)))
+    (let ((proc (get op type-tags)))
+      (if proc
+        (apply proc (map contents args))
+        (if (= (length args) 2)
+          (let ((type1 (car type-tags))
+                 (type2 (cadr type-tags))
+                 (a1 (car args))
+                 (a2 (cadr args)))
+            (let ((t1-&gt;t2 (get-coercion type1 type2))
+                  (t2-&gt;t1 (get-coercion type2 type1)))
+              (cond (t1-&gt;t2
+                      (apply-generic op (t1-&gt;t2 a1) a2))
+                    (t2-&gt;t1
+                      (apply-generic op a1 (t2-&gt;t1 a2)))
+                    (else
+                      (error "No method for these types"
+                        (list op type-tags))))))
+          (error "No method for these types"
+            (list op type-tags)))))))
+        </SCHEME>
+        <JAVASCRIPT>
+function apply_generic(op,args) {
+   var type_tags = map(type_tag,args);
+   var fun = get(op,type_tags);
+   if (fun != false)
+      return fun(map(contents,args));
+   else
+      if (length(args) === 2) {
+         var type1 = head(type_tags);
+         var type2 = head(tail(type_tags));
+         var a1 = head(args);
+         var a2 = head(tail(args));
+         var t1_to_t2 = get_coercion(type1,type2);
+         var t2_to_t1 = get_coercion(type2,type1);
+         if (t1_to_t2 != false)
+            return apply_generic(op,list(t1_to_t2(a1),a2));
+         else if (t2_to_t1 != false)
+            return apply_generic(op,list(a1,t2_to_t1(a2)));
+         else 
+            return error("No method for these types",
+                         list(op,type_tags));
+      } else
+           return error("No method for these types",
+                        list(op,type_tags));
+}
+      </JAVASCRIPT>
+      </SNIPPET>
+      </TEXT>
+      <TEXT>
+      This coercion scheme has many advantages over the method of defining
+      explicit cross-type operations, as outlined above.  Although we still
+      need to write coercion
+      <SPLITINLINE><SCHEME>procedures</SCHEME><JAVASCRIPT>functions</JAVASCRIPT></SPLITINLINE>
+      to relate the types (possibly <LATEXINLINE>$n^2$</LATEXINLINE>
+      <SPLITINLINE><SCHEME>procedures</SCHEME><JAVASCRIPT>functions</JAVASCRIPT></SPLITINLINE>
+      for a system with <LATEXINLINE>$n$</LATEXINLINE> types), we need to write only one
+      <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+      for each pair of types rather than a different
+      <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+      for
+      each collection of types and each generic operation.<FOOTNOTE>If we are
+        clever, we can usually get by with fewer than <LATEXINLINE>$n^2$</LATEXINLINE> coercion
+        <SPLITINLINE><SCHEME>procedures</SCHEME><JAVASCRIPT>functions</JAVASCRIPT></SPLITINLINE>.  For instance, if we know how to convert from type 1 to
+        type 2 and from type 2 to type 3, then we can use this knowledge to
+        convert from type 1 to type 3.  This can greatly decrease the number
+        of coercion
+        <SPLITINLINE><SCHEME>procedures</SCHEME><JAVASCRIPT>functions</JAVASCRIPT></SPLITINLINE>
+        we need to supply explicitly when we add a new
+        type to the system.  If we are willing to build the required amount of
+        sophistication into our system, we can have it search the <QUOTE>graph</QUOTE> of
+        relations among types and automatically generate those coercion
+        <SPLITINLINE><SCHEME>procedures</SCHEME><JAVASCRIPT>functions</JAVASCRIPT></SPLITINLINE>
+        that can be inferred from the ones that are supplied
+        explicitly.</FOOTNOTE>  What we are counting on here is the fact that the
+      appropriate transformation between types depends only on the types
+      themselves, not on the operation to be applied.
+      </TEXT>
+      <TEXT>
+      On the other hand, there may be applications for which our coercion
+      scheme is not general enough.  Even when neither of the objects to be
+      combined can be converted to the type of the other it may still be
+      possible to perform the operation by converting both objects to a
+      third type.  In order to deal with such complexity and still preserve
+      modularity in our programs, it is usually necessary to build systems
+      that take advantage of still further structure in the relations among
+      types, as we discuss next.
+      </TEXT>
+
+      <SUBHEADING>
+        <NAME>Hierarchies of types</NAME>
+      </SUBHEADING>
+
+      <INDEX>type(s)<SUBINDEX>hierarchy of|(</SUBINDEX></INDEX>
+      <INDEX>hierarchy of types|(</INDEX>
+      <TEXT>
+      The coercion scheme presented above relied on the existence of natural
+      relations between pairs of types.  Often there is more <QUOTE>global</QUOTE>
+      structure in how the different types relate to each other.  For
+      instance, suppose we are building a generic arithmetic system to
+      handle integers, rational numbers, real numbers, and complex numbers.
+      In such a system, it is quite natural to regard an integer as a
+      special kind of rational number, which is in turn a special kind of
+      real number, which is in turn a special kind of complex number.  What
+      we actually have is a so-called <EM>hierarchy of types</EM>, in which,
+      for example, integers are a 
+      <INDEX>subtype</INDEX>
+      <INDEX>type(s)<SUBINDEX>subtype</SUBINDEX></INDEX>
+      <EM>subtype</EM> of rational numbers (i.e.,
+      any operation that can be applied to a rational number can
+      automatically be applied to an integer).  Conversely, we say that
+      rational numbers form a 
+      <INDEX>supertype</INDEX>
+      <INDEX>type(s)<SUBINDEX>supertype</SUBINDEX></INDEX>
+      <EM>supertype</EM> of integers.  The particular
+      hierarchy we have here is of a very simple kind, in which each type
+      has at most one supertype and at most one subtype.  Such a structure,
+      called a <EM>tower</EM>, is illustrated in Figure<SPACE/><REF NAME="fig:tower"/>.
+
+      <FIGURE src="img_original/ch2-Z-G-66.gif">
+        <CAPTION>A tower of types.</CAPTION>
+        <LABEL NAME="fig:tower"/>
+      </FIGURE>
+      <INDEX>tower of types</INDEX>
+      <INDEX>type(s)<SUBINDEX>tower of</SUBINDEX></INDEX>
+      </TEXT>
+      <TEXT>
+      If we have a tower structure, then we can greatly simplify the problem
+      of adding a new type to the hierarchy, for we need only specify how
+      the new type is embedded in the next supertype above it and how it is
+      the supertype of the type below it.  For example, if we want to add an
+      integer to a complex number, we need not explicitly define a special
+      coercion
+      <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+      <SPLITINLINE><SCHEME><SCHEMEINLINE>integer-&gt;complex</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>integer_to_complex</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>.  Instead, we define how an
+      integer can be transformed into a rational number, how a rational
+      number is transformed into a real number, and how a real number is
+      transformed into a complex number.  We then allow the system to
+      transform the integer into a complex number through these steps and
+      then add the two complex numbers.
+      </TEXT>
+      <TEXT>
+      <INDEX>type(s)<SUBINDEX>raising</SUBINDEX></INDEX>
+      <!-- \indcode{apply-generic}[with tower of types] -->
+      We can redesign our <SPLITINLINE><SCHEME><SCHEMEINLINE>apply-generic</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>apply_generic</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>
+      <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+      in the following
+      way: For each type, we need to supply a <SPLITINLINE><SCHEME><SCHEMEINLINE>raise</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>raise</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>
+      <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>, which
+      <QUOTE>raises</QUOTE> objects of that type one level in the tower.  Then when the
+      system is required to operate on objects of different types it can
+      successively raise the lower types until all the objects are at
+      the same level in the tower.  (Exercises<SPACE/><REF NAME="ex:raise"/>
+      and <SPACE/><REF NAME="ex:apply-with-raise"/>
+      concern the details of implementing such a strategy.)
+      </TEXT>
+      <TEXT>
+      Another advantage of a tower is that we can easily implement the
+      notion that every type <QUOTE>inherits</QUOTE> all operations defined on a
+      supertype.  For instance, if we do not supply a special
+      <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+      for
+      finding the real part of an integer, we should nevertheless expect
+      that <SPLITINLINE><SCHEME><SCHEMEINLINE>real-part</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>real_part</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> will be defined for integers by virtue of the
+      fact that integers are a subtype of complex numbers.  In a tower, we
+      can arrange for this to happen in a uniform way by modifying <SPLITINLINE><SCHEME><SCHEMEINLINE>apply-generic</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>apply_generic</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>.  If the required operation is not directly defined for
+      the type of the object given, we raise the object to its supertype and
+      try again.  We thus crawl up the tower, transforming our argument as we
+      go, until we either find a level at which the desired operation can be
+      performed or hit the top (in which case we give up).
+      </TEXT>
+      <TEXT>
+      <INDEX>type(s)<SUBINDEX>lowering</SUBINDEX></INDEX>
+      Yet another advantage of a tower over a more general hierarchy is that
+      it gives us a simple way to <QUOTE>lower</QUOTE> a data object to the simplest
+      representation.  For example, if we add <LATEXINLINE>$2+3i$</LATEXINLINE> to <LATEXINLINE>$4-3i$</LATEXINLINE>, it would be
+      nice to obtain the answer as the integer 6 rather than as the complex
+      number <LATEXINLINE>$6+0i$</LATEXINLINE>.  Exercise<SPACE/><REF NAME="ex:simplify"/> discusses a way to implement
+      such a lowering operation.  (The trick is that we need a general way
+      to distinguish those objects that can be lowered, such as <LATEXINLINE>$6+0i$</LATEXINLINE>, from
+      those that cannot, such as <LATEXINLINE>$6+2i$</LATEXINLINE>.)
+
+      <FIGURE src="img_original/ch2-Z-G-67.gif">
+        <CAPTION>Relations among types of geometric figures.</CAPTION>
+        <LABEL NAME="fig:relations-among-figures"/>
+      </FIGURE>
+
+      </TEXT>
+
+      <SUBHEADING>
+        <NAME>Inadequacies of hierarchies</NAME>
+      </SUBHEADING>
+
+      <INDEX>hierarchy of types<SUBINDEX>inadequacy of</SUBINDEX></INDEX>
+      <TEXT>
+      If the data types in our system can be naturally arranged in a tower,
+      this greatly simplifies the problems of dealing with generic operations
+      on different types, as we have seen.  Unfortunately, this is usually
+      not the case.  Figure<SPACE/><REF NAME="fig:relations-among-figures"/> illustrates a
+      more complex arrangement of mixed types, this one showing relations
+      among different types of geometric figures.  We see that, in general,
+      <INDEX>type(s)<SUBINDEX>multiple subtype and supertype</SUBINDEX></INDEX>
+      <INDEX>supertype<SUBINDEX>multiple</SUBINDEX></INDEX>
+      <INDEX>subtype<SUBINDEX>multiple</SUBINDEX></INDEX>
+      a type may have more than one subtype.  Triangles and quadrilaterals,
+      for instance, are both subtypes of polygons.  In addition, a type may
+      have more than one supertype.  For example, an isosceles right
+      triangle may be regarded either as an isosceles triangle or as a right
+      triangle.  This multiple-supertypes issue is particularly thorny,
+      since it means that there is no unique way to <QUOTE>raise</QUOTE> a type in the
+      hierarchy.  Finding the <QUOTE>correct</QUOTE> supertype in which to apply an
+      operation to an object may involve considerable searching through the
+      entire type network on the part of a
+      <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+      such as <SPLITINLINE><SCHEME><SCHEMEINLINE>apply-generic</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>apply_generic</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>.  Since there generally are multiple subtypes for a
+      type, there is a similar problem in coercing a value <QUOTE>down</QUOTE> the type
+      hierarchy.  Dealing with large numbers of interrelated types while
+      still preserving modularity in the design of large systems is very
+      difficult, and is an area of much current research.<FOOTNOTE>This statement, which also appears in the first edition of this book,
+        is just as true now as it was when we wrote it twelve years ago.
+        Developing a useful, general framework for expressing the relations
+        among different types of entities (what philosophers call
+        <QUOTE>ontology</QUOTE>) seems intractably difficult.  The main difference
+        between the confusion that existed ten years ago and the confusion
+        that exists now is that now a variety of inadequate ontological
+        theories have been embodied in a plethora of correspondingly
+        inadequate programming languages.  For example, much of the complexity
+        of 
+        <INDEX>object-oriented programming languages</INDEX>
+        <INDEX>programming language<SUBINDEX>object-oriented</SUBINDEX></INDEX>
+        object-oriented programming languages<EMDASH/>and the subtle and
+        confusing differences among contemporary object-oriented
+        languages<EMDASH/>centers on the treatment of generic operations on
+        interrelated types.  Our own discussion of computational objects in
+        Chapter<SPACE/>3 avoids these issues entirely.  Readers familiar with
+        object-oriented programming will notice that we have much to say in
+        Chapter<SPACE/>3 about local state, but we do not even mention <QUOTE>classes</QUOTE> or
+        <QUOTE>inheritance.</QUOTE>  In fact, we suspect that these problems cannot be
+        adequately addressed in terms of computer-language design alone,
+        without also drawing on work in knowledge representation and automated
+        reasoning.</FOOTNOTE>
+      </TEXT>
+
+      <EXERCISE>
+        <!-- \indcode{apply-generic}[with coercion] -->
+        Louis Reasoner has noticed that <SPLITINLINE><SCHEME><SCHEMEINLINE>apply-generic</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>apply_generic</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> may try to
+        coerce the arguments to each other<APOS/>s type even if they already have
+        the same type.  Therefore, he reasons, we need to put
+        <SPLITINLINE><SCHEME>procedures</SCHEME><JAVASCRIPT>functions</JAVASCRIPT></SPLITINLINE>
+        in the coercion table to <QUOTE>coerce</QUOTE> arguments of each type to their
+        own type.  For example, in addition to the <SPLITINLINE><SCHEME><SCHEMEINLINE>scheme-number-&gt;complex</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>javascript_number_to_complex</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>
+        coercion shown above, he would do:
+
+        <SNIPPET>
+          <SCHEME>
+            <!-- \indcode*{scheme-number-&gt;scheme-number} -->
+(define (scheme-number-&gt;scheme-number n) n)
+            <!-- \indcode*{complex-&gt;complex} -->
+(define (complex-&gt;complex z) z)
+(put-coercion 'scheme-number 'scheme-number
+  scheme-number-&gt;scheme-number)
+(put-coercion 'complex 'complex complex-&gt;complex)
+          </SCHEME>
+          <JAVASCRIPT>
+function javascript_number_to_javascript_number(n){ return n; }
+function complex_number_to_complex_number(n){ return n; }
+put_coercion("javascript_number","javascript_number",
+             javascript_number_to_javascript_number);
+put_coercion("complex_number","complex_number",
+             complex_number_to_complex_number);
+          </JAVASCRIPT>
+        </SNIPPET>
+
+        <OL>
+          <LI>
+            With Louis<APOS/>s coercion
+            <SPLITINLINE><SCHEME>procedures</SCHEME><JAVASCRIPT>functions</JAVASCRIPT></SPLITINLINE>
+            installed, what happens if <SPLITINLINE><SCHEME><SCHEMEINLINE>apply-generic</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>apply_generic</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>
+            is called with two arguments of type <SPLITINLINE><SCHEME><SCHEMEINLINE>scheme-number</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>"javascript_number"</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> or two arguments of
+            type <SPLITINLINE><SCHEME><SCHEMEINLINE>complex</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>"complex"</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> for an operation that is not found in the table for those
+            types?  For example, assume that we<APOS/>ve defined a generic exponentiation
+            operation:
+
+            <SNIPPET>
+              <SCHEME>
+(define (exp x y) (apply-generic 'exp x y))
+              </SCHEME>
+              <JAVASCRIPT>
+function exp(x,y) { return apply_generic("exp",list(x,y)); }
+              </JAVASCRIPT>
+            </SNIPPET>
+
+            and have put a
+            <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+            for exponentiation in the 
+<SPLITINLINE><SCHEME>Scheme-number</SCHEME><JAVASCRIPT>JavaScript-number</JAVASCRIPT></SPLITINLINE>
+            package but not in any other package:
+
+            <SNIPPET>
+              <SCHEME>
+;; following added to Scheme-number package
+(put 'exp '(scheme-number scheme-number)
+  (lambda (x y) (tag (expt x y)))) ; using primitive expt
+              </SCHEME>
+              <JAVASCRIPT>
+// following added to JavaScript-number package
+put("exp",list("javascript_number","javascript_number"),
+    function(x,y) { return tag(Math.exp(x,y)); }) // using primitive Math.exp
+              </JAVASCRIPT>
+            </SNIPPET>
+
+            What happens if we call <SPLITINLINE><SCHEME><SCHEMEINLINE>exp</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>exp</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> with two complex numbers as arguments?
+          </LI>
+          <LI>
+            Is Louis correct that something had to be done about
+            coercion with arguments of the same type, or does <SPLITINLINE><SCHEME><SCHEMEINLINE>apply-generic</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>apply_generic</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>
+            work correctly as is?
+          </LI>
+          <LI>
+            Modify <SPLITINLINE><SCHEME><SCHEMEINLINE>apply-generic</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>apply_generic</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> so that it doesn<APOS/>t try coercion if
+            the two arguments have the same type.
+          </LI>
+        </OL>
+      </EXERCISE>
+
+      <EXERCISE>
+        <!-- \indcode{apply-generic}[with coercion of multiple arguments] -->
+        Show how to generalize <SPLITINLINE><SCHEME><SCHEMEINLINE>apply-generic</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>apply_generic</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> to handle
+        coercion in the general case of multiple arguments.  One strategy is
+        to attempt to coerce all the arguments to the type of the first argument, then
+        to the type of the second argument, and so on.  Give an example of a situation
+        where this strategy (and likewise the two-argument version given
+        above) is not sufficiently general.  (Hint: Consider the case where
+        there are some suitable mixed-type operations present in the table
+        that will not be tried.)
+        <LABEL NAME="ex:multi-coercion"/>
+      </EXERCISE>
+
+
+      <EXERCISE> 
+        <INDEX>type(s)<SUBINDEX>raising</SUBINDEX></INDEX>
+        Suppose you are designing a generic arithmetic system for dealing with
+        the tower of types shown in Figure<SPACE/><REF NAME="fig:tower"/>:
+        integer, rational, real, complex.  For
+        each type (except complex), design a
+        <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+        that raises objects of
+        that type one level in the tower.  Show how to install a generic <SPLITINLINE><SCHEME><SCHEMEINLINE>raise</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>raise</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> operation that will work for each type (except complex).
+        <LABEL NAME="ex:raise"/>
+      </EXERCISE>
+
+      <EXERCISE>
+        <!-- \indcode{apply-generic}[with coercion by raising] -->
+        Using the <SPLITINLINE><SCHEME><SCHEMEINLINE>raise</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>raise</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> operation of Exercise<SPACE/><REF NAME="ex:raise"/>, modify the <SPLITINLINE><SCHEME><SCHEMEINLINE>apply-generic</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>apply_generic</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>
+        <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+        so that it coerces its arguments to have the
+        same type by the method of successive raising, as discussed in this
+        section.  You will need to devise a way to test which of two types is
+        higher in the tower.  Do this in a manner that is <QUOTE>compatible</QUOTE> with
+        the rest of the system and will not lead to problems in adding new
+        levels to the tower.
+        <LABEL NAME="ex:apply-with-raise"/>
+      </EXERCISE>
+
+      <EXERCISE> 
+        <!-- \indcode{apply-generic}[with coercion to simplify] -->
+        <INDEX>type(s)<SUBINDEX>lowering</SUBINDEX></INDEX>
+        This section mentioned a method for <QUOTE>simplifying</QUOTE> a data object
+        by lowering it in the tower of types as far as possible.  Design
+        a
+        <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+        <SPLITINLINE><SCHEME><SCHEMEINLINE>drop</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>drop</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> that accomplishes this for the tower described
+        in Exercise<SPACE/><REF NAME="ex:raise"/>.  The key is to decide, in some general way, whether
+        an object can be lowered.  For example, the complex number <LATEXINLINE>$1.5+0i$</LATEXINLINE>
+        can be lowered as far as <SPLITINLINE><SCHEME><SCHEMEINLINE>real</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>"real"</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>, the complex number <LATEXINLINE>$1+0i$</LATEXINLINE> can be
+        lowered as far as <SPLITINLINE><SCHEME><SCHEMEINLINE>integer</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>"integer"</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>, and the complex number <LATEXINLINE>$2+3i$</LATEXINLINE> cannot
+        be lowered at all.  Here is a plan for determining whether an object
+        can be lowered: Begin by defining a generic operation <SPLITINLINE><SCHEME><SCHEMEINLINE>project</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>project</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>
+        that <QUOTE>pushes</QUOTE> an object down in the tower.  For example, projecting
+        a complex number would involve throwing away the imaginary part.  Then
+        a number can be dropped if, when we <SPLITINLINE><SCHEME><SCHEMEINLINE>project</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>project</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> it and <SPLITINLINE><SCHEME><SCHEMEINLINE>raise</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>raise</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>
+        the result back to the type we started with, we end up with something
+        equal to what we started with.  Show how to implement this idea in
+        detail, by writing a <SPLITINLINE><SCHEME><SCHEMEINLINE>drop</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>drop</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>
+        <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+        that drops an object as far
+        as possible.  You will need to design the various projection
+        operations<FOOTNOTE>A real number can be projected to an integer
+          using the 
+          <!--\indprim*{round}-->
+          <!--\ind*{primitive
+              <SPLITINLINE><SCHEME>procedures</SCHEME><JAVASCRIPT>functions</JAVASCRIPT></SPLITINLINE>
+              (those marked <EM>ns</EM> are not in the IEEE Scheme standard)}[round@<SCHEMEINLINE>round</SCHEMEINLINE>]
+              -->
+          <SPLITINLINE><SCHEME><SCHEMEINLINE>round</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>round</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> primitive, which returns the closest integer
+          to its argument.</FOOTNOTE> and install <SPLITINLINE><SCHEME><SCHEMEINLINE>project</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>project</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> as a generic operation in
+        the system.  You will also need to make use of a generic equality
+        predicate, such as described in Exercise<SPACE/><REF NAME="ex:equ?"/>.  Finally, use <SPLITINLINE><SCHEME><SCHEMEINLINE>drop</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>drop</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>
+        to rewrite <SPLITINLINE><SCHEME><SCHEMEINLINE>apply-generic</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>apply_generic</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> from Exercise<SPACE/><REF NAME="ex:apply-with-raise"/> so that it
+        <QUOTE>simplifies</QUOTE> its answers.
+        <LABEL NAME="ex:simplify"/>
+      </EXERCISE> 
+
+      <EXERCISE>
+        Suppose we want to handle complex numbers whose real
+        parts, imaginary parts, magnitudes, and angles can be either ordinary
+        numbers, rational numbers, or other numbers we might wish to add to
+        the system.  Describe and implement the changes to the system needed
+        to accommodate this.  You will have to define operations such as <SPLITINLINE><SCHEME><SCHEMEINLINE>sine</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>sine</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> and <SPLITINLINE><SCHEME><SCHEMEINLINE>cosine</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>cosine</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> that are generic over ordinary numbers and
+        rational numbers.
+      </EXERCISE> 
+      <INDEX>coercion|)</INDEX>
+      <INDEX>type(s)<SUBINDEX>hierarchy of|)</SUBINDEX></INDEX>
+      <INDEX>hierarchy of types|)</INDEX>
+
+    </SUBSECTION>

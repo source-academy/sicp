@@ -1,0 +1,270 @@
+    <SUBSECTION>
+      <NAME>
+  The Assembler
+      </NAME>
+
+      <LABEL NAME="sec:assembler"/>
+      <INDEX>assembler|(</INDEX>
+
+      <TEXT>
+  The assembler transforms the sequence of controller expressions for a
+  machine into a corresponding list of machine instructions, each with
+  its execution
+  <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>.  Overall, the assembler is much like the
+  evaluators we studied in Chapter<SPACE/>4<EMDASH/>there is an input language (in
+  this case, the register-machine language) and we must perform an
+  appropriate action for each type of expression in the language.
+      </TEXT>
+
+      <TEXT>
+  <INDEX>syntactic analysis, separated from execution<SUBINDEX>in register-machine
+      simulator</SUBINDEX></INDEX>
+  The technique of producing an execution
+  <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+  for each instruction
+  is just what we used in Section<SPACE/><REF NAME="sec:separating-analysis"/> to speed
+  up the evaluator by separating analysis from runtime execution.  As we
+  saw in Chapter<SPACE/>4, much useful analysis of Scheme expressions could be
+  performed without knowing the actual values of variables.  Here,
+  analogously, much useful analysis of register-machine-language
+  expressions can be performed without knowing the actual contents of
+  machine registers.  For example, we can replace references to
+  registers by pointers to the register objects, and we can
+  replace references to labels by pointers to the place in the
+  instruction sequence that the label designates.
+      </TEXT>
+
+      <TEXT>
+  Before it can generate the instruction execution
+  <SPLITINLINE><SCHEME>procedures</SCHEME><JAVASCRIPT>functions</JAVASCRIPT></SPLITINLINE>, the
+  assembler must know what all the labels refer to, so it begins by
+  scanning the controller text to separate the labels from the
+  instructions.  As it scans the text, it constructs both a list of
+  instructions and a table that associates each label with a pointer
+  into that list.  Then the assembler augments the instruction list by
+  inserting the execution
+  <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+  for each instruction.
+      </TEXT>
+
+      <TEXT>
+  The <SCHEMEINLINE>assemble</SCHEMEINLINE>
+  <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+  is the main entry to the assembler.
+  It takes the controller text and the machine model as arguments and
+  returns the instruction sequence to be stored in the model.
+  <SCHEMEINLINE>Assemble</SCHEMEINLINE> calls <SCHEMEINLINE>extract-labels</SCHEMEINLINE> to build the initial instruction list
+  and label table from the supplied controller text.  The second argument
+  to <SCHEMEINLINE>extract-labels</SCHEMEINLINE> is a
+  <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+  to be called to process these results:
+  This
+  <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+  uses <SCHEMEINLINE>update-insts!</SCHEMEINLINE> to generate the instruction execution
+  <SPLITINLINE><SCHEME>procedures</SCHEME><JAVASCRIPT>functions</JAVASCRIPT></SPLITINLINE>
+  and insert them into the instruction list,
+  and returns the modified list.
+  <SNIPPET>
+    <SCHEME>
+      <!--  \indcode*{assemble} -->
+      (define (assemble controller-text machine)
+      (extract-labels controller-text
+      (lambda (insts labels)
+      (update-insts! insts labels machine)
+      insts)))
+    </SCHEME>
+  </SNIPPET>
+      </TEXT>
+
+      <TEXT>
+  <SCHEMEINLINE>Extract-labels</SCHEMEINLINE>
+  takes as arguments a list <SCHEMEINLINE>text</SCHEMEINLINE> (the sequence of controller
+  instruction expressions) and a <SCHEMEINLINE>receive</SCHEMEINLINE>
+  <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>.  <SCHEMEINLINE>Receive</SCHEMEINLINE>
+  will be called with two values: (1) a list <SCHEMEINLINE>insts</SCHEMEINLINE> of instruction
+  data structures, each containing an instruction from <SCHEMEINLINE>text</SCHEMEINLINE>; and
+  (2) a table called <SCHEMEINLINE>labels</SCHEMEINLINE>, which associates each label from <SCHEMEINLINE>text</SCHEMEINLINE>
+  with the position in the list <SCHEMEINLINE>insts</SCHEMEINLINE> that the label designates.
+
+  <SNIPPET>
+    <SCHEME>
+      <!--  \indcode*{extract-labels} -->
+      (define (extract-labels text receive)
+      (if (null? text)
+      (receive '() '())
+      (extract-labels (cdr text)
+      (lambda (insts labels)
+            (let ((next-inst (car text)))
+            (if (symbol? next-inst)
+            (receive insts
+            (cons (make-label-entry next-inst
+            insts)
+            labels))
+            (receive (cons (make-instruction next-inst)
+            insts)
+            labels)))))))
+    </SCHEME>
+  </SNIPPET>
+      </TEXT>
+
+      <TEXT>
+  <SCHEMEINLINE>Extract-labels</SCHEMEINLINE> works by sequentially scanning the elements of
+  the <SCHEMEINLINE>text</SCHEMEINLINE> and accumulating the <SCHEMEINLINE>insts</SCHEMEINLINE> and the <SCHEMEINLINE>labels</SCHEMEINLINE>.
+  If an element is a symbol (and thus a label) an appropriate entry is
+  added to the <SCHEMEINLINE>labels</SCHEMEINLINE> table.  Otherwise the element is accumulated
+  onto the <SCHEMEINLINE>insts</SCHEMEINLINE> list.<FOOTNOTE>
+    <!-- \indcodeplus{receive}{<SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>}-->
+    Using the <SCHEMEINLINE>receive</SCHEMEINLINE>
+    <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+    here is a way to get <SCHEMEINLINE>extract-labels</SCHEMEINLINE> to effectively return two values<EMDASH/><SCHEMEINLINE>labels</SCHEMEINLINE> and
+    <SCHEMEINLINE>insts</SCHEMEINLINE><EMDASH/>without explicitly making a compound data structure to
+    hold them.  An alternative implementation, which returns an explicit
+    pair of values, is
+    <SNIPPET>
+      <SCHEME>
+        <!--  \indcode*{extract-labels} -->
+        (define (extract-labels text)
+        (if (null? text)
+        (cons '() '())
+        (let ((result (extract-labels (cdr text))))
+              (let ((insts (car result)) (labels (cdr result)))
+              (let ((next-inst (car text)))
+              (if (symbol? next-inst)
+              (cons insts
+              (cons (make-label-entry next-inst insts) labels))
+              (cons (cons (make-instruction next-inst) insts)
+              labels)))))))
+      </SCHEME>
+    </SNIPPET>
+    which would be called by <SCHEMEINLINE>assemble</SCHEMEINLINE> as follows:
+    <SNIPPET>
+      <SCHEME>
+        <!--  \indcode*{assemble} -->
+        (define (assemble controller-text machine)
+        (let ((result (extract-labels controller-text)))
+        (let ((insts (car result)) (labels (cdr result)))
+        (update-insts! insts labels machine)
+        insts)))
+      </SCHEME>
+    </SNIPPET>
+
+    <INDEX>returning multiple values</INDEX>
+    <INDEX><SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE><SUBINDEX>returning multiple values</SUBINDEX></INDEX>
+    <INDEX>continuation<SUBINDEX>in register-machine simulator</SUBINDEX></INDEX>
+    You can consider our use of <SCHEMEINLINE>receive</SCHEMEINLINE> as demonstrating an elegant
+    way to return multiple values, or simply an excuse to show off a
+    programming trick.  An argument like <SCHEMEINLINE>receive</SCHEMEINLINE> that is the next
+    <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+    to be invoked is called a <QUOTE>continuation.</QUOTE>  Recall that we
+    also used continuations to implement the backtracking control
+    structure in the <SCHEMEINLINE>amb</SCHEMEINLINE> evaluator in Section<SPACE/><REF NAME="sec:amb-implementation"/>.</FOOTNOTE>
+      </TEXT>
+
+      <TEXT>
+  <SCHEMEINLINE>Update-insts!</SCHEMEINLINE> modifies the instruction list, which initially
+  contains only the text of the instructions, to include the
+  corresponding execution
+  <SPLITINLINE><SCHEME>procedures</SCHEME><JAVASCRIPT>functions</JAVASCRIPT></SPLITINLINE>:
+
+  <SNIPPET>
+    <SCHEME>
+      <!--  \indcode*{update-insts!} -->
+      (define (update-insts! insts labels machine)
+      (let ((pc (get-register machine 'pc))
+            (flag (get-register machine 'flag))
+            (stack (machine 'stack))
+            (ops (machine 'operations)))
+      (for-each
+      (lambda (inst)
+      (set-instruction-execution-proc! 
+            inst
+            (make-execution-procedure
+            (instruction-text inst) labels machine
+            pc flag stack ops)))
+      insts)))
+    </SCHEME>
+  </SNIPPET>
+      </TEXT>
+
+      <TEXT>
+  The machine instruction data structure simply pairs the
+  instruction text with the corresponding execution
+  <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>.
+  The execution
+  <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+  is not yet available when <SCHEMEINLINE>extract-labels</SCHEMEINLINE>
+  constructs the instruction, and is inserted later by <SCHEMEINLINE>update-insts!</SCHEMEINLINE>.
+  <SNIPPET>
+    <SCHEME>
+      <!--  \indcode*{make-instruction} -->
+      (define (make-instruction text)
+      (cons text '()))
+
+      <!--  \indcode*{instruction-text} -->
+      (define (instruction-text inst)
+      (car inst))
+
+      <!--  \indcode*{instruction-execution-proc} -->
+      (define (instruction-execution-proc inst)
+      (cdr inst))
+
+      <!--  \indcode*{set-instruction-execution-proc!} -->
+      (define (set-instruction-execution-proc! inst proc)
+      (set-cdr! inst proc))
+    </SCHEME>
+  </SNIPPET>
+      </TEXT>
+
+      <TEXT>
+  The instruction text is not used by our simulator, but it is handy to keep
+  around for debugging (see Exercise<SPACE/><REF NAME="ex:reg-machine-instruction-trace"/>).
+      </TEXT>
+
+      <TEXT>
+  Elements of the label table are pairs:
+  <SNIPPET>
+    <SCHEME>
+      <!--  \indcode*{make-label-entry} -->
+      (define (make-label-entry label-name insts)
+      (cons label-name insts))
+    </SCHEME>
+  </SNIPPET>
+  Entries will be looked up in the table with
+  <SNIPPET>
+    <SCHEME>
+      <!--  \indcode*{lookup-label} -->
+      (define (lookup-label labels label-name)
+      (let ((val (assoc label-name labels)))
+      (if val
+            (cdr val)
+            (error "Undefined label - - ASSEMBLE" label-name))))
+    </SCHEME>
+  </SNIPPET>
+      </TEXT>
+
+      <EXERCISE>
+  The following register-machine code is ambiguous, because the label
+  <SCHEMEINLINE>here</SCHEMEINLINE> is defined more than once:
+  <SNIPPET>
+    <SCHEME>
+      start
+      (goto (label here))
+      here
+      (assign a (const 3))
+      (goto (label there))
+      here
+      (assign a (const 4))
+      (goto (label there))
+      there
+    </SCHEME>
+  </SNIPPET>
+
+  With the simulator as written, what will the contents of register <SCHEMEINLINE>a</SCHEMEINLINE>
+  be when control reaches <SCHEMEINLINE>there</SCHEMEINLINE>?  Modify the <SCHEMEINLINE>extract-labels</SCHEMEINLINE>
+  <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+  so that the assembler will signal an error if the same label
+  name is used to indicate two different locations.
+      </EXERCISE>
+      <INDEX>assembler|)</INDEX>
+
+    </SUBSECTION>

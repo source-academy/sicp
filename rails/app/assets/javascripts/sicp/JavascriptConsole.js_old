@@ -1,0 +1,364 @@
+//
+// window.Console
+//
+
+  function getAbsolutePosition(element) {
+    var r = { x: element.offsetLeft, y: element.offsetTop };
+    if (element.offsetParent) {
+      var tmp = getAbsolutePosition(element.offsetParent);
+      r.x += tmp.x;
+      r.y += tmp.y;
+    }
+    return r;
+  };
+
+window.JavascriptConsole = function (what,name,stmt,evt,factor) {
+
+    this.__xPos = "";
+
+    this.__yPos = "";
+
+    this.__factor = 1.0;
+
+    this.__windowWidth = 630;
+
+    this.__textWidth = 630;
+
+    this.__codeHook = "";
+    
+    this.__resultTextarea = "";
+    
+    this.__displayString = "";
+    
+    this.__mainDiv = "";
+
+    this.lineHeight = 15;
+    this.charWidth = 8;
+    this.codePadding = 30;
+//    .CONSTANT("textWidth","47%")
+    this.textWidth = "640px";
+    this.textPadding = 15;
+
+    this.__sicpPath = "";
+
+        window.javascript_statement = stmt;
+
+	    if (parseInt(navigator.appVersion)>3) {
+		if (navigator.appName=="Netscape") {
+		    this._windowWidth = window.innerWidth;
+		}
+		if (navigator.appName.indexOf("Microsoft")!=-1) {
+		    this._windowWidth = document.body.offsetWidth;
+		}
+	    }
+
+	    // see book.css: subtract margins on left in px and right 4%
+	    this._textWidth = (this._windowWidth * 0.96) - 90;
+
+	    var pos = window.JavascriptConsole.find_pos(evt);
+
+	    this._xPos = pos[0]-20;
+
+	    this._yPos = pos[1]-20;
+
+	    this._factor = factor;
+
+	    var lines = Math.min(this._count_lines(what),50);
+
+	    this._mainDiv = null;
+	    this._dragMode = 0;
+
+	    this._event = evt;
+
+	    this._name = name;
+
+	    this._displayString = "";
+
+	    var content =
+				'<img src="'+this.__sicpPath+'img_original/white.gif" class="popupinput" height="'+(lines*this.lineHeight+this.codePadding+5)+
+		'px" width="1px"></img>'+ // (this._textWidth * this._factor) +'px"></img>' +
+		'<table width="100%">' +
+		   '<colgroup><col width="50%"/><col width="50%"/></colgroup>' +
+		   '<tr>' +
+                      '<td align="left">' +
+                         '<button id="'+
+		          this._name+'_eval_button">Evaluate</button>' +
+		      '</td>' +
+                      '<td align="left">' +
+                         '<button onclick="window.JavascriptConsole.close(\''+
+                                              this._name+'\');">Close</button>' +
+		      '</td>' + 
+                    '</tr>' +
+                '</table>' +
+		'<textarea class="popupoutput" readonly="true" id="'+
+		this._name+'_result_textarea" cols="'+ 
+		// don't know why these funny factors and constants are needed
+		((this._textWidth * this._factor*1.025) / this.charWidth - 6) + 
+		'" rows="8">' +
+		'</textarea>';
+
+            this._mainDiv = document.createElement('div');
+	    this._mainDiv.setAttribute('class',"popup");
+	    this._mainDiv.setAttribute('id',name);
+	    this._mainDiv.style.position = "absolute";
+            this._mainDiv.style.left = this._xPos + "px";
+            this._mainDiv.style.top = this._yPos + "px";
+	    this._mainDiv.style.zIndex = 4;
+
+            this._mainDiv.innerHTML = 
+		"<div class='popupinner'>" + 
+		content +
+                "</div>";
+
+	    this._codeHook = document.getElementById(name+"_div");
+
+	    this._codeHook.style.display = "block";
+	    
+            this._codeHook.style.left = (this._xPos + 20) + "px";
+            this._codeHook.style.top = (this._yPos + 20) + "px";
+	    this._codeHook.style.zIndex = 5;
+
+	    this._codeHook.innerHTML = "";
+
+	    this._sourceObject = new CodeMirror(this._codeHook, {
+		    height: (lines * this.lineHeight + this.codePadding)+'px',
+		    width: this._textWidth * this._factor - this.textPadding * 2,
+		    content: what,
+		    parserfile: ["tokenizejavascript.js", "parsejavascript.js"],
+		    stylesheet: "css/jscolors.css",
+		    path: "js/CodeMirror-0.67/js/",
+		    autoMatchParens: true
+		});
+
+            document.body.appendChild(this._mainDiv);
+
+            // Hook mousedown for dragging
+	    window.Event.addEventListener(this._mainDiv, "mousedown", this,
+				          window.JavascriptConsole.prototype._drag_mousedown);
+
+	    this._resultTextarea = document.getElementById(name+"_result_textarea");
+
+	    var evalButton = document.getElementById(name+"_eval_button");
+	    var self = this;
+	    evalButton.onclick = function () {
+   					self.eval_javascript(self._name);
+	    				    };
+
+	    window.latestConsole = this;
+}
+        
+window.JavascriptConsole.prototype._count_lines = function(s) {
+		var counter = 1;
+		for (i=0;i<s.length;i++)
+		    if (s.charAt(i) == '\n') counter++;
+		return counter;
+	    }
+    
+window.JavascriptConsole.prototype._get_height_factor = function() {
+	    return (window.XMLHttpRequest) ?
+		(
+		 (window.ActiveXObject) ?
+		 // IE 7
+		 17
+		 :
+		 // Opera, Safari, Firefox
+		 14
+		 )
+		:
+		//IE 6 and below
+		15
+		;
+	}
+
+window.JavascriptConsole.prototype._get_height_offset = function() {
+	    return (window.XMLHttpRequest) ?
+		(
+		 (window.ActiveXObject) ?
+		 // IE 7
+		 300
+		 :
+		 // Opera, Safari, Firefox
+		 250
+		 )
+		:
+		//IE 6 and below
+		285
+		;
+	}
+
+    /********************
+     *  Event Handlers  *
+     ********************/
+    
+window.JavascriptConsole.prototype._close_click = function() { 
+	    document.body.removeChild(this._mainDiv);
+    }
+
+window.JavascriptConsole.prototype._drag_mousedown = function(evt) {
+        this._mainDiv.style.zIndex ++;
+	this._codeHook.style.zIndex ++;
+
+	if (evt.target instanceof HTMLTextAreaElement) {
+	    this._dragMode = 0;
+	    return;
+	}
+	
+	this._dragMode = 1;
+                
+	// Save initial window location
+	this._drag_offsetLeft = this._mainDiv.offsetLeft;
+	this._drag_offsetTop = this._mainDiv.offsetTop;
+
+	// Save initial codeHook location
+	this._drag_offsetLeftCodeHook = this._codeHook.offsetLeft;
+	this._drag_offsetTopCodeHook = this._codeHook.offsetTop;
+
+        // Save initial mouse down position
+        this._drag_clientX = evt.clientX;
+        this._drag_clientY = evt.clientY;
+
+        // Save initial window scroll position
+        if(typeof window.scrollY === "number") {
+            this._drag_scrollX = window.scrollX;
+            this._drag_scrollY = window.scrollY;
+        } else if(typeof document.body.scrollTop === "number") {
+            this._drag_scrollX = document.body.scrollLeft;
+            this._drag_scrollY = document.body.scrollTop;
+        }
+
+        // Listen for mousemove and mouseup
+        window.Event.addEventListener(document, "mousemove", this,
+            window.JavascriptConsole.prototype._drag_mousemove);
+        window.Event.addEventListener(document, "mouseup", this,
+            window.JavascriptConsole.prototype._drag_mouseup);
+    }
+    
+window.JavascriptConsole.prototype._drag_mousemove = function(evt) {
+        // Calculate movement delta (from initial mousedown position)
+        var dx = evt.clientX - this._drag_clientX;
+        var dy = evt.clientY - this._drag_clientY;
+    
+        // Adjust for the window scroll
+        if(typeof window.scrollX === "number") {
+            dx += (window.scrollX - this._drag_scrollX);
+            dy += (window.scrollY - this._drag_scrollY);
+        } else if(typeof document.body.scrollTop === "number") {
+            dx += (document.body.scrollLeft - this._drag_scrollX);
+            dy += (document.body.scrollTop - this._drag_scrollY);
+        }
+    
+        // Do the move (from initial window position)
+        switch (this._dragMode) {
+            case 1:
+                this._mainDiv.style.left = (this._drag_offsetLeft + dx) + "px";
+                this._mainDiv.style.top = (this._drag_offsetTop + dy) + "px";
+                this._codeHook.style.left = (this._drag_offsetLeftCodeHook + dx) + "px";
+                this._codeHook.style.top = (this._drag_offsetTopCodeHook + dy) + "px";
+                break;            
+            case 2:
+                var w = this._drag_offsetWidth + dx, h = this._drag_offsetHeight + dy;
+                if (w < 100) dx = (w = 100) - this._drag_offsetWidth;
+                if (h < 50) dy = (h = 50) - this._drag_offsetHeight;
+                this._mainDiv.style.width = w + "px";
+                this._mainDiv.style.height = "auto";
+                break;
+        }
+    
+        return false;
+    }
+    
+window.JavascriptConsole.prototype._drag_mouseup = function(evt) {
+    
+        window.Event.removeEventListener(document, "mousemove", this,
+            this._drag_mousemove);
+        window.Event.removeEventListener(document, "mouseup", this,
+            this._drag_mouseup);
+        this._dragMode = 0;
+
+	//	evt.target.style.cursor = "move";
+	
+        return false;
+    }
+
+       // from http://www.quirksmode.org/js/findpos.html
+
+window.JavascriptConsole.find_pos = function(e) {
+	    var obj = e.target;
+            var curtop = 0;
+           var curleft = 0;
+
+   	   if (obj && obj.offsetParent) {
+
+    	   do {
+			curleft += obj.offsetLeft;
+			curtop += obj.offsetTop;
+
+		} while (obj = obj.offsetParent);
+
+	   }
+
+   	   return [curleft,curtop];
+
+	}
+
+window.JavascriptConsole.prototype.eval_javascript = function() {
+	    var toShow;
+	    try {  
+		with (window) {
+		    window.result = window.eval(this._sourceObject.getCode());
+		}
+		toShow = this.format(window.result); 
+	    } catch ( ee ) {
+		toShow = 'Exception: '+ ee;
+	    }
+	    this.display(toShow);
+	}
+
+window.JavascriptConsole.prototype.display = function(toShow) {
+	    this._displayString = this._displayString + '\n' + toShow + '\n';
+	    this._resultTextarea.value = this._displayString;
+	    this._resultTextarea.scrollTop = this._resultTextarea.scrollHeight;
+	}
+
+window.JavascriptConsole.close = function(name) {
+	    document.body.removeChild(document.getElementById(name));
+	    var codeHook = document.getElementById(name+"_div");
+	    codeHook.style.display = "none";
+	}
+
+    // format: JavaScript value to string
+    // limit the recursion so that circularity does
+    // not lead to runtime errors
+window.JavascriptConsole.prototype.format = function(x) {
+	    return this._format_it(x,10);
+	}
+
+window.JavascriptConsole.prototype._format_it = function(x,d) {
+	    if (d == 0) return "...";
+	    if ( x == undefined || x == null || typeof x == "number" 
+		 || typeof x == "boolean" ) return x;
+	    else if (typeof x == "string") { var s = '"' + x + '"'; return s; }
+	    else if (typeof x == "object") 
+		if (x.tag == "exit") { return "";}
+		else if (x instanceof Array) return this._format_array(x,d-1);
+		else return this._format_object(x,d-1);
+	    else if (typeof x == "function")
+		return x.toString();
+	}
+
+window.JavascriptConsole.prototype._format_array = function(x,d) {
+	    var l = x.length;
+	    var s = "";
+	    for (var i = 0; i < l-1; i++)
+		s += this._format_it(x[i],d) + ",";
+	    if (l > 0) s += this._format_it(x[l-1],d);
+	    return "[" + s + "]";
+	}
+
+window.JavascriptConsole.prototype._format_object = function(x,d) {
+	    var s = "";
+	    for (var prop in x) 
+		s += prop + ":" + this._format_it(x[prop],d) + ",";
+	    return "{" + s.substring(0,s.length-1) + "}";
+	}
+       

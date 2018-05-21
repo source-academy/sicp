@@ -1,0 +1,204 @@
+    <SUBSECTION>
+      <NAME>
+  Monitoring Machine Performance
+      </NAME>
+
+      <LABEL NAME="sec:monitor"/>
+      <INDEX>register machine<SUBINDEX>monitoring performance|(</SUBINDEX></INDEX>
+
+      <TEXT>
+  <INDEX>simulation<SUBINDEX>monitor@for monitoring performance of register machine</SUBINDEX></INDEX>
+  Simulation is useful not only for verifying the correctness of a
+  proposed machine design but also for measuring the machine<APOS/>s
+  performance.  For example, we can install in our simulation program a
+  <QUOTE>meter</QUOTE> that measures the number of stack operations used in a
+  computation.  To do this, we modify our simulated stack to keep track
+  of the number of times registers are saved on the stack and the
+  maximum depth reached by the stack, and add a message to the stack<APOS/>s
+  interface that prints the statistics, as shown below.
+  We also add an operation to the basic machine model to print the
+  stack statistics, by initializing <SCHEMEINLINE>the-ops</SCHEMEINLINE> in <SCHEMEINLINE>make-new-machine</SCHEMEINLINE> to
+  <SNIPPET>
+    <SCHEME>
+      <!-- \indcodeplus{initialize-stack}{operation in register machine}-->
+      <!-- \indcodeplus{print-stack-statistics}{operation in register machine}-->
+      (list (list 'initialize-stack
+            (lambda () (stack 'initialize)))
+      (list 'print-stack-statistics
+            (lambda () (stack 'print-statistics))))
+    </SCHEME>
+  </SNIPPET>
+      </TEXT>
+
+      <TEXT>
+  Here is the new version of <SCHEMEINLINE>make-stack</SCHEMEINLINE>:
+  <SNIPPET>
+    <SCHEME>
+      <!--  \indcode*{make-stack}[with monitored stack] -->
+      (define (make-stack)
+      (let ((s '())
+            (number-pushes 0)
+            (max-depth 0)
+            (current-depth 0))
+      (define (push x)
+      (set! s (cons x s))
+      (set! number-pushes (+ 1 number-pushes))
+      (set! current-depth (+ 1 current-depth))
+      (set! max-depth (max current-depth max-depth)))
+      (define (pop)
+      (if (null? s)
+            (error "Empty stack - - POP")
+            (let ((top (car s)))
+            (set! s (cdr s))
+            (set! current-depth (- current-depth 1))
+            top)))    
+      (define (initialize)
+      (set! s '())
+      (set! number-pushes 0)
+      (set! max-depth 0)
+      (set! current-depth 0)
+      'done)
+      (define (print-statistics)
+      (newline)
+      (display (list 'total-pushes  '= number-pushes
+            'maximum-depth '= max-depth)))
+      (define (dispatch message)
+      (cond ((eq? message 'push) push)
+            ((eq? message 'pop) (pop))
+            ((eq? message 'initialize) (initialize))
+            ((eq? message 'print-statistics)
+            (print-statistics))
+            (else
+            (error "Unknown request - - STACK" message))))
+      dispatch))
+    </SCHEME>
+  </SNIPPET>
+      </TEXT>
+
+      <TEXT>
+  Exercises<SPACE/><REF NAME="ex:instruction-count"/> through<SPACE/><REF NAME="ex:breakpoints"/>
+  describe other useful monitoring and debugging features that can be
+  added to the register-machine simulator.
+      </TEXT>
+      
+      <EXERCISE>
+  <!--  \indcode{factorial}[stack usage, register machine] -->
+  Measure the number of pushes and the maximum stack depth required to
+  compute <LATEXINLINE>$n!$</LATEXINLINE> for various small values of <LATEXINLINE>$n$</LATEXINLINE> using the factorial
+  machine shown in Figure<SPACE/><REF NAME="fig:fact-machine"/>.  From your data
+  determine formulas in terms of <LATEXINLINE>$n$</LATEXINLINE> for the total number of push
+  operations and the maximum stack depth used in computing <LATEXINLINE>$n!$</LATEXINLINE> for any
+  <LATEXINLINE>$n &gt; 1$</LATEXINLINE>. Note that each of these is a linear function of <LATEXINLINE>$n$</LATEXINLINE> and is
+  thus determined by two constants.  In order to get the statistics
+  printed, you will have to augment the factorial machine with instructions to
+  initialize the stack and print the statistics.
+  You may want to also modify the
+  machine so that it repeatedly reads a value for <LATEXINLINE>$n$</LATEXINLINE>, computes the
+  factorial, and prints the result (as we did for the GCD machine in
+  figure<SPACE/><REF NAME="fig:gcd-with-io"/>), so that you will not have to repeatedly
+  invoke <SCHEMEINLINE>get-register-contents</SCHEMEINLINE>, <SCHEMEINLINE>set-register-contents!</SCHEMEINLINE>, and
+  <SCHEMEINLINE>start</SCHEMEINLINE>.
+  <LABEL NAME="ex:measure-fact"/>
+      </EXERCISE>
+
+      <EXERCISE>
+  Add 
+  <INDEX>instruction counting</INDEX>
+  <EM>instruction counting</EM> to the register machine simulation.
+  That is, have the machine model keep track of the number of
+  instructions executed.  Extend the machine model<APOS/>s interface to accept
+  a new message that prints the value of the instruction count and
+  resets the count to zero.
+  <LABEL NAME="ex:instruction-count"/>
+      </EXERCISE>
+
+      <EXERCISE>
+  Augment the simulator to provide for 
+  <INDEX>instruction tracing</INDEX>
+  <INDEX>tracing<SUBINDEX>instruction execution</SUBINDEX></INDEX>
+  <EM>instruction tracing</EM>.
+  That is, before each instruction is executed, the simulator should print
+  the text of the instruction.  Make the machine model accept <SCHEMEINLINE>trace-on</SCHEMEINLINE> and
+  <SCHEMEINLINE>trace-off</SCHEMEINLINE> messages to turn tracing on and off.
+  <LABEL NAME="ex:reg-machine-instruction-trace"/>
+      </EXERCISE>
+
+      <EXERCISE>
+  Extend the instruction tracing of
+  Exercise<SPACE/><REF NAME="ex:reg-machine-instruction-trace"/> so that before
+  printing an instruction, the simulator prints any labels that
+  immediately precede that instruction in the controller sequence.  Be
+  careful to do this in a way that does not interfere with instruction
+  counting (Exercise<SPACE/><REF NAME="ex:instruction-count"/>).
+  You will have to make the simulator retain the necessary label information.
+      </EXERCISE>
+
+      <EXERCISE>
+  <INDEX>register(s)<SUBINDEX>tracing</SUBINDEX></INDEX>
+  <INDEX>tracing<SUBINDEX>register assignment</SUBINDEX></INDEX>
+  Modify the <SCHEMEINLINE>make-register</SCHEMEINLINE>
+  <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+  of
+  Section<SPACE/><REF NAME="sec:machine-model"/> so that registers can be traced.
+  Registers should accept messages that turn tracing on and off.  When a
+  register is traced, assigning a value to the register should print the
+  name of the register, the old contents of the register, and the new
+  contents being assigned.  Extend the interface to the machine model
+  to permit you to turn tracing on and off for designated machine registers.
+      </EXERCISE>
+
+      <EXERCISE><LABEL NAME="ex:breakpoints"/>
+  Alyssa P. Hacker wants a 
+  <INDEX>breakpoint</INDEX>
+  <EM>breakpoint</EM> feature in the simulator to
+  help her debug her machine designs.  You have been hired to install
+  this feature for her.  She wants to be able to specify a place in the
+  controller sequence where the simulator will stop and allow her to
+  examine the state of the machine.  You are to implement a
+  <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+
+  <SNIPPET EVAL="no">
+    <SCHEME>
+      (set-breakpoint ^machine^ ^label^ ^n^)
+    </SCHEME>
+  </SNIPPET>
+  that sets a breakpoint just before the <LATEXINLINE>$n$</LATEXINLINE>th instruction after the
+  given label.  For example,
+
+  <SNIPPET>
+    <SCHEME>
+      (set-breakpoint gcd-machine 'test-b 4)
+    </SCHEME>
+  </SNIPPET>
+  installs a breakpoint in <SCHEMEINLINE>gcd-machine</SCHEMEINLINE> just before the
+  assignment to register <SCHEMEINLINE>a</SCHEMEINLINE>.  When the simulator reaches the
+  breakpoint it should print the label and the offset of the breakpoint
+  and stop executing instructions.  Alyssa can then use <SCHEMEINLINE>get-register-contents</SCHEMEINLINE> and <SCHEMEINLINE>set-register-contents!</SCHEMEINLINE> to manipulate
+  the state of the simulated machine.  She should then be able to
+  continue execution by saying
+
+  <SNIPPET EVAL="no">
+    <SCHEME>
+      (proceed-machine ^machine^)
+    </SCHEME>
+  </SNIPPET>
+  She should also be able to remove a specific breakpoint by means of
+
+  <SNIPPET EVAL="no">
+    <SCHEME>
+      (cancel-breakpoint ^machine^ ^label^ ^n^)
+    </SCHEME>
+  </SNIPPET>
+  or to remove all breakpoints by means of
+
+  <SNIPPET EVAL="no">
+    <SCHEME>
+      (cancel-all-breakpoints ^machine^)
+    </SCHEME>
+  </SNIPPET>
+      </EXERCISE>
+      <INDEX>register machine<SUBINDEX>simulator|)</SUBINDEX></INDEX>
+      <INDEX>register-machine simulator|)</INDEX>
+      <INDEX>register machine<SUBINDEX>monitoring performance|)</SUBINDEX></INDEX>
+
+    </SUBSECTION>

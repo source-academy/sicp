@@ -1,0 +1,610 @@
+    <SUBSECTION> 
+      <NAME>
+        Representing Tables
+      </NAME>
+
+      <LABEL NAME="sec:tables"/>
+      <INDEX>table|(</INDEX>
+
+      <TEXT>
+        <INDEX>key of a record<SUBINDEX>in a table</SUBINDEX></INDEX>
+        When we studied various ways of representing sets in Chapter<SPACE/>2, we
+        mentioned in Section<SPACE/><REF NAME="sec:representing-sets"/> the task of
+        maintaining a table of records indexed by identifying keys.  In the
+        implementation of data-directed programming in
+        Section<SPACE/><REF NAME="sec:data-directed"/>, we made extensive use of
+        two-dimensional tables, in which information is stored and retrieved
+        using two keys.  Here we see how to build tables as mutable list
+        structures.
+      </TEXT>
+
+      <TEXT>
+        <INDEX>table<SUBINDEX>one-dimensional|(</SUBINDEX></INDEX>
+        We first consider a one-dimensional table, in which each value is
+        stored under a single key.  We implement the table as a list of
+        records, each of which is implemented as a pair consisting of a key
+        and the associated value. The records are glued together to form a
+        list by pairs whose <SPLITINLINE><SCHEME><SCHEMEINLINE>car</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>head</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>s point to successive records.  These
+        gluing pairs are called the 
+        <INDEX>table<SUBINDEX>backbone of</SUBINDEX></INDEX>
+        <EM>backbone</EM> of the table.  In order to
+        have a place that we can change when we add a new record to the table,
+        we build the table as a 
+        <INDEX>headed list</INDEX>
+        <INDEX>list(s)<SUBINDEX>headed</SUBINDEX></INDEX>
+        <EM>headed list</EM>.  A headed list has a
+        special backbone pair at the beginning, which holds a dummy
+        <QUOTE>record</QUOTE><EMDASH/>in this case the arbitrarily chosen 
+  <SPLITINLINE><SCHEME>symbol <SCHEMEINLINE>*table*</SCHEMEINLINE></SCHEME><JAVASCRIPT>string <JAVASCRIPTINLINE>"*table*"</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>. Figure<SPACE/><REF NAME="fig:table"/> shows the box-and-pointer diagram for the table
+
+        <SNIPPET EVAL="no">
+          <SCHEME>
+            a:  1
+            b:  2
+            c:  3
+          </SCHEME>
+    <JAVASCRIPT>
+a: 1
+b: 2
+c: 3
+    </JAVASCRIPT>
+        </SNIPPET>
+
+      <FIGURE src="img_original/ch3-Z-G-22.gif">
+        <CAPTION>A table represented as a headed list.
+  </CAPTION>
+        <LABEL NAME="fig:table"/>
+      </FIGURE>
+
+      </TEXT>
+
+      <TEXT>
+        To extract information from a table we use the <SCHEMEINLINE>lookup</SCHEMEINLINE>
+        <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>, which takes a key as argument and returns the associated
+        value (or false if there is no value stored under that key).
+        <SPLITINLINE><SCHEME><SCHEMEINLINE>Lookup</SCHEMEINLINE></SCHEME><JAVASCRIPT>The function <JAVASCRIPTINLINE>lookup</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> is defined in terms of the <SCHEMEINLINE>assoc</SCHEMEINLINE> operation, which
+        expects a key and a list of records as arguments.  
+  Note that <SCHEMEINLINE>assoc</SCHEMEINLINE> never sees the dummy record.  
+  <SPLITINLINE><SCHEME><SCHEMEINLINE>Assoc</SCHEMEINLINE></SCHEME><JAVASCRIPT>The function <JAVASCRIPTINLINE>assoc</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> returns the record
+        that has the given key as its <SPLITINLINE><SCHEME><SCHEMEINLINE>car</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>head</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>.<SPLIT><SCHEME><FOOTNOTE>Because <SCHEMEINLINE>assoc</SCHEMEINLINE>
+          uses <SCHEMEINLINE>equal?</SCHEMEINLINE>, it can recognize keys that are symbols, numbers,
+          or list structure.</FOOTNOTE></SCHEME><JAVASCRIPT><FOOTNOTE>Because <SCHEMEINLINE>assoc</SCHEMEINLINE>
+          uses <JAVASCRIPTINLINE>is_equal</JAVASCRIPTINLINE>, it can recognize keys that are strings, numbers,
+          or list structure.</FOOTNOTE></JAVASCRIPT></SPLIT>
+        <SPLITINLINE><SCHEME><SCHEMEINLINE>Lookup</SCHEMEINLINE></SCHEME><JAVASCRIPT>The function <JAVASCRIPTINLINE>lookup</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> then
+        checks to see that the resulting record returned by <SCHEMEINLINE>assoc</SCHEMEINLINE> is not
+        false, and returns the value (the <SPLITINLINE><SCHEME><SCHEMEINLINE>cdr</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>tail</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>) of the record.
+
+        <SNIPPET EVAL="no">
+          <SCHEME>
+            <!--  \indcode*{lookup}[in one-dimensional table] -->
+            (define (lookup key table)
+            (let ((record (assoc key (cdr table))))
+            (if record
+            (cdr record)
+            false)))
+
+            <!--  \indcode*{assoc} -->
+            (define (assoc key records)
+            (cond ((null? records) false)
+            ((equal? key (caar records)) (car records))
+            (else (assoc key (cdr records)))))
+          </SCHEME>
+    <JAVASCRIPT>
+function lookup(key, table) {
+    var record = assoc(key, tail(table));
+    if (record === undefined) {
+        return undefined;
+    } else {
+        return tail(record);
+    }
+}
+
+function assoc(key, records) {
+    if (is_empty_list(records)) {
+        return undefined;
+    } else {
+        if (is_equal(key, head(head(records))) {
+            return head(records);
+        } else {
+            return assoc(key, tail(records));
+        }
+    }
+}
+    </JAVASCRIPT>
+        </SNIPPET>
+      </TEXT>
+
+      <TEXT>
+        To insert a value in a table under a specified key, we first use <SCHEMEINLINE>assoc</SCHEMEINLINE> to see if there is already a record in the table with this key.
+        If not, we form a new record by <SPLITINLINE><SCHEME><SCHEMEINLINE>cons</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>pair</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>ing the key with the value,
+        and insert this at the head of the table<APOS/>s list of records, after the
+        dummy record.  If there already is a record with this key, we set the
+        <SPLITINLINE><SCHEME><SCHEMEINLINE>cdr</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>tail</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> of this record to the designated new value.  The header of
+        the table provides us with a fixed location to modify in order to
+        insert the new record.<FOOTNOTE>Thus, the first backbone pair is the
+          object that represents the table <QUOTE>itself</QUOTE>; that is, a pointer to the
+          table is a pointer to this pair.  This same backbone pair always
+          starts the table.  If we did not arrange things in this way, <SCHEMEINLINE>insert!</SCHEMEINLINE> would have to return a new value for the start of the table
+          when it added a new record.</FOOTNOTE>
+
+        <SNIPPET EVAL="no">
+          <SCHEME>
+            <!--  \indcode*{insert!}[in one-dimensional table] -->
+            (define (insert! key value table)
+            (let ((record (assoc key (cdr table))))
+            (if record
+            (set-cdr! record value)
+            (set-cdr! table
+            (cons (cons key value) (cdr table)))))
+            'ok)
+          </SCHEME>
+    <JAVASCRIPT>
+function insert(key, value, table) {
+    var record = assoc(key, tail(table));
+    if (record !== undefined) {
+        set_tail(record, value);
+    } else {
+        set_tail(table, pair(pair(key, value),
+                             tail(table)));
+    }
+}
+    </JAVASCRIPT>
+        </SNIPPET>
+      </TEXT>
+
+      <TEXT>
+        To construct a new table, we simply create a list containing the
+        symbol <SCHEMEINLINE>*table*</SCHEMEINLINE>:
+
+        <SNIPPET EVAL="no">
+          <SCHEME>
+            <!--  \indcode*{make-table}[one-dimensional table] -->
+            (define (make-table)
+            (list '*table*))
+          </SCHEME>
+    <JAVASCRIPT>
+function make_table() {
+    return list("*table*");
+}
+    </JAVASCRIPT>
+        </SNIPPET>
+        <INDEX>table<SUBINDEX>one-dimensional|)</SUBINDEX></INDEX>
+      </TEXT>
+
+      <SUBHEADING> 
+        <NAME>Two-dimensional tables</NAME>
+      </SUBHEADING>
+
+      <INDEX>table<SUBINDEX>two-dimensional|(</SUBINDEX></INDEX>
+
+      <TEXT>
+        In a two-dimensional table, each value is indexed by two keys.  We can
+        construct such a table as a one-dimensional table in which each key identifies a subtable.
+        Figure<SPACE/><REF NAME="fig:2dtable"/> shows the box-and-pointer diagram for the table
+        <SNIPPET EVAL="no">
+          <SCHEME>
+            math:
+            +:  43
+            -:  45
+            *:  42
+            letters:
+            a:  97
+            b:  98
+          </SCHEME>
+    <JAVASCRIPT>
+math:
+    +:  43
+    -:  45
+    *:  42
+letters:
+    a:  97
+    b:  98
+          </JAVASCRIPT>
+</SNIPPET>
+        which has two subtables.  (The subtables don<APOS/>t need a
+        special header symbol, since the key that identifies the subtable
+        serves this purpose.)
+
+      <FIGURE src="img_original/ch3-Z-G-23.gif">
+        <CAPTION>A two-dimensional table.
+  </CAPTION>
+        <LABEL NAME="fig:2dtable"/>
+      </FIGURE>
+
+      </TEXT>
+
+      <TEXT>
+        When we look up an item, we use the first key
+        to identify the correct subtable.  Then we use the second key to
+        identify the record within the subtable.
+
+        <SNIPPET EVAL="no">
+          <SCHEME>
+            <!--  \indcode*{lookup}[in two-dimensional table] -->
+            (define (lookup key-1 key-2 table)
+            (let ((subtable (assoc key-1 (cdr table))))
+            (if subtable
+            (let ((record (assoc key-2 (cdr subtable))))
+            (if record
+            (cdr record)
+            false))
+            false)))
+          </SCHEME>
+    <JAVASCRIPT>
+function lookup(key_1, key_2, table) {
+    var subtable = assoc(key_1, tail(table));
+    if (subtable !== undefined) {
+        var record = assoc(key_2, tail(subtable));
+        if (record !== undefined) {
+            return tail(record);
+        } else {
+            return undefined;
+        }
+    } else {
+        return undefined;
+    }
+}
+    </JAVASCRIPT>
+        </SNIPPET>
+      </TEXT>
+
+      <TEXT>
+        To insert a new item under a pair of keys, we use <SCHEMEINLINE>assoc</SCHEMEINLINE> to see if
+        there is a subtable stored under the first key.  If not, we build a
+        new subtable containing the single record (<SPLITINLINE><SCHEME><SCHEMEINLINE>key-2</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>key_2</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>, <SPLITINLINE><SCHEME><SCHEMEINLINE>value</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>value</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>)
+        and insert it into the table under the first key.  If a subtable
+        already exists for the first key, we insert the new record into this
+        subtable, using the insertion method for one-dimensional tables
+        described above:
+
+        <SNIPPET EVAL="no">
+          <SCHEME>
+            <!--  \indcode*{insert!}[in two-dimensional table] -->
+            (define (insert! key-1 key-2 value table)
+            (let ((subtable (assoc key-1 (cdr table))))
+            (if subtable
+            (let ((record (assoc key-2 (cdr subtable))))
+            (if record
+            (set-cdr! record value)
+            (set-cdr! subtable
+            (cons (cons key-2 value)
+            (cdr subtable)))))
+            (set-cdr! table
+            (cons (list key-1
+            (cons key-2 value))
+            (cdr table)))))
+            'ok)
+          </SCHEME>
+    <JAVASCRIPT>
+function insert(key_1, key_2, value, table) {
+    var subtable = assoc(key_1, tail(table));
+    if (subtable !== undefined) {
+        var record = assoc(key_2, tail(table));
+        if (record !== undefined) {
+            set_tail(record, value);
+        } else {
+            set_tail(subtable,
+                     pair(pair(key_2, value),
+                          tail(subtable)));
+        }
+    } else {
+        set_tail(table,
+                 pair(list(key_1, pair(key_2, value)),
+                      tail(table)));
+    }
+}
+    </JAVASCRIPT>
+        </SNIPPET>
+        <INDEX>table<SUBINDEX>two-dimensional|)</SUBINDEX></INDEX>
+      </TEXT>
+
+      <SUBHEADING> 
+        <NAME>Creating local tables</NAME>
+      </SUBHEADING>
+
+      <INDEX>table<SUBINDEX>local|(</SUBINDEX></INDEX>
+
+      <TEXT>
+        The <SCHEMEINLINE>lookup</SCHEMEINLINE> and 
+  <SPLITINLINE><SCHEME><SCHEMEINLINE>insert!</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>insert</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>
+  operations defined above take the
+        table as an argument.  This enables us to use programs that access
+        more than one table.  Another way to deal with multiple tables is to
+        have separate <SCHEMEINLINE>lookup</SCHEMEINLINE> and 
+        <SPLITINLINE><SCHEME><SCHEMEINLINE>insert!</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>insert</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>
+        <SPLITINLINE><SCHEME>procedures</SCHEME><JAVASCRIPT>functions</JAVASCRIPT></SPLITINLINE>
+        for each
+        table.  We can do this by representing a table 
+            procedurally, 
+        as an
+        object that maintains an internal table as part of its local state.
+        When sent an appropriate message, this <QUOTE>table object</QUOTE> supplies the
+        <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+        with which to operate on the internal table.  Here is a
+        generator for two-dimensional tables represented in this fashion:
+        
+        <SNIPPET EVAL="no">
+          <SCHEME>
+            <!--  \indcode*{make-table}[message-passing implementation] -->
+            (define (make-table)
+            (let ((local-table (list '*table*)))
+            (define (lookup key-1 key-2)
+            (let ((subtable (assoc key-1 (cdr local-table))))
+            (if subtable
+            (let ((record (assoc key-2 (cdr subtable))))
+            (if record
+            (cdr record)
+            false))
+            false)))
+            (define (insert! key-1 key-2 value)
+            (let ((subtable (assoc key-1 (cdr local-table))))
+            (if subtable
+            (let ((record (assoc key-2 (cdr subtable))))
+            (if record
+            (set-cdr! record value)
+            (set-cdr! subtable
+            (cons (cons key-2 value)
+            (cdr subtable)))))
+            (set-cdr! local-table
+            (cons (list key-1
+            (cons key-2 value))
+            (cdr local-table)))))
+            'ok)    
+            (define (dispatch m)
+            (cond ((eq? m 'lookup-proc) lookup)
+            ((eq? m 'insert-proc!) insert!)
+            (else (error "Unknown operation - - TABLE" m))))
+            dispatch))
+          </SCHEME>
+    <JAVASCRIPT>
+function make_table() {
+    var local_table = list("*table*);
+    function lookup(key_1, key_2, table) {
+        var subtable = assoc(key_1, tail(table));
+        if (subtable !== undefined) {
+            var record = assoc(key_2, tail(subtable));
+            if (record !== undefined) {
+                return tail(record);
+            } else {
+                return undefined;
+            }
+        } else {
+            return undefined;
+        }
+    }
+    function insert(key_1, key_2, value, table) {
+        var subtable = assoc(key_1, tail(table));
+        if (subtable !== undefined) {
+            var record = assoc(key_2, tail(table));
+            if (record !== undefined) {
+                set_tail(record, value);
+            } else {
+                set_tail(subtable,
+                         pair(pair(key_2, value),
+                              tail(subtable)));
+            }
+        } else {
+            set_tail(table,
+                     pair(list(key_1, pair(key_2, value)),
+                          tail(table)));
+        }
+    }
+    function dispatch(m) {
+        if (m === "lookup") {
+            return lookup;
+        } else if (m === "insert") {
+           return insert;
+        }
+    }
+    return dispatch;
+}
+    </JAVASCRIPT>
+        </SNIPPET>
+      </TEXT>
+
+      <TEXT>
+        Using <SPLITINLINE><SCHEME><SCHEMEINLINE>make-table</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>make_table</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>, we could implement the <SCHEMEINLINE>get</SCHEMEINLINE> and <SCHEMEINLINE>put</SCHEMEINLINE>
+        operations used in Section<SPACE/><REF NAME="sec:data-directed"/> for data-directed
+        programming, as follows:
+
+        <SNIPPET EVAL="no">
+          <SCHEME>
+            <INDEX>operation-and-type table<SUBINDEX>implementing</SUBINDEX></INDEX>
+            (define operation-table (make-table))
+            <!--  \indcode*{get} -->
+            (define get (operation-table 'lookup-proc))
+            <!--  \indcode*{put} -->
+            (define put (operation-table 'insert-proc!))
+          </SCHEME>
+    <JAVASCRIPT>
+var operation_table = make_table();
+var get operation_table("lookup");
+var put operation_table("insert");
+          </JAVASCRIPT>
+</SNIPPET>
+      </TEXT>
+
+      <TEXT>
+        <SPLITINLINE><SCHEME><SCHEMEINLINE>Get</SCHEMEINLINE></SCHEME><JAVASCRIPT>The function <JAVASCRIPTINLINE>get</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>
+  takes as arguments two keys, and <SCHEMEINLINE>put</SCHEMEINLINE> takes
+        as arguments two keys and a value.  Both operations access the same
+        local table, which is encapsulated within the object created by the
+        call to 
+  <SPLITINLINE><SCHEME><SCHEMEINLINE>make-table</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>make_table</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>.
+        <INDEX>table<SUBINDEX>local|)</SUBINDEX></INDEX>
+      </TEXT>
+
+      <EXERCISE> 
+        <INDEX>table<SUBINDEX>testing equality of keys</SUBINDEX></INDEX>
+        <INDEX>key of a record<SUBINDEX>testing equality of</SUBINDEX></INDEX>
+        In the table implementations above, the keys are tested for equality
+        using 
+        <SPLITINLINE><SCHEME><SCHEMEINLINE>equal?</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>is_equal</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>
+        (called by <SCHEMEINLINE>assoc</SCHEMEINLINE>).  This is not always the appropriate test.  For
+        instance, we might have a table with numeric keys in which we don<APOS/>t
+        need an exact match to the number we<APOS/>re looking up,
+        but only a number within some tolerance of it.
+        Design a table constructor 
+  <SPLITINLINE><SCHEME><SCHEMEINLINE>make-table</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>make_table</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>
+        that takes as an argument a 
+  <SPLITINLINE><SCHEME><SCHEMEINLINE>same-key?</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>same_key</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>
+        <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+        that will be used to test <QUOTE>equality</QUOTE> of keys.  
+  <SPLITINLINE><SCHEME><SCHEMEINLINE>Make-table</SCHEMEINLINE></SCHEME><JAVASCRIPT>The function <JAVASCRIPTINLINE>make_table</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> should
+        return a <SCHEMEINLINE>dispatch</SCHEMEINLINE>
+        <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+        that can be used to access
+        appropriate 
+  <SCHEMEINLINE>lookup</SCHEMEINLINE> and 
+<SPLITINLINE><SCHEME><SCHEMEINLINE>insert!</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>insert</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>
+        <SPLITINLINE><SCHEME>procedures</SCHEME><JAVASCRIPT>functions</JAVASCRIPT></SPLITINLINE>
+        for a local
+        table.
+        <LABEL NAME="ex:numeric-keys"/>
+      </EXERCISE>
+
+      <EXERCISE> 
+        <INDEX>table<SUBINDEX>n@<LATEXINLINE>$n$</LATEXINLINE>-dimensional</SUBINDEX></INDEX>
+        Generalizing one- and two-dimensional tables, show how to implement a
+        table in which values are stored under an arbitrary number of keys and
+        different values may be stored under different numbers of keys.  The
+        <SCHEMEINLINE>lookup</SCHEMEINLINE> and 
+<SPLITINLINE><SCHEME><SCHEMEINLINE>insert!</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>insert</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>
+        <SPLITINLINE><SCHEME>procedures</SCHEME><JAVASCRIPT>functions</JAVASCRIPT></SPLITINLINE>
+        should take as input a list
+        of keys used to access the table.
+      </EXERCISE>
+
+      <EXERCISE>
+        <INDEX>binary tree<SUBINDEX>table structured as</SUBINDEX></INDEX>
+        <INDEX>table<SUBINDEX>represented as binary tree vs.<SPACE/>unordered list</SUBINDEX></INDEX>
+        To search a table as implemented above, one needs to scan through the
+        list of records.  This is basically the unordered list representation of
+        Section<SPACE/><REF NAME="sec:representing-sets"/>.  For large tables, it may be more
+        efficient to structure the table in a different manner.  Describe a
+        table implementation where the (key, value) records are organized
+        using a binary tree, assuming that keys can be ordered in some way
+        (e.g., numerically or alphabetically).  (Compare
+        Exercise<SPACE/><REF NAME="ex:set-lookup-binary-tree"/> of Chapter<SPACE/>2.)
+      </EXERCISE>
+
+      <EXERCISE>
+        <INDEX>memoization</INDEX>
+        <INDEX>tabulation</INDEX>
+        <INDEX>table<SUBINDEX>used to store computed values</SUBINDEX></INDEX>
+        <INDEX><SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE><SUBINDEX>memoized</SUBINDEX></INDEX>
+        <EM>Memoization</EM> (also called <EM>tabulation</EM>) is a technique that
+        enables a
+        <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+        to record, in a local table, values that have
+        previously been computed.  This technique can make a vast difference
+        in the performance of a program.  A memoized
+        <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+        maintains a
+        table in which values of previous calls are stored
+        using as keys the arguments that produced the values.  When the
+        memoized
+        <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+        is asked to compute a value, it first checks the
+        table to see if the value is already there and, if so, just returns
+        that value.  Otherwise, it computes the new value in the ordinary way
+        and stores this in the table.  As an example of memoization, recall
+        from Section<SPACE/><REF NAME="sec:tree-recursion"/> the exponential process for
+        computing Fibonacci numbers:
+
+        <SNIPPET EVAL="no">
+          <SCHEME>
+            <!--  \indcode*{fib}[with memoization] -->
+            (define (fib n)
+            (cond ((= n 0) 0)
+            ((= n 1) 1)
+            (else (+ (fib (- n 1))
+            (fib (- n 2))))))
+          </SCHEME>
+    <JAVASCRIPT>
+function fib(n) {
+    if (n === 0) {
+        return 0;
+    } else if (n === 1) {
+        return 1;
+    } else {
+        return fib(n - 1) 
+             + fib(n - 2);
+    }
+}
+    </JAVASCRIPT>
+        </SNIPPET>
+
+        The memoized version of the same
+        <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+        is
+
+        <SNIPPET EVAL="no">
+          <SCHEME>
+            <!--  \indcode*{memo-fib} -->
+            (define memo-fib
+            (memoize (lambda (n)
+            (cond ((= n 0) 0)
+            ((= n 1) 1)
+            (else (+ (memo-fib (- n 1))
+            (memo-fib (- n 2))))))))
+          </SCHEME>
+    <JAVASCRIPT>
+var memo_fib = memoize(function(n) {
+                           if (n === 0) {
+                               return 0;
+                           } else if (n === 1) {
+                               return 1;
+                           } else {
+                               return memo_fib(n - 1) 
+                                    + memo_fib(n - 2);
+                           }
+                       );
+          </JAVASCRIPT>
+        </SNIPPET>
+
+        where the memoizer is defined as
+        <SNIPPET EVAL="no">
+          <SCHEME>
+            <!--  \indcode*{memoize} -->
+            (define (memoize f)
+            (let ((table (make-table)))
+            (lambda (x)
+            (let ((previously-computed-result (lookup x table)))
+            (or previously-computed-result
+            (let ((result (f x)))
+            (insert! x result table)
+            result))))))
+          </SCHEME>
+    <JAVASCRIPT>
+function memoize(f) {
+    var table = make_table();
+    return function(x) {
+               var previously_computed_result
+                   = lookup(x, table);
+               if (previously_computed_result !== undefined) {
+                   return previously_computed_result;
+               } else {
+                   var result = f(x);
+                   insert(x, result, table);
+                   return result;
+               }
+           };
+}
+          </JAVASCRIPT>
+</SNIPPET>
+
+        Draw an environment diagram to analyze the computation of <SPLITINLINE><SCHEME><SCHEMEINLINE>(memo-fib 3)</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>memo_fib(3)</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>.  Explain why 
+        <SPLITINLINE><SCHEME><SCHEMEINLINE>memo-fib</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>memo_fib</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>
+  computes the <LATEXINLINE>$n$</LATEXINLINE>th
+        Fibonacci number in a number of steps proportional to <LATEXINLINE>$n$</LATEXINLINE>.
+        Would the scheme still
+        work if we had simply defined 
+        <SPLITINLINE><SCHEME><SCHEMEINLINE>memo-fib</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>memo_fib</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>
+  to be <SPLITINLINE><SCHEME><SCHEMEINLINE>(memoize fib)</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>memoize(fib)</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>?
+        <LABEL NAME="ex:memoization"/>
+      </EXERCISE>
+      <INDEX>table|)</INDEX>
+
+    </SUBSECTION>
