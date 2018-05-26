@@ -1,7 +1,6 @@
 class Snippet < ApplicationRecord
     serialize :required_snippet_names, Array
     has_many :requirements, class_name: "Requirement", foreign_key: "snippet_id"
-    belongs_to :required_by, class_name: "Snippet"
     has_many :required_snippets, :through => :requirements
 
     def get_required_code

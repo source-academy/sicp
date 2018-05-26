@@ -44,11 +44,9 @@ ActiveRecord::Schema.define(version: 20180405114948) do
     t.boolean  "hide"
     t.string   "example"
     t.string   "language"
-    t.integer  "required_by_id"
     t.datetime "created_at",             null: false
     t.datetime "updated_at",             null: false
     t.text     "required_snippet_names"
-    t.index ["required_by_id"], name: "index_snippets_on_required_by_id"
   end
 
 end

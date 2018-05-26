@@ -7,7 +7,6 @@ class CreateSnippets < ActiveRecord::Migration[5.0]
       t.boolean :hide
       t.string :example
       t.string :language
-      t.references :required_by, index: true
       t.timestamps
     end
   end
