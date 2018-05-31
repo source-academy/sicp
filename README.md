@@ -2,7 +2,7 @@
 
 ## Description
 
-This is the newer online version of SICP textbook in Javascript for CS1101S students. The goal is to improve the readability and aesthetics of the textbook, as well as to ease the future integration of the textbook with a new IDE. The current version is not yet integrated with an IDE, thus Javascript snippets are still displayed in a popup area on the textbook page and evaluated using Javascript's own `eval()` function.
+This is the newer online version of SICP textbook in Javascript for CS1101S students. The goal is to improve the readability and aesthetics of the textbook, which has been integrated with a new IDE -- `Source Academy` platform. Javascript snippets would be displayed in a popup new website page and evaluated using its built-in function.
 
 It is also possible to generate a copy of the orginal textbook in Scheme. However evaluation of snippets are not yet supported and there are some missing images in the generated Scheme textbook.
 
@@ -22,7 +22,7 @@ The generated web pages are static and can be hosted on any standard web servers
 
 The original text is stored as xml files in the `xml` folder.
 
-The html pages are generated in two steps. In the first step, the xml pages are imported to a Rails application. The application has two models: `Chapter` and `Snippet`. Content from each xml file is stored in a corresponding `chapter` record, while each named snippet is stored as a `snippet`. When a snippet is evaluated, all its requirements are executed at background while the snippet itself is displayed in a popup area. When a page is loaded, the xml contents are formatted into html pages by Nokogiri.
+The html pages are generated in two steps. In the first step, the xml pages are imported to a Rails application. The application has two models: `Chapter`, `Snippet` and `Reference`. Content from each xml file is stored in a corresponding `chapter` record, while each named snippet is stored as a `snippet`, and each named section, subsection, figure or exercise is stored as a `reference`. When a snippet is evaluated, all its requirements are executed at background and its examples would be executed to evaluate the functionality and correctness while the snippet itself is displayed in the `Source Academy` platform. When a page is loaded, the xml contents are formatted into html pages by Nokogiri.
 
 After the rails server is up and running, a copy of the html pages are saved locally using Wget.
 
@@ -46,7 +46,5 @@ If any changes are made to the xml file but you only want to test the dynamic/ra
 Static site generation is handled by `rails/Rakefile`. It outputs the html pages to `rails/out` by default. Run `rake static:generate` to test this step.
 
 ## Bugs
-* Exercise numbering is not correct because of auto-scroll. Use Ruby (instead of CSS as it is done now)
-to keep track of exercise numbers in`Chapters` controller.
 * Google Custom Search doesn't seem to be working.
-* The snippet codes in database are minified (all comments and '\n' removed) using YUI compressor. This is because the new line character '\n' in snippets will lead to the error "unterminated string literal" when being evaluated in background. So far minifying the snippets worked. However, YUI compressor sometimes throws error when minifying snippets. This may cause some unknown bugs in evaluating snippets with dependencies. However I haven't noticed any problems yet.
+* The snippets containing '\n' would lead to newline rather than showing charater '\n' in the `Source Academy` platform. This problem is difficult to eliminate because the code encoder cannot differentiate them when reading content.
