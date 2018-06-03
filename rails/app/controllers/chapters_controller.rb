@@ -354,15 +354,14 @@ class ChaptersController < ApplicationController
                 end  
 
                 code = CGI.unescapeHTML(snippet.children.to_html.strip.html_safe)
+                platform_code = code
                 
                 if (LANGUAGE_VERSION=="javascript")
-                    runnable = snippet.search("JAVASCRIPT_RUN")
+                    runnable = snippet.at("JAVASCRIPT_RUN")
                     if (!runnable.nil?)
-                        platform_code = CGI.unescapeHTML(runnable.children.to_html.strip.html_safe)
+                        platform_code = CGI.unescapeHTML(runnable.children.to_html.strip)
                         runnable.remove
                         code = CGI.unescapeHTML(snippet.children.to_html.strip.html_safe)
-                    else
-                        platform_code = code
                     end
                 end
 
