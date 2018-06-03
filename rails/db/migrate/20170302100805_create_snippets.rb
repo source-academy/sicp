@@ -4,6 +4,7 @@ class CreateSnippets < ActiveRecord::Migration[5.0]
       t.string :name
       t.boolean :eval
       t.string :code
+      t.string :run_code
       t.boolean :hide
       t.string :example
       t.string :language

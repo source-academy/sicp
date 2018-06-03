@@ -89,8 +89,14 @@ def add_snippets(text)
             lan = "javascript"
             exist = Snippet.find_by(name: name, language: lan)
             if (exist.nil?)
+                code = snippet.search('JAVASCRIPT_RUN')
+                if (!code.blank?)
+                    run_code = code.text
+                else
+                    run_code = ''
+                end
                 new_snippet = Snippet.create! :name => name, :eval => do_eval,
-                    :code => min_code, :hide => hide, :example => example,
+                    :code => min_code, :run_code => run_code, :hide => hide, :example => example,
                     :language => 'javascript', :required_snippet_names => requires
             else
                 puts "Already has snippet named " + name + " in " + lan

@@ -319,7 +319,7 @@ class ChaptersController < ApplicationController
                             + required_name + "."
                     end
                 end
-                # get example's code if exists
+                # get example's code if any
                 example_code = ''
                 examples.each do |example_name|
                     example = Snippet.find_by(name: example_name, language: LANGUAGE_VERSION)
@@ -342,7 +342,11 @@ class ChaptersController < ApplicationController
                     required = Snippet.find_by(name: required_name,
                         language: LANGUAGE_VERSION)
                     if (!required.nil?)
-                        hidden_code += required.code
+                        if (required.run_code=='')
+                            hidden_code += required.code
+                        else
+                            hidden_code += required.run_code
+                        end
                     else
                         puts "Warning: Cannot find " + LANGUAGE_VERSION + " snippet named "
                             + required_name + "."
@@ -351,10 +355,20 @@ class ChaptersController < ApplicationController
 
                 code = CGI.unescapeHTML(snippet.children.to_html.strip.html_safe)
                 
+                if (LANGUAGE_VERSION=="javascript")
+                    runnable = snippet.search("JAVASCRIPT_RUN")
+                    if (!runnable.nil?)
+                        platform_code = CGI.unescapeHTML(runnable.children.to_html.strip.html_safe)
+                        runnable.remove
+                        code = CGI.unescapeHTML(snippet.children.to_html.strip.html_safe)
+                    else
+                        platform_code = code
+                    end
+                end
 
                 snippet_div = xml_doc.create_element("div",
                     :class => "snippet", :id => "javascript_#{@chapter.id}_#{count}_div")
-                snippet_event = "var compressed = LZString.compressToEncodedURIComponent('#{hidden_code}'+'\n'+'#{code}'+'\n'+'#{example_code}'+'\n'); " + 
+                snippet_event = "var compressed = LZString.compressToEncodedURIComponent('#{hidden_code}'+'\n'+'#{platform_code}'+'\n'+'#{example_code}'+'\n'); " + 
                         "var url = 'https://sourceacademy.comp.nus.edu.sg/playground#filename=&library=Source §1&lz='+compressed+'&read_only=false';" +
                         " window.open(url); "
                 snippet_event = snippet_event.gsub("\n", '\n')
@@ -370,25 +384,8 @@ class ChaptersController < ApplicationController
                 end
                 snippet_pre_div.add_child(snippet_pre)
 
-                # For IDE
-                #snippet_ide = xml_doc.create_element('a', "[Open in IDE]",
-                #    :href => get_param, :class => 'snippet-ide-link btn btn-primary')
-                #snippet_pre_div.add_child(snippet_ide)
-                #snippet_div.next = snippet_pre_div
                 snippet_div.add_child(snippet_pre_div)
-
-                # if (snippet['SOLUTION'] == 'yes')
-                #     solution_div = xml_doc.create_element("div", :class => 'Solution')
-                #     solution_pre_div = xml_doc.create_element("div", :class => "solution_btn")
-                #     snippet_btn = xml_doc.create_element("button", "Solution", :class => "btn btn-secondary solution_btn", 
-                #         :href => "#javascript_#{@chapter.id}_#{count}_div")
-                #     snippet_btn["data-toggle"] = "collapse"
-                #     snippet_div['class'] = 'snippet collapse'
-                #     solution_pre_div.add_child(snippet_btn)
-                #     solution_div.add_child(solution_pre_div)
-                #     solution_div.add_child(snippet_div)
-                #     snippet.next = solution_div
-                # else
+                
                 snippet.next = snippet_div
                 # end
                 count += 1;

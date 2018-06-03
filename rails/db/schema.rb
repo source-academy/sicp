@@ -41,6 +41,7 @@ ActiveRecord::Schema.define(version: 20180405114948) do
     t.string   "name"
     t.boolean  "eval"
     t.string   "code"
+    t.string   "run_code"
     t.boolean  "hide"
     t.string   "example"
     t.string   "language"

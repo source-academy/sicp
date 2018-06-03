@@ -71,6 +71,6 @@ class SnippetsController < ApplicationController
 
     # Never trust parameters from the scary internet, only allow the white list through.
     def snippet_params
-      params.require(:snippet).permit(:name, :eval, :code, :hide, :example, :language)
+      params.require(:snippet).permit(:name, :eval, :code, :run_code, :hide, :example, :language)
     end
 end
