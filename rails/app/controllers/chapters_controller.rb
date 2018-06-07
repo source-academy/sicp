@@ -324,7 +324,11 @@ class ChaptersController < ApplicationController
                 examples.each do |example_name|
                     example = Snippet.find_by(name: example_name, language: LANGUAGE_VERSION)
                     if (!example.nil?)
-                        example_code += example.code
+                        if (example.run_code=='')
+                            example_code += example.code
+                        else
+                            example_code += example.run_code
+                        end
                         all_required_names = example.get_required_function_name(all_required_names)
                         all_required_names.delete(example_name)
                     else
