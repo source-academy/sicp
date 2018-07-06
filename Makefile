@@ -6,3 +6,5 @@ clean:
 	rm -rf rails-html
 	$(MAKE) -C rails clean
 
+zip:	
+	cd rails-html; zip -r sicp.zip *; mv sicp.zip ..

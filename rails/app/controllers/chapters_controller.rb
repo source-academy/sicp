@@ -372,7 +372,7 @@ class ChaptersController < ApplicationController
                 snippet_div = xml_doc.create_element("div",
                     :class => "snippet", :id => "javascript_#{@chapter.id}_#{count}_div")
                 snippet_event = "var compressed = LZString.compressToEncodedURIComponent('#{hidden_code}'+'\n'+'#{platform_code}'+'\n'+'#{example_code}'+'\n'); " + 
-                        "var url = 'https://sourceacademy.comp.nus.edu.sg/playground#filename=&library=Source §1&lz='+compressed+'&read_only=false';" +
+                        "var url = 'http://stg-cadet-frontend.s3-website-ap-southeast-1.amazonaws.com/playground#filename=&library=Source §1&lz='+compressed+'&read_only=false';" +
                         " window.open(url); "
                 snippet_event = snippet_event.gsub("\n", '\n')
 
