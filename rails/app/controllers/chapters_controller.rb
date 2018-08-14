@@ -216,6 +216,7 @@ class ChaptersController < ApplicationController
         replace_tag(xml_doc, 'CCEDIL_LOWER', '&ccedil;')
         replace_tag(xml_doc, 'ELLIPSIS', '&#8230;')
         replace_tag(xml_doc, 'AMP', '&amp;')
+        replace_tag(xml_doc, 'SECT', '&sect;')
         
         replace_tag(xml_doc, 'EMDASH', '&mdash;')
         replace_tag(xml_doc, 'ENDASH', '&ndash;')
@@ -374,7 +375,7 @@ class ChaptersController < ApplicationController
                                                      :id => "javascript_#{@chapter.id}_#{count}_div")
 
                 snippet_event = "var compressed = LZString.compressToEncodedURIComponent('#{hidden_code}'+'\n'+'#{platform_code}'+'\n'+'#{example_code}'+'\n'); " + 
-                        "var url = 'http://stg-cadet-frontend.s3-website-ap-southeast-1.amazonaws.com/playground#chap=#{order[0]}&prgrm='+compressed;" +
+                        "var url = 'https://sourceacademy.nus.edu.sg/playground#chap=#{order[0]}&prgrm='+compressed;" +
                         " window.open(url); "
                 
                 snippet_event = snippet_event.gsub("\n", '\n')

@@ -27,6 +27,9 @@ The html pages are generated in two steps. In the first step, the xml pages are 
 After the rails server is up and running, a copy of the html pages are saved locally using `Wget`.
 
 ## Configuration
+
+Set the server for the playground in: rails/app/controllers/chapters_controller.rb: var url
+
 Before deploying, change the configurations at [constants.rb.def](rails/config/initializers/constants.rb.def).
 
 `IDE_PREFIX`: The snippet and its requirements are sent through a GET request to the IDE. Change it to the correct URL and GET parameter name. Required snippets are sent by the name 'hidden'. To change this value, see the show method in [chapters_controller.rb](rails/app/controllers/chapters_controller.rb).
@@ -37,6 +40,13 @@ Before deploying, change the configurations at [constants.rb.def](rails/config/i
 Run `make javascript` or `make scheme`. The generated html pages and assets are saved in `rails-html` folder.
 
 Run `make clean` to remove all generated pages, logs and temporary files.
+
+If the server is still running, try:
+
+$ lsof -wni tcp:3000
+Then, use the number in the PID column to kill the process:
+
+$ kill -9 PID
 
 ## Development
 The Rails project is located at [rails](rails/). To test any changes made to the rails project itself, use the built-in server by running `rails s`. Specifically, the xml to html step is done by the `Chapters` controller, although in hindsight I realized it should be handled by model instead. Now it is at both the controller and model, but except for the index page, all other xml to html conversions are still handled by the controller. It would be a good idea to clean this part up before changing anything in those two files to ensure consistency.
