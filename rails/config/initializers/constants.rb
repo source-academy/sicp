@@ -3,5 +3,5 @@
 # Set up Google Custom Search here: https://cse.google.com/cse/create/new
 
 IDE_PREFIX="http://www.comp.nus.edu.sg/~cs1101s/sicp/"
-GCSE_CX="014276565958104831575:mkaqp5nceyk"
+GCSE_CX="015760785273492757659:ddrbatw2nsa"
 LANGUAGE_VERSION="javascript"
