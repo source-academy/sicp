@@ -1,0 +1,1441 @@
+    <SUBSECTION> 
+      <NAME>
+        A Simulator for Digital Circuits
+      </NAME>
+
+      <LABEL NAME="sec:circuit-simulator"/>
+      <INDEX>digital-circuit simulation|(</INDEX>
+
+      <TEXT>
+        Designing complex digital systems, such as computers, is an important
+        engineering activity.  Digital systems are constructed by
+        interconnecting simple elements.  Although the behavior of these
+        individual elements is simple, networks of them can have very complex
+        behavior.  Computer simulation of proposed circuit designs is an
+        important tool used by digital systems engineers.  In this section we
+        design a system for performing digital logic simulations.  This system
+        typifies a kind of program called an 
+        <INDEX>event-driven simulation</INDEX>
+        <INDEX>simulation<SUBINDEX>event-driven</SUBINDEX></INDEX>
+        <EM>event-driven simulation</EM>, in
+        which actions (<QUOTE>events</QUOTE>) trigger further events that happen at a
+        later time, which in turn trigger more events, and so so.
+      </TEXT>
+
+      <TEXT>
+        Our computational model of a circuit will be composed of objects that
+        correspond to the elementary components from which the circuit is
+        constructed.  There are 
+        <INDEX>wire, in digital circuit</INDEX>
+        <EM>wires</EM>, which carry 
+        <INDEX>signal, digital</INDEX>
+        <INDEX>digital signal</INDEX>
+        <EM>digital signals</EM>.  A
+        digital signal may at any moment have only one of two possible values,
+        0 and 1.  There are also various types of digital 
+        <INDEX>function box, in digital circuit</INDEX>
+        <EM>function
+          boxes</EM>, which connect wires carrying input signals to other output
+        wires.  Such boxes produce output signals computed from their input
+        signals.  The output signal is 
+        <INDEX>delay@delay, in digital circuit</INDEX>
+        delayed by a time that depends on the
+        type of the function box.  For example, an 
+        <INDEX>inverter</INDEX>
+        <EM>inverter</EM> is a
+        primitive function box that inverts its input.  If the
+        input signal to an inverter changes to 0, then one <EM>inverter-delay</EM>
+        later the inverter will change its output signal to 1.  If the input
+        signal to an inverter changes to 1, then one <EM>inverter-delay</EM> later the
+        inverter will change its output signal to 0.  We draw an inverter
+        symbolically as in Figure<SPACE/><REF NAME="fig:logic-gates"/>.  An 
+        <INDEX>and-gate</INDEX>
+        <EM>and-gate</EM>,
+        also shown in Figure<SPACE/><REF NAME="fig:logic-gates"/>, is a primitive function
+        box with two inputs and one output.  It drives its output signal to a
+        value that is the 
+        <INDEX>logical and</INDEX>
+        <EM>logical and</EM> of the inputs.  That is, if both
+        of its input signals become<SPACE/>1, then one <EM>and-gate-delay</EM> time later the
+        and-gate will force its output signal to be 1; otherwise the output
+        will be 0.  An 
+        <INDEX>or-gate</INDEX>
+        <EM>or-gate</EM> is a similar two-input primitive function
+        box that drives its output signal to a value that is the 
+        <INDEX>logical or</INDEX>
+        <EM>logical
+          or</EM> of the inputs.  That is, the output will become 1 if at least one
+        of the input signals is 1; otherwise the output will become 0.
+
+        <FIGURE>
+            <FIGURE src="img_original/ch3-Z-G-24.gif"></FIGURE>
+            <CAPTION>Primitive functions in the digital logic simulator.
+            </CAPTION>
+            <LABEL NAME="fig:logic-gates"/>
+        </FIGURE>
+      </TEXT>
+
+      <TEXT>
+        We can connect primitive functions together to construct more complex
+        functions.  To accomplish this we wire the outputs of some
+        function boxes to the inputs of other function boxes.  For example,
+        the 
+        <INDEX>half-adder</INDEX>
+        <INDEX>adder<SUBINDEX>half</SUBINDEX></INDEX>
+        <EM>half-adder</EM> circuit shown in Figure<SPACE/><REF NAME="fig:half-adder"/> consists of an
+        or-gate, two and-gates, and an inverter.  It takes two input signals,
+        A and B, and has two output signals, S and C.  S will become 1
+        whenever precisely one of A and B is<SPACE/>1, and C will become 1 whenever A
+        and B are both 1.  We can see from the figure that, because of the
+        delays involved, the outputs may be generated at different times.
+        Many of the difficulties in the design of digital circuits arise from
+        this fact.
+
+        <FIGURE>
+            <FIGURE src="img_original/ch3-Z-G-25.gif"></FIGURE>
+            <CAPTION>A half-adder circuit.
+            </CAPTION>
+        <LABEL NAME="fig:half-adder"/>
+        </FIGURE>
+      </TEXT>
+
+      <TEXT>
+        We will now build a program for modeling the digital logic circuits we
+        wish to study.  The program will construct computational objects
+        modeling the wires, which will <QUOTE>hold</QUOTE> the signals.  Function boxes
+        will be modeled by
+        <SPLITINLINE><SCHEME>procedures</SCHEME><JAVASCRIPT>functions</JAVASCRIPT></SPLITINLINE>
+        that enforce the correct relationships
+        among the signals.
+      </TEXT>
+
+      <TEXT>
+        <!--  \indcode{make-wire} -->
+        One basic element of our simulation will be a
+        <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+        <SPLITINLINE><SCHEME>make-wire</SCHEME><JAVASCRIPT>make_wire</JAVASCRIPT></SPLITINLINE>, which constructs wires.  For example, we can construct six
+        wires as follows:
+
+        <SNIPPET EVAL="no">
+          <SCHEME>
+            (define a (make-wire))
+            (define b (make-wire))
+            (define c (make-wire))
+            (define d (make-wire))
+            (define e (make-wire))
+            (define s (make-wire))
+          </SCHEME>
+          <JAVASCRIPT>
+const a = make_wire();
+const b = make_wire();
+const c = make_wire();
+const d = make_wire();
+const e = make_wire();
+const s = make_wire();
+          </JAVASCRIPT>
+        </SNIPPET>
+      </TEXT>
+
+      <TEXT>
+        We attach a function box to a set of wires by calling a
+        <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+        that
+        constructs that kind of box.  The arguments to the constructor
+        <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+        are the wires to be attached to the box.  For example, given
+        that we can construct and-gates, or-gates, and inverters, we can wire
+        together the half-adder shown in Figure<SPACE/><REF NAME="fig:half-adder"/>:
+
+        <SNIPPET EVAL="no">
+          <SCHEME>
+            (or-gate a b d)
+          </SCHEME>
+          <JAVASCRIPT>
+            or_gate(a, b, d);     // output : ok
+          </JAVASCRIPT>
+          <SCHEMEOUTPUT>
+            ok
+          </SCHEMEOUTPUT>
+        </SNIPPET>
+
+        <SNIPPET EVAL="no">
+            <SCHEME>
+                (and-gate a b c)
+            </SCHEME>
+            <JAVASCRIPT>
+                and_gate(a, b, c);  // output : ok
+            </JAVASCRIPT>
+            <SCHEMEOUTPUT>
+                ok
+            </SCHEMEOUTPUT>
+        </SNIPPET>
+        
+        <SNIPPET EVAL="no">
+            <SCHEME>
+                (inverter c e)
+            </SCHEME>
+            <JAVASCRIPT>
+                inverter(c, e);     // output : ok
+            </JAVASCRIPT>
+            <SCHEMEOUTPUT>
+                ok
+            </SCHEMEOUTPUT>
+        </SNIPPET>
+        
+        <SNIPPET EVAL="no">
+            <SCHEME>
+                (and-gate d e s)
+            </SCHEME>
+            <JAVASCRIPT>
+                and_gate(d, e, s);  // output : ok
+            </JAVASCRIPT>
+            <SCHEMEOUTPUT>
+                ok
+            </SCHEMEOUTPUT>
+        </SNIPPET>
+        
+      </TEXT>
+
+      <TEXT>
+        Better yet, we can explicitly name this operation by defining a
+        <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE> <SPLITINLINE>
+            <SCHEME><SCHEMEINLINE>half-adder</SCHEMEINLINE></SCHEME>
+            <JAVASCRIPT><JAVASCRIPTINLINE>half_adder</JAVASCRIPTINLINE></JAVASCRIPT>
+        </SPLITINLINE> that constructs this circuit, given the four
+        external wires to be attached to the half-adder:
+
+        <SNIPPET EVAL="no">
+            <SCHEME>
+                <!-- \ind*{half-adder}[half@<SCHEMEINLINE>half-adder</SCHEMEINLINE>]-->
+                (define (half-adder a b s c)
+                (let ((d (make-wire)) (e (make-wire)))
+                (or-gate a b d)
+                (and-gate a b c)
+                (inverter c e)
+                (and-gate d e s)
+                'ok))
+            </SCHEME>
+            <JAVASCRIPT>
+function half_adder(a, b, s, c) {
+    const d = make_wire();
+    const e = make_wire();
+    or_gate(a, b, d);
+    and_gate(a, b, c);
+    inverter(c, e);
+    and_gate(d, e, s);
+    return "ok";
+}
+            </JAVASCRIPT>
+        </SNIPPET>
+        
+      </TEXT>
+
+      <TEXT>
+        The advantage of making this definition is that we can use <SPLITINLINE>
+            <SCHEME><SCHEMEINLINE>half-adder</SCHEMEINLINE></SCHEME>
+            <JAVASCRIPT><JAVASCRIPTINLINE>half_adder</JAVASCRIPTINLINE></JAVASCRIPT>
+        </SPLITINLINE> itself as a building block in creating more complex
+        circuits.  Figure<SPACE/><REF NAME="fig:full-adder"/>, for example, shows a
+        <INDEX>full-adder</INDEX>
+        <INDEX>adder<SUBINDEX>full</SUBINDEX></INDEX>
+        <EM>
+          full-adder</EM> composed of two half-adders and an or-gate.<FOOTNOTE>A
+          full-adder is a basic circuit element used in adding two binary
+          numbers.  Here A and B are the bits at corresponding positions in the
+          two numbers to be added, and C<LATEXINLINE>$_{in}$</LATEXINLINE> is the carry bit from the
+          addition one place to the right.  The circuit generates SUM, which is
+          the sum bit in the corresponding position, and C<LATEXINLINE>$_{out}$</LATEXINLINE>, which is the
+          carry bit to be propagated to the left.</FOOTNOTE> We can construct a full-adder
+        as follows:
+        
+        <SNIPPET EVAL="no">
+            <SCHEME>
+                <!-- \ind*{full-adder}[half@<SCHEMEINLINE>full-adder</SCHEMEINLINE>]-->
+                (define (full-adder a b c-in sum c-out)
+                (let ((s (make-wire))
+                (c1 (make-wire))
+                (c2 (make-wire)))
+                (half-adder b c-in s c1)
+                (half-adder a s sum c2)
+                (or-gate c1 c2 c-out)
+                'ok))
+            </SCHEME>
+            <JAVASCRIPT>
+function full_adder(a, b, c_in, sum, c_out) {
+    const s = make_wire();
+    const c1 = make_wire();
+    const c2 = make_wire();
+    half_adder(b, c_in, s, c1);
+    half_adder(a, s, sum, c2);
+    or_gate(c1, c2, c_out);
+    return "ok";
+}
+            </JAVASCRIPT>
+        </SNIPPET>
+      </TEXT>
+
+      <TEXT>
+          Having defined <SPLITINLINE>
+              <SCHEME><SCHEMEINLINE>full-adder</SCHEMEINLINE></SCHEME>
+              <JAVASCRIPT><JAVASCRIPTINLINE>full_adder</JAVASCRIPTINLINE></JAVASCRIPT>
+          </SPLITINLINE> as a
+        <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>, we can now use it as a
+        building block for creating still more complex circuits.  (For
+        example, see Exercise<SPACE/><REF NAME="ex:ripple-carry"/>.)
+
+        <FIGURE>
+            <FIGURE src="img_original/ch3-Z-G-26.gif"></FIGURE>
+            <CAPTION>A full-adder circuit.
+            </CAPTION>
+        <LABEL NAME="fig:full-adder"/>
+        </FIGURE>
+      </TEXT>
+
+      <TEXT>
+        In essence, our simulator provides us with the tools to construct a
+        language of circuits.  If we adopt the general perspective on
+        languages with which we approached the study of <SPLITINLINE><SCHEME>Lisp</SCHEME><JAVASCRIPT>JavaScript</JAVASCRIPT></SPLITINLINE> in
+        Section<SPACE/><REF NAME="sec:elements-of-programming"/>,
+        we can say that the primitive function boxes form the primitive
+        elements of the language, that wiring boxes together provides a means
+        of combination, and that specifying wiring patterns as
+        <SPLITINLINE><SCHEME>procedures</SCHEME><JAVASCRIPT>functions</JAVASCRIPT></SPLITINLINE>
+        serves as a means of abstraction.
+      </TEXT>
+
+      <SUBHEADING> 
+        <NAME>Primitive function boxes</NAME>
+      </SUBHEADING>
+
+      <INDEX>digital-circuit simulation<SUBINDEX>primitive function boxes|(</SUBINDEX></INDEX>
+
+      <TEXT>
+        The primitive function boxes implement the <QUOTE>forces</QUOTE> by which a
+        change in the signal on one wire influences the signals on other
+        wires.  To build function boxes, we use the following operations on
+        wires:
+
+        <UL>
+          <LI><SPLITINLINE><SCHEME><SCHEMEINLINE>(get-signal ^wire^)</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>get_signal(wire);</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> //
+            <!--  \indcode{get-signal} -->
+            returns the current value of the signal on the wire.
+
+          </LI>
+          <LI>
+            <SPLITINLINE><SCHEME><SCHEMEINLINE>(set-signal! ^wire^ ^new value^)</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>set_signal(wire, new_value);</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> //
+            <!--  \indcode{set-signal!} -->
+            changes the value of the signal on the wire to the new value.
+
+          </LI>
+          <LI>
+            <SPLITINLINE><SCHEME><SCHEMEINLINE>(add-action! ^wire^ ^<SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+                of no arguments^)</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>add_action(wire, nullary_function);</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> //
+            <!--  \indcode{add-action!} -->
+            asserts that the designated
+            <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+            should be run whenever the
+            signal on the wire changes value.  Such
+            <SPLITINLINE><SCHEME>procedures</SCHEME><JAVASCRIPT>functions</JAVASCRIPT></SPLITINLINE>
+            are the vehicles by
+            which changes in the signal value on the wire are communicated to
+            other wires.
+
+          </LI>
+        </UL>
+      </TEXT>
+
+      <TEXT>
+        <!--  \indcode{after-delay} -->
+        In addition, we will make use of a
+        <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+        <SCHEMEINLINE>after-delay</SCHEMEINLINE> that
+        takes a time delay and a
+        <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+        to be run and executes the
+        given
+        <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+        after the given delay.
+      </TEXT>
+
+      <TEXT>
+        Using these
+        <SPLITINLINE><SCHEME>procedures</SCHEME><JAVASCRIPT>functions</JAVASCRIPT></SPLITINLINE>, we can define the primitive digital logic
+        functions.  To connect an input to an output through an inverter, we
+        use <SPLITINLINE>
+            <SCHEME><SCHEMEINLINE>add-action!</SCHEMEINLINE></SCHEME>
+            <JAVASCRIPT><JAVASCRIPTINLINE>add_action</JAVASCRIPTINLINE></JAVASCRIPT>
+        </SPLITINLINE> to associate with the input wire a
+        <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+        that will be run whenever the signal on the input wire changes value.
+        The
+        <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+        computes the <SPLITINLINE>
+            <SCHEME><SCHEMEINLINE>logical-not</SCHEMEINLINE></SCHEME>
+            <JAVASCRIPT><JAVASCRIPTINLINE>logical_not</JAVASCRIPTINLINE></JAVASCRIPT>
+        </SPLITINLINE> of the input signal, and
+        then, after one <SPLITINLINE>
+            <SCHEME><SCHEMEINLINE>inverter-delay</SCHEMEINLINE></SCHEME>
+            <JAVASCRIPT><JAVASCRIPTINLINE>inverter_delay</JAVASCRIPTINLINE></JAVASCRIPT>
+        </SPLITINLINE>, sets the output signal to be
+        this new value:
+
+        <SNIPPET EVAL="no">
+            <SCHEME>
+                <!-- \ind*{inverter}[inverter@<SCHEMEINLINE>inverter</SCHEMEINLINE>]-->
+                (define (inverter input output)
+                (define (invert-input)
+                (let ((new-value (logical-not (get-signal input))))
+                (after-delay inverter-delay
+                (lambda ()
+                (set-signal! output new-value)))))
+                (add-action! input invert-input)
+                'ok)
+                
+                <!--  \indcode*{logical-not} -->
+                (define (logical-not s)
+                (cond ((= s 0) 1)
+                ((= s 1) 0)
+                (else (error "Invalid signal" s))))
+            </SCHEME>
+            <JAVASCRIPT>
+function inverter(input, output) {
+    function invert_input() {
+        const new_value = logical_not(get_signal(input));
+        after_delay(inverter_delay, 
+                    () => set_signal(output, new_value));
+    }
+    add_action(input, invert_input);
+    return "ok";
+}
+
+function logical_not(s) {
+    return s === 0
+           ? 1
+           : s === 1
+             ? 0
+             : error("Invalid signal for logical_not: " + s);
+}
+            </JAVASCRIPT>
+        </SNIPPET>
+      </TEXT>
+
+      <TEXT>
+        An and-gate is a little more complex.  The action
+        <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+        must be run if
+        either of the inputs to the gate changes.  It computes the <SPLITINLINE>
+            <SCHEME><SCHEMEINLINE>logical-not</SCHEMEINLINE></SCHEME>
+            <JAVASCRIPT><JAVASCRIPTINLINE>logical_not</JAVASCRIPTINLINE></JAVASCRIPT>
+        </SPLITINLINE> (using a
+        <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+        analogous to  <SPLITINLINE>
+            <SCHEME><SCHEMEINLINE>logical-not</SCHEMEINLINE></SCHEME>
+            <JAVASCRIPT><JAVASCRIPTINLINE>logical_not</JAVASCRIPTINLINE></JAVASCRIPT>
+        </SPLITINLINE>) of the
+        values of the signals on the input wires and sets up a change to the
+        new value to occur on the output wire after one  <SPLITINLINE>
+            <SCHEME><SCHEMEINLINE>and-gate-delay</SCHEMEINLINE></SCHEME>
+            <JAVASCRIPT><JAVASCRIPTINLINE>and_gate_delay</JAVASCRIPTINLINE></JAVASCRIPT>
+        </SPLITINLINE> .
+
+        <SNIPPET EVAL="no">
+            <SCHEME>
+                <!-- \ind*{and-gate}[and gate@<SCHEMEINLINE>and-gate</SCHEMEINLINE>]-->
+                (define (and-gate a1 a2 output)
+                (define (and-action-<SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>)
+                (let ((new-value
+                (logical-and (get-signal a1) (get-signal a2))))
+                (after-delay and-gate-delay
+                (lambda ()
+                (set-signal! output new-value)))))
+                (add-action! a1 and-action-<SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>)
+                (add-action! a2 and-action-<SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>)
+                'ok)
+            </SCHEME>
+            <JAVASCRIPT>
+function and_gate(a1, a2, output) {
+    function and_action_procedure() {
+        const new_value = logical_and(get_signal(a1),
+                                    get_signal(a2));
+        after_delay(and_gate_delay, 
+                    () => set_signal(output, new_value);
+    }
+    add_action(a1, and_action_procedure);
+    add_action(a2, and_action_procedure);
+    return "ok";
+}
+            </JAVASCRIPT>
+        </SNIPPET>
+      </TEXT>
+
+      <EXERCISE>
+          <INDEX>or-gate<SUBINDEX>or gate@<SPLITINLINE>
+              <SCHEME><SCHEMEINLINE>or-gate</SCHEMEINLINE></SCHEME>
+              <JAVASCRIPT><JAVASCRIPTINLINE>or_gate</JAVASCRIPTINLINE></JAVASCRIPT>
+          </SPLITINLINE></SUBINDEX></INDEX>
+          Define an or-gate as a primitive function box.  Your <SPLITINLINE>
+              <SCHEME><SCHEMEINLINE>or-gate</SCHEMEINLINE></SCHEME>
+              <JAVASCRIPT><JAVASCRIPTINLINE>or_gate</JAVASCRIPTINLINE></JAVASCRIPT>
+          </SPLITINLINE> constructor should be similar to <SPLITINLINE>
+              <SCHEME><SCHEMEINLINE>and-gate</SCHEMEINLINE></SCHEME>
+              <JAVASCRIPT><JAVASCRIPTINLINE>and_gate</JAVASCRIPTINLINE></JAVASCRIPT>
+          </SPLITINLINE>.
+      </EXERCISE>
+
+      <EXERCISE>
+          <INDEX>or-gate<SUBINDEX>or gate@<SPLITINLINE>
+              <SCHEME><SCHEMEINLINE>or-gate</SCHEMEINLINE></SCHEME>
+              <JAVASCRIPT><JAVASCRIPTINLINE>or_gate</JAVASCRIPTINLINE></JAVASCRIPT>
+          </SPLITINLINE> </SUBINDEX></INDEX>
+        Another way to construct an or-gate is as a compound digital logic
+        device, built from and-gates and inverters.  Define a
+        <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+        <SPLITINLINE>
+            <SCHEME><SCHEMEINLINE>or-gate</SCHEMEINLINE></SCHEME>
+            <JAVASCRIPT><JAVASCRIPTINLINE>or_gate</JAVASCRIPTINLINE></JAVASCRIPT>
+        </SPLITINLINE> that accomplishes this.  What is the delay time of the
+        or-gate in terms of <SPLITINLINE>
+            <SCHEME><SCHEMEINLINE>and-gate-delay</SCHEMEINLINE></SCHEME>
+            <JAVASCRIPT><JAVASCRIPTINLINE>and_gate_delay</JAVASCRIPTINLINE></JAVASCRIPT>
+        </SPLITINLINE> and <SPLITINLINE>
+            <SCHEME><SCHEMEINLINE>inverter-delay</SCHEMEINLINE></SCHEME>
+            <JAVASCRIPT><JAVASCRIPTINLINE>inverter_delay</JAVASCRIPTINLINE></JAVASCRIPT>
+        </SPLITINLINE>?
+      </EXERCISE>
+
+      <EXERCISE>
+        Figure<SPACE/><REF NAME="fig:ripple-carry"/> shows a 
+        <INDEX>ripple-carry adder</INDEX>
+        <INDEX>adder<SUBINDEX>ripple-carry</SUBINDEX></INDEX>
+        <EM>ripple-carry adder</EM> formed by stringing
+        together <LATEXINLINE>$n$</LATEXINLINE> full-adders.  This is the simplest form of parallel adder
+        for adding two <LATEXINLINE>$n$</LATEXINLINE>-bit binary numbers.  The inputs A<LATEXINLINE>$_{1}$</LATEXINLINE>, A<LATEXINLINE>$_{2}$</LATEXINLINE>,
+        A<LATEXINLINE>$_{3}$</LATEXINLINE>, <ELLIPSIS/>, A<LATEXINLINE>$_{n}$</LATEXINLINE> and B<LATEXINLINE>$_{1}$</LATEXINLINE>, B<LATEXINLINE>$_{2}$</LATEXINLINE>, B<LATEXINLINE>$_{3}$</LATEXINLINE>, <ELLIPSIS/>,
+        B<LATEXINLINE>$_{n}$</LATEXINLINE> are the two binary numbers to be added (each A<LATEXINLINE>$_{k}$</LATEXINLINE> and B<LATEXINLINE>$_{k}$</LATEXINLINE>
+        is a 0 or a 1).  The circuit generates S<LATEXINLINE>$_{1}$</LATEXINLINE>, S<LATEXINLINE>$_{2}$</LATEXINLINE>, S<LATEXINLINE>$_{3}$</LATEXINLINE>,
+        <ELLIPSIS/>, S<LATEXINLINE>$_{n}$</LATEXINLINE>, the <LATEXINLINE>$n$</LATEXINLINE> bits of the sum, and C, the carry from
+        the addition.  Write a
+        <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE> <SPLITINLINE>
+            <SCHEME><SCHEMEINLINE>ripple-carry-adder</SCHEMEINLINE></SCHEME>
+            <JAVASCRIPT><JAVASCRIPTINLINE>ripple_carry_adder</JAVASCRIPTINLINE></JAVASCRIPT>
+        </SPLITINLINE> that
+        generates this circuit.  The
+        <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+        should take as arguments three
+        lists of <LATEXINLINE>$n$</LATEXINLINE> wires each<EMDASH/>the A<LATEXINLINE>$_{k}$</LATEXINLINE>, the B<LATEXINLINE>$_{k}$</LATEXINLINE>, and the S<LATEXINLINE>$_{k}$</LATEXINLINE><EMDASH/>and
+        also another wire C.  The major drawback of the ripple-carry adder is
+        the need to wait for the carry signals to propagate.  What is the
+        delay needed to obtain the complete output from an <LATEXINLINE>$n$</LATEXINLINE>-bit
+        ripple-carry adder, expressed in terms of the delays for and-gates,
+        or-gates, and inverters?
+        <LABEL NAME="ex:ripple-carry"/>
+      </EXERCISE>
+
+      <FIGURE>
+          <FIGURE src="img_original/ch3-Z-G-27.gif"></FIGURE>
+          <CAPTION>A ripple-carry adder for <LATEXINLINE>$n$</LATEXINLINE>-bit numbers.
+          </CAPTION>
+      <LABEL NAME="fig:ripple-carry"/>
+      </FIGURE>
+      <INDEX>digital-circuit simulation<SUBINDEX>primitive function boxes|)</SUBINDEX></INDEX>
+
+      <SUBHEADING> 
+        <NAME>Representing wires</NAME>
+      </SUBHEADING>
+
+      <INDEX>digital-circuit simulation<SUBINDEX>representing wires|(</SUBINDEX></INDEX>
+
+      <TEXT>
+        A wire in our simulation will be a computational object with two local
+        state variables: a <SPLITINLINE><SCHEME>signal-value</SCHEME><JAVASCRIPT>signal_value</JAVASCRIPT></SPLITINLINE> (initially taken to be 0) and a
+        collection of <SPLITINLINE><SCHEME>action-procedures</SCHEME><JAVASCRIPT>action_procedure</JAVASCRIPT></SPLITINLINE> to be run when the signal
+        changes value.  We implement the wire, using message-passing style, as
+        <INDEX>message passing<SUBINDEX>in digital-circuit simulation</SUBINDEX></INDEX>
+        a collection of local
+        <SPLITINLINE><SCHEME>procedures</SCHEME><JAVASCRIPT>functions</JAVASCRIPT></SPLITINLINE>
+        together with a <SCHEMEINLINE>dispatch</SCHEMEINLINE>
+        <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+        that selects the appropriate local operation, just as we did
+        with the simple bank-account object in section
+        <SPACE/><REF NAME="sec:local-state-variables"/>:
+
+        <SNIPPET EVAL="no">
+            <SCHEME>
+                <!--  \indcode*{make-wire} -->
+                (define (make-wire)
+                (let ((signal-value 0) (action-procedures '()))
+                (define (set-my-signal! new-value)
+                (if (not (= signal-value new-value))
+                (begin (set! signal-value new-value)
+                (call-each action-procedures))
+                'done))
+                
+                (define (accept-action-procedure! proc)
+                (set! action-procedures (cons proc action-procedures))
+                (proc))
+                
+                (define (dispatch m)
+                (cond ((eq? m 'get-signal) signal-value)
+                ((eq? m 'set-signal!) set-my-signal!)
+                ((eq? m 'add-action!) accept-action-procedure!)
+                (else (error "Unknown operation -- WIRE" m))))
+                dispatch))
+            </SCHEME>
+            <JAVASCRIPT>
+function make_wire() {
+const signal_value = 0;
+const action_procedures = [];
+function set_my_signal(new_value) {
+    if (signal_value !== new_value) {
+        signal_value = new_value;
+        call_each(action_procedures);
+    } else {}
+}
+function accept_action_procedure(proc) {
+    action_procedures = pair(proc, action_procedures);
+    proc();
+}
+function dispatch(m) {
+    if (m === "get_signal") {
+        return signal_value;
+    } else if (m === "set_signal") {
+        return set_my_signal;
+    } else if (m === "add_action") {
+        return accept_action_procedure;
+    } else {
+        error("Unknown operation -- WIRE" + m);
+    }
+}
+return dispatch;
+}
+            </JAVASCRIPT>
+        </SNIPPET>
+      </TEXT>
+
+      <TEXT>
+        The local
+        <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE> <SPLITINLINE>
+            <SCHEME><SCHEMEINLINE>set-my-signal</SCHEMEINLINE></SCHEME>
+            <JAVASCRIPT><JAVASCRIPTINLINE>set_my_signal</JAVASCRIPTINLINE></JAVASCRIPT>
+        </SPLITINLINE> tests whether the new signal
+        value changes the signal on the wire.  If so, it runs each of the
+        action
+        <SPLITINLINE><SCHEME>procedures</SCHEME><JAVASCRIPT>functions</JAVASCRIPT></SPLITINLINE>, using the following
+        <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+        <SPLITINLINE><SCHEME>call-each</SCHEME><JAVASCRIPT>call_each</JAVASCRIPT></SPLITINLINE>,
+        which calls each of the items in a list of no-argument
+        <SPLITINLINE><SCHEME>procedures</SCHEME><JAVASCRIPT>functions</JAVASCRIPT></SPLITINLINE>:
+
+        <SNIPPET EVAL="no">
+            <SCHEME>
+                <!--  \indcode*{call-each} -->
+                (define (call-each procedures)
+                (if (null? procedures)
+                'done
+                (begin
+                ((car procedures))
+                (call-each (cdr procedures)))))
+            </SCHEME>
+            <JAVASCRIPT>
+function call_each(procedures) {
+    if (is_empty_list(procedures)) {
+        return "done";
+    } else {
+        (head(procedures))();
+        call_each(tail(procedures));
+    }
+}
+            </JAVASCRIPT>
+        </SNIPPET>
+      </TEXT>
+
+      <TEXT>
+        The local
+        <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+        <SPLITINLINE>
+            <SCHEME><SCHEMEINLINE>accept-action-procedure</SCHEMEINLINE></SCHEME>
+            <JAVASCRIPT><JAVASCRIPTINLINE>accept_action_procedure</JAVASCRIPTINLINE></JAVASCRIPT>
+        </SPLITINLINE> adds the given
+        <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+        to the list of
+        <SPLITINLINE><SCHEME>procedures</SCHEME><JAVASCRIPT>functions</JAVASCRIPT></SPLITINLINE>
+        to be run, and then runs the new
+        <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+        once.  (See Exercise<SPACE/><REF NAME="ex:accept-action"/>.)
+      </TEXT>
+
+      <TEXT>
+        With the local <SCHEMEINLINE>dispatch</SCHEMEINLINE>
+        <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+        set up as specified, we can
+        provide the following
+        <SPLITINLINE><SCHEME>procedures</SCHEME><JAVASCRIPT>functions</JAVASCRIPT></SPLITINLINE>
+        to access the local operations on
+        wires:<FOOTNOTE>These
+          <SPLITINLINE><SCHEME>procedures</SCHEME><JAVASCRIPT>functions</JAVASCRIPT></SPLITINLINE>
+          are simply syntactic sugar that allow
+          <INDEX>syntactic sugar<SUBINDEX><SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+              vs.<SPACE/>data as</SUBINDEX></INDEX>
+          <INDEX>syntax interface</INDEX>
+          us to use ordinary 
+        <SPLITINLINE>
+          <SCHEME>
+            procedural 
+          </SCHEME>
+          <JAVASCRIPT>
+            functional
+          </JAVASCRIPT>
+        </SPLITINLINE>
+         syntax to access the local
+          <SPLITINLINE><SCHEME>procedures</SCHEME><JAVASCRIPT>functions</JAVASCRIPT></SPLITINLINE>
+          of
+          objects.  It is striking that we can interchange the role of
+          <QUOTE><SPLITINLINE><SCHEME>procedures</SCHEME><JAVASCRIPT>functions</JAVASCRIPT></SPLITINLINE></QUOTE> and <QUOTE>data</QUOTE> in such a simple way.  For example, if we
+          write <SPLITINLINE><SCHEME><SCHEMEINLINE>(wire 'get-signal)</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>wire('get_signal')</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> we think of <SCHEMEINLINE>wire</SCHEMEINLINE> as a
+          <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+          that is called with the message <SCHEMEINLINE>get-signal</SCHEMEINLINE> as input.
+          Alternatively, writing <SPLITINLINE><SCHEME><SCHEMEINLINE>(get-signal wire)</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>get_signal(wire)</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> encourages us to think
+          of <SCHEMEINLINE>wire</SCHEMEINLINE> as a data object that is the input to a
+          <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+          <SPLITINLINE>
+              <SCHEME><SCHEMEINLINE>get-signal</SCHEMEINLINE></SCHEME>
+              <JAVASCRIPT><JAVASCRIPTINLINE>get_signal</JAVASCRIPTINLINE></JAVASCRIPT>
+          </SPLITINLINE>.  The truth of the matter is that, in a language in which
+          we can deal with
+          <SPLITINLINE><SCHEME>procedures</SCHEME><JAVASCRIPT>functions</JAVASCRIPT></SPLITINLINE>
+          as objects, there is no fundamental
+          difference between <QUOTE><SPLITINLINE><SCHEME>procedures</SCHEME><JAVASCRIPT>functions</JAVASCRIPT></SPLITINLINE></QUOTE> and <QUOTE>data,</QUOTE> and we can choose our
+          syntactic sugar to allow us to program in whatever style we choose.
+          <LABEL NAME="foot:object-syntax"/></FOOTNOTE>
+
+        <SNIPPET EVAL="no">
+            <SCHEME>
+                <!--  \indcode*{get-signal} -->
+                (define (get-signal wire)
+                (wire 'get-signal))
+                
+                <!--  \indcode*{set-signal!} -->
+                (define (set-signal! wire new-value)
+                ((wire 'set-signal!) new-value))
+                
+                <!--  \indcode*{add-action!} -->
+                (define (add-action! wire action-procedure)
+                ((wire 'add-action!) action-procedure))
+            </SCHEME>
+            <JAVASCRIPT>
+function get_signal(wire) {
+    return wire("get_signal");
+}
+
+function set_signal(wire, new_value) {
+    return (wire("set_signal"))(new_value);
+}
+
+function add_action(wire, action_procedure) {
+    return (wire("add_action"))(action_procedure);
+}
+            </JAVASCRIPT>
+        </SNIPPET>
+      </TEXT>
+
+      <TEXT>
+        Wires, which have time-varying signals and may be incrementally
+        attached to devices, are typical of mutable objects.  We have modeled
+        them as
+        <SPLITINLINE><SCHEME>procedures</SCHEME><JAVASCRIPT>functions</JAVASCRIPT></SPLITINLINE>
+        with local state variables that are modified by
+        assignment.  When a new wire is created, a new set of state variables
+        is allocated (by the <SPLITINLINE>
+            <SCHEME><SCHEMEINLINE>let</SCHEMEINLINE></SCHEME>
+            <JAVASCRIPT><JAVASCRIPTINLINE>var</JAVASCRIPTINLINE></JAVASCRIPT>
+        </SPLITINLINE> expression in <SPLITINLINE>
+            <SCHEME><SCHEMEINLINE>make-wire</SCHEMEINLINE></SCHEME>
+            <JAVASCRIPT><JAVASCRIPTINLINE>make_wire</JAVASCRIPTINLINE></JAVASCRIPT>
+        </SPLITINLINE>) and a
+        new <SCHEMEINLINE>dispatch</SCHEMEINLINE>
+        <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+        is constructed and returned, capturing
+        the environment with the new state variables.
+      </TEXT>
+
+      <TEXT>
+        The wires are shared among the various devices that have been
+        connected to them.  Thus, a change made by an interaction with one
+        device will affect all the other devices attached to the wire.  The
+        wire communicates the change to its neighbors by calling the action
+        <SPLITINLINE><SCHEME>procedures</SCHEME><JAVASCRIPT>functions</JAVASCRIPT></SPLITINLINE>
+        provided to it when the connections were established.
+        <INDEX>digital-circuit simulation<SUBINDEX>representing wires|)</SUBINDEX></INDEX>
+      </TEXT>
+
+      <SUBHEADING> 
+        <NAME>The agenda</NAME>
+      </SUBHEADING>
+
+      <INDEX>digital-circuit simulation<SUBINDEX>agenda|(</SUBINDEX></INDEX>
+
+      <TEXT>
+        The only thing needed to complete the simulator is <SPLITINLINE><SCHEME>after-delay</SCHEME><JAVASCRIPT>after_delay</JAVASCRIPT></SPLITINLINE>.
+        The idea here is that we maintain a data structure, called an <EM>
+          agenda</EM>, that contains a schedule of things to do.  The following
+        operations are defined for agendas:
+
+        <UL>
+          <LI>
+            <!--  \indcode{make-agenda} -->
+            <SPLITINLINE><SCHEME><SCHEMEINLINE>(make-agenda)</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>make_agenda();</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>//
+            returns a new empty agenda.
+
+          </LI>
+          <LI>
+            <!--  \indcode{empty-agenda?} -->
+            <SPLITINLINE><SCHEME><SCHEMEINLINE>(empty-agenda? ^agenda^)</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>is_empty_agenda(agenda);</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> //
+            is true if the specified agenda is empty.
+          </LI>
+          <LI>
+            <!--  \indcode{first-agenda-item} -->
+            <SPLITINLINE><SCHEME><SCHEMEINLINE>(first-agenda-item ^agenda^)</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>first_agenda_item(agenda);</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> //
+            returns the first item on the agenda.
+          </LI>
+          <LI>
+            <!--  \indcode{remove-first-agenda-item!} -->
+            <SPLITINLINE><SCHEME><SCHEMEINLINE>(remove-first-agenda-item! ^agenda^)</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>remove_first_agenda_item(agenda);</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> //
+            modifies the agenda by removing the first item.
+          </LI>
+          <LI>
+            <!--  \indcode{add-to-agenda!} -->
+            <SPLITINLINE><SCHEME><SCHEMEINLINE>(add-to-agenda! ^time^ ^action^ ^agenda^)</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>add_to_agenda(time, action, agenda);</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> //
+            modifies the agenda by adding the given action
+            <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+            to be run at
+            the specified time.
+          </LI>
+          <LI>
+            <!--  \indcode{current-time} -->
+            <SPLITINLINE><SCHEME><SCHEMEINLINE>(current-time ^agenda^)</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>current_time(agenda);</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> //
+            returns the current simulation time.
+          </LI>
+        </UL>
+      </TEXT>
+
+      <TEXT>
+        The particular agenda that we use is denoted by
+        <SPLITINLINE>
+            <SCHEME><SCHEMEINLINE>the-agenda</SCHEMEINLINE></SCHEME>
+            <JAVASCRIPT><JAVASCRIPTINLINE>the_agenda</JAVASCRIPTINLINE></JAVASCRIPT>
+        </SPLITINLINE>. The
+        <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+        <SPLITINLINE>
+            <SCHEME><SCHEMEINLINE>after-delay</SCHEMEINLINE></SCHEME>
+            <JAVASCRIPT><JAVASCRIPTINLINE>after_delay</JAVASCRIPTINLINE></JAVASCRIPT>
+        </SPLITINLINE> adds new
+        elements to <SPLITINLINE>
+            <SCHEME><SCHEMEINLINE>the-agenda</SCHEMEINLINE></SCHEME>
+            <JAVASCRIPT><JAVASCRIPTINLINE>the_agenda</JAVASCRIPTINLINE></JAVASCRIPT>
+        </SPLITINLINE> :
+        
+        <SNIPPET EVAL="no">
+            <SCHEME>
+                <!--  \indcode*{after-delay} -->
+                (define (after-delay delay action)
+                (add-to-agenda! (+ delay (current-time the-agenda))
+                action
+                the-agenda))
+            </SCHEME>
+            <JAVASCRIPT>
+function after_delay(delay, action) {
+    add_to_agenda(delay + current_time(the_agenda),
+                  action, the_agenda);
+}
+            </JAVASCRIPT>
+        </SNIPPET>
+      </TEXT>
+
+      <TEXT>
+        The simulation is driven by the
+        <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+        <SCHEMEINLINE>propagate</SCHEMEINLINE>, which
+        operates on <SPLITINLINE>
+            <SCHEME><SCHEMEINLINE>the-agenda</SCHEMEINLINE></SCHEME>
+            <JAVASCRIPT><JAVASCRIPTINLINE>the_agenda</JAVASCRIPTINLINE></JAVASCRIPT>
+        </SPLITINLINE>, executing each
+        <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+        on the agenda
+        in sequence.  In general, as the simulation runs, new items will be
+        added to the agenda, and <SCHEMEINLINE>propagate</SCHEMEINLINE> will continue the simulation
+        as long as there are items on the agenda:
+
+        <SNIPPET EVAL="no">
+            <SCHEME>
+                <!--  \indcode*{propagate} -->
+                (define (propagate)
+                (if (empty-agenda? the-agenda)
+                'done
+                (let ((first-item (first-agenda-item the-agenda)))
+                (first-item)
+                (remove-first-agenda-item! the-agenda)
+                (propagate))))
+            </SCHEME>
+            <JAVASCRIPT>
+function propagate() {
+    if (is_empty_agenda(the_agenda)) {
+        return "done";
+    } else {
+        const first = first_agenda_item(the_agenda);
+        first();
+        remove_first_agenda_item(the_agenda);
+        return propagate();
+    }
+}
+            </JAVASCRIPT>
+        </SNIPPET>
+        <INDEX>digital-circuit simulation<SUBINDEX>agenda|)</SUBINDEX></INDEX>
+      </TEXT>
+
+      <SUBHEADING> 
+        <NAME>A sample simulation</NAME>
+      </SUBHEADING>
+
+      <INDEX>digital-circuit simulation<SUBINDEX>sample simulation|(</SUBINDEX></INDEX>
+      <INDEX>half-adder<SUBINDEX>simulation of|(</SUBINDEX></INDEX>
+
+      <TEXT>
+        The following
+        <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>, which places a <QUOTE>probe</QUOTE> on a wire, shows the
+        simulator in action.  The probe tells the wire that, whenever its
+        signal changes value, it should print the new signal value, together
+        with the current time and a name that identifies the wire:
+
+        <SNIPPET EVAL="no">
+            <SCHEME>
+                <!--  \indcode*{probe}[in digital-circuit simulator] -->
+                (define (probe name wire)
+                (add-action! wire
+                (lambda ()
+                (newline)
+                (display name)
+                (display " ")
+                (display (current-time the-agenda))
+                (display "  New-value = ")
+                (display (get-signal wire)))))
+            </SCHEME>
+            <JAVASCRIPT>
+function probe(name, wire) {
+    add_action(wire, 
+        function() => display(name + " " +
+                          current_time(the_agenda) + 
+                          ", New value = " + 
+                          get_signal(wire));
+}
+            </JAVASCRIPT>
+        </SNIPPET>
+      </TEXT>
+
+      <TEXT>
+        We begin by initializing the agenda and specifying delays for the
+        primitive function boxes:
+
+        <SNIPPET EVAL="no">
+            <SCHEME>
+                (define the-agenda (make-agenda))
+                (define inverter-delay 2)
+                (define and-gate-delay 3)
+                (define or-gate-delay 5)
+            </SCHEME>
+            <JAVASCRIPT>
+const the_agenda = make_agenda();
+const inverter_delay = 2;
+const and_gate_delay = 3;
+const or_gate_delay = 5;
+            </JAVASCRIPT>
+        </SNIPPET>
+      </TEXT>
+
+      <TEXT>
+        Now we define four wires, placing probes on two of them:
+
+<SNIPPET EVAL="no">
+<SCHEME>
+    (define input-1 (make-wire))
+    (define input-2 (make-wire))
+    (define sum (make-wire))
+    (define carry (make-wire))
+    
+    (probe 'sum sum)
+</SCHEME>
+<JAVASCRIPT>
+const input_1 = make_wire();
+const input_2 = make_wire();
+const sum = make_wire();
+const carry = make_wire();
+
+probe("Sum", sum);
+// Sum 0, New value = 0
+</JAVASCRIPT>
+<SCHEMEOUTPUT>
+    sum 0  New-value = 0
+</SCHEMEOUTPUT>
+</SNIPPET>
+
+<SNIPPET EVAL="no">
+<SCHEME>
+    (probe 'carry carry)
+</SCHEME>
+<JAVASCRIPT>
+    probe("Carry", carry);
+    // Carry 0, New value = 0
+</JAVASCRIPT>
+<SCHEMEOUTPUT>
+    carry 0  New-value = 0
+</SCHEMEOUTPUT>
+</SNIPPET>
+      </TEXT>
+
+      <TEXT>
+        Next we connect the wires in a half-adder circuit (as in
+        Figure<SPACE/><REF NAME="fig:half-adder"/>), set the signal on <SPLITINLINE>
+            <SCHEME><SCHEMEINLINE>input-1</SCHEMEINLINE></SCHEME>
+            <JAVASCRIPT><JAVASCRIPTINLINE>input_1</JAVASCRIPTINLINE></JAVASCRIPT>
+        </SPLITINLINE> to 1,
+        and run the simulation:
+
+<SNIPPET EVAL="no">
+    <SCHEME>
+        (half-adder input-1 input-2 sum carry)
+    </SCHEME>
+    <JAVASCRIPT>
+        half_adder(input_1, input_2, sum, carry);
+        // ok
+    </JAVASCRIPT>
+    <SCHEMEOUTPUT>
+        ok
+    </SCHEMEOUTPUT>
+</SNIPPET>
+
+<SNIPPET EVAL="no">
+    <SCHEME>
+        (set-signal! input-1 1)
+    </SCHEME>
+    <JAVASCRIPT>
+        set_signal(input_1, 1);
+        // done
+    </JAVASCRIPT>
+    <SCHEMEOUTPUT>
+        done
+    </SCHEMEOUTPUT>
+</SNIPPET>
+
+<SNIPPET EVAL="no">
+    <SCHEME>
+        (propagate)
+    </SCHEME>
+    <JAVASCRIPT>
+        propagate();
+        // Sum 8, New Value = 1
+        // done
+    </JAVASCRIPT>
+    <SCHEMEOUTPUT>
+        sum 8  New-value = 1
+        done
+    </SCHEMEOUTPUT>
+</SNIPPET>
+
+        The <SCHEMEINLINE>sum</SCHEMEINLINE> signal changes to 1 at time 8.  We are now eight time
+        units from the beginning of the simulation.  At this point, we can set
+        the signal on <SPLITINLINE>
+            <SCHEME><SCHEMEINLINE>input-2</SCHEMEINLINE></SCHEME>
+            <JAVASCRIPT><JAVASCRIPTINLINE>input_2</JAVASCRIPTINLINE></JAVASCRIPT>
+        </SPLITINLINE> to 1 and allow the values to propagate:
+
+        <SNIPPET EVAL="no">
+            <SCHEME>
+                (set-signal! input-2 1)
+            </SCHEME>
+            <JAVASCRIPT>
+                set_signal(input_2, 1);
+                // done
+            </JAVASCRIPT>
+            <SCHEMEOUTPUT>
+                done
+            </SCHEMEOUTPUT>
+        </SNIPPET>
+        
+        <SNIPPET EVAL="no">
+            <SCHEME>
+                (propagate)
+            </SCHEME>
+            <JAVASCRIPT>
+                propagate();
+                // Carry 11, New value = 1
+                // Sum 16, New value = 0
+                // done
+            </JAVASCRIPT>
+            <SCHEMEOUTPUT>
+                carry 11  New value = 1
+                sum 16  New value = 0
+                done
+            </SCHEMEOUTPUT>
+        </SNIPPET>
+      </TEXT>
+
+      <TEXT>
+        The <SCHEMEINLINE>carry</SCHEMEINLINE> changes to 1 at time 11 and the <SCHEMEINLINE>sum</SCHEMEINLINE> changes to 0
+        at time 16.
+        <INDEX>digital-circuit simulation<SUBINDEX>sample simulation|)</SUBINDEX></INDEX>
+        <INDEX>half-adder<SUBINDEX>simulation of|)</SUBINDEX></INDEX>
+      </TEXT>
+
+      <EXERCISE>
+        <LABEL NAME="ex:accept-action"/>
+        The internal
+        <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+        <SPLITINLINE>
+            <SCHEME><SCHEMEINLINE>accept-action-procedure!</SCHEMEINLINE></SCHEME>
+            <JAVASCRIPT><JAVASCRIPTINLINE>accept_action_procedure</JAVASCRIPTINLINE></JAVASCRIPT>
+        </SPLITINLINE> defined in <SPLITINLINE>
+            <SCHEME><SCHEMEINLINE>make-wire</SCHEMEINLINE></SCHEME>
+            <JAVASCRIPT><JAVASCRIPTINLINE>make_wire</JAVASCRIPTINLINE></JAVASCRIPT>
+        </SPLITINLINE> specifies that when a new action
+        <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+        is added to
+        a wire, the
+        <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+        is immediately run.  Explain why this initialization
+        is necessary.  In particular, trace through the half-adder example in
+        the paragraphs above and say how the system<APOS/>s response would differ if
+        we had defined <SPLITINLINE>
+            <SCHEME><SCHEMEINLINE>accept-action-procedure!</SCHEMEINLINE></SCHEME>
+            <JAVASCRIPT><JAVASCRIPTINLINE>accept_action_procedure</JAVASCRIPTINLINE></JAVASCRIPT>
+        </SPLITINLINE> as
+
+        <SNIPPET EVAL="no">
+            <SCHEME>
+                (define (accept-action-procedure! proc)
+                (set! action-procedures (cons proc action-procedures)))
+            </SCHEME>
+            <JAVASCRIPT>
+function accept_action_procedure(proc) {
+    action_procedures = pair(proc, action_procedures);
+}
+            </JAVASCRIPT>
+        </SNIPPET>
+      </EXERCISE>
+      
+      <SUBHEADING> 
+        <NAME>Implementing the agenda</NAME>
+      </SUBHEADING>
+
+      <INDEX>digital-circuit simulation<SUBINDEX>agenda implementation|(</SUBINDEX></INDEX>
+
+      <TEXT>
+        Finally, we give details of the agenda data structure, which holds the
+        <SPLITINLINE><SCHEME>procedures</SCHEME><JAVASCRIPT>functions</JAVASCRIPT></SPLITINLINE>
+        that are scheduled for future execution.
+      </TEXT>
+
+      <TEXT>
+        The agenda is made up of 
+        <INDEX>time segment, in agenda</INDEX>
+        <EM>time segments</EM>.  Each time segment is a
+        pair consisting of a number (the time) and a 
+        <INDEX>queue<SUBINDEX>simulation@in simulation agenda</SUBINDEX></INDEX>
+        queue (see
+        Exercise<SPACE/><REF NAME="ex:agenda-list"/>) that holds the
+        <SPLITINLINE><SCHEME>procedures</SCHEME><JAVASCRIPT>functions</JAVASCRIPT></SPLITINLINE>
+        that are
+        scheduled to be run during that time segment.
+
+        <SNIPPET EVAL="no">
+            <SCHEME>
+                <!--  \indcode*{make-time-segment} -->
+                (define (make-time-segment time queue)
+                (cons time queue))
+                
+                <!--  \indcode*{segment-time} -->
+                (define (segment-time s) (car s))
+                
+                <!--  \indcode*{segment-queue} -->
+                (define (segment-queue s) (cdr s))
+            </SCHEME>
+            <JAVASCRIPT>
+function make_time_segment(time, queue) {
+    return pair(time, queue);
+}
+
+function segment_time(s) {
+    return head(s);
+}
+
+function segment_queue(s) {
+    return tail(s);
+}
+            </JAVASCRIPT>
+        </SNIPPET>
+      </TEXT>
+
+      <TEXT>
+        We will operate on the time-segment queues using the queue operations
+        described in Section<SPACE/><REF NAME="sec:queues"/>.
+      </TEXT>
+
+      <TEXT>
+        <INDEX>table<SUBINDEX>used in simulation agenda</SUBINDEX></INDEX>
+        The agenda itself is a one-dimensional table of time segments.  It
+        differs from the tables described in Section<SPACE/><REF NAME="sec:tables"/> in that
+        the segments will be sorted in order of increasing time.  In addition,
+        we store the 
+        <INDEX>current time, for simulation agenda</INDEX>
+        <EM>current time</EM> (i.e., the time of the last action
+        that was processed) at the head of the agenda.  A newly constructed
+        agenda has no time segments and has a current time of 0:<FOOTNOTE>The
+          agenda is a 
+          <INDEX>headed list</INDEX>
+          <INDEX>list(s)<SUBINDEX>headed</SUBINDEX></INDEX>
+          headed list, like the tables in Section<SPACE/><REF NAME="sec:tables"/>,
+          but since the list is headed by the time, we do not need an additional
+          dummy header (such as the <SCHEMEINLINE>*table*</SCHEMEINLINE> symbol used with tables).</FOOTNOTE>
+
+        <SNIPPET EVAL="no">
+            <SCHEME>
+                <!--  \indcode*{make-agenda} -->
+                (define (make-agenda) (list 0))
+                
+                <!--  \indcode*{current-time} -->
+                (define (current-time agenda) (car agenda))
+                
+                <!--  \indcode*{set-current-time!} -->
+                (define (set-current-time! agenda time)
+                (set-car! agenda time))
+                
+                <!--  \indcode*{segments} -->
+                (define (segments agenda) (cdr agenda))
+                
+                <!--  \indcode*{set-segments!} -->
+                (define (set-segments! agenda segments)
+                (set-cdr! agenda segments))
+                
+                <!--  \indcode*{first-segment} -->
+                (define (first-segment agenda) (car (segments agenda)))
+                
+                <!--  \indcode*{rest-segments} -->
+                (define (rest-segments agenda) (cdr (segments agenda)))
+            </SCHEME>
+            <JAVASCRIPT>
+function make_agenda() {
+    return list(0);
+}
+
+function current_time(agenda) {
+    return head(agenda);
+}
+
+function set_current_time(agenda, time) {
+    set_head(agenda, time);
+}
+
+function segments(agenda) {
+    return tail(agenda);
+}
+
+function set_segments(agenda, segs) {
+    set_tail(agenda, segs);
+}
+
+function first_segment(agenda) {
+    return head(segments(agenda));
+}
+
+function rest_segments(agenda) {
+    return tail(segments(agenda));
+}
+            </JAVASCRIPT>
+        </SNIPPET>
+      </TEXT>
+
+      <TEXT>
+        An agenda is empty if it has no time segments:
+        <SNIPPET EVAL="no">
+            <SCHEME>
+                <!--  \indcode*{empty-agenda?} -->
+                (define (empty-agenda? agenda)
+                (null? (segments agenda)))
+            </SCHEME>
+            <JAVASCRIPT>
+function is_empty_agenda(agenda) {
+    return is_empty_list(segments(agenda));
+}
+            </JAVASCRIPT>
+        </SNIPPET>
+      </TEXT>
+
+      <TEXT>
+        To add an action to an agenda, we first check if the agenda is empty.
+        If so, we create a time segment for the action and install this in
+        the agenda.  Otherwise, we scan the agenda, examining the time of each
+        segment.  If we find a segment for our appointed time, we add the
+        action to the associated queue.  If we reach a time later than the one
+        to which we are appointed, we insert a new time segment into the
+        agenda just before it.  If we reach the end of the agenda, we must
+        create a new time segment at the end.
+
+        <SNIPPET EVAL="no">
+            <SCHEME>
+                <!--  \indcode*{add-to-agenda!} -->
+                (define (add-to-agenda! time action agenda)
+                (define (belongs-before? segments)
+                (or (null? segments)
+                (&lt; time (segment-time (car segments)))))
+                (define (make-new-time-segment time action)
+                (let ((q (make-queue)))
+                (insert-queue! q action)
+                (make-time-segment time q)))
+                (define (add-to-segments! segments)
+                (if (= (segment-time (car segments)) time)
+                (insert-queue! (segment-queue (car segments))
+                action)
+                (let ((rest (cdr segments)))
+                (if (belongs-before? rest)
+                (set-cdr!
+                segments
+                (cons (make-new-time-segment time action)
+                (cdr segments)))
+                (add-to-segments! rest)))))
+                (let ((segments (segments agenda)))
+                (if (belongs-before? segments)
+                (set-segments!
+                agenda
+                (cons (make-new-time-segment time action)
+                segments))
+                (add-to-segments! segments))))
+            </SCHEME>
+            <JAVASCRIPT>
+function add_to_agenda(time, action, agenda) {
+    function belongs_before(segs) {
+        return is_empty_list(segs)
+            || time &lt; segment_time(head(segs));
+    }
+    function make_new_time_segment(time, action) {
+        const q = make_queue();
+        insert_queue(q, action);
+        return make_time_segment(time, q);
+    }
+    function add_to_segments(segs) {
+        if (segment_time(head(segs)) === time) {
+            insert_queue(segment_queue(head(segs)), action);
+        } else {
+            const rest = tail(segs);
+            if (belongs_before(rest)) {
+                set_tail(segs,
+                    pair(make_new_time_segment(time, action),
+                         tail(segs)));
+            } else {
+                add_to_segments(rest);
+            }
+        }
+    }
+    const segs = segments(agenda);
+    if (belongs_before(segs)) {
+        set_segments(agenda,
+            pair(make_new_time_segment(time, action),
+                 segs));
+    } else {
+        add_to_segments(segs);
+    }
+}
+            </JAVASCRIPT>
+        </SNIPPET>
+      </TEXT>
+
+      <TEXT>
+        The
+        <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+        that removes the first item from the agenda deletes the
+        item at the front of the queue in the first time segment.  If this
+        deletion makes the time segment empty, we remove it from the list of
+        segments:<FOOTNOTE>Observe that the <SCHEMEINLINE>if</SCHEMEINLINE> expression in
+          this
+          <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+          has no
+          <LATEXINLINE>alternative</LATEXINLINE> expression.  Such a <QUOTE>one-armed <SCHEMEINLINE>if</SCHEMEINLINE> statement</QUOTE>
+          <!-- \indsf{if}[one-armed (without alternative)]-->
+          <INDEX>unspecified values<SUBINDEX>if@<SCHEMEINLINE>if</SCHEMEINLINE> without alternative</SUBINDEX></INDEX>
+          is used to decide whether to do something, rather than to select
+          between two expressions.  An <SCHEMEINLINE>if</SCHEMEINLINE> expression returns an
+          unspecified value if the predicate is false and there is no
+          <LATEXINLINE>alternative</LATEXINLINE>.</FOOTNOTE>
+
+        <SNIPPET EVAL="no">
+            <SCHEME>
+                <!--  \indcode*{remove-first-agenda-item!} -->
+                (define (remove-first-agenda-item! agenda)
+                (let ((q (segment-queue (first-segment agenda))))
+                (delete-queue! q)
+                (if (empty-queue? q)
+                (set-segments! agenda (rest-segments agenda)))))
+            </SCHEME>
+            <JAVASCRIPT>
+function remove_first_agenda_item(agenda) {
+    const q = segment_queue(first_segment(agenda));
+    delete_queue(q);
+    if (is_empty_queue(q)) {
+        set_segments(agenda, rest_segments(agenda));
+    }
+}
+            </JAVASCRIPT>
+        </SNIPPET>
+      </TEXT>
+
+      <TEXT>
+        The first agenda item is found at the head of the queue in the first
+        time segment.  Whenever we extract an item, we also update the current
+        time:<FOOTNOTE>In this way, the current time will always be the time
+          of the action most recently processed.  Storing this time at the head
+          of the agenda ensures that it will still be available even if the
+          associated time segment has been deleted.</FOOTNOTE>
+
+        <SNIPPET EVAL="no">
+            <SCHEME>
+                <!--  \indcode*{first-agenda-item} -->
+                (define (first-agenda-item agenda)
+                (if (empty-agenda? agenda)
+                (error "Agenda is empty -- FIRST-AGENDA-ITEM")
+                (let ((first-seg (first-segment agenda)))
+                (set-current-time! agenda (segment-time first-seg))
+                (front-queue (segment-queue first-seg)))))
+            </SCHEME>
+            <JAVASCRIPT>
+function first_agenda_item(agenda) {
+    if (is_empty_agenda(agenda)) {
+        error("Agenda is empty -- FIRST_AGENDA_ITEM");
+    } else {
+        const first_seg = first_segment(agenda);
+        set_current_time(agenda, segment_time(first_seg));
+        return front_queue(segment_queue(first_seg));
+    }
+}
+            </JAVASCRIPT>
+        </SNIPPET>
+      </TEXT>
+
+      <EXERCISE>
+        The
+        <SPLITINLINE><SCHEME>procedures</SCHEME><JAVASCRIPT>functions</JAVASCRIPT></SPLITINLINE>
+        to be run during each time segment of the agenda are
+        kept in a queue.  Thus, the
+        <SPLITINLINE><SCHEME>procedures</SCHEME><JAVASCRIPT>functions</JAVASCRIPT></SPLITINLINE>
+        for each segment are called in
+        the order in which they were added to the agenda (first in, first
+        out).  Explain why this order must be used.  In particular, trace the
+        behavior of an and-gate whose inputs change from 0,1 to 1,0 in the
+        same segment and say how the behavior would differ if we stored a
+        segment<APOS/>s
+        <SPLITINLINE><SCHEME>procedures</SCHEME><JAVASCRIPT>functions</JAVASCRIPT></SPLITINLINE>
+        in an ordinary list, adding and removing
+        <SPLITINLINE><SCHEME>procedures</SCHEME><JAVASCRIPT>functions</JAVASCRIPT></SPLITINLINE>
+        only at the front (last in, first out).
+        <LABEL NAME="ex:agenda-list"/>
+      </EXERCISE>
+      <INDEX>digital-circuit simulation|)</INDEX>
+      <INDEX>digital-circuit simulation<SUBINDEX>agenda implementation|)</SUBINDEX></INDEX>
+      
+    </SUBSECTION>
