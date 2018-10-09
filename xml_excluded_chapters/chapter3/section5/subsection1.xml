@@ -78,7 +78,7 @@ function sum_primes(a, b) {
           </SCHEME>
     <JAVASCRIPT>
 function sum_primes(a, b) {
-    return accumulate(function(x, y) { return x + y; },
+    return accumulate((x, y) => x + y,
                       0,
                       filter(is_prime, 
                              enumerate_interval(a, b)));
@@ -626,6 +626,8 @@ head(tail(filter(is_prime, enumerate_interval(10000, 1000000))));
             thunks</EM> and to the optimized versions as <EM>call-by-need thunks</EM>.</FOOTNOTE>
       </TEXT>
 
+      <SPLIT>
+	<SCHEME>
       <EXERCISE><LABEL NAME="ex:general-stream-map"/>
         Complete the following definition, which
         generalizes <SCHEMEINLINE>stream-map</SCHEMEINLINE> to allow
@@ -647,7 +649,9 @@ head(tail(filter(is_prime, enumerate_interval(10000, 1000000))));
           </SCHEME>
         </SNIPPET>
       </EXERCISE>
-
+	</SCHEME>
+      </SPLIT>
+      
       <EXERCISE><LABEL NAME="ex:delayed1"/>
         <INDEX>delayed evaluation<SUBINDEX>printing and</SUBINDEX></INDEX>
         In order to take a closer look at delayed evaluation, we will use the
@@ -734,7 +738,7 @@ head(tail(filter(is_prime, enumerate_interval(10000, 1000000))));
   and a stream <JAVASCRIPTINLINE>s</JAVASCRIPTINLINE>, we can construct a stream
   whose head is <JAVASCRIPTINLINE>x</JAVASCRIPTINLINE> and whose tail is
   <JAVASCRIPTINLINE>s</JAVASCRIPTINLINE> by evaluating
-  <JAVASCRIPTINLINE>pair(x, function(){ return s; })</JAVASCRIPTINLINE>.
+  <JAVASCRIPTINLINE>pair(x, () => s)</JAVASCRIPTINLINE>.
       </TEXT>
 
       <TEXT>
@@ -803,22 +807,17 @@ function stream_ref(s, n) {
     }
 }
 function stream_map(f, s) {
-    if (is_empty_list(s)) {
-        return [];
-    } else {
-        return pair(f(head(s)),
-                    function() {
-                        return stream_map(f, stream_tail(s));
-                    });
-    } 
+    return is_empty_list(s)
+        ? []
+        : pair(f(head(s)),
+               () => stream_map(f, stream_tail(s)));
 }
 function stream_for_each(fun,xs) {
     if (is_empty_list(xs)) {
-      return true;
-    } 
-    else {
-      fun(head(xs));
-      return stream_for_each(fun,stream_tail(xs));
+        return true;
+    } else {
+        fun(head(xs));
+        return stream_for_each(fun,stream_tail(xs));
     }
 }
     </JAVASCRIPT>
@@ -933,14 +932,10 @@ head(stream_tail(stream_filter(
           </SCHEME>
     <JAVASCRIPT>
 function stream_enumerate_interval(low, high) {
-    if (low &gt; high) {
-      return [];
-    } else {
-      return pair(low,
-                  function() { 
-                    return stream_enumerate_interval(low + 1, high); 
-                  });
-    }
+    return low &gt; high
+        ? []
+        : pair(low,
+               () => stream_enumerate_interval(low + 1, high)); 
 }
     </JAVASCRIPT>
         </SNIPPET>
@@ -960,7 +955,7 @@ function stream_enumerate_interval(low, high) {
             (delay (stream-enumerate-interval 10001 1000000)))
           </SCHEME>
     <JAVASCRIPT>
-pair(10000, function() { return stream_enumerate_interval(10001, 1000000); });
+pair(10000, () => stream_enumerate_interval(10001, 1000000));
     </JAVASCRIPT>
         </SNIPPET>
       </TEXT>
@@ -989,20 +984,14 @@ pair(10000, function() { return stream_enumerate_interval(10001, 1000000); });
           </SCHEME>
     <JAVASCRIPT>
 function stream_filter(pred, s) {
-    if (is_empty_list(s)) {
-      return [];
-    } 
-    else if (pred(head(s))) {
-      return pair(head(s),
-                  function() {
-                    return stream_filter(pred, 
-                                        stream_tail(s));
-                  });
-    } 
-    else {
-      return stream_filter(pred,
-                           stream_tail(s));
-    } 
+    return is_empty_list(s)
+        ? []
+        : pred(head(s))
+	  ? pair(head(s),
+                 () => stream_filter(pred, 
+                                     stream_tail(s)))
+          : stream_filter(pred,
+                          stream_tail(s));
 }
     </JAVASCRIPT>
         </SNIPPET>
@@ -1022,7 +1011,7 @@ function stream_filter(pred, s) {
             (delay (stream-enumerate-interval 10002 1000000)))
           </SCHEME>
     <JAVASCRIPT>
-pair(10001, function() { return stream_enumerate_interval(10002, 1000000); });
+pair(10001, () => stream_enumerate_interval(10002, 1000000));
           </JAVASCRIPT>
 </SNIPPET>
       </TEXT>
@@ -1038,7 +1027,7 @@ pair(10001, function() { return stream_enumerate_interval(10002, 1000000); });
         the prime 10,007, whereupon <JAVASCRIPTINLINE>stream_filter</JAVASCRIPTINLINE>, according to its
         definition, returns
 
-        <SNIPPET EVAL="yes">
+        <SNIPPET EVAL="no">
           <REQUIRES>stream_filter</REQUIRES>
           <SCHEME>
             (cons-stream (stream-car stream)
@@ -1067,13 +1056,12 @@ pair(head(stream), stream_filter(pred, stream_tail(stream)));
           </SCHEME>
     <JAVASCRIPT>
 pair(10007,
-     function() {
-        return stream_filter(is_prime,
-                            pair(10008,
-                                function() {
-                                  return stream_enumerate_interval(10009, 1000000);
-                                }));
-     });
+     () => stream_filter(is_prime,
+                         pair(10008,
+                              () => stream_enumerate_interval(10009, 1000000)
+                             )
+                        )
+    );
     </JAVASCRIPT>
         </SNIPPET>
       </TEXT>
@@ -1102,13 +1090,12 @@ pair(10007,
           </SCHEME>
     <JAVASCRIPT>
 pair(10009,
-     function() {
-         return stream_filter(is_prime,
-                              pair(10010,
-                                   function() {
-                                     return stream_enumerate_interval(10011, 1000000);
-                                   }));
-     });
+     () => stream_filter(is_prime,
+                         pair(10010,
+                              () => stream_enumerate_interval(10011, 1000000)
+                             )
+                        )
+    );
     </JAVASCRIPT>
         </SNIPPET>
       </TEXT>
@@ -1217,7 +1204,7 @@ function show(x) {
             (stream-ref x 7)
           </SCHEME>
     <JAVASCRIPT>
-var x = stream_map(show, stream_enumerate_interval(0, 10));
+let x = stream_map(show, stream_enumerate_interval(0, 10));
 stream_ref(x, 5);
 stream_ref(x, 7);
     </JAVASCRIPT>
@@ -1251,18 +1238,18 @@ stream_ref(x, 7);
             (display-stream z)
           </SCHEME>
     <JAVASCRIPT>
-var sum = 0;
+let sum = 0;
 
 function accum(x) {
     sum = x + sum;
     return sum;
 }
 
-var seq = stream_map(accum, stream_enumerate_interval(1, 20));
+const seq = stream_map(accum, stream_enumerate_interval(1, 20));
 
-var y = stream_filter(is_even, seq);
+const y = stream_filter(is_even, seq);
 
-var z = stream_filter(function(x) { return x % 5 === 0; }, seq);
+const z = stream_filter(x => x % 5 === 0, seq);
 
 stream_ref(y, 7);
 
