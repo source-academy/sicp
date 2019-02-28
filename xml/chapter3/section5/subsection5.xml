@@ -24,8 +24,9 @@
   The key modularity issue was that we wished to hide the internal state
   of a random-number generator from programs that used random numbers.
   We began with a
-  <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
-  <SCHEMEINLINE>rand-update</SCHEMEINLINE>, whose successive values
+  <SPLITINLINE><SCHEME>procedure <SCHEMEINLINE>rand-update</SCHEMEINLINE></SCHEME>
+  <JAVASCRIPT>function <JAVASCRIPTINLINE>rand_update</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>,
+  whose successive values
   furnished our supply of random numbers, and used this to produce a
   random-number generator:
 
@@ -37,6 +38,17 @@
       (set! x (rand-update x))
       x)))
     </SCHEME>
+    <JAVASCRIPT>
+function make_rand() {
+   let x = random_init;
+   function rand() {
+        x = rand_update(x);
+        return x;
+   }
+   return rand;
+}
+const rand = make_rand();
+    </JAVASCRIPT>
   </SNIPPET>
       </TEXT>
 
@@ -45,7 +57,7 @@
     se</EM>, just a stream of random numbers produced by successive calls to
   <SCHEMEINLINE>rand-update</SCHEMEINLINE>:
 
-  <SNIPPET>
+  <SNIPPET EVAL="no">
     <SCHEME>
       <!-- \indcodeplus*{random-numbers}{(infinite stream)}-->
       <INDEX>infinite stream(s)<SUBINDEX>of random numbers</SUBINDEX></INDEX>
@@ -53,32 +65,58 @@
       (cons-stream random-init
             (stream-map rand-update random-numbers)))
     </SCHEME>
+    <JAVASCRIPT>
+const random_numbers =
+    pair(random_init,
+         () => stream_map(rand_update, random_numbers));
+    </JAVASCRIPT>
   </SNIPPET>
       </TEXT>
 
       <TEXT>
-  We use this to construct the stream of outcomes of the Ces\`aro
-  experiment performed on consecutive pairs in the <SCHEMEINLINE>random-numbers</SCHEMEINLINE>
+	We use this to construct the stream of outcomes of the
+	Cesaro
+	<!-- Ces<AGRAVE_LOWER/>ro -->
+  experiment performed on consecutive pairs in the
+  <SPLITINLINE>
+    <SCHEME>
+      <SCHEMEINLINE>random-numbers</SCHEMEINLINE>
+    </SCHEME>
+    <JAVASCRIPT>
+      <SCHEMEINLINE>random_numbers</SCHEMEINLINE>
+    </JAVASCRIPT>
+  </SPLITINLINE>
   stream:
 
-  <SNIPPET>
+  <SNIPPET EVAL="no">
     <SCHEME>
       <!--  \indcode*{cesaro-stream} -->
-      (define cesaro-stream
-      (map-successive-pairs (lambda (r1 r2) (= (gcd r1 r2) 1))
+(define cesaro-stream
+   (map-successive-pairs (lambda (r1 r2) (= (gcd r1 r2) 1))
             random-numbers))
 
       <!--  \indcode*{map-successive-pairs} -->
-      (define (map-successive-pairs f s)
-      (cons-stream
+(define (map-successive-pairs f s)
+   (cons-stream
       (f (stream-car s) (stream-car (stream-cdr s)))
       (map-successive-pairs f (stream-cdr (stream-cdr s)))))
     </SCHEME>
+    <JAVASCRIPT>
+function map_successive_pairs(f, s) {
+    return pair(f(head(s), head(stream_tail(s))),      
+        map_successive_pairs(f, stream_tail(stream_tail(s))));
+}
+const cesaro_stream =
+    map_successive_pairs( (r1, r2) => gcd(r1, r2) === 1,
+        random_numbers);
+    </JAVASCRIPT>
   </SNIPPET>
       </TEXT>
 
       <TEXT>
-  The <SCHEMEINLINE>cesaro-stream</SCHEMEINLINE> is now fed to a <SCHEMEINLINE>monte-carlo</SCHEMEINLINE>
+	The
+	<SCHEMEINLINE>cesaro-stream</SCHEMEINLINE> is now fed to a
+	<SCHEMEINLINE>monte-carlo</SCHEMEINLINE>
   <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>,
   which produces a stream of estimates of probabilities.  The results
   are then converted into a stream of estimates of <LATEXINLINE>$\pi$</LATEXINLINE>.  This version
@@ -86,31 +124,50 @@
   perform.  Better estimates of <LATEXINLINE>$\pi$</LATEXINLINE> (from performing more experiments)
   are obtained by looking farther into the <SCHEMEINLINE>pi</SCHEMEINLINE> stream:
 
-  <SNIPPET>
+  <SNIPPET EVAL="no">
     <SCHEME>
       <!--  \indcode*{monte-carlo}[infinite stream] -->
-      (define (monte-carlo experiment-stream passed failed)
-      (define (next passed failed)
+(define (monte-carlo experiment-stream passed failed)
+   (define (next passed failed)
       (cons-stream
-      (/ passed (+ passed failed))
-      (monte-carlo
-      (stream-cdr experiment-stream) passed failed)))
-      (if (stream-car experiment-stream)
+         (/ passed (+ passed failed))
+         (monte-carlo
+            (stream-cdr experiment-stream) passed failed)))
+   (if (stream-car experiment-stream)
       (next (+ passed 1) failed)
       (next passed (+ failed 1))))
 
-      (define pi
-      (stream-map (lambda (p) (sqrt (/ 6 p)))
-            (monte-carlo cesaro-stream 0 0)))
+(define pi
+   (stream-map 
+      (lambda (p) (sqrt (/ 6 p)))
+      (monte-carlo cesaro-stream 0 0)))
     </SCHEME>
-  </SNIPPET>
+    <JAVASCRIPT>
+function monte_carlo(experiment_stream, passed, failed) {      
+    function next(passed, failed) {
+        return pair(passed / (passed + failed),
+            monte_carlo(stream_tail(experiment_stream),
+                passed, failed));
+
+    }
+    return head(experiment_stream)
+        ? next(passed + 1, failed)
+        : next(passed, failed + 1);
+}
+
+const pi =
+    stream_map(p => sqrt(6 / p),
+        monte_carlo(cesaro_stream(0, 0));
+    </JAVASCRIPT>
+    </SNIPPET>
       </TEXT>
 
       <TEXT>
   <INDEX>modularity<SUBINDEX>through infinite streams</SUBINDEX></INDEX>
   There is considerable modularity in this approach, because we still
-  can formulate a general <SCHEMEINLINE>monte-carlo</SCHEMEINLINE>
-  <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+  can formulate a general 
+  <SPLITINLINE><SCHEME><SCHEMEINLINE>monte-carlo</SCHEMEINLINE> procedure</SCHEME>
+  <JAVASCRIPT><JAVASCRIPTINLINE>monte_carlo</JAVASCRIPTINLINE> function</JAVASCRIPT></SPLITINLINE>
   that can deal with
   arbitrary experiments.  Yet there is no assignment or local state.
       </TEXT>
@@ -132,7 +189,16 @@
   <INDEX>pi@<LATEXINLINE>$\pi$</LATEXINLINE> (pi)<SUBINDEX>approximation with Monte Carlo integration</SUBINDEX></INDEX>
   <INDEX>definite integral<SUBINDEX>estimated with Monte Carlo simulation</SUBINDEX></INDEX>
   Redo Exercise<SPACE/><REF NAME="ex:monte-carlo-integration"/> on Monte Carlo
-  integration in terms of streams.  The stream version of <SCHEMEINLINE>estimate-integral</SCHEMEINLINE> will not have an argument telling how many trials
+  integration in terms of streams.  The stream version of
+  <SPLITINLINE>
+    <SCHEME>
+  <SCHEMEINLINE>estimate-integral</SCHEMEINLINE>
+    </SCHEME>
+    <JAVASCRIPT>
+  <SCHEMEINLINE>estimate_integral</SCHEMEINLINE>
+    </JAVASCRIPT>
+  </SPLITINLINE>
+  will not have an argument telling how many trials
   to perform.  Instead, it will produce a stream of estimates based on
   successively more trials.
       </EXERCISE>
@@ -176,7 +242,7 @@
   Section<SPACE/><REF NAME="sec:costs-of-assignment"/> we implemented a simplified
   version of such a processor:
 
-  <SNIPPET>
+  <SNIPPET EVAL="no">
     <SCHEME>
       <!--  \indcode*{make-simplified-withdraw} -->
       (define (make-simplified-withdraw balance)
@@ -184,11 +250,29 @@
       (set! balance (- balance amount))
       balance))
     </SCHEME>
+    <JAVASCRIPT>
+function make_simplified_withdraw(balance) {
+    function withdraw(amount) {
+        balance = balance - amount;
+        return balance;
+    }
+    return withdraw;
+}
+    </JAVASCRIPT>
   </SNIPPET>
       </TEXT>
 
       <TEXT>
-  Calls to <SCHEMEINLINE>make-simplified-withdraw</SCHEMEINLINE> produce computational objects,
+	Calls to
+	<SPLITINLINE>
+	  <SCHEME>
+	  <SCHEMEINLINE>make-simplified-withdraw</SCHEMEINLINE>
+	  </SCHEME>
+	  <JAVASCRIPT>
+	  <SCHEMEINLINE>make_simplified_withdraw</SCHEMEINLINE>
+	  </JAVASCRIPT>
+	</SPLITINLINE>
+	  produce computational objects,
   each with a local state variable <SCHEMEINLINE>balance</SCHEMEINLINE> that is decremented by
   successive calls to the object.  The object takes an <SCHEMEINLINE>amount</SCHEMEINLINE> as
   an argument and returns the new balance.  We can imagine the user of a
@@ -203,22 +287,46 @@
   takes as input a balance and a stream of amounts to withdraw and
   produces the stream of successive balances in the account:
 
-  <SNIPPET>
+  <SNIPPET EVAL="no">
     <SCHEME>
       <!--  \indcode*{stream-withdraw} -->
-      (define (stream-withdraw balance amount-stream)
-      (cons-stream
+(define (stream-withdraw balance amount-stream)
+   (cons-stream
       balance
       (stream-withdraw (- balance (stream-car amount-stream))
             (stream-cdr amount-stream))))
     </SCHEME>
+    <JAVASCRIPT>
+function stream_withdraw(balance, amount_stream) {      
+    return pair(balance,
+        () => stream_withdraw(balance - head(amount_stream),
+                              stream_tail(amount_stream)));   
+}
+    </JAVASCRIPT>
   </SNIPPET>
       </TEXT>
 
       <TEXT>
-  <SCHEMEINLINE>Stream-withdraw</SCHEMEINLINE> implements a well-defined mathematical function whose
+	<SPLITINLINE>
+	  <SCHEME>
+<SCHEMEINLINE>Stream-withdraw</SCHEMEINLINE>	
+	  </SCHEME>
+	  <JAVASCRIPT>
+	    The function <JAVASCRIPTINLINE>stream_withdraw</JAVASCRIPTINLINE>
+	  </JAVASCRIPT>
+	</SPLITINLINE>
+	  implements a well-defined mathematical function whose
   output is fully determined by its input.  Suppose, however, that the
-  input <SCHEMEINLINE>amount-stream</SCHEMEINLINE> is the stream of successive values typed by
+  input
+	<SPLITINLINE>
+	  <SCHEME>
+  <SCHEMEINLINE>amount-stream</SCHEMEINLINE>
+	  </SCHEME>
+	  <JAVASCRIPT>
+	    <JAVASCRIPTINLINE>amount_stream</JAVASCRIPTINLINE>
+	  </JAVASCRIPT>
+	</SPLITINLINE>
+	  is the stream of successive values typed by
   the user and that the resulting stream of balances is displayed.
   Then, from the perspective of the user who is typing values and
   watching results, the stream process has the same behavior as the
@@ -230,7 +338,16 @@
       </TEXT>
 
       <TEXT>
-  This is really remarkable.  Even though <SCHEMEINLINE>stream-withdraw</SCHEMEINLINE> implements a
+	This is really remarkable.  Even though
+	<SPLITINLINE>
+	  <SCHEME>
+	    <SCHEMEINLINE>stream-withdraw</SCHEMEINLINE>
+	  </SCHEME>
+	  <JAVASCRIPT>
+	    <JAVASCRIPTINLINE>stream_withdraw</JAVASCRIPTINLINE>
+	  </JAVASCRIPT>
+	</SPLITINLINE>
+	    implements a
   well-defined mathematical function whose behavior does not change, the
   user<APOS/>s perception here is one of interacting with a system that has a
   changing state.  One way to resolve this paradox is to realize that it
