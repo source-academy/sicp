@@ -28,7 +28,11 @@ After the rails server is up and running, a copy of the html pages are saved loc
 
 ## Configuration
 
-Set the server for the playground in: rails/app/controllers/chapters_controller.rb: var url
+Set the server for the playground in the environment variable $SOURCE_ACADEMY, e.g. 
+```
+export SOURCE_ACADEMY=http://localhost:37915/
+```
+The trailing `/` is important. This variable is read in `rails/app/controllers/chapters_controller.rb`. 
 
 Before deploying, change the configurations at [constants.rb.def](rails/config/initializers/constants.rb.def).
 

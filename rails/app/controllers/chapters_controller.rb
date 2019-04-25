@@ -375,7 +375,7 @@ class ChaptersController < ApplicationController
                                                      :id => "javascript_#{@chapter.id}_#{count}_div")
 
                 snippet_event = "var compressed = LZString.compressToEncodedURIComponent('#{hidden_code}'+'\n'+'#{platform_code}'+'\n'+'#{example_code}'+'\n'); " + 
-                        "var url = 'http://localhost/playground#chap=#{order[0]}&prgrm='+compressed;" +
+                        "var url = '#{`echo $SOURCE_ACADEMY`}playground#chap=#{order[0]}&prgrm='+compressed;" +
                         " window.open(url); "
                 
                 snippet_event = snippet_event.gsub("\n", '\n')
