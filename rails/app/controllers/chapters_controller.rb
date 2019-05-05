@@ -1,5 +1,6 @@
 # coding: utf-8
 require 'cgi'
+# require 'htmlentities'
 
 class ChaptersController < ApplicationController
     # def index
@@ -396,6 +397,7 @@ class ChaptersController < ApplicationController
                 hidden_code = hidden_code.gsub("'", "\\\\'")
                 
                 code = CGI.unescapeHTML(snippet.children.to_html.strip.html_safe)
+                # code = HTMLEntities.new.decode(snippet.children.to_html.strip.html_safe)
                 platform_code = code
                 
                 if (LANGUAGE_VERSION=="javascript")
@@ -430,6 +432,7 @@ class ChaptersController < ApplicationController
                 
                 snippet_event = "var compressed = LZString.compressToEncodedURIComponent('#{hidden_code}'+'\n'+'#{platform_code}'+'\n'+'#{example_code}'+'\n'); " + 
                         "var url = 'https://sourceacademy.nus.edu.sg/playground#chap=#{chap}#{ext}&prgrm='+compressed;" +
+                        ### "var url = '#{`echo $SOURCE_ACADEMY`}playground#chap=#{order[0]}&prgrm='+compressed;" +
                         " window.open(url); "
                 
                 snippet_event = snippet_event.gsub("\n", '\n')
