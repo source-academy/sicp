@@ -1,0 +1,369 @@
+    <SUBSECTION>
+      <NAME>
+        The Nature of Time in Concurrent Systems
+      </NAME>
+
+      <LABEL NAME="sec:nature-of-time"/>
+      <INDEX>time<SUBINDEX>concurrent@in concurrent systems|(</SUBINDEX></INDEX>
+
+      <TEXT>
+        On the surface, time seems straightforward.  It
+        is an ordering imposed on events.<FOOTNOTE>To quote some graffiti seen on a Cambridge
+          <INDEX>time<SUBINDEX>purpose of</SUBINDEX></INDEX>
+          building wall: <QUOTE>Time is a device that was invented to keep everything
+            from happening at once.</QUOTE></FOOTNOTE>
+        For any events <LATEXINLINE>$A$</LATEXINLINE> and <LATEXINLINE>$B$</LATEXINLINE>, either <LATEXINLINE>$A$</LATEXINLINE> occurs before <LATEXINLINE>$B$</LATEXINLINE>, <LATEXINLINE>$A$</LATEXINLINE><SPACE/>and<SPACE/><LATEXINLINE>$B$</LATEXINLINE>
+        are simultaneous, or <LATEXINLINE>$A$</LATEXINLINE> occurs after <LATEXINLINE>$B$</LATEXINLINE>.  For instance,
+        returning to the bank account example, suppose that Peter withdraws
+        <DOLLAR/>10 and Paul withdraws <DOLLAR/>25 from a 
+        <INDEX>bank account<SUBINDEX>joint, with concurrent access</SUBINDEX></INDEX>
+        joint account that initially
+        contains <DOLLAR/>100, leaving <DOLLAR/>65 in the account.  Depending on the order
+        of the two withdrawals, the sequence of balances in the account is
+        either <LATEXINLINE>${\$</LATEXINLINE>100\rightarrow\<LATEXINLINE>$90\rightarrow\$</LATEXINLINE>65}<LATEXINLINE>$ or
+          $</LATEXINLINE>{\<LATEXINLINE>$100\rightarrow\$</LATEXINLINE>75\rightarrow\<LATEXINLINE>$65}$</LATEXINLINE>.  In a computer implementation
+        of the banking system, this changing sequence of balances could be
+        modeled by successive assignments to a variable <SCHEMEINLINE>balance</SCHEMEINLINE>.
+      </TEXT>
+
+      <TEXT>
+        In complex situations, however, such a view can be problematic.
+        Suppose that Peter and Paul, and other people besides, are
+        accessing the same bank account through a network of banking machines
+        distributed all over the world.  The actual sequence of balances in
+        the account will depend critically on the detailed timing of the
+        accesses and the details of the communication among the machines.
+      </TEXT>
+
+      <TEXT>
+        <INDEX>order of events<SUBINDEX>indeterminacy in concurrent systems</SUBINDEX></INDEX>
+        This indeterminacy in the order of events can pose serious problems in
+        the design of concurrent systems.  For instance, suppose that the
+        withdrawals made by Peter and Paul are implemented as two separate
+        processes sharing a common variable <SCHEMEINLINE>balance</SCHEMEINLINE>, each process
+        specified by the
+        <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+        given in
+        Section<SPACE/><REF NAME="sec:local-state-variables"/>:
+        <SNIPPET>
+          <SCHEME>
+            <!--  \indcode{withdraw}[problems in concurrent system] -->
+(define (withdraw amount)
+   (if (&gt;= balance amount)
+     (begin (set! balance (- balance amount))
+            balance)
+     "Insufficient funds"))
+          </SCHEME>
+          <JAVASCRIPT>
+            <!--  \indcode{withdraw}[problems in concurrent system] -->
+function withdraw(amount) {
+   if (balance &gt;= amount) {
+      balance = balance - amount;
+      return balance;
+   } else {
+      return "Insufficient funds";
+   }
+}
+          </JAVASCRIPT>
+        </SNIPPET>
+      </TEXT>
+
+      <TEXT>
+        If the two processes operate independently, then Peter might test the
+        balance and attempt to withdraw a legitimate amount.  However, Paul
+        might withdraw some funds in between the time that Peter checks the
+        balance and the time Peter completes the withdrawal, thus invalidating
+        Peter<APOS/>s test.
+      </TEXT>
+
+      <TEXT>
+        Things can be worse still.  Consider the expression
+        <SNIPPET>
+          <SCHEME>
+            (set! balance (- balance amount))
+          </SCHEME>
+          <JAVASCRIPT>
+            balance = balance - amount;
+          </JAVASCRIPT>
+        </SNIPPET>
+        executed as part of each withdrawal process.  This consists of three
+        steps: (1) accessing the value of the <SCHEMEINLINE>balance</SCHEMEINLINE> variable; (2)
+        computing the new balance; (3) setting <SCHEMEINLINE>balance</SCHEMEINLINE> to this new
+        value.  If Peter and Paul<APOS/>s withdrawals execute this statement
+        concurrently, then the two withdrawals might interleave the order in
+        which they access <SCHEMEINLINE>balance</SCHEMEINLINE> and set it to the new value.
+      </TEXT>
+
+      <TEXT>
+        The timing diagram in Figure<SPACE/><REF NAME="fig:bank-access"/> depicts an order of
+        events where <SCHEMEINLINE>balance</SCHEMEINLINE> starts at 100, Peter withdraws 10,
+        Paul withdraws 25, and yet the final value of <SCHEMEINLINE>balance</SCHEMEINLINE> is 75.  As
+        shown in the diagram, the reason for this anomaly is that Paul<APOS/>s
+        assignment of 75 to <SCHEMEINLINE>balance</SCHEMEINLINE> is made under the assumption that
+        the value of <SCHEMEINLINE>balance</SCHEMEINLINE> to be decremented is 100.  That assumption,
+        however, became invalid when Peter changed <SCHEMEINLINE>balance</SCHEMEINLINE> to 90.  This
+        is a catastrophic failure for the banking system, because the total
+        amount of money in the system is not conserved.  Before the transactions,
+        the total amount of money was <DOLLAR/>100.  Afterwards, Peter has <DOLLAR/>10, Paul
+        has <DOLLAR/>25, and the bank has <DOLLAR/>75.<FOOTNOTE>An even worse failure for this system
+          could occur if the two <SPLITINLINE><SCHEME><SCHEMEINLINE>set!</SCHEMEINLINE> operations</SCHEME><JAVASCRIPT>assignment statements</JAVASCRIPT></SPLITINLINE> attempt to change the
+          balance simultaneously, in which case the actual data appearing in
+          memory might end up being a random combination of the information
+          being written by the two processes.  Most computers have interlocks on
+          the primitive memory-write operations, which protect against such
+          simultaneous access.  Even this seemingly simple kind of protection,
+          however, raises implementation challenges in the design of
+          multiprocessing computers, where elaborate 
+          <INDEX>cache-coherence protocols</INDEX>
+          <EM>cache-coherence</EM>
+          protocols are required to ensure that the various processors will
+          maintain a consistent view of memory contents, despite the fact that
+          data may be replicated (<QUOTE>cached</QUOTE>) among the different processors to
+          increase the speed of memory access.</FOOTNOTE>
+      </TEXT>
+
+      <TEXT>
+        <INDEX>state<SUBINDEX>shared</SUBINDEX></INDEX>
+        <INDEX>shared state</INDEX>
+        The general phenomenon illustrated
+        here is that several processes may share  a
+        common state variable.  What makes this complicated is that more than
+        one process may be trying to manipulate the shared state at the same
+        time.  For the bank account example, during each transaction, each
+        customer should be able to act as if the other customers did not
+        exist.  When a customer changes the balance in a way that depends on
+        the balance, he must be able to assume that, just before the moment of
+        change, the balance is still what he thought it was.
+      </TEXT>
+
+    <SPLIT>
+      <JAVASCRIPT>
+      <SUBHEADING>
+        <NAME>JavaScript and concurrency</NAME>
+      </SUBHEADING>
+
+        <TEXT>
+          In JavaScript, it is actually not possible for two
+          processes to run <JAVASCRIPTINLINE>withdraw()</JAVASCRIPTINLINE> in
+          parallel, because of JavaScript's concurrency model. In
+          JavaScript, a call to <JAVASCRIPTINLINE>withdraw()</JAVASCRIPTINLINE>
+          will always be executed from start to finish without
+          interruption, but the order in which the calls are
+          executed may vary. It is possible to write JavaScript
+          programs which are susceptible to the problems in this
+          chapter, but due to the complexity of these programs, we
+          will defer their introduction until later. For now, let
+          us pretend that we are executing in a preemptive version
+          of JavaScript which permits this behavior.
+        </TEXT>
+      </JAVASCRIPT>
+    </SPLIT>
+      
+      <SUBHEADING>
+        <NAME>Correct behavior of concurrent programs</NAME>
+      </SUBHEADING>
+
+      <INDEX>concurrency<SUBINDEX>correctness of concurrent programs|(</SUBINDEX></INDEX>
+      <TEXT>
+        The above example typifies the subtle bugs that can creep into
+        concurrent programs.  The root of this complexity lies in the
+        assignments to variables that are shared among the different
+        processes.  We already know that we must be careful in writing
+        programs that use <SPLITINLINE><SCHEME><SCHEMEINLINE>set!</SCHEMEINLINE></SCHEME><JAVASCRIPT>assignment</JAVASCRIPT></SPLITINLINE>, because the results of a computation
+        depend on the order in which the assignments occur.<FOOTNOTE>The factorial program in
+          Section<SPACE/><REF NAME="sec:costs-of-assignment"/> illustrates this for a single
+          sequential process.</FOOTNOTE>
+      </TEXT>
+
+      <TEXT>
+        With concurrent processes we must be especially careful about
+        assignments, because we may not be able to control the order of the
+        assignments made by the different processes.  If several such changes
+        might be made concurrently (as with two depositors accessing a joint
+        account) we need some way to ensure that our system behaves correctly.
+        For example, in the case of withdrawals from a joint bank account, we
+        must ensure that money is conserved.
+        To make concurrent programs behave correctly, we may have to
+        place some restrictions on concurrent execution.
+
+        <FIGURE src="svg/Fig3.29b-js.svg">
+          <LABEL NAME="fig:bank-access"/>
+          <CAPTION>Timing diagram showing how interleaving the order of events
+          in two banking withdrawals can lead to an incorrect final balance.
+          <!-- TODO: update file with JavaScript content -->
+          </CAPTION>
+          <INDEX>timing diagram</INDEX>
+        </FIGURE>
+      </TEXT>
+
+      <!-- 
+          %above figure shows the following:
+          %time     Peter (withdrawing 10)       Paul (withdrawing 25)
+          %- - - -  - - - - -                    - - - -
+          % |
+          % |       access balance, get 100
+          % |                                    access balance, get 100
+          % |        compute new balance as  
+          % |        100 - 10 = 90                compute new balance as
+          % |                                     100 - 25 = 75
+          % |       set! balance to 90
+          % |                                    set! balance to 75
+          % V                         
+        -->
+
+      <TEXT>
+        One possible restriction on concurrency would
+        stipulate that no two operations that
+        change any shared state variables can occur at the same time.  This is an
+        extremely stringent requirement.  For distributed banking, it would
+        require the system designer to ensure that only one transaction could
+        proceed at a time.
+        <SPLIT>
+          <JAVASCRIPT>
+            <FOOTNOTE>
+              This is essentially how JavaScript works<EMDASH/>we
+              have coarse-grained concurrency and no parallelism.
+              JavaScript does not support preemption, which means
+              that one process will not be suspended in the middle
+              of some operation to let another process run. This
+              is not efficient on machines that are able to
+              run multiple tasks in parallel, and may convolute
+              programs that want to respond quickly to external
+              input.
+            </FOOTNOTE>
+          </JAVASCRIPT>
+        </SPLIT>
+        This would be both inefficient and overly
+        conservative.  Figure<SPACE/><REF NAME="fig:two-shared-accounts"/> shows Peter and
+        Paul sharing a bank account, where Paul has a private account as well.
+        The diagram illustrates two withdrawals from the shared account
+        (one by Peter and one by Paul) and a deposit to Paul<APOS/>s private account.<FOOTNOTE>The columns show the contents of Peter<APOS/>s wallet,
+          the joint account (in Bank1), Paul<APOS/>s wallet, and Paul<APOS/>s private account
+          (in Bank2), before and after each withdrawal (W) and deposit (D).
+          Peter withdraws <DOLLAR/>10 from Bank1; Paul deposits <DOLLAR/>5 in Bank2,
+          then withdraws <DOLLAR/>25 from Bank1.</FOOTNOTE>
+      </TEXT>
+
+      <TEXT>
+        The two withdrawals from the shared account must not be
+        concurrent (since both access and update the same account), and Paul<APOS/>s
+        deposit and withdrawal must not be concurrent (since both access and
+        update the amount in Paul<APOS/>s wallet).
+        But there should be no problem
+        permitting Paul<APOS/>s deposit to his private account to proceed
+        concurrently with Peter<APOS/>s withdrawal from the shared account.
+
+        <FIGURE src="svg/Fig3.30b-js.svg">
+          <LABEL NAME="fig:two-shared-accounts"/>
+          <CAPTION>Concurrent deposits and withdrawals from a
+          joint account in Bank1 and a private account in Bank2.
+          </CAPTION>
+        </FIGURE>
+      </TEXT>
+
+      <TEXT>
+        A less stringent restriction on concurrency would ensure that a
+        concurrent system produces the same result
+        as if the processes had run sequentially in some order.
+        There are two important aspects to this requirement.
+        First, it does not require the processes to actually run sequentially,
+        but only to produce results that are the same <EM>as if</EM> they had run
+        sequentially.  For the example in
+        Figure<SPACE/><REF NAME="fig:two-shared-accounts"/>, the designer of the bank account
+        system can safely allow Paul<APOS/>s deposit and Peter<APOS/>s withdrawal to
+        happen concurrently, because the net result will be the same as if the
+        two operations had happened sequentially.  Second, there may be more
+        than one possible <QUOTE>correct</QUOTE> result produced by a concurrent program,
+        because we require only that the result be the same as for <EM>some</EM>
+        sequential order.
+        For example, suppose that Peter and Paul<APOS/>s joint account starts out
+        with <DOLLAR/>100, and Peter deposits <DOLLAR/>40 while Paul concurrently withdraws
+        half the money in the account.
+        Then sequential execution could result in the account balance being
+        either <DOLLAR/>70 or <DOLLAR/>90 (see Exercise<SPACE/><REF NAME="ex:joint-account"/>).<FOOTNOTE>A more formal way to express this idea is to say that
+          concurrent programs are inherently 
+          <INDEX>nondeterminism, in behavior of concurrent programs</INDEX>
+          <EM>nondeterministic</EM>. That
+          is, they are described not by single-valued functions, but by
+          functions whose results are sets of possible values.  In
+          Section<SPACE/><REF NAME="sec:nondeterministic-evaluation"/> we will study a
+          language for expressing nondeterministic
+          computations.<LABEL NAME="foot:nondeterministic"/></FOOTNOTE>
+      </TEXT>
+
+      <TEXT>
+        There are still weaker requirements for correct execution of
+        concurrent programs.  A program for simulating 
+        <INDEX>diffusion, simulation of</INDEX>
+        diffusion (say, the
+        flow of heat in an object) might consist of a large number of
+        processes, each one representing a small volume of space, that update
+        their values concurrently.  Each process repeatedly changes its
+        value to the average of its own value and its neighbors<APOS/> values.
+        This algorithm
+        converges to the right answer independent of the order in which the
+        operations are done; there is no need for any restrictions on
+        concurrent use of the shared values.
+      </TEXT>
+
+      <EXERCISE>
+        <LABEL NAME="ex:joint-account"/>
+        Suppose that Peter, Paul, and Mary share a joint bank account that
+        initially contains <DOLLAR/>100.  Concurrently, Peter deposits <DOLLAR/>10, Paul
+        withdraws <DOLLAR/>20, and Mary withdraws half the money in the account, by
+        executing the following commands:
+        <SPLIT>
+          <SCHEME>
+            <!-- The below works but renders terribly -->
+            <!-- <LATEX> -->
+            <!--   \[ -->
+            <!--   \begin{array}{ll} -->
+            <!--   \textrm{Peter:} &amp; \texttt{(set! balance (+ balance 10))}            \\ -->
+            <!--   \textrm{Paul:}  &amp; \texttt{(set! balance (- balance 20))}            \\ -->
+            <!--   \textrm{Mary:}  &amp; \texttt{(set! balance (- balance (/ balance 2)))} -->
+            <!--   \end{array} -->
+            <!--   \] -->
+            <!-- </LATEX> -->
+            <table>
+              <tr><td><kbd>Peter:</kbd></td><td><kbd>(set! balance (+ balance 10))</kbd></td></tr>
+              <tr><td><kbd>Paul:</kbd></td> <td><kbd>(set! balance (- balance 20))</kbd></td></tr>
+              <tr><td><kbd>Mary:</kbd></td> <td><kbd>(set! balance (- balance (/ balance 2)))</kbd></td></tr>
+            </table>
+          </SCHEME>
+          <JAVASCRIPT>
+            <table>
+              <tr><td><kbd>Peter:</kbd></td><td><kbd>balance = balance + 10</kbd></td></tr>
+              <tr><td><kbd>Paul:</kbd></td> <td><kbd>balance = balance - 20</kbd></td></tr>
+              <tr><td><kbd>Mary:</kbd></td> <td><kbd>balance = balance - (balance/2)</kbd></td></tr>
+            </table>
+            <!-- The below works but renders terribly -->
+            <!-- <LATEX> -->
+            <!--   \[ -->
+            <!--   \begin{array}{ll} -->
+            <!--   \textrm{Peter:} &amp; \texttt{balance = balance + 10}          \\ -->
+            <!--   \textrm{Paul:}  &amp; \texttt{balance = balance - 20}          \\ -->
+            <!--   \textrm{Mary:}  &amp; \texttt{balance = balance - (balance/2)} -->
+            <!--   \end{array} -->
+            <!--   \] -->
+            <!-- </LATEX> -->
+          </JAVASCRIPT>
+        </SPLIT>
+        <OL>
+          <LI>
+            List all the different possible values for
+            <SPLITINLINE><SCHEMEINLINE>balance</SCHEMEINLINE><JAVASCRIPTINLINE>balance</JAVASCRIPTINLINE></SPLITINLINE> after these
+            three transactions have been completed, assuming that the banking
+            system forces the three processes to run sequentially in some order.
+          </LI>
+          <LI>
+            What are some other values
+            that could be produced if the system allows the processes to be interleaved?
+            Draw timing diagrams like the one in Figure<SPACE/><REF NAME="fig:bank-access"/> to
+            explain how these values can occur.
+          </LI>
+        </OL>
+      </EXERCISE>
+      <INDEX>time<SUBINDEX>concurrent@in concurrent systems|)</SUBINDEX></INDEX>
+      <INDEX>concurrency<SUBINDEX>correctness of concurrent programs|)</SUBINDEX></INDEX>
+
+    </SUBSECTION>
