@@ -1,5 +1,6 @@
 # coding: utf-8
 require 'cgi'
+# require 'htmlentities'
 
 class ChaptersController < ApplicationController
     # def index
@@ -338,6 +339,9 @@ class ChaptersController < ApplicationController
                     end
                 end    
 
+                # handling single quotes within programs
+                example_code = example_code.gsub("'", "\\\\'")
+                
                 # filter repeated functions and current snippet
                 all_required_names = all_required_names.uniq
                 all_required_names.delete(snippet_name)
@@ -358,7 +362,11 @@ class ChaptersController < ApplicationController
                     end
                 end  
 
+                # handling single quotes within programs
+                hidden_code = hidden_code.gsub("'", "\\\\'")
+                
                 code = CGI.unescapeHTML(snippet.children.to_html.strip.html_safe)
+                # code = HTMLEntities.new.decode(snippet.children.to_html.strip.html_safe)
                 platform_code = code
                 
                 if (LANGUAGE_VERSION=="javascript")
@@ -370,12 +378,22 @@ class ChaptersController < ApplicationController
                     end
                 end
 
+                # handling single quotes within programs
+                platform_code = platform_code.gsub("'", "\\\\'")
+
+                
+                ext = ""
+                ext_string = snippet["EXTERNAL_LIBRARY"]
+                    if (!ext_string.nil?)
+                        ext = "&ext=" + snippet["EXTERNAL_LIBRARY"]
+                    end
+
                 snippet_div = xml_doc.create_element("div",
                                                      :class => "snippet",
                                                      :id => "javascript_#{@chapter.id}_#{count}_div")
 
                 snippet_event = "var compressed = LZString.compressToEncodedURIComponent('#{hidden_code}'+'\n'+'#{platform_code}'+'\n'+'#{example_code}'+'\n'); " + 
-                        "var url = 'http://localhost/playground#chap=#{order[0]}&prgrm='+compressed;" +
+                        "var url = 'http://localhost/playground#chap=#{order[0]}#{ext}&prgrm='+compressed;" +
                         " window.open(url); "
                 
                 snippet_event = snippet_event.gsub("\n", '\n')
