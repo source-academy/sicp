@@ -1,6 +1,5 @@
 # coding: utf-8
 require 'cgi'
-# require 'htmlentities'
 
 class ChaptersController < ApplicationController
     # def index
@@ -366,7 +365,6 @@ class ChaptersController < ApplicationController
                 hidden_code = hidden_code.gsub("'", "\\\\'")
                 
                 code = CGI.unescapeHTML(snippet.children.to_html.strip.html_safe)
-                # code = HTMLEntities.new.decode(snippet.children.to_html.strip.html_safe)
                 platform_code = code
                 
                 if (LANGUAGE_VERSION=="javascript")
@@ -385,13 +383,20 @@ class ChaptersController < ApplicationController
                 ext = ""
                 ext_string = snippet["EXTERNAL_LIBRARY"]
                     if (!ext_string.nil?)
-                        ext = "&ext=" + snippet["EXTERNAL_LIBRARY"]
+                        ext = "&ext=" + ext_string
                     end
 
                 snippet_div = xml_doc.create_element("div",
                                                      :class => "snippet",
                                                      :id => "javascript_#{@chapter.id}_#{count}_div")
 
+                chap = order[0];
+                chap_string = snippet["CHAP"]
+                    if (!chap_string.nil?)
+                        chap = chap_string
+                    end
+                
+                
                 snippet_event = "var compressed = LZString.compressToEncodedURIComponent('#{hidden_code}'+'\n'+'#{platform_code}'+'\n'+'#{example_code}'+'\n'); " + 
                         "var url = '#{`echo $SOURCE_ACADEMY`}playground#chap=#{order[0]}&prgrm='+compressed;" +
                         ## "var url = 'http://localhost/playground#chap=#{order[0]}#{ext}&prgrm='+compressed;" +
