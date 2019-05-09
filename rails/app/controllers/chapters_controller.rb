@@ -1,6 +1,5 @@
 # coding: utf-8
 require 'cgi'
-# require 'htmlentities'
 
 class ChaptersController < ApplicationController
     # def index
@@ -397,7 +396,6 @@ class ChaptersController < ApplicationController
                 hidden_code = hidden_code.gsub("'", "\\\\'")
                 
                 code = CGI.unescapeHTML(snippet.children.to_html.strip.html_safe)
-                # code = HTMLEntities.new.decode(snippet.children.to_html.strip.html_safe)
                 platform_code = code
                 
                 if (LANGUAGE_VERSION=="javascript")
