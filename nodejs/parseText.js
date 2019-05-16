@@ -1,7 +1,7 @@
 import replaceTagWithSymbol from './replaceTagWithSymbol';
 import processFigure from './processFigure';
 
-const tagsToRemove = new Set(["#comment", "COMMENT", "CHANGE", "EXCLUDE", "HISTORY", "SCHEME", "SCHEMEINLINE", "EXERCISE", "SOLUTION"]);
+const tagsToRemove = new Set(["#comment", "COMMENT", "CHANGE", "EDIT", "EXCLUDE", "HISTORY", "SCHEME", "SCHEMEINLINE", "EXERCISE", "SOLUTION"]);
 const ignoreTags = new Set(["JAVASCRIPT", "SPLIT", "SPLITINLINE", "NOBR"]);
 
 export const processTextFunctions = {
@@ -108,30 +108,15 @@ export const processTextFunctions = {
     recursiveProcessText(node.firstChild, writeTo);
   }),
 
+  "TABLE": ((node, writeTo) => {
+    processTable(node, writeTo);
+  }),
+
   "UL": ((node, writeTo) => {
     writeTo.push("\n\\begin{itemize}\n");
     processList(node.firstChild, writeTo);
     writeTo.push("\\end{itemize}\n");
   })
-}
-
-export const processList = (node, writeTo) => {
-  if (!node) return;
-  if (node.nodeName == "LI"){
-    writeTo.push("\\item{");
-    recursiveProcessText(node.firstChild, writeTo)
-    writeTo.push("}\n");
-  } 
-  return processList(node.nextSibling, writeTo);
-}
-
-export const processSnippet = (node, writeTo) => {
-  const jsSnippet = node.getElementsByTagName("JAVASCRIPT")[0]; 
-  if (jsSnippet) {
-    writeTo.push("\n\\begin{lstlisting}");
-    recursiveProcessPureText(jsSnippet.firstChild, writeTo);
-    writeTo.push("\\end{lstlisting}\n");
-  }
 }
 
 const recursiveProcessPureText = (node, writeTo, removeNewline = false) => {
@@ -188,3 +173,51 @@ export const processIndex = (index, writeTo) => {
   writeTo.push("}");
 }
 
+export const processList = (node, writeTo) => {
+  if (!node) return;
+  if (node.nodeName == "LI"){
+    writeTo.push("\\item{");
+    recursiveProcessText(node.firstChild, writeTo)
+    writeTo.push("}\n");
+  } 
+  return processList(node.nextSibling, writeTo);
+}
+
+export const processSnippet = (node, writeTo) => {
+  const jsSnippet = node.getElementsByTagName("JAVASCRIPT")[0]; 
+  if (jsSnippet) {
+    writeTo.push("\n\\begin{lstlisting}");
+    recursiveProcessPureText(jsSnippet.firstChild, writeTo);
+    writeTo.push("\\end{lstlisting}\n");
+  }
+}
+
+export const processTable = (node, writeTo) => {
+  console.log(node.toString());
+  const firstRow = node.getElementsByTagName("TR")[0];
+  if (firstRow) {
+    const colNum = firstRow.getElementsByTagName("TD").length;
+    writeTo.push("\n\n\\noindent\\begin{tabular}{ | ");
+    for (let i = 0; i < colNum; i++) {
+      writeTo.push("l | ");
+    }
+    writeTo.push("} \\hline\n");
+    for (let row = node.firstChild; row; row = row.nextSibling) {
+      if (row.nodeName != "TR") continue;
+      let first = true;
+      for (let col = row.firstChild; col; col = col.nextSibling) {
+        if (col.nodeName != "TD") continue;
+        if (first) {
+          first = false;
+        } else {
+          writeTo.push(" & ");
+        }
+        recursiveProcessText(col.firstChild, writeTo);
+      }
+      writeTo.push(" \\\\ \\hline\n");
+    }
+    writeTo.push("\\end{tabular}\n\n");
+  } else {
+    recursiveProcessText(node.firstChild, writeTo);
+  }
+}
