@@ -57,6 +57,13 @@ export const processTextFunctions = {
       + "}\n");
   }),
 
+  "LINK": ((node, writeTo) => {
+    writeTo.push("\\href{"
+      + node.getAttribute("address")
+      + "}{");
+    recursiveProcessText(node.firstChild, writeTo);
+    writeTo.push("}");
+  }),
 
   "LATEX": ((node, writeTo) => processTextFunctions["LATEXINLINE"](node, writeTo)),
   "LATEXINLINE": ((node, writeTo) => {
@@ -95,9 +102,9 @@ export const processTextFunctions = {
 
   "SCHEMEINLINE": ((node, writeTo) => processTextFunctions["JAVASCRIPTINLINE"](node, writeTo)),
   "JAVASCRIPTINLINE": ((node, writeTo) => {
-    writeTo.push("\n\\lstinline[breaklines=true]|");
+    writeTo.push("\n{\\lstinline|");
     recursiveProcessPureText(node.firstChild, writeTo, true);
-    writeTo.push("|");
+    writeTo.push("|}");
   }),
 
   "SNIPPET": ((node, writeTo) => {
