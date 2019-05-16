@@ -26,7 +26,7 @@ export const processSnippet = (node, writeTo) => {
 const recursiveProcessPureText = (node, writeTo, removeNewline = false) => {
   if (!node) return;
   if (removeNewline) {
-    writeTo.push(node.nodeValue.replace(/[\r\n]+/g, " "));
+    writeTo.push(node.nodeValue.replace(/[\r\n]+/g, ""));
   } else {
     writeTo.push(node.nodeValue);
   }

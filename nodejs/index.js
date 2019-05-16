@@ -97,7 +97,7 @@ const xmlToLatex = (filepath, filename) => {
 				const outputFile = path.join(outputDir, filepath, filename.replace(/\.xml$/, '') + '.tex');
         const stream = fs.createWriteStream(outputFile);
         stream.once('open', (fd) => {
-				  stream.write(writeTo.join("").replace(/ +/g, " "));
+				  stream.write(writeTo.join(""));
 				  stream.end();
 				});
       });
