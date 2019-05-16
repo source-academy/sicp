@@ -4,7 +4,6 @@ import path from 'path';
 import xpath from 'xpath';
 import {DOMParser as dom} from 'xmldom';
 
-import replaceTagWithSymbol from './replaceTagWithSymbol';
 import processEpigraph from './processEpigraph';
 import processFileInput from './processFileInput';
 import processFigure from './processFigure';
@@ -16,11 +15,10 @@ import {
   recursiveProcessText
 } from './parseText';
 
-const tagsToRemove = new Set(["#comment", "COMMENT", "CHANGE", "EXCLUDE", "HISTORY", "SCHEME", "SCHEMEINLINE", "EXERCISE", "SOLUTION"]);
-// const unprocessed = new Set([]);
+const unprocessed = new Set([]);
 
 const parseXML = (node, writeTo) => {
-  if (!node) return;
+  if (!node) return unprocessed;
   const name = node.nodeName;
 
   switch (name) {
@@ -34,13 +32,6 @@ const parseXML = (node, writeTo) => {
       }
       break;
 
-    case "TEXT":
-    case "P":
-      writeTo.push("\n\n");
-      recursiveProcessText(node.firstChild, writeTo);
-      writeTo.push("\n");
-      break;
-
     case "CHAPTER":
       writeTo.push("\\chapter{");
       parseXML(node.firstChild, writeTo);
@@ -48,20 +39,6 @@ const parseXML = (node, writeTo) => {
 
     case "EPIGRAPH":
       processEpigraph(node, writeTo);
-      break;
-
-    case "FIGURE":
-      processFigure(node, writeTo);
-      break;
-
-    case "INDEX":
-      processIndex(node, writeTo);
-      break;
-
-    case "LABEL":
-      writeTo.push("\\label{"
-        + node.getAttribute("NAME")
-        + "}\n");
       break;
     
     case "NAME":
@@ -72,10 +49,6 @@ const parseXML = (node, writeTo) => {
     case "SECTION":
       writeTo.push("\\section{");
       parseXML(node.firstChild, writeTo);
-      break;
-
-    case "SNIPPET":
-      processSnippet(node, writeTo);
       break;
       
     case "SUBHEADING":
@@ -89,23 +62,27 @@ const parseXML = (node, writeTo) => {
       parseXML(node.firstChild, writeTo);
       break;
 
-    case "OL":
     case "EM":
+    case "em":
     case "FOOTNOTE":
     case "JAVASCRIPTINLINE":
+    case "OL":
+    case "QUOTE":
     case "REF":
     case "UL":
       processText(node, writeTo);
       break;
 
     default:
-      if (!replaceTagWithSymbol(node, writeTo) && !tagsToRemove.has(name)) {
-        // unprocessed.add(name);
+      if (processText(node, writeTo)) {
+        break
+      } else {
+        unprocessed.add(name);
         parseXML(node.firstChild, writeTo);
       }
   }
 
-  parseXML(node.nextSibling, writeTo);
+  return parseXML(node.nextSibling, writeTo);
 }
 
 export default parseXML;
@@ -113,20 +90,20 @@ export default parseXML;
 
 // unaccounted
 // Set {
+//   'SPLITINLINE',
+//   'JAVASCRIPT',
 //   'CHAPTERCONTENT',
-//   'LABEL',
-//   'SUBINDEX',
+//   'SPLIT',
+//   'ABOUT',
+//   'H2',
+//   'LINK',
+//   'TT',
+//   'LATEXINLINE',
+//   'REFERENCES',
+//   'REFERENCE',
+//   'em',
+//   'EGRAVE',
+//   'sup',
+//   'WEBPREFACE',
 //   'SECTIONCONTENT',
-//   'EXERCISE',
-//   'QUOTE',
-//   'JAVASCRIPTINLINE',
-//   'SOLUTION',
-//   'EM',
-//   'P',
-//   'REF',
-//   'CITATION',
-//   'span',
-//   'TREETAB',
-//   'CHANGE',
-//   'OMISSION',
-//   'BR' }
+//   'JAVASCIPT' }
