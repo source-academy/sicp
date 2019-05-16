@@ -18,11 +18,11 @@ const preamble = `\\documentclass{report}
 \\usepackage{epigraph}
 \\usepackage{etoolbox}
 \\usepackage{graphicx}
-\\usepackage{hyperref}
 \\usepackage{listings}
 \\usepackage{makeidx}
 \\usepackage{subcaption}
 \\usepackage{underscore}
+\\usepackage[colorlinks=true, urlcolor=blue, linkcolor=blue, citecolor=blue]{hyperref}
 
 \\graphicspath{ {../rails/public/chapters/} }
 
@@ -54,17 +54,20 @@ const preamble = `\\documentclass{report}
    escapechar={^}
 }
 
-\\newcommand{\\lt}{\\symbol{"3C}}% Less than
-\\newcommand{\\gt}{\\symbol{"3E}}% Greater than
-
 \\setlength\\epigraphwidth{11cm}
 \\setlength\\epigraphrule{0pt}
+
+\\newcommand{\\lt}{\\symbol{"3C}}% Less than
+\\newcommand{\\gt}{\\symbol{"3E}}% Greater than
 
 \\makeindex
 
 \\begin{document}
 
+{\\hypersetup{linkcolor =black}
 \\tableofcontents{}
+}
+
 `;
 
 const ending = `\n\\printindex\n
