@@ -79,7 +79,6 @@ Compile main.tex with XeLaTex+MakeIndex+BibTex for the pdf version.
 
 ## Unprocessed tags
 CITATION 
-TABLE 
 SC 
 ORDER 
 TT 
