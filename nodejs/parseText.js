@@ -26,7 +26,7 @@ export const processSnippet = (node, writeTo) => {
 const recursiveProcessPureText = (node, writeTo, removeNewline = false) => {
   if (!node) return;
   if (removeNewline) {
-    writeTo.push(node.nodeValue.replace(/[\r\n]+/g, ""));
+    writeTo.push(node.nodeValue.replace(/[\r\n]+/g, " "));
   } else {
     writeTo.push(node.nodeValue);
   }
@@ -85,7 +85,7 @@ export const processText = (node, writeTo) => {
       return true;
 
     case "OL":
-      writeTo.push("\n\\begin{enumerate}");
+      writeTo.push("\n\\begin{enumerate}\n");
       processList(node.firstChild, writeTo);
       writeTo.push("\\end{enumerate}\n");
       return true;
@@ -107,7 +107,7 @@ export const processText = (node, writeTo) => {
       return true;
 
     case "UL":
-      writeTo.push("\n\\begin{itemize}");
+      writeTo.push("\n\\begin{itemize}\n");
       processList(node.firstChild, writeTo);
       writeTo.push("\\end{itemize}\n");
       return true;
