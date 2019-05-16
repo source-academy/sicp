@@ -13,12 +13,13 @@ const preamble = `\\documentclass{report}
 
 \\usepackage{amsmath}
 \\usepackage{amssymb}
+\\usepackage{cprotect}
 \\usepackage{csquotes}
-\\usepackage{makeidx}
 \\usepackage{epigraph}
 \\usepackage{graphicx}
-\\usepackage{subcaption}
 \\usepackage{listings}
+\\usepackage{makeidx}
+\\usepackage{subcaption}
 \\usepackage{underscore}
 
 \\usepackage{etoolbox}
@@ -127,6 +128,9 @@ const createMainLatex = () => {
       chaptersFound.push(file);
     } 
   });
+  if (!fs.existsSync(outputDir)) {
+    fs.mkdirSync(outputDir);
+  }
   const stream = fs.createWriteStream(path.join(outputDir, "main.tex"));
   stream.once('open', (fd) => {
     stream.write(preamble);

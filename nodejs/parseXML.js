@@ -99,7 +99,7 @@ const parseXML = (node, writeTo) => {
 
     default:
       if (!replaceTagWithSymbol(node, writeTo) && !tagsToRemove.has(name)) {
-        unprocessed.add(name);
+        // unprocessed.add(name);
         parseXML(node.firstChild, writeTo);
       }
   }
