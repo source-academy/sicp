@@ -59,7 +59,7 @@ export const processText = (node, writeTo) => {
       return true;
 
     case "FOOTNOTE":
-      writeTo.push("\n\\footnote{");
+      writeTo.push("\n\\cprotect\\footnote{");
       recursiveProcessText(node.firstChild, writeTo);
       writeTo.push("}\n");
       return true;
