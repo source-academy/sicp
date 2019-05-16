@@ -16,13 +16,13 @@ const preamble = `\\documentclass{report}
 \\usepackage{cprotect}
 \\usepackage{csquotes}
 \\usepackage{epigraph}
+\\usepackage{etoolbox}
 \\usepackage{graphicx}
 \\usepackage{listings}
 \\usepackage{makeidx}
 \\usepackage{subcaption}
 \\usepackage{underscore}
 
-\\usepackage{etoolbox}
 \\expandafter\\patchcmd\\csname \\string\\lstinline\\endcsname{%
   \\leavevmode
   \\bgroup
