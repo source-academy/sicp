@@ -57,6 +57,7 @@ export const processTextFunctions = {
       + "}\n");
   }),
 
+
   "LATEX": ((node, writeTo) => processTextFunctions["LATEXINLINE"](node, writeTo)),
   "LATEXINLINE": ((node, writeTo) => {
     recursiveProcessPureText(node.firstChild, writeTo);
@@ -94,7 +95,7 @@ export const processTextFunctions = {
 
   "SCHEMEINLINE": ((node, writeTo) => processTextFunctions["JAVASCRIPTINLINE"](node, writeTo)),
   "JAVASCRIPTINLINE": ((node, writeTo) => {
-    writeTo.push("\\lstinline|");
+    writeTo.push("\n\\lstinline[breaklines=true]|");
     recursiveProcessPureText(node.firstChild, writeTo, true);
     writeTo.push("|");
   }),
@@ -110,6 +111,12 @@ export const processTextFunctions = {
 
   "TABLE": ((node, writeTo) => {
     processTable(node, writeTo);
+  }),
+
+  "TT": ((node, writeTo) => {
+    writeTo.push("\\texttt{");
+    recursiveProcessPureText(node.firstChild, writeTo, true);
+    writeTo.push("}");
   }),
 
   "UL": ((node, writeTo) => {
@@ -193,7 +200,6 @@ export const processSnippet = (node, writeTo) => {
 }
 
 export const processTable = (node, writeTo) => {
-  console.log(node.toString());
   const firstRow = node.getElementsByTagName("TR")[0];
   if (firstRow) {
     const colNum = firstRow.getElementsByTagName("TD").length;

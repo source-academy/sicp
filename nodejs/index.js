@@ -18,6 +18,7 @@ const preamble = `\\documentclass{report}
 \\usepackage{epigraph}
 \\usepackage{etoolbox}
 \\usepackage{graphicx}
+\\usepackage{hyperref}
 \\usepackage{listings}
 \\usepackage{makeidx}
 \\usepackage{subcaption}
@@ -61,7 +62,10 @@ const preamble = `\\documentclass{report}
 
 \\makeindex
 
-\\begin{document}\n`;
+\\begin{document}
+
+\\tableofcontents{}
+`;
 
 const ending = `\n\\printindex\n
 \\end{document}`;

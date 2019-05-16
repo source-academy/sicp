@@ -81,7 +81,6 @@ Compile main.tex with XeLaTex+MakeIndex+BibTex for the pdf version.
 CITATION 
 SC 
 ORDER 
-TT 
 EXERCISE 
 SOLUTION 
 H2
