@@ -7,7 +7,7 @@ export const processFigure = (node, writeTo) => {
     src = node.getElementsByTagName("FIGURE")[0].getAttribute("src");
   } 
   if (src) {
-    writeTo.push("\\includegraphics[width=\\linewidth]{../rails/public/chapters/" 
+    writeTo.push("\\includegraphics[width=\\linewidth]{" 
       + src.replace(/\.gif$/, ".png").replace(/_/g, "\\string_")
       + "}\n");
   } else {
@@ -15,7 +15,7 @@ export const processFigure = (node, writeTo) => {
     const images = node.getElementsByTagName("IMAGE");
     for (let i = 0; i < images.length; i++) {
       writeTo.push("\\subcaptionbox{}{"
-      + "\\includegraphics{../rails/public/chapters/" 
+      + "\\includegraphics{" 
       + images[i].getAttribute("src").replace(/\.gif$/, ".png").replace(/_/g, "\\string_")
       + "}}\n");
     } 

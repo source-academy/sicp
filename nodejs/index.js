@@ -23,6 +23,8 @@ const preamble = `\\documentclass{report}
 \\usepackage{subcaption}
 \\usepackage{underscore}
 
+\\graphicspath{ {../rails/public/chapters/} }
+
 \\expandafter\\patchcmd\\csname \\string\\lstinline\\endcsname{%
   \\leavevmode
   \\bgroup

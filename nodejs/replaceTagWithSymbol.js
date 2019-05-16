@@ -19,6 +19,7 @@ const tagsToReplace = {
   'CCEDIL_LOWER': 'Ç',
   'ELLIPSIS': '…',
   'AMP': '\\&',
+  'DOLLAR': '\\$',
         
   'EMDASH': '—',
   'ENDASH': '–',
