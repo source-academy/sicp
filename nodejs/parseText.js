@@ -1,7 +1,7 @@
 import replaceTagWithSymbol from './replaceTagWithSymbol';
 import processFigure from './processFigure';
 
-const tagsToRemove = new Set(["#comment", "COMMENT", "CHANGE", "EDIT", "EXCLUDE", "HISTORY", "SCHEME", "SCHEMEINLINE", "EXERCISE", "SOLUTION"]);
+const tagsToRemove = new Set(["#comment", "COMMENT", "CHANGE", "EDIT", "EXCLUDE", "HISTORY", "SCHEME", "SCHEMEINLINE", "SOLUTION"]);
 const ignoreTags = new Set(["JAVASCRIPT", "SPLIT", "SPLITINLINE", "NOBR"]);
 
 export const processTextFunctions = {
@@ -29,6 +29,12 @@ export const processTextFunctions = {
     writeTo.push("{\\em ");
     recursiveProcessText(node.firstChild, writeTo);
     writeTo.push("}");
+  }),
+
+  "EXERCISE": ((node, writeTo) => {
+    writeTo.push("\n\\begin{Exercise}\n");
+    recursiveProcessText(node.firstChild, writeTo);
+    writeTo.push("\n\\end{Exercise}\n");
   }),
 
   "FIGURE": ((node, writeTo) => {
