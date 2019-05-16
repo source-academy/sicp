@@ -58,3 +58,17 @@ Static site generation is handled by `rails/Rakefile`. It outputs the html pages
 ## Bugs
 * Google Custom Search doesn't seem to be working.
 * The snippets containing '\n' would lead to newline rather than showing charater '\n' in the `Source Academy` platform. This problem is difficult to eliminate because the code encoder cannot differentiate them when reading content.
+
+## XML2Latex
+
+## Requirements
+For development & deployment:
+* node.js
+
+## Set up
+Run `npm install` to install dependencies.
+
+## Generating Latex Files
+Run `npm start`. 
+Latex files will be in the latex folder.
+Compile main.tex with XeLaTex+MakeIndex+BibTex for the pdf version.
