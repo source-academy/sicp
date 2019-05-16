@@ -1,7 +1,7 @@
 import {recursiveProcessText} from './parseText';
 
 export const processFigure = (node, writeTo) => {
-  writeTo.push("\\begin{figure}\n")
+  writeTo.push("\n\\begin{figure}\n")
   let src = node.getAttribute("src");
   if (!src && node.getElementsByTagName("FIGURE")[0]) {
     src = node.getElementsByTagName("FIGURE")[0].getAttribute("src");
