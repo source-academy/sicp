@@ -17,6 +17,8 @@ const preamble = `\\documentclass{report}
 \\usepackage{csquotes}
 \\usepackage{epigraph}
 \\usepackage{etoolbox}
+\\usepackage{exercise}
+\\usepackage{float}
 \\usepackage{graphicx}
 \\usepackage{listings}
 \\usepackage{makeidx}
