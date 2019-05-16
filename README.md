@@ -75,5 +75,4 @@ Run `npm install` to install dependencies.
 ## Generating Latex Files
 Run `npm start`. 
 Latex files will be in the latex folder.
-Compile main.tex for the pdf version.
-* Due to certain bugs, main.tex is currently unable to be compiled without manually editing the latex files.
+Compile main.tex with XeLaTex+MakeIndex+BibTex for the pdf version.

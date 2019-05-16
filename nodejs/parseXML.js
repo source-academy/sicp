@@ -79,6 +79,7 @@ const parseXML = (node, writeTo) => {
       break;
       
     case "SUBHEADING":
+    case "SUBSUBSUBSECTION":
       writeTo.push("\\subsubsection{");
       parseXML(node.firstChild, writeTo);
       break;

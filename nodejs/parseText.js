@@ -23,9 +23,13 @@ export const processSnippet = (node, writeTo) => {
   }
 }
 
-const recursiveProcessPureText = (node, writeTo) => {
+const recursiveProcessPureText = (node, writeTo, removeNewline = false) => {
   if (!node) return;
-  writeTo.push(node.nodeValue);
+  if (removeNewline) {
+    writeTo.push(node.nodeValue.replace(/[\r\n]+/g, " "));
+  } else {
+    writeTo.push(node.nodeValue);
+  }
   return recursiveProcessText(node.nextSibling, writeTo)
 }
 
@@ -70,9 +74,9 @@ export const processText = (node, writeTo) => {
 
     case "JAVASCRIPTINLINE":
     case "SCHEMEINLINE":
-      writeTo.push("\\lstinline{");
-      recursiveProcessPureText(node.firstChild, writeTo);
-      writeTo.push("}");
+      writeTo.push("\\lstinline|");
+      recursiveProcessPureText(node.firstChild, writeTo, true);
+      writeTo.push("|");
       return true;
 
     case "LATEX":
@@ -111,7 +115,7 @@ export const processText = (node, writeTo) => {
     default:
       if (replaceTagWithSymbol(node, writeTo)) {
         return true;
-      } else if (ignoreTags.has(name) || tagsToRemove.has(name)) {
+      } else if (ignoreTags.has(name) && !tagsToRemove.has(name)) {
         recursiveProcessText(node.firstChild, writeTo);
         return true;
       } else {
