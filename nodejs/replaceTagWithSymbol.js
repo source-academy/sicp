@@ -20,6 +20,7 @@ const tagsToReplace = {
   'ELLIPSIS': '…',
   'AMP': '\\&',
   'DOLLAR': '\\$',
+  'SECT': '§',
         
   'EMDASH': '—',
   'ENDASH': '–',

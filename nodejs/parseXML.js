@@ -29,7 +29,7 @@ const parseXML = (node, writeTo) => {
       else if (!trimedValue.match(/^\s*$/)) {
         writeTo.push(trimedValue.replace(/%/g, "\\%"));
       }
-      break;
+      break;  
 
     case "CHAPTER":
       writeTo.push("\\chapter{");
@@ -46,6 +46,9 @@ const parseXML = (node, writeTo) => {
       break;
 
     case "SECTION":
+    case "ABOUT":
+    case "REFERENCES":
+    case "WEBPREFACE":
       writeTo.push("\\section{");
       parseXML(node.firstChild, writeTo);
       break;
@@ -78,20 +81,6 @@ export default parseXML;
 
 // unaccounted
 // Set {
-//   'SPLITINLINE',
-//   'JAVASCRIPT',
 //   'CHAPTERCONTENT',
-//   'SPLIT',
-//   'ABOUT',
-//   'H2',
-//   'LINK',
-//   'TT',
-//   'LATEXINLINE',
-//   'REFERENCES',
-//   'REFERENCE',
-//   'em',
-//   'EGRAVE',
-//   'sup',
-//   'WEBPREFACE',
-//   'SECTIONCONTENT',
-//   'JAVASCIPT' }
+//   'SECTIONCONTENT'
+//}
