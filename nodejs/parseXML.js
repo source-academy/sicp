@@ -8,7 +8,6 @@ import processEpigraph from './processEpigraph';
 import processFileInput from './processFileInput';
 import processFigure from './processFigure';
 import {
-  processIndex,
   processList,
   processSnippet,
   processText,

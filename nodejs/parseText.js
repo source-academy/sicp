@@ -74,7 +74,9 @@ export const processTextFunctions = {
   }),
 
   "INDEX": ((node, writeTo) => {
-    processIndex(node, writeTo);
+    writeTo.push("\\index{");
+    recursiveProcessText(node.firstChild, writeTo);
+    writeTo.push("}");
   }),
 
   "LABEL": ((node, writeTo) => {
@@ -107,6 +109,12 @@ export const processTextFunctions = {
     writeTo.push("\\end{enumerate}\n");
   }),
 
+  "ORDER": ((node, writeTo) => {
+    // should occur only within INDEX
+    recursiveProcessText(node.firstChild, writeTo);
+    writeTo.push("@");
+  }),
+
   "P": ((node, writeTo) => processTextFunctions["TEXT"](node, writeTo)),
   "TEXT": ((node, writeTo) => {
     writeTo.push("\n\n");
@@ -121,9 +129,15 @@ export const processTextFunctions = {
   }),
 
   "REF": ((node, writeTo) => {
-    writeTo.push("~\\ref{" 
+    writeTo.push("\\ref{" 
       + node.getAttribute("NAME")
       + "}");
+  }),
+
+  "SC": ((node, writeTo) => {
+    writeTo.push("{\\scshape ");
+    recursiveProcessText(node.firstChild, writeTo);
+    writeTo.push("}");
   }),
 
   "SCHEMEINLINE": ((node, writeTo) => processTextFunctions["JAVASCRIPTINLINE"](node, writeTo)),
@@ -139,6 +153,12 @@ export const processTextFunctions = {
 
   "SUBHEADING": ((node, writeTo) => {
     writeTo.push("\\subsubsection{");
+    recursiveProcessText(node.firstChild, writeTo);
+  }),
+
+  "SUBINDEX": ((node, writeTo) => {
+    // should occur only within INDEX
+    writeTo.push("!");
     recursiveProcessText(node.firstChild, writeTo);
   }),
 
@@ -194,23 +214,6 @@ export const processText = (node, writeTo) => {
       return false;
     }
   }
-}
-
-export const processIndex = (index, writeTo) => {
-  writeTo.push("\\index{");
-  for (let child = index.firstChild; child; child = child.nextSibling) {
-    const name = child.nodeName;
-    switch (name) {
-      case "SUBINDEX":
-        writeTo.push("!");
-        recursiveProcessText(child.firstChild, writeTo);
-        break;
-
-      default:
-        processText(child, writeTo);
-    }
-  }
-  writeTo.push("}");
 }
 
 export const processList = (node, writeTo) => {
