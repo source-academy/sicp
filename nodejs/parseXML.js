@@ -62,17 +62,6 @@ const parseXML = (node, writeTo) => {
       parseXML(node.firstChild, writeTo);
       break;
 
-    case "EM":
-    case "em":
-    case "FOOTNOTE":
-    case "JAVASCRIPTINLINE":
-    case "OL":
-    case "QUOTE":
-    case "REF":
-    case "UL":
-      processText(node, writeTo);
-      break;
-
     default:
       if (processText(node, writeTo)) {
         break
