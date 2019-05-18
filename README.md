@@ -76,12 +76,3 @@ Run `npm install` to install dependencies.
 Run `npm start`. 
 Latex files will be in the latex folder.
 Compile main.tex with XeLaTex+MakeIndex+BibTex for the pdf version.
-
-## Unprocessed tags
-CITATION 
-SC 
-ORDER 
-EXERCISE 
-SOLUTION 
-H2
-SECT

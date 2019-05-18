@@ -17,7 +17,7 @@ const preamble = `\\documentclass{report}
 \\usepackage{csquotes}
 \\usepackage{epigraph}
 \\usepackage{etoolbox}
-\\usepackage{exercise}
+\\usepackage[answerdelayed, lastexercise]{exercise}
 \\usepackage{float}
 \\usepackage{graphicx}
 \\usepackage{listings}
@@ -70,9 +70,20 @@ const preamble = `\\documentclass{report}
 \\tableofcontents{}
 }
 
+\\input{./others/webpreface01.tex}
+
 `;
 
-const ending = `\n\\printindex\n
+const ending = `
+\\section{Solution To Exercises}
+\\shipoutAnswer.
+
+\\input{./others/references03.tex}
+
+\\printindex
+
+\\input{./others/about02.tex}
+
 \\end{document}`;
 
 const ensureDirectoryExists = (path, cb) => {
@@ -147,7 +158,7 @@ const createMainLatex = () => {
   stream.once('open', (fd) => {
     stream.write(preamble);
     chaptersFound.forEach(chapter => {
-      const pathStr = chapter + "/" + chapter + ".tex";
+      const pathStr = "./" + chapter + "/" + chapter + ".tex";
       stream.write("\\input{" + pathStr + "}\n");
     });
     stream.write(ending);

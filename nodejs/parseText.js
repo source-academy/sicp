@@ -2,7 +2,7 @@ import replaceTagWithSymbol from './replaceTagWithSymbol';
 import processFigure from './processFigure';
 
 const tagsToRemove = new Set(["#comment", "COMMENT", "CHANGE", "EDIT", "EXCLUDE", "HISTORY", "SCHEME", "SCHEMEINLINE", "SOLUTION"]);
-const ignoreTags = new Set(["JAVASCRIPT", "SPLIT", "SPLITINLINE", "NOBR"]);
+const ignoreTags = new Set(["JAVASCRIPT", "span", "SPLIT", "SPLITINLINE", "NOBR"]);
 
 export const processTextFunctions = {
   "#text": ((node, writeTo) => {
@@ -19,7 +19,7 @@ export const processTextFunctions = {
   }),
 
   "BR": ((node, writeTo) => {
-    writeTo.push("\n\\noindent");
+    writeTo.push("\n\\noindent ");
   }),
 
   "BLOCKQUOTE": ((node, writeTo) => {
@@ -49,6 +49,12 @@ export const processTextFunctions = {
     writeTo.push("\n\\begin{Exercise}\n");
     recursiveProcessText(node.firstChild, writeTo);
     writeTo.push("\n\\end{Exercise}\n");
+    const solution = node.getElementsByTagName("SOLUTION")[0]; 
+    if (solution) {
+      writeTo.push("\n\\begin{Answer}\n");
+      recursiveProcessText(solution.firstChild, writeTo);
+      writeTo.push("\n\\end{Answer}\n");
+    }
   }),
 
   "FIGURE": ((node, writeTo) => {
@@ -133,6 +139,13 @@ export const processTextFunctions = {
     writeTo.push("\\ref{" 
       + node.getAttribute("NAME")
       + "}");
+  }),
+
+  "REFERENCE": ((node, writeTo) => {
+    // Doesn't do anything special yet
+    writeTo.push("\n\\noindent ");
+    recursiveProcessText(node.firstChild, writeTo);
+    writeTo.push("\n\\bigskip");
   }),
 
   "SC": ((node, writeTo) => {
