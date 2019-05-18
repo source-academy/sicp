@@ -1,5 +1,4 @@
 import {
-  processIndex,
   processText,
   recursiveProcessText
 } from './parseText';
@@ -42,7 +41,7 @@ export const processEpigraph = (node, writeTo) => {
 
     child = attribution.getElementsByTagName("INDEX")[0];
     if (child) {
-      processIndex(child, writeTo);
+      processText(child, writeTo);
     }
   }
   writeTo.push("}\n");
