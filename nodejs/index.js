@@ -99,6 +99,7 @@ const xmlToLatex = (filepath, filename) => {
       const doc = new dom().parseFromString(data);
       const writeTo = [];
 
+      console.log(path.join(filepath, filename));
       parseXML(doc.documentElement, writeTo);
       ensureDirectoryExists(path.join(outputDir, filepath), (err) => {
         if (err) {
