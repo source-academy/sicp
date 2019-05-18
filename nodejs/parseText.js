@@ -243,7 +243,7 @@ export const processList = (node, writeTo) => {
 export const processSnippet = (node, writeTo) => {
   const jsSnippet = node.getElementsByTagName("JAVASCRIPT")[0]; 
   if (jsSnippet) {
-    writeTo.push("\n\\begin{lstlisting}");
+    writeTo.push("\n\\begin{lstlisting}[mathescape=true]");
     recursiveProcessPureText(jsSnippet.firstChild, writeTo);
     writeTo.push("\\end{lstlisting}\n");
   }

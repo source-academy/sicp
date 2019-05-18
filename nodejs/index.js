@@ -156,7 +156,7 @@ const createMainLatex = () => {
   if (!fs.existsSync(outputDir)) {
     fs.mkdirSync(outputDir);
   }
-  const stream = fs.createWriteStream(path.join(outputDir, "main.tex"));
+  const stream = fs.createWriteStream(path.join(outputDir, "sicpjs.tex"));
   stream.once('open', (fd) => {
     stream.write(preamble);
     chaptersFound.forEach(chapter => {
