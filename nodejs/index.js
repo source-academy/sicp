@@ -75,11 +75,13 @@ const preamble = `\\documentclass{report}
 `;
 
 const ending = `
-\\section{Solution To Exercises}
+\\chapter*{Solution To Exercises}
+\\addcontentsline{toc}{chapter}{Solution To Exercises}
 \\shipoutAnswer.
 
 \\input{./others/references03.tex}
 
+\\addcontentsline{toc}{chapter}{Index}
 \\printindex
 
 \\input{./others/about02.tex}

@@ -31,6 +31,15 @@ const parseXML = (node, writeTo) => {
       }
       break;  
 
+    case "ABOUT":
+    case "REFERENCES":
+    case "WEBPREFACE":
+      writeTo.push("\\chapter*{")
+      recursiveProcessText(node.getElementsByTagName("NAME")[0].firstChild, writeTo);
+      writeTo.push("}\n\\addcontentsline{toc}{chapter}{");
+      parseXML(node.firstChild, writeTo);
+      break;
+
     case "CHAPTER":
       writeTo.push("\\chapter{");
       parseXML(node.firstChild, writeTo);
@@ -46,9 +55,6 @@ const parseXML = (node, writeTo) => {
       break;
 
     case "SECTION":
-    case "ABOUT":
-    case "REFERENCES":
-    case "WEBPREFACE":
       writeTo.push("\\section{");
       parseXML(node.firstChild, writeTo);
       break;
