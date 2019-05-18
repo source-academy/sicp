@@ -71,4 +71,4 @@ Run `npm install` to install dependencies.
 ## Generating Latex Files
 Run `npm start`. 
 Latex files will be in the latex folder.
-Compile main.tex with XeLaTex+MakeIndex+BibTex for the pdf version.
+Compile sicpjs.tex with XeLaTex+MakeIndex+BibTex for the pdf version.
