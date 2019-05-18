@@ -24,6 +24,16 @@ export const processTextFunctions = {
     writeTo.push("\\end{quote}\n");
   }),
 
+  "CITATION": ((node, writeTo) => {
+    // Currently just text. Not linked to biblography.
+    const text = node.getElementsByTagName("TEXT")[0]; 
+    if (text) {
+      recursiveProcessText(text.firstChild, writeTo);
+    } else {
+      recursiveProcessText(node.firstChild, writeTo);
+    }
+  }),
+
   "EM": ((node, writeTo) => processTextFunctions["em"](node, writeTo)),
   "em": ((node, writeTo) => {
     writeTo.push("{\\em ");
@@ -49,6 +59,12 @@ export const processTextFunctions = {
 
   "FOOTNOTE": ((node, writeTo) => {
     writeTo.push("\n\\cprotect\\footnote{");
+    recursiveProcessText(node.firstChild, writeTo);
+    writeTo.push("}\n");
+  }),
+
+  "H2": ((node, writeTo) => {
+    writeTo.push("\n\\subsection*{");
     recursiveProcessText(node.firstChild, writeTo);
     writeTo.push("}\n");
   }),
