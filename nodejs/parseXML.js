@@ -42,7 +42,7 @@ const parseXML = (node, writeTo) => {
     
     case "NAME":
       parseXML(node.firstChild, writeTo);
-      writeTo.push("}\n");
+      writeTo.push("}\n\n");
       break;
 
     case "SECTION":
