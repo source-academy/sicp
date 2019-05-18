@@ -94,13 +94,14 @@ export const processTextFunctions = {
   }),
 
   "LATEX": ((node, writeTo) => processTextFunctions["LATEXINLINE"](node, writeTo)),
+  "TREETAB": ((node, writeTo) => processTextFunctions["LATEXINLINE"](node, writeTo)),
   "LATEXINLINE": ((node, writeTo) => {
     recursiveProcessPureText(node.firstChild, writeTo);
   }),
 
   "NAME": ((node, writeTo) => {
     recursiveProcessText(node.firstChild, writeTo);
-    writeTo.push("}\n");
+    writeTo.push("}\n\n");
   }),
 
   "OL": ((node, writeTo) => {
@@ -168,7 +169,7 @@ export const processTextFunctions = {
 
   "TT": ((node, writeTo) => {
     writeTo.push("\\texttt{");
-    recursiveProcessPureText(node.firstChild, writeTo, true);
+    recursiveProcessText(node.firstChild, writeTo, true);
     writeTo.push("}");
   }),
 
