@@ -18,6 +18,10 @@ export const processTextFunctions = {
     writeTo.push("}");
   }),
 
+  "BR": ((node, writeTo) => {
+    writeTo.push("\n\\noindent");
+  }),
+
   "BLOCKQUOTE": ((node, writeTo) => {
     writeTo.push("\n\\begin{quote}");
     recursiveProcessText(node.firstChild, writeTo);
