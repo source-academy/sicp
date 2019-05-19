@@ -237,7 +237,7 @@ export const processSnippet = (node, writeTo) => {
   if (jsSnippet) {
     writeTo.push("\n\\begin{lstlisting}[mathescape=true]");
     recursiveProcessPureText(jsSnippet.firstChild, writeTo);
-    writeTo.push("\\end{lstlisting}\n");
+    writeTo.push("\\end{lstlisting}");
   }
 }
 
@@ -295,7 +295,7 @@ const processExercise = (node, writeTo) => {
 
   recursiveProcessText(node.firstChild, writeTo);
   writeTo.push("\n\\end{Exercise}\n");
-  
+
   if (solution) {
     writeTo.push("\n\\begin{Answer}[ref={" + labelName + "}]\n");
     recursiveProcessText(solution.firstChild, writeTo);

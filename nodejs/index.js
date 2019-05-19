@@ -9,7 +9,7 @@ import parseXML from './parseXML.js';
 const inputDir = path.join(__dirname, '../xml');
 const outputDir = path.join(__dirname, '../latex');
 
-const preamble = `\\documentclass[12pt]{report}
+const preamble = `\\documentclass[a4paper, 12pt]{report}
 
 \\usepackage{amsmath}
 \\usepackage{amssymb}
@@ -25,14 +25,31 @@ const preamble = `\\documentclass[12pt]{report}
 \\usepackage{setspace}
 \\onehalfspacing
 
+\\setlength{\\parskip}{0.5em}
+\\setlength{\\parindent}{0pt}%
+
 \\usepackage{titleps}
 \\newpagestyle{main}{
   \\setheadrule{0pt}
   \\sethead{\\chaptertitle}
     {} 
-    {\\thesubsection}
+    {\\thechapter}
+  \\setfoot{}{\\thepage}{}
 }
-\\pagestyle{main}
+\\newpagestyle{section}{
+  \\setheadrule{0pt}
+  \\sethead{\\chaptertitle}
+    {} 
+    {\\thesection}
+  \\setfoot{}{\\thepage}{}
+}
+\\newpagestyle{subsection}{
+  \\setheadrule{0pt}
+  \\sethead{\\chaptertitle}
+    {} 
+    {\\thesubsection}
+  \\setfoot{}{\\thepage}{}
+}
 
 \\usepackage{graphicx}
 \\graphicspath{ {../rails/public/chapters/} }
@@ -83,15 +100,17 @@ const preamble = `\\documentclass[12pt]{report}
 
 \\begin{document}
 
-{\\hypersetup{linkcolor =black}
+\\begin{singlespace}
+{\\hypersetup{linkcolor=black}
 \\tableofcontents{}
 }
+\\end{singlespace}
 
 \\input{./others/webpreface01.tex}
-
 `;
 
 const ending = `
+\\pagestyle{plain}
 \\chapter*{Solution To Exercises}
 \\addcontentsline{toc}{chapter}{Solution To Exercises}
 \\shipoutAnswer.
