@@ -134,10 +134,10 @@ export const processTextFunctions = {
   }),
 
   "REFERENCE": ((node, writeTo) => {
-    // Doesn't do anything special yet
-    writeTo.push("\n\\noindent ");
+    // Doesn't do anything special
+    writeTo.push("\n");
     recursiveProcessText(node.firstChild, writeTo);
-    writeTo.push("\n\\bigskip");
+    writeTo.push("\n");
   }),
 
   "SC": ((node, writeTo) => {
