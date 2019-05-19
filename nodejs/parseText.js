@@ -46,15 +46,7 @@ export const processTextFunctions = {
   }),
 
   "EXERCISE": ((node, writeTo) => {
-    writeTo.push("\n\\begin{Exercise}\n");
-    recursiveProcessText(node.firstChild, writeTo);
-    writeTo.push("\n\\end{Exercise}\n");
-    const solution = node.getElementsByTagName("SOLUTION")[0]; 
-    if (solution) {
-      writeTo.push("\n\\begin{Answer}\n");
-      recursiveProcessText(solution.firstChild, writeTo);
-      writeTo.push("\n\\end{Answer}\n");
-    }
+    processExercise(node, writeTo);
   }),
 
   "FIGURE": ((node, writeTo) => {
@@ -230,7 +222,7 @@ export const processText = (node, writeTo) => {
   }
 }
 
-export const processList = (node, writeTo) => {
+const processList = (node, writeTo) => {
   if (!node) return;
   if (node.nodeName == "LI"){
     writeTo.push("\\item{");
@@ -249,7 +241,7 @@ export const processSnippet = (node, writeTo) => {
   }
 }
 
-export const processTable = (node, writeTo) => {
+const processTable = (node, writeTo) => {
   const firstRow = node.getElementsByTagName("TR")[0];
   if (firstRow) {
     const colNum = firstRow.getElementsByTagName("TD").length;
@@ -275,5 +267,38 @@ export const processTable = (node, writeTo) => {
     writeTo.push("\\end{tabular}\n\n");
   } else {
     recursiveProcessText(node.firstChild, writeTo);
+  }
+}
+
+let unlabeledEx = 0;
+const processExercise = (node, writeTo) => {
+  const label = node.getElementsByTagName("LABEL")[0];
+  let labelName = "";
+  const solution = node.getElementsByTagName("SOLUTION")[0];
+  if (solution) {
+    if (!label) {
+      labelName = "ex:unlabeled" + unlabeledEx;
+      unlabeledEx += 1; 
+    } else {
+      labelName = label.getAttribute("NAME");
+    }
+  }
+
+  writeTo.push("\n\\begin{Exercise}");
+  if (solution) {
+    writeTo.push("[title={\\hyperref[" + labelName + "-Answer]{Link to solution}}]");
+    if (!label) {
+      writeTo.push("\n\\label{" + labelName + "}");
+    }
+  }
+  writeTo.push("\n");
+
+  recursiveProcessText(node.firstChild, writeTo);
+  writeTo.push("\n\\end{Exercise}\n");
+  
+  if (solution) {
+    writeTo.push("\n\\begin{Answer}[ref={" + labelName + "}]\n");
+    recursiveProcessText(solution.firstChild, writeTo);
+    writeTo.push("\n\\end{Answer}\n");
   }
 }

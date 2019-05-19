@@ -9,25 +9,39 @@ import parseXML from './parseXML.js';
 const inputDir = path.join(__dirname, '../xml');
 const outputDir = path.join(__dirname, '../latex');
 
-const preamble = `\\documentclass{report}
+const preamble = `\\documentclass[12pt]{report}
 
 \\usepackage{amsmath}
 \\usepackage{amssymb}
 \\usepackage{cprotect}
 \\usepackage{csquotes}
-\\usepackage{epigraph}
 \\usepackage{etoolbox}
-\\usepackage[answerdelayed, lastexercise]{exercise}
 \\usepackage{float}
-\\usepackage{graphicx}
-\\usepackage{listings}
+\\usepackage[margin=3cm]{geometry}
 \\usepackage{makeidx}
 \\usepackage{subcaption}
 \\usepackage{underscore}
-\\usepackage[colorlinks=true, urlcolor=blue, linkcolor=blue, citecolor=blue]{hyperref}
 
+\\usepackage{setspace}
+\\onehalfspacing
+
+\\usepackage{titleps}
+\\newpagestyle{main}{
+  \\setheadrule{0pt}
+  \\sethead{\\chaptertitle}
+    {} 
+    {\\thesubsection}
+}
+\\pagestyle{main}
+
+\\usepackage{graphicx}
 \\graphicspath{ {../rails/public/chapters/} }
 
+\\usepackage[answerdelayed]{exercise}
+\\renewcounter{Exercise}[chapter]
+\\renewcommand{\\theExercise}{\\thechapter.\\arabic{Exercise}}
+
+\\usepackage{listings}
 \\expandafter\\patchcmd\\csname \\string\\lstinline\\endcsname{%
   \\leavevmode
   \\bgroup
@@ -56,8 +70,11 @@ const preamble = `\\documentclass{report}
    escapechar={^}
 }
 
+\\usepackage{epigraph}
 \\setlength\\epigraphwidth{11cm}
 \\setlength\\epigraphrule{0pt}
+
+\\usepackage[colorlinks=true, urlcolor=blue, linkcolor=blue, citecolor=blue]{hyperref}
 
 \\newcommand{\\lt}{\\symbol{"3C}}% Less than
 \\newcommand{\\gt}{\\symbol{"3E}}% Greater than
