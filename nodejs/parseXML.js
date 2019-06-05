@@ -14,10 +14,8 @@ import {
   recursiveProcessText
 } from './parseText';
 
-const unprocessed = new Set([]);
-
 const parseXML = (node, writeTo, options = {}) => {
-  if (!node) return unprocessed;
+  if (!node) return;
   const name = node.nodeName;
 
   switch (name) {
@@ -28,10 +26,11 @@ const parseXML = (node, writeTo, options = {}) => {
       }
       if (trimedValue.match(/&(\w|\.)+;/)) {
         processFileInput(trimedValue.trim(), writeTo);
-      }
-      else if (!trimedValue.match(/^\s*$/)) {
+      } else {
         writeTo.push(trimedValue.replace(/%/g, "\\%"));
       }
+      // else if (!trimedValue.match(/^\s*$/)) {
+      // }
       break;  
 
     case "ABOUT":
@@ -77,7 +76,6 @@ const parseXML = (node, writeTo, options = {}) => {
       if (processText(node, writeTo)) {
         break
       } else {
-        unprocessed.add(name);
         parseXML(node.firstChild, writeTo);
       }
   }

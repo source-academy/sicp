@@ -2,14 +2,16 @@ import replaceTagWithSymbol from './replaceTagWithSymbol';
 import processFigure from './processFigure';
 
 const tagsToRemove = new Set(["#comment", "COMMENT", "CHANGE", "EDIT", "EXCLUDE", "HISTORY", "SCHEME", "SCHEMEINLINE", "SOLUTION"]);
-const ignoreTags = new Set(["JAVASCRIPT", "span", "SPLIT", "SPLITINLINE", "NOBR"]);
+// SOLUTION tag handled by processSnippet
+
+const ignoreTags = new Set(["CHAPTERCONTENT", "JAVASCRIPT", "NOBR", "SECTIONCONTENT", "span", "SPLIT", "SPLITINLINE"]);
 
 export const processTextFunctions = {
   "#text": ((node, writeTo) => {
     const trimedValue = node.nodeValue.replace(/[\r\n]+/, " ").replace(/\s+/g, " ");
-    if (!trimedValue.match(/^\s*$/)) {
-      writeTo.push(trimedValue.replace(/%/g, "\\%"));
-    }
+    writeTo.push(trimedValue.replace(/%/g, "\\%"));
+    // if (!trimedValue.match(/^\s*$/)) {
+    // }
   }),
 
   "B": ((node, writeTo) => {
@@ -199,9 +201,7 @@ const recursiveProcessPureText = (node, writeTo, removeNewline = false) => {
 
 export const recursiveProcessText = (node, writeTo) => {
   if (!node) return;
-  if (!processText(node, writeTo)){
-    console.log("recusive process:\n" + node.toString());
-  }
+  processText(node, writeTo);
   return recursiveProcessText(node.nextSibling, writeTo)
 }
 
@@ -216,10 +216,10 @@ export const processText = (node, writeTo) => {
     } else if (ignoreTags.has(name)) {
       recursiveProcessText(node.firstChild, writeTo);
       return true;
-    } else {
-      return false;
-    }
+    } 
   }
+  console.log("Unrecognised Tag:\n" + node.toString() + "\n");
+  return false;
 }
 
 const processList = (node, writeTo) => {
