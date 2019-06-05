@@ -60,7 +60,7 @@ export const processTextFunctions = {
   }),
 
   "FOOTNOTE": ((node, writeTo) => {
-    writeTo.push("\n\\cprotect\\footnote{");
+    writeTo.push("\\cprotect\\footnote{");
     recursiveProcessText(node.firstChild, writeTo);
     writeTo.push("}\n");
   }),
