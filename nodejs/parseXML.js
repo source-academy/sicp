@@ -16,13 +16,16 @@ import {
 
 const unprocessed = new Set([]);
 
-const parseXML = (node, writeTo) => {
+const parseXML = (node, writeTo, options = {}) => {
   if (!node) return unprocessed;
   const name = node.nodeName;
 
   switch (name) {
     case "#text":
-      const trimedValue = node.nodeValue.replace(/\s+/g, " ");
+      let trimedValue = node.nodeValue.replace(/\s+/g, " ");
+      if (options.trimNextFront) {
+        trimedValue = trimedValue.replace(/^\s+/g, "");
+      }
       if (trimedValue.match(/&(\w|\.)+;/)) {
         processFileInput(trimedValue.trim(), writeTo);
       }
@@ -50,7 +53,7 @@ const parseXML = (node, writeTo) => {
       break;
     
     case "NAME":
-      parseXML(node.firstChild, writeTo);
+      parseXML(node.firstChild, writeTo, {trimNextFront: true});
       writeTo.push("}\n\n");
       break;
 

@@ -149,7 +149,10 @@ const xmlToLatex = (filepath, filename) => {
       const writeTo = [];
 
       console.log(path.join(filepath, filename));
+
+      // parsing over here
       parseXML(doc.documentElement, writeTo);
+
       ensureDirectoryExists(path.join(outputDir, filepath), (err) => {
         if (err) {
           console.log(err);
