@@ -17,7 +17,7 @@ const preamble = `\\documentclass[a4paper, 12pt]{report}
 \\usepackage{csquotes}
 \\usepackage{etoolbox}
 \\usepackage{float}
-\\usepackage[margin=3cm]{geometry}
+\\usepackage[margin=2.54cm]{geometry}
 \\usepackage{makeidx}
 \\usepackage{subcaption}
 \\usepackage{underscore}
