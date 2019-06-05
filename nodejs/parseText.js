@@ -233,6 +233,9 @@ const processList = (node, writeTo) => {
 }
 
 export const processSnippet = (node, writeTo) => {
+  if (node.getAttribute("HIDE") == 'yes') {
+    return;
+  }
   const jsSnippet = node.getElementsByTagName("JAVASCRIPT")[0]; 
   if (jsSnippet) {
     writeTo.push("\n\\begin{lstlisting}[mathescape=true]");
