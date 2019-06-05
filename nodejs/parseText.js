@@ -8,8 +8,12 @@ const ignoreTags = new Set(["CHAPTERCONTENT", "JAVASCRIPT", "NOBR", "SECTIONCONT
 
 export const processTextFunctions = {
   "#text": ((node, writeTo) => {
-    const trimedValue = node.nodeValue.replace(/[\r\n]+/, " ").replace(/\s+/g, " ");
-    writeTo.push(trimedValue.replace(/%/g, "\\%"));
+    const trimedValue = node.nodeValue
+      .replace(/[\r\n]+/, " ")
+      .replace(/\s+/g, " ")
+      .replace(/\^/g, "\\string^")
+      .replace(/%/g, "\\%");
+    writeTo.push(trimedValue);
     // if (!trimedValue.match(/^\s*$/)) {
     // }
   }),
@@ -151,7 +155,7 @@ export const processTextFunctions = {
   "SCHEMEINLINE": ((node, writeTo) => processTextFunctions["JAVASCRIPTINLINE"](node, writeTo)),
   "JAVASCRIPTINLINE": ((node, writeTo) => {
     writeTo.push("\n{\\lstinline[mathescape=true]|");
-    recursiveProcessPureText(node.firstChild, writeTo, true);
+    recursiveProcessPureText(node.firstChild, writeTo, {removeNewline: true});
     writeTo.push("|}");
   }),
 
@@ -187,14 +191,15 @@ export const processTextFunctions = {
   })
 }
 
-const recursiveProcessPureText = (node, writeTo, removeNewline = false) => {
+const recursiveProcessPureTextDefault = {removeNewline: false};
+const recursiveProcessPureText = (node, writeTo, options = recursiveProcessPureTextDefault) => {
   if (!node) return;
   if (!replaceTagWithSymbol(node, writeTo)) {
-    if (removeNewline) {
-      writeTo.push(node.nodeValue.replace(/[\r\n]+/g, " "));
-    } else {
-      writeTo.push(node.nodeValue);
+    let value = node.nodeValue;
+    if (options.removeNewline) {
+      value = value.replace(/[\r\n]+/g, " ");
     }
+    writeTo.push(value);
   }
   return recursiveProcessPureText(node.nextSibling, writeTo)
 }
