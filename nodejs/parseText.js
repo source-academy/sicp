@@ -294,7 +294,6 @@ const processExercise = (node, writeTo) => {
 
   writeTo.push("\n\\begin{Exercise}");
   if (solution) {
-    writeTo.push("[title={\\hyperref[" + labelName + "-Answer]{Link to solution}}]");
     if (!label) {
       writeTo.push("\n\\label{" + labelName + "}");
     }
@@ -302,6 +301,7 @@ const processExercise = (node, writeTo) => {
   writeTo.push("\n");
 
   recursiveProcessText(node.firstChild, writeTo);
+  writeTo.push("\n\\begin{flushright}\\hyperref[" + labelName + "-Answer]{Solution}\\end{flushright}");
   writeTo.push("\n\\end{Exercise}\n");
 
   if (solution) {
