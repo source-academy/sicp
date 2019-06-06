@@ -8,22 +8,20 @@ import processEpigraph from './processEpigraph';
 import processFileInput from './processFileInput';
 import processFigure from './processFigure';
 import {
+  addName,
   processList,
   processSnippet,
   processText,
   recursiveProcessText
 } from './parseText';
 
-const parseXML = (node, writeTo, options = {}) => {
+const parseXML = (node, writeTo) => {
   if (!node) return;
   const name = node.nodeName;
 
   switch (name) {
     case "#text":
       let trimedValue = node.nodeValue.replace(/\s+/g, " ");
-      if (options.trimNextFront) {
-        trimedValue = trimedValue.replace(/^\s+/g, "");
-      }
       if (trimedValue.match(/&(\w|\.)+;/)) {
         processFileInput(trimedValue.trim(), writeTo);
       } else {
@@ -37,38 +35,38 @@ const parseXML = (node, writeTo, options = {}) => {
     case "REFERENCES":
     case "WEBPREFACE":
       writeTo.push("\\chapter*{")
-      recursiveProcessText(node.getElementsByTagName("NAME")[0].firstChild, writeTo);
-      writeTo.push("}\n\\addcontentsline{toc}{chapter}{");
+      addName(node, writeTo);
+      writeTo.push("\n\\addcontentsline{toc}{chapter}{");
+      addName(node, writeTo);
       parseXML(node.firstChild, writeTo);
       break;
 
     case "CHAPTER":
       writeTo.push("\\pagestyle{main}\n\\chapter{");
+      addName(node, writeTo);
       parseXML(node.firstChild, writeTo);
       break;
 
     case "EPIGRAPH":
       processEpigraph(node, writeTo);
       break;
-    
-    case "NAME":
-      parseXML(node.firstChild, writeTo, {trimNextFront: true});
-      writeTo.push("}\n\n");
-      break;
 
     case "SECTION":
       writeTo.push("\\pagestyle{section}\n\\section{");
+      addName(node, writeTo);
       parseXML(node.firstChild, writeTo);
       break;
       
     case "SUBHEADING":
     case "SUBSUBSUBSECTION":
       writeTo.push("\\subsubsection{");
+      addName(node, writeTo);
       parseXML(node.firstChild, writeTo);
       break;
 
     case "SUBSECTION":
       writeTo.push("\\pagestyle{subsection}\n\\subsection{");
+      addName(node, writeTo);
       parseXML(node.firstChild, writeTo);
       break;
 

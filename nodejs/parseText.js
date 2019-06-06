@@ -1,7 +1,7 @@
 import replaceTagWithSymbol from './replaceTagWithSymbol';
 import processFigure from './processFigure';
 
-const tagsToRemove = new Set(["#comment", "COMMENT", "CHANGE", "EDIT", "EXCLUDE", "HISTORY", "SCHEME", "SCHEMEINLINE", "SOLUTION"]);
+const tagsToRemove = new Set(["#comment", "COMMENT", "CHANGE", "EDIT", "EXCLUDE", "HISTORY", "NAME", "SCHEME", "SCHEMEINLINE", "SOLUTION"]);
 // SOLUTION tag handled by processSnippet
 
 const ignoreTags = new Set(["CHAPTERCONTENT", "JAVASCRIPT", "NOBR", "SECTIONCONTENT", "span", "SPLIT", "SPLITINLINE"]);
@@ -103,11 +103,6 @@ export const processTextFunctions = {
     recursiveProcessPureText(node.firstChild, writeTo);
   }),
 
-  "NAME": ((node, writeTo) => {
-    recursiveProcessText(node.firstChild, writeTo);
-    writeTo.push("}\n\n");
-  }),
-
   "OL": ((node, writeTo) => {
     writeTo.push("\n\\begin{enumerate}\n");
     processList(node.firstChild, writeTo);
@@ -165,6 +160,7 @@ export const processTextFunctions = {
 
   "SUBHEADING": ((node, writeTo) => {
     writeTo.push("\\subsubsection{");
+    addName(node, writeTo);
     recursiveProcessText(node.firstChild, writeTo);
   }),
 
@@ -189,6 +185,15 @@ export const processTextFunctions = {
     processList(node.firstChild, writeTo);
     writeTo.push("\\end{itemize}\n");
   })
+}
+
+export const addName = (node, writeTo) => {
+  const nameArr = [];
+  recursiveProcessText(node.getElementsByTagName("NAME")[0].firstChild, nameArr);
+  const name = nameArr.join('').trim();
+  writeTo.push(name);
+  writeTo.push("}\n\n");
+  return name;
 }
 
 const recursiveProcessPureTextDefault = {removeNewline: false};
@@ -245,7 +250,7 @@ export const processSnippet = (node, writeTo) => {
   if (jsSnippet) {
     writeTo.push("\n\\begin{lstlisting}[mathescape=true]");
     recursiveProcessPureText(jsSnippet.firstChild, writeTo);
-    writeTo.push("\\end{lstlisting}");
+    writeTo.push("\\end{lstlisting}\n");
   }
 }
 
