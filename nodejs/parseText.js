@@ -293,15 +293,15 @@ const processExercise = (node, writeTo) => {
   }
 
   writeTo.push("\n\\begin{Exercise}");
-  if (solution) {
-    if (!label) {
-      writeTo.push("\n\\label{" + labelName + "}");
-    }
+  if (solution && !label) {
+    writeTo.push("\n\\label{" + labelName + "}");
   }
   writeTo.push("\n");
 
   recursiveProcessText(node.firstChild, writeTo);
-  writeTo.push("\n\\begin{flushright}\\hyperref[" + labelName + "-Answer]{Solution}\\end{flushright}");
+  if (solution) {
+    writeTo.push("\n\\begin{flushright}\\hyperref[" + labelName + "-Answer]{Solution}\\end{flushright}"); 
+  }
   writeTo.push("\n\\end{Exercise}\n");
 
   if (solution) {
