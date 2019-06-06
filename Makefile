@@ -3,7 +3,7 @@ web:
 
 pdf: 
 	babel-node ./nodejs/index.js
-	cd latex; latexmk -pdf sicpjs
+	cd latex; latexmk -xelatex -pdf sicpjs
 
 clean:
 	rm -rf rails-html
