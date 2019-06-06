@@ -147,6 +147,7 @@ class Chapter < ActiveRecord::Base
         replace_tag(xml_doc, 'CCEDIL_LOWER', '&ccedil;')
         replace_tag(xml_doc, 'ELLIPSIS', '&#8230;')
         replace_tag(xml_doc, 'AMP', '&amp;')
+        replace_tag(xml_doc, 'SECT', '&sect;')
         
         replace_tag(xml_doc, 'EMDASH', '&mdash;')
         replace_tag(xml_doc, 'ENDASH', '&ndash;')
