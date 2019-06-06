@@ -75,7 +75,7 @@ Latex files will be in the latex folder.
 Compile sicpjs.tex with XeLaTex+MakeIndex+BibTex for the pdf version. 
 
 ### Generating PDF using `latexmk`
-If you have `latexmk` installed, can automate the generation of the PDF by running:
+If you have `latexmk` installed, you can automate the generation of the PDF by running:
 ```
 make pdf
 ```
