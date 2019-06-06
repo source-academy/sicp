@@ -69,10 +69,17 @@ For development & deployment:
 Run `npm install` to install dependencies.
 
 ## Generating Latex Files
-Run `npm start`. 
+Run `npm start`.
+
 Latex files will be in the latex folder.
-Compile sicpjs.tex with XeLaTex+MakeIndex+BibTex for the pdf version. You
-can also use `latexmk` by running `make pdf`. For this, you might need
+Compile sicpjs.tex with XeLaTex+MakeIndex+BibTex for the pdf version. 
+
+### Generating PDF using `latexmk`
+If you have `latexmk` installed, can automate the generation of the PDF by running:
+```
+make pdf
+```
+For this, you might need
 to add the following lines to your `.latexmkrc` file:
 ```
 $pdflatex = "xelatex %O %S";
