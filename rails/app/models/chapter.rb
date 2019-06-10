@@ -128,7 +128,7 @@ class Chapter < ActiveRecord::Base
        # Formatting
 
         replace_tag(xml_doc, 'APOS', '\'')
-        replace_tag(xml_doc, 'SPACE', ' ')
+        replace_tag(xml_doc, 'SPACE', '&nbsp;')
         replace_tag(xml_doc, 'WJ', '&#8288;')
         replace_tag(xml_doc, 'AACUTE_LOWER', '&aacute;')
         replace_tag(xml_doc, 'AACUTE_UPPER', '&Aacute;')
