@@ -197,7 +197,7 @@ class ChaptersController < ApplicationController
 
         # Formatting
         replace_tag(xml_doc, 'APOS', '\'')
-        replace_tag(xml_doc, 'SPACE', ' ')
+        replace_tag(xml_doc, 'SPACE', '&nbsp;')
         replace_tag(xml_doc, 'WJ', '&#8288;')
         replace_tag(xml_doc, 'AACUTE_LOWER', '&aacute;')
         replace_tag(xml_doc, 'AACUTE_UPPER', '&Aacute;')
@@ -398,7 +398,7 @@ class ChaptersController < ApplicationController
                 
                 
                 snippet_event = "var compressed = LZString.compressToEncodedURIComponent('#{hidden_code}'+'\n'+'#{platform_code}'+'\n'+'#{example_code}'+'\n'); " + 
-                        "var url = 'http://localhost/playground#chap=#{chap}#{ext}&prgrm='+compressed;" +
+                        "var url = 'http://localhost:8075/playground#chap=#{chap}#{ext}&prgrm='+compressed;" +
                         " window.open(url); "
                 
                 snippet_event = snippet_event.gsub("\n", '\n')

@@ -34,10 +34,10 @@ Before deploying, change the configurations at [constants.rb.def](rails/config/i
 
 `IDE_PREFIX`: The snippet and its requirements are sent through a GET request to the IDE. Change it to the correct URL and GET parameter name. Required snippets are sent by the name 'hidden'. To change this value, see the show method in [chapters_controller.rb](rails/app/controllers/chapters_controller.rb).
 
-`GCSE_CX`: The search engine ID of Googel Custom Search. Create a new one [here](https://cse.google.com/cse/create/new).
+`GCSE_CX`: The search engine ID of Google Custom Search. Create a new one [here](https://cse.google.com/cse/create/new).
 
 ## Deployment
-Run `make javascript` or `make scheme`. The generated html pages and assets are saved in `rails-html` folder.
+Run `make web`. The generated html pages and assets are saved in `rails-html` folder.
 
 Run `make clean` to remove all generated pages, logs and temporary files.
 
