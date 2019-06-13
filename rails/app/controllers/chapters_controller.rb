@@ -102,6 +102,30 @@ class ChaptersController < ApplicationController
                 :href => "#ex_" + ex_numbering)
             b.add_child(a)
             ex_start_index += 1
+
+            no_solution_count = 1
+            solution = ex.at('SOLUTION')
+            if (solution.nil?)
+                solution_div = xml_doc.create_element("div", :class => 'Solution')
+                solution_btn_div = xml_doc.create_element("div", :class => "solution_btn")
+
+                solution_btn = xml_doc.create_element("button", "Add solution",
+                    :class => "btn btn-secondary solution_btn",
+                    :href => "#no_solution_#{@chapter.id}_#{no_solution_count}_div")
+                solution_btn["data-toggle"] = "collapse"
+                solution_content = xml_doc.create_element("div",
+                                       :class => 'solution_content collapse',
+                                       :id => "no_solution_#{@chapter.id}_#{no_solution_count}_div")
+
+                solution_content.add_child("There is currently no solution available for this exercise. This textbook adaptation is a community effort. Do consider contributing by providing a solution for this exercise, using a Pull Request in <LINK address='https://github.com/source-academy/sicp'>Github</LINK>.")
+                solution_div.add_child(solution_btn_div)
+                solution_div.add_child(solution_content)
+                solution_btn_div.add_child(solution_btn)
+                ex.add_child(solution_div)
+                no_solution_count += 1
+
+            end            
+
         end
 
         
