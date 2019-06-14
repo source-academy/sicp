@@ -15,6 +15,7 @@ const preamble = `\\documentclass[a4paper, 12pt]{report}
 \\usepackage{amssymb}
 \\usepackage{cprotect}
 \\usepackage{csquotes}
+\\usepackage[shortlabels]{enumitem}
 \\usepackage{etoolbox}
 \\usepackage{float}
 \\usepackage[margin=2.54cm]{geometry}

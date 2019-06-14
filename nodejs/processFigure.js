@@ -7,7 +7,7 @@ export const processFigure = (node, writeTo) => {
     src = node.getElementsByTagName("FIGURE")[0].getAttribute("src");
   } 
   if (src) {
-    writeTo.push("\\includegraphics[width=\\linewidth]{" 
+    writeTo.push("\\includegraphics{" 
       + src.replace(/\.gif$/, ".png").replace(/_/g, "\\string_")
       + "}\n");
   } else {

@@ -1,10 +1,15 @@
 import replaceTagWithSymbol from './replaceTagWithSymbol';
 import processFigure from './processFigure';
 
-const tagsToRemove = new Set(["#comment", "COMMENT", "CHANGE", "EDIT", "EXCLUDE", "HISTORY", "NAME", "SCHEME", "SCHEMEINLINE", "SOLUTION"]);
+const tagsToRemove = new Set(["#comment", 
+  "COMMENT", "CHANGE", "EDIT", "EXCLUDE", 
+  "HISTORY", "NAME", "ORDER", "SCHEME", 
+  "SCHEMEINLINE", "SOLUTION"]);
 // SOLUTION tag handled by processSnippet
 
-const ignoreTags = new Set(["CHAPTERCONTENT", "JAVASCRIPT", "NOBR", "SECTIONCONTENT", "span", "SPLIT", "SPLITINLINE"]);
+const ignoreTags = new Set(["CHAPTERCONTENT", 
+  "JAVASCRIPT", "NOBR", "SECTIONCONTENT", 
+  "span", "SPLIT", "SPLITINLINE"]);
 
 export const processTextFunctions = {
   "#text": ((node, writeTo) => {
@@ -79,6 +84,11 @@ export const processTextFunctions = {
 
   "INDEX": ((node, writeTo) => {
     writeTo.push("\\index{");
+    const order = getChildrenByTagName(node, 'ORDER')[0];
+    if (order) {
+      recursiveProcessText(order.firstChild, writeTo);
+      writeTo.push("@");
+    }
     recursiveProcessText(node.firstChild, writeTo);
     writeTo.push("}");
   }),
@@ -104,15 +114,9 @@ export const processTextFunctions = {
   }),
 
   "OL": ((node, writeTo) => {
-    writeTo.push("\n\\begin{enumerate}\n");
+    writeTo.push("\n\\begin{enumerate}[a.]\n");
     processList(node.firstChild, writeTo);
     writeTo.push("\\end{enumerate}\n");
-  }),
-
-  "ORDER": ((node, writeTo) => {
-    // should occur only within INDEX
-    recursiveProcessText(node.firstChild, writeTo);
-    writeTo.push("@");
   }),
 
   "P": ((node, writeTo) => processTextFunctions["TEXT"](node, writeTo)),
@@ -166,6 +170,7 @@ export const processTextFunctions = {
 
   "SUBINDEX": ((node, writeTo) => {
     // should occur only within INDEX
+    // also should only exist after stuff in the main index
     writeTo.push("!");
     recursiveProcessText(node.firstChild, writeTo);
   }),
@@ -189,7 +194,7 @@ export const processTextFunctions = {
 
 export const addName = (node, writeTo) => {
   const nameArr = [];
-  recursiveProcessText(node.getElementsByTagName("NAME")[0].firstChild, nameArr);
+  recursiveProcessText(getChildrenByTagName(node, "NAME")[0].firstChild, nameArr);
   const name = nameArr.join('').trim();
   writeTo.push(name);
   writeTo.push("}\n\n");
@@ -285,7 +290,7 @@ const processTable = (node, writeTo) => {
 
 let unlabeledEx = 0;
 const processExercise = (node, writeTo) => {
-  const label = node.getElementsByTagName("LABEL")[0];
+  const label = getChildrenByTagName(node, "LABEL")[0];
   let labelName = "";
   const solution = node.getElementsByTagName("SOLUTION")[0];
   if (solution) {
@@ -314,4 +319,16 @@ const processExercise = (node, writeTo) => {
     recursiveProcessText(solution.firstChild, writeTo);
     writeTo.push("\n\\end{Answer}\n");
   }
+}
+
+const getChildrenByTagName = (node, tagName) => {
+  let child = node.firstChild;
+  const childrenWithTag = [];
+  while (child) {
+    if (child.nodeName === tagName) {
+      childrenWithTag.push(child);
+    }
+    child = child.nextSibling;
+  }
+  return childrenWithTag;
 }
