@@ -109,13 +109,6 @@ const preamble = `\\documentclass[a4paper, 12pt]{report}
 \\input{./others/webpreface01.tex}
 `;
 
-// \\makeatletter
-// \\def\\lst@InlineM#1{\\gdef\\lst@inlinechars{%
-//     \\lst@Def{\`#1}{\\lst@DeInit\\egroup\\global\\let\\lst@inlinechars\\@empty}%
-//     \\lst@Def{13}{\\lst@ProcessSpace}}%
-//     \\lst@inlinechars}
-// \\makeatother
-
 const ending = `
 \\pagestyle{plain}
 \\chapter*{Solution To Exercises}
