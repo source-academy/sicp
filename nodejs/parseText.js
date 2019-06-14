@@ -1,3 +1,4 @@
+import { js as beautify } from 'js-beautify';
 import replaceTagWithSymbol from './replaceTagWithSymbol';
 import processFigure from './processFigure';
 
@@ -253,9 +254,11 @@ export const processSnippet = (node, writeTo) => {
   }
   const jsSnippet = node.getElementsByTagName("JAVASCRIPT")[0]; 
   if (jsSnippet) {
-    writeTo.push("\n\\begin{lstlisting}[mathescape=true]");
-    recursiveProcessPureText(jsSnippet.firstChild, writeTo);
-    writeTo.push("\\end{lstlisting}\n");
+    writeTo.push("\n\\begin{lstlisting}[mathescape=true]\n");
+    const code = [];
+    recursiveProcessPureText(jsSnippet.firstChild, code);
+    writeTo.push(beautify(code.join('')));
+    writeTo.push("\n\\end{lstlisting}\n");
   }
 }
 
