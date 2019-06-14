@@ -132,7 +132,8 @@ export const processTextFunctions = {
   },
 
   OL: (node, writeTo) => {
-    writeTo.push("\n\\begin{enumerate}[a.]\n");
+    writeTo.push("\n\\begin{enumerate}");
+    writeTo.push(ancestorHasTag(node, "EXERCISE") ? "[a.]\n" : "\n");
     processList(node.firstChild, writeTo);
     writeTo.push("\\end{enumerate}\n");
   },
@@ -358,3 +359,14 @@ const getChildrenByTagName = (node, tagName) => {
   }
   return childrenWithTag;
 };
+
+const ancestorHasTag = (node, tagName) => {
+  let parent = node.parentNode;
+  while (parent) {
+    if (parent.nodeName === tagName) {
+      return true;
+    }
+    parent = parent.parentNode;
+  }
+  return false;
+}
