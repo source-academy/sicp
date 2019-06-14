@@ -74,9 +74,7 @@ const parseXML = (node, writeTo) => {
       break;
 
     default:
-      if (processText(node, writeTo)) {
-        break;
-      } else {
+      if (!processText(node, writeTo)) {
         parseXML(node.firstChild, writeTo);
       }
   }

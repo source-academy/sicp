@@ -170,9 +170,9 @@ export const processTextFunctions = {
   SCHEMEINLINE: (node, writeTo) =>
     processTextFunctions["JAVASCRIPTINLINE"](node, writeTo),
   JAVASCRIPTINLINE: (node, writeTo) => {
-    writeTo.push("\n{\\lstinline[mathescape=true]|");
+    writeTo.push("\n{\\lstinline[mathescape=true]$");
     recursiveProcessPureText(node.firstChild, writeTo, { removeNewline: true });
-    writeTo.push("|}");
+    writeTo.push("$}");
   },
 
   SNIPPET: (node, writeTo) => {
