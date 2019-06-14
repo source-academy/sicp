@@ -10,7 +10,7 @@ const inputDir = path.join(__dirname, '../xml');
 const outputDir = path.join(__dirname, '../latex');
 
 const preamble = `\\documentclass[a4paper, 12pt]{report}
-
+\\usepackage{adjustbox}
 \\usepackage{amsmath}
 \\usepackage{amssymb}
 \\usepackage{cprotect}
@@ -124,6 +124,11 @@ const ending = `
 
 \\end{document}`;
 
+const latexmkrcContent = `$pdflatex = "xelatex %O %S";
+$pdf_mode = 1;
+$dvi_mode = 0;
+$postscript_mode = 0;`;
+
 const ensureDirectoryExists = (path, cb) => {
   fs.mkdir(path, (err) => {
     if (err) {
@@ -204,6 +209,13 @@ const createMainLatex = () => {
     });
     stream.write(ending);
     stream.end();
+  });
+
+  // makes the .latexmkrc file
+  const latexmkrcStream = fs.createWriteStream(path.join(outputDir, ".latexmkrc"));
+  latexmkrcStream.once('open', (fd) => {
+    latexmkrcStream.write(latexmkrcContent);
+    latexmkrcStream.end();
   });
 }
 

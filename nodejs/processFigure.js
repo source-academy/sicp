@@ -1,23 +1,25 @@
 import {recursiveProcessText} from './parseText';
 
 export const processFigure = (node, writeTo) => {
-  writeTo.push("\n\\begin{figure}[H]\n")
+  writeTo.push("\n\\begin{figure}[H]\n\\centering\n")
   let src = node.getAttribute("src");
   if (!src && node.getElementsByTagName("FIGURE")[0]) {
     src = node.getElementsByTagName("FIGURE")[0].getAttribute("src");
   } 
   if (src) {
-    writeTo.push("\\includegraphics{" 
+    writeTo.push("\n\\maxsizebox{\\linewidth}{0.8\\paperheight}{"
+      + "\\includegraphics{" 
       + src.replace(/\.gif$/, ".png").replace(/_/g, "\\string_")
-      + "}\n");
+      + "}}\n");
   } else {
     // console.log(node.toString());
     const images = node.getElementsByTagName("IMAGE");
     for (let i = 0; i < images.length; i++) {
       writeTo.push("\\subcaptionbox{}{"
+      + "\\maxsizebox{\\linewidth}{\\paperheight}{"
       + "\\includegraphics{" 
       + images[i].getAttribute("src").replace(/\.gif$/, ".png").replace(/_/g, "\\string_")
-      + "}}\n");
+      + "}}}\n");
     } 
   }
   const caption = node.getElementsByTagName("CAPTION")[0]; 
