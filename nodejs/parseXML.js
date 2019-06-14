@@ -42,8 +42,9 @@ const parseXML = (node, writeTo) => {
       break;
 
     case "CHAPTER":
-      writeTo.push("\\pagestyle{main}\n\\chapter{");
+      writeTo.push("\\chapter{");
       addName(node, writeTo);
+      writeTo.push("\\pagestyle{main}\n");
       parseXML(node.firstChild, writeTo);
       break;
 
@@ -52,8 +53,9 @@ const parseXML = (node, writeTo) => {
       break;
 
     case "SECTION":
-      writeTo.push("\\pagestyle{section}\n\\section{");
+      writeTo.push("\\section{");
       addName(node, writeTo);
+      writeTo.push("\\pagestyle{section}\n");
       parseXML(node.firstChild, writeTo);
       break;
       
@@ -65,8 +67,9 @@ const parseXML = (node, writeTo) => {
       break;
 
     case "SUBSECTION":
-      writeTo.push("\\pagestyle{subsection}\n\\subsection{");
+      writeTo.push("\\subsection{");
       addName(node, writeTo);
+      writeTo.push("\\pagestyle{subsection}\n");
       parseXML(node.firstChild, writeTo);
       break;
 
