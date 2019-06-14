@@ -1,6 +1,6 @@
 const tagsToReplace = {
   'APOS': '\'',
-  'SPACE': ' ',
+  'SPACE': '~',
   'WJ': '&#8288;',
   'AACUTE_LOWER': 'á',
   'AACUTE_UPPER': 'Á',
