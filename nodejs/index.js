@@ -1,13 +1,13 @@
-const fs = require('fs');
-const path = require('path');
+import fs from "fs";
+import path from "path";
 
-const xpath = require('xpath');
-const dom = require('xmldom').DOMParser;
+import xpath from "xpath";
+import { DOMParser as dom } from "xmldom";
 
-import parseXML from './parseXML.js'; 
+import parseXML from "./parseXML.js";
 
-const inputDir = path.join(__dirname, '../xml');
-const outputDir = path.join(__dirname, '../latex');
+const inputDir = path.join(__dirname, "../xml");
+const outputDir = path.join(__dirname, "../latex");
 
 const preamble = `\\documentclass[a4paper, 12pt]{report}
 \\usepackage{adjustbox}
@@ -130,22 +130,23 @@ $dvi_mode = 0;
 $postscript_mode = 0;`;
 
 const ensureDirectoryExists = (path, cb) => {
-  fs.mkdir(path, (err) => {
+  fs.mkdir(path, err => {
     if (err) {
-      if (err.code == 'EEXIST') cb(null); // ignore the error if the folder already exists
+      if (err.code == "EEXIST") cb(null);
+      // ignore the error if the folder already exists
       else cb(err); // something else went wrong
     } else cb(null); // successfully created folder
   });
-}
+};
 
 const xmlToLatex = (filepath, filename) => {
   const fullFilepath = path.join(inputDir, filepath, filename);
-  fs.open(fullFilepath, 'r', (err, fileToRead) => {
+  fs.open(fullFilepath, "r", (err, fileToRead) => {
     if (err) {
       console.log(err);
       return;
     }
-    fs.readFile(fileToRead, {encoding: 'utf-8'}, (err,data) => {
+    fs.readFile(fileToRead, { encoding: "utf-8" }, (err, data) => {
       if (err) {
         console.log(err);
         return;
@@ -158,36 +159,39 @@ const xmlToLatex = (filepath, filename) => {
       // parsing over here
       parseXML(doc.documentElement, writeTo);
 
-      ensureDirectoryExists(path.join(outputDir, filepath), (err) => {
+      ensureDirectoryExists(path.join(outputDir, filepath), err => {
         if (err) {
           console.log(err);
           return;
         }
-				const outputFile = path.join(outputDir, filepath, filename.replace(/\.xml$/, '') + '.tex');
+        const outputFile = path.join(
+          outputDir,
+          filepath,
+          filename.replace(/\.xml$/, "") + ".tex"
+        );
         const stream = fs.createWriteStream(outputFile);
-        stream.once('open', (fd) => {
-				  stream.write(writeTo.join(""));
-				  stream.end();
-				});
+        stream.once("open", fd => {
+          stream.write(writeTo.join(""));
+          stream.end();
+        });
       });
     });
   });
-}
+};
 
-const recursiveXmlToLatex = (filepath) => {
+const recursiveXmlToLatex = filepath => {
   const fullPath = path.join(inputDir, filepath);
   fs.readdir(fullPath, (err, files) => {
     files.forEach(file => {
       if (file.match(/\.xml$/)) {
         // console.log(file + " being processed");
         xmlToLatex(filepath, file);
-      } 
-      else if (fs.lstatSync(path.join(fullPath, file)).isDirectory()){
+      } else if (fs.lstatSync(path.join(fullPath, file)).isDirectory()) {
         recursiveXmlToLatex(path.join(filepath, file));
       }
     });
   });
-}
+};
 
 const createMainLatex = () => {
   const chaptersFound = [];
@@ -195,13 +199,13 @@ const createMainLatex = () => {
   files.forEach(file => {
     if (file.match(/chapter/)) {
       chaptersFound.push(file);
-    } 
+    }
   });
   if (!fs.existsSync(outputDir)) {
     fs.mkdirSync(outputDir);
   }
   const stream = fs.createWriteStream(path.join(outputDir, "sicpjs.tex"));
-  stream.once('open', (fd) => {
+  stream.once("open", fd => {
     stream.write(preamble);
     chaptersFound.forEach(chapter => {
       const pathStr = "./" + chapter + "/" + chapter + ".tex";
@@ -212,16 +216,18 @@ const createMainLatex = () => {
   });
 
   // makes the .latexmkrc file
-  const latexmkrcStream = fs.createWriteStream(path.join(outputDir, ".latexmkrc"));
-  latexmkrcStream.once('open', (fd) => {
+  const latexmkrcStream = fs.createWriteStream(
+    path.join(outputDir, ".latexmkrc")
+  );
+  latexmkrcStream.once("open", fd => {
     latexmkrcStream.write(latexmkrcContent);
     latexmkrcStream.end();
   });
-}
+};
 
 const main = () => {
   createMainLatex();
-  recursiveXmlToLatex('');
-}
+  recursiveXmlToLatex("");
+};
 
 main();

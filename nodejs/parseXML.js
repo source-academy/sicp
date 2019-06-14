@@ -1,19 +1,19 @@
-import fs from 'fs';
-import path from 'path';
+import fs from "fs";
+import path from "path";
 
-import xpath from 'xpath';
-import {DOMParser as dom} from 'xmldom';
+import xpath from "xpath";
+import { DOMParser as dom } from "xmldom";
 
-import processEpigraph from './processEpigraph';
-import processFileInput from './processFileInput';
-import processFigure from './processFigure';
+import processEpigraph from "./processEpigraph";
+import processFileInput from "./processFileInput";
+import processFigure from "./processFigure";
 import {
   addName,
   processList,
   processSnippet,
   processText,
   recursiveProcessText
-} from './parseText';
+} from "./parseText";
 
 const parseXML = (node, writeTo) => {
   if (!node) return;
@@ -29,12 +29,12 @@ const parseXML = (node, writeTo) => {
       }
       // else if (!trimedValue.match(/^\s*$/)) {
       // }
-      break;  
+      break;
 
     case "ABOUT":
     case "REFERENCES":
     case "WEBPREFACE":
-      writeTo.push("\\chapter*{")
+      writeTo.push("\\chapter*{");
       addName(node, writeTo);
       writeTo.push("\n\\addcontentsline{toc}{chapter}{");
       addName(node, writeTo);
@@ -58,7 +58,7 @@ const parseXML = (node, writeTo) => {
       writeTo.push("\\pagestyle{section}\n");
       parseXML(node.firstChild, writeTo);
       break;
-      
+
     case "SUBHEADING":
     case "SUBSUBSUBSECTION":
       writeTo.push("\\subsubsection{");
@@ -75,17 +75,16 @@ const parseXML = (node, writeTo) => {
 
     default:
       if (processText(node, writeTo)) {
-        break
+        break;
       } else {
         parseXML(node.firstChild, writeTo);
       }
   }
 
   return parseXML(node.nextSibling, writeTo);
-}
+};
 
 export default parseXML;
-
 
 // unaccounted
 // Set {

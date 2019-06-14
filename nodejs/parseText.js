@@ -1,19 +1,34 @@
-import { js as beautify } from 'js-beautify';
-import replaceTagWithSymbol from './replaceTagWithSymbol';
-import processFigure from './processFigure';
+import { js as beautify } from "js-beautify";
+import replaceTagWithSymbol from "./replaceTagWithSymbol";
+import processFigure from "./processFigure";
 
-const tagsToRemove = new Set(["#comment", 
-  "COMMENT", "CHANGE", "EDIT", "EXCLUDE", 
-  "HISTORY", "NAME", "ORDER", "SCHEME", 
-  "SCHEMEINLINE", "SOLUTION"]);
+const tagsToRemove = new Set([
+  "#comment",
+  "COMMENT",
+  "CHANGE",
+  "EDIT",
+  "EXCLUDE",
+  "HISTORY",
+  "NAME",
+  "ORDER",
+  "SCHEME",
+  "SCHEMEINLINE",
+  "SOLUTION"
+]);
 // SOLUTION tag handled by processSnippet
 
-const ignoreTags = new Set(["CHAPTERCONTENT", 
-  "JAVASCRIPT", "NOBR", "SECTIONCONTENT", 
-  "span", "SPLIT", "SPLITINLINE"]);
+const ignoreTags = new Set([
+  "CHAPTERCONTENT",
+  "JAVASCRIPT",
+  "NOBR",
+  "SECTIONCONTENT",
+  "span",
+  "SPLIT",
+  "SPLITINLINE"
+]);
 
 export const processTextFunctions = {
-  "#text": ((node, writeTo) => {
+  "#text": (node, writeTo) => {
     const trimedValue = node.nodeValue
       .replace(/[\r\n]+/, " ")
       .replace(/\s+/g, " ")
@@ -22,188 +37,196 @@ export const processTextFunctions = {
     writeTo.push(trimedValue);
     // if (!trimedValue.match(/^\s*$/)) {
     // }
-  }),
+  },
 
-  "B": ((node, writeTo) => {
+  B: (node, writeTo) => {
     writeTo.push("\\textbf{");
     recursiveProcessText(node.firstChild, writeTo);
     writeTo.push("}");
-  }),
+  },
 
-  "BR": ((node, writeTo) => {
+  BR: (node, writeTo) => {
     writeTo.push("\n\\noindent ");
-  }),
+  },
 
-  "BLOCKQUOTE": ((node, writeTo) => {
+  BLOCKQUOTE: (node, writeTo) => {
     writeTo.push("\n\\begin{quote}");
     recursiveProcessText(node.firstChild, writeTo);
     writeTo.push("\\end{quote}\n");
-  }),
+  },
 
-  "CITATION": ((node, writeTo) => {
+  CITATION: (node, writeTo) => {
     // Currently just text. Not linked to biblography.
-    const text = node.getElementsByTagName("TEXT")[0]; 
+    const text = node.getElementsByTagName("TEXT")[0];
     if (text) {
       recursiveProcessText(text.firstChild, writeTo);
     } else {
       recursiveProcessText(node.firstChild, writeTo);
     }
-  }),
+  },
 
-  "EM": ((node, writeTo) => processTextFunctions["em"](node, writeTo)),
-  "em": ((node, writeTo) => {
+  EM: (node, writeTo) => processTextFunctions["em"](node, writeTo),
+  em: (node, writeTo) => {
     writeTo.push("{\\em ");
     recursiveProcessText(node.firstChild, writeTo);
     writeTo.push("}");
-  }),
+  },
 
-  "EXERCISE": ((node, writeTo) => {
+  EXERCISE: (node, writeTo) => {
     processExercise(node, writeTo);
-  }),
+  },
 
-  "FIGURE": ((node, writeTo) => {
+  FIGURE: (node, writeTo) => {
     processFigure(node, writeTo);
-  }),
+  },
 
-  "IMAGE": ((node, writeTo) => {
-    writeTo.push("\n\\includegraphics{" 
-    + node.getAttribute("src").replace(/\.gif$/, ".png").replace(/_/g, "\\string_")
-    + "}\n");
-  }),
+  IMAGE: (node, writeTo) => {
+    writeTo.push(
+      "\n\\includegraphics{" +
+        node
+          .getAttribute("src")
+          .replace(/\.gif$/, ".png")
+          .replace(/_/g, "\\string_") +
+        "}\n"
+    );
+  },
 
-  "FOOTNOTE": ((node, writeTo) => {
+  FOOTNOTE: (node, writeTo) => {
     writeTo.push("\\cprotect\\footnote{");
     recursiveProcessText(node.firstChild, writeTo);
     writeTo.push("}\n");
-  }),
+  },
 
-  "H2": ((node, writeTo) => {
+  H2: (node, writeTo) => {
     writeTo.push("\n\\subsection*{");
     recursiveProcessText(node.firstChild, writeTo);
     writeTo.push("}\n");
-  }),
+  },
 
-  "INDEX": ((node, writeTo) => {
+  INDEX: (node, writeTo) => {
     writeTo.push("\\index{");
-    const order = getChildrenByTagName(node, 'ORDER')[0];
+    const order = getChildrenByTagName(node, "ORDER")[0];
     if (order) {
       recursiveProcessText(order.firstChild, writeTo);
       writeTo.push("@");
     }
     recursiveProcessText(node.firstChild, writeTo);
     writeTo.push("}");
-  }),
+  },
 
-  "LABEL": ((node, writeTo) => {
-    writeTo.push("\\label{"
-      + node.getAttribute("NAME")
-      + "}\n");
-  }),
+  LABEL: (node, writeTo) => {
+    writeTo.push("\\label{" + node.getAttribute("NAME") + "}\n");
+  },
 
-  "LINK": ((node, writeTo) => {
-    writeTo.push("\\href{"
-      + node.getAttribute("address")
-      + "}{");
+  LINK: (node, writeTo) => {
+    writeTo.push("\\href{" + node.getAttribute("address") + "}{");
     recursiveProcessText(node.firstChild, writeTo);
     writeTo.push("}");
-  }),
+  },
 
-  "LATEX": ((node, writeTo) => processTextFunctions["LATEXINLINE"](node, writeTo)),
-  "TREETAB": ((node, writeTo) => processTextFunctions["LATEXINLINE"](node, writeTo)),
-  "LATEXINLINE": ((node, writeTo) => {
+  LATEX: (node, writeTo) => processTextFunctions["LATEXINLINE"](node, writeTo),
+  TREETAB: (node, writeTo) =>
+    processTextFunctions["LATEXINLINE"](node, writeTo),
+  LATEXINLINE: (node, writeTo) => {
     recursiveProcessPureText(node.firstChild, writeTo);
-  }),
+  },
 
-  "OL": ((node, writeTo) => {
+  OL: (node, writeTo) => {
     writeTo.push("\n\\begin{enumerate}[a.]\n");
     processList(node.firstChild, writeTo);
     writeTo.push("\\end{enumerate}\n");
-  }),
+  },
 
-  "P": ((node, writeTo) => processTextFunctions["TEXT"](node, writeTo)),
-  "TEXT": ((node, writeTo) => {
+  P: (node, writeTo) => processTextFunctions["TEXT"](node, writeTo),
+  TEXT: (node, writeTo) => {
     writeTo.push("\n\n");
     recursiveProcessText(node.firstChild, writeTo);
     writeTo.push("\n");
-  }),
+  },
 
-  "QUOTE": ((node, writeTo) => {
+  QUOTE: (node, writeTo) => {
     writeTo.push("\\enquote{");
     recursiveProcessText(node.firstChild, writeTo);
     writeTo.push("}");
-  }),
+  },
 
-  "REF": ((node, writeTo) => {
-    writeTo.push("\\ref{" 
-      + node.getAttribute("NAME")
-      + "}");
-  }),
+  REF: (node, writeTo) => {
+    writeTo.push("\\ref{" + node.getAttribute("NAME") + "}");
+  },
 
-  "REFERENCE": ((node, writeTo) => {
+  REFERENCE: (node, writeTo) => {
     // Doesn't do anything special
     writeTo.push("\n");
     recursiveProcessText(node.firstChild, writeTo);
     writeTo.push("\n");
-  }),
+  },
 
-  "SC": ((node, writeTo) => {
+  SC: (node, writeTo) => {
     writeTo.push("{\\scshape ");
     recursiveProcessText(node.firstChild, writeTo);
     writeTo.push("}");
-  }),
+  },
 
-  "SCHEMEINLINE": ((node, writeTo) => processTextFunctions["JAVASCRIPTINLINE"](node, writeTo)),
-  "JAVASCRIPTINLINE": ((node, writeTo) => {
+  SCHEMEINLINE: (node, writeTo) =>
+    processTextFunctions["JAVASCRIPTINLINE"](node, writeTo),
+  JAVASCRIPTINLINE: (node, writeTo) => {
     writeTo.push("\n{\\lstinline[mathescape=true]|");
-    recursiveProcessPureText(node.firstChild, writeTo, {removeNewline: true});
+    recursiveProcessPureText(node.firstChild, writeTo, { removeNewline: true });
     writeTo.push("|}");
-  }),
+  },
 
-  "SNIPPET": ((node, writeTo) => {
+  SNIPPET: (node, writeTo) => {
     processSnippet(node, writeTo);
-  }),
+  },
 
-  "SUBHEADING": ((node, writeTo) => {
+  SUBHEADING: (node, writeTo) => {
     writeTo.push("\\subsubsection{");
     addName(node, writeTo);
     recursiveProcessText(node.firstChild, writeTo);
-  }),
+  },
 
-  "SUBINDEX": ((node, writeTo) => {
+  SUBINDEX: (node, writeTo) => {
     // should occur only within INDEX
     // also should only exist after stuff in the main index
     writeTo.push("!");
     recursiveProcessText(node.firstChild, writeTo);
-  }),
+  },
 
-  "TABLE": ((node, writeTo) => {
+  TABLE: (node, writeTo) => {
     processTable(node, writeTo);
-  }),
+  },
 
-  "TT": ((node, writeTo) => {
+  TT: (node, writeTo) => {
     writeTo.push("\\texttt{");
     recursiveProcessText(node.firstChild, writeTo, true);
     writeTo.push("}");
-  }),
+  },
 
-  "UL": ((node, writeTo) => {
+  UL: (node, writeTo) => {
     writeTo.push("\n\\begin{itemize}\n");
     processList(node.firstChild, writeTo);
     writeTo.push("\\end{itemize}\n");
-  })
-}
+  }
+};
 
 export const addName = (node, writeTo) => {
   const nameArr = [];
-  recursiveProcessText(getChildrenByTagName(node, "NAME")[0].firstChild, nameArr);
-  const name = nameArr.join('').trim();
+  recursiveProcessText(
+    getChildrenByTagName(node, "NAME")[0].firstChild,
+    nameArr
+  );
+  const name = nameArr.join("").trim();
   writeTo.push(name);
   writeTo.push("}\n\n");
   return name;
-}
+};
 
-const recursiveProcessPureTextDefault = {removeNewline: false};
-const recursiveProcessPureText = (node, writeTo, options = recursiveProcessPureTextDefault) => {
+const recursiveProcessPureTextDefault = { removeNewline: false };
+const recursiveProcessPureText = (
+  node,
+  writeTo,
+  options = recursiveProcessPureTextDefault
+) => {
   if (!node) return;
   if (!replaceTagWithSymbol(node, writeTo)) {
     let value = node.nodeValue;
@@ -212,14 +235,14 @@ const recursiveProcessPureText = (node, writeTo, options = recursiveProcessPureT
     }
     writeTo.push(value);
   }
-  return recursiveProcessPureText(node.nextSibling, writeTo)
-}
+  return recursiveProcessPureText(node.nextSibling, writeTo);
+};
 
 export const recursiveProcessText = (node, writeTo) => {
   if (!node) return;
   processText(node, writeTo);
-  return recursiveProcessText(node.nextSibling, writeTo)
-}
+  return recursiveProcessText(node.nextSibling, writeTo);
+};
 
 export const processText = (node, writeTo) => {
   const name = node.nodeName;
@@ -232,35 +255,35 @@ export const processText = (node, writeTo) => {
     } else if (ignoreTags.has(name)) {
       recursiveProcessText(node.firstChild, writeTo);
       return true;
-    } 
+    }
   }
   console.log("Unrecognised Tag:\n" + node.toString() + "\n");
   return false;
-}
+};
 
 const processList = (node, writeTo) => {
   if (!node) return;
-  if (node.nodeName == "LI"){
+  if (node.nodeName == "LI") {
     writeTo.push("\\item{");
-    recursiveProcessText(node.firstChild, writeTo)
+    recursiveProcessText(node.firstChild, writeTo);
     writeTo.push("}\n");
-  } 
+  }
   return processList(node.nextSibling, writeTo);
-}
+};
 
 export const processSnippet = (node, writeTo) => {
-  if (node.getAttribute("HIDE") == 'yes') {
+  if (node.getAttribute("HIDE") == "yes") {
     return;
   }
-  const jsSnippet = node.getElementsByTagName("JAVASCRIPT")[0]; 
+  const jsSnippet = node.getElementsByTagName("JAVASCRIPT")[0];
   if (jsSnippet) {
     writeTo.push("\n\\begin{lstlisting}[mathescape=true]\n");
     const code = [];
     recursiveProcessPureText(jsSnippet.firstChild, code);
-    writeTo.push(beautify(code.join('')));
+    writeTo.push(beautify(code.join("")));
     writeTo.push("\n\\end{lstlisting}\n");
   }
-}
+};
 
 const processTable = (node, writeTo) => {
   const firstRow = node.getElementsByTagName("TR")[0];
@@ -289,7 +312,7 @@ const processTable = (node, writeTo) => {
   } else {
     recursiveProcessText(node.firstChild, writeTo);
   }
-}
+};
 
 let unlabeledEx = 0;
 const processExercise = (node, writeTo) => {
@@ -299,7 +322,7 @@ const processExercise = (node, writeTo) => {
   if (solution) {
     if (!label) {
       labelName = "ex:unlabeled" + unlabeledEx;
-      unlabeledEx += 1; 
+      unlabeledEx += 1;
     } else {
       labelName = label.getAttribute("NAME");
     }
@@ -313,7 +336,7 @@ const processExercise = (node, writeTo) => {
 
   recursiveProcessText(node.firstChild, writeTo);
   if (solution) {
-    writeTo.push("\\hfill{\\hyperref[" + labelName + "-Answer]{Solution}}"); 
+    writeTo.push("\\hfill{\\hyperref[" + labelName + "-Answer]{Solution}}");
   }
   writeTo.push("\n\\end{Exercise}\n");
 
@@ -322,7 +345,7 @@ const processExercise = (node, writeTo) => {
     recursiveProcessText(solution.firstChild, writeTo);
     writeTo.push("\n\\end{Answer}\n");
   }
-}
+};
 
 const getChildrenByTagName = (node, tagName) => {
   let child = node.firstChild;
@@ -334,4 +357,4 @@ const getChildrenByTagName = (node, tagName) => {
     child = child.nextSibling;
   }
   return childrenWithTag;
-}
+};
