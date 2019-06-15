@@ -1,4 +1,3 @@
-import { js as beautify } from "js-beautify";
 import replaceTagWithSymbol from "./replaceTagWithSymbol";
 import processFigure from "./processFigure";
 
@@ -278,10 +277,13 @@ export const processSnippet = (node, writeTo) => {
   }
   const jsSnippet = node.getElementsByTagName("JAVASCRIPT")[0];
   if (jsSnippet) {
-    writeTo.push("\n\\begin{lstlisting}[mathescape=true]\n");
-    const code = [];
-    recursiveProcessPureText(jsSnippet.firstChild, code);
-    writeTo.push(beautify(code.join("")));
+    writeTo.push("\n\\begin{lstlisting}");
+    if (node.getAttribute("LATEX") == "yes") {
+      writeTo.push("[mathescape=true]\n");
+    } else {
+      writeTo.push("\n");
+    }
+    recursiveProcessPureText(jsSnippet.firstChild, writeTo);
     writeTo.push("\n\\end{lstlisting}\n");
   }
 };
