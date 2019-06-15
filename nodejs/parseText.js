@@ -1,4 +1,4 @@
-import lzString from 'lz-string';
+import lzString from "lz-string";
 import replaceTagWithSymbol from "./replaceTagWithSymbol";
 import processFigure from "./processFigure";
 
@@ -112,7 +112,7 @@ export const processTextFunctions = {
       indexArr.push("@");
     }
     recursiveProcessText(node.firstChild, indexArr);
-    const indexStr = indexArr.join('').trim();
+    const indexStr = indexArr.join("").trim();
 
     // Do error checking
     const last = indexStr.slice(-1);
@@ -281,8 +281,7 @@ const processList = (node, writeTo) => {
   return processList(node.nextSibling, writeTo);
 };
 
-
-const sourceAcademyURL = 'http://localhost:8075' // to change to localhost if required
+const sourceAcademyURL = "http://localhost:8075"; // to change to localhost if required
 // http://localhost:8075 OR https://sourceacademy.nus.edu.sg
 
 const requiredSnippets = {
@@ -295,11 +294,10 @@ export const processSnippet = (node, writeTo) => {
   }
   const jsSnippet = node.getElementsByTagName("JAVASCRIPT")[0];
   if (jsSnippet) {
-
     const codeArr = [];
     recursiveProcessPureText(jsSnippet.firstChild, codeArr);
-    const codeStr = codeArr.join('').trim();
-    
+    const codeStr = codeArr.join("").trim();
+
     const requirements = node.getElementsByTagName("REQUIRE");
     const reqArr = [];
     for (let i = 0; requirements[i]; i++) {
@@ -308,10 +306,10 @@ export const processSnippet = (node, writeTo) => {
         reqArr.push(requiredSnippets[required]);
         reqArr.push("\n");
       } else {
-        console.log("WARNING, REQUIRE not found: " + required)
+        console.log("WARNING, REQUIRE not found: " + required);
       }
     }
-    const reqStr = reqArr.join('');
+    const reqStr = reqArr.join("");
 
     const snippetName = node.getElementsByTagName("NAME")[0];
     if (snippetName) {
@@ -322,9 +320,10 @@ export const processSnippet = (node, writeTo) => {
       writeTo.push("\n\\begin{lstlisting}[mathescape=true]\n");
       writeTo.push(codeStr);
       writeTo.push("\n\\end{lstlisting}\n");
-
     } else {
-      writeTo.push("\n\n\\begin{lrbox}{\\lstbox}\\begin{lstlisting}[mathescape=true]\n");
+      writeTo.push(
+        "\n\n\\begin{lrbox}{\\lstbox}\\begin{lstlisting}[mathescape=true]\n"
+      );
 
       const examples = node.getElementsByTagName("REQUIRE");
       const exampleArr = [];
@@ -332,22 +331,31 @@ export const processSnippet = (node, writeTo) => {
         exampleArr.push("\n");
         exampleArr.push(examples[i]);
       }
-      const exampleStr = exampleArr.join('');
+      const exampleStr = exampleArr.join("");
 
       // make url for source academy link
-      const compressed = lzString.compressToEncodedURIComponent(reqStr + codeStr + exampleStr);
-      const chap = '4';
-      const ext = '';
-      const url = sourceAcademyURL + '/playground#chap=' 
-        + chap + ext + '&prgrm=' + compressed;
+      const compressed = lzString.compressToEncodedURIComponent(
+        reqStr + codeStr + exampleStr
+      );
+      const chap = "4";
+      const ext = "";
+      const url =
+        sourceAcademyURL +
+        "/playground#chap=" +
+        chap +
+        ext +
+        "&prgrm=" +
+        compressed;
 
       writeTo.push(codeStr);
-      writeTo.push("\n\\end{lstlisting}\\end{lrbox}\n\\href{" 
-        + url + "}{\\usebox\\lstbox}\n\n");
+      writeTo.push(
+        "\n\\end{lstlisting}\\end{lrbox}\n\\href{" +
+          url +
+          "}{\\usebox\\lstbox}\n\n"
+      );
     }
   }
 };
-
 
 const processTable = (node, writeTo) => {
   const firstRow = node.getElementsByTagName("TR")[0];
@@ -432,4 +440,4 @@ const ancestorHasTag = (node, tagName) => {
     parent = parent.parentNode;
   }
   return false;
-}
+};
