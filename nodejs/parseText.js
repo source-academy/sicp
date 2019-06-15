@@ -105,12 +105,21 @@ export const processTextFunctions = {
 
   INDEX: (node, writeTo) => {
     writeTo.push("\\index{");
+    const indexArr = [];
     const order = getChildrenByTagName(node, "ORDER")[0];
     if (order) {
-      recursiveProcessText(order.firstChild, writeTo);
-      writeTo.push("@");
+      recursiveProcessText(order.firstChild, indexArr);
+      indexArr.push("@");
     }
-    recursiveProcessText(node.firstChild, writeTo);
+    recursiveProcessText(node.firstChild, indexArr);
+    const indexStr = indexArr.join('').trim();
+
+    // Do error checking
+    const last = indexStr.slice(-1);
+    if (last == "!" || last == "@") {
+      console.log("WARNING, index ends with special character:\n" + indexStr);
+    }
+    writeTo.push(indexStr);
     writeTo.push("}");
   },
 
@@ -276,20 +285,57 @@ const processList = (node, writeTo) => {
 const sourceAcademyURL = 'http://localhost:8075' // to change to localhost if required
 // http://localhost:8075 OR https://sourceacademy.nus.edu.sg
 
+const requiredSnippets = {
+  nameOfSnippet: "'code'"
+};
+
 export const processSnippet = (node, writeTo) => {
   if (node.getAttribute("HIDE") == "yes") {
     return;
   }
   const jsSnippet = node.getElementsByTagName("JAVASCRIPT")[0];
   if (jsSnippet) {
-    if (node.getAttribute("EVAL") !== "no") {
+
+    const codeArr = [];
+    recursiveProcessPureText(jsSnippet.firstChild, codeArr);
+    const codeStr = codeArr.join('').trim();
+    
+    const requirements = node.getElementsByTagName("REQUIRE");
+    const reqArr = [];
+    for (let i = 0; requirements[i]; i++) {
+      const required = requirements[i];
+      if (requiredSnippets[required]) {
+        reqArr.push(requiredSnippets[required]);
+        reqArr.push("\n");
+      } else {
+        console.log("WARNING, REQUIRE not found: " + required)
+      }
+    }
+    const reqStr = reqArr.join('');
+
+    const snippetName = node.getElementsByTagName("NAME")[0];
+    if (snippetName) {
+      requiredSnippets[snippetName] = reqStr + codeStr;
+    }
+
+    if (node.getAttribute("EVAL") === "no") {
+      writeTo.push("\n\\begin{lstlisting}[mathescape=true]\n");
+      writeTo.push(codeStr);
+      writeTo.push("\n\\end{lstlisting}\n");
+
+    } else {
       writeTo.push("\n\n\\begin{lrbox}{\\lstbox}\\begin{lstlisting}[mathescape=true]\n");
 
+      const examples = node.getElementsByTagName("REQUIRE");
+      const exampleArr = [];
+      for (let i = 0; examples[i]; i++) {
+        exampleArr.push("\n");
+        exampleArr.push(examples[i]);
+      }
+      const exampleStr = exampleArr.join('');
+
       // make url for source academy link
-      const codeArr = [];
-      recursiveProcessPureText(jsSnippet.firstChild, codeArr);
-      const codeStr = codeArr.join('').trim();
-      const compressed = lzString.compressToEncodedURIComponent(codeStr);
+      const compressed = lzString.compressToEncodedURIComponent(reqStr + codeStr + exampleStr);
       const chap = '1';
       const ext = '';
       const url = sourceAcademyURL + '/playground#chap=' 
@@ -298,13 +344,6 @@ export const processSnippet = (node, writeTo) => {
       writeTo.push(codeStr);
       writeTo.push("\n\\end{lstlisting}\\end{lrbox}\n\\href{" 
         + url + "}{\\usebox\\lstbox}\n\n");
-
-    } else {
-      writeTo.push("\n\\begin{lstlisting}[mathescape=true]\n");
-      const codeArr = [];
-      recursiveProcessPureText(jsSnippet.firstChild, codeArr);
-      writeTo.push(codeArr.join('').trim());
-      writeTo.push("\n\\end{lstlisting}\n");
     }
   }
 };
