@@ -113,6 +113,10 @@ const preamble = `\\documentclass[a4paper, 12pt]{report}
 
 const ending = `
 \\pagestyle{plain}
+
+\\addcontentsline{toc}{chapter}{List Of Exercises}
+\\listofexercises
+
 \\chapter*{Solution To Exercises}
 \\addcontentsline{toc}{chapter}{Solution To Exercises}
 \\shipoutAnswer
