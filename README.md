@@ -70,6 +70,7 @@ Run `npm install` to install dependencies.
 
 ## Generating Latex Files
 Run `npm start`.
+This will also warn of some potential errors in the xml.
 
 Latex files will be in the latex folder.
 Compile sicpjs.tex with XeLaTex+MakeIndex+BibTex for the pdf version. 
