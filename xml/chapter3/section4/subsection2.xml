@@ -392,6 +392,33 @@ parallel_execute( s( () => x = x * x ) ,
             dispatch))
           </SCHEME>
           <JAVASCRIPT>
+            function make_account(balance) {
+                function withdraw(amount) {
+                    if (balance > amount) {
+                        balance = balance - amount;
+                        return balance;
+                    } else {
+                        return "Insufficient funds";
+                    }
+                }
+                function deposit(amount) {
+                    balance = balance + amount;
+                    return balance;
+                }
+                let protected = make_serializer();
+                function dispatch(m) {
+                    if (m === "withdraw") {
+                        return protected(withdraw);
+                    } else if (m === "deposit") {
+                        return protected(deposit);
+                    } else if (m === "balance") {
+                        return protected(function () { balance }); // serialized
+                    } else {
+                        return "Unknown request - - MAKE-ACCOUNT";
+                    }
+                }
+                return dispatch;
+            }
           </JAVASCRIPT>
         </SNIPPET>
         because allowing unserialized access to the bank balance can result in
@@ -434,7 +461,36 @@ parallel_execute( s( () => x = x * x ) ,
             dispatch)))
           </SCHEME>
           <JAVASCRIPT>
-          </JAVASCRIPT>
+            function make_account(balance) {
+                function withdraw(amount) {
+                    if (balance > amount) {
+                        balance = balance - amount;
+                        return balance;
+                    } else {
+                        return "Insufficient funds";
+                    }
+                }
+                function deposit(amount) {
+                    balance = balance + amount;
+                    return balance;
+                }
+                let protected = make_serializer();
+                let protected_withdraw = protected(withdraw);
+                let protected_deposit = protected(deposit);
+                function dispatch(m) {
+                    if (m === "withdraw") {
+                        return protected_withdraw();
+                    } else if (m === "deposit") {
+                        return protected_deposit();
+                    } else if (m === "balance") {
+                        return balance;
+                    } else {
+                        return "Unknown request - - MAKE-ACCOUNT";
+                    }
+                }
+                return dispatch;
+            }
+          </JAVASCRIPT>            
         </SNIPPET>
 
         Is this a safe change to make?  In particular, is there any difference in
@@ -471,12 +527,17 @@ parallel_execute( s( () => x = x * x ) ,
             <INDEX>bank account<SUBINDEX>exchanging balances</SUBINDEX></INDEX>
             <!--  \indcode*{exchange} -->
             (define (exchange account1 account2)
-            (let ((difference (- (account1 'balance)
-            (account2 'balance))))
-            ((account1 'withdraw) difference)
-            ((account2 'deposit) difference)))
+              (let ((difference (- (account1 'balance)
+                                   (account2 'balance))))
+                ((account1 'withdraw) difference)
+                ((account2 'deposit) difference)))
           </SCHEME>
           <JAVASCRIPT>
+            function exchange(account1, account2) {
+                let difference = balance(account1) - balance(account2);
+                withdraw(account1, difference);
+                deposity(account2, difference);
+            }
           </JAVASCRIPT>
         </SNIPPET>
       </TEXT>
