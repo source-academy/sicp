@@ -328,10 +328,6 @@ export const processSnippet = (node, writeTo) => {
       writeTo.push(codeStr);
       writeTo.push("\n\\end{lstlisting}\n");
     } else {
-      writeTo.push(
-        "\n\n\\begin{lrbox}{\\lstbox}\\begin{lstlisting}[mathescape=true]\n"
-      );
-
       const examples = node.getElementsByTagName("REQUIRE");
       const exampleArr = [];
       for (let i = 0; examples[i]; i++) {
@@ -354,12 +350,27 @@ export const processSnippet = (node, writeTo) => {
         "&prgrm=" +
         compressed;
 
-      writeTo.push(codeStr);
-      writeTo.push(
-        "\n\\end{lstlisting}\\end{lrbox}\n\\href{" +
-          url +
-          "}{\\usebox\\lstbox}\n\n"
-      );
+      const chunks = (codeStr + "\n").match(/(.*?[\r\n]+)(.*?[\r\n]+){0,6}/g);
+      // 8 lines per chunk
+      writeTo.push("\n");
+      let first = true;
+      for (const chunk of chunks) {
+        if (first) {
+          first = false;
+        } else {
+          writeTo.push("\\\\");
+        }
+        writeTo.push(
+          "\n\\begin{lrbox}{\\lstbox}\\begin{lstlisting}[mathescape=true]\n"
+        );
+        writeTo.push(chunk);
+        writeTo.push(
+          "\\end{lstlisting}\\end{lrbox}\n\\href{" +
+            url +
+            "}{\\usebox\\lstbox}"
+        );
+      }
+      writeTo.push("\n\n");
     }
   }
 };
