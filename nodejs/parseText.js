@@ -1,3 +1,4 @@
+import lzString from 'lz-string';
 import replaceTagWithSymbol from "./replaceTagWithSymbol";
 import processFigure from "./processFigure";
 
@@ -228,7 +229,7 @@ const recursiveProcessPureText = (
   options = recursiveProcessPureTextDefault
 ) => {
   if (!node) return;
-  if (!replaceTagWithSymbol(node, writeTo)) {
+  if (!replaceTagWithSymbol(node, writeTo) && node.nodeName === "#text") {
     let value = node.nodeValue;
     if (options.removeNewline) {
       value = value.replace(/[\r\n]+/g, " ");
@@ -271,22 +272,43 @@ const processList = (node, writeTo) => {
   return processList(node.nextSibling, writeTo);
 };
 
+
+const sourceAcademyURL = 'http://localhost:8075' // to change to localhost if required
+// http://localhost:8075 OR https://sourceacademy.nus.edu.sg
+
 export const processSnippet = (node, writeTo) => {
   if (node.getAttribute("HIDE") == "yes") {
     return;
   }
   const jsSnippet = node.getElementsByTagName("JAVASCRIPT")[0];
   if (jsSnippet) {
-    writeTo.push("\n\\begin{lstlisting}");
-    if (node.getAttribute("LATEX") == "yes") {
-      writeTo.push("[mathescape=true]\n");
+    if (node.getAttribute("EVAL") !== "no") {
+      writeTo.push("\n\n\\begin{lrbox}{\\lstbox}\\begin{lstlisting}[mathescape=true]\n");
+
+      // make url for source academy link
+      const codeArr = [];
+      recursiveProcessPureText(jsSnippet.firstChild, codeArr);
+      const codeStr = codeArr.join('').trim();
+      const compressed = lzString.compressToEncodedURIComponent(codeStr);
+      const chap = '1';
+      const ext = '';
+      const url = sourceAcademyURL + '/playground#chap=' 
+        + chap + ext + '&prgrm=' + compressed;
+
+      writeTo.push(codeStr);
+      writeTo.push("\n\\end{lstlisting}\\end{lrbox}\n\\href{" 
+        + url + "}{\\usebox\\lstbox}\n\n");
+
     } else {
-      writeTo.push("\n");
+      writeTo.push("\n\\begin{lstlisting}[mathescape=true]\n");
+      const codeArr = [];
+      recursiveProcessPureText(jsSnippet.firstChild, codeArr);
+      writeTo.push(codeArr.join('').trim());
+      writeTo.push("\n\\end{lstlisting}\n");
     }
-    recursiveProcessPureText(jsSnippet.firstChild, writeTo);
-    writeTo.push("\n\\end{lstlisting}\n");
   }
 };
+
 
 const processTable = (node, writeTo) => {
   const firstRow = node.getElementsByTagName("TR")[0];

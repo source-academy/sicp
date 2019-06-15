@@ -2,7 +2,7 @@ web:
 	$(MAKE) -C rails javascript
 
 pdf: 
-	babel-node ./nodejs/index.js
+	npm start
 	cd latex && latexmk -xelatex -pdf sicpjs
 
 clean:
