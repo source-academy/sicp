@@ -336,7 +336,7 @@ export const processSnippet = (node, writeTo) => {
 
       // make url for source academy link
       const compressed = lzString.compressToEncodedURIComponent(reqStr + codeStr + exampleStr);
-      const chap = '1';
+      const chap = '4';
       const ext = '';
       const url = sourceAcademyURL + '/playground#chap=' 
         + chap + ext + '&prgrm=' + compressed;
