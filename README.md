@@ -78,12 +78,3 @@ Compile sicpjs.tex with XeLaTex+MakeIndex+BibTex for the pdf version.
 If you have `latexmk` installed, you can automate the generation of the PDF by running:
 ```make pdf```
 The generated PDF file will be in `latex/sicpjs.pdf`.
-For this, you might need
-to add the following lines to your `.latexmkrc` file:
-```
-$pdflatex = "xelatex %O %S";
-$pdf_mode = 1;
-$dvi_mode = 0;
-$postscript_mode = 0;
-```
-
