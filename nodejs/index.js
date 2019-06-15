@@ -19,7 +19,7 @@ const preamble = `\\documentclass[a4paper, 12pt]{report}
 \\usepackage{etoolbox}
 \\usepackage{float}
 \\usepackage[margin=2.54cm]{geometry}
-\\usepackage{makeidx}
+\\usepackage{imakeidx}
 \\usepackage{subcaption}
 \\usepackage{underscore}
 
@@ -115,11 +115,12 @@ const ending = `
 \\pagestyle{plain}
 \\chapter*{Solution To Exercises}
 \\addcontentsline{toc}{chapter}{Solution To Exercises}
-\\shipoutAnswer.
+\\shipoutAnswer
 
 \\input{./others/references03.tex}
 
 \\addcontentsline{toc}{chapter}{Index}
+\\indexprologue{\\input{./others/indexpreface.tex}}
 \\printindex
 
 \\input{./others/about02.tex}
