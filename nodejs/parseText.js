@@ -1,6 +1,11 @@
 import lzString from "lz-string";
 import replaceTagWithSymbol from "./replaceTagWithSymbol";
 import processFigure from "./processFigure";
+import {
+  checkIndexBadEndWarning,
+  checkLongLineWarning,
+  missingRequireWarning
+} from "./warnings.js";
 
 const tagsToRemove = new Set([
   "#comment",
@@ -115,10 +120,7 @@ export const processTextFunctions = {
     const indexStr = indexArr.join("").trim();
 
     // Do error checking
-    const last = indexStr.slice(-1);
-    if (last == "!" || last == "@") {
-      console.log("WARNING, index ends with special character:\n" + indexStr);
-    }
+    checkIndexBadEndWarning(indexStr);
     writeTo.push(indexStr);
     writeTo.push("}");
   },
@@ -242,8 +244,11 @@ const recursiveProcessPureText = (
     let value = node.nodeValue;
     if (options.removeNewline) {
       value = value.replace(/[\r\n]+/g, " ");
-    }
+    } 
     writeTo.push(value);
+
+    // Do warning for very long lines
+    checkLongLineWarning(value);
   }
   return recursiveProcessPureText(node.nextSibling, writeTo);
 };
@@ -306,7 +311,7 @@ export const processSnippet = (node, writeTo) => {
         reqArr.push(requiredSnippets[required]);
         reqArr.push("\n");
       } else {
-        console.log("WARNING, REQUIRE not found: " + required);
+        missingRequireWarning();
       }
     }
     const reqStr = reqArr.join("");
