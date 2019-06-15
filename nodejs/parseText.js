@@ -244,13 +244,10 @@ const recursiveProcessPureText = (
     let value = node.nodeValue;
     if (options.removeNewline) {
       value = value.replace(/[\r\n]+/g, " ");
-    } 
+    }
     writeTo.push(value);
-
-    // Do warning for very long lines
-    checkLongLineWarning(value);
   }
-  return recursiveProcessPureText(node.nextSibling, writeTo);
+  return recursiveProcessPureText(node.nextSibling, writeTo, options);
 };
 
 export const recursiveProcessText = (node, writeTo) => {
@@ -302,6 +299,11 @@ export const processSnippet = (node, writeTo) => {
     const codeArr = [];
     recursiveProcessPureText(jsSnippet.firstChild, codeArr);
     const codeStr = codeArr.join("").trim();
+
+    // Do warning for very long lines if no latex
+    if (node.getAttribute("LATEX") !== "yes") {
+      checkLongLineWarning(codeStr);
+    }
 
     const requirements = node.getElementsByTagName("REQUIRE");
     const reqArr = [];
