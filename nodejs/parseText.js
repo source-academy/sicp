@@ -85,17 +85,6 @@ export const processTextFunctions = {
     processFigure(node, writeTo);
   },
 
-  IMAGE: (node, writeTo) => {
-    writeTo.push(
-      "\n\\includegraphics{" +
-        node
-          .getAttribute("src")
-          .replace(/\.gif$/, ".png")
-          .replace(/_/g, "\\string_") +
-        "}\n"
-    );
-  },
-
   FOOTNOTE: (node, writeTo) => {
     writeTo.push("\\cprotect\\footnote{");
     recursiveProcessText(node.firstChild, writeTo);
@@ -123,6 +112,17 @@ export const processTextFunctions = {
     checkIndexBadEndWarning(indexStr);
     writeTo.push(indexStr);
     writeTo.push("}");
+  },
+
+  IMAGE: (node, writeTo) => {
+    writeTo.push(
+      "\n\\includegraphics{" +
+        node
+          .getAttribute("src")
+          .replace(/\.gif$/, ".png")
+          .replace(/_/g, "\\string_") +
+        "}\n"
+    );
   },
 
   LABEL: (node, writeTo) => {
@@ -201,6 +201,11 @@ export const processTextFunctions = {
     // should occur only within INDEX
     // also should only exist after stuff in the main index
     writeTo.push("!");
+    const order = getChildrenByTagName(node, "ORDER")[0];
+    if (order) {
+      recursiveProcessText(order.firstChild, writeTo);
+      writeTo.push("@");
+    }
     recursiveProcessText(node.firstChild, writeTo);
   },
 
