@@ -84,7 +84,8 @@ const preamble = `\\documentclass[a4paper, 12pt]{report}
    language=JavaScript,
    basicstyle=\\ttfamily,
    showstringspaces=false,
-   showspaces=false
+   showspaces=false,
+   escapeinside={/*!}{!*/}
 }
 
 \\usepackage{epigraph}

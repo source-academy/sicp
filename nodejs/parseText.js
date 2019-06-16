@@ -350,25 +350,23 @@ export const processSnippet = (node, writeTo) => {
         "&prgrm=" +
         compressed;
 
-      const chunks = (codeStr + "\n").match(/(.*?[\r\n]+)(.*?[\r\n]+){0,6}/g);
-      // 8 lines per chunk
-      writeTo.push("\n");
-      let first = true;
-      for (const chunk of chunks) {
-        if (first) {
-          first = false;
-        } else {
-          writeTo.push("\\\\");
-        }
-        writeTo.push(
-          "\n\\begin{lrbox}{\\lstbox}\\begin{lstlisting}[mathescape=true]\n"
-        );
-        writeTo.push(chunk);
-        writeTo.push(
-          "\\end{lstlisting}\\end{lrbox}\n\\href{" +
-            url +
-            "}{\\usebox\\lstbox}"
-        );
+      const chunks = (codeStr + "\n").match(/^((?:.*?[\r\n]+){1,6})((?:.|\n|\r)*)$/);
+      // 6 lines plus rest
+      writeTo.push(
+        "\n\\begin{lrbox}{\\lstbox}\\begin{lstlisting}[mathescape=true]\n"
+      );
+      writeTo.push(chunks[1]);
+      writeTo.push(
+        "\\end{lstlisting}\\end{lrbox}"
+      );
+
+      if (chunks[2]) {
+        writeTo.push("\n\\begin{lstlisting}[mathescape=true]\n");
+        writeTo.push("/*!\\href{" + url + "}{\\usebox\\lstbox}!*/\n")
+        writeTo.push(chunks[2]);
+        writeTo.push("\\end{lstlisting}");
+      } else {
+        writeTo.push("\n\n\\href{" + url + "}{\\usebox\\lstbox}")
       }
       writeTo.push("\n\n");
     }
