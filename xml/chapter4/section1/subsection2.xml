@@ -1,537 +1,632 @@
-    <SUBSECTION>
-      <NAME>
-  Representing <SPLITINLINE><SCHEME>Expressions</SCHEME><JAVASCRIPT>Statements and Expressions</JAVASCRIPT></SPLITINLINE>
-      </NAME>
+<SUBSECTION>
+  <NAME>
+    Representing
+    <SPLITINLINE>
+      <SCHEME>Expressions</SCHEME>
+      <JAVASCRIPT>Statements and Expressions</JAVASCRIPT>
+    </SPLITINLINE>
+  </NAME>
 
-      <LABEL NAME="sec:representing-expressions"/>
-      <INDEX>metacircular evaluator for Scheme<SUBINDEX>expression representation|(</SUBINDEX></INDEX>
-      <INDEX>metacircular evaluator for Scheme<SUBINDEX>syntax of evaluated language|(</SUBINDEX></INDEX>
+  <LABEL NAME="sec:representing-expressions"/>
+  <INDEX>metacircular evaluator for Scheme<SUBINDEX>expression representation|(</SUBINDEX></INDEX>
+  <INDEX>metacircular evaluator for Scheme<SUBINDEX>syntax of evaluated language|(</SUBINDEX></INDEX>
 
+  <TEXT>
+    <INDEX>metacircular evaluator for Scheme<SUBINDEX>symbolic differentiation and</SUBINDEX></INDEX>
+    The evaluator is reminiscent of the symbolic differentiation program
+    discussed in section<SPACE/><REF NAME="sec:symbolic-differentiation"/>.  Both
+    programs operate on symbolic expressions.  In both programs, the
+    result of operating on a compound expression is determined by
+    operating recursively on the pieces of the expression and combining
+    the results in a way that depends on the type of the expression.  In
+    both programs we used 
+    <INDEX>data abstraction</INDEX>
+    data abstraction to decouple the general rules
+    of operation from the details of how expressions are represented.  In
+    the differentiation program this meant that the same differentiation
+    <SPLITINLINE><SCHEME>procedure</SCHEME>
+    <JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+    could deal with algebraic expressions in prefix form, in
+    infix form, or in some other form.  For the evaluator, this means that
+    the syntax of the language being evaluated is determined solely by the
+    <SPLITINLINE><SCHEME>procedures</SCHEME>
+    <JAVASCRIPT>functions</JAVASCRIPT></SPLITINLINE>
+    that classify and extract pieces of expressions.
+  </TEXT>
+
+  <SPLIT>
+    <SCHEME>
       <TEXT>
-  <INDEX>metacircular evaluator for Scheme<SUBINDEX>symbolic differentiation and</SUBINDEX></INDEX>
-  The evaluator is reminiscent of the symbolic differentiation program
-  discussed in section<SPACE/><REF NAME="sec:symbolic-differentiation"/>.  Both
-  programs operate on symbolic expressions.  In both programs, the
-  result of operating on a compound expression is determined by
-  operating recursively on the pieces of the expression and combining
-  the results in a way that depends on the type of the expression.  In
-  both programs we used 
-  <INDEX>data abstraction</INDEX>
-  data abstraction to decouple the general rules
-  of operation from the details of how expressions are represented.  In
-  the differentiation program this meant that the same differentiation
-  <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
-  could deal with algebraic expressions in prefix form, in
-  infix form, or in some other form.  For the evaluator, this means that
-  the syntax of the language being evaluated is determined solely by the
-  <SPLITINLINE><SCHEME>procedures</SCHEME><JAVASCRIPT>functions</JAVASCRIPT></SPLITINLINE>
-  that classify and extract pieces of expressions.
+	Here is the specification of the syntax of our language:
+	<UL>
+          <LI>
+	    The only self-evaluating items are numbers and
+	    strings:
+	    <SNIPPET PAGE="369">
+	      <NAME>is_self_evaluating</NAME>
+	      <SCHEME>
+		(define (self-evaluating? exp)
+		(cond ((number? exp) true)
+		((string? exp) true)
+		((null? exp) true)
+		(else false)))
+	      </SCHEME>
+	    </SNIPPET>
+          </LI>
+          <LI>
+	    Variables are represented by symbols:
+
+	    <SNIPPET PAGE="369">
+	      <NAME>variable</NAME>
+	      <SCHEME>
+		(define (variable? exp) (symbol? exp))
+	      </SCHEME>
+	    </SNIPPET>
+          </LI>
+
+          <LI>
+	    Quotations have the form <SCHEMEINLINE>(quote </SCHEMEINLINE><LATEXINLINE>text-of-quotation</LATEXINLINE><SCHEMEINLINE>)</SCHEMEINLINE>:<FOOTNOTE>As mentioned in
+	    section<SPACE/><REF NAME="sec:quotation"/>, the evaluator sees a quoted expression as
+	    a list beginning with <SCHEMEINLINE>quote</SCHEMEINLINE>, even if the
+	    expression is typed with the quotation mark.  For example, the
+	    expression <SCHEMEINLINE>'a</SCHEMEINLINE> would be seen by the evaluator as
+	    <SCHEMEINLINE>(quote a)</SCHEMEINLINE>.
+	    See exercise<SPACE/><REF NAME="ex:double-quote"/>.</FOOTNOTE>
+
+	    <SNIPPET PAGE="369">
+	      <NAME>quoted</NAME>
+	      <SCHEME>
+		(define (quoted? exp)
+		(tagged-list? exp \&apos;quote))
+
+		(define (text-of-quotation exp) (cadr exp))
+	      </SCHEME>
+	    </SNIPPET>
+
+	    <SCHEMEINLINE>Quoted?</SCHEMEINLINE> is defined in terms of the
+	    procedure
+	    <SCHEMEINLINE>tagged-list?</SCHEMEINLINE>, 
+	    which identifies lists beginning with a designated
+	    symbol:
+
+	    <SNIPPET PAGE="369">
+	      <NAME>tagged_list</NAME>
+	      <SCHEME>
+		(define (tagged-list? exp tag)
+		(if (pair? exp)
+		(eq? (car exp) tag)
+		false))
+	      </SCHEME>
+	    </SNIPPET>
+          </LI>
+
+          <LI>
+	    Assignments have the form <SCHEMEINLINE>(set!</SCHEMEINLINE> <LATEXINLINE>var value</LATEXINLINE><SCHEMEINLINE>)</SCHEMEINLINE>:
+
+	    <SNIPPET PAGE="369">
+	      <NAME>assignment</NAME>
+	      <SCHEME>
+		(define (assignment? exp)
+		(tagged-list? exp \&apos;set!))
+
+		(define (assignment-variable exp) (cadr exp))
+
+		(define (assignment-value exp) (caddr exp))
+	      </SCHEME>
+	    </SNIPPET>
+          </LI>
+
+          <LI>
+	    Definitions have the form
+
+	    <SNIPPET EVAL="no">
+	      <SCHEME>
+		(define ^var^ ^value^)
+	      </SCHEME>
+	    </SNIPPET>
+
+	    or the form
+
+	    <SNIPPET EVAL="no">
+	      <SCHEME>
+		(define (^var^ ^parameter$_{1}$^ ^$\ldots$^ ^parameter$_{n}$^)
+		^body^)
+	      </SCHEME>
+	    </SNIPPET>
+
+	    <INDEX>syntactic sugar<SUBINDEX>define@<SCHEMEINLINE>define</SCHEMEINLINE></SUBINDEX></INDEX>
+	    <!-- \indsf{define}[syntactic sugar]-->
+	    The latter form (standard
+	    procedure definition) is syntactic sugar for
+
+	    <SNIPPET EVAL="no">
+	      <SCHEME>
+		(define ^var^
+		(lambda (^parameter$_{1}$^ ^$\ldots$^ ^parameter$_{n}$^)
+		^body^))
+	      </SCHEME>
+	    </SNIPPET>
+
+	    The corresponding syntax
+	    procedures
+	    are the following:
+
+	    <SNIPPET PAGE="370">
+	      <NAME>definition</NAME>
+	      <SCHEME>
+		(define (definition? exp)
+		(tagged-list? exp \&apos;define))
+
+		(define (definition-variable exp)
+		(if (symbol? (cadr exp))
+		(cadr exp)
+		(caadr exp)))
+
+		(define (definition-value exp)
+		(if (symbol? (cadr exp))
+		(caddr exp)
+		(make-lambda (cdadr exp)
+                (cddr exp))))
+	      </SCHEME>
+	    </SNIPPET>
+          </LI>
+
+          <LI>
+	    <SCHEMEINLINE>Lambda</SCHEMEINLINE> expressions are lists that begin with the
+	    symbol <SCHEMEINLINE>lambda</SCHEMEINLINE>:
+
+	    <SNIPPET PAGE="370">
+	      <NAME>lambda</NAME>
+	      <SCHEME>
+		(define (lambda? exp) (tagged-list? exp \&apos;lambda))
+
+		(define (lambda-parameters exp) (cadr exp))
+		(define (lambda-body exp) (cddr exp))
+
+		(define (make-lambda parameters body)
+		(cons \&apos;lambda (cons parameters body)))
+	      </SCHEME>
+	    </SNIPPET>
+
+	    We also provide a constructor for <SCHEMEINLINE>lambda</SCHEMEINLINE> 
+	    expressions,
+	    which is used by <SCHEMEINLINE>definition-value</SCHEMEINLINE>, above:
+	    <SNIPPET>
+	      <SCHEME>
+		<!--  \indcode*{make-lambda} -->
+		(define (make-lambda parameters body)
+		(cons 'lambda (cons parameters body)))
+	      </SCHEME>
+	    </SNIPPET>
+
+          </LI>
+
+          <LI>
+	    Conditionals begin with <SCHEMEINLINE>if</SCHEMEINLINE> and have a predicate, a
+	    consequent, and an (optional) alternative.  If the expression has no
+	    alternative part, we provide <SCHEMEINLINE>false</SCHEMEINLINE> as the alternative.<FOOTNOTE>The value of an <SCHEMEINLINE>if</SCHEMEINLINE> expression when the predicate
+	    is false and there is no alternative
+	    is unspecified in Scheme; we have chosen here to make it false.
+	    We will support the use of the variables <SCHEMEINLINE>true</SCHEMEINLINE> and <SCHEMEINLINE>false</SCHEMEINLINE>
+	    in expressions to be evaluated by binding them in the global
+	    environment.  See section<SPACE/><REF NAME="sec:running-eval"/>.
+	  </FOOTNOTE>
+
+	  <SNIPPET PAGE="371">
+	    <NAME>if</NAME>
+	    <SCHEME>
+	      (define (if? exp) (tagged-list? exp \&apos;if))
+
+	      (define (if-predicate exp) (cadr exp))
+
+	      (define (if-consequent exp) (caddr exp))
+
+	      (define (if-alternative exp)
+	      (if (not (null? (cdddr exp)))
+	      (cadddr exp)
+	      \&apos;false))
+
+	      (define (make-if predicate consequent alternative)
+	      (list \&apos;if predicate consequent alternative))
+	    </SCHEME>
+	  </SNIPPET>
+
+	  We also provide a constructor for <SCHEMEINLINE>if</SCHEMEINLINE> expressions,
+	  to be used by <SCHEMEINLINE>cond-&gt;if</SCHEMEINLINE> to transform <SCHEMEINLINE>cond</SCHEMEINLINE> expressions
+	  into <SCHEMEINLINE>if</SCHEMEINLINE> expressions:
+	  <SNIPPET>
+	    <SCHEME>
+	      <!--  \indcode*{make-if} -->
+	      (define (make-if predicate consequent alternative)
+	      (list 'if predicate consequent alternative))
+	    </SCHEME>
+	  </SNIPPET>
+          </LI>
+
+          <LI>
+	    <SCHEMEINLINE>Begin</SCHEMEINLINE> packages a sequence of expressions into a single
+	    expression.  We include syntax operations on <SCHEMEINLINE>begin</SCHEMEINLINE> expressions
+	    to extract the actual sequence from the <SCHEMEINLINE>begin</SCHEMEINLINE> expression, as
+	    well as selectors that return the first expression and the rest of the
+	    expressions in the sequence.<FOOTNOTE>These selectors for a list of expressions<EMDASH/>and the
+	    corresponding ones for a list of operands<EMDASH/>are not intended as a data
+	    abstraction.  They are introduced as mnemonic names for the basic list
+	    operations in order to make it easier to understand the explicit-control
+	    evaluator in section<SPACE/><REF NAME="sec:eceval"/>.<LABEL NAME="foot:mceval-abstraction"/></FOOTNOTE>
+
+
+	    <SNIPPET PAGE="371">
+	      <NAME>begin</NAME>
+	      <SCHEME>
+		(define (begin? exp) (tagged-list? exp \&apos;begin))
+
+		(define (begin-actions exp) (cdr exp))
+
+		(define (last-exp? seq) (null? (cdr seq)))
+		(define (first-exp seq) (car seq))
+		(define (rest-exps seq) (cdr seq))
+	      </SCHEME>
+	    </SNIPPET>
+
+	    We also include a constructor 
+	    <SCHEMEINLINE>sequence-&gt;exp</SCHEMEINLINE> (for use by
+	    <SCHEMEINLINE>cond-&gt;if</SCHEMEINLINE>) 
+	    that transforms a sequence into a single expression,
+	    using <SCHEMEINLINE>begin</SCHEMEINLINE> if necessary:
+
+	    <SNIPPET PAGE="372">
+	      <NAME>sequence_exp</NAME>
+	      <SCHEME>
+		(define (sequence->exp seq)
+		(cond ((null? seq) seq)
+		((last-exp? seq) (first-exp seq))
+		(else (make-begin seq))))
+
+		(define (make-begin seq) (cons \&apos;begin seq))
+	      </SCHEME>
+	    </SNIPPET>
+          </LI>
+
+          <LI>
+	    A
+	    procedure application is any compound expression
+	    that is not one of the above expression types. 
+	    The <SCHEMEINLINE>car</SCHEMEINLINE> of the
+	    expression is the operator, and the 
+	    <SCHEMEINLINE>cdr</SCHEMEINLINE> is the list of operands:
+
+	    <SNIPPET PAGE="372">
+	      <NAME>application</NAME>
+	      <SCHEME>
+		(define (application? exp) (pair? exp))
+		(define (operator exp) (car exp))
+		(define (operands exp) (cdr exp))
+
+		(define (no-operands? ops) (null? ops))
+		(define (first-operand ops) (car ops))
+		(define (rest-operands ops) (cdr ops))
+	      </SCHEME>
+	    </SNIPPET>
+          </LI>
+	</UL>
       </TEXT>
-
-      <SPLIT>
-  <SCHEME>
-    <TEXT>
-      Here is the specification of the syntax of our language:
-      <UL>
-        <LI>
-    The only self-evaluating items are numbers and
-    strings:
-    <SNIPPET PAGE="369">
-      <NAME>is_self_evaluating</NAME>
-      <SCHEME>
-        (define (self-evaluating? exp)
-        (cond ((number? exp) true)
-        ((string? exp) true)
-        ((null? exp) true)
-        (else false)))
-      </SCHEME>
-    </SNIPPET>
-        </LI>
-        <LI>
-    Variables are represented by symbols:
-
-    <SNIPPET PAGE="369">
-      <NAME>variable</NAME>
-      <SCHEME>
-        (define (variable? exp) (symbol? exp))
-      </SCHEME>
-    </SNIPPET>
-        </LI>
-
-        <LI>
-    Quotations have the form <SCHEMEINLINE>(quote </SCHEMEINLINE><LATEXINLINE>text-of-quotation</LATEXINLINE><SCHEMEINLINE>)</SCHEMEINLINE>:<FOOTNOTE>As mentioned in
-      section<SPACE/><REF NAME="sec:quotation"/>, the evaluator sees a quoted expression as
-      a list beginning with <SCHEMEINLINE>quote</SCHEMEINLINE>, even if the
-      expression is typed with the quotation mark.  For example, the
-      expression <SCHEMEINLINE>'a</SCHEMEINLINE> would be seen by the evaluator as
-    <SCHEMEINLINE>(quote a)</SCHEMEINLINE>.
-      See exercise<SPACE/><REF NAME="ex:double-quote"/>.</FOOTNOTE>
-
-    <SNIPPET PAGE="369">
-      <NAME>quoted</NAME>
-      <SCHEME>
-        (define (quoted? exp)
-        (tagged-list? exp \&apos;quote))
-
-        (define (text-of-quotation exp) (cadr exp))
-      </SCHEME>
-    </SNIPPET>
-
-    <SCHEMEINLINE>Quoted?</SCHEMEINLINE> is defined in terms of the
-    procedure
-    <SCHEMEINLINE>tagged-list?</SCHEMEINLINE>, 
-    which identifies lists beginning with a designated
-    symbol:
-
-    <SNIPPET PAGE="369">
-      <NAME>tagged_list</NAME>
-      <SCHEME>
-(define (tagged-list? exp tag)
-   (if (pair? exp)
-       (eq? (car exp) tag)
-       false))
-      </SCHEME>
-    </SNIPPET>
-        </LI>
-
-        <LI>
-    Assignments have the form <SCHEMEINLINE>(set!</SCHEMEINLINE> <LATEXINLINE>var value</LATEXINLINE><SCHEMEINLINE>)</SCHEMEINLINE>:
-
-    <SNIPPET PAGE="369">
-      <NAME>assignment</NAME>
-      <SCHEME>
-(define (assignment? exp)
-   (tagged-list? exp \&apos;set!))
-
-(define (assignment-variable exp) (cadr exp))
-
-(define (assignment-value exp) (caddr exp))
-      </SCHEME>
-    </SNIPPET>
-        </LI>
-
-        <LI>
-    Definitions have the form
-
-    <SNIPPET EVAL="no">
-      <SCHEME>
-(define ^var^ ^value^)
-      </SCHEME>
-    </SNIPPET>
-
-    or the form
-
-    <SNIPPET EVAL="no">
-      <SCHEME>
-(define (^var^ ^parameter$_{1}$^ ^$\ldots$^ ^parameter$_{n}$^)
-    ^body^)
-      </SCHEME>
-    </SNIPPET>
-
-    <INDEX>syntactic sugar<SUBINDEX>define@<SCHEMEINLINE>define</SCHEMEINLINE></SUBINDEX></INDEX>
-    <!-- \indsf{define}[syntactic sugar]-->
-    The latter form (standard
-    procedure definition) is syntactic sugar for
-
-    <SNIPPET EVAL="no">
-      <SCHEME>
-(define ^var^
-   (lambda (^parameter$_{1}$^ ^$\ldots$^ ^parameter$_{n}$^)
-      ^body^))
-      </SCHEME>
-    </SNIPPET>
-
-    The corresponding syntax
-    procedures
-    are the following:
-
-    <SNIPPET PAGE="370">
-      <NAME>definition</NAME>
-      <SCHEME>
-(define (definition? exp)
-   (tagged-list? exp \&apos;define))
-
-(define (definition-variable exp)
-   (if (symbol? (cadr exp))
-       (cadr exp)
-       (caadr exp)))
-
-(define (definition-value exp)
-   (if (symbol? (cadr exp))
-       (caddr exp)
-       (make-lambda (cdadr exp)
-                    (cddr exp))))
-      </SCHEME>
-    </SNIPPET>
-        </LI>
-
-        <LI>
-    <SCHEMEINLINE>Lambda</SCHEMEINLINE> expressions are lists that begin with the
-    symbol <SCHEMEINLINE>lambda</SCHEMEINLINE>:
-
-    <SNIPPET PAGE="370">
-      <NAME>lambda</NAME>
-      <SCHEME>
-(define (lambda? exp) (tagged-list? exp \&apos;lambda))
-
-(define (lambda-parameters exp) (cadr exp))
-(define (lambda-body exp) (cddr exp))
-
-(define (make-lambda parameters body)
-   (cons \&apos;lambda (cons parameters body)))
-      </SCHEME>
-    </SNIPPET>
-
-    We also provide a constructor for <SCHEMEINLINE>lambda</SCHEMEINLINE> 
-    expressions,
-    which is used by <SCHEMEINLINE>definition-value</SCHEMEINLINE>, above:
-    <SNIPPET>
-      <SCHEME>
-<!--  \indcode*{make-lambda} -->
-(define (make-lambda parameters body)
-   (cons 'lambda (cons parameters body)))
-      </SCHEME>
-    </SNIPPET>
-
-        </LI>
-
-        <LI>
-    Conditionals begin with <SCHEMEINLINE>if</SCHEMEINLINE> and have a predicate, a
-    consequent, and an (optional) alternative.  If the expression has no
-    alternative part, we provide <SCHEMEINLINE>false</SCHEMEINLINE> as the alternative.<FOOTNOTE>The value of an <SCHEMEINLINE>if</SCHEMEINLINE> expression when the predicate
-      is false and there is no alternative
-      is unspecified in Scheme; we have chosen here to make it false.
-      We will support the use of the variables <SCHEMEINLINE>true</SCHEMEINLINE> and <SCHEMEINLINE>false</SCHEMEINLINE>
-      in expressions to be evaluated by binding them in the global
-      environment.  See section<SPACE/><REF NAME="sec:running-eval"/>.
-    </FOOTNOTE>
-
-    <SNIPPET PAGE="371">
-      <NAME>if</NAME>
-      <SCHEME>
-(define (if? exp) (tagged-list? exp \&apos;if))
-
-(define (if-predicate exp) (cadr exp))
-
-(define (if-consequent exp) (caddr exp))
-
-(define (if-alternative exp)
-   (if (not (null? (cdddr exp)))
-       (cadddr exp)
-       \&apos;false))
-
-(define (make-if predicate consequent alternative)
-   (list \&apos;if predicate consequent alternative))
-      </SCHEME>
-    </SNIPPET>
-
-    We also provide a constructor for <SCHEMEINLINE>if</SCHEMEINLINE> expressions,
-    to be used by <SCHEMEINLINE>cond-&gt;if</SCHEMEINLINE> to transform <SCHEMEINLINE>cond</SCHEMEINLINE> expressions
-    into <SCHEMEINLINE>if</SCHEMEINLINE> expressions:
-    <SNIPPET>
-      <SCHEME>
-<!--  \indcode*{make-if} -->
-(define (make-if predicate consequent alternative)
-   (list 'if predicate consequent alternative))
-      </SCHEME>
-    </SNIPPET>
-        </LI>
-
-        <LI>
-    <SCHEMEINLINE>Begin</SCHEMEINLINE> packages a sequence of expressions into a single
-    expression.  We include syntax operations on <SCHEMEINLINE>begin</SCHEMEINLINE> expressions
-    to extract the actual sequence from the <SCHEMEINLINE>begin</SCHEMEINLINE> expression, as
-    well as selectors that return the first expression and the rest of the
-    expressions in the sequence.<FOOTNOTE>These selectors for a list of expressions<EMDASH/>and the
-      corresponding ones for a list of operands<EMDASH/>are not intended as a data
-      abstraction.  They are introduced as mnemonic names for the basic list
-      operations in order to make it easier to understand the explicit-control
-      evaluator in section<SPACE/><REF NAME="sec:eceval"/>.<LABEL NAME="foot:mceval-abstraction"/></FOOTNOTE>
-
-
-    <SNIPPET PAGE="371">
-      <NAME>begin</NAME>
-      <SCHEME>
-(define (begin? exp) (tagged-list? exp \&apos;begin))
-
-(define (begin-actions exp) (cdr exp))
-
-(define (last-exp? seq) (null? (cdr seq)))
-(define (first-exp seq) (car seq))
-(define (rest-exps seq) (cdr seq))
-      </SCHEME>
-    </SNIPPET>
-
-    We also include a constructor 
-    <SCHEMEINLINE>sequence-&gt;exp</SCHEMEINLINE> (for use by
-    <SCHEMEINLINE>cond-&gt;if</SCHEMEINLINE>) 
-    that transforms a sequence into a single expression,
-    using <SCHEMEINLINE>begin</SCHEMEINLINE> if necessary:
-
-    <SNIPPET PAGE="372">
-      <NAME>sequence_exp</NAME>
-      <SCHEME>
-(define (sequence->exp seq)
-   (cond ((null? seq) seq)
-         ((last-exp? seq) (first-exp seq))
-         (else (make-begin seq))))
-
-(define (make-begin seq) (cons \&apos;begin seq))
-      </SCHEME>
-    </SNIPPET>
-        </LI>
-
-        <LI>
-    A
-    procedure application is any compound expression
-    that is not one of the above expression types. 
-    The <SPLITINLINE><SCHEME><SCHEMEINLINE>car</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>head</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> of the
-    expression is the operator, and the 
-    <SPLITINLINE><SCHEME><SCHEMEINLINE>cdr</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>tail</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> is the list of operands:
-
-    <SNIPPET PAGE="372">
-      <NAME>application</NAME>
-      <SCHEME>
-(define (application? exp) (pair? exp))
-(define (operator exp) (car exp))
-(define (operands exp) (cdr exp))
-
-(define (no-operands? ops) (null? ops))
-(define (first-operand ops) (car ops))
-(define (rest-operands ops) (cdr ops))
-      </SCHEME>
-    </SNIPPET>
-        </LI>
-      </UL>
-    </TEXT>
-  </SCHEME>
-  <JAVASCRIPT>
-    <TEXT>
-      Here is the specification of the syntax of our language:
-      <UL>
-        <LI>
-	  The self-evaluating items are numbers, strings and boolean values.
-
-  <SNIPPET PAGE="365" HIDE="yes" EVAL="no">
-    <NAME>headline_4_1_2</NAME>
+    </SCHEME>
     <JAVASCRIPT>
+      <TEXT>
+	Here is the specification of the syntax of our language:
+	<UL>
+          <LI>
+	    The self-evaluating items are numbers, strings and boolean values.
+
+	    <SNIPPET PAGE="365" HIDE="yes" EVAL="no">
+	      <NAME>headline_4_1_2</NAME>
+	      <JAVASCRIPT>
 // functions from chapter 4, section 1.2
 
-    </JAVASCRIPT>
-  </SNIPPET>
-	  
-    <SNIPPET PAGE="369"  EVAL="no">
-      <NAME>is_self_evaluating</NAME>
-      <JAVASCRIPT>
+	      </JAVASCRIPT>
+	    </SNIPPET>
+
+	    <SNIPPET PAGE="369">
+	      <NAME>is_self_evaluating</NAME>
+	      <EXAMPLE>is_self_evaluating_example</EXAMPLE>
+	      <JAVASCRIPT>
 function is_self_evaluating(stmt) {
     return is_number(stmt) ||
            is_string(stmt) || 
            is_boolean(stmt);
 }
-      </JAVASCRIPT>
-    </SNIPPET>
-        </LI>
-        <LI>
-    The function <JAVASCRIPTINLINE>is_name</JAVASCRIPTINLINE> tests
-    whether the given statement is a name
-    expression, and the function
-    <JAVASCRIPTINLINE>name_of_name</JAVASCRIPTINLINE> accesses
-    the JavaScript string that represents the name.
-    <SNIPPET PAGE="369"  EVAL="no">
-      <NAME>variable</NAME>
-      <REQUIRES>tagged_list</REQUIRES>
-      <JAVASCRIPT>
+	      </JAVASCRIPT>
+	    </SNIPPET>
+
+	    <SNIPPET HIDE="yes">
+	      <NAME>is_self_evaluating_example</NAME>
+	      <JAVASCRIPT>
+const my_program = parse("true; 1;");
+const my_true_statement = list_ref(my_program, 0);
+display(is_self_evaluating(my_true_statement));
+	      </JAVASCRIPT>
+	    </SNIPPET>
+	    
+          </LI>
+          <LI>
+	    The function <JAVASCRIPTINLINE>is_name</JAVASCRIPTINLINE> tests
+	    whether the given statement is a name
+	    expression, and the function
+	    <JAVASCRIPTINLINE>name_of_name</JAVASCRIPTINLINE> accesses
+	    the JavaScript string that represents the name.
+	    <SNIPPET PAGE="369">
+	      <NAME>variable</NAME>
+	      <EXAMPLE>variable_example</EXAMPLE>
+	      <REQUIRES>tagged_list</REQUIRES>
+	      <JAVASCRIPT>
 function is_name(stmt) {
-    return is_tagged_object(stmt,"name");
+    return is_tagged_list(stmt, "name");
 }
 function name_of_name(stmt) {
-    return stmt.name;
+    return head(tail(stmt));
 }
-      </JAVASCRIPT>
-    </SNIPPET>
-    The function <JAVASCRIPTINLINE>is_name</JAVASCRIPTINLINE> 
-    is defined in terms of the function
-    <JAVASCRIPTINLINE>is_tagged_object</JAVASCRIPTINLINE>,
-    which identifies objects that have a designated string
-    under the property <JAVASCRIPTINLINE>tag</JAVASCRIPTINLINE>:
-    <SNIPPET PAGE="369"  EVAL="no">
-      <NAME>tagged_list</NAME>
-      <JAVASCRIPT>
-function is_tagged_object(stmt, the_tag) {
-    return is_object(stmt) &amp;&amp; stmt.tag === the_tag;
+	      </JAVASCRIPT>
+	    </SNIPPET>
+
+	    <SNIPPET HIDE="yes">
+	      <NAME>variable_example</NAME>
+	      <JAVASCRIPT>
+const my_name_statement = parse("x;");
+display(is_name(my_name_statement));
+display(name_of_name(my_name_statement));
+	      </JAVASCRIPT>
+	    </SNIPPET>
+
+	    
+	    The function <JAVASCRIPTINLINE>is_name</JAVASCRIPTINLINE> 
+	    is defined in terms of the function
+	    <JAVASCRIPTINLINE>is_tagged_list</JAVASCRIPTINLINE>,
+	    which identifies lists beginning with a designated string that
+	    we call <EM>tag</EM>:
+	    <SNIPPET PAGE="369">
+	      <NAME>tagged_list</NAME>
+	      <EXAMPLE>tagged_list_example</EXAMPLE>
+	      <JAVASCRIPT>
+function is_tagged_list(stmt, the_tag) {
+    return is_pair(stmt) &amp;&amp; head(stmt) === the_tag;
 }
-      </JAVASCRIPT>
-    </SNIPPET>
-                Thus, a tagged object tagged as 
-    <JAVASCRIPTINLINE>name</JAVASCRIPTINLINE> 
-    looks like this: 
-    <SNIPPET EVAL="no">
-      <JAVASCRIPT>
-{ tag: "name", ... }
-      </JAVASCRIPT>
-    </SNIPPET>
-        </LI>
+	      </JAVASCRIPT>
+	    </SNIPPET>
+	    <SNIPPET HIDE="yes">
+	      <NAME>tagged_list_example</NAME>
+	      <JAVASCRIPT>
+is_tagged_list(list("name", "x"), "name");
+	      </JAVASCRIPT>
+	    </SNIPPET>
+          </LI>
 
-        <LI>
-    Assignments have the form <LATEXINLINE>$\textit{name}$</LATEXINLINE> <JAVASCRIPTINLINE>=</JAVASCRIPTINLINE> <LATEXINLINE>$\textit{value}$</LATEXINLINE>:
+          <LI>
+	    Assignments have the form <LATEXINLINE>$\textit{name}$</LATEXINLINE> <JAVASCRIPTINLINE>=</JAVASCRIPTINLINE> <LATEXINLINE>$\textit{value}$</LATEXINLINE>:
 
-    <SNIPPET PAGE="369"  EVAL="no">
-      <NAME>assignment</NAME>
-      <REQUIRES>tagged_list</REQUIRES>
-      <JAVASCRIPT>
+	    <SNIPPET PAGE="369">
+	      <NAME>assignment</NAME>
+	      <REQUIRES>tagged_list</REQUIRES>
+	      <EXAMPLE>assignment_example</EXAMPLE>
+	      <JAVASCRIPT>
 function is_assignment(stmt) {
-   return is_tagged_object(stmt,"assignment");
+   return is_tagged_list(stmt, "assignment");
 }
 function assignment_name(stmt) {
-   return stmt.name.name;
+   return head(tail(head(tail(stmt))));
 }
 function assignment_value(stmt) {
-   return stmt.value;
+   return head(tail(tail(stmt)));
 }
-      </JAVASCRIPT>
-    </SNIPPET>
-        </LI>
+	      </JAVASCRIPT>
+	    </SNIPPET>
 
-        <LI>
-    Declarations have the form
-    <SNIPPET EVAL="no" LATEX="yes">
-      <JAVASCRIPT>
+	    <SNIPPET HIDE="yes">
+	      <NAME>assignment_example</NAME>
+	      <JAVASCRIPT>
+const my_assignment_statement = parse("x = 1;");
+display(assignment_name(my_assignment_statement));
+display(assignment_value(my_assignment_statement));
+	      </JAVASCRIPT>
+	    </SNIPPET>
+	    
+          </LI>
+
+          <LI>
+	    Declarations have the form
+	    <SNIPPET EVAL="no" LATEX="yes">
+	      <JAVASCRIPT>
 const $\textit{name}$ = $\textit{value}$;
-      </JAVASCRIPT>
-    </SNIPPET>
-    or
-    <SNIPPET EVAL="no" LATEX="yes">
-      <JAVASCRIPT>
+	      </JAVASCRIPT>
+	    </SNIPPET>
+	    or
+	    <SNIPPET EVAL="no" LATEX="yes">
+	      <JAVASCRIPT>
 let $\textit{name}$ = $\textit{value}$;
-      </JAVASCRIPT>
-    </SNIPPET>
-    or
-    <SNIPPET EVAL="no" LATEX="yes">
-      <JAVASCRIPT>
+	      </JAVASCRIPT>
+	    </SNIPPET>
+	    or
+	    <SNIPPET EVAL="no" LATEX="yes">
+	      <JAVASCRIPT>
 function $\textit{name}$($\textit{parameter}_{1}$, $\ldots$, $\textit{parameter}_{n}$) {
     $\textit{body}$
 }
-      </JAVASCRIPT>
-    </SNIPPET>
+	      </JAVASCRIPT>
+	    </SNIPPET>
 
-    <INDEX>syntactic sugar<SUBINDEX>define@<SCHEMEINLINE>define</SCHEMEINLINE></SUBINDEX></INDEX>
-    <!-- \indsf{define}[syntactic sugar]-->
-    Here, we treat the latter form (function
-    declarations) as syntactic sugar<FOOTNOTE>In actual
-    JavaScript, there is a subtle difference between the two
-    forms. The interpretation of function declaration statements
-    involves reordering of sequence statements, a topic which 
-    we prefer to skip at this point.
-        </FOOTNOTE>
-    for
-    <SNIPPET EVAL="no" LATEX="yes">
-      <JAVASCRIPT>
+	    <INDEX>syntactic sugar<SUBINDEX>define@<SCHEMEINLINE>define</SCHEMEINLINE></SUBINDEX>
+	    </INDEX>
+	    <!-- \indsf{define}[syntactic sugar]-->
+	    Here, we treat the latter form (function
+	    declarations) as syntactic sugar<FOOTNOTE>In actual
+	    JavaScript, there is a subtle difference between the two
+	    forms. The interpretation of function declaration statements
+	    involves reordering of sequence statements, a topic which 
+	    we prefer to skip at this point.
+            </FOOTNOTE>
+	    for
+	    <SNIPPET EVAL="no" LATEX="yes">
+	      <JAVASCRIPT>
 const $\textit{name}$ = ($\textit{parameter}_{1}$, $\ldots$, $\textit{parameter}_{n}$) =&gt; { $\textit{body}$; };
-      </JAVASCRIPT>
-    </SNIPPET>
+	      </JAVASCRIPT>
+	    </SNIPPET>
 
-    The corresponding syntax functions are the following:
+	    The corresponding syntax functions are the following:
 
-    <SNIPPET PAGE="370"  EVAL="no">
-      <NAME>definition</NAME>
-      <REQUIRES>tagged_list</REQUIRES>
-      <JAVASCRIPT>
+	    <SNIPPET PAGE="370">
+	      <NAME>definition</NAME>
+	      <REQUIRES>tagged_list</REQUIRES>
+	      <EXAMPLE>definition_example</EXAMPLE>
+	      <JAVASCRIPT>
 function is_constant_declaration(stmt) {
-   return is_tagged_object(stmt,"constant_declaration");
+   return is_tagged_list(stmt, "constant_declaration");
 }
 function constant_declaration_name(stmt) {
-   return stmt.name;
+   return head(tail(head(tail(stmt))));
 }
 function constant_declaration_value(stmt) {
-   return stmt.value;
+   return head(tail(tail(stmt)));
 }
 function is_variable_declaration(stmt) {
-   return is_tagged_object(stmt,"variable_declaration");
+   return is_tagged_list(stmt, "variable_declaration");
 }
 function variable_declaration_name(stmt) {
-   return stmt.name;
+   return head(tail(head(tail(stmt))));
 }
 function variable_declaration_value(stmt) {
-   return stmt.value;
+   return head(tail(tail(stmt)));
 }
-      </JAVASCRIPT>
-    </SNIPPET>
-        </LI>
+	      </JAVASCRIPT>
+	    </SNIPPET>
 
-        <LI>
-    Function definitions are objects tagged with the
-    string <JAVASCRIPTINLINE>function_definition</JAVASCRIPTINLINE>:
+	    <SNIPPET HIDE="yes">
+	      <NAME>definition_example</NAME>
+	      <JAVASCRIPT>
+const my_declaration_statement = parse("let x = 1;");
+display(is_variable_declaration(my_declaration_statement));
+display(variable_declaration_name(my_declaration_statement));
+display(variable_declaration_value(my_declaration_statement));
+	      </JAVASCRIPT>
+	    </SNIPPET>
+	    
+          </LI>
 
-    <SNIPPET PAGE="370"  EVAL="no">
-      <NAME>lambda</NAME>
-      <REQUIRES>tagged_list</REQUIRES>
-      <JAVASCRIPT>
+          <LI>
+	    Function definitions are objects tagged with the
+	    string <JAVASCRIPTINLINE>function_definition</JAVASCRIPTINLINE>:
+
+	    <SNIPPET PAGE="370">
+	      <NAME>lambda</NAME>
+	      <REQUIRES>tagged_list</REQUIRES>
+	      <EXAMPLE>lambda_example</EXAMPLE>
+	      <JAVASCRIPT>
 function is_function_definition(stmt) {
-   return is_tagged_object(stmt,"function_definition");
+   return is_tagged_list(stmt, "function_definition");
 }
 function function_definition_parameters(stmt) {
-   return stmt.parameters;
+   return head(tail(stmt));
 }
 function function_definition_body(stmt) {
-   return stmt.body;
+   return head(tail(tail(stmt)));
 }
-      </JAVASCRIPT>
-    </SNIPPET>
-        </LI>
+	      </JAVASCRIPT>
+	    </SNIPPET>
 
-    <LI>
-      <JAVASCRIPTINLINE>return</JAVASCRIPTINLINE> statements are objects
-      tagged with the string 
-      <JAVASCRIPTINLINE>"return_statement"</JAVASCRIPTINLINE>:
-    <SNIPPET PAGE="366"  EVAL="no">
-      <NAME>return_statement</NAME>
-      <REQUIRES>tagged_list</REQUIRES>
-      <JAVASCRIPT>
+	    <SNIPPET PAGE="370" HIDE="yes">
+	      <NAME>lambda_example</NAME>
+	      <JAVASCRIPT>
+const my_function_definition = parse("x => x;");
+display(is_function_definition(my_function_definition));
+display(function_definition_parameters(my_function_definition));
+display(function_definition_body(my_function_definition));
+	      </JAVASCRIPT>
+	    </SNIPPET>
+	    
+          </LI>
+
+	  <LI>
+	    <JAVASCRIPTINLINE>return</JAVASCRIPTINLINE> statements are objects
+	    tagged with the string 
+	    <JAVASCRIPTINLINE>"return_statement"</JAVASCRIPTINLINE>:
+	    <SNIPPET PAGE="366">
+	      <NAME>return_statement</NAME>
+	      <REQUIRES>tagged_list</REQUIRES>
+	      <EXAMPLE>return_statement_example</EXAMPLE>
+	      <JAVASCRIPT>
 function is_return_statement(stmt) {
-   return is_tagged_object(stmt,"return_statement");
+   return is_tagged_list(stmt, "return_statement");
 }
 function return_statement_expression(stmt) {
-   return stmt.expression;
+   return head(tail(stmt));
 }
-      </JAVASCRIPT>
-    </SNIPPET>
-        </LI>
+	      </JAVASCRIPT>
+	    </SNIPPET>
 
-        <LI>
-    Conditional statements are tagged with 
-    <JAVASCRIPTINLINE>"conditional_statement"</JAVASCRIPTINLINE> and have a predicate, a
-    consequent, and an alternative. 
+	    <SNIPPET PAGE="366" HIDE="yes">
+	      <NAME>return_statement_example</NAME>
+	      <JAVASCRIPT>
+const my_function_declaration = parse("function f(x) { return x; }");
+const my_function_definition = list_ref(my_function_declaration, 2);
+const my_return_statement = list_ref(my_function_definition, 2);
+display(is_return_statement(my_return_statement));
+display(return_statement_expression(my_return_statement));
+	      </JAVASCRIPT>
+	    </SNIPPET>
+	    
+          </LI>
 
-    <SNIPPET PAGE="371"  EVAL="no">
-      <NAME>if</NAME>
-      <JAVASCRIPT>
+          <LI>
+	    Conditional statements are tagged with 
+	    <JAVASCRIPTINLINE>"conditional_statement"</JAVASCRIPTINLINE>
+	    and have a predicate, a consequent, and an alternative. 
+
+	    <SNIPPET PAGE="371">
+	      <NAME>if</NAME>
+	      <REQUIRES>tagged_list</REQUIRES>
+	      <EXAMPLE>if_example</EXAMPLE>
+	      <JAVASCRIPT>
 function is_conditional_statement(stmt) {
-   return is_tagged_object(stmt,"conditional_statement");
+   return is_tagged_list(stmt, "conditional_statement");
 }
 function conditional_statement_predicate(stmt) {
-   return stmt.predicate;
+   return list_ref(stmt, 1);
 }
 function conditional_statement_consequent(stmt) {
-   return stmt.consequent;
+   return list_ref(stmt, 2);
 }
 function conditional_statement_alternative(stmt) {
-   return stmt.alternative;
+   return list_ref(stmt, 3);
 }
-      </JAVASCRIPT>
-    </SNIPPET>
+	      </JAVASCRIPT>
+	    </SNIPPET>
 
-        </LI>
+	    <SNIPPET PAGE="366" HIDE="yes">
+	      <NAME>if_example</NAME>
+	      <JAVASCRIPT>
+const my_conditional_statement = parse("if (true) { 1; } else { 2; }");
+display(is_conditional_statement(my_conditional_statement));
+display(conditional_statement_predicate(my_conditional_statement));
+display(conditional_statement_consequent(my_conditional_statement));
+display(conditional_statement_alternative(my_conditional_statement));
+	      </JAVASCRIPT>
+	    </SNIPPET>
+	    
+          </LI>
 
-        <LI>
-    A sequence is a list of statements.
+          <LI>
+	    A sequence is a list of statements.
 
-    <SNIPPET PAGE="371"  EVAL="no">
-      <NAME>begin</NAME>
-      <JAVASCRIPT>
+	    <SNIPPET PAGE="371">
+	      <NAME>begin</NAME>
+	      <REQUIRES>tagged_list</REQUIRES>
+	      <EXAMPLE>begin_example</EXAMPLE>
+	      <JAVASCRIPT>
 function is_sequence(stmt) {
-   return is_list(stmt);
+   return is_tagged_list(stmt, "sequence");
 }
-function is_empty_sequence(stmts) {
+function sequence_actions(stmt) {   
+   return head(tail(stmt));
+}
+function is_empty_statements(stmts) {
    return is_null(stmts);
 }
 function is_last_statement(stmts) {
@@ -543,48 +638,75 @@ function first_statement(stmts) {
 function rest_statements(stmts) {
    return tail(stmts);
 }
-      </JAVASCRIPT>
-    </SNIPPET>
-        </LI>
+	      </JAVASCRIPT>
+	    </SNIPPET>
 
-        <LI>
-    A block contains its body statement.
+	    <SNIPPET PAGE="366" HIDE="yes">
+	      <NAME>begin_example</NAME>
+	      <JAVASCRIPT>
+const my_sequence = parse("1; true; 45;");
+display(is_sequence(my_sequence));
+const my_actions = sequence_actions(my_sequence);
+display(is_empty_statements(my_actions));
+display(is_last_statement(my_actions));
+display(first_statement(my_actions));
+display(rest_statements(my_actions));
+	      </JAVASCRIPT>
+	    </SNIPPET>
 
-    <SNIPPET PAGE="371"  EVAL="no">
-      <NAME>block</NAME>
-      <JAVASCRIPT>
+          </LI>
+
+          <LI>
+	    A block contains its body statement.
+
+	    <SNIPPET PAGE="371">
+	      <NAME>block</NAME>
+	      <REQUIRES>tagged_list</REQUIRES>
+	      <EXAMPLE>block_example</EXAMPLE>
+	      <JAVASCRIPT>
 function is_block(stmt) {
-    return is_tagged_object(stmt,"block");
+    return is_tagged_list(stmt, "block");
 }
 function block_body(stmt) {
-    return stmt.body;
+    return head(tail(stmt));
 }
-      </JAVASCRIPT>
-    </SNIPPET>
-        </LI>
+	      </JAVASCRIPT>
+	    </SNIPPET>
+
+	    <SNIPPET PAGE="366" HIDE="yes">
+	      <NAME>block_example</NAME>
+	      <JAVASCRIPT>
+const my_block = parse("{ 1; true; 45; }");
+display(is_block(my_block));
+display(block_body(my_block));
+	      </JAVASCRIPT>
+	    </SNIPPET>
+
+          </LI>
 
 
-	
-        <LI>
-    A
-    function application is an object tagged with
-    the string <JAVASCRIPTINLINE>"application"</JAVASCRIPTINLINE>.
-    We provide access functions for the 
-    <JAVASCRIPTINLINE>operator</JAVASCRIPTINLINE>, the
-    <JAVASCRIPTINLINE>operands</JAVASCRIPTINLINE>, and three
-    functions for iterating  through the operand list:
+	  
+          <LI>
+	    A function application is an object tagged with
+	    the string <JAVASCRIPTINLINE>"application"</JAVASCRIPTINLINE>.
+	    We provide access functions for the 
+	    <JAVASCRIPTINLINE>operator</JAVASCRIPTINLINE>, the
+	    <JAVASCRIPTINLINE>operands</JAVASCRIPTINLINE>, and three
+	    functions for iterating  through the operand list:
 
-    <SNIPPET PAGE="372"  EVAL="no">
-      <NAME>application</NAME>
-      <JAVASCRIPT>
+	    <SNIPPET PAGE="372">
+	      <NAME>application</NAME>
+	      <REQUIRES>tagged_list</REQUIRES>
+	      <EXAMPLE>application_example</EXAMPLE>
+	      <JAVASCRIPT>
 function is_application(stmt) {
-   return is_tagged_object(stmt,"application");
+   return is_tagged_list(stmt, "application");
 }
 function operator(stmt) {
-   return stmt.operator;
+   return head(tail(stmt));
 }
 function operands(stmt) {
-   return stmt.operands;
+   return head(tail(tail(stmt)));
 }
 function no_operands(ops) {
    return is_null(ops);
@@ -595,144 +717,156 @@ function first_operand(ops) {
 function rest_operands(ops) {
    return tail(ops);
 }
-      </JAVASCRIPT>
-    </SNIPPET>
-        </LI>
-      </UL>
-    </TEXT>
-  </JAVASCRIPT>
-      </SPLIT>
+	      </JAVASCRIPT>
+	    </SNIPPET>
+
+	    <SNIPPET PAGE="366" HIDE="yes">
+	      <NAME>application_example</NAME>
+	      <JAVASCRIPT>
+const my_application = parse("math_pow(3, 4);");
+display(is_application(my_application));
+display(operator(my_application));
+const my_operands = operands(my_application);
+display(no_operands(my_operands));
+display(first_operand(my_operands));
+display(rest_operands(my_operands));
+	      </JAVASCRIPT>
+	    </SNIPPET>
+	  </LI>
+	</UL>
+      </TEXT>
+    </JAVASCRIPT>
+  </SPLIT>
 
   <SPLIT>
     <SCHEME>
       <SUBHEADING>
-  <NAME>Derived expressions</NAME>
+	<NAME>Derived expressions</NAME>
       </SUBHEADING>
 
       <TEXT>
-  <INDEX>metacircular evaluator for Scheme<SUBINDEX>derived expressions|(</SUBINDEX></INDEX>
-  <INDEX>metacircular evaluator for Scheme<SUBINDEX>special forms as derived expressions|(</SUBINDEX></INDEX>
-  <INDEX>derived expressions in evaluator|(</INDEX>
-  <INDEX>special form<SUBINDEX>derived@as derived expression in evaluator</SUBINDEX></INDEX>
+	<INDEX>metacircular evaluator for Scheme<SUBINDEX>derived expressions|(</SUBINDEX></INDEX>
+	<INDEX>metacircular evaluator for Scheme<SUBINDEX>special forms as derived expressions|(</SUBINDEX></INDEX>
+	<INDEX>derived expressions in evaluator|(</INDEX>
+	<INDEX>special form<SUBINDEX>derived@as derived expression in evaluator</SUBINDEX></INDEX>
 
-  Some special forms in our language can be defined in terms of
-  expressions involving other special forms, rather than being
-  implemented directly.  One example is <SCHEMEINLINE>cond</SCHEMEINLINE>, which can be
-  implemented as a nest of <SCHEMEINLINE>if</SCHEMEINLINE> expressions.  For example,
-  we can reduce the problem of evaluating the expression
+	Some special forms in our language can be defined in terms of
+	expressions involving other special forms, rather than being
+	implemented directly.  One example is <SCHEMEINLINE>cond</SCHEMEINLINE>, which can be
+	implemented as a nest of <SCHEMEINLINE>if</SCHEMEINLINE> expressions.  For example,
+	we can reduce the problem of evaluating the expression
 
-  <SNIPPET>
-    <SCHEME>
-(cond ((&gt; x 0) x)
-   ((= x 0) (display 'zero) 0)
-      (else (- x)))
-    </SCHEME>
-  </SNIPPET>
+	<SNIPPET>
+	  <SCHEME>
+	    (cond ((&gt; x 0) x)
+	    ((= x 0) (display 'zero) 0)
+	    (else (- x)))
+	  </SCHEME>
+	</SNIPPET>
 
-  to the problem of evaluating the following
-  expression involving <SCHEMEINLINE>if</SCHEMEINLINE> and <SCHEMEINLINE>begin</SCHEMEINLINE> expressions:
+	to the problem of evaluating the following
+	expression involving <SCHEMEINLINE>if</SCHEMEINLINE> and <SCHEMEINLINE>begin</SCHEMEINLINE> expressions:
 
-  <SNIPPET>
-    <SCHEME>
-(if (&gt; x 0)
-   x
-   (if (= x 0)
-      (begin (display 'zero)
-             0)
-      (- x)))
-    </SCHEME>
-  </SNIPPET>
-  Implementing the evaluation of <SCHEMEINLINE>cond</SCHEMEINLINE> in this way
-  simplifies the evaluator because it reduces the number of special
-  forms for which the evaluation process must be explicitly specified.
+	<SNIPPET>
+	  <SCHEME>
+	    (if (&gt; x 0)
+	    x
+	    (if (= x 0)
+	    (begin (display 'zero)
+            0)
+	    (- x)))
+	  </SCHEME>
+	</SNIPPET>
+	Implementing the evaluation of <SCHEMEINLINE>cond</SCHEMEINLINE> in this way
+	simplifies the evaluator because it reduces the number of special
+	forms for which the evaluation process must be explicitly specified.
 
-  We include syntax
-procedures
-  that extract the parts of a <SCHEMEINLINE>cond</SCHEMEINLINE>
-  expression, and a
-procedure
-  <SCHEMEINLINE>cond-&gt;if</SCHEMEINLINE> that transforms 
-  <SCHEMEINLINE>cond</SCHEMEINLINE>
-  expressions into <SCHEMEINLINE>if</SCHEMEINLINE> expressions.  
-  A case analysis begins with <SCHEMEINLINE>cond</SCHEMEINLINE> and has 
-  a list of predicate-action clauses.  A clause is an 
-  <SCHEMEINLINE>else</SCHEMEINLINE> clause if its predicate is the symbol 
-  <SCHEMEINLINE>else</SCHEMEINLINE>.<FOOTNOTE>The value of a 
-    <SCHEMEINLINE>cond</SCHEMEINLINE> expression when all the predicates
-    are false and there is no <SCHEMEINLINE>else</SCHEMEINLINE> clause
-    is unspecified in Scheme; we have chosen here to make it false.</FOOTNOTE>
+	We include syntax
+	procedures
+	that extract the parts of a <SCHEMEINLINE>cond</SCHEMEINLINE>
+	expression, and a
+	procedure
+	<SCHEMEINLINE>cond-&gt;if</SCHEMEINLINE> that transforms 
+	<SCHEMEINLINE>cond</SCHEMEINLINE>
+	expressions into <SCHEMEINLINE>if</SCHEMEINLINE> expressions.  
+	A case analysis begins with <SCHEMEINLINE>cond</SCHEMEINLINE> and has 
+	a list of predicate-action clauses.  A clause is an 
+	<SCHEMEINLINE>else</SCHEMEINLINE> clause if its predicate is the symbol 
+	<SCHEMEINLINE>else</SCHEMEINLINE>.<FOOTNOTE>The value of a 
+	<SCHEMEINLINE>cond</SCHEMEINLINE> expression when all the predicates
+	are false and there is no <SCHEMEINLINE>else</SCHEMEINLINE> clause
+	is unspecified in Scheme; we have chosen here to make it false.</FOOTNOTE>
 
-  <SNIPPET PAGE="373">
-    <NAME>cond</NAME>
-    <REQUIRES>sequence_exp</REQUIRES>
-    <SCHEME>
-(define (cond? exp) (tagged-list? exp \&apos;cond))
+	<SNIPPET PAGE="373">
+	  <NAME>cond</NAME>
+	  <REQUIRES>sequence_exp</REQUIRES>
+	  <SCHEME>
+	    (define (cond? exp) (tagged-list? exp \&apos;cond))
 
-(define (cond-clauses exp) (cdr exp))
+	    (define (cond-clauses exp) (cdr exp))
 
-(define (cond-else-clause? clause)
-  (eq? (cond-predicate clause) \&apos;else))
+	    (define (cond-else-clause? clause)
+	    (eq? (cond-predicate clause) \&apos;else))
 
-(define (cond-predicate clause) (car clause))
+	    (define (cond-predicate clause) (car clause))
 
-(define (cond-actions clause) (cdr clause))
+	    (define (cond-actions clause) (cdr clause))
 
-(define (cond->if exp)
-  (expand-clauses (cond-clauses exp)))
+	    (define (cond->if exp)
+	    (expand-clauses (cond-clauses exp)))
 
-(define (expand-clauses clauses)
-  (if (null? clauses)
-      \&apos;false                          ; no else clause
-      (let ((first (car clauses))
+	    (define (expand-clauses clauses)
+	    (if (null? clauses)
+	    \&apos;false                          ; no else clause
+	    (let ((first (car clauses))
             (rest (cdr clauses)))
-        (if (cond-else-clause? first)
+            (if (cond-else-clause? first)
             (if (null? rest)
-                (sequence->exp (cond-actions first))
-                (error "ELSE clause isn\&apos;t last - - COND->IF"
-                       clauses))
+            (sequence->exp (cond-actions first))
+            (error "ELSE clause isn\&apos;t last - - COND->IF"
+            clauses))
             (make-if (cond-predicate first)
-                     (sequence->exp (cond-actions first))
-                     (expand-clauses rest))))))
-    </SCHEME>
-  </SNIPPET>
+            (sequence->exp (cond-actions first))
+            (expand-clauses rest))))))
+	  </SCHEME>
+	</SNIPPET>
       </TEXT>
 
       <TEXT>
-  Expressions (such as <SCHEMEINLINE>cond</SCHEMEINLINE>) that we choose to implement as syntactic
-  transformations are called <EM>derived expressions</EM>.
-  <SCHEMEINLINE>Let</SCHEMEINLINE> expressions are also derived expressions
-  (see exercise<SPACE/><REF NAME="ex:implement-let"/>).<FOOTNOTE>Practical 
-    Lisp systems provide a
-    mechanism that allows a user to add new derived expressions and
-    specify their implementation as syntactic transformations without
-    modifying the evaluator.  Such a user-defined transformation is called a
-    <INDEX>macro</INDEX>
-    <EM>macro</EM>.
-    Although it is easy to add an elementary mechanism for defining macros,
-    the resulting language has subtle name-conflict problems.
-    There has been much research on mechanisms for macro definition
-    that do not cause these difficulties.  See,
-    <INDEX>Kohlbecker, Eugene Edmund, Jr.</INDEX>
-    <INDEX>Clinger, William</INDEX><INDEX>Rees, Jonathan A.</INDEX><INDEX>Hanson, Christopher P.</INDEX>
-    for example, 
-    <CITATION>Kohlbecker 1986</CITATION>, 
-    <CITATION>Clinger and Rees 1991</CITATION>, and 
-    <CITATION>Hanson 1991</CITATION>.<LABEL NAME="foot:macros"/></FOOTNOTE>
-  <INDEX>metacircular evaluator for Scheme<SUBINDEX>expression representation|)</SUBINDEX></INDEX>
-  <INDEX>metacircular evaluator for Scheme<SUBINDEX>syntax of evaluated language|)</SUBINDEX></INDEX>
-  <INDEX>metacircular evaluator for Scheme<SUBINDEX>derived expressions|)</SUBINDEX></INDEX>
-  <INDEX>metacircular evaluator for Scheme<SUBINDEX>special forms as derived expressions|)</SUBINDEX></INDEX>
-  <INDEX>derived expressions in evaluator|)</INDEX>
+	Expressions (such as <SCHEMEINLINE>cond</SCHEMEINLINE>) that we choose to implement as syntactic
+	transformations are called <EM>derived expressions</EM>.
+	<SCHEMEINLINE>Let</SCHEMEINLINE> expressions are also derived expressions
+	(see exercise<SPACE/><REF NAME="ex:implement-let"/>).<FOOTNOTE>Practical 
+	Lisp systems provide a
+	mechanism that allows a user to add new derived expressions and
+	specify their implementation as syntactic transformations without
+	modifying the evaluator.  Such a user-defined transformation is called a
+	<INDEX>macro</INDEX>
+	<EM>macro</EM>.
+	Although it is easy to add an elementary mechanism for defining macros,
+	the resulting language has subtle name-conflict problems.
+	There has been much research on mechanisms for macro definition
+	that do not cause these difficulties.  See,
+	<INDEX>Kohlbecker, Eugene Edmund, Jr.</INDEX>
+	<INDEX>Clinger, William</INDEX><INDEX>Rees, Jonathan A.</INDEX><INDEX>Hanson, Christopher P.</INDEX>
+	for example, 
+	<CITATION>Kohlbecker 1986</CITATION>, 
+	<CITATION>Clinger and Rees 1991</CITATION>, and 
+	<CITATION>Hanson 1991</CITATION>.<LABEL NAME="foot:macros"/></FOOTNOTE>
+	<INDEX>metacircular evaluator for Scheme<SUBINDEX>expression representation|)</SUBINDEX></INDEX>
+	<INDEX>metacircular evaluator for Scheme<SUBINDEX>syntax of evaluated language|)</SUBINDEX></INDEX>
+	<INDEX>metacircular evaluator for Scheme<SUBINDEX>derived expressions|)</SUBINDEX></INDEX>
+	<INDEX>metacircular evaluator for Scheme<SUBINDEX>special forms as derived expressions|)</SUBINDEX></INDEX>
+	<INDEX>derived expressions in evaluator|)</INDEX>
       </TEXT>
     </SCHEME>
-  <JAVASCRIPT>
-    <CHANGE><OMISSION>No derived statements so far; a good candidate would be
-  switch statements.
-      </OMISSION>
-    </CHANGE>
-  </JAVASCRIPT>
+    <JAVASCRIPT>
+      <CHANGE><OMISSION>No derived statements so far; a good candidate would be
+      switch statements.
+    </OMISSION>
+      </CHANGE>
+    </JAVASCRIPT>
   </SPLIT>
-
 
   <SNIPPET PAGE="383" HIDE="yes">
     <NAME>functions_4_1_2</NAME>
@@ -751,358 +885,360 @@ procedure
     <JAVASCRIPT>
     </JAVASCRIPT>
   </SNIPPET>
-
   
-      <SPLIT>
-  <SCHEME>
-      <EXERCISE>
-  <LABEL NAME="ex:application-predicate"/>
-  <INDEX>metacircular evaluator for Scheme<SUBINDEX>combinations (<SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
-      applications)</SUBINDEX></INDEX>
-  Louis Reasoner plans to reorder the <SCHEMEINLINE>cond</SCHEMEINLINE> clauses
-  in <SCHEMEINLINE>eval</SCHEMEINLINE> so that the clause for
-  procedure
-  applications appears
-  before the clause for assignments.  He argues that this will make the
-  interpreter more efficient:  Since programs usually contain more
-  applications than assignments, definitions, and so on,
-  his modified <SCHEMEINLINE>eval</SCHEMEINLINE> will usually check fewer
-  clauses than the original <SCHEMEINLINE>eval</SCHEMEINLINE> before identifying the type of an
-  expression.
-  <OL>
-    <LI>
-      What is wrong with Louis<APOS/>s plan?  (Hint: What will
-      Louis<APOS/>s evaluator do with the expression 
-      <SCHEMEINLINE>(define x 3)</SCHEMEINLINE>?)
-    </LI>
-    <LI>
-      <INDEX>metacircular evaluator for Scheme<SUBINDEX>syntax of evaluated language</SUBINDEX></INDEX>
-      Louis is upset that his plan didn<APOS/>t work.
-      He is willing to go to any lengths to make his evaluator
-      recognize
-      procedure
-      applications before it checks for most other
-      kinds of expressions.
-      Help him by changing the syntax of the evaluated language so that
-      procedure
-      applications start with <SCHEMEINLINE>call</SCHEMEINLINE>.  
-      For example, instead of
-      <SCHEMEINLINE>(factorial 3)</SCHEMEINLINE>
-      we will now have to write 
-      <SCHEMEINLINE>(call factorial 3)</SCHEMEINLINE>
-      and instead of 
-      <SCHEMEINLINE>(+ 1 2)</SCHEMEINLINE>
-      we will have to write 
-      <SCHEMEINLINE>(call + 1 2)</SCHEMEINLINE>.
-    </LI>
-  </OL>
-      </EXERCISE>
-  </SCHEME>
-      </SPLIT>
-
-      <EXERCISE>
-  <INDEX>data-directed programming<SUBINDEX>in metacircular evaluator</SUBINDEX></INDEX>
-  <INDEX>metacircular evaluator for Scheme<SUBINDEX>data-directed <SCHEMEINLINE>eval</SCHEMEINLINE></SUBINDEX></INDEX>
-  <!-- \indcodeplus*{eval}{(metacircular)}[data-directed]-->
-  Rewrite
-  <SPLITINLINE><SCHEME><SCHEMEINLINE>eval</SCHEMEINLINE></SCHEME>
-  <JAVASCRIPT><JAVASCRIPTINLINE>evaluate</JAVASCRIPTINLINE></JAVASCRIPT>
-  </SPLITINLINE>
-  so that the dispatch is done in data-directed
-  style.  Compare this with the data-directed
-  differentiation
-  <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
-  of
-  exercise<SPACE/><REF NAME="ex:data-directed-differentiation"/>.
-  (You may use the <SPLITINLINE><SCHEME><SCHEMEINLINE>car</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>head</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> of a compound expression as the
-  type of the expression, as is appropriate for the syntax implemented
-  in this section.)
-  <LABEL NAME="ex:data-directed-eval"/>
-      </EXERCISE>
-
-      <EXERCISE> 
-  <INDEX>metacircular evaluator for Scheme<SUBINDEX>special forms (additional)</SUBINDEX></INDEX>
-  <!--  \indsf*{and}[with no subexpressions]\indsf*{or}[with no subexpressions] -->
-  Recall the definitions of the special forms
-  <SPLITINLINE><SCHEME><SCHEMEINLINE>and</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>&amp;&amp;</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>
-  and
-  <SPLITINLINE><SCHEME><SCHEMEINLINE>or</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>||</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>
-  from chapter<SPACE/>1:
   <SPLIT>
     <SCHEME>
-  <UL>
-    <LI><SCHEMEINLINE>and</SCHEMEINLINE>: The expressions are evaluated from
-      left to right.  If any expression evaluates to
-      false, false is returned; any remaining expressions are not
-      evaluated.  If all the expressions evaluate to true values, the value
-      of the last expression is returned.  If there are no expressions then
-      true is returned.
-    </LI>
-    <LI>
-      <SCHEMEINLINE>or</SCHEMEINLINE>: 
-      The expressions are evaluated from left to right.  If any
-      expression evaluates to a true value, that value is
-      returned; any remaining expressions are not evaluated.  If all
-      expressions evaluate to false, or if there are no expressions,
-      then false is returned.
-    </LI>
-  </UL>
-  Install 
-  <SPLITINLINE>
-    <SCHEME><SCHEMEINLINE>and</SCHEMEINLINE></SCHEME>
-    <JAVASCRIPT><JAVASCRIPTINLINE>&amp;&amp;</JAVASCRIPTINLINE></JAVASCRIPT>
-  </SPLITINLINE>
-  and 
-  <SPLITINLINE>
-    <SCHEME><SCHEMEINLINE>or</SCHEMEINLINE></SCHEME>
-    <JAVASCRIPT><JAVASCRIPTINLINE>||</JAVASCRIPTINLINE></JAVASCRIPT>
-  </SPLITINLINE>
-  as new special forms for the evaluator
-  by defining appropriate syntax
-  <SPLITINLINE><SCHEME>procedures</SCHEME><JAVASCRIPT>functions</JAVASCRIPT></SPLITINLINE>
-  and evaluation
-  <SPLITINLINE><SCHEME>procedures</SCHEME><JAVASCRIPT>functions</JAVASCRIPT></SPLITINLINE>
-  <SPLITINLINE>
-    <SCHEME><SCHEMEINLINE>eval-and</SCHEMEINLINE></SCHEME>
-    <JAVASCRIPT><JAVASCRIPTINLINE>eval_and</JAVASCRIPTINLINE></JAVASCRIPT>
-  </SPLITINLINE>
-  and 
-  <SPLITINLINE>
-    <SCHEME><SCHEMEINLINE>eval-or</SCHEMEINLINE></SCHEME>
-    <JAVASCRIPT><JAVASCRIPTINLINE>eval_or</JAVASCRIPTINLINE></JAVASCRIPT>
-  </SPLITINLINE>
-  Alternatively, show how
-  to implement 
-  <SPLITINLINE>
-    <SCHEME><SCHEMEINLINE>and</SCHEMEINLINE></SCHEME>
-    <JAVASCRIPT><JAVASCRIPTINLINE>&amp;&amp;</JAVASCRIPTINLINE></JAVASCRIPT>
-  </SPLITINLINE>
-  and 
-  <SPLITINLINE>
-    <SCHEME><SCHEMEINLINE>or</SCHEMEINLINE></SCHEME>
-    <JAVASCRIPT><JAVASCRIPTINLINE>||</JAVASCRIPTINLINE></JAVASCRIPT>
-  </SPLITINLINE>
-  as derived expressions.
-  <LABEL NAME="ex:eval-and-or"/>
+      <EXERCISE>
+	<LABEL NAME="ex:application-predicate"/>
+	<INDEX>metacircular evaluator for Scheme<SUBINDEX>combinations (<SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+	applications)</SUBINDEX></INDEX>
+	Louis Reasoner plans to reorder the <SCHEMEINLINE>cond</SCHEMEINLINE> clauses
+	in <SCHEMEINLINE>eval</SCHEMEINLINE> so that the clause for
+	procedure
+	applications appears
+	before the clause for assignments.  He argues that this will make the
+	interpreter more efficient:  Since programs usually contain more
+	applications than assignments, definitions, and so on,
+	his modified <SCHEMEINLINE>eval</SCHEMEINLINE> will usually check fewer
+	clauses than the original <SCHEMEINLINE>eval</SCHEMEINLINE> before identifying the type of an
+	expression.
+	<OL>
+	  <LI>
+	    What is wrong with Louis<APOS/>s plan?  (Hint: What will
+	    Louis<APOS/>s evaluator do with the expression 
+	    <SCHEMEINLINE>(define x 3)</SCHEMEINLINE>?)
+	  </LI>
+	  <LI>
+	    <INDEX>metacircular evaluator for Scheme<SUBINDEX>syntax of evaluated language</SUBINDEX></INDEX>
+	    Louis is upset that his plan didn<APOS/>t work.
+	    He is willing to go to any lengths to make his evaluator
+	    recognize
+	    procedure
+	    applications before it checks for most other
+	    kinds of expressions.
+	    Help him by changing the syntax of the evaluated language so that
+	    procedure
+	    applications start with <SCHEMEINLINE>call</SCHEMEINLINE>.  
+	    For example, instead of
+	    <SCHEMEINLINE>(factorial 3)</SCHEMEINLINE>
+	    we will now have to write 
+	    <SCHEMEINLINE>(call factorial 3)</SCHEMEINLINE>
+	    and instead of 
+	    <SCHEMEINLINE>(+ 1 2)</SCHEMEINLINE>
+	    we will have to write 
+	    <SCHEMEINLINE>(call + 1 2)</SCHEMEINLINE>.
+	  </LI>
+	</OL>
+      </EXERCISE>
+    </SCHEME>
+  </SPLIT>
+
+  <EXERCISE>
+    <INDEX>data-directed programming<SUBINDEX>in metacircular evaluator</SUBINDEX></INDEX>
+    <INDEX>metacircular evaluator for Scheme
+    <SUBINDEX>data-directed <SCHEMEINLINE>eval</SCHEMEINLINE></SUBINDEX></INDEX>
+    <!-- \indcodeplus*{eval}{(metacircular)}[data-directed]-->
+    Rewrite
+    <SPLITINLINE><SCHEME><SCHEMEINLINE>eval</SCHEMEINLINE></SCHEME>
+    <JAVASCRIPT><JAVASCRIPTINLINE>evaluate</JAVASCRIPTINLINE></JAVASCRIPT>
+    </SPLITINLINE>
+    so that the dispatch is done in data-directed
+    style.  Compare this with the data-directed
+    differentiation
+    <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+    of
+    exercise<SPACE/><REF NAME="ex:data-directed-differentiation"/>.
+    (You may use the <SPLITINLINE><SCHEME><SCHEMEINLINE>car</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>head</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> of a compound expression as the
+    type of the expression, as is appropriate for the syntax implemented
+    in this section.)
+    <LABEL NAME="ex:data-directed-eval"/>
+  </EXERCISE>
+
+  <EXERCISE> 
+    <INDEX>metacircular evaluator for Scheme<SUBINDEX>special forms (additional)</SUBINDEX></INDEX>
+    <!--  \indsf*{and}[with no subexpressions]\indsf*{or}[with no subexpressions] -->
+    Recall the definitions of the special forms
+    <SPLITINLINE><SCHEME><SCHEMEINLINE>and</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>&amp;&amp;</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>
+    and
+    <SPLITINLINE><SCHEME><SCHEMEINLINE>or</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>||</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>
+    from chapter<SPACE/>1:
+    <SPLIT>
+      <SCHEME>
+	<UL>
+	  <LI><SCHEMEINLINE>and</SCHEMEINLINE>: The expressions are evaluated from
+	  left to right.  If any expression evaluates to
+	  false, false is returned; any remaining expressions are not
+	  evaluated.  If all the expressions evaluate to true values, the value
+	  of the last expression is returned.  If there are no expressions then
+	  true is returned.
+	  </LI>
+	  <LI>
+	    <SCHEMEINLINE>or</SCHEMEINLINE>: 
+	    The expressions are evaluated from left to right.  If any
+	    expression evaluates to a true value, that value is
+	    returned; any remaining expressions are not evaluated.  If all
+	    expressions evaluate to false, or if there are no expressions,
+	    then false is returned.
+	  </LI>
+	</UL>
+	Install 
+	<SPLITINLINE>
+	  <SCHEME><SCHEMEINLINE>and</SCHEMEINLINE></SCHEME>
+	  <JAVASCRIPT><JAVASCRIPTINLINE>&amp;&amp;</JAVASCRIPTINLINE></JAVASCRIPT>
+	</SPLITINLINE>
+	and 
+	<SPLITINLINE>
+	  <SCHEME><SCHEMEINLINE>or</SCHEMEINLINE></SCHEME>
+	  <JAVASCRIPT><JAVASCRIPTINLINE>||</JAVASCRIPTINLINE></JAVASCRIPT>
+	</SPLITINLINE>
+	as new special forms for the evaluator
+	by defining appropriate syntax
+	<SPLITINLINE><SCHEME>procedures</SCHEME><JAVASCRIPT>functions</JAVASCRIPT></SPLITINLINE>
+	and evaluation
+	<SPLITINLINE><SCHEME>procedures</SCHEME><JAVASCRIPT>functions</JAVASCRIPT></SPLITINLINE>
+	<SPLITINLINE>
+	  <SCHEME><SCHEMEINLINE>eval-and</SCHEMEINLINE></SCHEME>
+	  <JAVASCRIPT><JAVASCRIPTINLINE>eval_and</JAVASCRIPTINLINE></JAVASCRIPT>
+	</SPLITINLINE>
+	and 
+	<SPLITINLINE>
+	  <SCHEME><SCHEMEINLINE>eval-or</SCHEMEINLINE></SCHEME>
+	  <JAVASCRIPT><JAVASCRIPTINLINE>eval_or</JAVASCRIPTINLINE></JAVASCRIPT>
+	</SPLITINLINE>
+	Alternatively, show how
+	to implement 
+	<SPLITINLINE>
+	  <SCHEME><SCHEMEINLINE>and</SCHEMEINLINE></SCHEME>
+	  <JAVASCRIPT><JAVASCRIPTINLINE>&amp;&amp;</JAVASCRIPTINLINE></JAVASCRIPT>
+	</SPLITINLINE>
+	and 
+	<SPLITINLINE>
+	  <SCHEME><SCHEMEINLINE>or</SCHEMEINLINE></SCHEME>
+	  <JAVASCRIPT><JAVASCRIPTINLINE>||</JAVASCRIPTINLINE></JAVASCRIPT>
+	</SPLITINLINE>
+	as derived expressions.
+	<LABEL NAME="ex:eval-and-or"/>
+      </SCHEME>
+      <JAVASCRIPT>
+	<UL>
+	  <LI><LATEXINLINE>$\textit{expression}_1$</LATEXINLINE> <JAVASCRIPTINLINE>&amp;&amp;</JAVASCRIPTINLINE> <LATEXINLINE>$\textit{expression}_2$</LATEXINLINE>: The expression <LATEXINLINE>$\textit{expression}_1$</LATEXINLINE> is evaluated first. If it evaluates to 
+	  <JAVASCRIPTINLINE>false</JAVASCRIPTINLINE>, <JAVASCRIPTINLINE>false</JAVASCRIPTINLINE>
+	  is returned; the expression <LATEXINLINE>$\textit{expression}_2$</LATEXINLINE>
+	  is not evaluated.  If it evaluates to <JAVASCRIPTINLINE>true</JAVASCRIPTINLINE>, the value
+	  of <LATEXINLINE>$\textit{expression}_2$</LATEXINLINE> is returned.  
+	  </LI>
+	  <LI><LATEXINLINE>$\textit{expression}_1$</LATEXINLINE> <JAVASCRIPTINLINE>||</JAVASCRIPTINLINE> <LATEXINLINE>$\textit{expression}_2$</LATEXINLINE>: The expression <LATEXINLINE>$\textit{expression}_1$</LATEXINLINE> is evaluated first. If it evaluates to <JAVASCRIPTINLINE>true</JAVASCRIPTINLINE>,
+	  <JAVASCRIPTINLINE>true</JAVASCRIPTINLINE> is returned;
+	  the expression <LATEXINLINE>$\textit{expression}_2$</LATEXINLINE>
+	  is not evaluated.  If it evaluates to
+	  <JAVASCRIPTINLINE>false</JAVASCRIPTINLINE>, the value
+	  of <LATEXINLINE>$\textit{expression}_2$</LATEXINLINE> is returned.  
+	  </LI>
+	</UL>
+	Include 
+	<JAVASCRIPTINLINE>&amp;&amp;</JAVASCRIPTINLINE> and <JAVASCRIPTINLINE>||</JAVASCRIPTINLINE>
+	expressions 
+	by defining appropriate syntax
+	functions
+	and evaluation functions
+	<JAVASCRIPTINLINE>eval_and</JAVASCRIPTINLINE>
+	and 
+	<JAVASCRIPTINLINE>eval_or</JAVASCRIPTINLINE>
+	<LABEL NAME="ex:eval-and-or"/>
+      </JAVASCRIPT>
+    </SPLIT>
+  </EXERCISE>
+
+  <SPLIT>
+    <SCHEME>
+      <EXERCISE>
+	<!--  \indsf*{cond}[additional clause syntax] -->
+	<INDEX>clause, of a <SCHEMEINLINE>cond</SCHEMEINLINE>[additional syntax]</INDEX>
+	<INDEX>metacircular evaluator for Scheme<SUBINDEX>special forms (additional)</SUBINDEX></INDEX>
+	Scheme allows an additional syntax for 
+	<SCHEMEINLINE>cond</SCHEMEINLINE> clauses, 
+	<SCHEMEINLINE>(</SCHEMEINLINE><LATEXINLINE>test</LATEXINLINE> <SCHEMEINLINE>=&gt;</SCHEMEINLINE> <LATEXINLINE>recipient</LATEXINLINE><SCHEMEINLINE>)</SCHEMEINLINE>
+	If <LATEXINLINE>test</LATEXINLINE>
+	evaluates to a true value, then <LATEXINLINE>recipient</LATEXINLINE> is evaluated.  
+	Its value must be a
+	procedure
+	of one argument; this
+	procedure
+	is then
+	invoked on the value of the <LATEXINLINE>test</LATEXINLINE>, 
+	and the result is returned as
+	the value of the <SCHEMEINLINE>cond</SCHEMEINLINE> expression.  For example
+
+	<SNIPPET>
+	  <SCHEME>
+	    (cond ((assoc 'b '((a 1) (b 2))) =&gt; cadr)
+	    (else false))
+	  </SCHEME>
+	</SNIPPET>
+
+	returns 2.
+	Modify the handling of <SCHEMEINLINE>cond</SCHEMEINLINE> 
+	so that it supports this extended syntax.
+	<LABEL NAME="ex:extended-cond"/>
+      </EXERCISE>
+    </SCHEME>
+  </SPLIT>
+
+  <SPLIT>
+    <SCHEME>
+      <EXERCISE>
+	<INDEX>metacircular evaluator for Scheme<SUBINDEX>special forms (additional)</SUBINDEX></INDEX>
+	<SCHEMEINLINE>Let</SCHEMEINLINE> expressions are derived expressions, because
+
+	<SNIPPET EVAL="no">
+	  <SCHEME>
+	    (let ((^var$_{1}$^ ^exp$_{1}$^) ^$\ldots$^ (^var$_{n}$^ ^exp$_{n}$^))
+	    ^body^)
+	  </SCHEME>
+	</SNIPPET>
+
+	is equivalent to
+
+	<SNIPPET EVAL="no">
+	  <SCHEME>
+	    ((lambda (^var$_{1}$^ ^$\ldots$^ ^var$_{n}$^)
+	    ^body^)
+	    ^exp$_{1}$^
+	    ^$\vdots$^
+	    ^exp$_{n}$^)
+	  </SCHEME>
+	</SNIPPET>
+
+	Implement a syntactic transformation <SCHEMEINLINE>let-&gt;combination</SCHEMEINLINE> that
+	reduces evaluating <SCHEMEINLINE>let</SCHEMEINLINE> expressions to evaluating combinations of
+	the type shown above, and add the appropriate clause to
+	<SCHEMEINLINE>eval</SCHEMEINLINE> to
+	handle <SCHEMEINLINE>let</SCHEMEINLINE> expressions.
+	<LABEL NAME="ex:implement-let"/>
+      </EXERCISE>
     </SCHEME>
     <JAVASCRIPT>
-  <UL>
-    <LI><LATEXINLINE>$\textit{expression}_1$</LATEXINLINE> <JAVASCRIPTINLINE>&amp;&amp;</JAVASCRIPTINLINE> <LATEXINLINE>$\textit{expression}_2$</LATEXINLINE>: The expression <LATEXINLINE>$\textit{expression}_1$</LATEXINLINE> is evaluated first. If it evaluates to 
-    <JAVASCRIPTINLINE>false</JAVASCRIPTINLINE>, <JAVASCRIPTINLINE>false</JAVASCRIPTINLINE>
-    is returned; the expression <LATEXINLINE>$\textit{expression}_2$</LATEXINLINE>
-      is not evaluated.  If it evaluates to <JAVASCRIPTINLINE>true</JAVASCRIPTINLINE>, the value
-      of <LATEXINLINE>$\textit{expression}_2$</LATEXINLINE> is returned.  
-    </LI>
-    <LI><LATEXINLINE>$\textit{expression}_1$</LATEXINLINE> <JAVASCRIPTINLINE>||</JAVASCRIPTINLINE> <LATEXINLINE>$\textit{expression}_2$</LATEXINLINE>: The expression <LATEXINLINE>$\textit{expression}_1$</LATEXINLINE> is evaluated first. If it evaluates to <JAVASCRIPTINLINE>true</JAVASCRIPTINLINE>,
-    <JAVASCRIPTINLINE>true</JAVASCRIPTINLINE> is returned;
-    the expression <LATEXINLINE>$\textit{expression}_2$</LATEXINLINE>
-    is not evaluated.  If it evaluates to
-    <JAVASCRIPTINLINE>false</JAVASCRIPTINLINE>, the value
-      of <LATEXINLINE>$\textit{expression}_2$</LATEXINLINE> is returned.  
-    </LI>
-  </UL>
-  Include 
-    <JAVASCRIPTINLINE>&amp;&amp;</JAVASCRIPTINLINE> and <JAVASCRIPTINLINE>||</JAVASCRIPTINLINE>
-  expressions 
-  by defining appropriate syntax
-  functions
-  and evaluation functions
-    <JAVASCRIPTINLINE>evaluate_and</JAVASCRIPTINLINE>
-  and 
-    <JAVASCRIPTINLINE>evaluate_or</JAVASCRIPTINLINE>
-  <LABEL NAME="ex:eval-and-or"/>
+      <CHANGE><OMISSION>JavaScript has no equivalent let.</OMISSION></CHANGE>
     </JAVASCRIPT>
   </SPLIT>
-      </EXERCISE>
 
-      <SPLIT>
-  <SCHEME>
+  <SPLIT>
+    <SCHEME>
       <EXERCISE>
-  <!--  \indsf*{cond}[additional clause syntax] -->
-  <INDEX>clause, of a <SCHEMEINLINE>cond</SCHEMEINLINE>[additional syntax]</INDEX>
-  <INDEX>metacircular evaluator for Scheme<SUBINDEX>special forms (additional)</SUBINDEX></INDEX>
-  Scheme allows an additional syntax for 
-  <SCHEMEINLINE>cond</SCHEMEINLINE> clauses, 
-  <SCHEMEINLINE>(</SCHEMEINLINE><LATEXINLINE>test</LATEXINLINE> <SCHEMEINLINE>=&gt;</SCHEMEINLINE> <LATEXINLINE>recipient</LATEXINLINE><SCHEMEINLINE>)</SCHEMEINLINE>
-  If <LATEXINLINE>test</LATEXINLINE>
-  evaluates to a true value, then <LATEXINLINE>recipient</LATEXINLINE> is evaluated.  
-  Its value must be a
-  procedure
-  of one argument; this
-  procedure
-  is then
-  invoked on the value of the <LATEXINLINE>test</LATEXINLINE>, 
-  and the result is returned as
-  the value of the <SCHEMEINLINE>cond</SCHEMEINLINE> expression.  For example
+	<!--  \indsf*{let*} 
+	     \ind*{special forms (those marked <EM>ns</EM> are not in the IEEE Scheme standard)}[let*@<SCHEMEINLINE>let*</SCHEMEINLINE>]
+	-->
+	<INDEX>metacircular evaluator for Scheme<SUBINDEX>special forms (additional)</SUBINDEX></INDEX>
+	<SCHEMEINLINE>Let*</SCHEMEINLINE> is similar to <SCHEMEINLINE>let</SCHEMEINLINE>, except that the bindings of the <SCHEMEINLINE>let</SCHEMEINLINE> variables are performed sequentially from left to right, and each
+	binding is made in an environment in which all of the preceding
+	bindings are visible.  For example
+	<SNIPPET>
+	  <SCHEME>
+	    (let* ((x 3)
+	    (y (+ x 2))
+	    (z (+ x y 5)))
+	    (* x z))
+	  </SCHEME>
+	</SNIPPET>
+	returns 39.  Explain how a <SCHEMEINLINE>let*</SCHEMEINLINE> expression can be rewritten as a
+	set of nested <SCHEMEINLINE>let</SCHEMEINLINE> expressions, and write a
+	procedure
+	<SCHEMEINLINE>let*-&gt;nested-lets</SCHEMEINLINE> that performs this transformation. 
+	If we have already implemented <SCHEMEINLINE>let</SCHEMEINLINE> 
+	(exercise<SPACE/><REF NAME="ex:implement-let"/>)
+	and we want to
+	extend the evaluator to handle <SCHEMEINLINE>let*</SCHEMEINLINE>, is it sufficient to add
+	a clause to <SCHEMEINLINE>eval</SCHEMEINLINE> whose action is
+	<SNIPPET>
+	  <SCHEME>
+	    (eval (let*-&gt;nested-lets exp) env)
+	  </SCHEME>
+	</SNIPPET>
 
-  <SNIPPET>
-    <SCHEME>
-(cond ((assoc 'b '((a 1) (b 2))) =&gt; cadr)
-    (else false))
-    </SCHEME>
-  </SNIPPET>
-
-  returns 2.
-  Modify the handling of <SCHEMEINLINE>cond</SCHEMEINLINE> 
-  so that it supports this extended syntax.
-  <LABEL NAME="ex:extended-cond"/>
+	or must we
+	explicitly expand <SCHEMEINLINE>let*</SCHEMEINLINE> in terms of non-derived expressions?
+	<LABEL NAME="ex:let*"/>
       </EXERCISE>
-  </SCHEME>
-      </SPLIT>
+    </SCHEME>
+  </SPLIT>
 
-      <SPLIT>
-  <SCHEME>
+  <SPLIT>
+    <SCHEME>
       <EXERCISE>
-  <INDEX>metacircular evaluator for Scheme<SUBINDEX>special forms (additional)</SUBINDEX></INDEX>
-  <SCHEMEINLINE>Let</SCHEMEINLINE> expressions are derived expressions, because
-
-  <SNIPPET EVAL="no">
-    <SCHEME>
-(let ((^var$_{1}$^ ^exp$_{1}$^) ^$\ldots$^ (^var$_{n}$^ ^exp$_{n}$^))
-    ^body^)
-    </SCHEME>
-  </SNIPPET>
-
-  is equivalent to
-
-  <SNIPPET EVAL="no">
-    <SCHEME>
-((lambda (^var$_{1}$^ ^$\ldots$^ ^var$_{n}$^)
-    ^body^)
-    ^exp$_{1}$^
-    ^$\vdots$^
-    ^exp$_{n}$^)
-    </SCHEME>
-  </SNIPPET>
-
-  Implement a syntactic transformation <SCHEMEINLINE>let-&gt;combination</SCHEMEINLINE> that
-  reduces evaluating <SCHEMEINLINE>let</SCHEMEINLINE> expressions to evaluating combinations of
-  the type shown above, and add the appropriate clause to <SCHEMEINLINE>eval</SCHEMEINLINE> to
-  handle <SCHEMEINLINE>let</SCHEMEINLINE> expressions.
-  <LABEL NAME="ex:implement-let"/>
+	<!--  \indsf*{let}[named]
+	     \ind*{named let@named <SCHEMEINLINE>let</SCHEMEINLINE> (special form)}
+	     \ind*{special forms (those marked <EM>ns</EM> are not in the IEEE Scheme standard)}[named let@named <SCHEMEINLINE>let</SCHEMEINLINE>]
+	-->
+	<INDEX>metacircular evaluator for Scheme<SUBINDEX>special forms (additional)</SUBINDEX></INDEX>
+	<QUOTE>Named <SCHEMEINLINE>let</SCHEMEINLINE></QUOTE> is a variant of <SCHEMEINLINE>let</SCHEMEINLINE> that has the form
+	<SNIPPET>
+	  <SCHEME>
+	    (let ^var^ ^bindings^ ^body^)
+	  </SCHEME>
+	</SNIPPET>
+	The <LATEXINLINE>bindings</LATEXINLINE> and <LATEXINLINE>body</LATEXINLINE> are just as in ordinary <SCHEMEINLINE>let</SCHEMEINLINE>, except that <LATEXINLINE>var</LATEXINLINE> is bound within <LATEXINLINE>body</LATEXINLINE> to a
+	procedure
+	whose body is <LATEXINLINE>body</LATEXINLINE> and whose parameters are the
+	variables in the <LATEXINLINE>bindings</LATEXINLINE>.  Thus, one can repeatedly execute the
+	<LATEXINLINE>body</LATEXINLINE> by invoking the
+	procedure
+	named <LATEXINLINE>var</LATEXINLINE>.  For example,
+	the iterative Fibonacci
+	<SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+	(section<SPACE/><REF NAME="sec:tree-recursion"/>)
+	can be rewritten using named <SCHEMEINLINE>let</SCHEMEINLINE> as follows:
+	<SNIPPET>
+	  <SCHEME>
+	    <!--  \indcode*{fib}[with named <SCHEMEINLINE>let</SCHEMEINLINE>] -->
+	    (define (fib n)
+	    (let fib-iter ((a 1)
+            (b 0)
+            (count n))
+	    (if (= count 0)
+            b
+            (fib-iter (+ a b) a (- count 1)))))
+	  </SCHEME>
+	</SNIPPET>
+	Modify <SCHEMEINLINE>let-&gt;combination</SCHEMEINLINE> of exercise<SPACE/><REF NAME="ex:implement-let"/> to
+	also support named <SCHEMEINLINE>let</SCHEMEINLINE>.
+	<LABEL NAME="ex:named-let"/>
       </EXERCISE>
-  </SCHEME>
-  <JAVASCRIPT>
-    <CHANGE><OMISSION>JavaScript has no equivalent let.</OMISSION></CHANGE>
-  </JAVASCRIPT>
-      </SPLIT>
+    </SCHEME>
+  </SPLIT>
 
-      <SPLIT>
-  <SCHEME>
+  <SPLIT>
+    <SCHEME>
       <EXERCISE>
-  <!--  \indsf*{let*} 
-       \ind*{special forms (those marked <EM>ns</EM> are not in the IEEE Scheme standard)}[let*@<SCHEMEINLINE>let*</SCHEMEINLINE>]
-    -->
-  <INDEX>metacircular evaluator for Scheme<SUBINDEX>special forms (additional)</SUBINDEX></INDEX>
-  <SCHEMEINLINE>Let*</SCHEMEINLINE> is similar to <SCHEMEINLINE>let</SCHEMEINLINE>, except that the bindings of the <SCHEMEINLINE>let</SCHEMEINLINE> variables are performed sequentially from left to right, and each
-  binding is made in an environment in which all of the preceding
-  bindings are visible.  For example
-  <SNIPPET>
-    <SCHEME>
-(let* ((x 3)
-       (y (+ x 2))
-       (z (+ x y 5)))
-  (* x z))
-    </SCHEME>
-  </SNIPPET>
-  returns 39.  Explain how a <SCHEMEINLINE>let*</SCHEMEINLINE> expression can be rewritten as a
-  set of nested <SCHEMEINLINE>let</SCHEMEINLINE> expressions, and write a
-  procedure
-  <SCHEMEINLINE>let*-&gt;nested-lets</SCHEMEINLINE> that performs this transformation. 
-  If we have already implemented <SCHEMEINLINE>let</SCHEMEINLINE> 
-  (exercise<SPACE/><REF NAME="ex:implement-let"/>)
-  and we want to
-  extend the evaluator to handle <SCHEMEINLINE>let*</SCHEMEINLINE>, is it sufficient to add
-  a clause to <SCHEMEINLINE>eval</SCHEMEINLINE> whose action is
-  <SNIPPET>
-    <SCHEME>
-(eval (let*-&gt;nested-lets exp) env)
-    </SCHEME>
-  </SNIPPET>
-
-  or must we
-  explicitly expand <SCHEMEINLINE>let*</SCHEMEINLINE> in terms of non-derived expressions?
-  <LABEL NAME="ex:let*"/>
+	<INDEX>metacircular evaluator for Scheme<SUBINDEX>special forms (additional)</SUBINDEX></INDEX>
+	<INDEX>looping constructs<SUBINDEX>implementing in metacircular evaluator</SUBINDEX></INDEX>
+	Many languages support a variety of iteration constructs, such as <SCHEMEINLINE>do</SCHEMEINLINE>, <SCHEMEINLINE>for</SCHEMEINLINE>, <SCHEMEINLINE>while</SCHEMEINLINE>, and <SCHEMEINLINE>until</SCHEMEINLINE>.  In Scheme,
+	iterative processes can be expressed in terms of ordinary
+	procedure
+	calls, so special iteration constructs provide no essential gain in
+	computational power.  On the other hand, such constructs are often
+	convenient.  Design some iteration constructs, give examples of their
+	use, and show how to implement them as derived expressions.
       </EXERCISE>
-  </SCHEME>
-      </SPLIT>
+    </SCHEME>
+  </SPLIT>
 
-      <SPLIT>
-  <SCHEME>
+  <SPLIT>
+    <SCHEME>
       <EXERCISE>
-  <!--  \indsf*{let}[named]
-       \ind*{named let@named <SCHEMEINLINE>let</SCHEMEINLINE> (special form)}
-       \ind*{special forms (those marked <EM>ns</EM> are not in the IEEE Scheme standard)}[named let@named <SCHEMEINLINE>let</SCHEMEINLINE>]
-    -->
-  <INDEX>metacircular evaluator for Scheme<SUBINDEX>special forms (additional)</SUBINDEX></INDEX>
-  <QUOTE>Named <SCHEMEINLINE>let</SCHEMEINLINE></QUOTE> is a variant of <SCHEMEINLINE>let</SCHEMEINLINE> that has the form
-  <SNIPPET>
-    <SCHEME>
-(let ^var^ ^bindings^ ^body^)
+	<INDEX>metacircular evaluator for Scheme<SUBINDEX>syntax of evaluated language</SUBINDEX></INDEX>
+	<INDEX>metacircular evaluator for Scheme<SUBINDEX>data abstraction in</SUBINDEX></INDEX>
+	By using data abstraction, we were able to write an
+	<SCHEMEINLINE>eval</SCHEMEINLINE>
+	procedure
+	that is independent of the particular syntax of the language
+	to be evaluated.  To illustrate this, design and implement a new
+	syntax for Scheme by modifying the
+	<SPLITINLINE><SCHEME>procedures</SCHEME><JAVASCRIPT>functions</JAVASCRIPT></SPLITINLINE>
+	in this section, without
+	changing <SCHEMEINLINE>eval</SCHEMEINLINE> or <SCHEMEINLINE>apply</SCHEMEINLINE>.
+	<LABEL NAME="ex:new-syntax"/>
+      </EXERCISE>
     </SCHEME>
-  </SNIPPET>
-  The <LATEXINLINE>bindings</LATEXINLINE> and <LATEXINLINE>body</LATEXINLINE> are just as in ordinary <SCHEMEINLINE>let</SCHEMEINLINE>, except that <LATEXINLINE>var</LATEXINLINE> is bound within <LATEXINLINE>body</LATEXINLINE> to a
-  procedure
-  whose body is <LATEXINLINE>body</LATEXINLINE> and whose parameters are the
-  variables in the <LATEXINLINE>bindings</LATEXINLINE>.  Thus, one can repeatedly execute the
-  <LATEXINLINE>body</LATEXINLINE> by invoking the
-  procedure
-  named <LATEXINLINE>var</LATEXINLINE>.  For example,
-  the iterative Fibonacci
-  <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
-  (section<SPACE/><REF NAME="sec:tree-recursion"/>)
-  can be rewritten using named <SCHEMEINLINE>let</SCHEMEINLINE> as follows:
-  <SNIPPET>
-    <SCHEME>
-      <!--  \indcode*{fib}[with named <SCHEMEINLINE>let</SCHEMEINLINE>] -->
-(define (fib n)
-   (let fib-iter ((a 1)
-                  (b 0)
-                  (count n))
-      (if (= count 0)
-          b
-          (fib-iter (+ a b) a (- count 1)))))
-    </SCHEME>
-  </SNIPPET>
-  Modify <SCHEMEINLINE>let-&gt;combination</SCHEMEINLINE> of exercise<SPACE/><REF NAME="ex:implement-let"/> to
-  also support named <SCHEMEINLINE>let</SCHEMEINLINE>.
-  <LABEL NAME="ex:named-let"/>
-      </EXERCISE>
-  </SCHEME>
-      </SPLIT>
+  </SPLIT>
 
-      <SPLIT>
-  <SCHEME>
-      <EXERCISE>
-  <INDEX>metacircular evaluator for Scheme<SUBINDEX>special forms (additional)</SUBINDEX></INDEX>
-  <INDEX>looping constructs<SUBINDEX>implementing in metacircular evaluator</SUBINDEX></INDEX>
-  Many languages support a variety of iteration constructs, such as <SCHEMEINLINE>do</SCHEMEINLINE>, <SCHEMEINLINE>for</SCHEMEINLINE>, <SCHEMEINLINE>while</SCHEMEINLINE>, and <SCHEMEINLINE>until</SCHEMEINLINE>.  In Scheme,
-  iterative processes can be expressed in terms of ordinary
-  procedure
-  calls, so special iteration constructs provide no essential gain in
-  computational power.  On the other hand, such constructs are often
-  convenient.  Design some iteration constructs, give examples of their
-  use, and show how to implement them as derived expressions.
-      </EXERCISE>
-  </SCHEME>
-      </SPLIT>
-
-      <SPLIT>
-  <SCHEME>
-      <EXERCISE>
-  <INDEX>metacircular evaluator for Scheme<SUBINDEX>syntax of evaluated language</SUBINDEX></INDEX>
-  <INDEX>metacircular evaluator for Scheme<SUBINDEX>data abstraction in</SUBINDEX></INDEX>
-  By using data abstraction, we were able to write an <SCHEMEINLINE>eval</SCHEMEINLINE>
-  procedure
-  that is independent of the particular syntax of the language
-  to be evaluated.  To illustrate this, design and implement a new
-  syntax for Scheme by modifying the
-  <SPLITINLINE><SCHEME>procedures</SCHEME><JAVASCRIPT>functions</JAVASCRIPT></SPLITINLINE>
-  in this section, without
-  changing <SCHEMEINLINE>eval</SCHEMEINLINE> or <SCHEMEINLINE>apply</SCHEMEINLINE>.
-  <LABEL NAME="ex:new-syntax"/>
-      </EXERCISE>
-  </SCHEME>
-      </SPLIT>
-
-    </SUBSECTION>
+</SUBSECTION>
