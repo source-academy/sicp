@@ -861,17 +861,21 @@ deriv(list("*", list("*", "x", "y"), list("+", "x", 3)), "x");
         <INDEX>differentiation<SUBINDEX>rules for</SUBINDEX></INDEX>
         Show how to extend the basic differentiator to handle more kinds of
         expressions.  For instance, implement the differentiation rule
+	<SPLITINLINE><JAVASCRIPT>for exponentiation</JAVASCRIPT></SPLITINLINE>
 
         <LATEX>
           \[ \frac {d(u^{n})}{dx} = nu^{n-1}\left( \frac{du}{dx}\right) \]
         </LATEX>
 
-        by adding a new clause to the <SPLITINLINE><SCHEME><SCHEMEINLINE>deriv</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>deriv</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> program
-        and defining
-        appropriate
-        <SPLITINLINE><SCHEME>procedures</SCHEME><JAVASCRIPT>functions</JAVASCRIPT></SPLITINLINE>
-        <SPLITINLINE><SCHEME><SCHEMEINLINE>exponentiation?</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>is_exponentiation</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>, <SPLITINLINE><SCHEME><SCHEMEINLINE>base</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>base</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>, <SPLITINLINE><SCHEME><SCHEMEINLINE>exponent</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>exponent</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>,
-        and <SPLITINLINE><SCHEME><SCHEMEINLINE>make-exponentiation</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>make_exponentiation</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>.  (You may use <SPLITINLINE><SCHEME>the symbol <SCHEMEINLINE>**</SCHEMEINLINE></SCHEME><JAVASCRIPT>the string <JAVASCRIPTINLINE>"**"</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> to denote
+        by adding a new clause to the
+	<SPLITINLINE><SCHEME><SCHEMEINLINE>deriv</SCHEMEINLINE></SCHEME>
+	<JAVASCRIPT><JAVASCRIPTINLINE>deriv</JAVASCRIPTINLINE></JAVASCRIPT>
+	</SPLITINLINE>
+	program and defining appropriate
+        <SPLITINLINE><SCHEME>procedures</SCHEME>
+	<JAVASCRIPT>functions</JAVASCRIPT></SPLITINLINE>
+        <SPLITINLINE><SCHEME><SCHEMEINLINE>exponentiation?</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>is_exp</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>, <SPLITINLINE><SCHEME><SCHEMEINLINE>base</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>base</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>, <SPLITINLINE><SCHEME><SCHEMEINLINE>exponent</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>exponent</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>,
+        and <SPLITINLINE><SCHEME><SCHEMEINLINE>make-exponentiation</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>make_exp</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>.  (You may use <SPLITINLINE><SCHEME>the symbol <SCHEMEINLINE>**</SCHEMEINLINE></SCHEME><JAVASCRIPT>the string <JAVASCRIPTINLINE>"**"</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> to denote
         exponentiation.)
         Build in the rules that anything raised to the power 0 is 1 and
         anything raised to the power 1 is the thing itself.
@@ -899,14 +903,14 @@ function base(e) {
 function exponent(e) {
     return head(tail(tail(e)));
 }
-function make_exponentiation(base, exp) {
+function make_exp(base, exp) {
     return is_number_equal(exp, 0)
            ? 1
            : is_number_equal(exp, 1)
              ? base
              : list("**", base, exp);
 }
-function is_exponentiation(x) {
+function is_exp(x) {
     return is_pair(x) &amp;&amp; head(x) ==="**";
 }
 function deriv(exp, variable) {
@@ -924,9 +928,9 @@ function deriv(exp, variable) {
                             make_product(deriv(multiplier(exp), 
                                                variable), 
                                 multiplicand(exp)))
-                 : is_exponentiation(exp)
+                 : is_exp(exp)
                    ? make_product(make_product(exponent(exp), 
-                                      make_exponentiation(
+                                      make_exp(
                                           base(exp),
                                           exponent(exp) - 1)),
 			          deriv(base(exp), variable))
@@ -1139,7 +1143,10 @@ deriv(list("*", "x", "y", list("+", "x", 3)), "x");
 	    <JAVASCRIPT>as in this example:
 	    <SNIPPET EVAL="no">
 	      <JAVASCRIPT>
-list("x", "+", list(3, "*", list("x", "+", list("y", "+", 2))))
+list("x", "+", 
+     list(3, "*", 
+          list("x", "+", 
+               list("y", "+", 2))))
 	      </JAVASCRIPT>
 	    </SNIPPET>
 	    </JAVASCRIPT>
@@ -1221,21 +1228,22 @@ function multiplicand(s) {
 }
 function deriv(exp, variable) {
     return is_number(exp)
-           ? 0
-           : is_variable(exp)
-             ? (is_same_variable(exp, variable) ? 1 : 0)
-             : is_sum(exp)
-               ? make_sum(deriv(addend(exp), variable), 
-                          deriv(augend(exp), variable))
-               : is_product(exp)
-                 ? make_sum(make_product(multiplier(exp), 
-                                deriv(multiplicand(exp), 
-                                      variable)), 
-                            make_product(deriv(multiplier(exp), 
-                                               variable), 
-                                         multiplicand(exp)))
-                 : Error("unknown expression type in deriv",
-                         exp);
+        ? 0
+        : is_variable(exp)
+          ? (is_same_variable(exp, variable) ? 1 : 0)
+          : is_sum(exp)
+            ? make_sum(deriv(addend(exp), variable), 
+                       deriv(augend(exp), variable))
+            : is_product(exp)
+              ? make_sum(make_product(multiplier(exp), 
+                             deriv(multiplicand(exp), 
+                                   variable)), 
+                         make_product(deriv(multiplier(
+                                                    exp), 
+                                            variable), 
+                                      multiplicand(exp)))
+              : Error("unknown expression type in deriv",
+                      exp);
 }
     </JAVASCRIPT>
     <SCHEME>
@@ -1263,7 +1271,8 @@ deriv(list("x", "*", 4), "x");
 function items_before_first(op, s) {
     return head(s) === op
            ? null
-           : pair(head(s), items_before_first(op, tail(s)));
+           : pair(head(s), 
+                  items_before_first(op, tail(s)));
 }
 function items_after_first(op, s) {
     return head(s) === op
@@ -1315,21 +1324,21 @@ function multiplicand(s) {
 }
 function deriv(exp, variable) {
     return is_number(exp)
-           ? 0
-           : is_variable(exp)
-             ? (is_same_variable(exp, variable) ? 1 : 0)
-             : is_sum(exp)
-               ? make_sum(deriv(addend(exp), variable), 
-                          deriv(augend(exp), variable))
-               : is_product(exp)
-                 ? make_sum(make_product(multiplier(exp), 
-                                deriv(multiplicand(exp), 
-                                      variable)), 
-                            make_product(deriv(multiplier(exp), 
-                                               variable), 
-                                multiplicand(exp)))
-                 : Rrror("unknown expression type in deriv",
-                         exp);
+        ? 0
+        : is_variable(exp)
+          ? (is_same_variable(exp, variable) ? 1 : 0)
+          : is_sum(exp)
+            ? make_sum(deriv(addend(exp), variable), 
+                       deriv(augend(exp), variable))
+            : is_product(exp)
+              ? make_sum(make_product(multiplier(exp), 
+                             deriv(multiplicand(exp), 
+                                   variable)), 
+                         make_product(deriv(multiplier(exp), 
+                                            variable), 
+                             multiplicand(exp)))
+              : Error("unknown expression type in deriv",
+                      exp);
 }
     </JAVASCRIPT>
     <SCHEME>
