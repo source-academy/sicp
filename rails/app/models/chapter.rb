@@ -5,7 +5,7 @@ class Chapter < ActiveRecord::Base
    def chapter_number
        num = ""
        chapter = self
-       if !chapter.nil? && chapter.order.to_s[0] != "0"
+       if !chapter.nil? && chapter.order.to_s[0] != "0" && chapter.order.to_s[0] != "9"
            num = chapter.order.to_s
        else
            num = ""
@@ -59,7 +59,7 @@ class Chapter < ActiveRecord::Base
        else
             @title = @chapter.title
        end
-
+       
        xml_doc.search('COMMENT').remove       
        xml_doc.search('HISTORY').remove
        xml_doc.search('INDEX').remove
@@ -102,6 +102,14 @@ class Chapter < ActiveRecord::Base
        # Headings
        xml_doc.search('SUBHEADING').each do |heading|
            heading.name = 'h2'
+       end
+
+       xml_doc.search('H1').each do |h1|
+            h1.name = 'h1'
+       end
+
+       xml_doc.search('MATTERSECTION').each do |h1|
+         h1.name = 'h1'
        end
 
        # Blockquote
@@ -152,6 +160,9 @@ class Chapter < ActiveRecord::Base
         replace_tag(xml_doc, 'EMDASH', '&mdash;')
         replace_tag(xml_doc, 'ENDASH', '&ndash;')
 
+        replace_tag(xml_doc, 'LaTeX', '$\\rm\\LaTeX$')
+        replace_tag(xml_doc, 'TeX', '$\\rm\\TeX$')
+        
         xml_doc.search('SCHEMEINLINE, JAVASCRIPTINLINE').each do |inline|
            inline.name = 'kbd'
        end

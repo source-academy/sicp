@@ -101,7 +101,15 @@ const preamble = `\\documentclass[a4paper, 12pt]{report}
 
 \\makeindex
 
+\\title{Structure and Interpretation of Computer Programs,
+JavaScript Adaptation}
+
+\\author{Harold Abelson and Gerald Jay Sussman\\\\with Julie Sussman\\\\\\textit{authors}\\\\[20mm]Martin Henz\\\\with Liu Hang, Feng Piaopiao and Chan Ger Hean\\\\\\textit{adapters to JavaScript}}
+
+
 \\begin{document}
+
+\\maketitle
 
 \\begin{singlespace}
 {\\hypersetup{linkcolor=black}
@@ -109,7 +117,12 @@ const preamble = `\\documentclass[a4paper, 12pt]{report}
 }
 \\end{singlespace}
 
-\\input{./others/webpreface01.tex}
+\\input{./others/01prefaces01.tex}
+
+\\input{./others/02foreword02.tex}
+
+\\input{./others/04acknowledgements04.tex}
+
 `;
 
 const ending = `
@@ -122,13 +135,13 @@ const ending = `
 \\addcontentsline{toc}{chapter}{Solution To Exercises}
 \\shipoutAnswer
 
-\\input{./others/references03.tex}
+\\input{./others/97references97.tex}
 
 \\addcontentsline{toc}{chapter}{Index}
-\\indexprologue{\\input{./others/indexpreface.tex}}
+\\indexprologue{\\input{./others/98indexpreface98.tex}}
 \\printindex
 
-\\input{./others/about02.tex}
+\\input{./others/99making99.tex}
 
 \\end{document}`;
 

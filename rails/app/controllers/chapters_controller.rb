@@ -185,6 +185,10 @@ class ChaptersController < ApplicationController
             h1.name = 'h1'
         end
 
+        xml_doc.search('MATTERSECTION').each do |h1|
+            h1.name = 'h1'
+        end
+
         # Blockquote
         xml_doc.search('EPIGRAPH').each do |quote|
             quote.name = 'blockquote'
@@ -245,6 +249,9 @@ class ChaptersController < ApplicationController
         replace_tag(xml_doc, 'EMDASH', '&mdash;')
         replace_tag(xml_doc, 'ENDASH', '&ndash;')
 
+        replace_tag(xml_doc, 'LaTeX', '$\\rm\\LaTeX$')
+        replace_tag(xml_doc, 'TeX', '$\\rm\\TeX$')
+        
         xml_doc.search('SCHEMEINLINE, JAVASCRIPTINLINE').each do |inline|
             inline.name = 'kbd'
         end
@@ -422,7 +429,7 @@ class ChaptersController < ApplicationController
                 
                 
                 snippet_event = "var compressed = LZString.compressToEncodedURIComponent('#{hidden_code}'+'\n'+'#{platform_code}'+'\n'+'#{example_code}'+'\n'); " + 
-                        "var url = 'http://localhost:8075/playground#chap=#{chap}#{ext}&prgrm='+compressed;" +
+                        "var url = 'https://sourceacademy.nus.edu.sg/playground#chap=#{chap}#{ext}&prgrm='+compressed;" +
                         " window.open(url); "
                 
                 snippet_event = snippet_event.gsub("\n", '\n')

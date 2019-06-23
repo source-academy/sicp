@@ -25,6 +25,9 @@ const tagsToReplace = {
   EMDASH: "—",
   ENDASH: "–",
 
+    LaTeX: "\\LaTeX",
+    TeX: "\\TeX",
+    
   BREAK: "\n"
 };
 

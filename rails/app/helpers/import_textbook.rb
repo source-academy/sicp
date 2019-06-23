@@ -16,6 +16,7 @@ def add_subdirs(parent_dir, dirname, parent, blacklist)
     # Make sure that chapters are added in the correct order
     d = Dir.glob("*").sort
     d.each do |entry|
+        puts "processing file " + entry 
         if (entry == '.' || entry == "..")
         elsif (File::directory?(current_dir+"/"+entry))
             add_subdirs(current_dir, entry, new_chapter, blacklist)
@@ -188,7 +189,7 @@ def update_chapter_attributes
         if (!xml_doc.at('NAME').nil?)
             # update the chapter names
             xml_doc.search('SCHEME').remove
-            if (chapter.order.to_s != "" && chapter.order.to_s[0] != "0")
+            if (chapter.order.to_s != "" && chapter.order.to_s[0] != "0" && chapter.order.to_s[0] != "9")
                 chapter.title = chapter.order.to_s + "  " + xml_doc.at('NAME').text.tr("\t\n\r", '')
             else
                 chapter.title = xml_doc.at('NAME').text.tr("\t\n\r", '')

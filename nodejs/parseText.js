@@ -287,8 +287,9 @@ const processList = (node, writeTo) => {
   return processList(node.nextSibling, writeTo);
 };
 
-const sourceAcademyURL = "http://localhost:8075"; // to change to localhost if required
-// http://localhost:8075 OR https://sourceacademy.nus.edu.sg
+const sourceAcademyURL = "https://sourceacademy.nus.edu.sg";
+// to change to localhost if required
+// http://localhost:8075 
 
 const requiredSnippets = {
   nameOfSnippet: "'code'"
