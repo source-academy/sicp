@@ -34,6 +34,7 @@ const parseXML = (node, writeTo) => {
     case "ABOUT":
     case "REFERENCES":
     case "WEBPREFACE":
+    case "MATTER":
       writeTo.push("\\chapter*{");
       addName(node, writeTo);
       writeTo.push("\n\\addcontentsline{toc}{chapter}{");
@@ -66,7 +67,13 @@ const parseXML = (node, writeTo) => {
       parseXML(node.firstChild, writeTo);
       break;
 
-    case "SUBSECTION":
+  case "MATTERSECTION":
+      writeTo.push("\\section*{");
+      addName(node, writeTo);
+      parseXML(node.firstChild, writeTo);
+      break;
+      
+  case "SUBSECTION":
       writeTo.push("\\subsection{");
       addName(node, writeTo);
       writeTo.push("\\pagestyle{subsection}\n");
