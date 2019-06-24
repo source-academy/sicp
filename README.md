@@ -2,7 +2,8 @@
 
 ## Description
 
-This is the newer online version of SICP textbook in Javascript for CS1101S students. The goal is to improve the readability and aesthetics of the textbook, which has been integrated with a new IDE -- `Source Academy` platform. Javascript snippets would be displayed in a popup new website page and evaluated using its built-in functions.
+This is the online version of SICP textbook, JavaScript adaptation. See Preface of JavaScript adaptation for details:
+https://www.comp.nus.edu.sg/~cs1101s/sicp/chapters/78
 
 It is also possible to generate a copy of the orginal textbook in Scheme. However, evaluation of snippets are not yet supported and there are some missing snippets and images in the generated Scheme textbook.
 
