@@ -5,9 +5,8 @@
 This is the online version of SICP textbook, JavaScript adaptation. See Preface of JavaScript adaptation for details:
 https://www.comp.nus.edu.sg/~cs1101s/sicp/chapters/78
 
-It is also possible to generate a copy of the orginal textbook in Scheme. However, evaluation of snippets are not yet supported and there are some missing snippets and images in the generated Scheme textbook.
-
-Formulas are rendered using Mathjax. If the formulas are not rendered properly, try changing the setting by right clicking on the formula -> Math Settings -> Math Renderer.
+More details are in the Making-of section (see end of document):
+https://www.comp.nus.edu.sg/~cs1101s/sicp/index.html
 
 ## Requirements
 For development & deployment:
