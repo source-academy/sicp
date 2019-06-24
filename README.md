@@ -8,7 +8,7 @@ https://www.comp.nus.edu.sg/~cs1101s/sicp/chapters/78
 More details are in the Making-of section (see end of document):
 https://www.comp.nus.edu.sg/~cs1101s/sicp/index.html
 
-## Requirements
+## Mobile-friendly Web Edition
 For development & deployment:
 
 * Rails 5.0.2
@@ -18,7 +18,7 @@ For development & deployment:
 
 The generated web pages are static and can be hosted on any standard web servers.
 
-## Overview
+### Overview
 
 The original text is stored as xml files in the `xml` folder.
 
@@ -26,7 +26,7 @@ The html pages are generated in two steps. In the first step, the xml pages are 
 
 After the rails server is up and running, a copy of the html pages are saved locally using `Wget`.
 
-## Configuration
+### Configuration
 
 Set the server for the playground in: rails/app/controllers/chapters_controller.rb: var url
 
@@ -36,7 +36,7 @@ Before deploying, change the configurations at [constants.rb.def](rails/config/i
 
 `GCSE_CX`: The search engine ID of Google Custom Search. Create a new one [here](https://cse.google.com/cse/create/new).
 
-## Deployment
+### Deployment
 Run `make web`. The generated html pages and assets are saved in `rails-html` folder.
 
 Run `make clean` to remove all generated pages, logs and temporary files.
@@ -48,27 +48,27 @@ Then, use the number in the PID column to kill the process:
 
 $ kill -9 PID
 
-## Development
+### Development
 The Rails project is located at [rails](rails/). To test any changes made to the rails project itself, use the built-in server by running `rails s`. Specifically, the xml to html step is done by the `Chapters` controller, although in hindsight I realized it should be handled by model instead. Now it is at both the controller and model, but except for the index page, all other xml to html conversions are still handled by the controller. It would be a good idea to clean this part up before changing anything in those two files to ensure consistency.
 
 If any changes are made to the xml file but you only want to test the dynamic/rails version of website, run `rails runner app/helpers/import_textbook.rb` to import the modified textbook to database.
 
 Static site generation is handled by `rails/Rakefile`. It outputs the html pages to `rails/out` by default. Run `rake static:generate` to test this step.
 
-## Bugs
+### Bugs
 * Google Custom Search doesn't seem to be working.
 * The snippets containing '\n' would lead to newline rather than showing charater '\n' in the `Source Academy` platform. This problem is difficult to eliminate because the code encoder cannot differentiate them when reading content.
 
 ## XML2Latex
 
-## Requirements
+### Requirements
 For development & deployment:
 * node.js
 
-## Set up
+### Set up
 Run `npm install` to install dependencies.
 
-## Generating Latex Files
+### Generating Latex Files
 Run `npm start`.
 This will also warn of some potential errors in the xml.
 
