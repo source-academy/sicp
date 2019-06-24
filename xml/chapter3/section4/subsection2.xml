@@ -216,8 +216,8 @@ let x = 10;
 
 let s = make_serializer();
 
-parallel_execute( s( function () { x = x * x; } ),
-  s( function () { x = x + 1; } ) );
+parallel_execute(s(function () { x = x * x; }),
+  s(function () { x = x + 1; } ));
           </JAVASCRIPT>
         </SNIPPET>
 
@@ -316,8 +316,8 @@ let x = 10;
 
 let s = make_serializer();
 
-parallel_execute( () => { x = s( () => x * x ); }, 
-                  s( () => { x = x + 1 } ) )
+parallel_execute( function () { x = s( () => x * x ); }, 
+                  s( function () { x = x + 1 } ) )
           </JAVASCRIPT>
         </SNIPPET>
       </EXERCISE>
@@ -430,7 +430,7 @@ parallel_execute( s( () => x = x * x ) ,
         Ben Bitdiddle suggests that it<APOS/>s a waste of time to create a new
         serialized
         <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
-        in response to every <SCHEMEINLINE>withdraw</SCHEMEINLINE> and <SCHEMEINLINE>deposit</SCHEMEINLINE> message.  He says that <SCHEMEINLINE>make-account</SCHEMEINLINE> could be changed so
+        in response to every <SCHEMEINLINE>withdraw</SCHEMEINLINE> and <SCHEMEINLINE>deposit</SCHEMEINLINE> message.  He says that <SPLITINLINE><SCHEME>make-account</SCHEME><JAVASCRIPT>make_account</JAVASCRIPT></SPLITINLINE> could be changed so
         that the calls to <SCHEMEINLINE>protected</SCHEMEINLINE> are done outside the <SCHEMEINLINE>dispatch</SCHEMEINLINE>
         <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>.  That is, an account would return the same serialized
         <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
@@ -479,9 +479,9 @@ parallel_execute( s( () => x = x * x ) ,
                 let protected_deposit = protected(deposit);
                 function dispatch(m) {
                     if (m === "withdraw") {
-                        return protected_withdraw();
+                        return protected_withdraw;
                     } else if (m === "deposit") {
-                        return protected_deposit();
+                        return protected_deposit;
                     } else if (m === "balance") {
                         return balance;
                     } else {
@@ -494,7 +494,7 @@ parallel_execute( s( () => x = x * x ) ,
         </SNIPPET>
 
         Is this a safe change to make?  In particular, is there any difference in
-        what concurrency is allowed by these two versions of <SCHEMEINLINE>make-account</SCHEMEINLINE><LATEXINLINE>$\,$</LATEXINLINE>?
+        what concurrency is allowed by these two versions of <SPLITINLINE><SCHEME>make-account</SCHEME><JAVASCRIPT>make_account</JAVASCRIPT></SPLITINLINE><LATEXINLINE>$\,$</LATEXINLINE>?
       </EXERCISE>
       <INDEX>serializer|)</INDEX>
 
@@ -523,9 +523,9 @@ parallel_execute( s( () => x = x * x ) ,
           serious bug in our banking system!)</FOOTNOTE>
 
         <SNIPPET>
+          <INDEX>bank account<SUBINDEX>exchanging balances</SUBINDEX></INDEX>
+          <!--  \indcode*{exchange} -->
           <SCHEME>
-            <INDEX>bank account<SUBINDEX>exchanging balances</SUBINDEX></INDEX>
-            <!--  \indcode*{exchange} -->
             (define (exchange account1 account2)
               (let ((difference (- (account1 'balance)
                                    (account2 'balance))))
@@ -533,11 +533,11 @@ parallel_execute( s( () => x = x * x ) ,
                 ((account2 'deposit) difference)))
           </SCHEME>
           <JAVASCRIPT>
-            function exchange(account1, account2) {
-                let difference = balance(account1) - balance(account2);
-                withdraw(account1, difference);
-                deposity(account2, difference);
-            }
+function exchange(account1, account2) {
+    let difference = balance(account1) - balance(account2);
+    withdraw(account1, difference);
+    deposity(account2, difference);
+}
           </JAVASCRIPT>
         </SNIPPET>
       </TEXT>
@@ -551,7 +551,7 @@ parallel_execute( s( () => x = x * x ) ,
         Peter exchanges <LATEXINLINE>$a1$</LATEXINLINE> and
         <LATEXINLINE>$a2$</LATEXINLINE> while Paul concurrently exchanges <LATEXINLINE>$a1$</LATEXINLINE> and <LATEXINLINE>$a3$</LATEXINLINE>.
         Even with account deposits and withdrawals
-        serialized for individual accounts (as in the <SCHEMEINLINE>make-account</SCHEMEINLINE>
+        serialized for individual accounts (as in the <SPLITINLINE><SCHEME>make-account</SCHEME><JAVASCRIPT>make_account</JAVASCRIPT></SPLITINLINE>
         <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
         shown above in this section), <SCHEMEINLINE>exchange</SCHEMEINLINE> can still
         produce incorrect results.  For example, Peter might compute the
@@ -575,7 +575,7 @@ parallel_execute( s( () => x = x * x ) ,
         To do this, we will arrange for access to an account<APOS/>s serializer.
         Note that we are deliberately
         breaking the modularity of the bank-account object by exposing the
-        serializer.  The following version of <SCHEMEINLINE>make-account</SCHEMEINLINE> is identical
+        serializer.  The following version of <SPLITINLINE><SCHEME>make-account</SCHEME><JAVASCRIPT>make_account</JAVASCRIPT></SPLITINLINE> is identical
         to the original version given in
         Section<SPACE/><REF NAME="sec:local-state-variables"/>, except that a serializer is
         provided to protect the balance variable, and the serializer is
@@ -604,6 +604,34 @@ parallel_execute( s( () => x = x * x ) ,
             dispatch))
           </SCHEME>
           <JAVASCRIPT>
+function make_account_and_serializer(balance) {
+    function withdraw(amount) {
+        if (balance > amount) {
+            balance = balance - amount;
+        } else {
+            "Insufficient funds";
+        }
+    }
+    function deposit(amount) {
+        balance = balance + amount;
+        return balance;
+    }
+    let balance_serializer = make_serializer();
+    function dispatch(m) {
+        if (m === "withdraw") {
+            return withdraw;
+        } else if (m === "deposit") {
+            return deposit;
+        } else if (m === "balance") {
+            return balance;
+        } else if (m === "serializer") {
+            return balance_serializer;
+        } else {
+            return "Unknown request - - MAKE-ACCOUNT";
+        }
+    }
+    return dispatch;
+}
           </JAVASCRIPT>
         </SNIPPET>
       </TEXT>
@@ -625,6 +653,11 @@ parallel_execute( s( () => x = x * x ) ,
             ((s d) amount)))
           </SCHEME>
           <JAVASCRIPT>
+2function deposit(account, amount) {
+    let s = account("serializer");
+    let d = account("deposit");
+    s(d(amount));
+}
           </JAVASCRIPT>
         </SNIPPET>
       </TEXT>
@@ -648,6 +681,11 @@ parallel_execute( s( () => x = x * x ) ,
             account2)))
           </SCHEME>
           <JAVASCRIPT>
+function serialized_exchange(account1, account2) {
+    let serializer1 = account1("serializer");
+    let serializer2 = account2("serializer");
+    serializer1(serializer2(exchange))(account1, account2);
+}
           </JAVASCRIPT>
         </SNIPPET>
       </TEXT>
@@ -676,7 +714,7 @@ parallel_execute( s( () => x = x * x ) ,
         <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>, even if there are multiple people concurrently
         transferring money among multiple accounts, using any account
         mechanism that serializes deposit and withdrawal transactions, for
-        example, the version of <SCHEMEINLINE>make-account</SCHEMEINLINE> in the text above.
+        example, the version of <SPLITINLINE><SCHEME>make-account</SCHEME><JAVASCRIPT>make_account</JAVASCRIPT></SPLITINLINE> in the text above.
 
         <SNIPPET>
           <SCHEME>
@@ -685,6 +723,10 @@ parallel_execute( s( () => x = x * x ) ,
             ((to-account 'deposit) amount))
           </SCHEME>
           <JAVASCRIPT>
+function transfer(from_account, to_account, amount) {
+    from_account("withdraw")(amount);
+    to_account("deposit")(amount);
+}
           </JAVASCRIPT>
         </SNIPPET>
 
@@ -692,19 +734,19 @@ parallel_execute( s( () => x = x * x ) ,
         to use a more sophisticated method, such as the one required for
         dealing with the exchange problem.  Is Louis right?  If not, what is
         the essential difference between the transfer problem and the exchange
-        problem?  (You should assume that the balance in <SCHEMEINLINE>from-account</SCHEMEINLINE>
-        is at least <SCHEMEINLINE>amount</SCHEMEINLINE>.)
+        problem?  (You should assume that the balance in <SPLITINLINE><SCHEME>from-account</SCHEME><JAVASCRIPT>from_account</JAVASCRIPT></SPLITINLINE>
+        is at least <SPLITINLINE><SCHEME>amount</SCHEME><JAVASCRIPT>amount</JAVASCRIPT></SPLITINLINE>.)
       </EXERCISE>
 
       <EXERCISE>
         Louis Reasoner thinks our bank-account system is unnecessarily complex and
         error-prone now that deposits and withdrawals aren<APOS/>t automatically serialized.
-        He suggests that <SCHEMEINLINE>make-account-and-serializer</SCHEMEINLINE> should have
+        He suggests that <SPLITINLINE><SCHEME>make-account-and-serializer</SCHEME><JAVASCRIPT>make_account_and_serializer</JAVASCRIPT></SPLITINLINE> should have
         exported the serializer (for use by such
         <SPLITINLINE><SCHEME>procedures</SCHEME><JAVASCRIPT>functions</JAVASCRIPT></SPLITINLINE>
         as
-        <SCHEMEINLINE>serialized-exchange</SCHEMEINLINE>) in addition to (rather than instead of)
-        using it to serialize accounts and deposits as <SCHEMEINLINE>make\?account</SCHEMEINLINE> did.
+        <SPLITINLINE><SCHEME>serialized-exchange</SCHEME><JAVASCRIPT>serialized_exchange</JAVASCRIPT></SPLITINLINE>) in addition to (rather than instead of)
+        using it to serialize accounts and deposits as <SPLITINLINE><SCHEME>make\?account</SCHEME><JAVASCRIPT>make_account</JAVASCRIPT></SPLITINLINE> did.
         He proposes to redefine accounts as follows:
 
         <SNIPPET>
@@ -729,20 +771,51 @@ parallel_execute( s( () => x = x * x ) ,
             dispatch))
           </SCHEME>
           <JAVASCRIPT>
+function make_account_and_serializer(balance) {
+    function withdraw(amount) {
+        if (balance > amount) {
+            balance = balance - amount;
+        } else {
+            "Insufficient funds";
+        }
+    }
+    function deposit(amount) {
+        balance = balance + amount;
+        return balance;
+    }
+    let balance_serializer = make_serializer();
+    function dispatch(m) {
+        if (m === "withdraw") {
+            return balance_serializer(withdraw);
+        } else if (m === "deposit") {
+            return balance_serializer(deposit);
+        } else if (m === "balance") {
+            return balance;
+        } else if (m === "serializer") {
+            return balance_serializer;
+        } else {
+            return "Unknown request - - MAKE-ACCOUNT";
+        }
+    }
+    return dispatch;
+}
           </JAVASCRIPT>
         </SNIPPET>
 
-        Then deposits are handled as with the original <SCHEMEINLINE>make-account</SCHEMEINLINE>:
+        Then deposits are handled as with the original <SPLITINLINE><SCHEME>make-account</SCHEME><JAVASCRIPT>make_account</JAVASCRIPT></SPLITINLINE>:
         <SNIPPET>
           <SCHEME>
             (define (deposit account amount)
             ((account 'deposit) amount))
           </SCHEME>
           <JAVASCRIPT>
+function deposit(account, amount) {
+    account("deposit")(amount);
+}
           </JAVASCRIPT>
         </SNIPPET>
         Explain what is wrong with Louis's reasoning.  In particular,
-        consider what happens when <SCHEMEINLINE>serialized-exchange</SCHEMEINLINE> is called.
+        consider what happens when <SPLITINLINE><SCHEME>serialized-exchange</SCHEME><JAVASCRIPT>serialized_exchange</JAVASCRIPT></SPLITINLINE> is called.
         <LABEL NAME="ex:export-serializer"/>
       </EXERCISE>
       <INDEX>serializer<SUBINDEX>with multiple shared resources|)</SUBINDEX></INDEX>
@@ -814,6 +887,17 @@ parallel_execute( s( () => x = x * x ) ,
             serialized-p)))
           </SCHEME>
           <JAVASCRIPT>
+function make_serializer() {
+    let mutex = make_mutex();
+    return function lambda(p) {
+        return function serialized_p(args) {
+            mutex("acquire");
+            let val = p(args);
+            mutex("release");
+            return val;
+        }
+    }
+}
           </JAVASCRIPT>
         </SNIPPET>
       </TEXT>
@@ -822,14 +906,14 @@ parallel_execute( s( () => x = x * x ) ,
         The mutex is a mutable object (here we<APOS/>ll use a one-element
         list, which we<APOS/>ll refer to as a 
         <INDEX>cell, in serializer implementation</INDEX>
-        <EM>cell\/</EM>) that can hold the value
+        <EM>cell</EM>) that can hold the value
         true or false.  When the value is false, the mutex is available to be
         acquired.  When the value is true, the mutex is unavailable, and any
         process that attempts to acquire the mutex must wait.
       </TEXT>
 
       <TEXT>
-        Our mutex constructor <SCHEMEINLINE>make-mutex</SCHEMEINLINE> begins by initializing the cell
+        Our mutex constructor <SPLITINLINE><SCHEME>make-mutex</SCHEME><JAVASCRIPT>make_mutex</JAVASCRIPT></SPLITINLINE> begins by initializing the cell
         contents to false.  To acquire the mutex, we test the cell.  If the
         mutex is available, we set the cell contents to true and proceed.
         Otherwise, we wait in a loop, attempting to acquire over and over
@@ -859,13 +943,29 @@ parallel_execute( s( () => x = x * x ) ,
             (set-car! cell false))
           </SCHEME>
           <JAVASCRIPT>
+function make_mutex() {
+    let cell = get_new_pair();
+    function the_mutex(m) {
+        if (m === "aquire") {
+            if (test_and_set(cell)) {
+                the_mutex("aquire"); // retry
+            }
+        } else if (m === "release") {
+            clear(cell);
+        }
+    }
+    return the_mutex;
+}
+function clear(cell) {
+    set_head(cell, false);
+}
           </JAVASCRIPT>
         </SNIPPET>
       </TEXT>
 
       <TEXT>
-        <SCHEMEINLINE>Test-and-set!</SCHEMEINLINE> tests the cell and returns the result of the
-        test.  In addition, if the test was false, <SCHEMEINLINE>test-and-set!</SCHEMEINLINE> sets
+        <SPLITINLINE><SCHEME>Test-and-set!</SCHEME><JAVASCRIPT>Test_and_set</JAVASCRIPT></SPLITINLINE> tests the cell and returns the result of the
+        test.  In addition, if the test was false, <SPLITINLINE><SCHEME>test-and-set!</SCHEME><JAVASCRIPT>test_and_set</JAVASCRIPT></SPLITINLINE> sets
         the cell contents to true before returning false.  We can express this
         behavior as the following
         <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>:
@@ -880,15 +980,23 @@ parallel_execute( s( () => x = x * x ) ,
             false)))
           </SCHEME>
           <JAVASCRIPT>
+function test_and_set(cell) {
+    if (get_head(cell)) {
+        return true;
+    } else {
+        set_head(cell, true);
+        return false;
+    }
+}
           </JAVASCRIPT>
         </SNIPPET>
       </TEXT>
 
       <TEXT>
-        However, this implementation of <SCHEMEINLINE>test-and-set!</SCHEMEINLINE> does not suffice
+        However, this implementation of <SPLITINLINE><SCHEME>test-and-set!</SCHEME><JAVASCRIPT>test_and_set</JAVASCRIPT></SPLITINLINE> does not suffice
         as it stands.  There is a crucial subtlety here, which is the
-        essential place where concurrency control enters the system: The <SCHEMEINLINE>test-and-set!</SCHEMEINLINE> operation must be performed 
-        <INDEX>atomic requirement for <SCHEMEINLINE>test-and-set!</SCHEMEINLINE></INDEX>
+        essential place where concurrency control enters the system: The <SPLITINLINE><SCHEME>test-and-set!</SCHEME><JAVASCRIPT>test_and_set</JAVASCRIPT></SPLITINLINE> operation must be performed 
+        <INDEX>atomic requirement for <SPLITINLINE><SCHEME>test-and-set!</SCHEME><JAVASCRIPT>test_and_set</JAVASCRIPT></SPLITINLINE></INDEX>
         <EM>atomically</EM>.  That
         is, we must guarantee that, once a process has tested the cell and
         found it to be false, the cell contents will actually be set to true
@@ -899,18 +1007,18 @@ parallel_execute( s( () => x = x * x ) ,
       </TEXT>
 
       <TEXT>
-        The actual implementation of <SCHEMEINLINE>test-and-set!</SCHEMEINLINE> depends on the
+        The actual implementation of <SPLITINLINE><SCHEME>test-and-set!</SCHEME><JAVASCRIPT>test_and_set</JAVASCRIPT></SPLITINLINE> depends on the
         details of how our system runs concurrent processes.  For example, we
         might be executing concurrent processes on a sequential processor
         using a 
         <INDEX>time slicing</INDEX>
         time-slicing mechanism that cycles through the processes,
         permitting each process to run for a short time before interrupting it
-        and moving on to the next process.  In that case, <SCHEMEINLINE>test-and-set!</SCHEMEINLINE>
-        can work by disabling time slicing during the testing and setting.<FOOTNOTE>In MIT Scheme for a single processor, which uses a time-slicing
-          model, <SCHEMEINLINE>test\?and\?set!</SCHEMEINLINE> can be implemented as follows:
+        and moving on to the next process.  In that case, <SPLITINLINE><SCHEME>test-and-set!</SCHEME><JAVASCRIPT>test_and_set</JAVASCRIPT></SPLITINLINE>
+        can work by disabling time slicing during the testing and setting.<SPLITINLINE><SCHEME><FOOTNOTE>In MIT Scheme for a single processor, which uses a time-slicing
+          model, <SPLITINLINE><SCHEME>test\?and\?set!</SCHEME><JAVASCRIPT>test_and_set!</JAVASCRIPT></SPLITINLINE> can be implemented as follows:
           <!--  \indcode{without-interrupts} -->
-          <INDEX>MIT Scheme<SUBINDEX>without@<SCHEMEINLINE>without-interrupts</SCHEMEINLINE></SUBINDEX></INDEX>
+          <INDEX>MIT Scheme<SUBINDEX>without@without-interrupts</SUBINDEX></INDEX>
           <SNIPPET>
             <SCHEME>
               <!--  \indcode*{test-and-set!} -->
@@ -922,13 +1030,10 @@ parallel_execute( s( () => x = x * x ) ,
               (begin (set-car! cell true)
               false)))))
             </SCHEME>
-            <JAVASCRIPT>
-            </JAVASCRIPT>
           </SNIPPET>
-          <SCHEMEINLINE>Without-interrupts</SCHEMEINLINE> disables
-          time-slicing interrupts while its
-          <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
-          argument is being executed.</FOOTNOTE>
+          Without-interrupts disables
+          time-slicing interrupts while its procedure
+          argument is being executed.</FOOTNOTE></SCHEME><SPLIT>
         Alternatively, multiprocessing computers provide instructions that
         support atomic operations directly in hardware.<FOOTNOTE>There are many variants of such
           <INDEX>atomic operations supported in hardware</INDEX>
@@ -960,7 +1065,7 @@ parallel_execute( s( () => x = x * x ) ,
       </TEXT>
 
       <EXERCISE>
-        Suppose that we implement <SCHEMEINLINE>test-and-set!</SCHEMEINLINE>  using an ordinary
+        Suppose that we implement <SPLITINLINE><SCHEME>test-and-set!</SCHEME><JAVASCRIPT>test_and_set</JAVASCRIPT></SPLITINLINE>  using an ordinary
         <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
         as shown in the text, without attempting to make the operation
         atomic.  Draw a timing diagram like the one in
@@ -983,7 +1088,7 @@ parallel_execute( s( () => x = x * x ) ,
           <LI>in terms of mutexes
           </LI>
           <LI>
-            in terms of atomic <SCHEMEINLINE>test-and-set!</SCHEMEINLINE> operations.
+            in terms of atomic <SPLITINLINE><SCHEME>test-and-set!</SCHEME><JAVASCRIPT>test_and_set</JAVASCRIPT></SPLITINLINE> operations.
           </LI>
         </OL>
       </EXERCISE>
@@ -1003,7 +1108,7 @@ parallel_execute( s( () => x = x * x ) ,
           -->
         Now that we have seen how to implement serializers, we can see
         that account exchanging still has a problem, even with the
-        <SCHEMEINLINE>serialized\?exchange</SCHEMEINLINE>
+        <SPLITINLINE><SCHEME>serialized\?exchange</SCHEME><JAVASCRIPT>serialized_exchange</JAVASCRIPT></SPLITINLINE>
         <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
         above.
         Imagine that Peter attempts to exchange <LATEXINLINE>$a1$</LATEXINLINE>
@@ -1031,7 +1136,7 @@ parallel_execute( s( () => x = x * x ) ,
       <TEXT>
         <INDEX>deadlock<SUBINDEX>avoidance</SUBINDEX></INDEX>
         One way to avoid the deadlock in this situation is to give each
-        account a unique identification number and rewrite <SCHEMEINLINE>serialized-exchange</SCHEMEINLINE> so
+        account a unique identification number and rewrite <SPLITINLINE><SCHEME>serialized-exchange</SCHEME><JAVASCRIPT>serialized_exchange</JAVASCRIPT></SPLITINLINE> so
         that a process will always attempt to enter a
         <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
         protecting the
@@ -1058,9 +1163,9 @@ parallel_execute( s( () => x = x * x ) ,
         Explain in detail why the deadlock-avoidance method described above,
         (i.e., the accounts are numbered, and each process attempts to acquire
         the smaller-numbered account first) avoids deadlock in the exchange
-        problem.  Rewrite <SCHEMEINLINE>serialized-exchange</SCHEMEINLINE> to incorporate this idea.
+        problem.  Rewrite <SPLITINLINE><SCHEME>serialized-exchange</SCHEME><JAVASCRIPT>serialized_exchange</JAVASCRIPT></SPLITINLINE> to incorporate this idea.
         (You will
-        also need to modify <SCHEMEINLINE>make-account</SCHEMEINLINE> so that each account is created
+        also need to modify <SPLITINLINE><SCHEME>make-account</SCHEME><JAVASCRIPT>make_account</JAVASCRIPT></SPLITINLINE> so that each account is created
         with a number, which can be accessed by sending an appropriate
         message.)
         <LABEL NAME="ex:deadlock-avoid"/>
@@ -1092,7 +1197,7 @@ parallel_execute( s( () => x = x * x ) ,
       </TEXT>
 
       <TEXT>
-        Mechanisms such as <SCHEMEINLINE>test-and-set!</SCHEMEINLINE> require processes to examine a
+        Mechanisms such as <SPLITINLINE><SCHEME>test-and-set!</SCHEME><JAVASCRIPT>test_and_set</JAVASCRIPT></SPLITINLINE> require processes to examine a
         global shared flag at arbitrary times.  This is problematic and
         inefficient to implement in modern high-speed processors, where
         due to optimization techniques such as pipelining and cached memory,
