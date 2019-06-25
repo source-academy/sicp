@@ -104,7 +104,7 @@ const preamble = `\\documentclass[a4paper, 12pt]{report}
 \\title{Structure and Interpretation of Computer Programs,
 JavaScript Adaptation}
 
-\\author{Harold Abelson and Gerald Jay Sussman\\\\with Julie Sussman\\\\\\textit{authors}\\\\[20mm]Martin Henz\\\\with Liu Hang, Feng Piaopiao and Chan Ger Hean\\\\\\textit{adapters to JavaScript}}
+\\author{Harold Abelson and Gerald Jay Sussman\\\\with Julie Sussman\\\\\\textit{authors}\\\\[20mm]Martin Henz\\\\with Tobias Wrigstad, Liu Hang, Feng Piaopiao and Chan Ger Hean\\\\\\textit{adapters to JavaScript}}
 
 
 \\begin{document}
