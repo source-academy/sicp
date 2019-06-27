@@ -430,6 +430,7 @@ class ChaptersController < ApplicationController
                 
                 snippet_event = "var compressed = LZString.compressToEncodedURIComponent('#{hidden_code}'+'\n'+'#{platform_code}'+'\n'+'#{example_code}'+'\n'); " + 
                         "var url = 'https://sourceacademy.nus.edu.sg/playground#chap=#{chap}#{ext}&prgrm='+compressed;" +
+                        ### "var url = '#{`echo $SOURCE_ACADEMY`}playground#chap=#{order[0]}&prgrm='+compressed;" +
                         " window.open(url); "
                 
                 snippet_event = snippet_event.gsub("\n", '\n')
