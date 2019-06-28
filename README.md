@@ -3,10 +3,10 @@
 ## Description
 
 This is the online version of SICP textbook, JavaScript adaptation. See Preface of JavaScript adaptation for details:
-https://www.comp.nus.edu.sg/~cs1101s/sicp/chapters/78
+https://sicp.comp.nus.edu.sg
 
 More details are in the Making-of section (see end of document):
-https://www.comp.nus.edu.sg/~cs1101s/sicp/index.html
+https://sicp.comp.nus.edu.sg
 
 ## Mobile-friendly Web Edition
 For development & deployment:

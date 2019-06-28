@@ -1,0 +1,385 @@
+<SUBSECTION>
+  <NAME>
+    Streams as Lazy Lists
+  </NAME>
+
+  <LABEL NAME="sec:lazy-cons"/>
+  <INDEX>stream(s)<SUBINDEX>implemented as lazy lists|(</SUBINDEX></INDEX>
+  <INDEX>lazy list|(</INDEX>
+  <INDEX>list(s)<SUBINDEX>lazy|(</SUBINDEX></INDEX>
+  <INDEX>lazy pair|(</INDEX>
+  <INDEX>pair(s)<SUBINDEX>lazy|(</SUBINDEX></INDEX>
+
+  <TEXT>
+    <INDEX>special form
+    <SUBINDEX><SPLITINLINE><SCHEME>procedure</SCHEME>
+    <JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+    vs.</SUBINDEX></INDEX>
+    <INDEX><SPLITINLINE><SCHEME>procedure</SCHEME>
+    <JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+    <SUBINDEX>special form vs.</SUBINDEX></INDEX>
+    <!-- \indsf{delay}[lazy evaluation and]\indsf{cons-stream}[lazy evaluation and]-->
+    In section<SPACE/><REF NAME="sec:delayed-lists"/>, we showed how to
+    implement streams as delayed lists.
+    <SPLITINLINE>
+      <SCHEME>
+	We introduced special forms
+	<SCHEMEINLINE>delay</SCHEMEINLINE> and <SCHEMEINLINE>cons-stream</SCHEMEINLINE>,
+	which allowed us
+      </SCHEME>
+      <JAVASCRIPT>
+	We used a function definition expression
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    to construct a <QUOTE>promise</QUOTE> to compute
+    the
+    <SPLITINLINE><SCHEME><SCHEMEINLINE>cdr</SCHEMEINLINE></SCHEME>
+    <JAVASCRIPT><JAVASCRIPTINLINE>tail</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>
+    of a stream, without actually fulfilling that promise
+    until later.
+    <SPLITINLINE>
+      <SCHEME>
+    We could use this general technique of introducing
+    special forms whenever we need more control over the evaluation process,
+    but this is awkward.  For one thing, a special form is not a
+    first-class object like a
+    <SPLITINLINE><SCHEME>procedure,</SCHEME>
+    <JAVASCRIPT>function,</JAVASCRIPT></SPLITINLINE>
+    so we cannot use it together with higher-order
+    <SPLITINLINE><SCHEME>procedures</SCHEME><JAVASCRIPT>functions</JAVASCRIPT></SPLITINLINE>.<FOOTNOTE>This
+    is precisely the issue with the <SCHEMEINLINE>unless</SCHEMEINLINE>
+    <SPLITINLINE><SCHEME>procedure,</SCHEME>
+    <JAVASCRIPT>function,</JAVASCRIPT></SPLITINLINE>
+    as in exercise<SPACE/><REF NAME="ex:normal-order-via-syntax"/>.</FOOTNOTE>  Additionally,
+    we were forced to create streams as a new kind of data object
+    similar but not identical to lists, and this required us to
+    reimplement many ordinary list operations
+    (<SCHEMEINLINE>map</SCHEMEINLINE>,
+    <SCHEMEINLINE>append</SCHEMEINLINE>, and
+    so on) for use with streams.
+      </SCHEME>
+      <JAVASCRIPT>
+	We were forced to create streams as a new kind of data object
+	similar but not identical to lists, and this required us to
+	reimplement many ordinary list operations
+	(<SCHEMEINLINE>map</SCHEMEINLINE>,
+	<SCHEMEINLINE>append</SCHEMEINLINE>, and
+	so on) for use with streams.	
+      </JAVASCRIPT>
+    </SPLITINLINE>
+  </TEXT>
+
+  <TEXT>
+    With lazy evaluation, streams and lists can be identical, so there is
+    no need for
+    <SPLITINLINE><SCHEME>special forms or for</SCHEME></SPLITINLINE>
+    separate list and stream operations.
+    All we need to do is to arrange matters so that
+    <SPLITINLINE><SCHEME><SCHEMEINLINE>cons</SCHEMEINLINE></SCHEME>
+    <JAVASCRIPT><JAVASCRIPTINLINE>pair</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>
+    is non-strict.  One way to accomplish this is to extend the lazy
+    evaluator to allow for non-strict primitives, and to implement
+    <SPLITINLINE><SCHEME><SCHEMEINLINE>cons</SCHEMEINLINE></SCHEME>
+    <JAVASCRIPT><JAVASCRIPTINLINE>pair</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>
+    as one of these.  An easier way is to recall
+    (section<SPACE/><REF NAME="sec:data?"/>) that there is no fundamental
+    need to implement
+    <SPLITINLINE><SCHEME><SCHEMEINLINE>cons</SCHEMEINLINE></SCHEME>
+    <JAVASCRIPT><JAVASCRIPTINLINE>pair</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>
+    as a primitive at all.  Instead, we can represent
+    <INDEX>pair(s)<SUBINDEX>procedural representation of</SUBINDEX></INDEX>
+    pairs as
+    <SPLITINLINE><SCHEME>procedures</SCHEME><JAVASCRIPT>functions</JAVASCRIPT></SPLITINLINE>:<FOOTNOTE>This
+    is the 
+    <SPLITINLINE>
+      <SCHEME>
+	procedural 
+      </SCHEME>
+      <JAVASCRIPT>
+	functional
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    representation described in
+    exercise<SPACE/><REF NAME="ex:lambda-cons"/>.  Essentially any 
+    <SPLITINLINE>
+      <SCHEME>
+	procedural 
+      </SCHEME>
+      <JAVASCRIPT>
+	functional
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    representation
+    (e.g., a message-passing implementation) would do as well.  Notice
+    that we can install these definitions in the lazy evaluator simply by
+    typing them at the driver loop.  If we had originally included
+    <SPLITINLINE><SCHEME><SCHEMEINLINE>cons</SCHEMEINLINE>,</SCHEME>
+    <JAVASCRIPT><JAVASCRIPTINLINE>pair</JAVASCRIPTINLINE>,</JAVASCRIPT></SPLITINLINE>
+    <SPLITINLINE><SCHEME><SCHEMEINLINE>car</SCHEMEINLINE>,</SCHEME>
+    <JAVASCRIPT><JAVASCRIPTINLINE>head</JAVASCRIPTINLINE>,</JAVASCRIPT></SPLITINLINE>
+    and
+    <SPLITINLINE><SCHEME><SCHEMEINLINE>cdr</SCHEMEINLINE></SCHEME>
+    <JAVASCRIPT><JAVASCRIPTINLINE>tail</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>
+    as primitives in the global environment, they will be redefined.  (Also see
+    exercises<SPACE/><REF NAME="ex:lazy-list-input"/>
+    and<SPACE/><REF NAME="ex:lazy-list-printing"/>.)</FOOTNOTE>
+
+    <SNIPPET EVAL="no">
+      <SCHEME>
+      <!-- \indprim*{cons}[procedural implementation of]-->
+      (define (cons x y)
+      (lambda (m) (m x y)))
+
+      <!-- \indprim*{car}[procedural implementation of]-->
+      (define (car z)
+      (z (lambda (p q) p)))
+
+      <!-- \indprim*{cdr}[procedural implementation of]-->
+      (define (cdr z)
+      (z (lambda (p q) q)))
+      </SCHEME>
+      <JAVASCRIPT>
+function pair(x, y) {	
+    return m => m(x, y);
+}
+function head(z) {    
+    return z( (p, q) => p );
+}
+function tail(z) {
+    return z( (p, q) => q );
+}
+      </JAVASCRIPT>
+    </SNIPPET>
+  </TEXT>
+
+  <TEXT>
+    In terms of these basic operations, the standard definitions of the
+    list operations will work with infinite lists (streams) as well as
+    finite ones, and the stream operations can be implemented as list operations.
+    Here are some examples:
+
+    <SNIPPET EVAL="no">
+      <SCHEME>
+      <!--  \indcode*{list-ref} -->
+      (define (list-ref items n)
+      (if (= n 0)
+      (car items)
+      (list-ref (cdr items) (- n 1))))
+
+      <!--  \indcode*{map} -->
+      (define (map proc items)
+      (if (null? items)
+      '()
+      (cons (proc (car items))
+            (map proc (cdr items)))))
+
+      <!--  \indcode*{scale-list} -->
+      (define (scale-list items factor)
+      (map (lambda (x) (* x factor))
+      items))
+
+      <!--  \indcode*{add-lists} -->
+      (define (add-lists list1 list2)
+      (cond ((null? list1) list2)
+            ((null? list2) list1)
+            (else (cons (+ (car list1) (car list2))
+            (add-lists (cdr list1) (cdr list2))))))
+
+      <!-- \indcodeplus*{ones}{(infinite stream)}[lazy-list version]-->
+      (define ones (cons 1 ones))
+
+      <!-- \indcodeplus*{integers}{(infinite stream)}[lazy-list version]-->
+      (define integers (cons 1 (add-lists ones integers)))
+      </SCHEME>
+      <SCHEMEOUTPUT>
+      ;;; L-Eval input:
+      (list-ref integers 17)
+      ;;; L-Eval value:
+      18
+      </SCHEMEOUTPUT>
+      <JAVASCRIPT>
+function list_ref(items, n) {	
+    return n === 0
+           ? head(items)
+           : list_ref(tail(items), n - 1);
+}
+function map(fun, items) {	   
+    return is_null(items)
+           ? null
+           : pair(fun(head(items)),
+                  map(fun, tail(items)));
+}
+function scale_list(items, factor) {
+    return map(x => x * factor, items);
+}
+function add_lists(list1, list2) {
+    return is_null(list1)
+           ? list2
+           : is_null(list2)    
+             ? list1
+             : pair(head(list1) + head(list2),
+                    add_lists(tail(list1),
+                              tail(list2)));
+}
+const ones = pair(1, ones);
+const integers = pair(1, add_lists(ones, integers));
+
+list_ref(integers, 17); // returns 18
+      </JAVASCRIPT>
+    </SNIPPET>
+  </TEXT>
+
+  <TEXT>
+    Note that these lazy lists are even lazier than the streams of
+    chapter<SPACE/>3:  The
+    <SPLITINLINE><SCHEME><SCHEMEINLINE>car</SCHEMEINLINE></SCHEME>
+    <JAVASCRIPT><JAVASCRIPTINLINE>head</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>
+    of the list, as well as the
+    <SPLITINLINE><SCHEME><SCHEMEINLINE>cdr</SCHEMEINLINE>,</SCHEME>
+    <JAVASCRIPT><JAVASCRIPTINLINE>tail</JAVASCRIPTINLINE>,</JAVASCRIPT></SPLITINLINE>
+    is delayed.<FOOTNOTE>This permits us to create delayed versions of more
+    general kinds of
+    <INDEX>Hughes, R. J. M.</INDEX>
+    list structures, not just sequences.  
+    <CITATION><TEXT>Hughes (1990)</TEXT>Hughes 1990</CITATION>
+    discusses some
+    <INDEX>lazy tree</INDEX><INDEX>tree<SUBINDEX>lazy</SUBINDEX></INDEX>
+    applications of <QUOTE>lazy trees.</QUOTE></FOOTNOTE>
+    In fact, even accessing the
+    <SPLITINLINE><SCHEME><SCHEMEINLINE>car</SCHEMEINLINE></SCHEME>
+    <JAVASCRIPT><JAVASCRIPTINLINE>head</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>
+    or
+    <SPLITINLINE><SCHEME><SCHEMEINLINE>cdr</SCHEMEINLINE></SCHEME>
+    <JAVASCRIPT><JAVASCRIPTINLINE>tail</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>
+    of a lazy pair need not force the value of a list element.  The value will be
+    forced only when it is really needed<EMDASH/>e.g., for use as the
+    argument of a primitive, or to be printed as an answer.
+  </TEXT>
+
+  <TEXT>
+    Lazy pairs also help with the problem that arose with streams in
+    section<SPACE/><REF NAME="sec:streams-and-delayed-evaluation"/>, where we found
+    that formulating stream models of systems with loops may require us to
+    sprinkle our programs with
+    <SPLITINLINE>
+      <SCHEME>
+    <!-- \indsf{delay}[explicit vs.\ automatic]-->
+    <INDEX>delayed evaluation<SUBINDEX>explicit vs.<SPACE/>automatic</SUBINDEX></INDEX>
+    explicit
+    <SCHEMEINLINE>delay</SCHEMEINLINE>
+    operations, beyond the
+    ones supplied by
+    <SCHEMEINLINE>cons-stream</SCHEMEINLINE>.
+      </SCHEME>
+      <JAVASCRIPT>
+    <!-- \indsf{delay}[explicit vs.\ automatic]-->
+    <INDEX>delayed evaluation<SUBINDEX>explicit vs.<SPACE/>automatic</SUBINDEX></INDEX>
+    additional delayed function definitions,
+    beyond the ones required to construct a stream pair.
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    With lazy evaluation, all
+    arguments to
+    <SPLITINLINE><SCHEME>procedures</SCHEME><JAVASCRIPT>functions</JAVASCRIPT></SPLITINLINE>
+    are delayed uniformly.  For instance, we can implement
+    <SPLITINLINE><SCHEME>procedures</SCHEME><JAVASCRIPT>functions</JAVASCRIPT></SPLITINLINE>
+    to integrate lists and solve differential equations as we originally intended in
+    section<SPACE/><REF NAME="sec:streams-and-delayed-evaluation"/>:
+
+    <SNIPPET EVAL="no">
+      <SCHEME>
+      <!--  \indcode*{integral}[lazy-list version] -->
+      (define (integral integrand initial-value dt)
+      (define int
+      (cons initial-value
+            (add-lists (scale-list integrand dt)
+            int)))
+      int)
+
+      <!-- \indcodeplus*{solve}{differential equation}[lazy-list version]-->
+      (define (solve f y0 dt)
+      (define y (integral dy y0 dt))
+      (define dy (map f y))
+      y)
+      </SCHEME>
+      <SCHEMEOUTPUT>
+      ;;; L-Eval input:
+      (list-ref (solve (lambda (x) x) 1 0.001) 1000)
+      ;;; L-Eval value:
+      2.716924
+      </SCHEMEOUTPUT>
+      <JAVASCRIPT>
+function integral(integrand, initial_value, dt) {	
+    const int =
+        pair(initial_value,
+             add_lists(scale_list(integrand, dt),
+                       int));
+    return int;
+}
+function solve(f, y0, dt) {
+    const y = integral(dy, y0, dt);
+    const dy = map(f, y);
+    return y;
+}
+list_ref(solve(x => x, 1, 0.001), 1000);
+      </JAVASCRIPT>
+    </SNIPPET>
+  </TEXT>
+
+  <EXERCISE>
+    Give some examples that illustrate the difference between the streams
+    of chapter<SPACE/>3 and the <QUOTE>lazier</QUOTE> lazy lists described in
+    this section. How can you take advantage of this extra laziness?
+  </EXERCISE>
+
+  <EXERCISE>
+    Ben Bitdiddle tests the lazy list implementation given above by
+    evaluating the expression
+    <SNIPPET EVAL="no">
+      <SCHEME>
+      (car '(a b c))
+      </SCHEME>
+      <JAVASCRIPT>
+head(list(a, b, c));
+      </JAVASCRIPT>
+    </SNIPPET>
+    To his surprise, this produces an error.  After some thought, he
+    realizes that the <QUOTE>lists</QUOTE> obtained by reading in quoted expressions
+    are different from the lists manipulated by the new definitions of
+    <SPLITINLINE><SCHEME><SCHEMEINLINE>cons</SCHEMEINLINE>,</SCHEME>
+    <JAVASCRIPT><JAVASCRIPTINLINE>pair</JAVASCRIPTINLINE>,</JAVASCRIPT></SPLITINLINE>
+    <SPLITINLINE><SCHEME><SCHEMEINLINE>car</SCHEMEINLINE>,</SCHEME>
+    <JAVASCRIPT><JAVASCRIPTINLINE>head</JAVASCRIPTINLINE>,</JAVASCRIPT></SPLITINLINE>
+    and
+    <SPLITINLINE><SCHEME><SCHEMEINLINE>cdr</SCHEMEINLINE>.</SCHEME>
+    <JAVASCRIPT><JAVASCRIPTINLINE>tail</JAVASCRIPTINLINE>.</JAVASCRIPT></SPLITINLINE>
+    Modify the evaluator<APOS/>s treatment of
+    <SPLITINLINE>
+      <SCHEME>
+    quoted expressions so that quoted lists
+      </SCHEME>
+      <JAVASCRIPT>
+	applications of the primitive function l
+	<JAVASCRIPTINLINE>list</JAVASCRIPTINLINE>
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    typed at the driver loop will produce true lazy lists.
+    <LABEL NAME="ex:lazy-list-input"/>
+  </EXERCISE>
+
+  <EXERCISE>
+    Modify the driver loop for the evaluator so that lazy pairs and lists
+    will print in some reasonable way.  (What are you going to do about
+    infinite lists?)  You may also need to modify the representation of
+    lazy pairs so that the evaluator can identify them in order
+    to print them.
+    <LABEL NAME="ex:lazy-list-printing"/>
+  </EXERCISE>
+  <INDEX>delayed evaluation<SUBINDEX>lazy@in lazy evaluator|)</SUBINDEX></INDEX>
+  <INDEX>stream(s)<SUBINDEX>implemented as lazy lists|)</SUBINDEX></INDEX>
+  <INDEX>lazy list|)</INDEX>
+  <INDEX>list(s)<SUBINDEX>lazy|)</SUBINDEX></INDEX>
+  <INDEX>lazy pair|)</INDEX>
+  <INDEX>pair(s)<SUBINDEX>lazy|)</SUBINDEX></INDEX>
+
+</SUBSECTION>

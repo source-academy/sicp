@@ -1,0 +1,1197 @@
+<SUBSECTION>
+  <NAME>
+    An Interpreter with Lazy Evaluation
+  </NAME>
+
+  <TEXT>
+    In this section we will implement a normal-order language that is
+    the same as Scheme except that compound
+    <SPLITINLINE><SCHEME>procedures</SCHEME>
+    <JAVASCRIPT>functions</JAVASCRIPT></SPLITINLINE>
+    are non-strict in each argument.  Primitive
+    <SPLITINLINE><SCHEME>procedures</SCHEME>
+    <JAVASCRIPT>functions</JAVASCRIPT></SPLITINLINE>
+    will still be strict.
+    It is not difficult to modify the evaluator of
+    section<SPACE/><REF NAME="sec:core-of-evaluator"/> so that the language it
+    interprets behaves this way.  Almost all the required changes center around
+    <SPLITINLINE><SCHEME>procedure</SCHEME>
+    <JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+    application.
+  </TEXT>
+
+  <TEXT>
+    The basic idea is that, when applying a
+    <SPLITINLINE><SCHEME>procedure,</SCHEME>
+    <JAVASCRIPT>function,</JAVASCRIPT></SPLITINLINE>
+    the interpreter must determine which arguments are to be evaluated and which
+    are to be delayed.  The delayed arguments are not evaluated; instead, they
+    are transformed into objects called 
+    <INDEX>thunk|(</INDEX>
+    <EM>
+      thunk</EM>s.<FOOTNOTE>The word <EM>thunk</EM> was invented by an informal
+      <INDEX>thunk<SUBINDEX>origin of name</SUBINDEX></INDEX>
+      <INDEX>Algol<SUBINDEX>thunks</SUBINDEX></INDEX>
+      <INDEX>Ingerman, Peter</INDEX>
+      working group that was discussing the implementation of call-by-name
+      in Algol 60.  They observed that most of the analysis of (<QUOTE>thinking
+      about</QUOTE>) the expression could be done at compile time; thus, at run
+      time, the expression would already have been <QUOTE>thunk</QUOTE> about 
+      (<CITATION>Ingerman et al.<SPACE/>1960</CITATION>).</FOOTNOTE>
+  </TEXT>
+
+  <TEXT>
+    The thunk must contain the information required to produce the value
+    of the argument when it is needed, as if it had been evaluated at
+    the time of the application.  Thus, the thunk must contain the
+    argument expression and the environment in
+    which the
+    <SPLITINLINE><SCHEME>procedure</SCHEME>
+    <JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+    application is being evaluated.
+  </TEXT>
+
+  <TEXT>
+    <INDEX>force@force a thunk</INDEX>
+    <INDEX>thunk<SUBINDEX>forcing</SUBINDEX></INDEX>
+    The process of evaluating the expression in a thunk is called 
+    <EM>forcing</EM>.<FOOTNOTE>This is analogous to the use of
+    <SCHEMEINLINE>force</SCHEMEINLINE>
+    <!--  \indcode{force}[forcing a thunk vs.] -->
+    on the delayed objects that were introduced in chapter<SPACE/>3 to
+    represent streams.  The critical difference between what we are
+    doing here and what we did in chapter<SPACE/>3 is that we are building
+    delaying and forcing into the evaluator, and thus making this uniform
+    and automatic throughout the language.</FOOTNOTE>
+  </TEXT>
+
+  <TEXT>
+    In general, a thunk will be forced only when its value is needed:
+    when it is passed to a primitive
+    <SPLITINLINE><SCHEME>procedure</SCHEME>
+    <JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+    that will use the value of the thunk; when it is the
+    value of a predicate of a conditional; and when it
+    is the value of an operator that is about to be applied as a
+    <SPLITINLINE><SCHEME>procedure</SCHEME>
+    <JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>.
+    One design choice we have available is whether or not to 
+    <INDEX>memoization<SUBINDEX>thunk@of thunks</SUBINDEX></INDEX>
+    <EM>
+      memoize</EM> thunks, as we did with delayed objects in
+      section<SPACE/><REF NAME="sec:delayed-lists"/>.  With memoization, the first
+      time a thunk is forced, it stores the value that is computed.  Subsequent
+      forcings simply return the stored value without repeating the
+      computation.  We<APOS/>ll make our interpreter memoize, because this is
+      more efficient for many applications.  There are tricky
+      considerations here, however.<FOOTNOTE>Lazy evaluation combined with
+      memoization is sometimes
+      <INDEX>call-by-need argument passing</INDEX>
+      referred to as <EM>call-by-need</EM> argument passing, in contrast to
+      <EM>call-by-name</EM> argument passing.  
+      <INDEX>call-by-name argument passing</INDEX>
+      <INDEX>Algol<SUBINDEX>call-by-name argument passing</SUBINDEX></INDEX>
+      (Call-by-name, introduced in
+      Algol 60, is similar to non-memoized lazy evaluation.)
+      As language designers, we can build our evaluator to memoize,
+      not to memoize, or leave this an option for programmers
+      (exercise<SPACE/><REF NAME="ex:user-controlled-strictness"/>).  As you might expect
+      from chapter<SPACE/>3, these choices raise issues that become both subtle and
+      confusing in the presence of assignments.  (See
+      exercises<SPACE/><REF NAME="ex:delay-side-effects"/>
+      and<SPACE/><REF NAME="ex:memoize-or-not"/>.)
+      <INDEX>Clinger, William</INDEX>
+      An excellent article by Clinger (1982) attempts to clarify the
+      multiple dimensions of confusion that arise here.</FOOTNOTE>
+      <INDEX>thunk|)</INDEX>
+  </TEXT>
+
+  <SUBHEADING>
+    <NAME>Modifying the evaluator</NAME>
+  </SUBHEADING>
+
+  <TEXT>
+    The main difference between the lazy evaluator and the one in
+    section<SPACE/><REF NAME="sec:mc-eval"/> is in the handling of
+    <SPLITINLINE><SCHEME>procedure</SCHEME>
+    <JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+    applications in
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>eval</SCHEMEINLINE></SCHEME>
+      <JAVASCRIPT><JAVASCRIPTINLINE>evaluate</JAVASCRIPTINLINE></JAVASCRIPT>
+    </SPLITINLINE>
+    and
+    <SCHEMEINLINE>apply</SCHEMEINLINE>.
+  </TEXT>
+
+  <TEXT>
+    <!-- \indcodeplus{eval}{(lazy)}-->
+    <SPLITINLINE>
+      <SCHEME>
+	The <SCHEMEINLINE>application?</SCHEMEINLINE> clause of
+	<SCHEMEINLINE>eval</SCHEMEINLINE> becomes
+      </SCHEME>
+      <JAVASCRIPT>
+	The <JAVASCRIPTINLINE>is_application</JAVASCRIPTINLINE>
+	clause of
+	<SCHEMEINLINE>evaluate</SCHEMEINLINE> becomes
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    <SNIPPET EVAL="no">
+      <SCHEME>
+	((application? exp)
+	(apply (actual-value (operator exp) env)
+        (operands exp)
+        env))
+      </SCHEME>
+      <JAVASCRIPT>
+is_application(exp)      
+? apply(actual_value(operator(exp), env),
+        operands(exp),
+        env)
+      </JAVASCRIPT>
+    </SNIPPET>
+  </TEXT>
+
+  <TEXT>
+    This is almost the same as the
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>application?</SCHEMEINLINE></SCHEME>
+      <JAVASCRIPT><JAVASCRIPTINLINE>is_application</JAVASCRIPTINLINE></JAVASCRIPT>
+    </SPLITINLINE>
+    clause of
+    <SPLITINLINE>
+      <SCHEME>
+	<SCHEMEINLINE>eval</SCHEMEINLINE>
+      </SCHEME>
+      <JAVASCRIPT>
+	<JAVASCRIPTINLINE>evaluate</JAVASCRIPTINLINE>
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    in section<SPACE/><REF NAME="sec:core-of-evaluator"/>.  For lazy evaluation,
+    however, we call <SCHEMEINLINE>apply</SCHEMEINLINE> with the operand
+    expressions, rather than the arguments produced by evaluating them.
+    Since we will need the environment to construct thunks if the arguments
+    are to be delayed, we must pass this as well. We still evaluate the
+    operator, because <SCHEMEINLINE>apply</SCHEMEINLINE> needs the actual
+    <SPLITINLINE><SCHEME>procedure</SCHEME>
+    <JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+    to be applied in order to dispatch on its type (primitive versus compound)
+    and apply it.
+  </TEXT>
+
+  <TEXT>
+    Whenever we need the actual value of an expression, we use
+    <SNIPPET EVAL="no">
+      <SCHEME>
+	<!--  \indcode*{actual-value} -->
+	(define (actual-value exp env)
+	(force-it (eval exp env)))
+      </SCHEME>
+      <JAVASCRIPT>
+function actual_value(exp, env) {
+    return force_it(evaluate(exp, env));
+}
+      </JAVASCRIPT>
+    </SNIPPET>
+    instead of just
+    <SPLITINLINE>
+      <SCHEME>
+	<SCHEMEINLINE>eval</SCHEMEINLINE>,
+      </SCHEME>
+      <JAVASCRIPT>
+	<JAVASCRIPTINLINE>evaluate</JAVASCRIPTINLINE>,
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    so that if the
+    expression<APOS/>s value is a thunk, it will be forced.
+  </TEXT>
+
+  <TEXT>
+    Our new version of <SCHEMEINLINE>apply</SCHEMEINLINE> is
+    also almost the same as the version in
+    section<SPACE/><REF NAME="sec:core-of-evaluator"/>.
+    The difference is that
+    <SPLITINLINE>
+      <SCHEME>
+	<SCHEMEINLINE>eval</SCHEMEINLINE>
+      </SCHEME>
+      <JAVASCRIPT>
+	<JAVASCRIPTINLINE>evaluate</JAVASCRIPTINLINE>
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    has passed in unevaluated operand expressions:
+    For primitive
+    <SPLITINLINE><SCHEME>procedures</SCHEME>
+    <JAVASCRIPT>functions</JAVASCRIPT></SPLITINLINE>
+    (which are strict), we evaluate all the
+    arguments before applying the primitive;
+    for compound
+    <SPLITINLINE><SCHEME>procedures</SCHEME>
+    <JAVASCRIPT>functions</JAVASCRIPT></SPLITINLINE>
+    (which are non-strict) we delay all the
+    arguments before applying the
+    <SPLITINLINE><SCHEME>procedure.</SCHEME>
+    <JAVASCRIPT>function.</JAVASCRIPT></SPLITINLINE>
+
+    <SNIPPET EVAL="no">
+      <SCHEME>
+	<!-- \indcodeplus*{apply}{(lazy)}-->
+	(define (apply procedure arguments env)
+	(cond ((primitive-procedure? procedure)
+        (apply-primitive-procedure
+        procedure
+        (list-of-arg-values arguments env)))  <EM>; changed</EM>
+        ((compound-procedure? procedure)
+        (eval-sequence
+        (procedure-body procedure)
+        (extend-environment
+        (procedure-parameters procedure)
+        (list-of-delayed-args arguments env) <EM>; changed</EM>
+        (procedure-environment procedure))))
+        (else
+        (error
+        "Unknown procedure type - - APPLY" procedure))))
+      </SCHEME>
+      <JAVASCRIPT>
+function apply(fun, args) {
+   if (is_primitive_function(fun)) {
+       return apply_primitive_function(
+                  fun,  // following line changed
+                  list_of_arg_values(args, env));
+   } else if (is_compound_function(fun)) {
+      const result =
+         evaluate(function_body(fun),
+                  extend_environment(
+                      function_parameters(fun),
+                        // following line changed
+                      list_of_delayed_args(args,
+                                           env),
+                      function_environment(fun)));
+      if (is_return_value(result)) {
+         return return_value_content(result);
+      } else {
+          return undefined;
+      }
+   } else {
+      Error("Unknown function type in apply",
+            fun);
+   }
+}
+      </JAVASCRIPT>
+    </SNIPPET>
+  </TEXT>
+
+  <TEXT>
+    The
+    <SPLITINLINE><SCHEME>procedures</SCHEME>
+    <JAVASCRIPT>functions</JAVASCRIPT></SPLITINLINE>
+    that process the arguments are just like
+    <SPLITINLINE>
+      <SCHEME>
+	<SCHEMEINLINE>list-of-values</SCHEMEINLINE>
+      </SCHEME>
+      <JAVASCRIPT>
+	<JAVASCRIPTINLINE>list_of_values</JAVASCRIPTINLINE>
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    from section<SPACE/><REF NAME="sec:core-of-evaluator"/>,
+    except that
+    <SPLITINLINE>
+      <SCHEME>
+	<SCHEMEINLINE>list-of-delayed-args</SCHEMEINLINE>
+      </SCHEME>
+      <JAVASCRIPT>
+	<JAVASCRIPTINLINE>list_of_delayed_args</JAVASCRIPTINLINE>
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    delays the arguments instead of evaluating them, and
+    <SPLITINLINE>
+      <SCHEME>
+	<SCHEMEINLINE>list-of-arg-values</SCHEMEINLINE>
+      </SCHEME>
+      <JAVASCRIPT>
+	<JAVASCRIPTINLINE>list_of_arg_values</JAVASCRIPTINLINE>
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    uses
+    <SPLITINLINE>
+      <SCHEME>
+	<SCHEMEINLINE>actual-value</SCHEMEINLINE>
+      </SCHEME>
+      <JAVASCRIPT>
+	<JAVASCRIPTINLINE>actual_value</JAVASCRIPTINLINE>
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    instead of
+    <SPLITINLINE>
+      <SCHEME>
+	<SCHEMEINLINE>eval</SCHEMEINLINE>:
+      </SCHEME>
+      <JAVASCRIPT>
+	<JAVASCRIPTINLINE>evaluate</JAVASCRIPTINLINE>:
+      </JAVASCRIPT>
+    </SPLITINLINE>
+
+    <SNIPPET EVAL="no">
+      <SCHEME>
+	<!--  \indcode*{list-of-arg-values} -->
+	(define (list-of-arg-values exps env)
+	(if (no-operands? exps)
+	'()
+	(cons (actual-value (first-operand exps) env)
+        (list-of-arg-values (rest-operands exps)
+        env))))
+
+	<!--  \indcode*{list-of-delayed-args} -->
+	(define (list-of-delayed-args exps env)
+	(if (no-operands? exps)
+	'()
+	(cons (delay-it (first-operand exps) env)
+        (list-of-delayed-args (rest-operands exps)
+        env))))
+      </SCHEME>
+      <JAVASCRIPT>
+function list_of_arg_values(exps, env) {
+    return no_operands(exps)	
+        ? null
+        : pair(actual_value(first_operand(exps), 
+                            env),
+               list_of_arg_values(rest_operands(exps),
+                                  env));
+}
+function list_of_delayed_args(exps, env) {				  
+    return no_operands(exps)
+        ? null
+        : pair(delay_it(first_operand(exps), env),
+               list_of_delayed_args(
+                   rest_operands(exps), env));
+}
+      </JAVASCRIPT>
+    </SNIPPET>
+  </TEXT>
+
+  <TEXT>
+    The other place we must change the evaluator is in the handling of
+    <SCHEMEINLINE>if</SCHEMEINLINE>, where we must use <SCHEMEINLINE>actual-value</SCHEMEINLINE> instead
+    of <SCHEMEINLINE>eval</SCHEMEINLINE> to get the value of the predicate expression
+    before testing whether it is true or false:
+
+    <SNIPPET EVAL="no">
+      <SCHEME>
+	<!-- \indcodeplus*{eval-if}{(lazy)}-->
+	(define (eval-if exp env)
+	(if (true? (actual-value (if-predicate exp) env))
+	(eval (if-consequent exp) env)
+	(eval (if-alternative exp) env)))
+      </SCHEME>
+      <JAVASCRIPT>
+function eval_conditional_expression(exp, env) {	
+    return is_true(actual_value(cond_expr_pred(exp),
+                                env))
+           ? evaluate(cond_expr_cons(exp), env)
+           : evaluate(cond_expr_alt(exp), env);
+}
+      </JAVASCRIPT>
+    </SNIPPET>
+  </TEXT>
+
+  <TEXT>
+    <INDEX>driver loop<SUBINDEX>lazy@in lazy evaluator</SUBINDEX></INDEX>
+    Finally, we must change the
+    <SPLITINLINE>
+      <SCHEME>
+	<SCHEMEINLINE>driver-loop</SCHEMEINLINE>
+      </SCHEME>
+      <JAVASCRIPT>
+	<JAVASCRIPTINLINE>eval_toplevel</JAVASCRIPTINLINE>
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+    (section<SPACE/><REF NAME="sec:running-eval"/>) to use
+    <SPLITINLINE>
+      <SCHEME>
+	<SCHEMEINLINE>actual-value</SCHEMEINLINE>
+      </SCHEME>
+      <JAVASCRIPT>
+	<JAVASCRIPTINLINE>actual_value</JAVASCRIPTINLINE>
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    instead of
+    <SPLITINLINE>
+      <SCHEME>
+	<SCHEMEINLINE>eval</SCHEMEINLINE>,
+      </SCHEME>
+      <JAVASCRIPT>
+	<SCHEMEINLINE>evaluate</SCHEMEINLINE>,
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    so that if a delayed value
+    is propagated back to the
+    <SPLITINLINE>
+      <SCHEME>
+	read-eval-print loop,
+      </SCHEME>
+      <JAVASCRIPT>
+	evaluator
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    it will be forced
+    before being printed.
+    <SPLIITINLINE><SCHEME>We also change the prompts to indicate that
+    this is the lazy evaluator:</SCHEME></SPLIITINLINE>
+
+    <SNIPPET EVAL="no">
+      <SCHEME>
+	<INDEX>prompts<SUBINDEX>lazy evaluator</SUBINDEX></INDEX>
+	(define input-prompt ";;; L-Eval input:")
+	(define output-prompt ";;; L-Eval value:")
+
+	<!--  \indcode*{driver-loop}[for lazy evaluator] -->
+	(define (driver-loop)
+	(prompt-for-input input-prompt)
+	(let ((input (read)))
+	(let ((output
+        (actual-value input the-global-environment)))
+	(announce-output output-prompt)
+	(user-print output)))
+	(driver-loop))
+      </SCHEME>
+      <JAVASCRIPT>
+function eval_toplevel(stmt) {
+   const value = actual_value(stmt, the_global_environment);
+   if (is_return_value(value)) {
+       error("return not allowed " +
+             "outside of function definitions");
+   } else {
+       return value;
+   }
+}
+      </JAVASCRIPT>
+    </SNIPPET>
+  </TEXT>
+
+  <TEXT>
+    With these changes made, we can start the evaluator and test it.  The
+    successful evaluation of the <SCHEMEINLINE>try</SCHEMEINLINE> expression discussed in
+    section<SPACE/><REF NAME="sec:evaluation-order"/> indicates that the interpreter is
+    performing lazy evaluation:
+
+    <SNIPPET EVAL="no">
+      <SCHEME>
+	(define the-global-environment (setup-environment))
+
+	(driver-loop)
+      </SCHEME>
+      <SCHEMEOUTPUT>
+	;;; L-Eval input:
+	(define (try a b)
+	(if (= a 0) 1 b))
+	;;; L-Eval value:
+	ok
+
+	;;; L-Eval input:
+	(try 0 (/ 1 0))
+	;;; L-Eval value:
+	1
+      </SCHEMEOUTPUT>
+      <JAVASCRIPT>
+eval_toplevel(parse(
+   "function try(a, b) {        " +
+   "    return a === 0 ? 1 : b; " +
+   "}                           " +
+   "try(0, head(null));         "   ));
+      </JAVASCRIPT>
+    </SNIPPET>
+  </TEXT>
+
+  <SUBHEADING>
+    <NAME>Representing thunks</NAME>
+  </SUBHEADING>
+
+  <INDEX>thunk<SUBINDEX>implementation of|(</SUBINDEX></INDEX>
+
+  <TEXT>
+    Our evaluator must arrange to create thunks when
+    <SPLITINLINE><SCHEME>procedures</SCHEME>
+    <JAVASCRIPT>functions</JAVASCRIPT></SPLITINLINE>
+    are applied to arguments and to force these thunks later.  A thunk
+    must package an expression together with the environment, so that
+    the argument can be produced later.
+    To force the thunk, we simply extract the expression and environment
+    from the thunk and evaluate the expression in the environment.
+    We use
+    <SPLITINLINE>
+      <SCHEME>
+	<SCHEMEINLINE>actual-value</SCHEMEINLINE>
+      </SCHEME>
+      <JAVASCRIPT>
+	<JAVASCRIPTINLINE>actual_value</JAVASCRIPTINLINE>
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    rather than
+    <SPLITINLINE>
+      <SCHEME>
+	<SCHEMEINLINE>eval</SCHEMEINLINE>
+      </SCHEME>
+      <JAVASCRIPT>
+	<SCHEMEINLINE>evaluate</SCHEMEINLINE>
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    so that in case the
+    value of the expression is itself a thunk, we will force that, and so
+    on, until we reach something that is not a thunk:
+
+    <SNIPPET EVAL="no">
+      <SCHEME>
+	<!--  \indcode*{force-it} -->
+	(define (force-it obj)
+	(if (thunk? obj)
+	(actual-value (thunk-exp obj) (thunk-env obj))
+	obj))
+      </SCHEME>
+      <JAVASCRIPT>
+function force_it(obj) {	
+     return is_thunk(obj)
+            ? actual_value(thunk_exp(obj), thunk_env(obj))
+            : obj;
+}
+      </JAVASCRIPT>
+    </SNIPPET>
+  </TEXT>
+
+  <TEXT>
+    One easy way to package an expression with an environment is to make a
+    list containing the expression and the environment.
+    Thus, we create a thunk as follows:
+
+    <SNIPPET EVAL="no">
+      <SCHEME>
+	<!--  \indcode*{delay-it} -->
+	(define (delay-it exp env)
+	(list 'thunk exp env))
+
+	(define (thunk? obj)
+	(tagged-list? obj 'thunk))
+
+	(define (thunk-exp thunk) (cadr thunk))
+
+	(define (thunk-env thunk) (caddr thunk))
+      </SCHEME>
+      <JAVASCRIPT>
+function delay_it(exp, env) {	
+    return list("thunk", exp, env);
+}
+function is_thunk(obj) {    
+    return is_tagged_list(obj, "thunk");
+}
+function thunk_exp(thunk) {
+    return head(tail(thunk));
+}
+function thunk_env(thunk) {
+    return head(tail(tail(thunk)));
+}
+      </JAVASCRIPT>
+    </SNIPPET>
+  </TEXT>
+
+  <TEXT>
+    Actually, what we want for our interpreter is not quite this, but
+    rather thunks that have been memoized.
+    <!-- 
+	 %  Memoized thunks are created by the same method used with the <SCHEMEINLINE>%memo-proc</SCHEMEINLINE>
+	 <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+	 of section<SPACE/><REF NAME="sec:delayed-lists"/>.
+    -->
+    When a thunk is forced, we will turn it into an evaluated thunk
+    by replacing the stored expression with its value and
+    changing the <SCHEMEINLINE>thunk</SCHEMEINLINE> tag so that it can be recognized as
+    already evaluated.<FOOTNOTE>Notice that we also erase the
+    <SCHEMEINLINE>env</SCHEMEINLINE> from the thunk once the
+    expression<APOS/>s value has been computed.  This makes no difference
+    in the values returned by the interpreter.  It does help save space,
+    however, because removing the reference from the thunk to the
+    <SCHEMEINLINE>env</SCHEMEINLINE>
+    once it is no longer needed allows this structure to be
+    <INDEX>garbage collection<SUBINDEX>memoization and</SUBINDEX></INDEX>
+    <INDEX>memoization<SUBINDEX>garbage collection and</SUBINDEX></INDEX>
+    <EM>garbage-collected</EM> and its space recycled, as we will discuss
+    in section<SPACE/><REF NAME="sec:storage-allocation"/>.
+
+    Similarly, we could have allowed unneeded environments in the memoized
+    delayed objects of section<SPACE/><REF NAME="sec:delayed-lists"/>
+    to be garbage-collected,
+    by having
+    <SPLITINLINE>
+      <SCHEME>
+	<SCHEMEINLINE>memo-proc</SCHEMEINLINE>
+      </SCHEME>
+      <JAVASCRIPT>
+	<JAVASCRIPTINLINE>memo_fun</JAVASCRIPTINLINE>
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    do something like
+    <SPLITINLINE><SCHEME><SCHEMEINLINE>(set! proc '())</SCHEMEINLINE></SCHEME>
+    <JAVASCRIPT><JAVASCRIPTINLINE>fun = null;</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>
+    to discard the
+    <SPLITINLINE>
+      <SCHEME>procedure
+      <SCHEMEINLINE>proc</SCHEMEINLINE>
+      </SCHEME>
+      <JAVASCRIPT>function
+      <JAVASCRIPTINLINE>fun</JAVASCRIPTINLINE>
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    (which includes the environment
+    in which the <SCHEMEINLINE>delay</SCHEMEINLINE> was evaluated)
+    after storing its value.</FOOTNOTE>
+
+    <SNIPPET EVAL="no">
+      <SCHEME>
+	(define (evaluated-thunk? obj)
+	(tagged-list? obj 'evaluated-thunk))
+
+	(define (thunk-value evaluated-thunk) (cadr evaluated-thunk))
+
+	<!--  \indcode*{force-it}[memoized version] -->
+	(define (force-it obj)
+	(cond ((thunk? obj)
+        (let ((result (actual-value
+        (thunk-exp obj)
+        (thunk-env obj))))
+        (set-car! obj 'evaluated-thunk)
+        (set-car! (cdr obj) result)  <EM>; replace <SCHEMEINLINE>exp</SCHEMEINLINE> with its value</EM>
+        (set-cdr! (cdr obj) '())     <EM>; forget unneeded <SCHEMEINLINE>env</SCHEMEINLINE></EM>
+        result))
+        ((evaluated-thunk? obj)
+        (thunk-value obj))
+        (else obj)))
+      </SCHEME>
+      <JAVASCRIPT>
+function is_evaluated_thunk(obj) {
+    return is_tagged_list(obj, "evaluated_thunk");
+}
+function thunk_value(evaluated_thunk) {
+    return head(tail(evaluated_thunk));
+}
+function force_it(obj) {
+    if (is_thunk(obj)) {
+        const result = actual_value(
+                           thunk_exp(obj),
+                           thunk_env(obj));
+        set_head(obj, "evaluated_thunk");
+        // replace exp with its value
+        set_head(tail(obj), result);
+        // forget unneeded env
+        set_tail(tail(obj), null);
+        return result;	
+    } else if(is_evaluated_thunk(obj)) {
+        return thunk_value(obj);
+    } else {
+        return obj;
+    }
+}
+      </JAVASCRIPT>
+    </SNIPPET>
+  </TEXT>
+
+  <TEXT>
+    Notice that the same
+    <SPLITINLINE>
+      <SCHEME>
+	<SCHEMEINLINE>delay-it</SCHEMEINLINE>
+      </SCHEME>
+      <JAVASCRIPT>
+	<JAVASCRIPTINLINE>delay_it</JAVASCRIPTINLINE>
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    <SPLITINLINE><SCHEME>procedure</SCHEME>
+    <JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+    works both with and
+    without memoization.
+    <INDEX>thunk<SUBINDEX>implementation of|)</SUBINDEX></INDEX>
+  </TEXT>
+
+  <EXERCISE><LABEL NAME="ex:delay-side-effects"/>
+  Suppose we type in the following definitions to the lazy evaluator:
+  <SNIPPET EVAL="no">
+    <SCHEME>
+      (define count 0)
+
+      (define (id x)
+      (set! count (+ count 1))
+      x)
+    </SCHEME>
+    <JAVASCRIPT>
+let count = 0;
+function id(x) {
+    count = count + 1;
+    return x;
+}
+    </JAVASCRIPT>
+  </SNIPPET>
+  Give the missing values in the following sequence of
+  interactions, and explain your answers.<FOOTNOTE>This exercise
+  demonstrates that the interaction between lazy evaluation and side
+  effects can be very confusing.  This is just what you might expect
+  from the discussion in chapter<SPACE/>3.</FOOTNOTE>
+  <SNIPPET EVAL="no">
+    <SCHEME>
+      (define w (id (id 10)))
+    </SCHEME>
+    <SCHEMEOUTPUT>
+      ;;; L-Eval input:
+      count
+      ;;; L-Eval value:
+      ^response^
+      ;;; L-Eval input:
+      w
+      ;;; L-Eval value:
+      ^response^
+      ;;; L-Eval input:
+      count
+      ;;; L-Eval value:
+      ^response^
+    </SCHEMEOUTPUT>
+    <JAVASCRIPT>
+read_eval_print_loop("");
+// enter:    &lt;count and id as defined above&gt;
+// response: ?
+// enter:    const w = id(id(10));
+// response: ?
+// enter:    count
+// response: ?
+// enter:    w
+// response: ?
+// enter:    count
+// response: ?
+    </JAVASCRIPT>
+  </SNIPPET>
+  </EXERCISE>
+
+  <EXERCISE>
+    <SPLITINLINE>
+      <SCHEME>
+	<SCHEMEINLINE>Eval</SCHEMEINLINE>
+      </SCHEME>
+      <JAVASCRIPT>
+	The function
+	<JAVASCRIPTINLINE>evaluate</JAVASCRIPTINLINE>
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    uses
+    <SPLITINLINE>
+      <SCHEME>
+	<SCHEMEINLINE>actual-value</SCHEMEINLINE>
+      </SCHEME>
+      <JAVASCRIPT>
+	<JAVASCRIPTINLINE>actual_value</JAVASCRIPTINLINE>
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    rather than
+    <SPLITINLINE>
+      <SCHEME>
+	<SCHEMEINLINE>eval</SCHEMEINLINE>
+      </SCHEME>
+      <JAVASCRIPT>
+	<JAVASCRIPTINLINE>evaluate</JAVASCRIPTINLINE>
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    to evaluate the operator before passing it to
+    <SCHEMEINLINE>apply</SCHEMEINLINE>,
+    in order to force the value of the operator.
+    Give an example that demonstrates the need for this forcing.
+    <LABEL NAME="ex:force-operator"/>
+  </EXERCISE>
+
+  <EXERCISE>
+    Exhibit a program that you would expect to run much more slowly
+    without memoization than with memoization.  Also, consider the
+    following interaction, where the <SCHEMEINLINE>id</SCHEMEINLINE>
+    <SPLITINLINE><SCHEME>procedure</SCHEME>
+    <JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+    is defined as in
+    exercise<SPACE/><REF NAME="ex:delay-side-effects"/> and
+    <SCHEMEINLINE>count</SCHEMEINLINE> starts at 0:
+    <SNIPPET EVAL="no">
+      <SCHEME>
+	(define (square x)
+	(* x x))
+      </SCHEME>
+      <SCHEMEOUTPUT>
+	;;; L-Eval input:
+	(square (id 10))
+	;;; L-Eval value:
+	^response^
+	;;; L-Eval input:
+	count
+	;;; L-Eval value:
+	^response^
+      </SCHEMEOUTPUT>
+      <JAVASCRIPT>
+read_eval_print_loop("");
+// enter:    &lt;count and id as defined above&gt;
+// response: ?
+// enter:    function square(x) { return x * x; }
+// response: ?
+// enter:    square(id(10));
+// response: ?
+// enter:    count
+// response: ?
+      </JAVASCRIPT>
+    </SNIPPET>
+    Give the responses both when the evaluator memoizes and when it does not.
+    <LABEL NAME="ex:memoize-or-not"/>
+  </EXERCISE>
+
+  <EXERCISE>
+    <LABEL NAME="ex:force-sequence"/>
+    Cy D. Fect, a reformed C programmer, is worried that some side effects
+    may never take place, because the lazy evaluator doesn<APOS/>t force the
+    expressions in a sequence.
+    Since the value of an expression in a sequence other than the last one
+    is not used (the expression is there only for its effect, such as
+    assigning to a variable or printing), there can be no subsequent use
+    of this value (e.g., as an argument to a primitive
+    <SPLITINLINE><SCHEME>procedure</SCHEME>
+    <JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>) that
+    will cause it to be forced.  Cy thus thinks that when evaluating
+    sequences, we must force all expressions in the sequence except the
+    final one.  He proposes to modify
+    <SCHEMEINLINE>eval-sequence</SCHEMEINLINE>
+    from section<SPACE/><REF NAME="sec:core-of-evaluator"/> to use
+    <SPLITINLINE>
+      <SCHEME>
+	<SCHEMEINLINE>actual-value</SCHEMEINLINE>
+      </SCHEME>
+      <JAVASCRIPT>
+	<JAVASCRIPTINLINE>actual_value</JAVASCRIPTINLINE>
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    rather than
+    <SPLITINLINE>
+      <SCHEME>
+	<SCHEMEINLINE>eval</SCHEMEINLINE>:
+      </SCHEME>
+      <JAVASCRIPT>
+	<JAVASCRIPTINLINE>evaluate</JAVASCRIPTINLINE>:
+      </JAVASCRIPT>
+    </SPLITINLINE>
+
+    <SNIPPET EVAL="no">
+      <SCHEME>
+	(define (eval-sequence exps env)
+	(cond ((last-exp? exps) (eval (first-exp exps) env))
+        (else (actual-value (first-exp exps) env)
+        (eval-sequence (rest-exps exps) env))))
+      </SCHEME>
+      <JAVASCRIPT>
+function eval_sequence(exps, env) {	
+    if (is_last_exp(exps)) {
+        evaluate(first_exp(exps), env);
+    } else {
+        actual_value(first_exp(exps), env);
+        eval_sequence(rest_exps(exps), env);
+    }
+}
+      </JAVASCRIPT>
+</SNIPPET>
+    <OL>
+      <LI>
+	Ben Bitdiddle thinks Cy is wrong.
+	He shows Cy the
+	<SPLITINLINE>
+	  <SCHEME>
+	    <SCHEMEINLINE>for-each</SCHEMEINLINE>
+	  </SCHEME>
+	  <JAVASCRIPT>
+	    <JAVASCRIPTINLINE>for_each</JAVASCRIPTINLINE>
+	  </JAVASCRIPT>
+	</SPLITINLINE>
+	<SPLITINLINE><SCHEME>procedure</SCHEME>
+	<JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+	described in
+	exercise<SPACE/><REF NAME="ex:for-each"/>,
+	which gives an important example of
+	a sequence with side effects:
+
+	<SNIPPET EVAL="no">
+          <SCHEME>
+	    <!--  \indcode*{for-each} -->
+	    (define (for-each proc items)
+	    (if (null? items)
+	    'done
+	    (begin (proc (car items))
+	    (for-each proc (cdr items)))))
+          </SCHEME>
+	  <JAVASCRIPT>
+function for_each(fun, items) {
+    if (is_null(items)){
+        return undefined;
+    } else {
+        fun(head(items));
+        for_each(fun, tail(items));
+    }
+}     
+	  </JAVASCRIPT>
+	  <JAVASCRIPT_RUN>
+// we avoid overriding the predeclared for_each
+// function by using the name for_each_ here
+function for_each_(fun, items) {
+    if (is_null(items)) {
+        return undefined;
+    } else {
+        fun(head(items));
+        for_each_(fun, tail(items));
+    }
+}     
+	  </JAVASCRIPT_RUN>
+	</SNIPPET>
+	He claims that the evaluator in the text (with the original
+	<SPLITINLINE>
+	  <SCHEME>
+	    <SCHEMEINLINE>eval-sequence</SCHEMEINLINE>)
+	  </SCHEME>
+	  <JAVASCRIPT>
+	    <JAVASCRIPTINLINE>eval_sequence</JAVASCRIPTINLINE>)
+	  </JAVASCRIPT>
+	</SPLITINLINE>
+
+	handles this correctly:
+
+	<SNIPPET EVAL="no">
+          <SCHEMEOUTPUT>
+	    ;;; L-Eval input:
+	    (for-each (lambda (x) (newline) (display x))
+	    (list 57 321 88))
+	    57
+	    321
+	    88
+	    ;;; L-Eval value:
+	    done
+          </SCHEMEOUTPUT>
+	  <JAVASCRIPT>
+read_eval_print_loop("");
+// enter:    &lt;for_each as defined above&gt;
+// response: ?
+// enter:    for_each(x => display(x), list(57, 321, 88));
+// response: 57 
+//           321
+//           88
+// response: done
+	  </JAVASCRIPT>
+	</SNIPPET>
+	Explain why Ben is right about the behavior of
+	<SPLITINLINE>
+	  <SCHEME>
+	    <SCHEMEINLINE>for-each</SCHEMEINLINE>.
+	  </SCHEME>
+	  <JAVASCRIPT>
+	    <JAVASCRIPTINLINE>for_each</JAVASCRIPTINLINE>.
+	  </JAVASCRIPT>
+	</SPLITINLINE>
+      </LI>
+      <LI>
+	Cy agrees that Ben is right about the
+	<SPLITINLINE>
+	  <SCHEME>
+	    <SCHEMEINLINE>for-each</SCHEMEINLINE>
+	  </SCHEME>
+	  <JAVASCRIPT>
+	    <JAVASCRIPTINLINE>for_each</JAVASCRIPTINLINE>
+	  </JAVASCRIPT>
+	</SPLITINLINE>
+	example, but says that that<APOS/>s not the kind of program he
+	was thinking about when he proposed his change to
+	<SPLITINLINE>
+	  <SCHEME>
+	    <SCHEMEINLINE>eval-sequence</SCHEMEINLINE>.
+	  </SCHEME>
+	  <JAVASCRIPT>
+	    <JAVASCRIPTINLINE>eval_sequence</JAVASCRIPTINLINE>.
+	  </JAVASCRIPT>
+	</SPLITINLINE>
+	He defines the following two
+	<SPLITINLINE><SCHEME>procedures</SCHEME>
+	<JAVASCRIPT>functions</JAVASCRIPT></SPLITINLINE>
+	in the lazy evaluator:
+
+	<SNIPPET EVAL="no">
+          <SCHEME>
+	    (define (p1 x)
+	    (set! x (cons x '(2)))
+	    x)
+
+	    (define (p2 x)
+	    (define (p e)
+	    e
+	    x)
+	    (p (set! x (cons x '(2)))))
+          </SCHEME>
+	  <JAVASCRIPT>
+function p1(x) {
+    x = pair(x, list(2));
+}
+function p2(x) {
+    function p(e) {
+        e;
+        return x;
+    }	
+    x = pair(x, list(2));
+    return p(x);
+}
+	  </JAVASCRIPT>
+	</SNIPPET>
+	What are the values of
+	<SPLITINLINE>
+	  <SCHEME><SCHEMEINLINE>(p1 1)</SCHEMEINLINE></SCHEME>
+	  <JAVASCRIPT><JAVASCRIPTINLINE>p(1)</JAVASCRIPTINLINE></JAVASCRIPT>
+	</SPLITINLINE>
+	and
+	<SPLITINLINE>
+	  <SCHEME><SCHEMEINLINE>(p2 1)</SCHEMEINLINE></SCHEME>
+	  <JAVASCRIPT><JAVASCRIPTINLINE>p2(1)</JAVASCRIPTINLINE></JAVASCRIPT>
+	</SPLITINLINE>
+	with the
+	original
+	<SPLITINLINE>
+	  <SCHEME>
+	    <SCHEMEINLINE>eval-sequence</SCHEMEINLINE>?
+	  </SCHEME>
+	  <JAVASCRIPT>
+	    <JAVASCRIPTINLINE>eval_sequence</JAVASCRIPTINLINE>?
+	  </JAVASCRIPT>
+	</SPLITINLINE>
+	What would the values be with Cy<APOS/>s proposed change to
+	<SPLITINLINE>
+	  <SCHEME>
+	    <SCHEMEINLINE>eval-sequence</SCHEMEINLINE>?
+	  </SCHEME>
+	  <JAVASCRIPT>
+	    <JAVASCRIPTINLINE>eval_sequence</JAVASCRIPTINLINE>?
+	  </JAVASCRIPT>
+	</SPLITINLINE>
+      </LI>
+      <LI>
+	Cy also points out that changing
+	<SPLITINLINE>
+	  <SCHEME>
+	    <SCHEMEINLINE>eval-sequence</SCHEMEINLINE>
+	  </SCHEME>
+	  <JAVASCRIPT>
+	    <JAVASCRIPTINLINE>eval_sequence</JAVASCRIPTINLINE>
+	  </JAVASCRIPT>
+	</SPLITINLINE>
+	as he proposes
+	does not affect the behavior of the example in part a.
+	Explain why this is true.
+      </LI>
+      <LI>
+	How do you think sequences ought to be treated in the lazy
+	evaluator? Do you like Cy<APOS/>s approach, the approach
+	in the text, or some other approach?
+      </LI>
+    </OL>
+  </EXERCISE>
+
+  <EXERCISE>
+    <INDEX>upward compatibility</INDEX>
+    The approach taken in this section is somewhat unpleasant, because it
+    makes an incompatible change to Scheme.  It might be nicer to
+    implement lazy evaluation as an <EM>upward-compatible extension</EM>,
+    that is, so that ordinary Scheme programs will work as before.  We can
+    do this by extending the syntax of
+    <SPLITINLINE><SCHEME>procedure</SCHEME>
+    <JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+    declarations to let the user
+    control whether or not arguments are to be delayed.  While we<APOS/>re at
+    it, we may as well also give the user the choice between delaying with
+    and without memoization.  For example, the definition
+    <SNIPPET EVAL="no">
+      <SCHEME>
+	(define (f a (b lazy) c (d lazy-memo))
+	^$\ldots$^)
+      </SCHEME>
+      <JAVASCRIPT>
+function f(a, b, c, d) {	
+    parameters("strict", "lazy", "strict", "lazy-memo");
+    ...
+}
+      </JAVASCRIPT>
+  </SNIPPET>
+    would define <SCHEMEINLINE>f</SCHEMEINLINE> to be a
+    <SPLITINLINE><SCHEME>procedure</SCHEME>
+    <JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+    of four arguments, where the
+    first and third arguments are evaluated when the
+    <SPLITINLINE><SCHEME>procedure</SCHEME>
+    <JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+    is called,
+    the second argument is delayed, and the fourth argument is
+    both delayed and memoized.  Thus, ordinary
+    <SPLITINLINE><SCHEME>procedure</SCHEME>
+    <JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+    definitions will
+    produce the same behavior as ordinary
+    <SPLITINLINE>
+      <SCHEME>
+	  Scheme,
+      </SCHEME>
+      <JAVASCRIPT>
+	JavaScript,	    
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    while adding the
+    <SPLITINLINE>
+      <SCHEME>
+	<SCHEMEINLINE>lazy-memo</SCHEMEINLINE>
+      </SCHEME>
+      <JAVASCRIPT>
+	<JAVASCRIPTINLINE>"lazy-memo"</JAVASCRIPTINLINE>
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    declaration to each parameter of every compound
+    <SPLITINLINE><SCHEME>procedure</SCHEME>
+    <JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+    will produce the behavior of the lazy evaluator defined in this
+    section. Design and implement the changes required to produce such an
+    extension to
+    <SPLITINLINE>
+      <SCHEME>
+	Scheme.
+      </SCHEME>
+      <JAVASCRIPT>
+	JavaScript.
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    <SPLITINLINE>
+      <SCHEME>
+    You will have to implement new syntax
+    <SPLITINLINE><SCHEME>procedures</SCHEME><JAVASCRIPT>functions</JAVASCRIPT></SPLITINLINE>
+    to handle the new syntax for <SCHEMEINLINE>define</SCHEMEINLINE>.
+      </SCHEME>
+      <JAVASCRIPT>
+	You can assume that the special <QUOTE>function call</QUOTE>
+	<JAVASCRIPTINLINE>parameters</JAVASCRIPTINLINE> is always
+	the first statement in the body of a function declaration.
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    You must also arrange for
+    <SPLITINLINE>
+      <SCHEME>
+	<SCHEMEINLINE>eval</SCHEMEINLINE>
+      </SCHEME>
+      <JAVASCRIPT>
+	<JAVASCRIPTINLINE>evaluate</JAVASCRIPTINLINE>
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    or
+    <SCHEMEINLINE>apply</SCHEMEINLINE>
+    to determine when arguments are to be delayed, and to
+    force or delay arguments accordingly, and you must arrange for forcing
+    to memoize or not, as appropriate.
+    <LABEL NAME="ex:user-controlled-strictness"/>
+  </EXERCISE>
+  <INDEX>lazy evaluator|)</INDEX>
+
+</SUBSECTION>
