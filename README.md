@@ -5,77 +5,10 @@
 This is the online version of SICP textbook, JavaScript adaptation. See Preface of JavaScript adaptation for details:
 https://sicp.comp.nus.edu.sg
 
-More details are in the Making-of section (see end of document):
+More info are in the Making-of section (see end of document):
 https://sicp.comp.nus.edu.sg
 
-## Mobile-friendly Web Edition
-For development & deployment:
+Details for developers in the wiki:
+https://github.com/source-academy/sicp/wiki
 
-* Rails 5.0.2
-* Wget 1.19
-* Java (for YUI Compressor)
-* GNU Make 4.2
 
-The generated web pages are static and can be hosted on any standard web servers.
-
-### Overview
-
-The original text is stored as xml files in the `xml` folder.
-
-The html pages are generated in two steps. In the first step, the xml pages are imported to a Rails application. The application has three models: `Chapter`, `Snippet` and `Reference`. Content from each xml file is stored in a corresponding `chapter` record, while each named snippet is stored as a `snippet`, and each named section, subsection, figure or exercise is stored as a `reference`. When a snippet is evaluated, all its requirements are executed at background and its examples would be executed to evaluate the functionality and correctness while the snippet itself is displayed in the `Source Academy` platform. When a page is loaded, the xml contents are formatted into html pages by `Nokogiri`.
-
-After the rails server is up and running, a copy of the html pages are saved locally using `Wget`.
-
-### Configuration
-
-Set the server for the playground in: rails/app/controllers/chapters_controller.rb: var url
-
-Before deploying, change the configurations at [constants.rb.def](rails/config/initializers/constants.rb.def).
-
-`IDE_PREFIX`: The snippet and its requirements are sent through a GET request to the IDE. Change it to the correct URL and GET parameter name. Required snippets are sent by the name 'hidden'. To change this value, see the show method in [chapters_controller.rb](rails/app/controllers/chapters_controller.rb).
-
-`GCSE_CX`: The search engine ID of Google Custom Search. Create a new one [here](https://cse.google.com/cse/create/new).
-
-### Deployment
-Run `make web`. The generated html pages and assets are saved in `rails-html` folder.
-
-Run `make clean` to remove all generated pages, logs and temporary files.
-
-If the server is still running, try:
-
-$ lsof -wni tcp:3000
-Then, use the number in the PID column to kill the process:
-
-$ kill -9 PID
-
-### Development
-The Rails project is located at [rails](rails/). To test any changes made to the rails project itself, use the built-in server by running `rails s`. Specifically, the xml to html step is done by the `Chapters` controller, although in hindsight I realized it should be handled by model instead. Now it is at both the controller and model, but except for the index page, all other xml to html conversions are still handled by the controller. It would be a good idea to clean this part up before changing anything in those two files to ensure consistency.
-
-If any changes are made to the xml file but you only want to test the dynamic/rails version of website, run `rails runner app/helpers/import_textbook.rb` to import the modified textbook to database.
-
-Static site generation is handled by `rails/Rakefile`. It outputs the html pages to `rails/out` by default. Run `rake static:generate` to test this step.
-
-### Bugs
-* Google Custom Search doesn't seem to be working.
-* The snippets containing '\n' would lead to newline rather than showing charater '\n' in the `Source Academy` platform. This problem is difficult to eliminate because the code encoder cannot differentiate them when reading content.
-
-## XML2Latex
-
-### Requirements
-For development & deployment:
-* node.js
-
-### Set up
-Run `npm install` to install dependencies.
-
-### Generating Latex Files
-Run `npm start`.
-This will also warn of some potential errors in the xml.
-
-Latex files will be in the latex folder.
-Compile sicpjs.tex with XeLaTex+MakeIndex+BibTex for the pdf version. 
-
-### Generating PDF using `latexmk`
-If you have `latexmk` installed, you can automate the generation of the PDF by running:
-```make pdf```
-The generated PDF file will be in `latex/sicpjs.pdf`.
