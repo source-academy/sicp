@@ -1,6 +1,4 @@
-# SICP online textbook in Javascript
-
-## Description
+# SICP JavaScript Adaptation
 
 This is the online version of SICP textbook, JavaScript adaptation. See Preface of JavaScript adaptation for details:
 https://sicp.comp.nus.edu.sg
