@@ -1,3 +1,5 @@
+all: clean web pdf
+
 web:
 	$(MAKE) -C rails javascript
 
@@ -10,5 +12,5 @@ clean:
 	$(MAKE) -C rails clean
 	rm -rf latex
 
-install:	
-	cp latex/sicpjs.pdf rails-html; cd rails-html; tar cfv sicp.tar *; mv sicp.tar ..; cd ..; scp sicp.tar sicp@web1.comp.nus.edu.sg:public_html; echo "LOG IN AND UNTAR: ssh sicp@web1.comp.nus.edu.sg, then cd public_html; tar xfv sicp.tar"
+install: all
+	cp latex/sicpjs.pdf rails-html; cd rails-html; scp -r * sicp@web1.comp.nus.edu.sg:public_html; echo "check the website and make sure everything works: https://sicp.comp.nus.edu.sg"
