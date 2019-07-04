@@ -5,6 +5,7 @@ import xpath from "xpath";
 import { DOMParser as dom } from "xmldom";
 
 import parseXML from "./parseXML.js";
+import { setupSnippets } from './processSnippet';
 
 const inputDir = path.join(__dirname, "../xml");
 const outputDir = path.join(__dirname, "../latex");
@@ -172,6 +173,7 @@ const xmlToLatex = (filepath, filename) => {
       console.log(path.join(filepath, filename));
 
       // parsing over here
+      setupSnippets(doc.documentElement);
       parseXML(doc.documentElement, writeTo);
 
       ensureDirectoryExists(path.join(outputDir, filepath), err => {
