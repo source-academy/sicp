@@ -115,8 +115,8 @@ export const processTextFunctions = {
 
   IMAGE: (node, writeTo) => {
     writeTo.push(
-      "{\\centering "
-      + generateImage(node.getAttribute("src")) + "\n}\n"
+      "\\begin{figure}[H]\n\\centering"
+      + generateImage(node.getAttribute("src")) + "\n\\end{figure}\n"
     );
   },
 
