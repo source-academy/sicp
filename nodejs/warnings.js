@@ -17,6 +17,10 @@ export const checkLongLineWarning = str => {
   }
 };
 
-export const missingRequireWarning = () => {
+export const missingRequireWarning = (required) => {
   console.log("WARNING, REQUIRE not found: " + required);
+};
+
+export const missingExampleWarning = (name) => {
+  console.log("WARNING, EXAMPLE not found: " + name);
 };

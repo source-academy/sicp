@@ -1,7 +1,8 @@
 import lzString from "lz-string";
 import {
   checkLongLineWarning,
-  missingRequireWarning
+  missingRequireWarning,
+  missingExampleWarning
 } from "./warnings.js";
 import recursiveProcessPureText from "./recursiveProcessPureText";
 
@@ -68,10 +69,10 @@ export const processSnippet = (node, writeTo) => {
       for (let i = 0; examples[i]; i++) {
       	const example = examples[i].firstChild.nodeValue;
 	      if (snippetStore[example]) {
-	        reqArr.push(snippetStore[example]);
-	        reqArr.push("\n");
+	        exampleArr.push("\n\n");
+	        exampleArr.push(snippetStore[example]);
 	      } else {
-	        console.log("Missing Example: " + example);;
+	        missingExampleWarning(example);
 	      }
       }
       const exampleStr = exampleArr.join("");
