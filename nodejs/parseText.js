@@ -317,14 +317,14 @@ const processExercise = (node, writeTo) => {
 
   recursiveProcessText(node.firstChild, writeTo);
   if (solution) {
-    writeTo.push("\\hfill{\\hyperref[" + labelName + "-Answer]{Solution}}");
+    writeTo.push("\\hfill{\\hyperref[" + labelName + "-Answer]{Solution}}\\\\");
   }
-  writeTo.push("\n\\end{Exercise}\n\n");
+  writeTo.push("\n\\end{Exercise}\n");
 
   if (solution) {
-    writeTo.push("\\begin{Answer}[ref={" + labelName + "}]\n");
+    writeTo.push("\n\\begin{Answer}[ref={" + labelName + "}]\n");
     recursiveProcessText(solution.firstChild, writeTo);
-    writeTo.push("\n\\end{Answer}\n\n");
+    writeTo.push("\n\\end{Answer}\n");
   }
 };
 

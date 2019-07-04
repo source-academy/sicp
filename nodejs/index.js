@@ -98,6 +98,8 @@ const preamble = `\\documentclass[a4paper, 12pt]{report}
 \\newcommand{\\lt}{\\symbol{"3C}}% Less than
 \\newcommand{\\gt}{\\symbol{"3E}}% Greater than
 
+\\hyphenation{Solution}
+
 \\newsavebox\\lstbox
 
 \\makeindex
