@@ -313,7 +313,8 @@ export const processSnippet = (node, writeTo) => {
     const requirements = node.getElementsByTagName("REQUIRE");
     const reqArr = [];
     for (let i = 0; requirements[i]; i++) {
-      const required = requirements[i];
+      const required = requirements[i].firstChild.nodeValue;
+      console.log("REQ: " + required);
       if (requiredSnippets[required]) {
         reqArr.push(requiredSnippets[required]);
         reqArr.push("\n");
@@ -325,7 +326,9 @@ export const processSnippet = (node, writeTo) => {
 
     const snippetName = node.getElementsByTagName("NAME")[0];
     if (snippetName) {
-      requiredSnippets[snippetName] = reqStr + codeStr;
+      // console.log("NAME");
+      // console.log(snippetName.firstChild.nodeValue);
+      requiredSnippets[snippetName.firstChild.nodeValue] = reqStr + codeStr;
     }
 
     if (node.getAttribute("EVAL") === "no") {
@@ -333,11 +336,13 @@ export const processSnippet = (node, writeTo) => {
       writeTo.push(codeStr);
       writeTo.push("\n\\end{lstlisting}\n");
     } else {
-      const examples = node.getElementsByTagName("REQUIRE");
+      const examples = node.getElementsByTagName("EXAMPLE");
       const exampleArr = [];
       for (let i = 0; examples[i]; i++) {
-        exampleArr.push("\n");
-        exampleArr.push(examples[i]);
+        // console.log("EXAMPLE");
+        // console.log(examples[i].firstChild.nodeValue);
+        // exampleArr.push("\n");
+        // exampleArr.push(examples[i].firstChild.nodeValue);
       }
       const exampleStr = exampleArr.join("");
 

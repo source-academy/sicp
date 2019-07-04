@@ -9,8 +9,10 @@ export const processFigure = (node, writeTo) => {
   if (src) {
     writeTo.push(
       "\n\\maxsizebox{\\linewidth}{0.8\\paperheight}{" +
-        "\\includegraphics{" +
-        src.replace(/\.gif$/, ".png").replace(/_/g, "\\string_") +
+        "\\includegraphics{{" +
+        src.replace(/\.gif$/, ".png")
+          .replace(/\.(?=[^.]*$)/, "}.")
+          .replace(/_/g, "\\string_") +
         "}}\n"
     );
   } else {
@@ -20,10 +22,11 @@ export const processFigure = (node, writeTo) => {
       writeTo.push(
         "\\subcaptionbox{}{" +
           "\\maxsizebox{\\linewidth}{\\paperheight}{" +
-          "\\includegraphics{" +
+          "\\includegraphics{{" +
           images[i]
             .getAttribute("src")
             .replace(/\.gif$/, ".png")
+            .replace(/\.(?=[^.]*$)/, "}.")
             .replace(/_/g, "\\string_") +
           "}}}\n"
       );

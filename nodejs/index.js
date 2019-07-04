@@ -101,15 +101,9 @@ const preamble = `\\documentclass[a4paper, 12pt]{report}
 
 \\makeindex
 
-\\title{Structure and Interpretation of Computer Programs,
-JavaScript Adaptation}
-
-\\author{Harold Abelson and Gerald Jay Sussman\\\\with Julie Sussman\\\\\\textit{authors}\\\\[20mm]Martin Henz\\\\with Tobias Wrigstad, Liu Hang, Feng Piaopiao and Chan Ger Hean\\\\\\textit{adapters to JavaScript}}
-
-
 \\begin{document}
 
-\\maketitle
+\\input{./others/00pdftitle00.tex}
 
 \\begin{singlespace}
 {\\hypersetup{linkcolor=black}
