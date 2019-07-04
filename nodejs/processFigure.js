@@ -8,12 +8,7 @@ export const processFigure = (node, writeTo) => {
   }
   if (src) {
     writeTo.push(
-      "\n\\maxsizebox{\\linewidth}{0.8\\paperheight}{" +
-        "\\includegraphics{{" +
-        src.replace(/\.gif$/, ".png")
-          .replace(/\.(?=[^.]*$)/, "}.")
-          .replace(/_/g, "\\string_") +
-        "}}\n"
+      generateImage(src) + "\n"
     );
   } else {
     // console.log(node.toString());
@@ -21,14 +16,8 @@ export const processFigure = (node, writeTo) => {
     for (let i = 0; i < images.length; i++) {
       writeTo.push(
         "\\subcaptionbox{}{" +
-          "\\maxsizebox{\\linewidth}{\\paperheight}{" +
-          "\\includegraphics{{" +
-          images[i]
-            .getAttribute("src")
-            .replace(/\.gif$/, ".png")
-            .replace(/\.(?=[^.]*$)/, "}.")
-            .replace(/_/g, "\\string_") +
-          "}}}\n"
+        generateImage(images[i].getAttribute("src")) +
+        "}\n"
       );
     }
   }
@@ -44,5 +33,16 @@ export const processFigure = (node, writeTo) => {
   }
   writeTo.push("\\end{figure}\n");
 };
+
+export const generateImage = (imagePath) => {
+  return (
+    "\n\\maxsizebox{\\linewidth}{0.8\\paperheight}{"
+    + "\\includegraphics{{"
+    + imagePath.replace(/\.gif$/, ".png")
+      .replace(/\.(?=[^.]*$)/, "}.")
+      .replace(/_/g, "\\string_")
+    + "}}"
+  );
+}
 
 export default processFigure;

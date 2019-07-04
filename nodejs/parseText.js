@@ -1,5 +1,5 @@
 import replaceTagWithSymbol from "./replaceTagWithSymbol";
-import processFigure from "./processFigure";
+import processFigure, { generateImage } from "./processFigure";
 import {
   checkIndexBadEndWarning,
   checkLongLineWarning
@@ -115,12 +115,7 @@ export const processTextFunctions = {
 
   IMAGE: (node, writeTo) => {
     writeTo.push(
-      "\n\\includegraphics{" +
-        node
-          .getAttribute("src")
-          .replace(/\.gif$/, ".png")
-          .replace(/_/g, "\\string_") +
-        "}\n"
+      generateImage(node.getAttribute("src")) + "\n"
     );
   },
 
