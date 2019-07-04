@@ -19,7 +19,14 @@ export const setupSnippets = (node) => {
       const codeArr = [];
 	    recursiveProcessPureText(jsSnippet.firstChild, codeArr);
 	    const codeStr = codeArr.join("").trim();
-	    snippetStore[nameStr] = codeStr;
+
+	    const requirements = snippet.getElementsByTagName("REQUIRES");
+	    const requireNames = [];
+	    for (let i = 0; requirements[i]; i++) {
+	      requireNames.push(requirements[i].firstChild.nodeValue);
+	    }
+
+	    snippetStore[nameStr] = { codeStr, requireNames };
     }
 	}
 }
@@ -27,6 +34,19 @@ export const setupSnippets = (node) => {
 const sourceAcademyURL = "https://sourceacademy.nus.edu.sg";
 // to change to localhost if required
 // http://localhost:8075 
+
+const recursiveGetRequires = (name, seen) => {
+	if (seen.has(name)) return;
+	seen.add(name);
+	const snippetEntry = snippetStore[name];
+	if (!snippetEntry) {
+		missingRequireWarning(name);
+		return;
+	}
+	for (const requirement of snippetEntry.requireNames) {
+		recursiveGetRequires(requirement, seen);
+	}
+}
 
 export const processSnippet = (node, writeTo) => {
   if (node.getAttribute("HIDE") == "yes") {
@@ -50,19 +70,35 @@ export const processSnippet = (node, writeTo) => {
       writeTo.push("\n\\end{lstlisting}\n");
     } else {
 
-	    const requirements = node.getElementsByTagName("REQUIRE");
-	    const reqArr = [];
-	    for (let i = 0; requirements[i]; i++) {
-	      const required = requirements[i].firstChild.nodeValue;
-	      console.log("REQ: " + required);
-	      if (snippetStore[required]) {
-	        reqArr.push(snippetStore[required]);
-	        reqArr.push("\n");
-	      } else {
-	        missingRequireWarning();
-	      }
-	    }
-	    const reqStr = reqArr.join("");
+    	let reqStr = '';
+    	const snippetName = node.getElementsByTagName("NAME")[0];
+    	if (snippetName) {
+    		const nameStr = snippetName.firstChild.nodeValue;
+    		const reqSet = new Set();
+    		recursiveGetRequires(nameStr, reqSet);
+    		const reqArr = [];
+    		for (const reqName of reqSet) {
+    			const snippetEntry = snippetStore[reqName]; 
+    			if (snippetEntry && reqName!==nameStr) {
+	    			reqArr.push(snippetEntry.codeStr);
+			      reqArr.push("\n");
+    			}
+    		}
+    		reqStr = reqArr.join("");
+    	} else {
+		    const requirements = node.getElementsByTagName("REQUIRES");
+		    const reqArr = [];
+		    for (let i = 0; requirements[i]; i++) {
+		      const required = requirements[i].firstChild.nodeValue;
+		      if (snippetStore[required]) {
+		        reqArr.push(snippetStore[required].codeStr);
+		        reqArr.push("\n");
+		      } else {
+		        missingRequireWarning(required);
+		      }
+		    }
+		    reqStr = reqArr.join("");
+    	}
 
       const examples = node.getElementsByTagName("EXAMPLE");
       const exampleArr = [];
@@ -70,7 +106,7 @@ export const processSnippet = (node, writeTo) => {
       	const example = examples[i].firstChild.nodeValue;
 	      if (snippetStore[example]) {
 	        exampleArr.push("\n\n");
-	        exampleArr.push(snippetStore[example]);
+	        exampleArr.push(snippetStore[example].codeStr);
 	      } else {
 	        missingExampleWarning(example);
 	      }
