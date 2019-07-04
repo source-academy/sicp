@@ -1,3 +1,4 @@
+# coding: utf-8
 module ApplicationHelper
     def content_links(chapter, parent, type)
         if (chapter.has_children?)
@@ -11,10 +12,10 @@ module ApplicationHelper
               <div class="card-header" role="tab" id="#{type}-#{chapter.id}">
                 <h5 class="mb-0">
                   <a class="#{type}-show collapsed" data-toggle="collapse" data-parent="##{parent}" href="##{type}-collapse-#{chapter.id}" aria-expanded="true" aria-controls="#{type}-collapse-#{chapter.id}">
-                    >
+                    ▶
                   </a>
                   <a class="#{type}-hide collapsed" data-toggle="collapse" data-parent="##{parent}" href="##{type}-collapse-#{chapter.id}" aria-expanded="true" aria-controls="#{type}-collapse-#{chapter.id}">
-                    ⌵
+                    ▼
                   </a>
                     #{link}
                 </h5>
