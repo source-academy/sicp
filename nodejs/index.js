@@ -57,8 +57,8 @@ const preamble = `\\documentclass[a4paper, 12pt]{report}
 \\graphicspath{ {../rails/public/chapters/} }
 
 \\usepackage[answerdelayed]{exercise}
-\\renewcounter{Exercise}[chapter]
-\\renewcommand{\\theExercise}{\\thechapter.\\arabic{Exercise}}
+\\newcounter{ExerciseDisplayNumber}[chapter]
+\\renewcommand{\\theExercise}{\\thechapter.\\arabic{ExerciseDisplayNumber}}
 
 \\usepackage{listings}
 \\expandafter\\patchcmd\\csname \\string\\lstinline\\endcsname{%

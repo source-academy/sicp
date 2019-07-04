@@ -309,7 +309,7 @@ const processExercise = (node, writeTo) => {
     }
   }
 
-  writeTo.push("\n\\begin{Exercise}");
+  writeTo.push("\n\\stepcounter{ExerciseDisplayNumber}\n\\begin{Exercise}");
   if (solution && !label) {
     writeTo.push("\n\\label{" + labelName + "}");
   }
@@ -319,12 +319,12 @@ const processExercise = (node, writeTo) => {
   if (solution) {
     writeTo.push("\\hfill{\\hyperref[" + labelName + "-Answer]{Solution}}");
   }
-  writeTo.push("\n\\end{Exercise}\n");
+  writeTo.push("\n\\end{Exercise}\n\n");
 
   if (solution) {
-    writeTo.push("\n\\begin{Answer}[ref={" + labelName + "}]\n");
+    writeTo.push("\\begin{Answer}[ref={" + labelName + "}]\n");
     recursiveProcessText(solution.firstChild, writeTo);
-    writeTo.push("\n\\end{Answer}\n");
+    writeTo.push("\n\\end{Answer}\n\n");
   }
 };
 
