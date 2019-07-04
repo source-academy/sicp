@@ -117,9 +117,9 @@ JavaScript Adaptation}
 }
 \\end{singlespace}
 
-\\input{./others/01prefaces01.tex}
-
 \\input{./others/02foreword02.tex}
+
+\\input{./others/03prefaces03.tex}
 
 \\input{./others/04acknowledgements04.tex}
 
