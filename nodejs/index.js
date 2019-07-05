@@ -47,7 +47,6 @@ async function xmlToLatex(filepath, filename, isSetupSnippet) {
   const writeTo = [];
 
   if (isSetupSnippet) {
-    console.log(path.join(filepath, filename) + " snippet setup");
     setupSnippets(doc.documentElement);
     return;
   }
@@ -129,7 +128,7 @@ async function main() {
   createMainLatex();
   console.log("setup snippets");
   await recursiveXmlToLatex("", true);
-  console.log("setup snippets done");
+  console.log("setup snippets done\n");
   recursiveXmlToLatex("", false);
 };
 
