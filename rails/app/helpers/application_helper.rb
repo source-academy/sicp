@@ -12,10 +12,10 @@ module ApplicationHelper
               <div class="card-header" role="tab" id="#{type}-#{chapter.id}">
                 <h5 class="mb-0">
                   <a class="#{type}-show collapsed" data-toggle="collapse" data-parent="##{parent}" href="##{type}-collapse-#{chapter.id}" aria-expanded="true" aria-controls="#{type}-collapse-#{chapter.id}">
-                    ▶
+                     &#10148;   <!-- ➤ (because this one is rendered blue on mobile: ▶  -->
                   </a>
                   <a class="#{type}-hide collapsed" data-toggle="collapse" data-parent="##{parent}" href="##{type}-collapse-#{chapter.id}" aria-expanded="true" aria-controls="#{type}-collapse-#{chapter.id}">
-                    ▼
+                    &#x25BC;    <!-- ▼ (because the corresponding one is not rendered) -->
                   </a>
                     #{link}
                 </h5>
