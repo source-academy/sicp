@@ -1,3 +1,19 @@
+const title = `\\begin{titlepage}
+  \\centering
+  \\includegraphics[width=0.8\\textwidth]{./sicp.png}\\par
+  {\\LARGE\\bfseries Structure and Interpretation of Computer\\\\
+  Programs — JavaScript Adaptation\\par}
+  \\vspace{0.5cm}
+  \\begin{flushright}
+  {\\Large Harold Abelson and Gerald Jay Sussman \\\\}
+  {\\large with Julie Sussman \\\\ — \\textit{authors} \\par}
+  \\vspace{0.5cm}
+  {\\Large Martin Henz \\\\}
+  {\\large with Tobias Wrigstad, Liu Hang, Feng Piaopiao and Chan Ger Hean \\\\
+   — \\textit{adapters to JavaScript}\\par}
+  \\end{flushright}
+\\end{titlepage}`
+
 export const preamble = `\\documentclass[a4paper, 12pt]{report}
 \\usepackage{adjustbox}
 \\usepackage{amsmath}
@@ -94,7 +110,7 @@ export const preamble = `\\documentclass[a4paper, 12pt]{report}
 
 \\begin{document}
 
-\\input{./others/00pdftitle00.tex}
+${title}
 
 \\begin{singlespace}
 {\\hypersetup{linkcolor=black}
