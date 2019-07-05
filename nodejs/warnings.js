@@ -24,3 +24,7 @@ export const missingRequireWarning = (required) => {
 export const missingExampleWarning = (name) => {
   console.log("WARNING, EXAMPLE not found: " + name);
 };
+
+export const repeatedNameWarning = (name) => {
+  console.log("WARNING, Repeated SNIPPET name: " + name);
+};
