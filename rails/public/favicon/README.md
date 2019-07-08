@@ -28,7 +28,7 @@ convert -resize x32 -gravity center -crop 32x32+0+0 lambda1_transparent.png lamb
 
 ## Installation
 
-Copy the ICO file to `rails/app/assets/assets/images/favicon.ico`.
+Copy the ICO file to `rails/app/assets/images/favicon.ico`.
 The Ruby-on-Rails system will find it there and install it in the
 right places.
 
