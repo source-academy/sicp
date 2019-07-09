@@ -8,22 +8,16 @@ export const processFigure = (node, writeTo) => {
   }
   if (src) {
     writeTo.push(
-      "\n{" +
-        "\\includegraphics{" +
-        src.replace(/\.gif$/, ".png")+
-        "}}\n"
+      generateImage(src) + "\n"
     );
   } else {
     // console.log(node.toString());
     const images = node.getElementsByTagName("IMAGE");
     for (let i = 0; i < images.length; i++) {
       writeTo.push(
-        "\n{" +
-          "\\includegraphics{" +
-          images[i]
-            .getAttribute("src")
-            .replace(/\.gif$/, ".png") +
-          "}}\n"
+        "\\subcaptionbox{}{" +
+        generateImage(images[i].getAttribute("src")) +
+        "}\n"
       );
     }
   }
@@ -39,5 +33,13 @@ export const processFigure = (node, writeTo) => {
   }
   writeTo.push("\\end{figure}\n");
 };
+
+export const generateImage = (imagePath) => {
+  return (
+  "\\includegraphics{"
+    + imagePath.replace(/\.gif$/, ".png")
+    + "}"
+  );
+}
 
 export default processFigure;
