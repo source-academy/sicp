@@ -1,11 +1,11 @@
-import lzString from "lz-string";
 import replaceTagWithSymbol from "./replaceTagWithSymbol";
-import processFigure from "./processFigure";
+import processFigure, { generateImage } from "./processFigure";
 import {
   checkIndexBadEndWarning,
-  checkLongLineWarning,
-  missingRequireWarning
+  checkLongLineWarning
 } from "./warnings.js";
+import processSnippet from './processSnippet';
+import recursiveProcessPureText from './recursiveProcessPureText';
 
 const tagsToRemove = new Set([
   "#comment",
@@ -30,6 +30,8 @@ const ignoreTags = new Set([
   "SPLIT",
   "SPLITINLINE"
 ]);
+
+let exerciseCounter = 0;
 
 export const processTextFunctions = {
   "#text": (node, writeTo) => {
@@ -77,6 +79,7 @@ export const processTextFunctions = {
   },
 
   EXERCISE: (node, writeTo) => {
+    exerciseCounter += 1;
     processExercise(node, writeTo);
   },
 
@@ -115,11 +118,8 @@ export const processTextFunctions = {
 
   IMAGE: (node, writeTo) => {
     writeTo.push(
-      "\n\\includegraphics{" +
-        node
-          .getAttribute("src")
-          .replace(/\.gif$/, ".png") +
-        "}\n"
+      "\\begin{figure}[H]\n\\centering"
+      + generateImage(node.getAttribute("src")) + "\n\\end{figure}\n"
     );
   },
 
@@ -236,23 +236,6 @@ export const addName = (node, writeTo) => {
   return name;
 };
 
-const recursiveProcessPureTextDefault = { removeNewline: false };
-const recursiveProcessPureText = (
-  node,
-  writeTo,
-  options = recursiveProcessPureTextDefault
-) => {
-  if (!node) return;
-  if (!replaceTagWithSymbol(node, writeTo) && node.nodeName === "#text") {
-    let value = node.nodeValue;
-    if (options.removeNewline) {
-      value = value.replace(/[\r\n]+/g, " ");
-    }
-    writeTo.push(value);
-  }
-  return recursiveProcessPureText(node.nextSibling, writeTo, options);
-};
-
 export const recursiveProcessText = (node, writeTo) => {
   if (!node) return;
   processText(node, writeTo);
@@ -284,99 +267,6 @@ const processList = (node, writeTo) => {
     writeTo.push("}\n");
   }
   return processList(node.nextSibling, writeTo);
-};
-
-const sourceAcademyURL = "https://sourceacademy.nus.edu.sg";
-// to change to localhost if required
-// http://localhost:8075 
-
-const requiredSnippets = {
-  nameOfSnippet: "'code'"
-};
-
-export const processSnippet = (node, writeTo) => {
-  if (node.getAttribute("HIDE") == "yes") {
-    return;
-  }
-  const jsSnippet = node.getElementsByTagName("JAVASCRIPT")[0];
-  if (jsSnippet) {
-    const codeArr = [];
-    recursiveProcessPureText(jsSnippet.firstChild, codeArr);
-    const codeStr = codeArr.join("").trim();
-
-    // Do warning for very long lines if no latex
-    if (node.getAttribute("LATEX") !== "yes") {
-      checkLongLineWarning(codeStr);
-    }
-
-    const requirements = node.getElementsByTagName("REQUIRE");
-    const reqArr = [];
-    for (let i = 0; requirements[i]; i++) {
-      const required = requirements[i];
-      if (requiredSnippets[required]) {
-        reqArr.push(requiredSnippets[required]);
-        reqArr.push("\n");
-      } else {
-        missingRequireWarning();
-      }
-    }
-    const reqStr = reqArr.join("");
-
-    const snippetName = node.getElementsByTagName("NAME")[0];
-    if (snippetName) {
-      requiredSnippets[snippetName] = reqStr + codeStr;
-    }
-
-    if (node.getAttribute("EVAL") === "no") {
-      writeTo.push("\n\\begin{lstlisting}[mathescape=true, language=JavaScript]\n");
-      writeTo.push(codeStr);
-      writeTo.push("\n\\end{lstlisting}\n");
-    } else {
-      const examples = node.getElementsByTagName("REQUIRE");
-      const exampleArr = [];
-      for (let i = 0; examples[i]; i++) {
-        exampleArr.push("\n");
-        exampleArr.push(examples[i]);
-      }
-      const exampleStr = exampleArr.join("");
-
-      
-
-      // make url for source academy link
-      // const compressed = lzString.compressToEncodedURIComponent(
-      //   reqStr + codeStr + exampleStr
-      // );
-      // const chap = "4";
-      // const ext = "";
-      // const url =
-      //   sourceAcademyURL +
-      //   "/playground#chap=" +
-      //   chap +
-      //   ext +
-      //   "&prgrm=" +
-      //   compressed;
-      
-
-      const chunks = (codeStr + "\n").match(/^((?:.*?[\r\n]+){1,6})((?:.|\n|\r)*)$/);
-      // 6 lines plus rest
-      writeTo.push(
-        "\n\\begin{lrbox}{\\lstbox}\\begin{lstlisting}[mathescape=true,language=JavaScript]\n"
-      );
-      writeTo.push(chunks[1]);
-      writeTo.push(
-        "\\end{lstlisting}\\end{lrbox}"
-      );
-
-      if (chunks[2]) {
-        writeTo.push("\n\\begin{lstlisting}[mathescape=true, language=JavaScript]\n");
-        writeTo.push(chunks[2]);
-        writeTo.push("\\end{lstlisting}");
-      } else {
-        writeTo.push("\n{\\usebox\\lstbox}");
-      }
-      writeTo.push("\n\n");
-    }
-  }
 };
 
 const processTable = (node, writeTo) => {
@@ -421,8 +311,10 @@ const processExercise = (node, writeTo) => {
       labelName = label.getAttribute("NAME");
     }
   }
-
-  writeTo.push("\n\\begin{Exercise}");
+  
+  //writeTo.push("\n\\stepcounter{ExerciseDisplayNumber}\n\\begin{Exercise}");
+  writeTo.push("\n\\subsubsection{Exercise}");
+ 
   if (solution && !label) {
     writeTo.push("\n\\label{" + labelName + "}");
   }
@@ -430,14 +322,14 @@ const processExercise = (node, writeTo) => {
 
   recursiveProcessText(node.firstChild, writeTo);
   if (solution) {
-    writeTo.push("\\hfill{\\hyperref[" + labelName + "-Answer]{Solution}}");
+    writeTo.push("\\hfill{\\hyperref[" + labelName + "-Answer]{Solution}}\\\\");
   }
-  writeTo.push("\n\\end{Exercise}\n");
+  //writeTo.push("\n\\end{Exercise}\n");
 
   if (solution) {
-    writeTo.push("\n\\begin{Answer}[ref={" + labelName + "}]\n");
+    writeTo.push("\n\\subsubsection{Answer}\n");
     recursiveProcessText(solution.firstChild, writeTo);
-    writeTo.push("\n\\end{Answer}\n");
+    //writeTo.push("\n\\end{Answer}\n");
   }
 };
 

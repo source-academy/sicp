@@ -17,6 +17,14 @@ export const checkLongLineWarning = str => {
   }
 };
 
-export const missingRequireWarning = () => {
-  console.log("WARNING, REQUIRE not found: " + required);
+export const missingRequireWarning = (required) => {
+  console.log("WARNING, REQUIRES not found: " + required);
+};
+
+export const missingExampleWarning = (name) => {
+  console.log("WARNING, EXAMPLE not found: " + name);
+};
+
+export const repeatedNameWarning = (name) => {
+  console.log("WARNING, Repeated SNIPPET name: " + name);
 };

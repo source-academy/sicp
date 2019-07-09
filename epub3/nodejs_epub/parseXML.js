@@ -56,6 +56,7 @@ const parseXML = (node, writeTo) => {
     case "SECTION":
       writeTo.push("\\section{");
       addName(node, writeTo);
+      //writeTo.push("\\pagestyle{section}\n");
       parseXML(node.firstChild, writeTo);
       break;
 
@@ -75,6 +76,7 @@ const parseXML = (node, writeTo) => {
   case "SUBSECTION":
       writeTo.push("\\subsection{");
       addName(node, writeTo);
+      //writeTo.push("\\pagestyle{subsection}\n");
       parseXML(node.firstChild, writeTo);
       break;
 
