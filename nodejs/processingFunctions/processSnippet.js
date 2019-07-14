@@ -5,6 +5,7 @@ import {
   missingExampleWarning,
   repeatedNameWarning
 } from "./warnings.js";
+import { recursiveProcessText, processText } from '../parseXML';
 import recursiveProcessPureText from "./recursiveProcessPureText";
 
 const snippetStore = {};

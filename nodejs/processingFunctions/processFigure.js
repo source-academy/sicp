@@ -1,4 +1,4 @@
-import { recursiveProcessText } from "./parseText";
+import { recursiveProcessText, processText } from '../parseXML';
 
 export const processFigure = (node, writeTo) => {
   writeTo.push("\n\\begin{figure}[H]\n\\centering\n");
