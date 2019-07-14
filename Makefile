@@ -15,6 +15,9 @@ epub:
 svg_pdf:
 	./svg_to_pdf.sh
 
+epub:
+	npm start epub
+
 clean:
 	rm -rf rails-html
 	$(MAKE) -C rails clean

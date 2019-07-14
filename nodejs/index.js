@@ -8,6 +8,7 @@ import { DOMParser as dom } from "xmldom";
 import { switchParseFunctions, recursiveProcessText } from './parseXML';
 import { setupSnippets } from './processingFunctions/processSnippet';
 import { preamble, ending } from './latexContent';
+import { switchParseFunctions } from './parseText';
 
 const inputDir = path.join(__dirname, "../xml");
 const outputDir = path.join(__dirname, "../latex");

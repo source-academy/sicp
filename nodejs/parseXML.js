@@ -306,6 +306,23 @@ export const switchParseFunctions = (parseType) => {
     };
   }
 }
+export const addName = (node, writeTo) => {
+  const nameArr = [];
+  recursiveProcessText(
+    getChildrenByTagName(node, "NAME")[0].firstChild,
+    nameArr
+  );
+  const name = nameArr.join("").trim();
+  writeTo.push(name);
+  writeTo.push("}\n\n");
+  return name;
+};
+
+export const recursiveProcessText = (node, writeTo) => {
+  if (!node) return;
+  processText(node, writeTo);
+  return recursiveProcessText(node.nextSibling, writeTo);
+};
 
 export const processText = (node, writeTo) => {
   const name = node.nodeName;
