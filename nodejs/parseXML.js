@@ -59,9 +59,9 @@ const processTextFunctionsDefault = {
 
   ABOUT: (node, writeTo) => {
     writeTo.push("\\chapter*{");
-    addName(node, writeTo);
+    const name = addName(node, writeTo);
     writeTo.push("\n\\addcontentsline{toc}{chapter}{");
-    addName(node, writeTo);
+    writeTo.push(name + '}\n\n');
     recursiveProcessText(node.firstChild, writeTo);
   },
   REFERENCES: (node, writeTo) => processTextFunctions["ABOUT"](node, writeTo),
