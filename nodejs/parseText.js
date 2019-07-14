@@ -31,7 +31,7 @@ const ignoreTags = new Set([
   "SPLITINLINE"
 ]);
 
-export const processTextFunctions = {
+const processTextFunctionsDefault = {
   "#text": (node, writeTo) => {
     const trimedValue = node.nodeValue
       .replace(/[\r\n]+/, " ")
@@ -220,6 +220,29 @@ export const processTextFunctions = {
     writeTo.push("\\end{itemize}\n");
   }
 };
+
+const processTextFunctionsEpub = {
+  IMAGE: (node, writeTo) => {
+    writeTo.push(
+      "\\begin{figure}[H]\n\\centering"
+      + generateImage(node.getAttribute("src")) + "\n\\end{figure}\n"
+    );
+  },
+}
+
+let processTextFunctions = processTextFunctionsDefault;
+
+export const switchParseFunctions = (parseType) => {
+  if (parseType == "pdf") {
+    processTextFunctions = processTextFunctionsDefault;
+  } else if (parseType == "epub") {
+    console.log('using parsetype epub')
+    processTextFunctions = {
+      ...processTextFunctionsDefault,
+      ...processTextFunctionsEpub,
+    };
+  }
+}
 
 export const addName = (node, writeTo) => {
   const nameArr = [];
