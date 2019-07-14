@@ -320,7 +320,7 @@ export const processText = (node, writeTo) => {
       return true;
     }
   }
-  console.log("Unrecognised Tag:\n" + node.toString() + "\n");
+  console.log("WARNING Unrecognised Tag:\n" + node.toString() + "\n");
   return false;
 };
 
