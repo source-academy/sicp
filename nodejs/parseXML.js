@@ -1,98 +1,331 @@
-import fs from "fs";
-import path from "path";
-
-import xpath from "xpath";
-import { DOMParser as dom } from "xmldom";
-
-import processEpigraph from "./processEpigraph";
-import processFileInput from "./processFileInput";
-import processFigure from "./processFigure";
+import {getChildrenByTagName, ancestorHasTag} from './utilityFunctions';
 import {
-  addName,
-  processList,
+  checkIndexBadEndWarning
+} from "./processingFunctions/warnings.js";
+
+import {
+  replaceTagWithSymbol,
+  processEpigraph,
+  processFigure,
+  generateImage,
+  processExercise,
+  processFileInput,
   processSnippet,
-  processText,
-  recursiveProcessText
-} from "./parseText";
+  processTable,
+  recursiveProcessPureText,
+  processList,
+  addName,
+} from './processingFunctions';
 
-const parseXML = (node, writeTo) => {
-  if (!node) return;
-  const name = node.nodeName;
+const tagsToRemove = new Set([
+  "#comment",
+  "COMMENT",
+  "CHANGE",
+  "EDIT",
+  "EXCLUDE",
+  "HISTORY",
+  "NAME",
+  "ORDER",
+  "SCHEME",
+  "SOLUTION"
+]);
+// SOLUTION tag handled by processSnippet
 
-  switch (name) {
-    case "#text":
-      let trimedValue = node.nodeValue.replace(/\s+/g, " ");
-      if (trimedValue.match(/&(\w|\.)+;/)) {
-        processFileInput(trimedValue.trim(), writeTo);
-      } else {
-        writeTo.push(trimedValue.replace(/%/g, "\\%"));
-      }
-      // else if (!trimedValue.match(/^\s*$/)) {
-      // }
-      break;
+const ignoreTags = new Set([
+  "CHAPTERCONTENT",
+  "JAVASCRIPT",
+  "NOBR",
+  "SECTIONCONTENT",
+  "span",
+  "SPLIT",
+  "SPLITINLINE"
+]);
 
-    case "ABOUT":
-    case "REFERENCES":
-    case "WEBPREFACE":
-    case "MATTER":
-      writeTo.push("\\chapter*{");
-      addName(node, writeTo);
-      writeTo.push("\n\\addcontentsline{toc}{chapter}{");
-      addName(node, writeTo);
-      parseXML(node.firstChild, writeTo);
-      break;
+const processTextFunctionsDefault = {
+  "#text": (node, writeTo) => {
+    const trimedValue = node.nodeValue
+      .replace(/[\r\n]+/, " ")
+      .replace(/\s+/g, " ")
+      .replace(/\^/g, "\\string^")
+      .replace(/%/g, "\\%");
+    if (trimedValue.match(/&(\w|\.)+;/)) {
+      processFileInput(trimedValue.trim(), writeTo);
+    } else {
+      writeTo.push(trimedValue);
+    }
+    // if (!trimedValue.match(/^\s*$/)) {
+    // }
+  },
 
-    case "CHAPTER":
-      writeTo.push("\\chapter{");
-      addName(node, writeTo);
-      writeTo.push("\\pagestyle{main}\n");
-      parseXML(node.firstChild, writeTo);
-      break;
+  ABOUT: (node, writeTo) => {
+    writeTo.push("\\chapter*{");
+    addName(node, writeTo);
+    writeTo.push("\n\\addcontentsline{toc}{chapter}{");
+    addName(node, writeTo);
+    recursiveProcessText(node.firstChild, writeTo);
+  },
+  REFERENCES: (node, writeTo) => processTextFunctions["ABOUT"](node, writeTo),
+  WEBPREFACE: (node, writeTo) => processTextFunctions["ABOUT"](node, writeTo),
+  MATTER: (node, writeTo) => processTextFunctions["ABOUT"](node, writeTo),
 
-    case "EPIGRAPH":
-      processEpigraph(node, writeTo);
-      break;
+  B: (node, writeTo) => {
+    writeTo.push("\\textbf{");
+    recursiveProcessText(node.firstChild, writeTo);
+    writeTo.push("}");
+  },
 
-    case "SECTION":
-      writeTo.push("\\section{");
-      addName(node, writeTo);
-      writeTo.push("\\pagestyle{section}\n");
-      parseXML(node.firstChild, writeTo);
-      break;
+  BR: (node, writeTo) => {
+    writeTo.push("\n\\noindent ");
+  },
 
-    case "SUBHEADING":
-    case "SUBSUBSUBSECTION":
-      writeTo.push("\\subsubsection{");
-      addName(node, writeTo);
-      parseXML(node.firstChild, writeTo);
-      break;
+  BLOCKQUOTE: (node, writeTo) => {
+    writeTo.push("\n\\begin{quote}");
+    recursiveProcessText(node.firstChild, writeTo);
+    writeTo.push("\\end{quote}\n");
+  },
 
-  case "MATTERSECTION":
-      writeTo.push("\\section*{");
-      addName(node, writeTo);
-      parseXML(node.firstChild, writeTo);
-      break;
-      
-  case "SUBSECTION":
-      writeTo.push("\\subsection{");
-      addName(node, writeTo);
-      writeTo.push("\\pagestyle{subsection}\n");
-      parseXML(node.firstChild, writeTo);
-      break;
+  CHAPTER: (node, writeTo) => {
+    writeTo.push("\\chapter{");
+    addName(node, writeTo);
+    writeTo.push("\\pagestyle{main}\n");
+    recursiveProcessText(node.firstChild, writeTo);
+  },
 
-    default:
-      if (!processText(node, writeTo)) {
-        parseXML(node.firstChild, writeTo);
-      }
+  CITATION: (node, writeTo) => {
+    // Currently just text. Not linked to biblography.
+    const text = node.getElementsByTagName("TEXT")[0];
+    if (text) {
+      recursiveProcessText(text.firstChild, writeTo);
+    } else {
+      recursiveProcessText(node.firstChild, writeTo);
+    }
+  },
+
+  EM: (node, writeTo) => processTextFunctions["em"](node, writeTo),
+  em: (node, writeTo) => {
+    writeTo.push("{\\em ");
+    recursiveProcessText(node.firstChild, writeTo);
+    writeTo.push("}");
+  },
+
+
+  EPIGRAPH: (node, writeTo) => {
+    processEpigraph(node, writeTo);
+  },
+
+  EXERCISE: (node, writeTo) => {
+    processExercise(node, writeTo);
+  },
+
+  FIGURE: (node, writeTo) => {
+    processFigure(node, writeTo);
+  },
+
+  FOOTNOTE: (node, writeTo) => {
+    writeTo.push("\\cprotect\\footnote{");
+    recursiveProcessText(node.firstChild, writeTo);
+    writeTo.push("}\n");
+  },
+
+  H2: (node, writeTo) => {
+    writeTo.push("\n\\subsection*{");
+    recursiveProcessText(node.firstChild, writeTo);
+    writeTo.push("}\n");
+  },
+
+  INDEX: (node, writeTo) => {
+    writeTo.push("\\index{");
+    const indexArr = [];
+    const order = getChildrenByTagName(node, "ORDER")[0];
+    if (order) {
+      recursiveProcessText(order.firstChild, indexArr);
+      indexArr.push("@");
+    }
+    recursiveProcessText(node.firstChild, indexArr);
+    const indexStr = indexArr.join("").trim();
+
+    // Do error checking
+    checkIndexBadEndWarning(indexStr);
+    writeTo.push(indexStr);
+    writeTo.push("}");
+  },
+
+  IMAGE: (node, writeTo) => {
+    writeTo.push(
+      "\\begin{figure}[H]\n\\centering"
+      + generateImage(node.getAttribute("src")) + "\n\\end{figure}\n"
+    );
+  },
+
+  LABEL: (node, writeTo) => {
+    writeTo.push("\\label{" + node.getAttribute("NAME") + "}\n");
+  },
+
+  LINK: (node, writeTo) => {
+    writeTo.push("\\href{" + node.getAttribute("address") + "}{");
+    recursiveProcessText(node.firstChild, writeTo);
+    writeTo.push("}");
+  },
+
+  LATEX: (node, writeTo) => processTextFunctions["LATEXINLINE"](node, writeTo),
+  TREETAB: (node, writeTo) => processTextFunctions["LATEXINLINE"](node, writeTo),
+  LATEXINLINE: (node, writeTo) => {
+    recursiveProcessPureText(node.firstChild, writeTo);
+  },
+
+  MATTERSECTION: (node, writeTo) => {
+    writeTo.push("\\section*{");
+    addName(node, writeTo);
+    recursiveProcessText(node.firstChild, writeTo);
+  },
+
+  OL: (node, writeTo) => {
+    writeTo.push("\n\\begin{enumerate}");
+    writeTo.push(ancestorHasTag(node, "EXERCISE") ? "[a.]\n" : "\n");
+    processList(node.firstChild, writeTo);
+    writeTo.push("\\end{enumerate}\n");
+  },
+
+  P: (node, writeTo) => processTextFunctions["TEXT"](node, writeTo),
+  TEXT: (node, writeTo) => {
+    writeTo.push("\n\n");
+    recursiveProcessText(node.firstChild, writeTo);
+    writeTo.push("\n");
+  },
+
+  QUOTE: (node, writeTo) => {
+    writeTo.push("\\enquote{");
+    recursiveProcessText(node.firstChild, writeTo);
+    writeTo.push("}");
+  },
+
+  REF: (node, writeTo) => {
+    writeTo.push("\\ref{" + node.getAttribute("NAME") + "}");
+  },
+
+  REFERENCE: (node, writeTo) => {
+    // Doesn't do anything special
+    writeTo.push("\n");
+    recursiveProcessText(node.firstChild, writeTo);
+    writeTo.push("\n");
+  },
+
+  SC: (node, writeTo) => {
+    writeTo.push("{\\scshape ");
+    recursiveProcessText(node.firstChild, writeTo);
+    writeTo.push("}");
+  },
+
+  SECTION: (node, writeTo) => {
+    writeTo.push("\\section{");
+    addName(node, writeTo);
+    writeTo.push("\\pagestyle{section}\n");
+    recursiveProcessText(node.firstChild, writeTo);
+  },
+
+  SUBHEADING: (node, writeTo) => {
+    writeTo.push("\\subsubsection{");
+    addName(node, writeTo);
+    recursiveProcessText(node.firstChild, writeTo);
+  },
+  SUBSUBSUBSECTION: (node, writeTo) => processTextFunctions["SUBHEADING"](node, writeTo),
+
+  SCHEMEINLINE: (node, writeTo) =>
+    processTextFunctions["JAVASCRIPTINLINE"](node, writeTo),
+  JAVASCRIPTINLINE: (node, writeTo) => {
+    writeTo.push("{\\lstinline[mathescape=true]$");
+    recursiveProcessPureText(node.firstChild, writeTo, { removeNewline: true });
+    writeTo.push("$}");
+  },
+
+  SNIPPET: (node, writeTo) => {
+    processSnippet(node, writeTo);
+  },
+
+  SUBHEADING: (node, writeTo) => {
+    writeTo.push("\\subsubsection{");
+    addName(node, writeTo);
+    recursiveProcessText(node.firstChild, writeTo);
+  },
+
+  SUBINDEX: (node, writeTo) => {
+    // should occur only within INDEX
+    // also should only exist after stuff in the main index
+    writeTo.push("!");
+    const order = getChildrenByTagName(node, "ORDER")[0];
+    if (order) {
+      recursiveProcessText(order.firstChild, writeTo);
+      writeTo.push("@");
+    }
+    recursiveProcessText(node.firstChild, writeTo);
+  },
+
+  SUBSECTION: (node, writeTo) => {
+    writeTo.push("\\subsection{");
+    addName(node, writeTo);
+    writeTo.push("\\pagestyle{subsection}\n");
+    recursiveProcessText(node.firstChild, writeTo);
+  },
+
+  TABLE: (node, writeTo) => {
+    processTable(node, writeTo);
+  },
+
+  TT: (node, writeTo) => {
+    writeTo.push("\\texttt{");
+    recursiveProcessText(node.firstChild, writeTo, true);
+    writeTo.push("}");
+  },
+
+  UL: (node, writeTo) => {
+    writeTo.push("\n\\begin{itemize}\n");
+    processList(node.firstChild, writeTo);
+    writeTo.push("\\end{itemize}\n");
   }
-
-  return parseXML(node.nextSibling, writeTo);
 };
 
-export default parseXML;
+const processTextFunctionsEpub = {
+  IMAGE: (node, writeTo) => {
+    writeTo.push(
+      "\\begin{figure}[H]\n\\centering"
+      + generateImage(node.getAttribute("src")) + "\n\\end{figure}\n"
+    );
+  },
+}
 
-// unaccounted
-// Set {
-//   'CHAPTERCONTENT',
-//   'SECTIONCONTENT'
-//}
+let processTextFunctions = processTextFunctionsDefault;
+
+export const switchParseFunctions = (parseType) => {
+  if (parseType == "pdf") {
+    processTextFunctions = processTextFunctionsDefault;
+  } else if (parseType == "epub") {
+    console.log('using parsetype epub')
+    processTextFunctions = {
+      ...processTextFunctionsDefault,
+      ...processTextFunctionsEpub,
+    };
+  }
+}
+
+export const processText = (node, writeTo) => {
+  const name = node.nodeName;
+  if (processTextFunctions[name]) {
+    processTextFunctions[name](node, writeTo);
+    return true;
+  } else {
+    if (replaceTagWithSymbol(node, writeTo) || tagsToRemove.has(name)) {
+      return true;
+    } else if (ignoreTags.has(name)) {
+      recursiveProcessText(node.firstChild, writeTo);
+      return true;
+    }
+  }
+  console.log("Unrecognised Tag:\n" + node.toString() + "\n");
+  return false;
+};
+
+export const recursiveProcessText = (node, writeTo) => {
+  if (!node) return;
+  processText(node, writeTo);
+  return recursiveProcessText(node.nextSibling, writeTo);
+};

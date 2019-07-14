@@ -1,4 +1,4 @@
-import { processText, recursiveProcessText } from "./parseText";
+import { recursiveProcessText, processText } from '../parseXML';
 
 export const processEpigraph = (node, writeTo) => {
   writeTo.push("\\epigraph{");
