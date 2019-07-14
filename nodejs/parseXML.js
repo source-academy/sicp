@@ -59,9 +59,9 @@ const processTextFunctionsDefault = {
 
   ABOUT: (node, writeTo) => {
     writeTo.push("\\chapter*{");
-    const name = addName(node, writeTo);
+    addName(node, writeTo);
     writeTo.push("\n\\addcontentsline{toc}{chapter}{");
-    writeTo.push(name + '}\n\n');
+    addName(node, writeTo);
     recursiveProcessText(node.firstChild, writeTo);
   },
   REFERENCES: (node, writeTo) => processTextFunctions["ABOUT"](node, writeTo),
@@ -306,23 +306,6 @@ export const switchParseFunctions = (parseType) => {
     };
   }
 }
-export const addName = (node, writeTo) => {
-  const nameArr = [];
-  recursiveProcessText(
-    getChildrenByTagName(node, "NAME")[0].firstChild,
-    nameArr
-  );
-  const name = nameArr.join("").trim();
-  writeTo.push(name);
-  writeTo.push("}\n\n");
-  return name;
-};
-
-export const recursiveProcessText = (node, writeTo) => {
-  if (!node) return;
-  processText(node, writeTo);
-  return recursiveProcessText(node.nextSibling, writeTo);
-};
 
 export const processText = (node, writeTo) => {
   const name = node.nodeName;
@@ -337,7 +320,7 @@ export const processText = (node, writeTo) => {
       return true;
     }
   }
-  console.log("WARNING Unrecognised Tag:\n" + node.toString() + "\n");
+  console.log("Unrecognised Tag:\n" + node.toString() + "\n");
   return false;
 };
 
