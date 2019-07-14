@@ -329,3 +329,4 @@ export const recursiveProcessText = (node, writeTo) => {
   processText(node, writeTo);
   return recursiveProcessText(node.nextSibling, writeTo);
 };
+
