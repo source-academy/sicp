@@ -1,7 +1,7 @@
 export const checkIndexBadEndWarning = indexStr => {
   const last = indexStr.slice(-1);
   if (last == "!" || last == "@") {
-    console.log("WARNING, index ends with special character:\n" + indexStr);
+    console.log("WARNING, index ends with special character: " + indexStr + "\n");
   }
 };
 
@@ -11,20 +11,20 @@ export const checkLongLineWarning = str => {
     if (line.length >= 75) {
       console.log(
         "WARNING, line is too long (>74 chars) and will overflow the page:\n" +
-          line
+          line + "\n"
       );
     }
   }
 };
 
 export const missingRequireWarning = (required) => {
-  console.log("WARNING, REQUIRES not found: " + required);
+  console.log("WARNING, REQUIRES not found: " + required + "\n");
 };
 
 export const missingExampleWarning = (name) => {
-  console.log("WARNING, EXAMPLE not found: " + name);
+  console.log("WARNING, EXAMPLE not found: " + name + "\n");
 };
 
 export const repeatedNameWarning = (name) => {
-  console.log("WARNING, Repeated SNIPPET name: " + name);
+  console.log("WARNING, Repeated SNIPPET name: " + name + "\n");
 };
