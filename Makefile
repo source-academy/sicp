@@ -7,6 +7,9 @@ pdf:
 	npm start
 	cd latex && latexmk -xelatex -pdf sicpjs
 
+epub:
+	npm start epub
+
 clean:
 	rm -rf rails-html
 	$(MAKE) -C rails clean

@@ -8,6 +8,7 @@ import { DOMParser as dom } from "xmldom";
 import parseXML from "./parseXML.js";
 import { setupSnippets } from './processSnippet';
 import { preamble, ending } from './latexContent';
+import { switchParseFunctions } from './parseText';
 
 const inputDir = path.join(__dirname, "../xml");
 const outputDir = path.join(__dirname, "../latex");
@@ -125,6 +126,10 @@ const createMainLatex = () => {
 };
 
 async function main() {
+  const type = process.argv[2];
+  if (type) {
+    switchParseFunctions(type);
+  }
   createMainLatex();
   console.log("setup snippets");
   await recursiveXmlToLatex("", true);
