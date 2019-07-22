@@ -16,12 +16,6 @@ epub:
 svg_pdf:
 	./svg_to_pdf.sh
 
-epub:
-	cd epub3 && npm start && npm start
-	cd ..
-	cd latex_epub && pandoc sicpjs.tex --listings -o sicp.epub --toc --epub-chapter-level=3 --number-sections --css ../css/sicp.css --epub-cover-image=../rails/public/chapters/coverpage.png
-
-	
 clean:
 	rm -rf rails-html
 	$(MAKE) -C rails clean
