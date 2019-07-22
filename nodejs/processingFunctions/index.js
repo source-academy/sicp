@@ -2,9 +2,13 @@
 import replaceTagWithSymbol from "./replaceTagWithSymbol";
 import processEpigraph from "./processEpigraph";
 import processFigure, { generateImage } from "./processFigure";
+import processFigureEpub from "./processFigureEpub";
 import processExercise from './processExercise';
+import processExerciseEpub from './processExerciseEpub';
+
 import processFileInput from "./processFileInput";
 import processSnippet from './processSnippet';
+import processSnippetEpub from './processSnippetEpub';
 import processTable from './processTable'
 import recursiveProcessPureText from './recursiveProcessPureText';
 
@@ -36,11 +40,14 @@ export const addName = (node, writeTo) => {
 export {
 	replaceTagWithSymbol,
 	processEpigraph,
-	processFigure,
+  processFigure,
+  processFigureEpub,
 	generateImage,
-	processExercise,
+  processExercise,
+  processExerciseEpub,
 	processFileInput,
-	processSnippet,
+  processSnippet,
+  processSnippetEpub,
 	processTable,
 	recursiveProcessPureText
 }
