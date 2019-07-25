@@ -5,7 +5,7 @@ web:
 
 pdf: 
 	npm start
-	cd latex && latexmk -xelatex -pdf sicpjs
+	cd latex && latexmk -pdflatex=pdflatex -f sicpjs
 
 epub:
 	npm start epub
