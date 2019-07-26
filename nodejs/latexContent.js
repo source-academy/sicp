@@ -18,8 +18,8 @@ export const preamble = `\\documentclass[a4paper, 12pt]{report}
 \\usepackage[T1]{fontenc}
 \\usepackage[utf8]{inputenc}
 \\DeclareUnicodeCharacter{1F00}{-}
-\\usepackage[libertine]{newtxmath}
 \\usepackage{libertine}
+\\usepackage[libertine]{newtxmath}
 \\usepackage[mono,extrasp=0em,scale=0.95]{inconsolata}
 \\usepackage[sf,bf,big,raggedright,nobottomtitles]{titlesec}
 \\usepackage[british]{babel}
