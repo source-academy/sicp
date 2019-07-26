@@ -20,9 +20,11 @@ export const preamble = `\\documentclass[a4paper, 12pt]{report}
 \\DeclareUnicodeCharacter{1F00}{-}
 \\usepackage[libertine]{newtxmath}
 \\usepackage{libertine}
-\\usepackage[mono,scale=0.9]{inconsolata}
+\\usepackage[mono,extrasp=0em,scale=0.95]{inconsolata}
 \\usepackage[sf,bf,big,raggedright,nobottomtitles]{titlesec}
 \\usepackage[british]{babel}
+\\usepackage[multidot]{grffile}
+\\usepackage[activate={true,nocompatibility},final,tracking=true,kerning=true,spacing=true,factor=1100,stretch=10,shrink=10]{microtype}
 
 \\usepackage{adjustbox}
 \\usepackage{amsmath}
@@ -93,6 +95,7 @@ export const preamble = `\\documentclass[a4paper, 12pt]{report}
   morecomment=[s]{/*}{*/},
   morestring=[b]',
   morestring=[b]",
+  columns=fixed,
   sensitive=true
 }
 
@@ -103,6 +106,19 @@ export const preamble = `\\documentclass[a4paper, 12pt]{report}
    showspaces=false,
    escapeinside={/*!}{!*/}
 }
+
+\\lstdefinestyle{JavaScript}{
+   language=JavaScript,
+   basicstyle=\\linespread{1.0}\\ttfamily,
+   showstringspaces=false,
+   showspaces=false,
+   keepspaces=true,
+   fontadjust=true,
+   basewidth=0.55em,
+   mathescape=true,
+   escapeinside={/*!}{!*/}
+}
+\\lstnewenvironment{JavaScript}{\\lstset{style=JavaScript}}{}
 
 \\usepackage{epigraph}
 \\setlength\\epigraphwidth{11cm}
