@@ -19,7 +19,10 @@ export const preamble = `\\documentclass[a4paper, 12pt]{report}
 \\usepackage[utf8]{inputenc}
 \\DeclareUnicodeCharacter{1F00}{-}
 \\usepackage{libertine}
+<<<<<<< HEAD
 \\usepackage[libertine]{newtxmath}
+=======
+>>>>>>> Merges pretty-pdf and svg branches
 \\usepackage[mono,extrasp=0em,scale=0.95]{inconsolata}
 \\usepackage[sf,bf,big,raggedright,nobottomtitles]{titlesec}
 \\usepackage[british]{babel}
