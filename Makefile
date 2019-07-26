@@ -5,10 +5,13 @@ web:
 
 pdf: 
 	npm start
-	cd latex && latexmk -pdflatex=pdflatex -f sicpjs
+	cd latex && latexmk -pdf -pdflatex='pdflatex --synctex=1' -f sicpjs
 
 epub:
 	npm start epub
+
+svg_pdf:
+	./svg_to_pdf.sh
 
 clean:
 	rm -rf rails-html
