@@ -140,11 +140,11 @@ export const processSnippet = (node, writeTo) => {
       );
       writeTo.push(chunks[1]);
       writeTo.push(
-        "\\end{JavaScript}\\end{lrbox}"
+        "\\end{lstlisting}\\end{lrbox}"
       );
 
       if (chunks[2]) {
-        writeTo.push("\n\\begin{JavaScript}[mathescape=true]\n");
+        writeTo.push("\n\\begin{lstlisting}[mathescape=true]\n");
         writeTo.push("/*!\\href{" + url + "}{\\usebox\\lstbox}!*/\n")
         writeTo.push(chunks[2]);
         writeTo.push("\\end{JavaScript}");
