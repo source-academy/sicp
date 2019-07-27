@@ -5,7 +5,7 @@ web:
 
 pdf: 
 	npm start
-	cd latex && latexmk -pdf -pdflatex='pdflatex --synctex=1' -f sicpjs
+	cd latex && latexmk -pdf -pdflatex="pdflatex --synctex=1" -f sicpjs
 
 epub:
 	npm start epub
