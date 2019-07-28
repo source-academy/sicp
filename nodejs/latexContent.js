@@ -126,8 +126,8 @@ export const preamble = `\\documentclass[a4paper, 12pt]{report}
 
 \\usepackage[colorlinks=true, urlcolor=blue, linkcolor=blue, citecolor=blue]{hyperref}
 
-\\newcommand{\\lt}{\\symbol{"3C}}% Less than
-\\newcommand{\\gt}{\\symbol{"3E}}% Greater than
+\\newcommand{\\lt}{\\ensuremath{<}}% Less than
+\\newcommand{\\gt}{\\ensuremath{>}}% Greater than
 
 \\hyphenation{Solution}
 
