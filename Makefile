@@ -9,7 +9,7 @@ pdf:
 
 epub:
 	npm start epub && npm start epub
-	cd latex && pandoc sicpjs.tex --listings -o sicp.epub --toc --epub-chapter-level=3 --number-sections --css ../css/sicp.css --epub-cover-image=../rails/public/chapters/coverpage.png
+	cd latex && pandoc sicpjs.tex --listings -o sicp.epub --toc --epub-chapter-level=3 --number-sections --metadata=title:"Structure and Interpretation of Computer Programs (JavaScript Adaptation)" --css ../css/sicp.css --epub-cover-image=../rails/public/chapters/coverpage.png
 
 clean:
 	rm -rf rails-html
