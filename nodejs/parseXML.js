@@ -49,7 +49,7 @@ const processTextFunctionsDefault = {
     const trimedValue = node.nodeValue
       .replace(/[\r\n]+/, " ")
       .replace(/\s+/g, " ")
-      .replace(/\^/g, "\\string^")
+      .replace(/\^/g, "\^{}")
       .replace(/%/g, "\\%");
     if (trimedValue.match(/&(\w|\.)+;/)) {
       processFileInput(trimedValue.trim(), writeTo);
