@@ -12,6 +12,8 @@ pdf:
 epub:
 	npm start epub
 	cd latex && pandoc sicpjs.tex --listings -o sicp.epub --toc --epub-chapter-level=3 --number-sections --metadata=title:"Structure and Interpretation of Computer Programs (JavaScript Adaptation)" --css ../css/sicp.css --epub-cover-image=../rails/public/chapters/coverpage.png
+	@echo "Adding fonts to the EPUB file"
+	cd epub3 && zip -r ../latex/sicpjs.epub html
 
 svg_pdf:
 	./svg_to_pdf.sh
