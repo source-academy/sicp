@@ -3,12 +3,17 @@ all: clean web pdf
 web:
 	$(MAKE) -C rails javascript
 
+# If you exceed the TeX memory capacity on MikTeX:
+# http://blog.analogmachine.org/2013/08/12/how-to-increase-miktex-2-9-memory/
 pdf: 
 	npm start
-	cd latex && latexmk -xelatex -pdf sicpjs
+	cd latex && latexmk -pdf -pdflatex="pdflatex --synctex=1" -f sicpjs
 
 epub:
 	npm start epub
+
+svg_pdf:
+	./svg_to_pdf.sh
 
 clean:
 	rm -rf rails-html

@@ -71,9 +71,9 @@ export const processSnippet = (node, writeTo) => {
     }
 
     if (node.getAttribute("EVAL") === "no") {
-      writeTo.push("\n\\begin{lstlisting}[mathescape=true]\n");
+      writeTo.push("\n\\begin{JavaScript}\n");
       writeTo.push(codeStr);
-      writeTo.push("\n\\end{lstlisting}\n");
+      writeTo.push("\n\\end{JavaScript}\n");
     } else {
 
     	let reqStr = '';
@@ -136,18 +136,18 @@ export const processSnippet = (node, writeTo) => {
       const chunks = (codeStr + "\n").match(/^((?:.*?[\r\n]+){1,6})((?:.|\n|\r)*)$/);
       // 6 lines plus rest
       writeTo.push(
-        "\n\\begin{lrbox}{\\lstbox}\\begin{lstlisting}[mathescape=true]\n"
+        "\n\\begin{lrbox}{\\lstbox}\n\\begin{JavaScript}\n"
       );
       writeTo.push(chunks[1]);
       writeTo.push(
-        "\\end{lstlisting}\\end{lrbox}"
+        "\\end{JavaScript}\n\\end{lrbox}"
       );
 
       if (chunks[2]) {
-        writeTo.push("\n\\begin{lstlisting}[mathescape=true]\n");
+        writeTo.push("\n\\begin{JavaScript}\n");
         writeTo.push("/*!\\href{" + url + "}{\\usebox\\lstbox}!*/\n")
         writeTo.push(chunks[2]);
-        writeTo.push("\\end{lstlisting}");
+        writeTo.push("\n\\end{JavaScript}");
       } else {
         writeTo.push("\n\n\\href{" + url + "}{\\usebox\\lstbox}")
       }

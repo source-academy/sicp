@@ -37,7 +37,7 @@ export const processFigure = (node, writeTo) => {
 export const generateImage = (imagePath) => {
   return (
     "\n\\maxsizebox{\\linewidth}{0.8\\paperheight}{"
-    + "\\includegraphics{{"
+    + "\\includegraphics[scale=0.8]{{"
     + imagePath.replace(/\.gif$/, ".png")
       .replace(/\.(?=[^.]*$)/, "}.")
       .replace(/_/g, "\\string_")

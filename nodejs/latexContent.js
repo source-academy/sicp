@@ -15,12 +15,24 @@ const title = `\\begin{titlepage}
 \\end{titlepage}`
 
 export const preamble = `\\documentclass[a4paper, 12pt]{report}
+\\usepackage[T1]{fontenc}
+\\usepackage[utf8]{inputenc}
+\\DeclareUnicodeCharacter{1F00}{-}
+\\usepackage{libertine}
+\\usepackage[libertine]{newtxmath}
+\\usepackage[mono,extrasp=0em,scale=0.95]{inconsolata}
+\\usepackage[sf,bf,big,raggedright,nobottomtitles]{titlesec}
+\\usepackage[british]{babel}
+\\usepackage[multidot]{grffile}
+\\usepackage[activate={true,nocompatibility},final,tracking=true,kerning=true,spacing=true,factor=1100,stretch=10,shrink=10]{microtype}
+
 \\usepackage{adjustbox}
 \\usepackage{amsmath}
 \\usepackage{amssymb}
 \\usepackage{cprotect}
 \\usepackage{csquotes}
 \\usepackage[shortlabels]{enumitem}
+\\setlist{label={--}}
 \\usepackage{etoolbox}
 \\usepackage{float}
 \\usepackage[margin=2.54cm]{geometry}
@@ -63,6 +75,7 @@ export const preamble = `\\documentclass[a4paper, 12pt]{report}
 \\usepackage[answerdelayed]{exercise}
 \\newcounter{ExerciseDisplayNumber}[chapter]
 \\renewcommand{\\theExercise}{\\thechapter.\\arabic{ExerciseDisplayNumber}}
+\\addtolength{\\ExerciseSkipBefore}{1em}
 
 \\usepackage{listings}
 \\expandafter\\patchcmd\\csname \\string\\lstinline\\endcsname{%
@@ -82,16 +95,30 @@ export const preamble = `\\documentclass[a4paper, 12pt]{report}
   morecomment=[s]{/*}{*/},
   morestring=[b]',
   morestring=[b]",
+  columns=fixed,
   sensitive=true
 }
 
 \\lstset{
    language=JavaScript,
-   basicstyle=\\ttfamily,
+   basicstyle=\\linespread{1.0}\\ttfamily,
    showstringspaces=false,
    showspaces=false,
    escapeinside={/*!}{!*/}
 }
+
+\\lstdefinestyle{JavaScript}{
+   language=JavaScript,
+   basicstyle=\\linespread{1.0}\\ttfamily,
+   showstringspaces=false,
+   showspaces=false,
+   keepspaces=true,
+   fontadjust=true,
+   basewidth=0.55em,
+   mathescape=true,
+   escapeinside={/*!}{!*/}
+}
+\\lstnewenvironment{JavaScript}{\\lstset{style=JavaScript}}{}
 
 \\usepackage{epigraph}
 \\setlength\\epigraphwidth{11cm}
