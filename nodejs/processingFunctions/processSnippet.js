@@ -136,18 +136,18 @@ export const processSnippet = (node, writeTo) => {
       const chunks = (codeStr + "\n").match(/^((?:.*?[\r\n]+){1,6})((?:.|\n|\r)*)$/);
       // 6 lines plus rest
       writeTo.push(
-        "\n\\begin{lrbox}{\\lstbox}\n\\begin{JavaScript}\n"
+        "\n\\begin{lrbox}{\\lstbox}\n\\begin{JavaScriptClickable}\n"
       );
       writeTo.push(chunks[1]);
       writeTo.push(
-        "\\end{JavaScript}\n\\end{lrbox}"
+        "\\end{JavaScriptClickable}\n\\end{lrbox}"
       );
 
       if (chunks[2]) {
-        writeTo.push("\n\\begin{JavaScript}\n");
+        writeTo.push("\n\\begin{JavaScriptClickable}\n");
         writeTo.push("/*!\\href{" + url + "}{\\usebox\\lstbox}!*/\n")
         writeTo.push(chunks[2]);
-        writeTo.push("\n\\end{JavaScript}");
+        writeTo.push("\n\\end{JavaScriptClickable}");
       } else {
         writeTo.push("\n\n\\href{" + url + "}{\\usebox\\lstbox}")
       }

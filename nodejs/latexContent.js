@@ -107,6 +107,9 @@ export const preamble = `\\documentclass[a4paper, 12pt]{report}
    escapeinside={/*!}{!*/}
 }
 
+\\usepackage{xcolor}
+\\definecolor{LeftBarClickable}{RGB}{187, 187, 187}
+
 \\lstdefinestyle{JavaScript}{
    language=JavaScript,
    basicstyle=\\linespread{1.0}\\ttfamily,
@@ -116,9 +119,13 @@ export const preamble = `\\documentclass[a4paper, 12pt]{report}
    fontadjust=true,
    basewidth=0.55em,
    mathescape=true,
+   framerule=0.5ex,
+   framesep=1em,
+   rulecolor=\\color{LeftBarClickable},
    escapeinside={/*!}{!*/}
 }
 \\lstnewenvironment{JavaScript}{\\lstset{style=JavaScript}}{}
+\\lstnewenvironment{JavaScriptClickable}{\\lstset{style=JavaScript,frame=leftline}}{}
 
 \\usepackage{epigraph}
 \\setlength\\epigraphwidth{11cm}
