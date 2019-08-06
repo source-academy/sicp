@@ -7,10 +7,13 @@ import {
   replaceTagWithSymbol,
   processEpigraph,
   processFigure,
+  processFigureEpub,
   generateImage,
   processExercise,
+  processExerciseEpub,
   processFileInput,
   processSnippet,
+  processSnippetEpub,
   processTable,
   recursiveProcessPureText,
   processList,
@@ -46,7 +49,7 @@ const processTextFunctionsDefault = {
     const trimedValue = node.nodeValue
       .replace(/[\r\n]+/, " ")
       .replace(/\s+/g, " ")
-      .replace(/\^/g, "\\string^")
+      .replace(/\^/g, "\^{}")
       .replace(/%/g, "\\%");
     if (trimedValue.match(/&(\w|\.)+;/)) {
       processFileInput(trimedValue.trim(), writeTo);
@@ -285,11 +288,34 @@ const processTextFunctionsDefault = {
 };
 
 const processTextFunctionsEpub = {
-  IMAGE: (node, writeTo) => {
-    writeTo.push(
-      "\\begin{figure}[H]\n\\centering"
-      + generateImage(node.getAttribute("src")) + "\n\\end{figure}\n"
-    );
+  EXERCISE: (node, writeTo) => {
+    processExerciseEpub(node, writeTo);
+  },
+  FIGURE: (node, writeTo) => {
+    processFigureEpub(node, writeTo);
+  },
+  SECTION: (node, writeTo) => {
+    writeTo.push("\\section{");
+    addName(node, writeTo);
+    recursiveProcessText(node.firstChild, writeTo);
+  },
+  JAVASCRIPTINLINE: (node, writeTo) => {
+    writeTo.push("{\\lstinline[mathescape=true, language=JavaScript]$");
+    recursiveProcessPureText(node.firstChild, writeTo, { removeNewline: true });
+    writeTo.push("$}");
+  },
+  SNIPPET: (node, writeTo) => {
+    processSnippetEpub(node, writeTo);
+  },
+  SUBSECTION: (node, writeTo) => {
+    writeTo.push("\\subsection{");
+    addName(node, writeTo);
+    recursiveProcessText(node.firstChild, writeTo);
+  },
+  SUBHEADING: (node, writeTo) => {
+    writeTo.push("\\paragraph{");
+    addName(node, writeTo);
+    recursiveProcessText(node.firstChild, writeTo);
   },
 }
 
@@ -329,3 +355,4 @@ export const recursiveProcessText = (node, writeTo) => {
   processText(node, writeTo);
   return recursiveProcessText(node.nextSibling, writeTo);
 };
+
