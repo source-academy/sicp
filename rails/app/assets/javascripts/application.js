@@ -39,6 +39,7 @@ var ready = function() {
                         chapter_id = id_regex.exec(next_link);
                         $(".chapter-content:last").before("<hr/>");
                         newpage_ready();
+                        addPermaLinks(next_chapter);
                     }
                 );
             }
@@ -91,16 +92,28 @@ $(document).on('click', function(e){
 
 // This code adds the permalink copying functionality ==================================================
 $(document).ready(function() {
-    $('a.permalink').click(function(){
-        console.log(window.location.host + window.location.pathname + "#" + $(this).attr("name"));
-        $(this).children().effect("highlight", "slow");
-        $(this).effect("highlight", "slow");
-        $("#permalink-msg").show().delay(2000).fadeOut();
-        copyTextToClipboard(window.location.host + window.location.pathname + "#" + $(this).attr("name"));
-    });
+    addPermaLinks($(document));
 });
 
+function addPermaLinks(scope) {
+    console.log("Adding permalinks...");
+    // Uncomment this to see all permalinked content flare up in red
+    // scope.find("div.permalink").each(function() {
+    //     $(this).css("background-color", "red");
+    // });
+    scope.find("div.permalink").click(function() {
+        const div_tag = $(this);
+
+        anchor = div_tag.children(":first").attr("name");
+            
+        div_tag.effect("highlight", "slow");
+        $("#permalink-msg").show().delay(2000).fadeOut();
+        copyTextToClipboard(window.location.host + "/chapters/" + chapter_id + "#" + anchor);
+    });
+}
+
 function copyTextToClipboard(text) {
+    console.log(text);
   var textArea = document.createElement("textarea");
 
   textArea.style.position = 'fixed';

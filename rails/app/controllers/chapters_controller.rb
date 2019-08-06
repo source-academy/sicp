@@ -58,12 +58,7 @@ class ChaptersController < ApplicationController
         paragraph_number = 0
         xml_doc.search("TEXT").each do |p|
           paragraph_number += 1
-          permalink = xml_doc.create_element("a",
-                                             :name => "p#{paragraph_number}",
-                                             :class => "permalink",
-                                            )
-          p.before(permalink)
-          permalink.add_child(p)
+          permalink_wrap(xml_doc, p, "p#{paragraph_number}")
         end
 
         # Figure without img/with link to gif
@@ -107,9 +102,8 @@ class ChaptersController < ApplicationController
             b = xml_doc.create_element("b")
             ex.children.first.add_previous_sibling(b)
             a = xml_doc.create_element("a", "Exercise " + ex_numbering + " ",
-                :class => "superscript",
-                :id => "ex_" + ex_numbering,
-                :href => "#ex_" + ex_numbering)
+                :class => "exercise-number permalink",
+                :id => "ex_" + ex_numbering)
             b.add_child(a)
             ex_start_index += 1
 
@@ -136,6 +130,7 @@ class ChaptersController < ApplicationController
 
             end            
 
+            permalink_wrap(xml_doc, ex, "ex_#{ex_numbering}")
         end
 
         
@@ -187,16 +182,24 @@ class ChaptersController < ApplicationController
         end
 
         # Headings
+        # Wrap each <h>...</h> in a <a name="§n"></a> to serve as a permalink for each paragraph
+        heading_number = 0
         xml_doc.search('SUBHEADING').each do |heading|
-            heading.name = 'h2'
+          heading.name = 'h2'
+          heading_number += 1
+          permalink_wrap(xml_doc, heading, "h#{heading_number}")
         end
 
         xml_doc.search('H1').each do |h1|
-            h1.name = 'h1'
+          h1.name = 'h1'
+          heading_number += 1
+          permalink_wrap(xml_doc, heading, "h#{heading_number}")
         end
 
         xml_doc.search('MATTERSECTION').each do |h1|
-            h1.name = 'h1'
+          h1.name = 'h1'
+          heading_number += 1
+          permalink_wrap(xml_doc, heading, "h#{heading_number}")
         end
 
         # Blockquote
@@ -485,5 +488,19 @@ class ChaptersController < ApplicationController
         end
     return @html_doc
     end
+
+    def permalink_wrap(xml_doc, tag, name)
+      permalink = xml_doc.create_element("a",
+                                         :name => name,
+                                         :class => "permalink",
+                                        )
+      wrapper_div = xml_doc.create_element("div",
+                                           :class => "permalink",
+                                          )
+      tag.before(wrapper_div)
+      wrapper_div.add_child(permalink)
+      wrapper_div.add_child(tag)
+    end
+
 end
 # 
