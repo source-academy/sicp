@@ -12,6 +12,7 @@
 //
 //= require codemirror
 //= require_tree .
+//= require jquery-ui
 // require turbolinks
 
 // Turbolink fix: https://stackoverflow.com/questions/17600093/rails-javascript-not-loading-after-clicking-through-link-to-helper
@@ -38,6 +39,7 @@ var ready = function() {
                         chapter_id = id_regex.exec(next_link);
                         $(".chapter-content:last").before("<hr/>");
                         newpage_ready();
+                        addPermaLinks(next_chapter);
                     }
                 );
             }
@@ -86,3 +88,64 @@ $(document).on('click', function(e){
     } 
     }
 });
+
+
+// This code adds the permalink copying functionality ==================================================
+$(document).ready(function() {
+    addPermaLinks($(document));
+});
+
+function addPermaLinks(scope) {
+    console.log("Adding permalinks...");
+    // Uncomment this to see all permalinked content flare up in red
+    // scope.find("div.permalink").each(function() {
+    //     $(this).css("background-color", "red");
+    // });
+    scope.find("div.permalink").click(function() {
+        const div_tag = $(this);
+
+        anchor = div_tag.children(":first").attr("name");
+            
+        div_tag.effect("highlight", "slow");
+        $("#permalink-msg").show().delay(2000).fadeOut();
+        copyTextToClipboard(window.location.host + "/chapters/" + chapter_id + "#" + anchor);
+    });
+}
+
+function copyTextToClipboard(text) {
+    console.log(text);
+  var textArea = document.createElement("textarea");
+
+  textArea.style.position = 'fixed';
+  textArea.style.top = 0;
+  textArea.style.left = 0;
+
+  textArea.style.width = '2em';
+  textArea.style.height = '2em';
+
+  textArea.style.padding = 0;
+
+  textArea.style.border = 'none';
+  textArea.style.outline = 'none';
+  textArea.style.boxShadow = 'none';
+
+  textArea.style.background = 'transparent';
+
+  textArea.value = text;
+
+  document.body.appendChild(textArea);
+  textArea.focus();
+  textArea.select();
+
+  try {
+    var successful = document.execCommand('copy');
+    var msg = successful ? 'successful' : 'unsuccessful';
+    console.log('Copying text command was ' + msg);
+  } catch (err) {
+    console.log('Oops, unable to copy');
+  }
+
+  document.body.removeChild(textArea);
+}
+
+// =====================================================================================================
