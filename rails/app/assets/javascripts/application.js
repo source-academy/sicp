@@ -12,6 +12,7 @@
 //
 //= require codemirror
 //= require_tree .
+//= require jquery-ui
 // require turbolinks
 
 // Turbolink fix: https://stackoverflow.com/questions/17600093/rails-javascript-not-loading-after-clicking-through-link-to-helper
@@ -86,3 +87,52 @@ $(document).on('click', function(e){
     } 
     }
 });
+
+
+// This code adds the permalink copying functionality ==================================================
+$(document).ready(function() {
+    $('a.permalink').click(function(){
+        console.log(window.location.host + window.location.pathname + "#" + $(this).attr("name"));
+        $(this).children().effect("highlight", "slow");
+        $(this).effect("highlight", "slow");
+        $("#permalink-msg").show().delay(2000).fadeOut();
+        copyTextToClipboard(window.location.host + window.location.pathname + "#" + $(this).attr("name"));
+    });
+});
+
+function copyTextToClipboard(text) {
+  var textArea = document.createElement("textarea");
+
+  textArea.style.position = 'fixed';
+  textArea.style.top = 0;
+  textArea.style.left = 0;
+
+  textArea.style.width = '2em';
+  textArea.style.height = '2em';
+
+  textArea.style.padding = 0;
+
+  textArea.style.border = 'none';
+  textArea.style.outline = 'none';
+  textArea.style.boxShadow = 'none';
+
+  textArea.style.background = 'transparent';
+
+  textArea.value = text;
+
+  document.body.appendChild(textArea);
+  textArea.focus();
+  textArea.select();
+
+  try {
+    var successful = document.execCommand('copy');
+    var msg = successful ? 'successful' : 'unsuccessful';
+    console.log('Copying text command was ' + msg);
+  } catch (err) {
+    console.log('Oops, unable to copy');
+  }
+
+  document.body.removeChild(textArea);
+}
+
+// =====================================================================================================

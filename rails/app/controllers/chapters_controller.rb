@@ -54,7 +54,17 @@ class ChaptersController < ApplicationController
             @title = @chapter.title
         end
 
-        
+        # Wrap each <p>...</p> in a <a name="§n"></a> to serve as a permalink for each paragraph
+        paragraph_number = 0
+        xml_doc.search("TEXT").each do |p|
+          paragraph_number += 1
+          permalink = xml_doc.create_element("a",
+                                             :name => "p#{paragraph_number}",
+                                             :class => "permalink",
+                                            )
+          p.before(permalink)
+          permalink.add_child(p)
+        end
 
         # Figure without img/with link to gif
         xml_doc.search('FIGURE').each do |figure|
