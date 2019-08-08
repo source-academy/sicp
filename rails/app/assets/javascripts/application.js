@@ -14,6 +14,7 @@
 //= require_tree .
 //= require jquery-ui
 // require turbolinks
+//= require popper
 
 // Turbolink fix: https://stackoverflow.com/questions/17600093/rails-javascript-not-loading-after-clicking-through-link-to-helper
 var ready = function() {
