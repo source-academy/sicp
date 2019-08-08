@@ -11,10 +11,10 @@ module ApplicationHelper
             <div class="card card-inverse">
               <div class="card-header" role="tab" id="#{type}-#{chapter.id}">
                 <h5 class="mb-0">
-                  <a class="#{type}-show collapsed" data-toggle="collapse" data-parent="##{parent}" href="##{type}-collapse-#{chapter.id}" aria-expanded="true" aria-controls="#{type}-collapse-#{chapter.id}">
+                  <a class="#{type}-show collapsed" data-toggle="collapse" href="##{type}-collapse-#{chapter.id}" aria-expanded="true" aria-controls="#{type}-collapse-#{chapter.id}">
                      &#10148;   <!-- ➤ (because this one is rendered blue on mobile: ▶  -->
                   </a>
-                  <a class="#{type}-hide collapsed" data-toggle="collapse" data-parent="##{parent}" href="##{type}-collapse-#{chapter.id}" aria-expanded="true" aria-controls="#{type}-collapse-#{chapter.id}">
+                  <a class="#{type}-hide collapsed" data-toggle="collapse" href="##{type}-collapse-#{chapter.id}" aria-expanded="true" aria-controls="#{type}-collapse-#{chapter.id}">
                     &#x25BC;    <!-- ▼ (because the corresponding one is not rendered) -->
                   </a>
                     #{link}
@@ -34,9 +34,9 @@ EOD
             <div class="card card-inverse">
               <div class="card-header" role="tab" id="sidebar-#{chapter.id}">
                 <h5 class="mb-0">
-                  <a class="collapsed" data-toggle="collapse" data-parent="##{parent}" href="##{type}-collapse-#{chapter.id}" aria-expanded="false" aria-controls="#{type}-collapse-#{chapter.id}">
+                  <span class="collapsed" data-toggle="collapse" href="##{type}-collapse-#{chapter.id}" aria-expanded="false" aria-controls="#{type}-collapse-#{chapter.id}">
                     #{link}
-                  </a>
+                  </span>
                 </h5>
               </div>
             </div>
