@@ -157,8 +157,14 @@ class ChaptersController < ApplicationController
                             :href => link)
                         # ref.next = a
                         ref.add_child(a)
+                    else
+                      ref.add_child(xml_doc.create_element("strong", "No linked chapter"))
                     end
+                else
+                  ref.add_child(xml_doc.create_element("strong", "Cound not find label for #{full_name}"))
                 end    
+            else
+              ref.add_child(xml_doc.create_element("strong", "Broken REF tag"))
             end    
         end
 
