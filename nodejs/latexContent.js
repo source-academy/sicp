@@ -8,8 +8,8 @@ const title = `\\begin{titlepage}
   {\\Large Harold Abelson and Gerald Jay Sussman \\\\}
   {\\large with Julie Sussman \\\\ — \\textit{authors} \\par}
   \\vspace{0.5cm}
-  {\\Large Martin Henz \\\\}
-  {\\large with Tobias Wrigstad, Liu Hang, Feng Piaopiao and Chan Ger Hean \\\\
+  {\\Large Martin Henz and Tobias Wrigstad\\\\}
+  {\\large with Liu Hang, Feng Piaopiao, Jolyn Tan and Chan Ger Hean \\\\
    — \\textit{adapters to JavaScript}\\par}
   \\end{flushright}
 \\end{titlepage}`
