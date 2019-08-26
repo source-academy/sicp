@@ -12,28 +12,35 @@ namespace :static do
   task :generate do
     Dir.mkdir 'out' unless File.exist? 'out'
     Dir.chdir 'out' do
-      `wget -r -mnHp --convert-links http://localhost:3000/`
-      reconvert_href
+      `wget -q -r -mnHp --convert-links http://localhost:3000/`
+      reconvert_href("chapters/")
     end
     Dir.chdir 'out/chapters' do
-        reconvert_href
+        reconvert_href("") # because we are in the chapters dir
     end
     `rsync -ruv --exclude=.svn/ public/ out/`
   end
 end
 
-def reconvert_href
-    # Wget wrongly converts the link to collapsing elements, fixing them back here
-    d = Dir.glob("*")
-    d.each do |filename|
-        if (!File::directory?(filename))
-            text = File.read(filename)
-            # text.encode!('UTF-8', 'binary', invalid: :replace, undef: :replace, replace: '')
-            new_content = text.gsub(/(?<=href=").+(?=#\w+-collapse)/,'')
+def reconvert_href(rel)
+  # Wget wrongly converts the link to collapsing elements, fixing them back here
+  d = Dir.glob("*")
+  d.each do |filename|
+    if (!File::directory?(filename))
+      puts "Processing #{filename}"
+      text = File.read(filename)
+      # text.encode!('UTF-8', 'binary', invalid: :replace, undef: :replace, replace: '')
+      begin
+        text = text.gsub(/(?<=href=").+(?=#\w+-collapse)/,'')
+        text = text.gsub(/http:..localhost:3000.chapters./,rel)
+      rescue
+        puts " ===================== Exception ==================== "
+        puts "     in reconvert_href for #{filename}"
+      end
 
-            # To write changes to the file, use:
-            File.open(filename, "w") {|file| file.puts new_content }
-            # puts 'done'
-        end
+      # To write changes to the file, use:
+      File.open(filename, "w") {|file| file.puts text }
+      # puts 'done'
     end
+  end
 end
