@@ -24,6 +24,9 @@ clean:
 install: all
 	cp latex/sicpjs.pdf latex/sicp.epub rails-html; cd rails-html; scp -r * sicp@web1.comp.nus.edu.sg:public_html; echo "check the website and make sure everything works: https://sicp.comp.nus.edu.sg"
 
+deploy_to_staging: 
+	cp latex/sicpjs.pdf latex/sicp.epub rails-html; cd rails-html; scp -r * sicp@web1.comp.nus.edu.sg:public_html/staging; echo "check the website and make sure everything works: https://sicp.comp.nus.edu.sg"
+
 tocs1101s: all
 	cp latex/sicpjs.pdf latex/sicp.epub rails-html; cd rails-html; scp -r * cs1101s@sunfire.comp.nus.edu.sg:web1_public_html/. ; echo "now: ssh cs1101s@sunfire.comp.nus.edu.sg and: "; echo "scp -r web1_public_html/* sicp@web1.comp.nus.edu.sg:public_html"
 
