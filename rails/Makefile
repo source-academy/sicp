@@ -14,11 +14,11 @@ generate:
 	test -s config/initializers/constants.rb || \
     cp config/initializers/constants.rb.def config/initializers/constants.rb
 	bundle install
-	rake db:migrate
-	rake db:schema:load
+	bundle exec rake db:migrate
+	bundle exec rake db:schema:load
 	rails runner app/helpers/import_textbook.rb "$(shell cd .. && echo $(PWD))"
 	rails s -d
-	rake static:generate
+	bundle exec rake static:generate
 	if test -f tmp/pids/server.pid; then kill `cat tmp/pids/server.pid`; fi
 	mv out ../rails-html
 clean:
