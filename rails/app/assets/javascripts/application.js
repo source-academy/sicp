@@ -102,7 +102,7 @@ function addPermaLinks(scope) {
     // scope.find("div.permalink").each(function() {
     //     $(this).css("background-color", "red");
     // });
-    scope.find("div.permalink").click(function() {
+    scope.find("div.permalink").dblclick(function() {
         const div_tag = $(this);
 
         anchor = div_tag.children(":first").attr("name");
