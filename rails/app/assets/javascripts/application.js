@@ -109,7 +109,7 @@ function addPermaLinks(scope) {
             
         div_tag.effect("highlight", "slow");
         $("#permalink-msg").show().delay(2000).fadeOut();
-        copyTextToClipboard(window.location.host + "/chapters/" + chapter_id + "#" + anchor);
+        copyTextToClipboard(window.location.protocol + "//" + window.location.host + "/chapters/" + chapter_id + "#" + anchor);
     });
 }
 
