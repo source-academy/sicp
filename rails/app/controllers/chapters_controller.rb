@@ -75,7 +75,7 @@ class ChaptersController < ApplicationController
                         fig_prefix = xml_doc.create_element('b')
                         cap.children.first.add_previous_sibling(fig_prefix)
                         link = xml_doc.create_element("a", 'Figure ' + required.numbering + ' ',
-                                :class => "superscript",
+                                :class => "caption",
                                 :id => "fig_" + required.numbering,
                                 :href => "#fig_" + required.numbering)
                         fig_prefix.add_child(link)
