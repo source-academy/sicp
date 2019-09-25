@@ -1,0 +1,377 @@
+    <SUBSECTION>
+      <NAME>
+  Using a Stack to Implement Recursion
+      </NAME>
+
+      <LABEL NAME="sec:stack-recursion"/>
+      <INDEX>stack<SUBINDEX>recursion@for recursion in register machine|(</SUBINDEX></INDEX>
+      <INDEX>register machine<SUBINDEX>stack|(</SUBINDEX></INDEX>
+      <INDEX>recursive process<SUBINDEX>register machine for|(</SUBINDEX></INDEX>
+
+      <TEXT>
+  <INDEX>iterative process<SUBINDEX>register machine for</SUBINDEX></INDEX>
+  With the ideas illustrated so far, we can implement any iterative
+  process by specifying a register machine that has a register
+  corresponding to each state variable of the process.  The machine
+  repeatedly executes a controller loop, changing the contents
+  of the registers, until some termination condition is satisfied.  At
+  each point in the controller sequence, the state of the machine
+  (representing the state of the iterative process) is completely
+  determined by the contents of the registers (the values of the state
+  variables).
+      </TEXT>
+
+      <TEXT>
+  <INDEX>recursive process<SUBINDEX>iterative process vs.</SUBINDEX></INDEX>
+  <INDEX>iterative process<SUBINDEX>recursive process vs.</SUBINDEX></INDEX>
+  <!--  \indcode{factorial}[register machine for (recursive)|(] -->
+  Implementing recursive processes, however, requires an additional
+  mechanism.  Consider the following recursive method for computing
+  factorials, which we first examined in
+  section<SPACE/><REF NAME="sec:recursion-and-iteration"/>:
+
+  <SNIPPET>
+    <SCHEME>
+      (define (factorial n)
+      (if (= n 1)
+      1
+      (* (factorial (- n 1)) n)))
+    </SCHEME>
+  </SNIPPET>
+      </TEXT>
+
+      <TEXT>
+  As we see from the
+  <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>, computing <LATEXINLINE>$n!$</LATEXINLINE> requires computing
+  <LATEXINLINE>$(n-1)!$</LATEXINLINE>.  Our GCD machine, modeled on the
+  <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+
+  <SNIPPET>
+    <SCHEME>
+      (define (gcd a b)
+      (if (= b 0)
+      a
+      (gcd b (remainder a b))))
+    </SCHEME>
+  </SNIPPET>
+
+  similarly had to compute another GCD.  But there is an important
+  difference between the <SCHEMEINLINE>gcd</SCHEMEINLINE>
+  <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>, which reduces the original
+  computation to a new GCD computation, and <SCHEMEINLINE>factorial</SCHEMEINLINE>, which
+  requires computing another factorial as a subproblem.  In GCD, the
+  answer to the new GCD computation is the answer to the original
+  problem.  To compute the next GCD, we simply place the new arguments
+  in the input registers of the GCD machine and reuse the
+  machine<APOS/>s data paths by executing the same controller sequence.  When
+  the machine is finished solving the final GCD problem, it has
+  completed the entire computation.
+      </TEXT>
+
+      <TEXT>
+  In the case of factorial (or any recursive process) the answer to the
+  new factorial subproblem is not the answer to the original problem.
+  The value obtained for <LATEXINLINE>$(n-1)!$</LATEXINLINE> must be multiplied by <LATEXINLINE>$n$</LATEXINLINE> to get the
+  final answer.  If we try to imitate the GCD design, and solve
+  the factorial subproblem by decrementing the <SCHEMEINLINE>n</SCHEMEINLINE> register and
+  rerunning the factorial machine, we will no longer have available the
+  old value of <SCHEMEINLINE>n</SCHEMEINLINE> by which to multiply the result.  We thus need a
+  second factorial machine to work on the subproblem.  This second
+  factorial computation itself has a factorial subproblem, which
+  requires a third factorial machine, and so on.  Since each factorial
+  machine contains another factorial machine within it, the total
+  machine contains an infinite nest of similar machines and hence cannot
+  be constructed from a fixed, finite number of parts.
+      </TEXT>
+
+      <TEXT>
+  Nevertheless, we can implement the factorial process as a register
+  machine if we can arrange to use the same components for each nested
+  instance of the machine.  Specifically, the machine that computes <LATEXINLINE>$n!$</LATEXINLINE>
+  should use the same components to work on the subproblem of computing
+  <LATEXINLINE>$(n-1)!$</LATEXINLINE>, on the subproblem for <LATEXINLINE>$(n-2)!$</LATEXINLINE>, and so on.  This is
+  plausible because, although the factorial process dictates that an
+  unbounded number of copies of the same machine are needed to perform a
+  computation, only one of these copies needs to be active at any given
+  time.  When the machine encounters a recursive subproblem, it can
+  suspend work on the main problem, reuse the same physical parts to
+  work on the subproblem, then continue the suspended computation.
+      </TEXT>
+
+      <TEXT>
+  In the subproblem, the contents of the registers will be different
+  than they were in the main problem. (In this case the <SCHEMEINLINE>n</SCHEMEINLINE> register
+  is decremented.)  In order to be able to continue the suspended
+  computation, the machine must save the contents of any registers that
+  will be needed after the subproblem is solved so that these can be
+  restored to continue the suspended computation.  In the case of
+  factorial, we will save the old value of <SCHEMEINLINE>n</SCHEMEINLINE>, to be restored when
+  we are finished computing the factorial of the decremented <SCHEMEINLINE>n</SCHEMEINLINE>
+  register.<FOOTNOTE>One might argue that we don<APOS/>t need to save the old
+    <SCHEMEINLINE>n</SCHEMEINLINE>; after we decrement it and solve the subproblem, we could
+    simply increment it to recover the old value.  Although this strategy
+    works for factorial, it cannot work in general, since the old value of
+    a register cannot always be computed from the new one.</FOOTNOTE>
+      </TEXT>
+
+      <TEXT>
+  Since there is no <EM>a priori</EM> limit on the depth of nested
+  recursive calls, we may need to save an arbitrary number of register
+  values.  These values must be restored in the reverse of the order in
+  which they were saved, since in a nest of recursions the last
+  subproblem to be entered is the first to be finished.  This dictates
+  the use of a <EM>stack</EM>, or <QUOTE>last in, first out</QUOTE> data structure, to
+  save register values.  We can extend the register-machine language to
+  include a stack by adding two kinds of instructions: Values are placed
+  <INDEX>register-machine language<SUBINDEX>save@<SCHEMEINLINE>save</SCHEMEINLINE></SUBINDEX></INDEX>
+  <!-- \indcodeplus{save}{(in register machine)}-->
+  <INDEX>register-machine language<SUBINDEX>restore@<SCHEMEINLINE>restore</SCHEMEINLINE></SUBINDEX></INDEX>
+  <!-- \indcodeplus{restore}{(in register machine)}-->
+  on the stack using a <SCHEMEINLINE>save</SCHEMEINLINE> instruction and restored from the
+  stack using a <SCHEMEINLINE>restore</SCHEMEINLINE> instruction.  After a sequence of values
+  has been <SCHEMEINLINE>save</SCHEMEINLINE>d on the stack, a sequence of <SCHEMEINLINE>restore</SCHEMEINLINE>s will
+  retrieve these values in reverse order.<FOOTNOTE>In
+    section<SPACE/><REF NAME="sec:storage-allocation"/> we will see how to implement a
+    stack in terms of more primitive operations.</FOOTNOTE>
+      </TEXT>
+
+      <TEXT>
+  With the aid of the stack, we can reuse a single copy of the factorial
+  machine<APOS/>s data paths for each factorial subproblem.  There is a
+  similar design issue in reusing the controller sequence that operates
+  the data paths.  To reexecute the factorial computation, the
+  controller cannot simply loop back to the beginning, as with
+  an iterative process, because after solving the <LATEXINLINE>$(n-1)!$</LATEXINLINE> subproblem
+  the machine must still multiply the result by <LATEXINLINE>$n$</LATEXINLINE>.  The controller
+  must suspend its computation of <LATEXINLINE>$n!$</LATEXINLINE>, solve the <LATEXINLINE>$(n-1)!$</LATEXINLINE> subproblem,
+  then continue its computation of <LATEXINLINE>$n!$</LATEXINLINE>.  This view of the factorial
+  computation suggests the use of the subroutine mechanism described in
+  section<SPACE/><REF NAME="sec:subroutines"/>, which has the controller use a
+  <!-- \indcodeplus{continue}{register}[recursion and]-->
+  <SCHEMEINLINE>continue</SCHEMEINLINE> register to transfer to the part of the sequence that
+  solves a subproblem and then continue where it left off on the main
+  problem.  We can thus make a factorial subroutine that returns to the
+  entry point stored in the <SCHEMEINLINE>continue</SCHEMEINLINE> register.  Around each subroutine
+  call, register, since each <QUOTE>level</QUOTE> of the factorial computation will use
+  the same <SCHEMEINLINE>continue</SCHEMEINLINE> register.  That is, the factorial subroutine
+  must put a new value in <SCHEMEINLINE>continue</SCHEMEINLINE> when it calls itself for a
+  subproblem, but it will need the old value in order to return to the
+  place that called it to solve a subproblem.
+      </TEXT>
+
+      <TEXT>
+  Figure<SPACE/><REF NAME="fig:fact-machine"/> shows the data paths and controller for
+  a machine that implements the recursive <SCHEMEINLINE>factorial</SCHEMEINLINE>
+  <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>.
+  The machine has a stack and three registers, called <SCHEMEINLINE>n</SCHEMEINLINE>, <SCHEMEINLINE>val</SCHEMEINLINE>, and <SCHEMEINLINE>continue</SCHEMEINLINE>.  To simplify the data-path diagram, we have
+  not named the register-assignment buttons, only the stack-operation
+  buttons (<SCHEMEINLINE>sc</SCHEMEINLINE> and <SCHEMEINLINE>sn</SCHEMEINLINE> to save registers, <SCHEMEINLINE>rc</SCHEMEINLINE> and <SCHEMEINLINE>rn</SCHEMEINLINE> to restore registers).  To operate the machine, we put in register
+  <SCHEMEINLINE>n</SCHEMEINLINE> the number whose factorial we wish to compute and start the
+  machine.  When the machine reaches <SCHEMEINLINE>fact-done</SCHEMEINLINE>, the computation is
+  finished and the answer will be found in the <SCHEMEINLINE>val</SCHEMEINLINE> register.  In
+  the controller sequence, <SCHEMEINLINE>n</SCHEMEINLINE> and <SCHEMEINLINE>continue</SCHEMEINLINE> are saved before
+  each recursive call and restored upon return from the call.  Returning
+  from a call is accomplished by branching to the location stored in
+  <SCHEMEINLINE>continue</SCHEMEINLINE>.  <SCHEMEINLINE>Continue</SCHEMEINLINE> is initialized when the machine starts
+  so that the last return will go to <SCHEMEINLINE>fact-done</SCHEMEINLINE>.  The <SCHEMEINLINE>val</SCHEMEINLINE>
+  register, which holds the result of the factorial computation, is not
+  saved before the recursive call, because the old contents of <SCHEMEINLINE>val</SCHEMEINLINE>
+  is not useful after the subroutine returns.  Only the new value, which
+  is the value produced by the subcomputation, is needed.
+  <!--  \indcode{factorial}[register machine for (recursive)|)] -->
+      </TEXT>
+
+      <TEXT>
+  Although in principle the factorial computation requires an infinite
+  machine, the machine in Figure<SPACE/><REF NAME="fig:fact-machine"/> is actually
+  finite except for the stack, which is potentially unbounded.  Any
+  particular physical implementation of a stack, however, will be of
+  finite size, and this will limit the depth of recursive calls that can
+  be handled by the machine.  This implementation of factorial
+  illustrates the general strategy for realizing recursive algorithms as
+  ordinary register machines augmented by stacks.  When a recursive
+  subproblem is encountered, we save on the stack the registers whose
+  current values will be required after the subproblem is solved, solve
+  the recursive subproblem, then restore the saved registers and
+  continue execution on the main problem.  The <SCHEMEINLINE>continue</SCHEMEINLINE> register
+  must always be saved.  Whether there are other registers that need to
+  be saved depends on the particular machine, since not all recursive
+  computations need the original values of registers that are modified
+  during solution of the subproblem (see exercise<SPACE/><REF NAME="ex:design-reg-machines"/>).
+      </TEXT>
+
+
+      <SUBHEADING>
+  <NAME>A double recursion</NAME>
+      </SUBHEADING>
+
+      <TEXT>
+  <!--  \indcode{fib}[register machine for (tree-recursive)] -->
+  Let us examine a more complex recursive process, the tree-recursive
+  computation of the Fibonacci numbers, which we introduced in
+  section<SPACE/><REF NAME="sec:tree-recursion"/>:
+  <SNIPPET>
+    <SCHEME>
+      (define (fib n)
+      (if (&lt; n 2)
+      n
+      (+ (fib (- n 1)) (fib (- n 2)))))
+    </SCHEME>
+  </SNIPPET>
+      </TEXT>
+
+      <TEXT>
+  Just as with factorial, we can implement the recursive Fibonacci
+  computation as a register machine with registers <SCHEMEINLINE>n</SCHEMEINLINE>, <SCHEMEINLINE>val</SCHEMEINLINE>,
+  and <SCHEMEINLINE>continue</SCHEMEINLINE>.  The machine is more complex than the one for
+  factorial, because there are two places in the controller sequence
+  where we need to perform recursive calls<EMDASH/>once to compute Fib<LATEXINLINE>$(n-1)$</LATEXINLINE>
+  and once to compute Fib<LATEXINLINE>$(n-2)$</LATEXINLINE>.  To set up for each of these calls, we
+  save the registers whose values will be needed later, set the <SCHEMEINLINE>n</SCHEMEINLINE>
+  register to the number whose Fib we need to compute recursively (<LATEXINLINE>$n-1$</LATEXINLINE>
+  or <LATEXINLINE>$n-2$</LATEXINLINE>), and assign to <SCHEMEINLINE>continue</SCHEMEINLINE> the entry point in the main sequence
+  to which to return (<SCHEMEINLINE>afterfib-n-1</SCHEMEINLINE> or <SCHEMEINLINE>afterfib-n-2</SCHEMEINLINE>,
+  respectively).  We then go to <SCHEMEINLINE>fib-loop</SCHEMEINLINE>.  When we return from the
+  recursive call, the answer is in <SCHEMEINLINE>val</SCHEMEINLINE>.
+  Figure<SPACE/><REF NAME="fig:fib-machine"/> shows the controller sequence for this
+  machine.
+
+  \begin{figure}
+  \epsffile{/zu/hal/sicp/chapter-5/figs/fig-10.eps}
+  <SNIPPET>
+    <!-- 
+        %(registers n val continue)
+        %(operations * - =)
+      -->
+    <SCHEME>
+      (controller
+      (assign continue (label fact-done))     <EM>; set up final return address</EM>
+      fact-loop
+      (test (op =) (reg n) (const 1))
+      (branch (label base-case))
+      <EM>;; Set up for the recursive call by saving <SCHEMEINLINE>n</SCHEMEINLINE> and <SCHEMEINLINE>continue</SCHEMEINLINE>.</EM>
+      <EM>;; Set up <SCHEMEINLINE>continue</SCHEMEINLINE> so that the computation will continue</EM>
+      <EM>;; at <SCHEMEINLINE>after-fact</SCHEMEINLINE> when the subroutine returns.</EM>
+      (save continue)
+      (save n)
+      (assign n (op -) (reg n) (const 1))
+      (assign continue (label after-fact))
+      (goto (label fact-loop))
+      after-fact
+      (restore n)
+      (restore continue)
+      (assign val (op *) (reg n) (reg val))   ; val ^now contains $n(n-1)!$^
+      (goto (reg continue))                   ; ^return to caller^
+      base-case
+      (assign val (const 1))                  ; ^base case: $1!=1$^
+      (goto (reg continue))                   ; ^return to caller^
+      fact-done)
+    </SCHEME>
+  </SNIPPET>
+  \vskip -10pt
+  \figcaption {A recursive factorial machine.}
+  <!--  \indcode{factorial}[register machine for (recursive)] -->
+  <LABEL NAME="fig:fact-machine"/>
+  \end{figure}
+
+  \begin{figure}
+  <SNIPPET EVAL="no">
+    <!-- 
+        %(registers n val continue)
+        %(operations &lt; - +)
+      -->
+    <SCHEME>
+      (controller
+      (assign continue (label fib-done))
+      fib-loop
+      (test (op &lt;) (reg n) (const 2))
+      (branch (label immediate-answer))
+      ;; set up to compute ^${\textrm{Fib}}(n-1)$^
+      (save continue)
+      (assign continue (label afterfib-n-1))
+      (save n)                            ; save old value of ^$n$^
+      (assign n (op -) (reg n) (const 1)) ; clobber ^$n$^ to ^$n-1$^
+      (goto (label fib-loop))             ; perform recursive call
+      afterfib-n-1                          ; upon return, ^val^ contains ^${\textrm{Fib}}(n-1)$^
+      (restore n)
+      (restore continue)
+      ;; set up to compute ^${\textrm{Fib}}(n-2)$^
+      (assign n (op -) (reg n) (const 2))
+      (save continue)
+      (assign continue (label afterfib-n-2))
+      (save val)                          ; save ^${\textrm{Fib}}(n-1)$^
+      (goto (label fib-loop))
+      afterfib-n-2                          ; upon return, ^val^ contains ^${\textrm{Fib}}(n-2)$^
+      (assign n (reg val))                ; ^$n$^ now contains ^${\textrm{Fib}}(n-2)$^
+      (restore val)                       ; ^val^ now contains ^${\textrm{Fib}}(n-1)$^
+      (restore continue)
+      (assign val                         ; ^${\textrm{Fib}}(n-1)+{\textrm{Fib}}(n-2)$^
+            (op +) (reg val) (reg n)) 
+      (goto (reg continue))               ; return to caller, answer is in ^val^
+      immediate-answer
+      (assign val (reg n))                ; base case: ^${\textrm{Fib}}(n)=n$^
+      (goto (reg continue))
+      fib-done)
+    </SCHEME>
+  </SNIPPET>
+  \vskip -10pt
+  \figcaption {Controller for a machine to compute Fibonacci
+  numbers.}
+  <!--  \indcode{fib}[register machine for (tree-recursive)] -->
+  <LABEL NAME="fig:fib-machine"/>
+  \end{figure}
+      </TEXT>
+
+      <EXERCISE><LABEL NAME="ex:design-reg-machines"/>
+  Specify register machines that implement each of the following
+  <SPLITINLINE><SCHEME>procedures</SCHEME><JAVASCRIPT>functions</JAVASCRIPT></SPLITINLINE>.  For each machine, write a controller instruction sequence
+  and draw a diagram showing the data paths.
+  <OL>
+    <LI>
+      Recursive exponentiation:
+
+      <SNIPPET>
+        <SCHEME>
+    <!--  \indcode{expt}[register machine for] -->
+    (define (expt b n)
+    (if (= n 0)
+    1
+    (* b (expt b (- n 1)))))
+        </SCHEME>
+      </SNIPPET>
+    </LI>
+    <LI>
+      Iterative exponentiation:
+
+      <SNIPPET>
+        <SCHEME>
+    (define (expt b n)
+    (define (expt-iter counter product)
+    (if (= counter 0)
+    product
+    (expt-iter (- counter 1) (* b product))))
+    (expt-iter n 1))
+        </SCHEME>
+      </SNIPPET>
+    </LI>
+  </OL>
+      </EXERCISE>
+
+      <EXERCISE>
+  Hand-simulate the factorial and Fibonacci machines, using some
+  nontrivial input (requiring execution of at least one recursive call).
+  Show the contents of the stack at each significant point in the
+  execution.
+  <LABEL NAME="ex:hand-sim"/>
+      </EXERCISE>
+
+      <EXERCISE>
+  Ben Bitdiddle observes that the Fibonacci machine<APOS/>s controller sequence
+  has an extra <SCHEMEINLINE>save</SCHEMEINLINE> and an extra <SCHEMEINLINE>restore</SCHEMEINLINE>, which can be
+  removed to make a faster machine.  Where are these instructions?
+      </EXERCISE>
+      <INDEX>stack<SUBINDEX>recursion@for recursion in register machine|)</SUBINDEX></INDEX>
+      <INDEX>register machine<SUBINDEX>stack|)</SUBINDEX></INDEX>
+      <INDEX>recursive process<SUBINDEX>register machine for|)</SUBINDEX></INDEX>
+
+    </SUBSECTION>

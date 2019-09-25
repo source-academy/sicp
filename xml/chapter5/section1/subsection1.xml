@@ -1,0 +1,307 @@
+    <SUBSECTION>
+      <NAME>
+  A Language for Describing Register Machines
+      </NAME>
+
+      <LABEL NAME="sec:register-machine-language"/>
+      <INDEX>register machine<SUBINDEX>language for describing|(</SUBINDEX></INDEX>
+
+      <TEXT>
+  Data-path and controller diagrams are adequate for representing simple
+  machines such as GCD, but they are unwieldy for describing large
+  machines such as a <SPLITINLINE><SCHEME>Lisp</SCHEME><JAVASCRIPT>JavaScript</JAVASCRIPT></SPLITINLINE> interpreter.  To make it possible to deal with complex machines, we will create a language that presents, in textual
+  form, all the information given by the data-path and controller
+  diagrams.  We will start with a notation that directly mirrors the diagrams.
+      </TEXT>
+      
+      <TEXT>
+  We define the data paths of a machine by describing the registers and
+  the operations.  To describe a register, we give it a name
+  and specify the buttons that control assignment to it.  We give each
+  of these buttons a name and specify the source of the data that enters
+  the register under the button<APOS/>s control.  (The source is a register, a
+  constant, or an operation.)
+  To describe an operation, we give
+  it a name and specify its inputs (registers or constants).
+      </TEXT>
+
+      <TEXT>
+  We define the controller of a machine as a sequence of 
+  <INDEX>register-machine language<SUBINDEX>instructions</SUBINDEX></INDEX>
+  <EM>
+    instructions</EM> together with 
+  <INDEX>register-machine language<SUBINDEX>label</SUBINDEX></INDEX>
+  <INDEX>register-machine language<SUBINDEX>entry point</SUBINDEX></INDEX>
+  <EM>labels</EM> that identify <EM>entry
+    points</EM> in the sequence. An instruction is one of the following:
+  <UL>
+    <LI>The name of a data-path button to push to assign a value to
+      a register.  (This corresponds to a box in the controller diagram.)
+
+      <INDEX>register-machine language<SUBINDEX>test@<SCHEMEINLINE>test</SCHEMEINLINE></SUBINDEX></INDEX>
+      <!-- \indcodeplus{test}{(in register machine)}-->
+    </LI>
+    <LI>A <SCHEMEINLINE>test</SCHEMEINLINE> instruction, that performs a specified test.
+
+      <INDEX>register-machine language<SUBINDEX>branch@<SCHEMEINLINE>branch</SCHEMEINLINE></SUBINDEX></INDEX>
+      <!-- \indcodeplus{branch}{(in register machine)}-->
+      <INDEX>register-machine language<SUBINDEX>label@<SCHEMEINLINE>label</SCHEMEINLINE></SUBINDEX></INDEX>
+      <!-- \indcodeplus{label}{(in register machine)}-->
+    </LI>
+    <LI>A conditional branch (<SCHEMEINLINE>branch</SCHEMEINLINE> instruction) to a
+      location indicated by a controller label, based on the result of the
+      previous test.  (The test and branch together correspond to a diamond
+      in the controller diagram.)  If the test is false, the controller
+      should continue with the next instruction in the sequence.  Otherwise,
+      the controller should continue with the instruction after the label.
+
+      <INDEX>register-machine language<SUBINDEX>goto@<SCHEMEINLINE>goto</SCHEMEINLINE></SUBINDEX></INDEX>
+      <!-- \indcodeplus{goto}{(in register machine)}-->
+    </LI>
+    <LI>An unconditional branch (<SCHEMEINLINE>goto</SCHEMEINLINE> instruction) naming a
+      controller label at which to continue execution.
+    </LI>
+
+  </UL>
+      </TEXT>
+
+      <TEXT>
+  The machine starts at the beginning of the controller instruction
+  sequence and stops when execution reaches the end of the sequence.
+  Except when a branch changes the flow of control, instructions are
+  executed in the order in which they are listed.
+
+  \begin{figure}
+  <SNIPPET>
+    <SCHEME>
+      (data-paths
+      (registers
+      ((name a)
+      (buttons ((name a&lt;-b) (source (register b)))))
+      ((name b)
+      (buttons ((name b&lt;-t) (source (register t)))))
+      ((name t)
+      (buttons ((name t&lt;-r) (source (operation rem))))))
+
+      (operations
+      ((name rem)
+      (inputs (register a) (register b)))
+      ((name =)
+      (inputs (register b) (constant 0)))))
+
+      (controller
+      test-b                           <EM>; label</EM>
+      (test =)                       <EM>; test</EM>
+      (branch (label gcd-done))      <EM>; conditional branch</EM>
+      (t&lt;-r)                         <EM>; button push</EM>
+      (a&lt;-b)                         <EM>; button push</EM>
+      (b&lt;-t)                         <EM>; button push</EM>
+      (goto (label test-b))          <EM>; unconditional branch</EM>
+      gcd-done)                        <EM>; label</EM>
+    </SCHEME>
+  </SNIPPET>
+  \vskip -10pt
+  \figcaption {A specification of the GCD machine.}
+  <LABEL NAME="fig:gcd-machine-spec"/>
+  \end{figure}
+      </TEXT>
+
+      <TEXT>
+  Figure<SPACE/><REF NAME="fig:gcd-machine-spec"/> shows the GCD machine described in
+  this way.  This example only hints at the generality of these
+  descriptions, since the GCD machine is a very simple case: Each
+  register has only one button, and each button and test is used only
+  once in the controller.
+      </TEXT>
+
+      <TEXT>
+  Unfortunately, it is difficult to read such a description.  In order
+  to understand the controller instructions we must constantly refer
+  back to the definitions of the button names and the operation names,
+  and to understand what the buttons do we may have to refer to the
+  definitions of the operation names.  We will thus transform our
+  notation to combine the information from the data-path and controller
+  descriptions so that we see it all together.
+      </TEXT>
+
+      <TEXT>
+  To obtain this form of description, we will replace the arbitrary
+  button and operation names by the definitions of their behavior.  That
+  is, instead of saying (in the controller) <QUOTE>Push button <SCHEMEINLINE>t&lt;-r</SCHEMEINLINE></QUOTE>
+  and separately saying (in the data paths) <QUOTE>Button <SCHEMEINLINE>t&lt;-r</SCHEMEINLINE> assigns
+    the value of the <SCHEMEINLINE>rem</SCHEMEINLINE> operation to register <SCHEMEINLINE>t</SCHEMEINLINE></QUOTE> and <QUOTE>The
+    <SCHEMEINLINE>rem</SCHEMEINLINE> operation<APOS/>s inputs are the contents of registers
+    <INDEX>register-machine language<SUBINDEX>assign@<SCHEMEINLINE>assign</SCHEMEINLINE></SUBINDEX></INDEX>
+    <!-- \indcodeplus{assign}{(in register machine)}-->
+    <INDEX>register-machine language<SUBINDEX>op@<SCHEMEINLINE>op</SCHEMEINLINE></SUBINDEX></INDEX>
+    <!-- \indcodeplus{op}{(in register machine)}-->
+    <INDEX>register-machine language<SUBINDEX>reg@<SCHEMEINLINE>reg</SCHEMEINLINE></SUBINDEX></INDEX>
+    <!-- \indcodeplus{reg}{(in register machine)}-->
+    <SCHEMEINLINE>a</SCHEMEINLINE> and <SCHEMEINLINE>b</SCHEMEINLINE>,</QUOTE> we will say (in the controller) <QUOTE>Push the
+    button that assigns to register <SCHEMEINLINE>t</SCHEMEINLINE> the value of the <SCHEMEINLINE>rem</SCHEMEINLINE>
+    operation on the contents of registers <SCHEMEINLINE>a</SCHEMEINLINE> and <SCHEMEINLINE>b</SCHEMEINLINE>.</QUOTE>
+  Similarly, instead of saying (in the controller) <QUOTE>Perform the <SCHEMEINLINE>=</SCHEMEINLINE> test</QUOTE> and separately saying (in the data paths) <QUOTE>The <SCHEMEINLINE>=</SCHEMEINLINE> test operates on the contents of register <SCHEMEINLINE>b</SCHEMEINLINE> and the
+    constant 0,</QUOTE> we will say <QUOTE>Perform the <SCHEMEINLINE>=</SCHEMEINLINE> test on the
+    <INDEX>register-machine language<SUBINDEX>const@<SCHEMEINLINE>const</SCHEMEINLINE></SUBINDEX></INDEX>
+    <!-- \indcodeplus{const}{(in register machine)}-->
+    contents of register <SCHEMEINLINE>b</SCHEMEINLINE> and the constant 0.</QUOTE>  We will omit the
+  data-path description, leaving only the controller sequence.  Thus,
+  the GCD machine is described as follows:
+
+  <SNIPPET>
+    <!-- 
+        %(registers a b t)
+        %(operations rem =)
+      -->
+    <SCHEME>
+      (controller
+      test-b
+      (test (op =) (reg b) (const 0))
+      (branch (label gcd-done))
+      (assign t (op rem) (reg a) (reg b))
+      (assign a (reg b))
+      (assign b (reg t))
+      (goto (label test-b))
+      gcd-done)
+    </SCHEME>
+  </SNIPPET>
+      </TEXT>
+
+      <TEXT>
+  This form of description is easier to read than the kind illustrated
+  in Figure<SPACE/><REF NAME="fig:gcd-machine-spec"/>, but it also has disadvantages:
+  <UL>
+    
+    <LI>It is more verbose for large machines,
+      because complete descriptions of the data-path elements are repeated
+      whenever the elements are mentioned in the controller instruction
+      sequence.  (This is not a problem in the GCD example, because each
+      operation and button is used only once.)  Moreover, repeating the
+      data-path descriptions obscures the actual data-path structure of the
+      machine; it is not obvious for a large machine how many registers,
+      operations, and buttons there are and how they are interconnected.
+
+    </LI>
+    <LI>Because the controller instructions in a machine definition
+      look like <SPLITINLINE><SCHEME>Lisp</SCHEME><JAVASCRIPT>JavaScript</JAVASCRIPT></SPLITINLINE> expressions, it is easy to forget that they are
+      not arbitrary <SPLITINLINE><SCHEME>Lisp</SCHEME><JAVASCRIPT>JavaScript</JAVASCRIPT></SPLITINLINE> expressions.  They can notate only legal machine
+      operations.  For example, operations can operate directly only on
+      constants and the contents of registers, not on the results of other
+      operations.
+    </LI>
+
+  </UL>
+      </TEXT>
+
+      <TEXT>
+  In spite of these disadvantages, we will use this register-machine
+  language throughout this chapter, because we will be more concerned with
+  understanding controllers than with understanding the elements and
+  connections in data paths.  We should keep in mind,
+  however, that data-path design is crucial in designing real machines.
+      </TEXT>
+
+      <EXERCISE>
+  <!--  \indcode{factorial}[register machine for (iterative)] -->
+  Use the register-machine language to describe
+  the iterative factorial machine of exercise<SPACE/><REF NAME="ex:iterative-fact"/>.
+  <LABEL NAME="ex:iterative-fact-2"/>
+      </EXERCISE>
+
+
+      <SUBHEADING>
+  <NAME>Actions</NAME>
+      </SUBHEADING>
+
+      <INDEX>actions, in register machine|(</INDEX>
+      <INDEX>register machine<SUBINDEX>actions|(</SUBINDEX></INDEX>
+
+      <TEXT>
+  Let us modify the GCD machine so that we can type in the numbers
+  whose GCD we want and get the answer printed at our terminal.  We will
+  not discuss how to make a machine that can read and print, but will
+  assume (as we do when we use <SCHEMEINLINE>read</SCHEMEINLINE> and <SCHEMEINLINE>display</SCHEMEINLINE> in Scheme) that
+  they are available as primitive operations.<FOOTNOTE>This assumption
+    glosses over a great deal of complexity.  Usually a large portion of
+    the implementation of a <SPLITINLINE><SCHEME>Lisp</SCHEME><JAVASCRIPT>JavaScript</JAVASCRIPT></SPLITINLINE> system is dedicated to making reading
+    and printing work.</FOOTNOTE>
+      </TEXT>
+
+      <TEXT>
+  <!-- \indcodeplus{read}{operation in register machine}-->
+  <SCHEMEINLINE>Read</SCHEMEINLINE> is like the operations we have been using in that it
+  produces a value that can be stored in a register.  But <SCHEMEINLINE>read</SCHEMEINLINE>
+  does not take inputs from any registers; its value depends on
+  something that happens outside the parts of the machine we are
+  designing.  We will allow our machine<APOS/>s operations to have such
+  behavior, and thus will draw and notate the use of <SCHEMEINLINE>read</SCHEMEINLINE> just as
+  we do any other operation that computes a value.
+      </TEXT>
+
+      <TEXT>
+  <!-- \indcodeplus{print}{operation in register machine}-->
+  <SCHEMEINLINE>Print</SCHEMEINLINE>, on the other hand, differs from the operations we have
+  been using in a fundamental way: It does not produce an output value
+  to be stored in a register.  Though it has an effect, this effect is
+  not on a part of the machine we are designing.  We will refer to this
+  kind of operation as an <EM>action</EM>.  We will represent an action in
+  a data-path diagram just as we represent an operation that computes a
+  value<EMDASH/>as a trapezoid that contains the name of the action.
+  Arrows point to the action box from any inputs (registers or
+  constants).  We also associate a button with the action.  Pushing the
+  button makes the action happen.  To make a controller push an action
+  <INDEX>register-machine language<SUBINDEX>perform@<SCHEMEINLINE>perform</SCHEMEINLINE></SUBINDEX></INDEX>
+  <!-- \indcodeplus{perform}{(in register machine)}-->
+  button we use a new kind of instruction called <SCHEMEINLINE>perform</SCHEMEINLINE>.  Thus,
+  the action of printing the contents of register <SCHEMEINLINE>a</SCHEMEINLINE> is represented
+  in a controller sequence by the instruction
+
+  <SNIPPET>
+    <SCHEME>
+      (perform (op print) (reg a))
+    </SCHEME>
+  </SNIPPET>
+      </TEXT>
+
+      <TEXT>
+  Figure<SPACE/><REF NAME="fig:gcd-with-io"/> shows the data paths and controller for
+  the new GCD machine.  Instead of having the machine stop after
+  printing the answer, we have made it start over, so that it repeatedly
+  reads a pair of numbers, computes their GCD, and prints the result.
+  This structure is like the driver loops we used in the interpreters of
+  chapter<SPACE/>4.
+
+  \begin{figure}
+  \epsffile{/zu/hal/sicp/chapter-5/figs/fig-4.eps}
+  <SNIPPET>
+    <!-- 
+        % (registers a b t)
+        % (operations read = rem print)
+      -->
+    <SCHEME>
+      (controller
+      gcd-loop
+      (assign a (op read))
+      (assign b (op read))
+      test-b
+      (test (op =) (reg b) (const 0))
+      (branch (label gcd-done))
+      (assign t (op rem) (reg a) (reg b))
+      (assign a (reg b))
+      (assign b (reg t))
+      (goto (label test-b))
+      gcd-done
+      (perform (op print) (reg a))
+      (goto (label gcd-loop)))
+    </SCHEME>
+  </SNIPPET>
+  \vskip -10pt
+  \figcaption {A GCD machine that reads inputs and prints results.}
+  <LABEL NAME="fig:gcd-with-io"/>
+  \end{figure}
+  <INDEX>register machine<SUBINDEX>language for describing|)</SUBINDEX></INDEX>
+  <INDEX>actions, in register machine|)</INDEX>
+  <INDEX>register machine<SUBINDEX>actions|)</SUBINDEX></INDEX>
+      </TEXT>
+
+    </SUBSECTION>
