@@ -27,10 +27,13 @@
   results are accessed, the pairs are no longer needed<EMDASH/>they are <EM>
     garbage</EM>.  For instance, the computation
 
-  <SNIPPET>
+  <SNIPPET EVAL="no">
     <SCHEME>
       (accumulate + 0 (filter odd? (enumerate-interval 0 n)))
     </SCHEME>
+    <JAVASCRIPT>
+accumulate( (x, y) => x + y, 0, filter(is_odd, enumerate_interval(0, n)))
+    </JAVASCRIPT>
   </SNIPPET>
   constructs two lists: the enumeration and the result of filtering
   the enumeration.  When the accumulation is complete, these lists are
@@ -142,18 +145,19 @@
   storing the contents of all the machine registers in a
   pre-allocated list pointed at by <SCHEMEINLINE>root</SCHEMEINLINE> just before starting
   garbage collection.<FOOTNOTE>This list of registers does not include
-    the registers used by the storage-allocation system<EMDASH/><SCHEMEINLINE>root</SCHEMEINLINE>, <SCHEMEINLINE>the-cars</SCHEMEINLINE>, <SCHEMEINLINE>the-cdrs</SCHEMEINLINE>, and the other registers that will be
+    the registers used by the storage-allocation system<EMDASH/><SCHEMEINLINE>root</SCHEMEINLINE>, <SPLITINLINE><SCHEME><SCHEMEINLINE>the-cars</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>the-heads</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>, <SPLITINLINE><SCHEME><SCHEMEINLINE>the-cdrs</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>the-tails</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>, and the other registers that will be
     introduced in this section.</FOOTNOTE> We also assume that, in addition to the
   current working memory, there is free memory available into which we
   can copy the useful data.  The current working memory consists of
   vectors whose base addresses are in 
   <!--  \indcode{the-cars}[register] -->
   <!--  \indcode{the-cdrs}[register] -->
-  registers called <SCHEMEINLINE>the-cars</SCHEMEINLINE>
-  and <SCHEMEINLINE>the-cdrs</SCHEMEINLINE>, and the free memory is in registers called 
+  registers called
+  <SPLITINLINE><SCHEME><SCHEMEINLINE>the-cars</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>the-heads</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>
+  and <SPLITINLINE><SCHEME><SCHEMEINLINE>the-cdrs</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>the-tails</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>, and the free memory is in registers called 
   <!-- \indcodeplus{new-cars}{register}-->
   <!-- \indcodeplus{new-cdrs}{register}-->
-  <SCHEMEINLINE>new-cars</SCHEMEINLINE> and <SCHEMEINLINE>new-cdrs</SCHEMEINLINE>.
+  <SPLITINLINE><SCHEME><SCHEMEINLINE>new-cars</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>new-heads</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> and <SPLITINLINE><SCHEME><SCHEMEINLINE>new-cdrs</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>new-tails</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>.
       </TEXT>
 
       <TEXT>
@@ -171,12 +175,13 @@
   Figure<SPACE/><REF NAME="fig:memory-reconfig"/> shows the arrangement of memory just
   before and just after garbage collection.
 
-  \begin{figure}
-  \epsffile{/zu/hal/sicp/chapter-5/figs/fig-14.eps}
-  \figcaption {Reconfiguration of memory by the garbage-collection 
-  process.}
+  <FIGURE>
+    <FIGURE src="chapter-5-figs-fig-14.eps"/>
+    <CAPTION>Reconfiguration of memory by the garbage-collection 
+  process.</CAPTION>
   <LABEL NAME="fig:memory-reconfig"/>
-  \end{figure}
+  </FIGURE>
+  
       </TEXT>
 
       <TEXT>
@@ -261,6 +266,17 @@
       (assign root (reg new))
       (goto (label gc-loop))
     </SCHEME>
+    <JAVASCRIPT>
+"begin-garbage-collection",
+    assign("free", cons(0)),
+    assign("scan", cons(0)),
+    assign("old", reg("root")),
+    assign("relocate-continue", label("reassign-root")),
+    goto_(label("relocate-old-result-in-new")),
+"reassign-root",
+    assign("root", reg("new")),
+    goto_(label("gc-loop")),
+    </JAVASCRIPT>
   </SNIPPET>
       </TEXT>
 
@@ -284,13 +300,21 @@
       (assign relocate-continue (label update-car))
       (goto (label relocate-old-result-in-new))
     </SCHEME>
+    <JAVASCRIPT>
+"gc-loop",
+    test(list(op("==="), reg("scan"), reg("free"))),
+    branch(label("gc-flip")),
+    assign("old", list(op("vector-ref"), reg("new-heads"), reg("scan"))),
+    assign("relocate-continue", label("update-head")),
+    goto_(label("relocate-old-result-in-new")),
+    </JAVASCRIPT>
   </SNIPPET>
       </TEXT>
       
       <TEXT>
-  At <SCHEMEINLINE>update-car</SCHEMEINLINE>, we modify the <SPLITINLINE><SCHEME><SCHEMEINLINE>car</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>head</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> pointer of the pair being
+  At <SPLITINLINE><SCHEME><SCHEMEINLINE>update-car</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>update-head</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>, we modify the <SPLITINLINE><SCHEME><SCHEMEINLINE>car</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>head</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> pointer of the pair being
   scanned, then proceed to relocate the <SPLITINLINE><SCHEME><SCHEMEINLINE>cdr</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>tail</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> of the pair.  We
-  return to <SCHEMEINLINE>update-cdr</SCHEMEINLINE> when that relocation has been accomplished.
+  return to <SPLITINLINE><SCHEME><SCHEMEINLINE>update-cdr</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>update-tail</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> when that relocation has been accomplished.
   After relocating and updating the <SPLITINLINE><SCHEME><SCHEMEINLINE>cdr</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>tail</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>, we are finished scanning
   that pair, so we continue with the main loop.
 
@@ -309,6 +333,18 @@
       (assign scan (op +) (reg scan) (const 1))
       (goto (label gc-loop))
     </SCHEME>
+    <JAVASCRIPT>
+"update-head",
+     perform(list(op("vector-set"), reg("new-heads"), reg("scan"), reg("new"))),
+     assign("old", list(op("vector-ref"), reg("new-tails"), reg("scan"))),
+     assign("relocate-continue", label("update-tail")),
+     goto_(label("relocate-old-result-in-new")),
+
+"update-tail",
+     perform(list(op("vector-set"), reg("new-tails"), reg("scan"), reg("new"))),
+     assign("scan", list(op("+"), reg("scan"), cons(1))),
+     goto_(label("gc-loop")),
+    </JAVASCRIPT>
   </SNIPPET>
       </TEXT>
 
@@ -331,16 +367,29 @@
   <SCHEMEINLINE>oldcr</SCHEMEINLINE>
   to hold the <SPLITINLINE><SCHEME><SCHEMEINLINE>car</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>head</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> or the <SPLITINLINE><SCHEME><SCHEMEINLINE>cdr</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>tail</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> of the object pointed at by
   <SCHEMEINLINE>old</SCHEMEINLINE>.<FOOTNOTE>The garbage collector uses the low-level predicate
-    <SCHEMEINLINE>pointer-to-pair?</SCHEMEINLINE> instead of the list-structure <SCHEMEINLINE>pair?</SCHEMEINLINE>
+  <SPLITINLINE><SCHEME><SCHEMEINLINE>pointer-to-pair?</SCHEMEINLINE></SCHEME>
+  <JAVASCRIPT><JAVASCRIPTINLINE>is_pointer_to_pair</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>
+  instead of the list-structure
+  <SPLITINLINE><SCHEME><SCHEMEINLINE>pair?</SCHEMEINLINE>
+  <JAVASCRIPT><JAVASCRIPTINLINE>is_pair</JAVASCRIPTINLINE></JAVASCRIPT>
+</SCHEME></SPLITINLINE>
     operation because in a real system there might be various things
     that are treated as pairs for garbage-collection purposes.
-    For example, in a Scheme system that conforms to the IEEE standard
-    a
-    <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+    For example, in a <SPLITINLINE><SCHEME>Scheme</SCHEME><JAVASCRIPT>JavaScript</JAVASCRIPT></SPLITINLINE> system that conforms to the 
+    <SPLITINLINE><SCHEME>IEEE standard
+    a procedure</SCHEME><JAVASCRIPT>ECMAScript standard a function</JAVASCRIPT></SPLITINLINE>
     object may be implemented as a special kind of <QUOTE>pair</QUOTE>
-    that doesn<APOS/>t satisfy the <SCHEMEINLINE>pair?</SCHEMEINLINE> predicate.
-    For simulation purposes, <SCHEMEINLINE>pointer-to-pair?</SCHEMEINLINE> can be implemented as
-    <SCHEMEINLINE>pair?</SCHEMEINLINE>.</FOOTNOTE>
+    that doesn<APOS/>t satisfy the
+    <SPLITINLINE><SCHEME><SCHEMEINLINE>pair?</SCHEMEINLINE></SCHEME>
+    <JAVASCRIPT><JAVASCRIPTINLINE>is_pair</JAVASCRIPTINLINE></JAVASCRIPT>
+    </SPLITINLINE>
+    predicate.
+    For simulation purposes,
+  <SPLITINLINE><SCHEME><SCHEMEINLINE>pointer-to-pair?</SCHEMEINLINE></SCHEME>
+  <JAVASCRIPT><JAVASCRIPTINLINE>is_pointer_to_pair</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>
+    can be implemented as
+    <SPLITINLINE><SCHEME><SCHEMEINLINE>pair?</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>is_pair</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>.
+    </FOOTNOTE>
 
   <SNIPPET>
     <SCHEME>
@@ -372,13 +421,47 @@
       (assign new (op vector-ref) (reg the-cdrs) (reg old))
       (goto (reg relocate-continue))
     </SCHEME>
+    <JAVASCRIPT>
+"relocate-old-result-in-new",
+    test(list(op("is-pointer-to-pair"), reg("old"))),
+    branch(label("pair")),
+    assign("new", reg("old")),
+    goto_(reg("relocate-continue")),
+"pair",
+    assign("oldcr", list(op("vector-ref"), reg("the-heads"), reg("old"))),
+    test(list(op("is-broken-heart"), reg("oldcr"))),
+    branch(label("already-moved")),
+    assign("new", reg("free")),       // new location for pair
+    // Update "free" pointer.
+    assign("free", list((op("+"), reg(free), cons(1))),
+    // Copy the head and tail to new memory
+    perform(list(op("vector-set"), 
+                 reg("new-heads"), reg("new"), reg("oldcr"))),
+    assign("oldcr", list(op("vector-ref"), reg("the-tails"), reg("old"))),
+    perform(list(op("vector-set"), 
+                 reg("new-tails"), reg("new"), reg("oldcr"))),
+    // Construct the broken heart
+    perform(list(op("vector-set"),
+                 reg("the-heads"), reg("old"), cons("broken-heart"))),
+    perform(list(op("vector-set"),
+		 reg("the-tails"), reg("old"), reg("new"))),
+    goto_(reg("relocate-continue")),
+"already-moved",
+    assign("new", list(op("vector-ref"), reg("the-tails"), reg("old"))),
+    goto_(reg("relocate-continue")),
+    </JAVASCRIPT>
   </SNIPPET>
       </TEXT>
 
       <TEXT>
   At the very end of the garbage-collection process, we interchange the
   role of old and new memories by interchanging pointers: interchanging
-  <SCHEMEINLINE>the-cars</SCHEMEINLINE> with <SCHEMEINLINE>new-cars</SCHEMEINLINE>, and <SCHEMEINLINE>the-cdrs</SCHEMEINLINE> with <SCHEMEINLINE>new-cdrs</SCHEMEINLINE>.  We will then be ready to perform another garbage
+  <SPLITINLINE><SCHEME><SCHEMEINLINE>the-cars</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>the-heads</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>
+  with
+  <SPLITINLINE><SCHEME><SCHEMEINLINE>new-cars</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>new-heads</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>, and
+  <SPLITINLINE><SCHEME><SCHEMEINLINE>the-cdrs</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>the-tails</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> with
+  <SPLITINLINE><SCHEME><SCHEMEINLINE>new-cdrs</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>new-tails</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>.
+  We will then be ready to perform another garbage
   collection the next time memory runs out.
 
   <SNIPPET>
@@ -391,6 +474,15 @@
       (assign the-cars (reg new-cars))
       (assign new-cars (reg temp))
     </SCHEME>
+    <JAVASCRIPT>
+"gc-flip",
+    assign("temp", reg("the-tails")),
+    assign("the-tails", reg("new-tails")),
+    assign("new-tails", reg("temp")),
+    assign("temp", reg("the-heads")),
+    assign("the-heads", reg("new-heads")),
+    assign("new-heads", reg("temp")),
+    </JAVASCRIPT>
   </SNIPPET>
   <INDEX>list-structured memory|)</INDEX>
   <INDEX>memory<SUBINDEX>list-structured|)</SUBINDEX></INDEX>
