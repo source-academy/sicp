@@ -61,9 +61,11 @@ function test(op, lhs, rhs) {
 function __binary_wrapper__(f) {
     /// FIXME: terrible hack!
     function helper() {
-        display(arguments);
-        if (arguments["0"].length === 2) {
-            return f(arguments["0"][0], arguments["0"][1][0]);
+        const arg_list = arguments["0"];
+        if (length(arg_list) === 2) {
+            const fst = head(arg_list);
+            const snd = head(tail(arg_list));
+            return f(fst, snd);
         } else {
             error(arguments, "Incorrect number of arguments passed to binary function ");
         }
