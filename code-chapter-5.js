@@ -210,7 +210,8 @@ function make_new_machine() {
             return "done";
 
         } else {
-            instruction_execution_proc(head(insts))(); 
+            const proc = instruction_execution_proc(head(insts)); 
+            proc(); /// FIXME: delete intermediate step? Added by Tobias for clarity.
             return execute();
         }
     }
