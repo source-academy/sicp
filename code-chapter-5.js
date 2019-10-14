@@ -196,8 +196,7 @@ function make_new_machine() {
             ? error(name, "Unknown register:")
             : head(tail(val));
     }
-    
-    
+
     function execute() {
         const insts = get_contents(pc);
 
