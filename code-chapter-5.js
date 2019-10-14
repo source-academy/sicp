@@ -73,6 +73,7 @@ function binary_function(f) {
     return helper;
 }
 
+/// copied into xml sources
 function gcd_machine() {
     return make_machine(list("a", "b", "t"),
                         list(list("rem", binary_function((a, b) => a % b)),
@@ -89,6 +90,7 @@ function gcd_machine() {
 
 /// ============== § 5.2.1 The Machine Model
 
+/// copied into xml sources
 function make_machine(register_names, ops, controller_text) {
     const machine = make_new_machine();
 
@@ -101,6 +103,7 @@ function make_machine(register_names, ops, controller_text) {
 
 /// ============== § 5.2.1 > Registers
 
+/// copied into xml sources
 function make_register(name) {
     let contents = "*unassigned*";
 
@@ -123,6 +126,7 @@ function make_register(name) {
 
 /// ============== § 5.2.1 > The stack
 
+/// copied into xml sources
 function make_stack() {
     let stack = null;
 
@@ -160,16 +164,19 @@ function make_stack() {
     return dispatch;
 }
 
+/// copied into xml sources
 function pop(stack) {
     return stack("pop");
 }
 
+/// copied into xml sources
 function push(stack, value) {
     return stack("push")(value);
 }
 
 /// ============== § 5.2.1 > Figure 5.13 (and following paragraphs)
 
+/// copied into xml sources
 function make_new_machine() {
     const pc = make_register("pc");
     const flag = make_register("flag");
@@ -231,25 +238,30 @@ function make_new_machine() {
     return dispatch;
 }
 
+/// copied into xml sources
 function start(machine) {
     return machine("start")();
 }
 
+/// copied into xml sources
 function get_register_contents(machine, register_name) {
     return get_contents(get_register(machine, register_name));
 }
 
+/// copied into xml sources
 function set_register_contents(machine, register_name, value) {
     set_contents(get_register(machine, register_name), value);
     return "done";
 }
 
+/// copied into xml sources
 function get_register(machine, reg_name) {
     return machine("get_register")(reg_name);
 }
 
 /// ============== § 5.2.2 The Assembler
 
+/// copied into xml sources
 function assemble(controller_text, machine) {
     function receive(insts, labels) {
         update_insts(insts, labels, machine);
@@ -259,6 +271,7 @@ function assemble(controller_text, machine) {
     return extract_labels(controller_text, receive);
 }
 
+/// copied into xml sources
 function extract_labels(text, receive) {
     function helper(insts, labels) { /// FIXME: rename to something useful
         const next_inst = head(text);
@@ -275,6 +288,7 @@ function extract_labels(text, receive) {
 
 /// ============== Footnote 4 of chapter
 
+/// copied into xml sources
 function __extract_labels(text, receive) { /// FIXME: remove __
     if (is_null(text)) {
         return pair(null, null);
@@ -291,6 +305,7 @@ function __extract_labels(text, receive) { /// FIXME: remove __
     }
 }
 
+/// copied into xml sources
 function __assemble_alternative(controller_text, machine) { /// FIXME: remove __
     const result = extract_labels(controller_text);
     const insts = head(result);
@@ -303,6 +318,7 @@ function __assemble_alternative(controller_text, machine) { /// FIXME: remove __
 
 /// (end of footnote)
 
+/// copied into xml sources
 function update_insts(insts, labels, machine) {
     const pc = get_register(machine, "pc");
     const flag = get_register(machine, "flag");
@@ -322,26 +338,32 @@ function update_insts(insts, labels, machine) {
                insts);
 }
 
+/// copied into xml sources
 function make_instruction(text) {
     return pair(text, null);
 }
 
+/// copied into xml sources
 function instruction_text(inst) {
     return head(inst);
 }
 
+/// copied into xml sources
 function instruction_execution_proc(inst) {
     return tail(inst);
 }
 
+/// copied into xml sources
 function set_instruction_execution_proc(inst, proc) {
     set_tail(inst, proc); 
 }
 
+/// copied into xml sources
 function make_label_entry(label_name, insts) {
     return pair(label_name, insts);
 }
 
+/// copied into xml sources
 function lookup_label(labels, label_name) {
     const val = assoc(label_name, labels);
 
@@ -352,6 +374,7 @@ function lookup_label(labels, label_name) {
 
 /// ============== § 5.2.3
 
+/// copied into xml sources
 function make_execution_procedure(inst, labels, machine, pc, flag, stack, ops) {
     const x = head(inst);
 
@@ -374,6 +397,7 @@ function make_execution_procedure(inst, labels, machine, pc, flag, stack, ops) {
 
 /// ============== § 5.2.3 > assign instructions
 
+/// copied into xml sources
 function make_assign(inst, machine, labels, operations, pc) {
     const target = get_register(machine, assign_reg_name(inst));
     const value_exp = assign_value_exp(inst);
@@ -389,14 +413,17 @@ function make_assign(inst, machine, labels, operations, pc) {
     return perform_make_assign;
 }
 
+/// copied into xml sources
 function assign_reg_name(assign_instruction) {
     return head(tail(assign_instruction));
 }
 
+/// copied into xml sources
 function assign_value_exp(assign_instruction) { 
     return tail(tail(assign_instruction));
 }
 
+/// copied into xml sources
 function advance_pc(pc) {
     set_contents(pc, tail(get_contents(pc))); 
     
@@ -404,6 +431,7 @@ function advance_pc(pc) {
 
 /// ============== § 5.2.3 > test, branch and goto instructions
 
+/// copied into xml sources
 function make_test(inst, machine, labels, operations, flag, pc) {
     const condition = test_condition(inst);
 
@@ -421,10 +449,12 @@ function make_test(inst, machine, labels, operations, flag, pc) {
     }
 }
 
+/// copied into xml sources
 function test_condition(test_instruction) {
     return tail(test_instruction);
 }
 
+/// copied into xml sources
 function make_branch(inst, machine, labels, flag, pc) {
     const dest = branch_dest(inst);
     
@@ -447,10 +477,12 @@ function make_branch(inst, machine, labels, flag, pc) {
     }
 }
 
+/// copied into xml sources
 function branch_dest(branch_instruction) {
     return head(tail(branch_instruction));
 }
 
+/// copied into xml sources
 function make_goto(inst, machine, labels, pc) {
     const dest = goto_dest(inst);
 
@@ -467,12 +499,14 @@ function make_goto(inst, machine, labels, pc) {
     }
 }
 
+/// copied into xml sources
 function goto_dest(goto_instruction) {
     return head(tail(goto_instruction));
 }
 
 /// ============== § 5.2.3 > Other instructions
 
+/// copied into xml sources
 function make_save(inst, machine, stack, pc) {
     const reg = get_register(machine, stack_inst_reg_name(inst));
 
@@ -484,6 +518,7 @@ function make_save(inst, machine, stack, pc) {
     return perform_make_save;
 }
 
+/// copied into xml sources
 function make_restore(inst, machine, stack, pc) {
     const reg = get_register(machine, stack_inst_reg_name(inst));
 
@@ -495,10 +530,12 @@ function make_restore(inst, machine, stack, pc) {
     return perform_make_restore;
 }
 
+/// copied into xml sources
 function stack_inst_reg_name(stack_instruction) {
     return head(tail(stack_instruction));
 }
 
+/// copied into xml sources
 function make_perform(inst, machine, labels, operations, pc) {
     const action = perform_action(inst);
 
@@ -511,12 +548,14 @@ function make_perform(inst, machine, labels, operations, pc) {
     }
 }
 
+/// copied into xml sources
 function perform_action(inst) {
     return tail(inst); 
 }
 
 /// ============== § 5.2.3 > Execution Procedures for Subexpressions
 
+/// copied into xml sources
 function make_primitive_exp(exp, machine, labels) {
     if (is_constant_exp(exp)) {
         const c = constant_exp_value(exp);
@@ -535,30 +574,37 @@ function make_primitive_exp(exp, machine, labels) {
     }
 }
 
+/// copied into xml sources
 function is_register_exp(exp) {
     return is_tagged_list(exp, "reg");
 }
 
+/// copied into xml sources
 function register_exp_reg(exp) {
     return head(tail(exp));
 }
 
+/// copied into xml sources
 function is_constant_exp(exp) {
     return is_tagged_list(exp, "constant");
 }
 
+/// copied into xml sources
 function constant_exp_value(exp) {
     return head(tail(exp));
 }
 
+/// copied into xml sources
 function is_label_exp(exp) {
     return is_tagged_list(exp, "label");
 }
 
+/// copied into xml sources
 function label_exp_label(exp) {
     return head(tail(exp));
 }
 
+/// copied into xml sources
 function make_operation_exp(exp, machine, labels, operations) {
     const op = lookup_prim(operation_exp_op(exp), operations);
     const aprocs = map(e => make_primitive_exp(e, machine, labels), operation_exp_operands(exp));
@@ -570,18 +616,22 @@ function make_operation_exp(exp, machine, labels, operations) {
     return perform_make_operation_exp;
 }
 
+/// copied into xml sources
 function is_operation_exp(exp) {
     return is_pair(exp) && is_tagged_list(head(exp), "op");
 }
 
+/// copied into xml sources
 function operation_exp_op(operation_exp) {
     return head(tail(head(operation_exp)));
 }
 
+/// copied into xml sources
 function operation_exp_operands(operation_exp) {
     return tail(operation_exp);
 }
 
+/// copied into xml sources
 function lookup_prim(symbol, operations) {
     const val = assoc(symbol, operations);
 
@@ -594,10 +644,11 @@ function lookup_prim(symbol, operations) {
 /// ============== § 5.2.4 Monitoring Machine Performance 
 
 /*
+/// copied into xml sources
 list(list("initialize-stack", () => stack("initialize")),
      list("print-stack-statistics", () => stack("print-statistics")));
 
-
+/// copied into xml sources
 function _make_stack() { /// FIXME: remove _
     let s = null;
     let number_pushes = 0;
