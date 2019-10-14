@@ -44,12 +44,8 @@ function branch(label) {
 }
 
 function assign(register_name, source) {
-<<<<<<< HEAD
     const a = append(list("assign", register_name), source);
     return a;
-=======
-    return list("assign", register_name, source);
->>>>>>> Added Source libs to make it stand-alone runnable in Node
 }
 
 function go_to(label) {
@@ -62,20 +58,13 @@ function test(op, lhs, rhs) {
 
 /// ============== § 5.2 A Register-Machine Simulator
 
-<<<<<<< HEAD
-function binary_function(f) {
-    /// FIXME: terrible hack!
-    function helper() {
-        const arg_list = arguments["0"];
-        if (length(arg_list) === 2) {
-            const fst = head(arg_list);
-            const snd = head(tail(arg_list));
-            return f(fst, snd);
-        } else {
-            error(arguments, "Incorrect number of arguments passed to binary function ");
-        }
-    }
-    return helper;
+function binary_function(f) { // f is binary
+    return arg_list => 
+        length(arg_list) === 2
+        ? apply_in_underlying_javascript(
+             f, arg_list)
+        : error(arg_list, 
+             "Incorrect number of arguments passed to binary function ");
 }
 
 /// copied into xml sources
@@ -87,26 +76,14 @@ function gcd_machine() {
                              test(op("="), reg("b"), constant(0)),
                              branch(label("gcd-done")),
                              assign("t", list(op("rem"), reg("a"), reg("b"))),
-=======
-function __rem__(a,b) {
-    console.log(a + " % " + b);
-    return a % b;
-}
-
-function __eq__(a,b) {
-    console.log(a + " = " + b);
-    return a === b;
-}
-
 function gcd_machine() {
     return make_machine(list("a", "b", "t"),
-                        // list(list("rem", (a, b) => a % b), list("=", (a, b) => a === b))),
-                        list(list("rem", __rem__), list("=", __eq__)),
+                        list(list("rem", binary_function((a, b) => a % b)),
+                             list("=", binary_function((a, b) => a === b))),
                         list("test-b",
                              test(op("="), reg("b"), constant(0)),
                              branch(label("gcd-done")),
-                             assign("t", list("rem", reg("a"), reg("b"))),
->>>>>>> Added Source libs to make it stand-alone runnable in Node
+                             assign("t", list(op("rem"), reg("a"), reg("b"))),
                              assign("a", list(reg("b"))),
                              assign("b", list(reg("t"))),
                              go_to(label("test-b")),
@@ -236,7 +213,8 @@ function make_new_machine() {
             return "done";
 
         } else {
-            instruction_execution_proc(head(insts))(); 
+            const proc = instruction_execution_proc(head(insts)); 
+            proc(); /// FIXME: delete intermediate step? Added by Tobias for clarity.
             return execute();
         }
     }
