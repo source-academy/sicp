@@ -1,24 +1,17 @@
+function assoc(key, records) {
+    return is_null(records)
+           ? undefined
+           : equal(key, head(head(records)))
+             ? head(records)
+             : assoc(key, tail(records));
+}
+
 /// From §4.1
 function is_tagged_list(exp, tag) {
     return is_pair(exp)
-        ? equals(head(exp), tag)
+        ? equal(head(exp), tag)
         : false;
 }
-
-/// Scheme association lists
-/// https://www.gnu.org/software/mit-scheme/documentation/mit-scheme-ref/Association-Lists.html
-function assoc(key, alist) {
-    if (is_null(alist)) {
-        return false; 
-    } else if (equal(head(head(alist)), key)) {
-        return head(alist);
-    } else {
-        return assoc(tail(alist), key);
-    }
-}
-
-// Missing:
-// parse
 
 function get_contents(register) {
     return register("get");
@@ -28,12 +21,64 @@ function set_contents(register, value) {
     return register("set")(value);
 }
 
+/// Stuff from §5.1
+
+function op(name) {
+    return list("op", name);
+}
+
+function reg(name) {
+    return list("reg", name);
+}
+
+function label(name) {
+    return list("label", name);
+}
+
+function constant(value) {
+    return list("constant", value);
+}
+
+function branch(label) {
+    return list("branch", label);
+}
+
+function assign(register_name, source) {
+    return list("assign", register_name, source);
+}
+
+function go_to(label) {
+    return list("go_to", label);
+}
+
+function test(op, lhs, rhs) {
+    return list("test", op, lhs, rhs);
+}
+
 /// ============== § 5.2 A Register-Machine Simulator
+
+function __rem__(a,b) {
+    console.log(a + " % " + b);
+    return a % b;
+}
+
+function __eq__(a,b) {
+    console.log(a + " = " + b);
+    return a === b;
+}
 
 function gcd_machine() {
     return make_machine(list("a", "b", "t"),
-                        list(pair("rem", (a, b) => a % b), pair("=", equal)),
-                        parse("...program from below...."));
+                        // list(list("rem", (a, b) => a % b), list("=", (a, b) => a === b))),
+                        list(list("rem", __rem__), list("=", __eq__)),
+                        list("test-b",
+                             test(op("="), reg("b"), constant(0)),
+                             branch(label("gcd-done")),
+                             assign("t", list("rem", reg("a"), reg("b"))),
+                             assign("a", list(reg("b"))),
+                             assign("b", list(reg("t"))),
+                             go_to(label("test-b")),
+                             "gcd-done"));
 }        
 
 /// ============== § 5.2.1 The Machine Model
@@ -62,7 +107,7 @@ function make_register(name) {
                 return value => { contents = value; };
 
             } else {
-                error("Unknown request: REGISTER", message);
+                error(message, "Unknown request: REGISTER");
             }
         }
     }
@@ -124,15 +169,15 @@ function make_new_machine() {
     const flag = make_register("flag");
     const stack = make_stack();
     let the_instruction_sequence = null;
-    let the_ops = list(pair("initialize_stack", () => stack("initialize")));
-    let register_table = list(pair("pc", pc), pair("flag", flag));
+    let the_ops = list(list("initialize_stack", () => stack("initialize")));
+    let register_table = list(list("pc", pc), list("flag", flag));
     
     function allocate_register(name) {
-        if (assoc(name, register_table)) {
-            error("Multiply defined register: ", name);
+        if (assoc(name, register_table) === undefined) {
+            register_table = pair(list(name, make_register(name)), register_table);
 
         } else {
-            register_table = pair(pair(name, make_register(name)), register_table);
+            error(name, "Multiply defined register: ");
         }
 
         return "register_allocated";
@@ -141,8 +186,8 @@ function make_new_machine() {
     function lookup_register(name) {
         const val = assoc(name, register_table);
 
-        return is_null(val)
-            ? error("Unknown register:", name);
+        return val === undefined
+            ? error(name, "Unknown register:")
             : head(tail(val));
     }
     
@@ -174,7 +219,7 @@ function make_new_machine() {
                 ? stack
             : message === "operations"
                 ? the_ops
-            : error("Unknown request: MACHINE", message);
+            : error(message, "Unknown request: MACHINE");
     }
     
     return dispatch;
@@ -213,11 +258,11 @@ function extract_labels(text, receive) {
         const next_inst = head(text);
 
         return is_string(next_inst)
-            ? receive(insts, pair(make_label_entry(next_inst, insts), labels));
+            ? receive(insts, pair(make_label_entry(next_inst, insts), labels))
             : receive(pair(make_instruction(next_inst), insts), labels);
     }
 
-    return is_null(text)
+    return text === undefined || is_null(text)
         ? receive(null, null)
         : extract_labels(tail(text), helper);
 }
@@ -235,7 +280,7 @@ function __extract_labels(text, receive) { /// FIXME: remove __
         const next_inst = head(text);
 
         return is_string(next_inst)
-            ? pair(insts, pair(make_label_entry(next_inst, insts)), labels);
+            ? pair(insts, pair(make_label_entry(next_inst, insts)), labels)
             : pair(pair(make_instruction(next_inst), insts), labels);
     }
 }
@@ -255,13 +300,13 @@ function __assemble_alternative(controller_text, machine) { /// FIXME: remove __
 function update_insts(insts, labels, machine) {
     const pc = get_register(machine, "pc");
     const flag = get_register(machine, "flag");
-    const stack = get_register(machine, "stack");
-    const ops = get_register(machine, "operations");
+    const stack = machine("stack");
+    const ops = machine("operations");
 
     const set_iep = set_instruction_execution_proc;
     const make_ep = make_execution_procedure;
-    return map(i => set_iep(inst,
-                            make_ep(instruction_text(inst),
+    return map(i => set_iep(i,
+                            make_ep(instruction_text(i),
                                     labels,
                                     machine,
                                     pc,
@@ -294,8 +339,8 @@ function make_label_entry(label_name, insts) {
 function lookup_label(labels, label_name) {
     const val = assoc(label_name, labels);
 
-    return val === false
-        ? error("Undefined label: ASSEMBLE", label_name)
+    return val === undefined
+        ? error(label_name, "Undefined label: ASSEMBLE")
         : tail(val);
 }
 
@@ -305,7 +350,7 @@ function make_execution_procedure(inst, labels, machine, pc, flag, stack, ops) {
     const x = head(inst);
 
     return x === "assign"
-        ? make_assign(inst, machine, labels, ops, flag, pc)
+        ? make_assign(inst, machine, labels, ops, pc)
         : x === "test"
         ? make_test(inst, machine, labels, ops, flag, pc)
         : x === "branch"
@@ -318,7 +363,7 @@ function make_execution_procedure(inst, labels, machine, pc, flag, stack, ops) {
         ? make_restore(inst, machine, stack, pc)
         : x === "perform"
         ? make_perform(inst, machine, labels, ops, pc)
-        : error("Unknown instruction type: ASSEMBLE", inst);
+        : error(inst, "Unknown instruction type: ASSEMBLE");
 }
 
 /// ============== § 5.2.3 > assign instructions
@@ -361,11 +406,11 @@ function make_test(inst, machine, labels, operations, flag, pc) {
         function perform() {
             set_contents(flag, condition_proc());
             advance_pc(pc);
-        };
+        }
 
         return perform; 
     } else {
-        error("Bad TEST instruction: ASSEMBLE", inst);
+        error(inst, "Bad TEST instruction: ASSEMBLE");
     }
 }
 
@@ -392,7 +437,7 @@ function make_branch(inst, machine, labels, flag, pc) {
         return perform;
 
     } else {
-        error("Bad BRANCH instruction: ASSEMBLE", inst);
+        error(inst, "Bad BRANCH instruction: ASSEMBLE");
     }
 }
 
@@ -412,7 +457,7 @@ function make_goto(inst, machine, labels, pc) {
         return () => set_contents(pc, get_contents(reg));
 
     } else {
-        error("Bad GOTO instruction: ASSEMBLE", inst);
+        error(inst, "Bad GOTO instruction: ASSEMBLE");
     }
 }
 
@@ -456,7 +501,7 @@ function make_perform(inst, machine, labels, operations, pc) {
         return () => advance_pc(pc);
 
     } else {
-        error("Bad PERFORM instruction: ASSEMBLE", inst);
+        error(inst, "Bad PERFORM instruction: ASSEMBLE");
     }
 }
 
@@ -480,7 +525,7 @@ function make_primitive_exp(exp, machine, labels) {
         return () => get_contents(r); 
 
     } else {
-        error("Unknown expression type: ASSEMBLE", exp);
+        error(exp, "Unknown expression type: ASSEMBLE");
     }
 }
 
@@ -493,7 +538,7 @@ function register_exp_reg(exp) {
 }
 
 function is_constant_exp(exp) {
-    return is_tagged_list(exp, "const");
+    return is_tagged_list(exp, "constant");
 }
 
 function constant_exp_value(exp) {
@@ -513,7 +558,7 @@ function make_operation_exp(exp, machine, labels, operations) {
     const aprocs = map(e => make_primitive_exp(e, machine, labels), operation_exp_operands(exp));
 
     function perform() {
-        apply(op, map(p => p(), aprocs));
+        op(map(p => p(), aprocs));
     }
     
     return perform;
@@ -534,19 +579,20 @@ function operation_exp_operands(operation_exp) {
 function lookup_prim(symbol, operations) {
     const val = assoc(symbol, operations);
 
-    return val
-        ? head(tail(val))
-        : error("Unknown operation: ASSEMBLE", symbol);
+    return val === undefined
+        ? error(symbol, "Unknown operation: ASSEMBLE")
+        : head(tail(val));
 }
 
 
 /// ============== § 5.2.4 Monitoring Machine Performance 
 
+/*
 list(list("initialize-stack", () => stack("initialize")),
      list("print-stack-statistics", () => stack("print-statistics")));
 
 
-function make_stack() {
+function _make_stack() { /// FIXME: remove _
     let s = null;
     let number_pushes = 0;
     let max_depth = 0;
@@ -582,7 +628,7 @@ function make_stack() {
     }
 
     function print_statistics() {
-        display(accumulate((a, b) => stringify(a) + b,
+        display(accumulate((b, a) => stringify(a) + b,
                            list("\n", "total-pushes = ", number_pushes,
                                 "\n", "maximum-depth = ", max_depth)));
     }
@@ -596,10 +642,145 @@ function make_stack() {
             ? initialize()
             : message === "print-statistics"
             ? print_statistics()
-            : error("Unknown request: STACK", message);
+            : error(message, "Unknown request: STACK");
     }
 
     return dispatch;
 }
-
+*/
 /// ============== § 5.3
+
+// --------------------------------------------
+
+function array_test(x) {
+    if (Array.isArray === undefined) {
+        return x instanceof Array
+    } else {
+        return Array.isArray(x)
+    }
+}
+
+function pair(x, xs) {
+    return [x, xs]
+}
+
+function is_pair(x) {
+    return array_test(x) && x.length === 2
+}
+
+function head(xs) {
+    if (is_pair(xs)) {
+        return xs[0]
+    } else {
+        throw new Error("head(xs) expects a pair as argument xs, but encountered " + xs)
+    }
+}
+
+function tail(xs) {
+    if (is_pair(xs)) {
+        return xs[1]
+    } else {
+        throw new Error("tail(xs) expects a pair as argument xs, but encountered " + xs)
+    }
+}
+
+function is_null(xs) {
+    return xs === null
+}
+
+function is_list(xs) {
+    for (; ; xs = tail(xs)) {
+        if (is_null(xs)) {
+            return true
+        } else if (!is_pair(xs)) {
+            return false
+        }
+    }
+}
+
+function list() {
+    let the_list = null
+    for (let i = arguments.length - 1; i >= 0; i--) {
+        the_list = pair(arguments[i], the_list)
+    }
+    return the_list
+}
+
+function length(xs) {
+    let i = 0
+    while (!is_null(xs)) {
+        i += 1
+        xs = tail(xs)
+    }
+    return i
+}
+
+function map(f, xs) {
+    return is_null(xs) ? null : pair(f(head(xs)), map(f, tail(xs)))
+}
+
+function reverse(xs) {
+    if (!is_list(xs)) {
+        throw new Error("reverse(xs) expects a list as argument xs, but encountered " + xs)
+    }
+    let result = null
+    for (; !is_null(xs); xs = tail(xs)) {
+        result = pair(head(xs), result)
+    }
+    return result
+}
+
+function append(xs, ys) {
+    if (is_null(xs)) {
+        return ys
+    } else {
+        return pair(head(xs), append(tail(xs), ys))
+    }
+}
+
+function member(v, xs) {
+    for (; !is_null(xs); xs = tail(xs)) {
+        if (head(xs) === v) {
+            return xs
+        }
+    }
+    return null
+}
+
+function remove(v, xs) {
+    if (is_null(xs)) {
+        return null
+    } else {
+        if (v === head(xs)) {
+            return tail(xs)
+        } else {
+            return pair(head(xs), remove(v, tail(xs)))
+        }
+    }
+}
+
+function equal(item1, item2) {
+    if (is_pair(item1) && is_pair(item2)) {
+        return equal(head(item1), head(item2)) && equal(tail(item1), tail(item2))
+    } else {
+        return item1 === item2
+    }
+}
+
+function is_string(xs) {
+    return typeof xs === 'string';
+}
+
+function error(val, str) {
+    const output = (str === undefined ? '' : str + ' ') + stringify(val)
+    throw new Error(output)
+}
+
+function stringify(val) {
+    return "" + val;
+}
+
+
+
+gcd_machine();
+
