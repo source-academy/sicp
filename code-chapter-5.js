@@ -44,7 +44,8 @@ function branch(label) {
 }
 
 function assign(register_name, source) {
-    return list("assign", register_name, source);
+    const a = append(list("assign", register_name), source);
+    return a;
 }
 
 function go_to(label) {
@@ -57,24 +58,35 @@ function test(op, lhs, rhs) {
 
 /// ============== § 5.2 A Register-Machine Simulator
 
+function __binary_wrapper__(f) {
+    /// FIXME: terrible hack!
+    function helper() {
+        display(arguments);
+        if (arguments["0"].length === 2) {
+            return f(arguments["0"][0], arguments["0"][1][0]);
+        } else {
+            error(arguments, "Incorrect number of arguments passed to binary function ");
+        }
+    }
+    return helper;
+}
+
 function __rem__(a,b) {
-    console.log(a + " % " + b);
     return a % b;
 }
 
 function __eq__(a,b) {
-    console.log(a + " = " + b);
     return a === b;
 }
 
 function gcd_machine() {
     return make_machine(list("a", "b", "t"),
                         // list(list("rem", (a, b) => a % b), list("=", (a, b) => a === b))),
-                        list(list("rem", __rem__), list("=", __eq__)),
+                        list(list("rem", __binary_wrapper__(__rem__)), list("=", __binary_wrapper__(__eq__))),
                         list("test-b",
                              test(op("="), reg("b"), constant(0)),
                              branch(label("gcd-done")),
-                             assign("t", list("rem", reg("a"), reg("b"))),
+                             assign("t", list(op("rem"), reg("a"), reg("b"))),
                              assign("a", list(reg("b"))),
                              assign("b", list(reg("t"))),
                              go_to(label("test-b")),
@@ -185,7 +197,7 @@ function make_new_machine() {
 
     function lookup_register(name) {
         const val = assoc(name, register_table);
-
+        
         return val === undefined
             ? error(name, "Unknown register:")
             : head(tail(val));
@@ -199,7 +211,8 @@ function make_new_machine() {
             return "done";
 
         } else {
-            instruction_execution_proc(head(insts))(); 
+            const proc = instruction_execution_proc(head(insts)); 
+            proc(); /// FIXME: delete intermediate step? Added by Tobias for clarity.
             return execute();
         }
     }
@@ -247,10 +260,10 @@ function get_register(machine, reg_name) {
 function assemble(controller_text, machine) {
     function receive(insts, labels) {
         update_insts(insts, labels, machine);
-        insts;
+        return insts;
     }
     
-    extract_labels(controller_text, receive);
+    return extract_labels(controller_text, receive);
 }
 
 function extract_labels(text, receive) {
@@ -274,13 +287,13 @@ function __extract_labels(text, receive) { /// FIXME: remove __
         return pair(null, null);
 
     } else {
-        const result = extract_labels(tail(text));
+        const result = __extract_labels(tail(text));
         const insts = head(result);
         const labels = tail(result);
         const next_inst = head(text);
 
         return is_string(next_inst)
-            ? pair(insts, pair(make_label_entry(next_inst, insts)), labels)
+            ? pair(insts, pair(make_label_entry(next_inst, insts), labels))
             : pair(pair(make_instruction(next_inst), insts), labels);
     }
 }
@@ -325,7 +338,7 @@ function instruction_text(inst) {
 }
 
 function instruction_execution_proc(inst) {
-    return head(inst);
+    return tail(inst);
 }
 
 function set_instruction_execution_proc(inst, proc) {
@@ -355,7 +368,7 @@ function make_execution_procedure(inst, labels, machine, pc, flag, stack, ops) {
         ? make_test(inst, machine, labels, ops, flag, pc)
         : x === "branch"
         ? make_branch(inst, machine, labels, flag, pc)
-        : x === "goto"
+        : x === "go_to"
         ? make_goto(inst, machine, labels, pc)
         : x === "save"
         ? make_save(inst, machine, stack, pc)
@@ -371,16 +384,16 @@ function make_execution_procedure(inst, labels, machine, pc, flag, stack, ops) {
 function make_assign(inst, machine, labels, operations, pc) {
     const target = get_register(machine, assign_reg_name(inst));
     const value_exp = assign_value_exp(inst);
-    const value_proc = operation_exp(value_exp)
+    const value_proc = is_operation_exp(value_exp)
           ? make_operation_exp(value_exp, machine, labels, operations)
           : make_primitive_exp(head(value_exp), machine, labels);
 
-    function perform() {
+    function perform_make_assign() {
         set_contents(target, value_proc());
-        advance_pc(pc);
+        advance_pc(pc); 
     }
 
-    return perform;
+    return perform_make_assign;
 }
 
 function assign_reg_name(assign_instruction) {
@@ -392,7 +405,8 @@ function assign_value_exp(assign_instruction) {
 }
 
 function advance_pc(pc) {
-    set_contents(pc, head(tail(get_contents(pc))));
+    set_contents(pc, tail(get_contents(pc))); 
+    
 }
 
 /// ============== § 5.2.3 > test, branch and goto instructions
@@ -400,15 +414,15 @@ function advance_pc(pc) {
 function make_test(inst, machine, labels, operations, flag, pc) {
     const condition = test_condition(inst);
 
-    if (operation_exp(condition)) {
+    if (is_operation_exp(condition)) {
         const condition_proc = make_operation_exp(condition, machine, labels, operations);
 
-        function perform() {
+        function perform_make_test() {
             set_contents(flag, condition_proc());
-            advance_pc(pc);
+            advance_pc(pc); 
         }
 
-        return perform; 
+        return perform_make_test; 
     } else {
         error(inst, "Bad TEST instruction: ASSEMBLE");
     }
@@ -424,17 +438,16 @@ function make_branch(inst, machine, labels, flag, pc) {
     if (is_label_exp(dest)) {
         const insts = lookup_label(labels, label_exp_label(dest));
 
-        function perform() {
+        function perform_make_branch() {
             if (get_contents(flag)) {
                 set_contents(pc, insts);
-                advance_pc(pc);
 
             } else {
-                /// Do nothing
+                advance_pc(pc);
             }
         }
 
-        return perform;
+        return perform_make_branch;
 
     } else {
         error(inst, "Bad BRANCH instruction: ASSEMBLE");
@@ -462,7 +475,7 @@ function make_goto(inst, machine, labels, pc) {
 }
 
 function goto_dest(goto_instruction) {
-    head(tail(goto_instruction));
+    return head(tail(goto_instruction));
 }
 
 /// ============== § 5.2.3 > Other instructions
@@ -470,23 +483,23 @@ function goto_dest(goto_instruction) {
 function make_save(inst, machine, stack, pc) {
     const reg = get_register(machine, stack_inst_reg_name(inst));
 
-    function perform() {
+    function perform_make_save() {
         push(stack, get_contents(reg));
         advance_pc(pc);
     }
 
-    return perform;
+    return perform_make_save;
 }
 
 function make_restore(inst, machine, stack, pc) {
     const reg = get_register(machine, stack_inst_reg_name(inst));
 
-    function perform() {
+    function perform_make_restore() {
         set_contents(reg, pop(stack));
-        advance_pc(pc);
+        advance_pc(pc); 
     }
 
-    return perform;
+    return perform_make_restore;
 }
 
 function stack_inst_reg_name(stack_instruction) {
@@ -496,9 +509,9 @@ function stack_inst_reg_name(stack_instruction) {
 function make_perform(inst, machine, labels, operations, pc) {
     const action = perform_action(inst);
 
-    if (operation_exp(action)) {
+    if (is_operation_exp(action)) {
         const action_proc = make_operation_exp(action, machine, labels, operations);
-        return () => advance_pc(pc);
+        return () => { action_proc(); advance_pc(pc); }
 
     } else {
         error(inst, "Bad PERFORM instruction: ASSEMBLE");
@@ -557,23 +570,23 @@ function make_operation_exp(exp, machine, labels, operations) {
     const op = lookup_prim(operation_exp_op(exp), operations);
     const aprocs = map(e => make_primitive_exp(e, machine, labels), operation_exp_operands(exp));
 
-    function perform() {
-        op(map(p => p(), aprocs));
+    function perform_make_operation_exp() {
+        return op(map(p => p(), aprocs));
     }
     
-    return perform;
+    return perform_make_operation_exp;
 }
 
-function operation_exp(exp) {
+function is_operation_exp(exp) {
     return is_pair(exp) && is_tagged_list(head(exp), "op");
 }
 
 function operation_exp_op(operation_exp) {
-    return head(tail(operation_exp));
+    return head(tail(head(operation_exp)));
 }
 
 function operation_exp_operands(operation_exp) {
-    return head(operation_exp);
+    return tail(operation_exp);
 }
 
 function lookup_prim(symbol, operations) {
@@ -684,6 +697,22 @@ function tail(xs) {
     }
 }
 
+function set_head(xs, v) {
+    if (is_pair(xs)) {
+        return xs[0] = v;
+    } else {
+        throw new Error("head(xs) expects a pair as argument xs, but encountered " + xs)
+    }
+}
+
+function set_tail(xs, v) {
+    if (is_pair(xs)) {
+        return xs[1] = v;
+    } else {
+        throw new Error("tail(xs) expects a pair as argument xs, but encountered " + xs)
+    }
+}
+
 function is_null(xs) {
     return xs === null
 }
@@ -780,7 +809,14 @@ function stringify(val) {
     return "" + val;
 }
 
+function display(arg) {
+    const util = require('util')
+    console.log(util.inspect(arg, false, null, true /* enable colors */));
+}
 
+const m = gcd_machine();
 
-gcd_machine();
-
+set_register_contents(m, "a", 206);
+set_register_contents(m, "b", 40);
+start(m);
+display(get_register_contents(m, "a"))
