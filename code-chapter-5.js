@@ -58,7 +58,7 @@ function test(op, lhs, rhs) {
 
 /// ============== § 5.2 A Register-Machine Simulator
 
-function __binary_wrapper__(f) {
+function binary_function(f) {
     /// FIXME: terrible hack!
     function helper() {
         const arg_list = arguments["0"];
@@ -73,18 +73,10 @@ function __binary_wrapper__(f) {
     return helper;
 }
 
-function __rem__(a,b) {
-    return a % b;
-}
-
-function __eq__(a,b) {
-    return a === b;
-}
-
 function gcd_machine() {
     return make_machine(list("a", "b", "t"),
-                        // list(list("rem", (a, b) => a % b), list("=", (a, b) => a === b))),
-                        list(list("rem", __binary_wrapper__(__rem__)), list("=", __binary_wrapper__(__eq__))),
+                        list(list("rem", binary_function((a, b) => a % b)),
+                             list("=", binary_function((a, b) => a === b))),
                         list("test-b",
                              test(op("="), reg("b"), constant(0)),
                              branch(label("gcd-done")),
