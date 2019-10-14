@@ -44,8 +44,7 @@ function branch(label) {
 }
 
 function assign(register_name, source) {
-    const a = append(list("assign", register_name), source);
-    return a;
+    return append(list("assign", register_name), source);
 }
 
 function go_to(label) {
