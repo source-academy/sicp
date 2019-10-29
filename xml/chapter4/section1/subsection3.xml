@@ -60,7 +60,7 @@ function is_true(x) {
       </JAVASCRIPT>
     </SNIPPET>
     With the definition of the function
-    <JAVASCRIPTINLINE>eval_conditional_statement</JAVASCRIPTINLINE>
+    <JAVASCRIPTINLINE>eval_conditional_expression</JAVASCRIPTINLINE>
     of section<SPACE/><REF NAME="sec:core-of-evaluator"/>, this means
     that our evaluator evaluates the alternative statement
     for any predicate value other than
@@ -131,7 +131,7 @@ function is_true(x) {
     <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
     bodies, and environments using the constructor 
     <SPLITINLINE><SCHEME><SCHEMEINLINE>make-procedure</SCHEMEINLINE></SCHEME>
-    <JAVASCRIPT><JAVASCRIPTINLINE>make_function</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>:
+    <JAVASCRIPT><JAVASCRIPTINLINE>make_compound_function</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>:
 
     <SNIPPET PAGE="377">
       <NAME>make_procedure</NAME>
@@ -149,12 +149,12 @@ function is_true(x) {
 (define (procedure-environment p) (cadddr p))
       </SCHEME>
       <JAVASCRIPT>
-function make_function(parameters, body, env) {
-    return list("function",
+function make_compound_function(parameters, body, env) {
+    return list("compound_function",
                 parameters, body, env);
 }
 function is_compound_function(f) {
-    return is_tagged_list(f, "function");
+    return is_tagged_list(f, "compound_function");
 }
 function function_parameters(f) {
     return list_ref(f, 1);
@@ -174,7 +174,7 @@ function function_environment(f) {
       <REQUIRES>enclosing_environment</REQUIRES>
       <JAVASCRIPT>
 const my_function = 
-    make_function(
+    make_compound_function(
         list("x", "y"),
         list("return_statement", parse("x + y;")),
         the_empty_environment);
@@ -329,31 +329,15 @@ display(return_value_content(my_return_value));
 	  </LI>
 	  <LI>
 	    <!--  \indcode{define-variable!} -->
-	    <JAVASCRIPTINLINE>declare_constant(</JAVASCRIPTINLINE>
+	    <JAVASCRIPTINLINE>set_name_value(</JAVASCRIPTINLINE>
 	    <LATEXINLINE>$\textit{name}$, $\textit{value}$,
 	    $\textit{env}$</LATEXINLINE>
 	    <JAVASCRIPTINLINE>)</JAVASCRIPTINLINE>
 	    <BREAK/>
-	    adds to the first frame in the environment
-	    <LATEXINLINE>$\textit{env}$</LATEXINLINE> a new binding that
-	    associates the name <LATEXINLINE>$\textit{name}$</LATEXINLINE>
-	    with the value
-	    <LATEXINLINE>$\textit{value}$</LATEXINLINE>, tagged as
-	    <EM>immutable</EM>.
-	  </LI>
-	  <LI>
-	    <!--  \indcode{define-variable!} -->
-	    <JAVASCRIPTINLINE>declare_variable(</JAVASCRIPTINLINE>
-	    <LATEXINLINE>$\textit{name}$, $\textit{value}$,
-	    $\textit{env}$</LATEXINLINE>
-	    <JAVASCRIPTINLINE>)</JAVASCRIPTINLINE>
-	    <BREAK/>
-	    adds to the first frame in the environment
-	    <LATEXINLINE>$\textit{env}$</LATEXINLINE> a new binding that
-	    associates the name <LATEXINLINE>$\textit{name}$</LATEXINLINE>
-	    with the value
-	    <LATEXINLINE>$\textit{value}$</LATEXINLINE>,
-	    tagged as <EM>mutable</EM>.
+	    sets the given <LATEXINLINE>$\textit{name}$</LATEXINLINE>
+	    to the given <LATEXINLINE>$\textit{value}$</LATEXINLINE> in
+	    the first frame of the environment
+	    <LATEXINLINE>$\textit{env}$</LATEXINLINE>.
 	  </LI>
 	  <LI>
 	    <!--  \indcode{set-variable-value!} -->
@@ -421,7 +405,7 @@ is_empty_environment(the_empty_environment);
     of the variables bound in that frame and a list of the associated values.<FOOTNOTE>Frames are not really a data abstraction in the following code:
     <SPLITINLINE>
       <SCHEME><SCHEMEINLINE>set-variable-value!</SCHEMEINLINE></SCHEME>
-      <JAVASCRIPT><JAVASCRIPTINLINE>set_variable_value</JAVASCRIPTINLINE>
+      <JAVASCRIPT><JAVASCRIPTINLINE>assign_name_value</JAVASCRIPTINLINE>
       </JAVASCRIPT>
     </SPLITINLINE>
     and 
@@ -466,42 +450,6 @@ function frame_values(frame) {
 }
       </JAVASCRIPT>
     </SNIPPET>
-    <SPLIT>
-      <JAVASCRIPT>
-	The function
-	<JAVASCRIPTINLINE>add_binding_to_frame</JAVASCRIPTINLINE>
-	is used both by constant and variable declaration. A
-	flag <JAVASCRIPTINLINE>mut</JAVASCRIPTINLINE> indicates
-	that the declared name is mutable.
-	<SNIPPET PAGE="378">
-	  <NAME>add_binding_to_frame</NAME>
-	  <REQUIRES>eval</REQUIRES>
-	  <EXAMPLE>add_binding_to_frame_example</EXAMPLE>
-	  <SCHEME>
-	  </SCHEME>
-	  <JAVASCRIPT>
-function is_mutable(val) {
-    return tail(val) === true;
-}
-function add_binding_to_frame(name, val, frame, mut) {
-    set_head(frame, pair(name, head(frame)));
-    set_tail(frame, pair(pair(val, mut), tail(frame)));
-}
-	  </JAVASCRIPT>
-	</SNIPPET>
-
-	<SNIPPET PAGE="378" HIDE="yes">
-	  <NAME>add_binding_to_frame_example</NAME>
-	  <SCHEME>
-	  </SCHEME>
-	  <JAVASCRIPT>
-const the_global_environment = setup_environment();
-const my_declaration = parse("const x = 1;");
-evaluate(my_declaration, the_global_environment);
-	  </JAVASCRIPT>
-	</SNIPPET>
-      </JAVASCRIPT>
-    </SPLIT>
   </TEXT>
 
   <TEXT>
@@ -535,9 +483,10 @@ evaluate(my_declaration, the_global_environment);
       <JAVASCRIPT>
 function extend_environment(names, vals, base_env) {
     if (length(names) === length(vals)) {
-        return pair(make_frame(names, 
+        return enclose_by(
+                   make_frame(names, 
                       map(x => pair(x, true), vals)),
-                    base_env);
+                   base_env);
     } else if (length(names) &lt; length(vals)) {
         error("Too many arguments supplied: " + 
               stringify(names) + ", " + 
@@ -606,9 +555,21 @@ evaluate(my_block, the_global_environment);
     error.
 
     <SNIPPET PAGE="379">
+      <NAME>no_value_yet</NAME>
+      <JAVASCRIPT>
+// We use a nullary function as temporary value for names whose
+// declaration has not yet been evaluated. The purpose of the
+// function definition is purely to create a unique identity;
+// the function will never be applied and its return value 
+// (null) is irrelevant.
+const no_value_yet = () => null;
+      </JAVASCRIPT>
+    </SNIPPET>
+    
+    <SNIPPET PAGE="379">
       <NAME>lookup_variable_value</NAME>
       <REQUIRES>eval</REQUIRES>
-      <REQUIRES>Error</REQUIRES>
+      <REQUIRES>no_value_yet</REQUIRES>
       <EXAMPLE>extend_environment_example</EXAMPLE>
       <SCHEME>
 (define (lookup-variable-value var env)
@@ -637,12 +598,17 @@ function lookup_name_value(name, env) {
                      ? head(head(vals))
                      : scan(tail(names), tail(vals));
         }
-        if (env === the_empty_environment) {
-            Error("Unbound name", name);
+        if (is_empty_environment(env)) {
+            error(name, "Unbound name: ");
         } else {
             const frame = first_frame(env);
-            return scan(frame_names(frame),
-                        frame_values(frame));
+            const value =  scan(frame_names(frame),
+                                frame_values(frame));
+	    if (value === no_value_yet) {
+                error(name, "Name used before declaration: ");
+            } else {
+	        return value;
+	    }
         }
     }
     return env_loop(env);
@@ -669,10 +635,10 @@ function lookup_name_value(name, env) {
     </SPLITINLINE>
 
     <SNIPPET PAGE="379">
-      <NAME>set_variable_value</NAME>
+      <NAME>assign_name_value</NAME>
       <REQUIRES>eval</REQUIRES>
       <REQUIRES>Error</REQUIRES>
-      <EXAMPLE>set_variable_value_example</EXAMPLE>
+      <EXAMPLE>assign_name_value_example</EXAMPLE>
       <SCHEME>
 (define (set-variable-value! var val env)
   (define (env-loop env)
@@ -690,10 +656,10 @@ function lookup_name_value(name, env) {
   (env-loop env))
       </SCHEME>
       <JAVASCRIPT>
-function set_variable_value(name, val, env) {
+function assign_name_value(name, val, env) {
     function env_loop(env) {
         function scan(names, vals) {
-            return is_null(name)
+            return is_null(names)
                 ? env_loop(
                     enclosing_environment(env))
                 : name === head(names)
@@ -704,8 +670,7 @@ function set_variable_value(name, val, env) {
                   : scan(tail(names), tail(vals));
         } 
         if (env === the_empty_environment) {
-            Error("Unbound name in assignment",
-                  name);
+            error(name, "Unbound name in assignment: ");
         } else {
             const frame = first_frame(env);
             return scan(frame_names(frame),
@@ -718,7 +683,7 @@ function set_variable_value(name, val, env) {
     </SNIPPET>
 
     <SNIPPET PAGE="378" HIDE="yes">
-      <NAME>set_variable_value_example</NAME>
+      <NAME>assign_name_value_example</NAME>
       <SCHEME>
       </SCHEME>
       <JAVASCRIPT>
@@ -727,7 +692,7 @@ const my_block = parse("{ let x = 1; x = 2; }");
 evaluate(my_block, the_global_environment);
       </JAVASCRIPT>
     </SNIPPET>
-    
+
   </TEXT>
 
   <SPLIT>
@@ -761,26 +726,44 @@ evaluate(my_block, the_global_environment);
     </SCHEME>
     <JAVASCRIPT>
       <TEXT>
-        To declare a constant/variable, we adjoin a binding for
-        the name to the value in 
-        the first frame in the given environment, 
-        and tag the value as immutable/mutable. 
+	Function application and the evaluation of blocks
+	already ensure that local names are included in
+	the current environment before the actual declaration
+	is evaluated. Therefore, the 
+        declaration of constants and variables can be handled
+	similar to variable assignment.
 
 	<SNIPPET PAGE="380">
-	  <NAME>declare_variable</NAME>
+	  <NAME>set_name_value</NAME>
 	  <REQUIRES>eval</REQUIRES>
-	  <EXAMPLE>set_variable_value_example</EXAMPLE>
+	  <EXAMPLE>set_name_value_example</EXAMPLE>
 	  <JAVASCRIPT>
-function declare_constant(name, val, env) {
-    add_binding_to_frame(
-        name, val, first_frame(env), false);
-}
-function declare_variable(name, val, env) {
-    add_binding_to_frame(
-        name, val, first_frame(env), true);
+function set_name_value(name, val, env) {
+    function scan(names, vals) {
+        return is_null(names)
+            ? error("internal error: name not found")
+            : name === head(names)
+              ? set_head(head(vals), val)
+              : scan(tail(names), tail(vals));
+    } 
+    const frame = first_frame(env);
+    return scan(frame_names(frame),
+                frame_values(frame));
 }
 	  </JAVASCRIPT>
 	</SNIPPET>
+
+    <SNIPPET PAGE="378" HIDE="yes">
+      <NAME>set_name_value_example</NAME>
+      <SCHEME>
+      </SCHEME>
+      <JAVASCRIPT>
+const the_global_environment = setup_environment();
+const my_block = parse("{ let x = 1; x; }");
+evaluate(my_block, the_global_environment);
+      </JAVASCRIPT>
+    </SNIPPET>
+	
       </TEXT>
     </JAVASCRIPT>
   </SPLIT>
@@ -825,11 +808,10 @@ function declare_variable(name, val, env) {
     <REQUIRES>return_value</REQUIRES>
     <REQUIRES>enclosing_environment</REQUIRES>
     <REQUIRES>make_frame</REQUIRES>
-    <REQUIRES>add_binding_to_frame</REQUIRES>
     <REQUIRES>extend_environment</REQUIRES>
     <REQUIRES>lookup_variable_value</REQUIRES>
-    <REQUIRES>set_variable_value</REQUIRES>
-    <REQUIRES>declare_variable</REQUIRES>
+    <REQUIRES>assign_name_value</REQUIRES>
+    <REQUIRES>set_name_value</REQUIRES>
     <JAVASCRIPT>
     </JAVASCRIPT>
   </SNIPPET>
