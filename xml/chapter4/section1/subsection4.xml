@@ -87,7 +87,7 @@
       <NAME>setup_environment</NAME>
       <REQUIRES>enclosing_environment</REQUIRES>
       <REQUIRES>extend_environment</REQUIRES>
-      <REQUIRES>declare_variable</REQUIRES>
+      <REQUIRES>set_name_value</REQUIRES>
       <REQUIRES>make_frame</REQUIRES>
       <REQUIRES>primitive_procedures</REQUIRES>
       <EXAMPLE>setup_environment_example</EXAMPLE>
@@ -103,23 +103,33 @@
       </SCHEME>
       <JAVASCRIPT>
 function setup_environment() {
-    const initial_env = pair(make_frame(null, null),
-                             the_empty_environment);
-    for_each(x =&gt;
-             declare_constant(head(x),
-                 make_primitive_function(head(tail(x))),
-                initial_env),
-             primitive_functions);
-    for_each(x =&gt; 
-             declare_constant(head(x),
-                 head(tail(x)),
-                 initial_env),
-             primitive_values);
-    return initial_env;
+    const primitive_function_names =
+        map(f => head(f), primitive_functions);
+    const primitive_function_values =
+        map(f => make_primitive_function(head(tail(f))),
+            primitive_functions);
+    const primitive_constant_names =
+        map(f => head(f), primitive_constants);
+    const primitive_constant_values =
+        map(f => head(tail(f)),
+            primitive_constants);
+    return extend_environment(
+               append(primitive_function_names, 
+                      primitive_constant_names),
+               append(primitive_function_values, 
+                      primitive_constant_values),
+               the_empty_environment);
 }
       </JAVASCRIPT>
     </SNIPPET>
 
+    <SNIPPET PAGE="381" HIDE="yes">
+      <NAME>the_global_environment</NAME>
+      <JAVASCRIPT>
+const the_global_environment = setup_environment();
+      </JAVASCRIPT>
+    </SNIPPET>
+    
     <SNIPPET PAGE="381" HIDE="yes">
       <NAME>setup_environment_example</NAME>
       <JAVASCRIPT>
@@ -287,21 +297,21 @@ primitive_functions;
 	that are installed in the global environment by
 	the function <JAVASCRIPTINLINE>setup_environment</JAVASCRIPTINLINE>.
 	<SNIPPET PAGE="382">
-	  <NAME>primitive_values</NAME>
-	  <EXAMPLE>primitive_values_example</EXAMPLE>
+	  <NAME>primitive_constants</NAME>
+	  <EXAMPLE>primitive_constants_example</EXAMPLE>
 	  <JAVASCRIPT>
-const primitive_values = list(list("undefined", undefined),
-                              list("NaN",       NaN),
-                              list("Infinity",  Infinity),
-                              list("math_PI",   math_PI)
-                             );
+const primitive_constants = list(list("undefined", undefined),
+                                 list("NaN",       NaN),
+                                 list("Infinity",  Infinity),
+                                 list("math_PI",   math_PI)
+                                );
 	  </JAVASCRIPT>
 	</SNIPPET>
 
     <SNIPPET PAGE="382" HIDE="yes">
-      <NAME>primitive_values_example</NAME>
+      <NAME>primitive_constants_example</NAME>
       <JAVASCRIPT>
-primitive_values;	
+primitive_constants;	
       </JAVASCRIPT>
     </SNIPPET>
 	
@@ -409,11 +419,12 @@ apply_primitive_function(my_primitive_plus, list(1, 2));
     <NAME>functions_4_1_4</NAME>
     <REQUIRES>headline_4_1_4</REQUIRES>
     <REQUIRES>true</REQUIRES>
-    <REQUIRES>setup_environment</REQUIRES>
     <REQUIRES>primitive_procedure</REQUIRES>
     <REQUIRES>primitive_procedures</REQUIRES>
-    <REQUIRES>primitive_values</REQUIRES>
+    <REQUIRES>primitive_constants</REQUIRES>
     <REQUIRES>apply_primitive_procedure</REQUIRES>
+    <REQUIRES>setup_environment</REQUIRES>
+    <REQUIRES>the_global_environment</REQUIRES>
     <JAVASCRIPT>
     </JAVASCRIPT>
   </SNIPPET>
@@ -498,7 +509,10 @@ apply_primitive_function(my_primitive_plus, list(1, 2));
 	  <EXAMPLE>eval_toplevel_example</EXAMPLE>
 	  <JAVASCRIPT>
 function eval_toplevel(stmt) {
-   const value = evaluate(stmt, the_global_environment);
+   // wrap program in block
+   const program_block = make_block(stmt);
+   const value = evaluate(program_block, 
+                          the_global_environment);
    if (is_return_value(value)) {
        error("return not allowed " +
              "outside of function definitions");
@@ -537,8 +551,8 @@ eval_toplevel(true);
 function read_eval_print_loop(history) {
     const prog = prompt("History:" + history + 
                         "\\n\\n" + "Enter next: ");
-    if (prog === "") {
-        prompt("session has ended");
+    if (prog === null) {
+        display("session has ended");
     } else {
         const res = parse_and_eval(prog);
         read_eval_print_loop(history + "\\n" + 
@@ -572,14 +586,11 @@ function parse_and_eval(str) {
   <SNIPPET PAGE="383" HIDE="yes">
     <NAME>parse_and_eval_example</NAME>
     <JAVASCRIPT>
-const the_global_environment = setup_environment();
 parse_and_eval(
 "function factorial(n) {\
-    if (n === 1) {                         \
-        return 1;                          \
-    } else {                               \
-        return n * factorial(n - 1);       \
-    }                                      \
+     return n === 1                        \
+         ? 1                               \
+         : n * factorial(n - 1);           \
 }                                          \
 factorial(4);"
 );
@@ -631,7 +642,6 @@ function user_print(object) {
     </SCHEME>
     <SCHEME_STATEMENT>true</SCHEME_STATEMENT>
     <JAVASCRIPT>
-const the_global_environment = setup_environment();
 read_eval_print_loop("");
     </JAVASCRIPT>
   </SNIPPET>
