@@ -860,7 +860,7 @@ function display(arg) {
 
 const m = gcd_machine();
 
-set_register_contents(m, "a", 206);
-set_register_contents(m, "b", 40);
-start(m);
+display(set_register_contents(m, "a", 206));
+display(set_register_contents(m, "b", 40));
+display(start(m));
 display(get_register_contents(m, "a"))
