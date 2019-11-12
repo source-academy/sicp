@@ -1,4 +1,4 @@
-all: clean web pdf epub
+all: clean web pdf # epub
 
 web:
 	$(MAKE) -C rails javascript
