@@ -23,6 +23,17 @@ class ChaptersController < ApplicationController
         end
     end
 
+    def js_scheme_output(doc, tag)
+      doc.search(tag).each do |node|
+
+        wrapper_div = doc.create_element("div", :class => "code")
+
+        node.before(node.children)
+        
+        node.remove
+        end
+    end
+    
     def show
         @chapter = Chapter.find(params[:id])
         content = @chapter.xml_content
@@ -270,6 +281,8 @@ class ChaptersController < ApplicationController
 
         replace_tag(xml_doc, 'LaTeX', '$\\rm\\LaTeX$')
         replace_tag(xml_doc, 'TeX', '$\\rm\\TeX$')
+
+        js_scheme_output(xml_doc, 'JAVASCRIPTOUTPUT')
         
         xml_doc.search('SCHEMEINLINE, JAVASCRIPTINLINE').each do |inline|
             inline.name = 'kbd'

@@ -1,0 +1,552 @@
+    <SUBSECTION>
+      <NAME>
+  Running the Evaluator
+      </NAME>
+
+      <LABEL NAME="sec:running-evaluator"/>
+      <INDEX>explicit-control evaluator for Scheme<SUBINDEX>running|(</SUBINDEX></INDEX>
+      <TEXT>
+  <INDEX>models of evaluation</INDEX><INDEX>evaluation<SUBINDEX>models of</SUBINDEX></INDEX>
+  With the implementation of the explicit-control evaluator we come to
+  the end of a development, begun in chapter<SPACE/>1, in which we have
+  explored successively more precise models of the evaluation process.
+  We started with the relatively informal substitution model, then
+  extended this in chapter<SPACE/>3 to the environment model, which enabled us
+  to deal with state and change.  In the metacircular evaluator of
+  chapter<SPACE/>4, we used Scheme itself as a language for making more explicit
+  the environment structure constructed during evaluation of an
+  expression.  Now, with register machines, we have taken a close look
+  at the evaluator<APOS/>s mechanisms for storage management,
+  argument passing, and control.  At
+  each new level of description, we have had to raise issues and resolve
+  ambiguities that were not apparent at the previous, less precise
+  treatment of evaluation.  To understand the behavior of the
+  explicit-control evaluator, we can simulate it and monitor its
+  performance.
+      </TEXT>
+
+      <TEXT>
+  <INDEX>explicit-control evaluator for Scheme<SUBINDEX>driver loop</SUBINDEX></INDEX>
+  <INDEX>driver loop<SUBINDEX>explicit@in explicit-control evaluator</SUBINDEX></INDEX>
+  We will install a driver loop in our evaluator machine.  This plays
+  the role of the <SPLITINLINE><SCHEME><SCHEMEINLINE>driver-loop</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>driver_loop</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>
+  <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+  of
+  section<SPACE/><REF NAME="sec:running-eval"/>.  The evaluator will repeatedly print a
+  prompt, read an expression, evaluate the expression by going to <SPLITINLINE><SCHEME><SCHEMEINLINE>eval-dispatch</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>eval_dispatch</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>, and print the result.  The following instructions form
+  the beginning of the explicit-control evaluator<APOS/>s controller
+  sequence:<FOOTNOTE><P>We assume here that <SCHEMEINLINE>read</SCHEMEINLINE> and the
+      various printing operations are
+      available as primitive machine operations, which is useful for our
+      simulation, but completely unrealistic in practice.  These
+      are actually extremely complex operations.  In practice, they would be
+      implemented using low-level input-output operations
+      such as transferring single characters to and from a device.
+    </P>
+    <P>
+      To support the <SPLITINLINE><SCHEME><SCHEMEINLINE>get-global-environment</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>get_global_environment</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> operation we define
+
+      <SNIPPET eval="no">
+        <SCHEME>
+    <!--  \indcode*{the-global-environment} -->
+    (define the-global-environment (setup-environment))
+
+    <!--  \indcode*{get-global-environment} -->
+    (define (get-global-environment)
+    the-global-environment)
+        </SCHEME>
+        <JAVASCRIPT>
+<!--  \indcode*{the-global-environment} -->
+const the_global_environment = setup_environment();
+
+<!--  \indcode*{get-global-environment} -->
+function get_global_environment() {
+    return the_global_environment;
+}
+        </JAVASCRIPT>
+      </SNIPPET>
+    </P>
+  </FOOTNOTE>
+
+  <SNIPPET eval="no">
+    <SCHEME>
+      <INDEX>prompts<SUBINDEX>explicit-control evaluator</SUBINDEX></INDEX>
+      <!--  \indcode*{read-eval-print-loop} -->
+      read-eval-print-loop
+      (perform (op initialize-stack))
+      (perform
+      (op prompt-for-input) (const ";;; EC-Eval input:"))
+      (assign exp (op read))
+      (assign env (op get-global-environment))
+      (assign continue (label print-result))
+      (goto (label eval-dispatch))
+      <!--  \indcode*{print-result} -->
+      print-result
+      (perform
+      (op announce-output) (const ";;; EC-Eval value:"))
+      (perform (op user-print) (reg val))
+      (goto (label read-eval-print-loop))
+    </SCHEME>
+    <JAVASCRIPT>
+      <INDEX>prompts<SUBINDEX>explicit-control evaluator</SUBINDEX></INDEX>
+      <!--  \indcode*{read-eval-print-loop} -->
+      "read_eval_print_loop",
+          perform(op("initialize_stack")),
+          perform(op("prompt_for_input"), const("/// EC_Eval input:")),
+          assign("exp", op("read")),
+          assign("env", op("get_global_environment")),
+          assign("continue", label("print_result")),
+          go_to(label("eval_dispatch")),
+          <!__  \indcode*{print_result} __>
+      "print_result",
+          perform(op("announce_output"), const(";;; EC_Eval value:")),
+          perform(op("user_print"), reg("val")),
+          go_to(label("read_eval_print_loop")),
+    </JAVASCRIPT>
+  </SNIPPET>
+      </TEXT>
+
+      <TEXT>
+  <INDEX>error handling<SUBINDEX>in explicit-control evaluator</SUBINDEX></INDEX>
+  <INDEX>explicit-control evaluator for Scheme<SUBINDEX>error handling</SUBINDEX></INDEX>
+  When we encounter an error in a
+  <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+  (such as the <QUOTE>unknown
+    <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+    type error</QUOTE> indicated at <SPLITINLINE><SCHEME><SCHEMEINLINE>apply-dispatch</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>apply_dispatch</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>), we print an
+  error message and return to the driver loop.<FOOTNOTE>There are other
+    errors that we would like the interpreter to handle, but these are not
+    so simple.  See exercise<SPACE/><REF NAME="ex:interp-errors"/>.</FOOTNOTE>
+
+  <SNIPPET eval="no">
+    <SCHEME>
+      <!--  \indcode*{unknown-expression-type} -->
+      unknown-expression-type
+      (assign val (const unknown-expression-type-error))
+      (goto (label signal-error))
+
+      <!--  \indcode*{unknown-procedure-type} -->
+      unknown-procedure-type
+      (restore continue)    <EM>; clean up stack (from <SCHEMEINLINE>apply-dispatch</SCHEMEINLINE>)</EM>
+      (assign val (const unknown-procedure-type-error))
+      (goto (label signal-error))
+
+      <!--  \indcode*{signal-error} -->
+      signal-error
+      (perform (op user-print) (reg val))
+      (goto (label read-eval-print-loop))
+    </SCHEME>
+    <JAVASCRIPT>
+      <!--  \indcode*{unknown-expression-type} -->
+      "unknown_expression_type",
+          assign("val", const("unknown_expression_type_error")),
+          go_to(label("signal_error")),
+
+      <!--  \indcode*{unknown-procedure-type} -->
+      "unknown_procedure_type",
+          restore("continue"),    /// clean up stack (from apply_dispatch)
+          assign(val(const("unknown_procedure_type_error"))),
+          go_to(label("signal_error")),
+
+      <!--  \indcode*{signal-error} -->
+      "signal_error",
+          perform(op("user_print"), reg("val")),
+          go_to(label("read_eval_print_loop")),
+    </JAVASCRIPT>
+  </SNIPPET>
+      </TEXT>
+
+      <TEXT>
+  For the purposes of the simulation, we initialize the stack each time
+  through the driver loop, since it might not be empty after an error
+  (such as an undefined variable) interrupts an evaluation.<FOOTNOTE>We
+    could perform the stack initialization only after errors, but doing it in
+    the driver loop will be convenient for monitoring the evaluator<APOS/>s
+    performance, as described below.</FOOTNOTE>
+  <INDEX>explicit-control evaluator for Scheme<SUBINDEX>controller|)</SUBINDEX></INDEX>
+      </TEXT>
+
+      <TEXT>
+  <INDEX>explicit-control evaluator for Scheme<SUBINDEX>machine model</SUBINDEX></INDEX>
+  If we combine all the code fragments presented in sections
+  <REF NAME="sec:eceval-core"/><ENDASH/><REF NAME="sec:running-evaluator"/>, we can create an
+  evaluator machine model that we can run using the register-machine simulator
+  of section<SPACE/><REF NAME="sec:simulator"/>.
+
+  <SNIPPET EVAL="no">
+    <SCHEME>
+      (define eceval
+      (make-machine
+      '(exp env val proc argl continue unev)
+      eceval-operations
+      '(
+      read-eval-print-loop
+      ^entire machine controller as given above^
+      )))
+    </SCHEME>
+    <JAVASCRIPT>
+      function eceval() {
+          return make_machine(list("exp", "env", "val", "proc", "argl", "continue", "unev"),
+                              eceval_operations,
+                              list(read_eval_print_loop,
+                                   ... /* entire machine controller as given above */ ...));
+      }                       
+    </JAVASCRIPT>
+  </SNIPPET>
+      </TEXT>
+
+      <TEXT>
+  We must define Scheme
+  <SPLITINLINE><SCHEME>procedures</SCHEME><JAVASCRIPT>functions</JAVASCRIPT></SPLITINLINE>
+  to simulate the
+  operations used as primitives by the evaluator.  These are
+  the same
+  <SPLITINLINE><SCHEME>procedures</SCHEME><JAVASCRIPT>functions</JAVASCRIPT></SPLITINLINE>
+  we used for the metacircular evaluator in
+  section<SPACE/><REF NAME="sec:mc-eval"/>, together with the few additional ones
+  defined in footnotes throughout section<SPACE/><REF NAME="sec:eceval"/>.
+  <SNIPPET eval="no">
+    <SCHEME>
+      (define eceval-operations
+      (list (list 'self-evaluating? self-evaluating)
+            <EM><LATEXINLINE>$\langle$</LATEXINLINE>complete list of operations for eceval machine<LATEXINLINE>$\rangle$</LATEXINLINE></EM>))
+    </SCHEME>
+    <JAVASCRIPT>
+const eceval_ope_rations = 
+    list(list("is_self_evaluating", is_self_evaluating)
+         ... /* complete list of operations for eceval machine */ ...);
+    </JAVASCRIPT>
+  </SNIPPET>
+      </TEXT>
+
+      <TEXT>
+  Finally, we can initialize the global environment and run the evaluator:
+  <SNIPPET eval="no">
+    <SCHEME>
+      (define the-global-environment (setup-environment))
+
+      (start eceval)
+    </SCHEME>
+    <SCHEMEOUTPUT>
+      ;;; EC-Eval input:
+      (define (append x y)
+      (if (null? x)
+      y
+      (cons (car x)
+            (append (cdr x) y))))
+      ;;; EC-Eval value:
+      ok
+
+      ;;; EC-Eval input:
+      (append '(a b c) '(d e f))
+      ;;; EC-Eval value:
+      (a b c d e f)
+    </SCHEMEOUTPUT>
+    <JAVASCRIPT>
+const the_global_environment = setup_environment();
+
+start(eceval);
+    </JAVASCRIPT>
+  </SNIPPET>
+      </TEXT>
+
+      <TEXT>
+  Of course, evaluating expressions in this way will take much longer
+  than if we had directly typed them into Scheme, because of the
+  multiple levels of simulation involved.  Our expressions are evaluated
+  by the explicit-control-evaluator machine, which is being simulated by
+  a Scheme program, which is itself being evaluated by the Scheme
+  interpreter.
+  <INDEX>explicit-control evaluator for Scheme<SUBINDEX>running|)</SUBINDEX></INDEX>
+      </TEXT>
+
+      <SUBHEADING> 
+  <NAME>Monitoring the performance of the evaluator</NAME>
+      </SUBHEADING>
+
+      <INDEX>explicit-control evaluator for Scheme<SUBINDEX>monitoring performance (stack use)|(</SUBINDEX></INDEX>
+      <TEXT>
+  <INDEX>simulation<SUBINDEX>machine@as machine-design tool</SUBINDEX></INDEX>
+  Simulation can be a powerful tool to guide the implementation of
+  evaluators.  Simulations make it easy not only to explore variations
+  of the register-machine design but also to monitor the performance of
+  the simulated evaluator.  For example, one important factor in
+  performance is how efficiently the evaluator uses the stack.  We can
+  observe the number of stack operations required to evaluate various
+  expressions by defining the evaluator register machine with the
+  version of the simulator that collects statistics on stack use
+  (section<SPACE/><REF NAME="sec:monitor"/>), and adding an instruction at the
+  evaluator<APOS/>s <SPLITINLINE><SCHEME><SCHEMEINLINE>print-result</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>print_result</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> entry point to print the
+  statistics:
+
+  <SNIPPET latex="yes">
+    <SCHEME>
+      <!--  \indcode*{print-result}[monitored-stack version] -->
+      print-result
+      (perform (op print-stack-statistics))<EM>; added instruction</EM>
+      (perform
+      (op announce-output) (const ";;; EC-Eval value:"))
+      ^$\ldots$^ ; same as before
+    </SCHEME>
+    <JAVASCRIPT>
+      <!--  \indcode*{print-result}[monitored-stack version] -->
+      "print_result",
+          perform(op("print_stack_statistics")), // added instruction
+          perform(op("announce_output"), const("/// EC-Eval value:")),
+          /* ... same as before ... */
+    </JAVASCRIPT>
+  </SNIPPET>
+      </TEXT>
+
+      <TEXT>
+  Interactions with the evaluator now look like this:
+  <SNIPPET eval="no">
+    <!-- FIXME JAVASCRIPT OUTPUT NOT SUPPORTED -->
+    <SCHEMEOUTPUT>
+      ;;; EC-Eval input:
+      (define (factorial n)
+      (if (= n 1)
+      1
+      (* (factorial (- n 1)) n)))
+      (total-pushes = 3 maximum-depth = 3)
+      ;;; EC-Eval value:
+      ok
+
+      ;;; EC-Eval input:
+      (factorial 5)
+      (total-pushes = 144 maximum-depth = 28)
+      ;;; EC-Eval value:
+      120
+    </SCHEMEOUTPUT>
+    <JAVASCRIPT>
+/// EC-Eval input:
+function factorial (n) {
+return n === 1 ?
+1
+n * factorial(n - 1); }
+(total-pushes = 3 maximum-depth = 3)
+/// EC-Eval value:
+ok
+
+/// EC-Eval input:
+factorial(5);
+(total-pushes = 144 maximum-depth = 28)
+/// EC-Eval value:
+120
+    </JAVASCRIPT>
+  </SNIPPET>
+      </TEXT>
+
+      <TEXT>
+  Note that the driver loop of the evaluator reinitializes the stack
+  at the start of
+  each interaction, so that the statistics printed will refer only to
+  stack operations used to evaluate the previous expression.
+      </TEXT>
+
+      <EXERCISE><LABEL NAME="ex:tail-rec-fact"/>
+  <INDEX>explicit-control evaluator for Scheme<SUBINDEX>tail recursion</SUBINDEX></INDEX>
+  <INDEX>tail recursion<SUBINDEX>explicit-control evaluator and</SUBINDEX></INDEX>
+  <!--  \indcode{factorial}[stack usage, interpreted] -->
+  Use the monitored stack to explore the tail-recursive property of the
+  evaluator (section<SPACE/><REF NAME="sec:sequence-evaluation"/>).  Start the
+  evaluator and define the iterative <SCHEMEINLINE>factorial</SCHEMEINLINE>
+  <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+  from
+  section<SPACE/><REF NAME="sec:recursion-and-iteration"/>:
+
+  <SNIPPET eval="no">
+    <SCHEME>
+      (define (factorial n)
+      (define (iter product counter)
+      (if (&gt; counter n)
+            product
+            (iter (* counter product)
+            (+ counter 1))))
+      (iter 1 1))
+    </SCHEME>
+    <JAVASCRIPT>
+function factorial(n) {
+    function iter(product, counter, max_count) {
+        return counter > max_count
+               ? product
+               : fact_iter(counter * product,
+                           counter + 1,
+                           max_count);
+    }
+
+    return iter(1, 1, n);
+}
+    </JAVASCRIPT>
+  </SNIPPET>
+
+  Run the
+  <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+  with some small values of <LATEXINLINE>$n$</LATEXINLINE>.  Record the maximum
+  stack depth and the number of pushes required to compute <LATEXINLINE>$n!$</LATEXINLINE> for each of
+  these values.
+  <OL>
+    <LI>
+      You will find that the maximum depth required to evaluate <LATEXINLINE>$n!$</LATEXINLINE> is
+      independent of <LATEXINLINE>$n$</LATEXINLINE>.  What is that depth?
+    </LI>
+    <LI>
+      Determine from your data a formula in terms of <LATEXINLINE>$n$</LATEXINLINE> for the total
+      number of push operations used in evaluating <LATEXINLINE>$n!$</LATEXINLINE> for any <LATEXINLINE>$n \geq 1$</LATEXINLINE>.
+      Note that the number of operations used is a linear function of <LATEXINLINE>$n$</LATEXINLINE>
+      and is thus determined by two constants.
+    </LI>
+  </OL>
+      </EXERCISE>
+
+      <EXERCISE>
+  <!--  \indcode{factorial}[stack usage, interpreted] -->
+  For comparison with exercise<SPACE/><REF NAME="ex:tail-rec-fact"/>, explore the
+  behavior of the following
+  <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+  for computing factorials
+  recursively:
+  <SNIPPET eval="no">
+    <SCHEME>
+      (define (factorial n)
+      (if (= n 1)
+      1
+      (* (factorial (- n 1)) n)))
+    </SCHEME>
+    <JAVASCRIPT>
+function factorial(n) {
+    return n === 1 
+           ? 1
+           : n * factorial(n - 1);
+}
+    </JAVASCRIPT>
+  </SNIPPET>
+  By running this
+  <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+  with the monitored stack, determine, as a
+  function of <LATEXINLINE>$n$</LATEXINLINE>, the maximum depth of the stack and the total number
+  of pushes used in evaluating <LATEXINLINE>$n!$</LATEXINLINE> for <LATEXINLINE>$n \geq 1$</LATEXINLINE>.  (Again, these functions
+  will be linear.)  Summarize your experiments by filling in the
+  following table with the appropriate expressions in terms of <LATEXINLINE>$n$</LATEXINLINE>:
+  <FIGURE src="img_original/527table.svg"></FIGURE>
+
+  The maximum depth is a measure of the amount of space used by the
+  evaluator in carrying out the computation, and the number of pushes
+  correlates well with the time required.
+  <LABEL NAME="ex:rec-fact"/>
+      </EXERCISE>
+
+      
+      <EXERCISE>
+  <LABEL NAME="ex:rec-fib"/>
+  <INDEX>explicit-control evaluator for Scheme<SUBINDEX>tail recursion</SUBINDEX></INDEX>
+  <INDEX>tail recursion<SUBINDEX>explicit-control evaluator and</SUBINDEX></INDEX>
+  Modify the definition of the evaluator by changing
+  <SPLITINLINE><SCHEME><SCHEMEINLINE>eval-sequence</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>eval_sequence</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> as described in
+  section<SPACE/><REF NAME="sec:sequence-evaluation"/> so that the evaluator is no
+  longer tail-recursive.  Rerun your experiments from
+  exercises<SPACE/><REF NAME="ex:tail-rec-fact"/> and<SPACE/><REF NAME="ex:rec-fact"/> to demonstrate
+  that both versions of the <SCHEMEINLINE>factorial</SCHEMEINLINE>
+  <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+  now require space
+  that grows linearly with their input.
+      </EXERCISE>
+
+      <EXERCISE>
+  <!--  \indcode{fib}[stack usage, interpreted] -->
+  Monitor the stack operations in the tree-recursive Fibonacci computation:
+
+  <SNIPPET eval="no">
+    <SCHEME>
+      <!--  \indcode*{fib}[tree-recursive version] -->
+      (define (fib n)
+      (if (&lt; n 2)
+      n
+      (+ (fib (- n 1)) (fib (- n 2)))))
+    </SCHEME>
+    <JAVASCRIPT>
+<!--  \indcode*{fib}[tree-recursive version] -->
+function fib(n) {
+    return n &lt; 2 ? n : fib(n - 1) + fib(n - 2);
+}
+    </JAVASCRIPT>
+  </SNIPPET>
+  <OL>
+    <LI>
+      Give a formula in terms of <LATEXINLINE>$n$</LATEXINLINE> for the maximum depth of the stack
+      required to compute <LATEXINLINE>${\textrm{Fib}}(n)$</LATEXINLINE> for <LATEXINLINE>$n \geq 2$</LATEXINLINE>.  Hint: In
+      section<SPACE/><REF NAME="sec:tree-recursion"/> we argued that the space used by this
+      process grows linearly with <LATEXINLINE>$n$</LATEXINLINE>.
+    </LI>
+    <LI>
+      Give a formula for the total number of pushes used to compute
+      <LATEXINLINE>${\textrm{Fib}}(n)$</LATEXINLINE> for <LATEXINLINE>$n \geq 2$</LATEXINLINE>.  You should find that the number of
+      pushes (which correlates well with the time used) grows exponentially
+      with <LATEXINLINE>$n$</LATEXINLINE>.  Hint: Let <LATEXINLINE>$S(n)$</LATEXINLINE> be the number of pushes used in computing
+      <LATEXINLINE>${\textrm{Fib}}(n)$</LATEXINLINE>.  You should be able to argue that there is a formula
+      that expresses <LATEXINLINE>$S(n)$</LATEXINLINE> in terms of <LATEXINLINE>$S(n-1)$</LATEXINLINE>, <LATEXINLINE>$S(n-2)$</LATEXINLINE>, and some fixed
+      <QUOTE>overhead</QUOTE> constant <LATEXINLINE>$k$</LATEXINLINE> that is independent of <LATEXINLINE>$n$</LATEXINLINE>.  Give the
+      formula, and say what <LATEXINLINE>$k$</LATEXINLINE> is.  Then show that <LATEXINLINE>$S(n)$</LATEXINLINE> can be expressed
+      as <LATEXINLINE>$a {\textrm{Fib}}(n+1) + b$</LATEXINLINE> and give the values of <LATEXINLINE>$a$</LATEXINLINE> and <LATEXINLINE>$b$</LATEXINLINE>.
+    </LI>
+  </OL>
+      </EXERCISE>
+      <INDEX>explicit-control evaluator for Scheme<SUBINDEX>monitoring performance (stack use)|)</SUBINDEX></INDEX>
+
+
+      <EXERCISE>
+  <LABEL NAME="ex:interp-errors"/>
+  <INDEX>error handling<SUBINDEX>in explicit-control evaluator</SUBINDEX></INDEX>
+  <INDEX>explicit-control evaluator for Scheme<SUBINDEX>error handling</SUBINDEX></INDEX>
+  Our evaluator currently catches and signals only two kinds of
+  errors<EMDASH/>unknown expression types and unknown
+  <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+  types.  Other
+  errors will take us out of the evaluator read-eval-print loop.  When
+  we run the evaluator using the register-machine simulator, these
+  errors are caught by the underlying Scheme system.  This is analogous
+  to the computer crashing when a user program makes an
+  error.<FOOTNOTE>Regrettably, this is the normal state of affairs in
+    <INDEX>C<SUBINDEX>error handling</SUBINDEX></INDEX>
+    conventional compiler-based language systems such as C.  
+    <INDEX>UNIX</INDEX>
+    <INDEX>DOS/Windows</INDEX>
+    <INDEX>Macintosh</INDEX>
+    In UNIX<LATEXINLINE>$^{\textrm{TM}}$</LATEXINLINE> the system <QUOTE>dumps core,</QUOTE> and in 
+    DOS/Windows<LATEXINLINE>$^{\textrm{TM}}$</LATEXINLINE> it becomes catatonic.
+    The Macintosh<LATEXINLINE>$^{\textrm{TM}}$</LATEXINLINE> displays a
+    picture of an exploding bomb and offers you the opportunity to reboot
+    the computer<EMDASH/>if you<APOS/>re lucky.</FOOTNOTE>  It is a large project to make a real
+  error system work, but it is well worth the effort to understand what
+  is involved here.
+  <OL>
+    <LI>
+      Errors that occur in the evaluation process, such as an attempt to
+      access an unbound variable, could be caught by changing the lookup
+      operation to make it return a distinguished condition code, which cannot
+      be a possible value of any user variable.  The evaluator can test
+      for this condition code and then do what is necessary to go to <SCHEMEINLINE>signal-error</SCHEMEINLINE>.  Find all of the places in the evaluator where such a
+      change is necessary and fix them.  This is lots of work.
+    </LI>
+    <LI>
+      Much worse is the problem of handling errors that are signaled by
+      applying primitive
+      <SPLITINLINE><SCHEME>procedures</SCHEME><JAVASCRIPT>functions</JAVASCRIPT></SPLITINLINE>, such as an attempt to divide by zero or
+      an attempt to extract the <SPLITINLINE><SCHEME><SCHEMEINLINE>car</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>head</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> of a symbol.  In a professionally
+      written high-quality system, each primitive application is checked for
+      safety as part of the primitive.  For example, every call to <SPLITINLINE><SCHEME><SCHEMEINLINE>car</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>head</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>
+      could first check that the argument is a pair.  If the argument is not
+      a pair, the application would return a distinguished condition code to
+      the evaluator, which would then report the failure.  We could arrange
+      for this in our register-machine simulator by making each primitive
+      <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+      check for applicability and returning an appropriate distinguished
+      condition code on failure. Then the <SCHEMEINLINE>primitive-apply</SCHEMEINLINE> code in the
+      evaluator can check for the condition code and go to <SCHEMEINLINE>signal-error</SCHEMEINLINE> if necessary.  Build this structure and make it work.
+      This is a major project.
+    </LI>
+  </OL>
+      </EXERCISE>
+      <INDEX>explicit-control evaluator for Scheme|)</INDEX>
+
+    </SUBSECTION>

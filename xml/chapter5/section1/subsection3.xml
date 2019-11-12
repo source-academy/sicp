@@ -1,0 +1,316 @@
+    <SUBSECTION>
+      <NAME>
+  Subroutines
+      </NAME>
+
+      <LABEL NAME="sec:subroutines"/>
+      <INDEX>register machine<SUBINDEX>subroutine|(</SUBINDEX></INDEX>
+      <INDEX>subroutine in register machine|(</INDEX>
+
+      <TEXT>
+  When designing a machine to perform a computation, we would often
+  prefer to arrange for components to be shared by different parts of
+  the computation rather than duplicate the components.  Consider a
+  machine that includes two GCD computations<EMDASH/>one that finds the GCD of
+  the contents of registers <SCHEMEINLINE>a</SCHEMEINLINE> and <SCHEMEINLINE>b</SCHEMEINLINE> and one that finds the
+  GCD of the contents of registers <SCHEMEINLINE>c</SCHEMEINLINE> and <SCHEMEINLINE>d</SCHEMEINLINE>.  We might start
+  by assuming we have a primitive <SCHEMEINLINE>gcd</SCHEMEINLINE> operation, then expand the
+  two instances of <SCHEMEINLINE>gcd</SCHEMEINLINE> in terms of more primitive operations.
+  Figure<SPACE/><REF NAME="fig:gcd-machine-1"/> shows just the GCD portions of the
+  resulting machine<APOS/>s data paths, without showing how they connect to
+  the rest of the machine.  The figure also shows the corresponding
+  portions of the machine<APOS/>s controller sequence.
+
+  <FIGURE>
+  <SNIPPET EVAL="no">
+    <SCHEME>
+      gcd-1
+      (test (op =) (reg b) (const 0))
+      (branch (label after-gcd-1))
+      (assign t (op rem) (reg a) (reg b))
+      (assign a (reg b))
+      (assign b (reg t))
+      (goto (label gcd-1))
+      after-gcd-1
+      <LATEXINLINE>$\vdots$</LATEXINLINE> 
+      gcd-2
+      (test (op =) (reg d) (const 0))
+      (branch (label after-gcd-2))
+      (assign s (op rem) (reg c) (reg d))
+      (assign c (reg d))
+      (assign d (reg s))
+      (goto (label gcd-2))
+      after-gcd-2
+    </SCHEME>
+    <JAVASCRIPT>
+list(...,      
+     "gcd-1",
+     test(list(op("="), reg("b"), constant(0))),
+     branch(label("after-gcd-1")),
+     assign("t", list(op("rem"), reg("a"), reg("b"))),
+     assign("a", reg("b")),
+     assign("b", reg("t")),
+     go_to(label("gcd-1")),
+     "after-gcd-1",
+     ...
+     "gcd-2",
+     test(list(op("="), reg("d"), constant(0))),
+     branch(label("after-gcd-2")),
+     assign("s", list(op("rem"), reg("c"), reg("d"))),
+     assign("c", reg("d")),
+     assign("d", reg("s")),
+     go_to(label("gcd-2")),
+     "after-gcd-2",
+     ...
+    </JAVASCRIPT>
+  </SNIPPET>
+
+  <CAPTION>Portions of the data paths and controller sequence for
+  a machine with two GCD computations.</CAPTION>
+  <LABEL NAME="fig:gcd-machine-1"/>
+  </FIGURE>
+      </TEXT>
+
+      <TEXT>
+  This machine has two remainder operation boxes and two boxes for
+  testing equality.  If the duplicated components are complicated, as is the
+  remainder box, this will not be an economical way to build the
+  machine.  We can avoid duplicating the data-path components by using
+  the same components for both GCD computations, provided that doing so
+  will not affect the rest of the larger machine<APOS/>s computation.  If the
+  values in registers <SCHEMEINLINE>a</SCHEMEINLINE> and <SCHEMEINLINE>b</SCHEMEINLINE> are not needed by the time the
+  controller gets to <SCHEMEINLINE>gcd-2</SCHEMEINLINE> (or if these values can be moved to
+  other registers for safekeeping), we can change the machine so that
+  it uses registers <SCHEMEINLINE>a</SCHEMEINLINE> and <SCHEMEINLINE>b</SCHEMEINLINE>, rather than registers <SCHEMEINLINE>c</SCHEMEINLINE>
+  and <SCHEMEINLINE>d</SCHEMEINLINE>, in computing the second GCD as well as the first.  If we
+  do this, we obtain the controller sequence shown in
+  figure<SPACE/><REF NAME="fig:gcd-machine-2"/>.
+      </TEXT>
+
+      <TEXT>
+  We have removed the duplicate data-path components
+  (so that the data paths are again as in figure<SPACE/><REF NAME="fig:gcd-machine"/>),
+  but the controller
+  now has two GCD sequences that differ only in their entry-point
+  labels.  It would be better to replace these two sequences by branches
+  to a single sequence<EMDASH/>a <SCHEMEINLINE>gcd</SCHEMEINLINE> <EM>subroutine</EM><EMDASH/>at the end of
+  which we branch back to the correct place in the main instruction
+  sequence.  We can accomplish this as follows: Before branching to <SCHEMEINLINE>gcd</SCHEMEINLINE>, we place a distinguishing value (such as 0 or<SPACE/>1) into a special
+  register, 
+  <!-- \indcodeplus{continue}{register}-->
+  <SCHEMEINLINE>continue</SCHEMEINLINE>.  At the end of the <SCHEMEINLINE>gcd</SCHEMEINLINE> subroutine we
+  return either to <SCHEMEINLINE>after-gcd-1</SCHEMEINLINE> or to <SCHEMEINLINE>after-gcd-2</SCHEMEINLINE>, depending
+  on the value of the <SCHEMEINLINE>continue</SCHEMEINLINE> register.
+  Figure<SPACE/><REF NAME="fig:gcd-machine-2cont"/> shows the relevant portion of the
+  resulting controller sequence, which includes only a single copy of the
+  <SCHEMEINLINE>gcd</SCHEMEINLINE> instructions.
+
+  <FIGURE>
+  <SNIPPET EVAL="no">
+    <SCHEME>
+      gcd-1
+      (test (op =) (reg b) (const 0))
+      (branch (label after-gcd-1))
+      (assign t (op rem) (reg a) (reg b))
+      (assign a (reg b))
+      (assign b (reg t))
+      (goto (label gcd-1))
+      after-gcd-1
+      <LATEXINLINE>$\vdots$</LATEXINLINE>
+      gcd-2
+      (test (op =) (reg b) (const 0))
+      (branch (label after-gcd-2))
+      (assign t (op rem) (reg a) (reg b))
+      (assign a (reg b))
+      (assign b (reg t))
+      (goto (label gcd-2))
+      after-gcd-2
+    </SCHEME>
+    <JAVASCRIPT>
+list(...,
+     "gcd-1",
+     test(list(op("="), reg("b"), constant(0))),
+     branch(label("after-gcd-1")),
+     assign("t", list(op("rem"), reg("a"), reg("b"))),
+     assign("a", reg("b")),
+     assign("b", reg("t")),
+     go_to(label("gcd-1")),
+     "after-gcd-1",
+     ...
+     "gcd-2",
+     test(list(op("="), reg("b"), constant(0))),
+     branch(label("after-gcd-2")),
+     assign("t", list(op("rem"), reg("a"), reg("b"))),
+     assign("a", reg("b")),
+     assign("b", reg("t")),
+     go_to(label("gcd-2")),
+     "after-gcd-2",
+     ...
+    </JAVASCRIPT>
+  </SNIPPET>
+  <CAPTION>Portions of the controller sequence for a machine that
+  uses the same data-path components for two different GCD
+  computations.</CAPTION>
+  <LABEL NAME="fig:gcd-machine-2"/>
+  </FIGURE>
+
+  <FIGURE>
+  <SNIPPET EVAL="no">
+    <SCHEME>
+      gcd
+      (test (op =) (reg b) (const 0))
+      (branch (label gcd-done))
+      (assign t (op rem) (reg a) (reg b))
+      (assign a (reg b))
+      (assign b (reg t))
+      (goto (label gcd))
+      gcd-done
+      (test (op =) (reg continue) (const 0))       
+      (branch (label after-gcd-1))
+      (goto (label after-gcd-2))
+      <LATEXINLINE>$\vdots$</LATEXINLINE>
+      <EM>;; Before branching to <SCHEMEINLINE>gcd</SCHEMEINLINE> from the first place where</EM>
+      <EM>;; it is needed, we place <LATEXINLINE>$0$</LATEXINLINE> in the <SCHEMEINLINE>continue</SCHEMEINLINE> register</EM>
+      (assign continue (const 0))
+      (goto (label gcd))
+      after-gcd-1
+      <LATEXINLINE>$\vdots$</LATEXINLINE>
+      <EM>;; Before the second use of <SCHEMEINLINE>gcd</SCHEMEINLINE>, we place <LATEXINLINE>$1$</LATEXINLINE> in the <SCHEMEINLINE>continue</SCHEMEINLINE> register</EM>
+      (assign continue (const 1))
+      (goto (label gcd))
+      after-gcd-2
+    </SCHEME>
+    <JAVASCRIPT>
+list(...,      
+     "gcd",
+     test(list(op("="), reg("b"), constant(0))),
+     branch(label("gcd-done")),
+     assign("t", list(op("rem"), reg("a"), reg("b"))),
+     assign("a", reg("b")),
+     assign("b", reg("t")),
+     go_to(label("gcd")),
+     "gcd-done",
+     test(list(op("="), reg("continue"), constant(0))),
+     branch(label("after-gcd-1")),
+     go_to(label("after-gcd-2")),
+     ...
+     // Before branching to "gcd" from the first place where
+     // it is needed, we place 0 in the "continue" register
+     assign("continue", constant(0)),
+     go_to(label("gcd")),
+     "after-gcd-1",
+     ...
+     // Before the second use of "gcd", we place 1 in the
+     // "continue" register
+     assign("continue", const(1)),
+     go_to(label("gcd")),
+     "after-gcd-2",
+     ...)
+    </JAVASCRIPT>
+  </SNIPPET>
+  <CAPTION>Using a <SCHEMEINLINE>continue</SCHEMEINLINE> register to avoid
+  the duplicate controller sequence in figure<SPACE/><REF NAME="fig:gcd-machine-2"/>.</CAPTION>
+  <LABEL NAME="fig:gcd-machine-2cont"/>
+  </FIGURE>
+
+  <FIGURE>
+  <SNIPPET EVAL="no">
+    <SCHEME>
+      gcd
+      (test (op =) (reg b) (const 0))
+      (branch (label gcd-done))
+      (assign t (op rem) (reg a) (reg b))
+      (assign a (reg b))
+      (assign b (reg t))
+      (goto (label gcd))
+      gcd-done
+      (goto (reg continue))
+      <LATEXINLINE>$\vdots$</LATEXINLINE>
+      <EM>;; Before calling <SCHEMEINLINE>gcd</SCHEMEINLINE>, we assign to <SCHEMEINLINE>continue</SCHEMEINLINE></EM>
+      <EM>;; the label to which <SCHEMEINLINE>gcd</SCHEMEINLINE> should return.</EM>
+      (assign continue (label after-gcd-1))
+      (goto (label gcd))
+      after-gcd-1
+      <LATEXINLINE>$\vdots$</LATEXINLINE>
+      <EM>;; Here is the second call to <SCHEMEINLINE>gcd</SCHEMEINLINE>, with a different continuation.</EM>
+      (assign continue (label after-gcd-2))
+      (goto (label gcd))
+      after-gcd-2
+    </SCHEME>
+    <JAVASCRIPT>
+list(...,
+     "gcd",
+     test(list(op("="), reg("b"), constant(0))),
+     branch(label("gcd-done")),
+     assign("t", list(op("rem"), reg("a"), reg("b"))),
+     assign("a", reg("b")),
+     assign("b", reg("t")),
+     go_to(label("gcd")),
+     "gcd-done",
+     go_to(reg("continue")),
+     ...
+     // Before calling "gcd", we assign to "continue"
+     // the label to which "gcd" should return.
+     assign("continue", label("after-gcd-1"))),
+     go_to(label("gcd")),
+     "after-gcd-1",
+     ...
+     // Here is the second call to "gcd", with a different continuation.
+     assign("continue", label("after-gcd-2")),
+     go_to(label("gcd")),
+     "after-gcd-2",
+     ...)
+    </JAVASCRIPT>
+  </SNIPPET>
+  <CAPTION>Assigning labels to the <SCHEMEINLINE>continue</SCHEMEINLINE> register simplifies
+  and generalizes the strategy shown in figure<SPACE/><REF NAME="fig:gcd-machine-2cont"/>.</CAPTION>
+  <LABEL NAME="fig:gcd-mach-2labels"/>
+  </FIGURE>
+      </TEXT>
+
+      <TEXT>
+  This is a reasonable approach for handling small problems, but it
+  would be awkward if there were many instances of GCD computations in
+  the controller sequence.  To decide where to continue executing after
+  the <SCHEMEINLINE>gcd</SCHEMEINLINE> subroutine, we would need tests in the data paths and
+  branch instructions in the controller for all the places that use <SCHEMEINLINE>gcd</SCHEMEINLINE>.
+  A more powerful method for implementing subroutines is to have
+  the <SCHEMEINLINE>continue</SCHEMEINLINE> register hold the label of the entry point in the
+  controller sequence at which execution should continue when the subroutine is finished.
+  Implementing this strategy requires a new
+  kind of connection between the data paths and the controller of a
+  register machine: There must be a way to assign to a register a label
+  in the controller sequence in such a way that this value can be fetched
+  from the register and used to continue execution at the designated
+  entry point.
+      </TEXT>
+
+      <TEXT>
+  <!-- \indcodeplus{assign}{(in register machine)}[storing label in register]-->
+  <!-- \indcodeplus{goto}{(in register machine)}[label as destination]-->
+  To reflect this ability, we will extend the <SCHEMEINLINE>assign</SCHEMEINLINE>
+  instruction of the register-machine language to allow a register to be
+  assigned as value a label from the controller sequence (as a special
+  kind of constant).  We will also extend the <SPLITINLINE><SCHEME><SCHEMEINLINE>goto</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>go_to</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> instruction to
+  allow execution to continue at the entry point described by the
+  contents of a register rather than only at an entry point described by
+  a constant label.  Using these new constructs we can terminate the
+  <SCHEMEINLINE>gcd</SCHEMEINLINE> subroutine with a branch to the location stored in the <SCHEMEINLINE>continue</SCHEMEINLINE> register.  This leads to the controller sequence shown in
+  figure<SPACE/><REF NAME="fig:gcd-mach-2labels"/>.
+      </TEXT>
+
+      <TEXT>
+  A machine with more than one subroutine could use multiple
+  continuation registers (e.g., <SCHEMEINLINE>gcd-continue</SCHEMEINLINE>, <SCHEMEINLINE>factorial-continue</SCHEMEINLINE>) or we could have all subroutines share a single
+  <SCHEMEINLINE>continue</SCHEMEINLINE> register.  Sharing is more economical, but we must be
+  careful if we have a subroutine (<SCHEMEINLINE>sub1</SCHEMEINLINE>) that calls another
+  subroutine (<SCHEMEINLINE>sub2</SCHEMEINLINE>).  Unless <SCHEMEINLINE>sub1</SCHEMEINLINE> saves the contents of <SCHEMEINLINE>continue</SCHEMEINLINE> in some other register before setting up <SCHEMEINLINE>continue</SCHEMEINLINE> for
+  the call to <SCHEMEINLINE>sub2</SCHEMEINLINE>, <SCHEMEINLINE>sub1</SCHEMEINLINE> will not know where to go when it
+  is finished.  The mechanism developed in the next section to handle
+  recursion also provides a better solution to this problem of nested
+  subroutine calls.
+  <INDEX>register machine<SUBINDEX>subroutine|)</SUBINDEX></INDEX>
+  <INDEX>subroutine in register machine|)</INDEX>
+      </TEXT>
+
+    </SUBSECTION>
