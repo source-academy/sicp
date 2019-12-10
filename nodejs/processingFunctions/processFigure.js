@@ -1,4 +1,5 @@
 import { recursiveProcessText, processText } from '../parseXML';
+import { processSnippet } from '.';
 
 export const processFigure = (node, writeTo) => {
   writeTo.push("\n\\begin{figure}[H]\n\\centering\n");
@@ -21,6 +22,12 @@ export const processFigure = (node, writeTo) => {
       );
     }
   }
+    
+    const snippet = node.getElementsByTagName("SNIPPET")[0];
+    if (snippet) {
+        processSnippet(snippet, writeTo);
+    }
+    
   const caption = node.getElementsByTagName("CAPTION")[0];
   if (caption) {
     writeTo.push("\\caption{");

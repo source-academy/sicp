@@ -44,8 +44,7 @@ function branch(label) {
 }
 
 function assign(register_name, source) {
-    const a = append(list("assign", register_name), source);
-    return a;
+    return append(list("assign", register_name), source);
 }
 
 function go_to(label) {
@@ -58,19 +57,13 @@ function test(op, lhs, rhs) {
 
 /// ============== § 5.2 A Register-Machine Simulator
 
-function binary_function(f) {
-    /// FIXME: terrible hack!
-    function helper() {
-        const arg_list = arguments["0"];
-        if (length(arg_list) === 2) {
-            const fst = head(arg_list);
-            const snd = head(tail(arg_list));
-            return f(fst, snd);
-        } else {
-            error(arguments, "Incorrect number of arguments passed to binary function ");
-        }
-    }
-    return helper;
+function binary_function(f) { // f is binary
+    return arg_list => 
+        length(arg_list) === 2
+        ? apply_in_underlying_javascript(
+             f, arg_list)
+        : error(arg_list, 
+             "Incorrect number of arguments passed to binary function ");
 }
 
 /// copied into xml sources
