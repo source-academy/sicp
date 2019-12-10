@@ -499,106 +499,58 @@ apply_primitive_function(my_primitive_plus, list(1, 2));
     </SCHEME>
     <JAVASCRIPT>
       <TEXT>
-	In JavaScript, <JAVASCRIPTINLINE>return</JAVASCRIPTINLINE> statements
-	are only allowed within function bodies. Any evaluation of such statements
-	outside of function bodies should lead to an error, a service provided by
-	the function <JAVASCRIPTINLINE>eval_toplevel</JAVASCRIPTINLINE>.
-	<SNIPPET PAGE="383">
-	  <NAME>eval_toplevel</NAME>
-	  <REQUIRES>functions_4_1_1</REQUIRES>
-	  <REQUIRES>functions_4_1_2</REQUIRES>
-	  <REQUIRES>functions_4_1_3</REQUIRES>
-	  <REQUIRES>functions_4_1_4</REQUIRES>
-	  <EXAMPLE>eval_toplevel_example</EXAMPLE>
-	  <JAVASCRIPT>
-function eval_toplevel(stmt) {
-   // wrap program in block
-   const program_block = make_block(stmt);
-   const value = evaluate(program_block, 
-                          the_global_environment);
-   if (is_return_value(value)) {
-       error("return not allowed " +
-             "outside of function definitions");
-   } else {
-       return value;
-   }
-}
-	  </JAVASCRIPT>
-	</SNIPPET>
-
-	<SNIPPET PAGE="383" HIDE="yes">
-	  <NAME>eval_toplevel_example</NAME>
-	  <JAVASCRIPT>
-eval_toplevel(true);
-	  </JAVASCRIPT>
-	</SNIPPET>
-      </TEXT>
-    </JAVASCRIPT>
-
     <INDEX>metacircular evaluator for Scheme<SUBINDEX>driver loop</SUBINDEX></INDEX>
     <INDEX>driver loop<SUBINDEX>metacircular@in metacircular evaluator</SUBINDEX></INDEX>
     For convenience in running the metacircular evaluator, we provide a <EM>
-    read-eval-print loop</EM>. It prints a 
+    driver loop</EM> that models the underlying JavaScript system. It prints a 
     <INDEX>prompts</INDEX>
     <EM>prompt</EM>, reads an input expression from a pop-up window,
-    evaluates this expression in the global environment, and prints the
-    result on the next pop-up window. 
+    evaluates this expression in a suitable environment, and prints the
+    result on the next pop-up window. We precede each printed
+    result by an <EM>output prompt</EM> so as to distinguish the value of
+    the expression from the output that may be printed.
 
     <SNIPPET PAGE="383">
       <NAME>driver_loop</NAME>
-      <REQUIRES>eval_toplevel</REQUIRES>
-      <REQUIRES>parse_and_evaluate</REQUIRES>
       <REQUIRES>user_print</REQUIRES>
       <EXAMPLE>driver_loop_example</EXAMPLE>
       <JAVASCRIPT>
-function read_eval_print_loop(history) {
-    const prog = prompt("History:" + history + 
-                        "\\n\\n" + "Enter next: ");
-    if (prog === null) {
+const input_prompt = "M-Eval input: ";
+const output_prompt = "M-Eval output: ";
+
+function driver_loop(env, history) {
+    const input = prompt(history + input_prompt);
+    if (input === null) {
         display("session has ended");
     } else {
-        const res = parse_and_eval(prog);
-        read_eval_print_loop(history + "\\n" + 
-                             stringify(prog) + " ===> " +
-	                         stringify(user_print(res)));
+        const program = parse(input);
+        const locals = local_names(program);	    
+        const temp_values = map(x => no_value_yet,
+                                locals);
+	const new_env = extend_environment(locals, temp_values, env));
+        const res = evaluate(program, new_env);
+
+        driver_loop(new_env, history + "\\n" + 
+                             input_prompt + input + "\\n" +
+                             output_prompt + stringify(user_print(res)));
     }
 }
       </JAVASCRIPT>
     </SNIPPET>
-
-    The function <JAVASCRIPTINLINE>parse_and_eval</JAVASCRIPTINLINE> 
-    transforms a statement string into a tagged-object representation
-    of the statement according to the description in section
-    <REF NAME="sec:representing-expressions"/>, a process called
-    <EM>parsing</EM> and accomplished by the primitive function
-    <JAVASCRIPTINLINE>parse</JAVASCRIPTINLINE>. After that, it applies
-    the function <JAVASCRIPTINLINE>eval_toplevel</JAVASCRIPTINLINE>
-    to the tagged-object representation.
-
-    <SNIPPET PAGE="383">
-      <NAME>parse_and_evaluate</NAME>
-      <REQUIRES>eval_toplevel</REQUIRES>
-      <EXAMPLE>parse_and_eval_example</EXAMPLE>
-      <JAVASCRIPT>
-function parse_and_eval(str) {
-    return eval_toplevel(parse(str));
-}
+    We transform the input string that is read by <JAVASCRIPTINLINE>prompt</JAVASCRIPTINLINE>
+    into a tagged-list representation of the statement according to the description in
+    section 4.1.2, a process called parsing and accomplished by the primitive function
+    <JAVASCRIPTINLINE>parse</JAVASCRIPTINLINE>. Similar to the evaluation of
+    blocks in <REF NAME="sec:core-of-evaluator"/>, we create a new environment by
+    extending the given environment by a binding of the local names in the program
+    to the special value <JAVASCRIPTINLINE>no_value_yet</JAVASCRIPTINLINE>, and
+    evaluate the program with respect to the new environment. Passing the new
+    environment in the recursive call of <JAVASCRIPTINLINE>driver_loop</JAVASCRIPTINLINE>
+    ensures that subsequent programs can refer to previously declared names.
+      </TEXT>
     </JAVASCRIPT>
-  </SNIPPET>
 
-  <SNIPPET PAGE="383" HIDE="yes">
-    <NAME>parse_and_eval_example</NAME>
-    <JAVASCRIPT>
-parse_and_eval(
-"function factorial(n) {\
-     return n === 1                        \
-         ? 1                               \
-         : n * factorial(n - 1);           \
-}                                          \
-factorial(4);"
-);
-    </JAVASCRIPT>
-  </SNIPPET>
+
       </SPLIT>
       <TEXT>
   We use a special printing
@@ -622,7 +574,7 @@ factorial(4);"
     <JAVASCRIPT>
 function user_print(object) {
    return is_compound_function(object)
-       ? "function" +
+       ? "compound function" +
          stringify(function_parameters(object)) +
          stringify(function_body(object)) +
          "&lt;environment&gt;"
@@ -645,11 +597,12 @@ function user_print(object) {
     </SCHEME>
     <SCHEME_STATEMENT>true</SCHEME_STATEMENT>
     <JAVASCRIPT>
-read_eval_print_loop("");
+const the_global_environment = setup_environment();
+driver_loop(the_global_environment, "");
     </JAVASCRIPT>
   </SNIPPET>
 
-  <SNIPPET EVAL="yes" HIDE="yes">
+  <SNIPPET EVAL="no">
     <SCHEME>
 ;;; M-Eval input:
 (define (append x y)
@@ -666,117 +619,23 @@ ok
 (a b c d e f)
     </SCHEME>
     <JAVASCRIPT>
-// input:
-function factorial(n) { 
-    return n === 1 
-        ? 1
-        : n * factorial(n - 1); 
-} 
-factorial(4);
-// output: 24
-    </JAVASCRIPT>
-  </SNIPPET>
-
-  <SPLIT>
-    <SCHEME>
-  Play with the following examples:
-
-  <SNIPPET PAGE="384" HIDE="yes">
-    <NAME>driver_loop_example_1</NAME>
-    <REQUIRES>driver_loop</REQUIRES>
-    <EXAMPLE>driver_loop_example</EXAMPLE>
-    <SCHEME>
-;; true preloaded
-    </SCHEME>
-    <SCHEME_STATEMENT>true</SCHEME_STATEMENT>
-    <JAVASCRIPT>
-true; 1; 
-    </JAVASCRIPT>
-  </SNIPPET>
-
-  <SNIPPET PAGE="384" HIDE="yes">
-    <NAME>driver_loop_example_2</NAME>
-    <REQUIRES>driver_loop</REQUIRES>
-    <EXAMPLE>driver_loop_example</EXAMPLE>
-    <SCHEME>
-;; (+ 1 2) preloaded
-    </SCHEME>
-    <SCHEME_STATEMENT>(+ 1 2)</SCHEME_STATEMENT>
-    <JAVASCRIPT>
-1 + 2; 
-    </JAVASCRIPT>
-  </SNIPPET>
-
-  <SNIPPET PAGE="384">
-    <NAME>driver_loop_example4</NAME>
-    <EXAMPLE>driver_loop_example</EXAMPLE>
-    <SCHEME>
-;; preloaded:
-;; (begin 
-;;   (define (append xs y) 
-;;       (if (null? xs) 
-;;           y 
-;;           (cons (car xs) (append (cdr xs) y)))) 
-;;   (append (cons 1 \&apos;()) (cons 2 \&apos;())))
-    </SCHEME>
-    <SCHEME_STATEMENT>(begin (define (append xs y) (if (null? xs) y (cons (car xs) (append (cdr xs) y)))) (append (cons 1 \&apos;()) (cons 2 \&apos;())))</SCHEME_STATEMENT>
-    <JAVASCRIPT>
-
+M-Eval input:
 function append(xs,ys) { 
     if (is_null(xs)) {
        return ys; 
     } else {
        return pair(head(xs),append(tail(xs),ys)); 
     }
-} 
-append(pair(1,null),pair(2,null));
-
-    </JAVASCRIPT>
-  </SNIPPET>
-    </SCHEME>
-  </SPLIT>
-      </TEXT>
-
-      <SPLIT>
-  <JAVASCRIPT>
-      <EXERCISE>
-  The global environment includes a binding for the symbol <JAVASCRIPTINLINE>undefined</JAVASCRIPTINLINE>.
-  This way of treating <JAVASCRIPTINLINE>undefined</JAVASCRIPTINLINE> is consistent with JavaScript's
-  definition; it is a variable and not a keyword in the language as are <JAVASCRIPTINLINE>true</JAVASCRIPTINLINE>
-  and <JAVASCRIPTINLINE>false</JAVASCRIPTINLINE>. A disadvantage of this treatment of 
-  <JAVASCRIPTINLINE>undefined</JAVASCRIPTINLINE> is that it could be redefined as in
-  <SNIPPET PAGE="381">
-    <NAME>var_undefined</NAME>
-    <JAVASCRIPT>
-const undefined = "defined";
-    </JAVASCRIPT>
-  </SNIPPET>
-  Some internet browsers such as Firefox silently prevent the redefinition of 
-  <JAVASCRIPTINLINE>undefined</JAVASCRIPTINLINE> such that the line above has no
-  effect. Modify the interpreter such that 
-  <JAVASCRIPTINLINE>undefined</JAVASCRIPTINLINE> can be neither assigned nor
-  re-defined using variable statements. In this implementation, the variable
-  <JAVASCRIPTINLINE>undefined</JAVASCRIPTINLINE> must always refer to JavaScript's
-  value <JAVASCRIPTINLINE>undefined</JAVASCRIPTINLINE>.
-  <P/>
-  The Firefox browser (Version 14) allowed the re-definition of the variable
-  <JAVASCRIPTINLINE>undefined</JAVASCRIPTINLINE> in function definitions, such that
-  <SNIPPET PAGE="381">
-    <NAME>var_undefined_2</NAME>
-    <JAVASCRIPT>
-function f(undefined) {
-    return undefined + 1;
 }
-f(2);
+M-Eval value: undefined
+
+M-Eval input:    
+append(list('a', 'b', 'c'), list('d', 'e', 'f'));
+
+M-Eval value: ['a', ['b', ['c', ['d', ['e', ['f', null]]]]]]
     </JAVASCRIPT>
   </SNIPPET>
-  produces the result 3. Modify your interpreter such that constant declarations
-  cannot change 
-  <JAVASCRIPTINLINE>undefined</JAVASCRIPTINLINE>, but function definitions can.
-      </EXERCISE>
-  </JAVASCRIPT>
-      </SPLIT>
-
+      </TEXT>
 
       <EXERCISE>
   Eva Lu Ator and Louis Reasoner are each experimenting with the
@@ -789,4 +648,4 @@ f(2);
       </EXERCISE>
       <INDEX>metacircular evaluator for Scheme<SUBINDEX>running|)</SUBINDEX></INDEX>
 
-    </SUBSECTION>
+</SUBSECTION>
