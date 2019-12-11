@@ -231,7 +231,7 @@ const processTextFunctionsDefault = {
     addName(node, writeTo);
     recursiveProcessText(node.firstChild, writeTo);
   },
-  SUBSUBSUBSECTION: (node, writeTo) => processTextFunctions["SUBHEADING"](node, writeTo),
+  SUBSUBSECTION: (node, writeTo) => processTextFunctions["SUBHEADING"](node, writeTo),
 
   SCHEMEINLINE: (node, writeTo) =>
     processTextFunctions["JAVASCRIPTINLINE"](node, writeTo),
@@ -317,6 +317,7 @@ const processTextFunctionsEpub = {
     addName(node, writeTo);
     recursiveProcessText(node.firstChild, writeTo);
   },
+  SUBSUBSECTION: (node, writeTo) => processTextFunctionsEpub["SUBHEADING"](node, writeTo),    
 }
 
 let processTextFunctions = processTextFunctionsDefault;
