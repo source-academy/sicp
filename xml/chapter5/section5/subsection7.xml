@@ -1,0 +1,531 @@
+    <SUBSECTION>
+      <NAME>
+  Interfacing Compiled Code to the Evaluator
+      </NAME>
+
+      <LABEL NAME="sec:interfacing-compiled-code"/>
+      <INDEX>compiler for Scheme<SUBINDEX>interfacing to evaluator|(</SUBINDEX></INDEX>
+      <INDEX>compiler for Scheme<SUBINDEX>running compiled code|(</SUBINDEX></INDEX>
+      <INDEX>explicit-control evaluator for Scheme<SUBINDEX>modified for compiled code|(</SUBINDEX></INDEX>
+      <TEXT>
+  We have not yet explained how to load compiled code into the evaluator machine
+  or how to run it.  We will assume that the explicit-control-evaluator machine
+  has been defined as in section<SPACE/><REF NAME="sec:running-evaluator"/>, with the
+  additional operations specified in footnote<SPACE/><REF NAME="foot:compiler-ops"/>.
+  We will implement
+  a
+  <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+  <!--  \indcode{compile-and-go} -->
+  <SCHEMEINLINE>compile-and-go</SCHEMEINLINE> that compiles a Scheme expression, loads the
+  resulting object code into the evaluator machine,
+  and causes the machine to run the code in the
+  evaluator global environment, print the result, and
+  enter the evaluator<APOS/>s driver loop.  We will also modify the evaluator so that
+  interpreted expressions can call compiled
+  <SPLITINLINE><SCHEME>procedures</SCHEME><JAVASCRIPT>functions</JAVASCRIPT></SPLITINLINE>
+  as well as interpreted
+  ones.  We can then put a compiled
+  <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+  into the machine and use the
+  evaluator to call it:
+
+  <SNIPPET>
+    <SCHEME>
+      (compile-and-go
+      '(define (factorial n)
+      (if (= n 1)
+            1
+            (* (factorial (- n 1)) n))))
+    </SCHEME>
+    <SCHEMEOUTPUT>
+      ;;; EC-Eval value:
+      ok
+
+      ;;; EC-Eval input:
+      (factorial 5)
+      ;;; EC-Eval value:
+      120
+    </SCHEMEOUTPUT>
+  </SNIPPET>
+      </TEXT>
+
+      <TEXT>
+  To allow the evaluator to handle compiled
+  <SPLITINLINE><SCHEME>procedures</SCHEME><JAVASCRIPT>functions</JAVASCRIPT></SPLITINLINE>
+  (for example,
+  to evaluate the call to <SCHEMEINLINE>factorial</SCHEMEINLINE> above),
+  we need to change the code at <SCHEMEINLINE>apply-dispatch</SCHEMEINLINE>
+  (section<SPACE/><REF NAME="sec:procedure-application"/>) so that it recognizes
+  compiled
+  <SPLITINLINE><SCHEME>procedures</SCHEME><JAVASCRIPT>functions</JAVASCRIPT></SPLITINLINE>
+  (as distinct from compound or primitive
+  <SPLITINLINE><SCHEME>procedures</SCHEME><JAVASCRIPT>functions</JAVASCRIPT></SPLITINLINE>) and transfers control directly to the entry point of the
+  compiled code:<FOOTNOTE>Of course, compiled
+    <SPLITINLINE><SCHEME>procedures</SCHEME><JAVASCRIPT>functions</JAVASCRIPT></SPLITINLINE>
+    as well as interpreted
+    <SPLITINLINE><SCHEME>procedures</SCHEME><JAVASCRIPT>functions</JAVASCRIPT></SPLITINLINE>
+    are compound (nonprimitive).  For compatibility with
+    the terminology used in the explicit-control evaluator, in this
+    section we will use <QUOTE>compound</QUOTE> to mean interpreted (as opposed
+    to compiled).</FOOTNOTE>
+  <SNIPPET>
+    <SCHEME>
+      <!--  \indcode*{apply-dispatch}[modified for compiled code] -->
+      apply-dispatch
+      (test (op primitive-procedure?) (reg proc))
+      (branch (label primitive-apply))
+      (test (op compound-procedure?) (reg proc))  
+      (branch (label compound-apply))
+      (test (op compiled-procedure?) (reg proc))  
+      (branch (label compiled-apply))
+      (goto (label unknown-procedure-type))
+
+      <!--  \indcode*{compiled-apply} -->
+      compiled-apply
+      (restore continue)
+      (assign val (op compiled-procedure-entry) (reg proc))
+      (goto (reg val))
+    </SCHEME>
+  </SNIPPET>
+      </TEXT>
+
+      <TEXT>
+  Note the restore of <SCHEMEINLINE>continue</SCHEMEINLINE> at <SCHEMEINLINE>compiled-apply</SCHEMEINLINE>.  Recall that the
+  evaluator was arranged so that at <SCHEMEINLINE>apply-dispatch</SCHEMEINLINE>, the continuation would
+  be at the top of the stack.  The compiled code entry point, on the other hand,
+  expects the continuation to be in <SCHEMEINLINE>continue</SCHEMEINLINE>, so <SCHEMEINLINE>continue</SCHEMEINLINE> must be
+  restored before the compiled code is executed.
+      </TEXT>
+
+      <TEXT>
+  To enable us to run some compiled code when we start the evaluator
+  machine, we add a <SCHEMEINLINE>branch</SCHEMEINLINE> instruction at
+  the beginning of the evaluator machine, which causes the machine to
+  go to a new entry point if the <SCHEMEINLINE>flag</SCHEMEINLINE> register 
+  is set.<FOOTNOTE>Now that the evaluator machine starts
+    with a <SCHEMEINLINE>branch</SCHEMEINLINE>, we must always initialize the <SCHEMEINLINE>flag</SCHEMEINLINE> register
+    before starting the evaluator machine.  To start the machine at
+    its ordinary read-eval-print loop, we could use
+    <SNIPPET>
+      <SCHEME>
+        <!--  \indcode*{start-eceval} -->
+        (define (start-eceval)
+        (set! the-global-environment (setup-environment))
+        (set-register-contents! eceval 'flag false)
+        (start eceval))
+      </SCHEME>
+  </SNIPPET></FOOTNOTE>
+
+  <SNIPPET>
+    <SCHEME>
+      (branch (label external-entry))      <EM>; branches if <SCHEMEINLINE>flag</SCHEMEINLINE> is set</EM>
+      read-eval-print-loop
+      (perform (op initialize-stack))
+      ^$\ldots$^
+    </SCHEME>
+  </SNIPPET>
+      </TEXT>
+
+      <TEXT>
+  <SCHEMEINLINE>External-entry</SCHEMEINLINE> assumes that the machine is started with
+  <SCHEMEINLINE>val</SCHEMEINLINE> containing the location of an instruction sequence that
+  puts a result into <SCHEMEINLINE>val</SCHEMEINLINE> and ends with <SPLITINLINE><SCHEME><SCHEMEINLINE>(goto (reg continue))</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>???</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>.  Starting at this entry point jumps to the location designated
+  by <SCHEMEINLINE>val</SCHEMEINLINE>, but first assigns <SCHEMEINLINE>continue</SCHEMEINLINE> so that execution will return
+  to <SCHEMEINLINE>print-result</SCHEMEINLINE>, which prints the value in <SCHEMEINLINE>val</SCHEMEINLINE> and then goes to
+  the beginning of the evaluator<APOS/>s read-eval-print 
+  loop.<FOOTNOTE>Since a compiled
+    <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+    is an
+    object that the system may try to print, we also modify the system
+    print operation <SCHEMEINLINE>user-print</SCHEMEINLINE> (from section<SPACE/><REF NAME="sec:running-eval"/>)
+    so that it will not attempt to print the
+    components of a compiled
+    <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>:
+    <SNIPPET>
+      <SCHEME>
+        <!--  \indcode*{user-print}[modified for compiled code] -->
+        (define (user-print object)
+        (cond ((compound-procedure? object)
+              (display (list 'compound-procedure
+              (procedure-parameters object)
+              (procedure-body object)
+              '&lt;procedure-env&gt;)))
+              ((compiled-procedure? object)
+              (display '&lt;compiled-procedure&gt;))
+              (else (display object))))
+      </SCHEME>
+    </SNIPPET>
+  </FOOTNOTE>
+
+  <SNIPPET>
+    <SCHEME>
+      <!--  \indcode*{external-entry} -->
+      external-entry
+      (perform (op initialize-stack))
+      (assign env (op get-global-environment))
+      (assign continue (label print-result))
+      (goto (reg val))
+    </SCHEME>
+  </SNIPPET>
+  <INDEX>explicit-control evaluator for Scheme<SUBINDEX>modified for compiled code|)</SUBINDEX></INDEX>
+      </TEXT>
+
+      <TEXT>
+  Now we can use the following
+  <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+  to compile a
+  <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+  definition,
+  execute the compiled code, and run the read-eval-print loop so we can try the
+  <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>.  Because we want the compiled code to return to the location in
+  <SCHEMEINLINE>continue</SCHEMEINLINE> with its result in <SCHEMEINLINE>val</SCHEMEINLINE>, we compile the expression with a
+  target of <SCHEMEINLINE>val</SCHEMEINLINE> and a linkage of <SCHEMEINLINE>return</SCHEMEINLINE>.  In order to transform the
+  object code produced by the compiler into executable instructions for the
+  evaluator register machine, we use the
+  <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+  <SCHEMEINLINE>assemble</SCHEMEINLINE> from the
+  register-machine simulator (section<SPACE/><REF NAME="sec:assembler"/>).  We then initialize
+  the <SCHEMEINLINE>val</SCHEMEINLINE> register to point to the list of instructions, set the
+  <SCHEMEINLINE>flag</SCHEMEINLINE> so that the evaluator will go to <SCHEMEINLINE>external-entry</SCHEMEINLINE>, and start
+  the evaluator.
+
+  <SNIPPET>
+    <SCHEME>
+      <!--  \indcode*{compile-and-go} -->
+      (define (compile-and-go expression)
+      (let ((instructions
+            (assemble (statements
+            (compile expression 'val 'return))
+            eceval)))
+      (set! the-global-environment (setup-environment))
+      (set-register-contents! eceval 'val instructions)
+      (set-register-contents! eceval 'flag true)
+      (start eceval)))
+    </SCHEME>
+  </SNIPPET>
+      </TEXT>
+
+      <TEXT>
+  <INDEX>compiler for Scheme<SUBINDEX>monitoring performance (stack use) of compiled code</SUBINDEX></INDEX>
+  If we have set up stack monitoring, as at the end of
+  section<SPACE/><REF NAME="sec:running-evaluator"/>, we can examine the
+  stack usage of compiled code:
+
+  <SNIPPET>
+    <SCHEME>
+      (compile-and-go
+      '(define (factorial n)
+      (if (= n 1)
+            1
+            (* (factorial (- n 1)) n))))
+    </SCHEME>
+    <SCHEMEOUTPUT>
+      (total-pushes = 0 maximum-depth = 0)
+      ;;; EC-Eval value:
+      ok
+
+      ;;; EC-Eval input:
+      (factorial 5)
+      (total-pushes = 31 maximum-depth = 14)
+      ;;; EC-Eval value:
+      120
+    </SCHEMEOUTPUT>
+  </SNIPPET>
+      </TEXT>
+
+      <TEXT>
+  <INDEX>compiler for Scheme<SUBINDEX>explicit-control evaluator vs.</SUBINDEX></INDEX>
+  Compare this example with the evaluation of <SPLITINLINE><SCHEME><SCHEMEINLINE>(factorial 5)</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>???</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> using
+  the interpreted version of the same
+  <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>, shown at the end of
+  section<SPACE/><REF NAME="sec:running-evaluator"/>.  The interpreted version required
+  144 pushes and a maximum stack depth of 28.  This illustrates the
+  optimization that results from our compilation strategy.
+      </TEXT>
+
+      <SUBHEADING>
+  <NAME>Interpretation and compilation</NAME>
+      </SUBHEADING>
+
+      <INDEX>interpreter<SUBINDEX>compiler vs.</SUBINDEX></INDEX>
+      <INDEX>compiler<SUBINDEX>interpreter vs.</SUBINDEX></INDEX>
+      <TEXT>
+  With the programs in this section, we can now experiment with the
+  alternative execution strategies of interpretation and
+  compilation.<FOOTNOTE>We can do even better by extending the compiler
+    to allow compiled code to call interpreted
+    <SPLITINLINE><SCHEME>procedures</SCHEME><JAVASCRIPT>functions</JAVASCRIPT></SPLITINLINE>.  See
+    exercise<SPACE/><REF NAME="ex:compiled-call-interpreted"/>.</FOOTNOTE>  An interpreter raises
+  the machine to the level of the user program; a compiler lowers the
+  user program to the level of the machine language.  We can regard the
+  Scheme language (or any programming language) as a coherent family of
+  abstractions erected on the machine language.  Interpreters are good
+  for interactive program development and debugging because the steps of
+  program execution are organized in terms of these abstractions, and
+  are therefore more intelligible to the programmer.  Compiled code can
+  execute faster, because the steps of program execution are organized
+  in terms of the machine language, and the compiler is free to make
+  optimizations that cut across the higher-level
+  abstractions.<FOOTNOTE>Independent of the strategy of execution, we
+    <INDEX>error handling<SUBINDEX>in compiled code</SUBINDEX></INDEX>
+    incur significant overhead if we insist that errors encountered in
+    execution of a user program be detected and signaled, rather than being
+    allowed to kill the system or produce wrong answers.  For example, an
+    out-of-bounds array reference can be detected by checking the validity
+    of the reference before performing it.  The overhead of checking,
+    however, can be many times the cost of the array reference itself, and
+    a programmer should weigh speed against safety in determining whether
+    such a check is desirable.  A good compiler should be able to produce
+    code with such checks, should avoid redundant checks, and should allow
+    programmers to control the extent and type of error checking in the
+    compiled code.
+  </FOOTNOTE>
+      </TEXT>
+
+      <TEXT>
+  <INDEX>C<SUBINDEX>error handling</SUBINDEX></INDEX>
+  Compilers for popular languages, such as C and C++,
+  put hardly any error-checking operations into
+  running code, so as to make things run as fast as possible.  As a
+  result, it falls to programmers to explicitly provide error checking.
+  Unfortunately, people often neglect to do this, even in
+  critical applications where speed is not a constraint.  Their programs
+  lead fast and dangerous lives.  For example, the notorious 
+  <INDEX>Internet <QUOTE>Worm</QUOTE></INDEX>
+  <QUOTE>Worm</QUOTE>
+  that paralyzed the Internet in 1988 exploited the 
+  <INDEX>UNIX</INDEX>
+  UNIX<LATEXINLINE>$^{\textrm{TM}}$</LATEXINLINE>
+  operating system<APOS/>s failure to check whether the input buffer has
+  <INDEX>Spafford, Eugene H.</INDEX>
+  overflowed in the finger daemon. (See <CITATION>Spafford 1989</CITATION>.)
+      </TEXT>
+
+      <TEXT>
+  The alternatives of interpretation and compilation also lead to
+  <INDEX>porting a language</INDEX>
+  different strategies for porting languages to new computers. Suppose
+  that we wish to implement <SPLITINLINE><SCHEME>Lisp</SCHEME><JAVASCRIPT>JavaScript</JAVASCRIPT></SPLITINLINE> for a new machine.  One strategy is
+  to begin with the explicit-control evaluator of section<SPACE/><REF NAME="sec:eceval"/>
+  and translate its instructions to instructions for the
+  new machine.  A different strategy is to begin with the compiler and
+  change the code generators so that they generate code for the new
+  machine.  The second strategy allows us to run any <SPLITINLINE><SCHEME>Lisp</SCHEME><JAVASCRIPT>JavaScript</JAVASCRIPT></SPLITINLINE> program on
+  the new machine by first compiling it with the compiler running on our
+  original <SPLITINLINE><SCHEME>Lisp</SCHEME><JAVASCRIPT>JavaScript</JAVASCRIPT></SPLITINLINE> system, and linking it with a compiled version of the
+  run-time library.<FOOTNOTE>Of course, with either the
+    interpretation or the compilation strategy we must also implement for
+    the new machine storage allocation, input and output, and all the
+    various operations that we took as <QUOTE>primitive</QUOTE> in our discussion of
+    the evaluator and compiler.  One strategy for minimizing work here is
+    to write as many of these operations as possible in <SPLITINLINE><SCHEME>Lisp</SCHEME><JAVASCRIPT>JavaScript</JAVASCRIPT></SPLITINLINE> and then
+    compile them for the new machine.  Ultimately, everything reduces to a
+    small kernel (such as garbage collection and the mechanism for
+    applying actual machine primitives) that is hand-coded for the new
+    machine.</FOOTNOTE>  Better yet, we can compile the compiler itself, and run
+  this on the new machine to compile other <SPLITINLINE><SCHEME>Lisp</SCHEME><JAVASCRIPT>JavaScript</JAVASCRIPT></SPLITINLINE> programs.<FOOTNOTE>
+    This strategy leads to amusing tests of correctness of
+    the compiler, such as checking
+    whether the compilation of a program on the new machine, using the
+    compiled compiler, is identical with the
+    compilation of the program on the original <SPLITINLINE><SCHEME>Lisp</SCHEME><JAVASCRIPT>JavaScript</JAVASCRIPT></SPLITINLINE> system.  Tracking
+    down the source of differences is fun but often frustrating, because
+    the results are extremely sensitive to minuscule details.</FOOTNOTE>  Or we can
+  compile one of the interpreters of section<SPACE/><REF NAME="sec:mc-eval"/> to
+  produce an interpreter that runs on the new machine.
+      </TEXT>
+
+      <EXERCISE>
+  <LABEL NAME="ex:measure-factorial-ratio"/>
+  <INDEX>compiler for Scheme<SUBINDEX>monitoring performance (stack use) of compiled code</SUBINDEX></INDEX>
+  <!--  \indcode{factorial}[stack usage, compiled] -->
+  By comparing the stack operations used by compiled code to the stack
+  operations used by the evaluator for the same computation, we can
+  determine the extent to which the compiler optimizes use of the stack,
+  both in speed (reducing the total number of stack operations) and in
+  space (reducing the maximum stack depth).  Comparing this optimized
+  stack use to the performance of a special-purpose machine for the same
+  computation gives some indication of the quality of the compiler.
+
+  <OL>
+    <LI>
+      Exercise<SPACE/><REF NAME="ex:rec-fact"/> asked you to determine, as a function of
+      <LATEXINLINE>$n$</LATEXINLINE>, the number of pushes and the maximum stack depth needed by the
+      evaluator to compute <LATEXINLINE>$n!$</LATEXINLINE> using the recursive factorial
+      <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+      given above.  Exercise<SPACE/><REF NAME="ex:measure-fact"/> asked you to do the same
+      measurements for the special-purpose factorial machine shown in
+      Figure<SPACE/><REF NAME="fig:fact-machine"/>. Now perform the same analysis using the
+      compiled <SCHEMEINLINE>factorial</SCHEMEINLINE>
+      <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>.
+
+      Take the ratio of the number of pushes in the compiled version to the
+      number of pushes in the interpreted version, and do the same for the
+      maximum stack depth.  Since the number of operations and the stack
+      depth used to compute <LATEXINLINE>$n!$</LATEXINLINE> are linear in <LATEXINLINE>$n$</LATEXINLINE>, these ratios should
+      approach constants as <LATEXINLINE>$n$</LATEXINLINE> becomes large.  What are these constants?
+      Similarly, find the ratios of the stack usage in the special-purpose
+      machine to the usage in the interpreted version.
+
+      Compare the ratios for special-purpose versus interpreted code to the ratios
+      for compiled versus interpreted code.  You should find that the
+      special-purpose machine does much better than the compiled code, since
+      the hand-tailored controller code should be much better than what is
+      produced by our rudimentary general-purpose compiler.
+    </LI>
+    <LI>
+      Can you suggest improvements to the compiler that would help it
+      generate code that would come closer in performance to the
+      hand-tailored version?
+    </LI>
+  </OL>
+      </EXERCISE>
+
+
+      <EXERCISE>
+  <INDEX>compiler for Scheme<SUBINDEX>monitoring performance (stack use) of compiled code</SUBINDEX></INDEX>
+  <!--  \indcode{fib}[stack usage, compiled] -->
+  Carry out an analysis like the one in
+  exercise<SPACE/><REF NAME="ex:measure-factorial-ratio"/> to determine the effectiveness of
+  compiling the tree-recursive Fibonacci
+  <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+
+  <SNIPPET>
+    <SCHEME>
+      (define (fib n)
+      (if (&lt; n 2)
+      n
+      (+ (fib (- n 1)) (fib (- n 2)))))
+    </SCHEME>
+  </SNIPPET>
+
+  compared to the effectiveness of using the special-purpose Fibonacci machine of
+  figure<SPACE/><REF NAME="fig:fib-machine"/>.  (For measurement of the interpreted
+  performance, see exercise<SPACE/><REF NAME="ex:rec-fib"/>.)
+  For Fibonacci, the time resource used is not linear in <LATEXINLINE>$n$</LATEXINLINE>; hence the
+  ratios of stack operations will not approach a limiting value that is
+  independent of <LATEXINLINE>$n$</LATEXINLINE>.
+  <LABEL NAME="ex:measure-fib-ratio"/>
+      </EXERCISE>
+
+      <EXERCISE>
+  This section described how to modify the explicit-control evaluator so
+  that interpreted code can call compiled
+  <SPLITINLINE><SCHEME>procedures</SCHEME><JAVASCRIPT>functions</JAVASCRIPT></SPLITINLINE>.  Show how to
+  modify the compiler so that compiled
+  <SPLITINLINE><SCHEME>procedures</SCHEME><JAVASCRIPT>functions</JAVASCRIPT></SPLITINLINE>
+  can call not only
+  primitive
+  <SPLITINLINE><SCHEME>procedures</SCHEME><JAVASCRIPT>functions</JAVASCRIPT></SPLITINLINE>
+  and compiled
+  <SPLITINLINE><SCHEME>procedures</SCHEME><JAVASCRIPT>functions</JAVASCRIPT></SPLITINLINE>, but interpreted
+  <SPLITINLINE><SCHEME>procedures</SCHEME><JAVASCRIPT>functions</JAVASCRIPT></SPLITINLINE>
+  as well.  This requires modifying <SCHEMEINLINE>compile-procedure-call</SCHEMEINLINE>
+  to handle the case of compound (interpreted)
+  <SPLITINLINE><SCHEME>procedures</SCHEME><JAVASCRIPT>functions</JAVASCRIPT></SPLITINLINE>.
+  Be sure to handle all the same <SCHEMEINLINE>target</SCHEMEINLINE> and <SCHEMEINLINE>linkage</SCHEMEINLINE> combinations
+  as in <SCHEMEINLINE>compile-proc-appl</SCHEMEINLINE>.  To do the actual
+  <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+  application,
+  the code needs to jump to the evaluator<APOS/>s <SCHEMEINLINE>compound-apply</SCHEMEINLINE> entry point.
+  This label cannot be directly referenced in object code
+  (since the assembler requires that all labels referenced by the
+  code it is assembling be defined there), so we will add a register
+  called <SCHEMEINLINE>compapp</SCHEMEINLINE> to the evaluator machine to hold this
+  entry point, and add an instruction to initialize it:
+  <SNIPPET>
+    <SCHEME>
+      (assign compapp (label compound-apply))
+      (branch (label external-entry))      <EM>; branches if <SCHEMEINLINE>flag</SCHEMEINLINE> is set</EM>
+      read-eval-print-loop
+      ^$\ldots$^
+    </SCHEME>
+  </SNIPPET>
+  To test your code, start by defining a
+  <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+  <SCHEMEINLINE>f</SCHEMEINLINE> that calls a
+  <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+  <SCHEMEINLINE>g</SCHEMEINLINE>.  Use <SCHEMEINLINE>compile-and-go</SCHEMEINLINE> to compile the definition
+  of <SCHEMEINLINE>f</SCHEMEINLINE> and start the evaluator.  Now, typing at the evaluator,
+  define <SCHEMEINLINE>g</SCHEMEINLINE> and try to call <SCHEMEINLINE>f</SCHEMEINLINE>.
+  <LABEL NAME="ex:compiled-call-interpreted"/>
+      </EXERCISE>
+
+      <EXERCISE>
+  <!--  \indcode{compile-and-run} -->
+  The <SCHEMEINLINE>compile-and-go</SCHEMEINLINE> interface implemented in this section is
+  awkward, since the compiler can be called only once (when the
+  evaluator machine is started).  Augment the compiler-interpreter
+  interface by providing a <SCHEMEINLINE>compile-and-run</SCHEMEINLINE> primitive that can be
+  called from within the explicit-control evaluator as follows:
+
+  <SNIPPET>
+    <SCHEMEOUTPUT>
+      ;;; EC-Eval input:
+      (compile-and-run
+      '(define (factorial n)
+      (if (= n 1)
+            1
+            (* (factorial (- n 1)) n))))
+      ;;; EC-Eval value:
+      ok
+
+      ;;; EC-Eval input:
+      (factorial 5)
+      ;;; EC-Eval value:
+      120
+    </SCHEMEOUTPUT>
+  </SNIPPET>
+      </EXERCISE>
+
+      <EXERCISE>
+  As an alternative to using the explicit-control evaluator<APOS/>s
+  read-eval-print loop, design a register machine that performs a
+  read-compile-execute-print loop.  That is, the machine should run a
+  loop that reads an expression, compiles it, assembles and
+  executes the resulting code, and prints the result.  This is easy to
+  run in our simulated setup, since we can arrange to call the
+  <SPLITINLINE><SCHEME>procedures</SCHEME><JAVASCRIPT>functions</JAVASCRIPT></SPLITINLINE>
+  <SCHEMEINLINE>compile</SCHEMEINLINE> and <SCHEMEINLINE>assemble</SCHEMEINLINE> as <QUOTE>register-machine
+    operations.</QUOTE>
+  <LABEL NAME="ex:read-compile-execute"/>
+      </EXERCISE>
+
+      <EXERCISE>
+  <INDEX>metacircular evaluator for Scheme<SUBINDEX>compilation of</SUBINDEX></INDEX>
+  Use the compiler to compile the metacircular evaluator of
+  section<SPACE/><REF NAME="sec:mc-eval"/> and run this program using the register-machine
+  simulator.  (To compile more than one definition at a time, you can
+  package the definitions in a <SCHEMEINLINE>begin</SCHEMEINLINE>.)  The resulting interpreter
+  will run very slowly because of the multiple levels of interpretation,
+  but getting all the details to work is an instructive exercise.
+      </EXERCISE>
+
+      <EXERCISE>
+  <INDEX>C<SUBINDEX>Scheme interpreter written in</SUBINDEX></INDEX>
+  Develop a rudimentary implementation of Scheme in C (or some other
+  low-level language of your choice) by translating the explicit-control
+  evaluator of section<SPACE/><REF NAME="sec:eceval"/> into C.  In order to run this code
+  you will need to also
+  provide appropriate storage-allocation routines and other run-time
+  support.
+  <LABEL NAME="ex:interp-in-C"/>
+      </EXERCISE>
+
+      <EXERCISE>
+  <INDEX>C<SUBINDEX>compiling Scheme into</SUBINDEX></INDEX>
+  <INDEX>C<SUBINDEX>Scheme interpreter written in</SUBINDEX></INDEX>
+  <INDEX>metacircular evaluator for Scheme<SUBINDEX>compilation of</SUBINDEX></INDEX>
+  As a counterpoint to exercise<SPACE/><REF NAME="ex:interp-in-C"/>, modify the compiler
+  so that it compiles Scheme
+  <SPLITINLINE><SCHEME>procedures</SCHEME><JAVASCRIPT>functions</JAVASCRIPT></SPLITINLINE>
+  into sequences of C
+  instructions.  Compile the metacircular evaluator of
+  section<SPACE/><REF NAME="sec:mc-eval"/> to produce a Scheme interpreter written in C.
+  <LABEL NAME="ex:compiler-in-C"/>
+      </EXERCISE>
+      <INDEX>compiler for Scheme<SUBINDEX>interfacing to evaluator|)</SUBINDEX></INDEX>
+      <INDEX>compiler for Scheme<SUBINDEX>running compiled code|)</SUBINDEX></INDEX>
+      <INDEX>compiler for Scheme|)</INDEX>
+
+    </SUBSECTION>

@@ -1,0 +1,292 @@
+    <SUBSECTION>
+      <NAME>
+  Lexical Addressing
+      </NAME>
+
+      <LABEL NAME="sec:lexical-addressing"/>
+      <INDEX>compiler for Scheme<SUBINDEX>lexical addressing|(</SUBINDEX></INDEX>
+      <INDEX>lexical addressing|(</INDEX>
+      <TEXT>
+  One of the most common optimizations performed by compilers is the
+  optimization of variable lookup.  Our compiler, as we have implemented
+  it so far, generates code that uses the <SCHEMEINLINE>lookup-variable-value</SCHEMEINLINE>
+  operation of the evaluator machine.  This searches for a variable by
+  comparing it with each variable that is currently bound, working frame
+  by frame outward through the run-time environment.  This search can be
+  expensive if the frames are deeply nested or if there are many
+  variables.  For example, consider the problem of looking up the value
+  of <SCHEMEINLINE>x</SCHEMEINLINE> while evaluating the expression <SPLITINLINE><SCHEME><SCHEMEINLINE>(* x y z)</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>???</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> in an
+  application of the
+  <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+  that is returned by
+
+  <SNIPPET>
+    <SCHEME>
+      (let ((x 3) (y 4))
+      (lambda (a b c d e)
+      (let ((y (* a b x))
+            (z (+ c d x)))
+      (* x y z))))
+    </SCHEME>
+  </SNIPPET>
+      </TEXT>
+
+      <TEXT>
+  Since a <SCHEMEINLINE>let</SCHEMEINLINE> expression is just syntactic sugar for a <SCHEMEINLINE>lambda</SCHEMEINLINE> combination, this expression is equivalent to
+
+  <SNIPPET>
+    <SCHEME>
+      ((lambda (x y)
+      (lambda (a b c d e)
+      ((lambda (y z) (* x y z))
+      (* a b x)
+      (+ c d x))))
+      3
+      4)
+    </SCHEME>
+  </SNIPPET>
+  Each time <SCHEMEINLINE>lookup-variable-value</SCHEMEINLINE> searches for <SCHEMEINLINE>x</SCHEMEINLINE>, it must
+  determine that the symbol <SCHEMEINLINE>x</SCHEMEINLINE> is not <SCHEMEINLINE>eq?</SCHEMEINLINE> to <SCHEMEINLINE>y</SCHEMEINLINE> or <SCHEMEINLINE>z</SCHEMEINLINE> (in the first frame), nor to <SCHEMEINLINE>a</SCHEMEINLINE>, <SCHEMEINLINE>b</SCHEMEINLINE>, <SCHEMEINLINE>c</SCHEMEINLINE>, <SCHEMEINLINE>d</SCHEMEINLINE>, or
+  <SCHEMEINLINE>e</SCHEMEINLINE> (in the second frame).  We will assume, for the moment, that
+  our programs do not use <SCHEMEINLINE>define</SCHEMEINLINE><EMDASH/>that variables are
+  bound only with <SCHEMEINLINE>lambda</SCHEMEINLINE>.  Because our language is 
+  <INDEX>lexical scoping<SUBINDEX>environment structure and</SUBINDEX></INDEX>
+  lexically
+  scoped, the run-time environment for any expression will have a
+  structure that parallels the lexical structure of the program in which
+  the expression appears.<FOOTNOTE>This is not true if we allow
+    internal definitions, unless we scan them out.
+    See exercise<SPACE/><REF NAME="ex:compile-internal-defs"/>.</FOOTNOTE>
+  Thus, the compiler can know, when it analyzes the
+  above expression, that each time the
+  <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+  is applied the variable
+  <SCHEMEINLINE>x</SCHEMEINLINE> in <SPLITINLINE><SCHEME><SCHEMEINLINE>(* x y z)</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>???</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> will be found two frames out from the
+  current frame and will be the first variable in that frame.
+      </TEXT>
+
+      <TEXT>
+  <INDEX>lexical addressing<SUBINDEX>lexical address</SUBINDEX></INDEX>
+  We can exploit this fact by inventing a new kind of variable-lookup
+  operation, <SCHEMEINLINE>lexical-address-lookup</SCHEMEINLINE>, that takes as arguments an
+  environment and a <EM>lexical address</EM> that consists of two numbers:
+  a <EM>frame number</EM>, which specifies how many frames to pass over,
+  and a <EM>displacement number</EM>, which specifies how many variables to
+  pass over in that frame.  
+  <!--  \indcode{lexical-address-lookup} -->
+  <SCHEMEINLINE>Lexical-address-lookup</SCHEMEINLINE> will produce
+  the value of the variable stored at that lexical address relative to
+  the current environment.  If we add the <SCHEMEINLINE>lexical-address-lookup</SCHEMEINLINE>
+  operation to our machine, we can make the compiler generate code that
+  references variables using this operation, rather than <SCHEMEINLINE>lookup-variable-value</SCHEMEINLINE>.  Similarly, our compiled code can use a new
+  <!--  \indcode{lexical-address-set!} -->
+  <SCHEMEINLINE>lexical-address-set!</SCHEMEINLINE>  operation instead of <SCHEMEINLINE>set-variable-value!</SCHEMEINLINE>.
+      </TEXT>
+
+      <TEXT>
+  In order to generate such code, the compiler must be able to determine
+  the lexical address of a variable it is about to compile a reference
+  to.  The lexical address of a variable in a program depends on where
+  one is in the code.  For example, in the following program, the
+  address of <SCHEMEINLINE>x</SCHEMEINLINE> in expression <LATEXINLINE>e1</LATEXINLINE> is (2,0)<EMDASH/>two frames back
+  and the first variable in the frame.  At that point <SCHEMEINLINE>y</SCHEMEINLINE> is at
+  address (0,0) and <SCHEMEINLINE>c</SCHEMEINLINE> is at address (1,2).  In expression
+  <LATEXINLINE>e2</LATEXINLINE>,<LATEXINLINE>$\,$</LATEXINLINE> <SCHEMEINLINE>x</SCHEMEINLINE> is at (1,0), <LATEXINLINE>$\,$</LATEXINLINE> <SCHEMEINLINE>y</SCHEMEINLINE> is at (1,1), and <SCHEMEINLINE>c</SCHEMEINLINE> is at (0,2).
+
+  <SNIPPET EVAL="no">
+    <SCHEME>
+      ((lambda (x y)
+      (lambda (a b c d e)
+      ((lambda (y z) ^e1^)
+      ^e2^
+      (+ c d x))))
+      3
+      4)
+    </SCHEME>
+  </SNIPPET>
+      </TEXT>
+
+      <TEXT>
+  <INDEX>compile-time environment</INDEX>
+  One way for the compiler to produce code that uses lexical addressing
+  is to maintain a data structure called a <EM>compile-time
+    environment</EM>.  This keeps track of which variables will be at which
+  positions in which frames in the run-time environment when a
+  particular variable-access operation is executed.  The compile-time
+  environment is a list of frames, each containing a list of variables.
+  (There will of course be no values bound to the variables, since
+  values are not computed at compile time.)  The compile-time
+  environment becomes an additional argument to <SCHEMEINLINE>compile</SCHEMEINLINE> and is
+  passed along to each code generator.  The top-level call to <SCHEMEINLINE>compile</SCHEMEINLINE> uses an empty compile-time environment.
+  When a <SCHEMEINLINE>lambda</SCHEMEINLINE> body is compiled, <SCHEMEINLINE>compile-lambda-body</SCHEMEINLINE>
+  extends the compile-time environment by a frame containing the
+  <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE><APOS/>s parameters, so that the sequence making up the body
+  is compiled with that extended environment.
+  At each point in the compilation, <SCHEMEINLINE>compile-variable</SCHEMEINLINE> and <SCHEMEINLINE>compile-assignment</SCHEMEINLINE> use the compile-time
+  environment in order to generate the appropriate lexical addresses.
+      </TEXT>
+
+      <TEXT>
+  Exercises<SPACE/><REF NAME="ex:lexical-address-start"/>
+  through<SPACE/><REF NAME="ex:lexical-address-end"/> describe how to complete this sketch of
+  the lexical-addressing strategy in order to incorporate lexical lookup
+  into the compiler.
+  Exercise<SPACE/><REF NAME="ex:cte-open-code"/> describes another use for the
+  compile-time environment.
+  <INDEX>compiler for Scheme<SUBINDEX>lexical addressing|)</SUBINDEX></INDEX>
+  <INDEX>lexical addressing|)</INDEX>
+      </TEXT>
+
+      <EXERCISE>
+  <!--  \indcode{lexical-address-lookup}\indcode{lexical-address-set!} -->
+  Write a
+  <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+  <SCHEMEINLINE>lexical-address-lookup</SCHEMEINLINE> that implements the new
+  lookup operation.  It should take two arguments<EMDASH/>a lexical address
+  and a run-time environment<EMDASH/>and return the value of the variable
+  stored at the specified lexical address.  <SCHEMEINLINE>Lexical-address-lookup</SCHEMEINLINE>
+  should signal an error if the value of the variable is the symbol <SCHEMEINLINE>*unassigned*</SCHEMEINLINE>.<FOOTNOTE>This is the modification to variable lookup
+    <INDEX>scanning out internal definitions<SUBINDEX>compiler@in compiler</SUBINDEX></INDEX>
+    <INDEX>compiler for Scheme<SUBINDEX>scanning out internal definitions</SUBINDEX></INDEX>
+    required if we implement the scanning method to eliminate internal
+    definitions (exercise<SPACE/><REF NAME="ex:compile-internal-defs"/>).  We will need
+    to eliminate these definitions in order for lexical addressing to
+    work.</FOOTNOTE> Also write a
+  <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+  <SCHEMEINLINE>lexical\?address\?set!</SCHEMEINLINE> that
+  implements the operation that changes the value of the variable at a
+  specified lexical address.
+  <LABEL NAME="ex:lexical-address-lookup"/>
+  <LABEL NAME="ex:lexical-address-start"/>
+      </EXERCISE>
+
+      <EXERCISE>
+  <INDEX>compile-time environment</INDEX>
+  Modify the compiler to maintain the compile-time environment as
+  described above.  That is, add a compile-time-environment argument to
+  <SCHEMEINLINE>compile</SCHEMEINLINE> and the various code generators, and extend it in
+  <SCHEMEINLINE>compile-lambda-body</SCHEMEINLINE>.
+      </EXERCISE>
+
+      <EXERCISE><LABEL NAME="ex:find-variable"/>
+  <INDEX>compile-time environment</INDEX>
+  Write a
+  <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+  <SCHEMEINLINE>find-variable</SCHEMEINLINE> that takes as arguments a
+  variable and a compile-time environment and returns the lexical
+  address of the variable with respect to that environment.  For
+  example, in the program fragment that is shown above, the compile-time
+  environment during the compilation of expression <LATEXINLINE>e1</LATEXINLINE> is <SPLITINLINE><SCHEME><SCHEMEINLINE>((y z) (a b c d e) (x y))</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>???</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>.  <SCHEMEINLINE>Find-variable</SCHEMEINLINE> should produce
+
+  <SNIPPET>
+    <SCHEME>
+      (find-variable 'c '((y z) (a b c d e) (x y)))
+    </SCHEME>
+    <SCHEMEOUTPUT>
+      (1 2)
+    </SCHEMEOUTPUT>
+    
+  </SNIPPET>
+
+  <SNIPPET>
+    <SCHEME>
+      (find-variable 'x '((y z) (a b c d e) (x y)))
+    </SCHEME>
+    <SCHEMEOUTPUT>
+      (2 0)
+    </SCHEMEOUTPUT>
+    
+  </SNIPPET>
+
+  <SNIPPET>
+    <SCHEME>
+      (find-variable 'w '((y z) (a b c d e) (x y)))
+    </SCHEME>
+    <SCHEMEOUTPUT>
+      not-found
+    </SCHEMEOUTPUT>
+    
+  </SNIPPET>
+      </EXERCISE>
+
+      <EXERCISE>
+  Using <SCHEMEINLINE>find-variable</SCHEMEINLINE> from exercise<SPACE/><REF NAME="ex:find-variable"/>,
+  rewrite <SCHEMEINLINE>compile-variable</SCHEMEINLINE> and <SCHEMEINLINE>compile-assignment</SCHEMEINLINE> to output
+  lexical-address instructions.  In cases where <SCHEMEINLINE>find-variable</SCHEMEINLINE>
+  returns <SCHEMEINLINE>not-found</SCHEMEINLINE> (that is, where the variable is not in the
+  compile-time environment), you should have the code generators use the
+  evaluator operations, as before, to search for the binding.
+  (The only place a variable that is not found at compile time can be is in
+  the global environment, which is part of the run-time environment but
+  is not part of the compile-time 
+  environment.<FOOTNOTE>Lexical addresses cannot be used to access variables in the global
+    environment, because these names can be defined and redefined
+    interactively at any time.  With internal definitions scanned out, as
+    in exercise<SPACE/><REF NAME="ex:compile-internal-defs"/>, the only definitions the
+    compiler sees are those at top level, which act on the global
+    environment.  Compilation of a definition does not cause the defined
+    name to be entered in the compile-time environment.</FOOTNOTE>
+  Thus, if you wish, you may have the evaluator operations look directly in
+  the global environment, which can be obtained with the operation <SPLITINLINE><SCHEME><SCHEMEINLINE>(op<SPACE/>get-global-environment)</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>???</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>, instead of having them search the whole run-time
+  environment found in <SCHEMEINLINE>env</SCHEMEINLINE>.)
+  Test the modified compiler on a few simple cases, such as the nested
+  <SCHEMEINLINE>lambda</SCHEMEINLINE> combination at the beginning of this section.
+  <LABEL NAME="ex:impl-lex-addr"/>
+      </EXERCISE>
+
+      <EXERCISE>
+  <INDEX>scanning out internal definitions<SUBINDEX>compiler@in compiler</SUBINDEX></INDEX>
+  <INDEX>compiler for Scheme<SUBINDEX>scanning out internal definitions</SUBINDEX></INDEX>
+  We argued in section<SPACE/><REF NAME="sec:internal-definitions"/> that internal definitions
+  for block structure should not be considered <QUOTE>real</QUOTE> <SCHEMEINLINE>define</SCHEMEINLINE>s.  Rather,
+  a
+  <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+  body should be interpreted as if the internal variables being
+  defined were installed as ordinary <SCHEMEINLINE>lambda</SCHEMEINLINE> variables initialized to their
+  correct values using <SPLITINLINE><SCHEME><SCHEMEINLINE>set!</SCHEMEINLINE></SCHEME><JAVASCRIPT>assignment</JAVASCRIPT></SPLITINLINE>.  Section<SPACE/><REF NAME="sec:internal-definitions"/> and
+  exercise<SPACE/><REF NAME="ex:internal-defs"/> showed how to modify the metacircular
+  interpreter to accomplish this by scanning out internal definitions.  Modify
+  the compiler to perform the same transformation before it compiles a
+  <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+  body.
+  <LABEL NAME="ex:compile-internal-defs"/>
+  <LABEL NAME="ex:lexical-address-end"/>
+      </EXERCISE>
+
+      <EXERCISE>
+  <INDEX>compiler for Scheme<SUBINDEX>open coding of primitives</SUBINDEX></INDEX>
+  <INDEX>open coding of primitives</INDEX>
+  <INDEX>reserved words</INDEX>
+  <INDEX>compile-time environment<SUBINDEX>open coding and</SUBINDEX></INDEX>
+  In this section we have focused on the use of the compile-time
+  environment to produce lexical addresses.  But there are other uses
+  for compile-time environments.  For instance, in
+  exercise<SPACE/><REF NAME="ex:open-code"/> we increased the efficiency of compiled
+  code by open-coding primitive
+  <SPLITINLINE><SCHEME>procedures</SCHEME><JAVASCRIPT>functions</JAVASCRIPT></SPLITINLINE>.  Our implementation treated
+  the names of open-coded
+  <SPLITINLINE><SCHEME>procedures</SCHEME><JAVASCRIPT>functions</JAVASCRIPT></SPLITINLINE>
+  as reserved words.  If a program
+  were to rebind such a name, the mechanism described in
+  exercise<SPACE/><REF NAME="ex:open-code"/> would still open-code it as a primitive,
+  ignoring the new binding.  For example, consider the
+  <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+
+  <SNIPPET>
+    <SCHEME>
+      (lambda (+ * a b x y)
+      (+ (* a x) (* b y)))
+    </SCHEME>
+  </SNIPPET>
+  which computes a linear combination of <SCHEMEINLINE>x</SCHEMEINLINE> and <SCHEMEINLINE>y</SCHEMEINLINE>.  We might
+  call it with arguments <SCHEMEINLINE>+matrix</SCHEMEINLINE>, <SCHEMEINLINE>*matrix</SCHEMEINLINE>, and four
+  matrices, but the open-coding compiler would still open-code the <SCHEMEINLINE>+</SCHEMEINLINE> and the <SCHEMEINLINE>*</SCHEMEINLINE> in <SPLITINLINE><SCHEME><SCHEMEINLINE>(+ (* a x) (* b y))</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>???</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> as primitive <SCHEMEINLINE>+</SCHEMEINLINE>
+  and <SCHEMEINLINE>*</SCHEMEINLINE>.  Modify the open-coding compiler to consult the
+  compile-time environment in order to compile the correct code for
+  expressions involving the names of primitive
+  <SPLITINLINE><SCHEME>procedures</SCHEME><JAVASCRIPT>functions</JAVASCRIPT></SPLITINLINE>.
+  (The code will work correctly as long as the program does not <SCHEMEINLINE>define</SCHEMEINLINE> or <SPLITINLINE><SCHEME><SCHEMEINLINE>set!</SCHEMEINLINE></SCHEME><JAVASCRIPT>assignment</JAVASCRIPT></SPLITINLINE> these names.)
+  <LABEL NAME="ex:cte-open-code"/>
+      </EXERCISE>
+
+    </SUBSECTION>

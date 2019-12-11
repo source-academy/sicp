@@ -1,0 +1,220 @@
+    <SUBSECTION>
+      <NAME>
+  Combining Instruction Sequences
+      </NAME>
+
+      <LABEL NAME="sec:combining-instruction-sequences"/>
+      <INDEX>instruction sequence|(</INDEX>
+      <TEXT>
+  This section describes the details on how instruction sequences are
+  represented and combined.  Recall from
+  section<SPACE/><REF NAME="sec:instruction-sequences"/> that an instruction sequence
+  is represented as a list of the registers needed, the registers
+  modified, and the actual instructions.  We will also consider a label
+  (symbol) to be a degenerate case of an instruction sequence, which doesn<APOS/>t
+  need or modify any registers.
+  So to determine the registers needed
+  and modified by instruction sequences we use the selectors
+  <SNIPPET EVAL="no">
+    <SCHEME>
+      <!--  \indcode*{registers-needed} -->
+      (define (registers-needed s)
+      (if (symbol? s) '() (car s)))
+
+      <!--  \indcode*{registers-modified} -->
+      (define (registers-modified s)
+      (if (symbol? s) '() (cadr s)))
+
+      <!--  \indcode*{statements} -->
+      (define (statements s)
+      (if (symbol? s) (list s) (caddr s)))
+    </SCHEME>
+  </SNIPPET>
+
+  and to determine whether a given
+  sequence needs or modifies a given register we use the predicates
+  <SNIPPET EVAL="no">
+    <SCHEME>
+      <!--  \indcode*{needs-register?} -->
+      (define (needs-register? seq reg)
+      (memq reg (registers-needed seq)))
+
+      <!--  \indcode*{modifies-register?} -->
+      (define (modifies-register? seq reg)
+      (memq reg (registers-modified seq)))
+    </SCHEME>
+  </SNIPPET>
+      </TEXT>
+
+      <TEXT>
+  In terms of these predicates and selectors, we can implement the
+  various instruction sequence combiners used throughout the compiler.
+      </TEXT>
+
+      <TEXT>
+  The basic combiner is <SCHEMEINLINE>append-instruction-sequences</SCHEMEINLINE>.  This takes as
+  arguments an arbitrary number of instruction sequences that are to be executed
+  sequentially and returns an instruction sequence whose statements are the
+  statements of all the sequences appended together.  The subtle point is to
+  determine the registers that are needed and modified by the resulting
+  sequence.  It modifies those registers that are modified by any of the
+  sequences; it needs those registers that must be initialized before the first
+  sequence can be run (the registers needed by the first sequence), together
+  with those registers needed by any of the other sequences that are not
+  initialized (modified) by sequences preceding it.
+      </TEXT>
+
+      <TEXT>
+  The sequences are appended two at a time by <SCHEMEINLINE>append-2-sequences</SCHEMEINLINE>.  This
+  takes two instruction sequences <SCHEMEINLINE>seq1</SCHEMEINLINE> and <SCHEMEINLINE>seq2</SCHEMEINLINE> and returns the
+  instruction sequence whose statements are the statements of <SCHEMEINLINE>seq1</SCHEMEINLINE>
+  followed by the statements of <SCHEMEINLINE>seq2</SCHEMEINLINE>, whose modified registers are those
+  registers that are modified by either <SCHEMEINLINE>seq1</SCHEMEINLINE> or <SCHEMEINLINE>seq2</SCHEMEINLINE>, and whose
+  needed registers are the registers needed by <SCHEMEINLINE>seq1</SCHEMEINLINE> together with those
+  registers needed by <SCHEMEINLINE>seq2</SCHEMEINLINE> that are not modified by <SCHEMEINLINE>seq1</SCHEMEINLINE>.  (In terms
+  of set operations, the new set of needed registers is the union of the set of
+  registers needed by <SCHEMEINLINE>seq1</SCHEMEINLINE> with the set difference of the registers needed
+  by <SCHEMEINLINE>seq2</SCHEMEINLINE> and the registers modified by <SCHEMEINLINE>seq1</SCHEMEINLINE>.)  Thus, <SCHEMEINLINE>append-instruction-sequences</SCHEMEINLINE> is implemented as follows:
+
+  <SNIPPET EVAL="no">
+    <SCHEME>
+      <!--  \indcode*{append-instruction-sequences} -->
+      (define (append-instruction-sequences . seqs)
+      (define (append-2-sequences seq1 seq2)
+      (make-instruction-sequence
+      (list-union (registers-needed seq1)
+            (list-difference (registers-needed seq2)
+            (registers-modified seq1)))
+      (list-union (registers-modified seq1)
+            (registers-modified seq2))
+      (append (statements seq1) (statements seq2))))
+      (define (append-seq-list seqs)
+      (if (null? seqs)
+            (empty-instruction-sequence)
+            (append-2-sequences (car seqs)
+            (append-seq-list (cdr seqs)))))
+      (append-seq-list seqs))
+    </SCHEME>
+  </SNIPPET>
+      </TEXT>
+
+      <TEXT>
+  This
+  <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+  uses some simple operations for manipulating sets
+  represented as lists, similar to the (unordered) set representation
+  described in section<SPACE/><REF NAME="sec:representing-sets"/>:
+  <SNIPPET EVAL="no">
+    <SCHEME>
+      <!--  \indcode*{list-union} -->
+      (define (list-union s1 s2)
+      (cond ((null? s1) s2)
+            ((memq (car s1) s2) (list-union (cdr s1) s2))
+            (else (cons (car s1) (list-union (cdr s1) s2)))))
+
+      <!--  \indcode*{list-difference} -->
+      (define (list-difference s1 s2)
+      (cond ((null? s1) '())
+            ((memq (car s1) s2) (list-difference (cdr s1) s2))
+            (else (cons (car s1)
+            (list-difference (cdr s1) s2)))))
+    </SCHEME>
+  </SNIPPET>
+      </TEXT>
+
+      <TEXT>
+  <SCHEMEINLINE>Preserving</SCHEMEINLINE>, the second major instruction sequence combiner, takes a list
+  of registers <SCHEMEINLINE>regs</SCHEMEINLINE> and two instruction sequences <SCHEMEINLINE>seq1</SCHEMEINLINE> and <SCHEMEINLINE>seq2</SCHEMEINLINE> that are to be executed sequentially.  It returns an instruction
+  sequence whose statements are the statements of <SCHEMEINLINE>seq1</SCHEMEINLINE> followed by the
+  statements of <SCHEMEINLINE>seq2</SCHEMEINLINE>, with appropriate <SCHEMEINLINE>save</SCHEMEINLINE> and <SCHEMEINLINE>restore</SCHEMEINLINE>
+  instructions around <SCHEMEINLINE>seq1</SCHEMEINLINE> to protect the registers in <SCHEMEINLINE>regs</SCHEMEINLINE> that are
+  modified by <SCHEMEINLINE>seq1</SCHEMEINLINE> but needed by <SCHEMEINLINE>seq2</SCHEMEINLINE>.  To accomplish this, <SCHEMEINLINE>preserving</SCHEMEINLINE> first creates a sequence that has the required <SCHEMEINLINE>save</SCHEMEINLINE>s
+  followed by the statements of <SCHEMEINLINE>seq1</SCHEMEINLINE> followed by the required <SCHEMEINLINE>restore</SCHEMEINLINE>s.  This sequence needs the registers being saved and restored in
+  addition to the registers needed by <SCHEMEINLINE>seq1</SCHEMEINLINE>, and modifies the registers
+  modified by <SCHEMEINLINE>seq1</SCHEMEINLINE> except for the ones being saved and restored.  This
+  augmented sequence and <SCHEMEINLINE>seq2</SCHEMEINLINE> are then appended in the usual way.  The
+  following
+  <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+  implements this strategy recursively, walking down the
+  list of registers to be 
+  preserved:<FOOTNOTE>Note that <SCHEMEINLINE>preserving</SCHEMEINLINE> calls <SCHEMEINLINE>append</SCHEMEINLINE> with three
+    <!--  \indcode{append}[arbitrary@with arbitrary number of arguments] -->
+    arguments.  Though the definition of <SCHEMEINLINE>append</SCHEMEINLINE> shown in this book
+    accepts only two arguments, Scheme standardly provides an <SCHEMEINLINE>append</SCHEMEINLINE>
+    <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+    that takes an arbitrary number of arguments.</FOOTNOTE>
+  <SNIPPET EVAL="no">
+    <SCHEME>
+      <!--  \indcode*{preserving} -->
+      (define (preserving regs seq1 seq2)
+      (if (null? regs)
+      (append-instruction-sequences seq1 seq2)
+      (let ((first-reg (car regs)))
+            (if (and (needs-register? seq2 first-reg)
+            (modifies-register? seq1 first-reg))
+            (preserving (cdr regs)
+            (make-instruction-sequence
+            (list-union (list first-reg)
+            (registers-needed seq1))
+            (list-difference (registers-modified seq1)
+            (list first-reg))
+            (append `((save ,first-reg))
+            (statements seq1)
+            `((restore ,first-reg))))
+            seq2)
+            (preserving (cdr regs) seq1 seq2)))))
+    </SCHEME>
+  </SNIPPET>
+      </TEXT>
+
+      <TEXT>
+  Another sequence combiner, <SCHEMEINLINE>tack-on-instruction-sequence</SCHEMEINLINE>,
+  is used by <SCHEMEINLINE>compile-lambda</SCHEMEINLINE> to append a
+  <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+  body to another
+  sequence.  Because the
+  <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+  body is not <QUOTE>in line</QUOTE> to be
+  executed as part of the combined sequence, its register use has no
+  impact on the register use of the sequence in which it is embedded.
+  We thus ignore the
+  <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+  body<APOS/>s sets of needed and modified
+  registers when we tack it onto the other sequence.
+
+  <SNIPPET EVAL="no">
+    <SCHEME>
+      <!--  \indcode*{tack-on-instruction-sequence} -->
+      (define (tack-on-instruction-sequence seq body-seq)
+      (make-instruction-sequence
+      (registers-needed seq)
+      (registers-modified seq)
+      (append (statements seq) (statements body-seq))))
+    </SCHEME>
+  </SNIPPET>
+      </TEXT>
+
+      <TEXT>
+  <SCHEMEINLINE>Compile-if</SCHEMEINLINE> and <SCHEMEINLINE>compile-procedure-call</SCHEMEINLINE> use a special
+  combiner called <SCHEMEINLINE>parallel-instruction-sequences</SCHEMEINLINE> to append the two
+  alternative branches that follow a test.  The two branches will never be
+  executed sequentially; for any particular evaluation of the test, one
+  branch or the other will be entered.  Because of this, the registers needed by the second branch are still needed by the combined sequence,
+  even if these are modified by the first branch.
+
+  <SNIPPET EVAL="no">
+    <SCHEME>
+      <!--  \indcode*{parallel-instruction-sequences} -->
+      (define (parallel-instruction-sequences seq1 seq2)
+      (make-instruction-sequence
+      (list-union (registers-needed seq1)
+            (registers-needed seq2))
+      (list-union (registers-modified seq1)
+            (registers-modified seq2))
+      (append (statements seq1) (statements seq2))))
+    </SCHEME>
+  </SNIPPET>
+  <INDEX>instruction sequence|)</INDEX>
+      </TEXT>
+
+    </SUBSECTION>

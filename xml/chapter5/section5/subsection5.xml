@@ -1,0 +1,617 @@
+    <SUBSECTION>
+      <NAME>
+  An Example of Compiled Code
+      </NAME>
+
+      <LABEL NAME="sec:compiled-code"/>
+      <INDEX>compiler for Scheme<SUBINDEX>example compilation|(</SUBINDEX></INDEX>
+      <!--  \indcode{factorial}[compilation of|(] -->
+      <TEXT>
+  Now that we have seen all the elements of the compiler, let us examine
+  an example of compiled code to see how things fit together.  We will
+  compile the definition of a recursive <SCHEMEINLINE>factorial</SCHEMEINLINE>
+  <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+  by
+  calling <SCHEMEINLINE>compile</SCHEMEINLINE>:
+
+  <SNIPPET>
+    <SCHEME>
+      (compile
+      '(define (factorial n)
+      (if (= n 1)
+            1
+            (* (factorial (- n 1)) n)))
+      'val
+      'next)
+    </SCHEME>
+  </SNIPPET>
+      </TEXT>
+
+      <TEXT>
+  We have specified that the value of the <SCHEMEINLINE>define</SCHEMEINLINE> expression should
+  be placed in the <SCHEMEINLINE>val</SCHEMEINLINE> register.  We don<APOS/>t care what the compiled
+  code does after executing the <SCHEMEINLINE>define</SCHEMEINLINE>, so our choice of <SCHEMEINLINE>next</SCHEMEINLINE> as the linkage descriptor is arbitrary.
+      </TEXT>
+
+      <TEXT>
+  <SCHEMEINLINE>Compile</SCHEMEINLINE> determines that the expression is a definition, so it calls <SCHEMEINLINE>compile-definition</SCHEMEINLINE> to compile code to compute the value to be assigned
+  (targeted to <SCHEMEINLINE>val</SCHEMEINLINE>), followed by code to install the definition, followed
+  by code to put the value of the <SCHEMEINLINE>define</SCHEMEINLINE> (which is the symbol <SCHEMEINLINE>ok</SCHEMEINLINE>)
+  into the target register, followed finally by the linkage code.  <SCHEMEINLINE>Env</SCHEMEINLINE> is
+  preserved around the computation of the value, because it is needed in order
+  to install the definition.  Because the linkage is <SCHEMEINLINE>next</SCHEMEINLINE>, there is no
+  linkage code in this case.  The skeleton of the compiled code is thus
+
+  <SNIPPET EVAL="no">
+    <SCHEME>
+      ^save^ env ^if modified by code to compute value^
+      ^compilation of definition value, target^ val^, linkage^ next
+      ^restore^ env ^if saved above^
+      (perform (op define-variable!)
+            (const factorial)
+            (reg val)
+            (reg env))
+      (assign val (const ok))
+    </SCHEME>
+  </SNIPPET>
+      </TEXT>
+
+      <TEXT>
+  The expression that is to be compiled to produce the value for the
+  variable <SCHEMEINLINE>factorial</SCHEMEINLINE> is a <SCHEMEINLINE>lambda</SCHEMEINLINE> expression whose value is
+  the
+  <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+  that computes factorials.  <SCHEMEINLINE>Compile</SCHEMEINLINE> handles this by
+  calling <SCHEMEINLINE>compile-lambda</SCHEMEINLINE>, which compiles the
+  <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+  body,
+  labels it as a new entry point, and generates the instruction that
+  will combine the
+  <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+  body at the new entry point with the
+  run-time environment and assign the result to <SCHEMEINLINE>val</SCHEMEINLINE>.  The sequence
+  then skips around the compiled
+  <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+  code, which is inserted at
+  this point.  The
+  <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+  code itself begins by extending the
+  <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE><APOS/>s definition environment by a frame that binds
+  the formal parameter <SCHEMEINLINE>n</SCHEMEINLINE> to the
+  <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+  argument.  Then comes the actual
+  <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+  body.  Since this code for the value of the variable
+  doesn<APOS/>t modify the <SCHEMEINLINE>env</SCHEMEINLINE> register, the optional <SCHEMEINLINE>save</SCHEMEINLINE>
+  and <SCHEMEINLINE>restore</SCHEMEINLINE> shown above aren<APOS/>t generated.  (The
+  <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+  code at
+  <SCHEMEINLINE>entry2</SCHEMEINLINE> isn<APOS/>t executed at this point, so its use of <SCHEMEINLINE>env</SCHEMEINLINE>
+  is irrelevant.)
+  Therefore, the skeleton for the compiled code becomes
+
+  <SNIPPET EVAL="no">
+    <SCHEME>
+      (assign val (op make-compiled-procedure)
+            (label entry2)
+            (reg env))
+      (goto (label after-lambda1))
+      entry2
+      (assign env (op compiled-procedure-env) (reg proc))
+      (assign env (op extend-environment)
+            (const (n))
+            (reg argl)
+            (reg env))
+      ^compilation of procedure body^
+      after-lambda1
+      (perform (op define-variable!)
+            (const factorial)
+            (reg val)
+            (reg env))
+      (assign val (const ok))
+    </SCHEME>
+  </SNIPPET>
+      </TEXT>
+
+      <TEXT>
+  A
+  <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+  body is always compiled (by <SCHEMEINLINE>compile-lambda-body</SCHEMEINLINE>) as
+  a sequence with target <SCHEMEINLINE>val</SCHEMEINLINE> and linkage <SCHEMEINLINE>return</SCHEMEINLINE>.  The
+  sequence in this case consists of a single <SCHEMEINLINE>if</SCHEMEINLINE> expression:
+
+  <SNIPPET>
+    <SCHEME>
+      (if (= n 1)
+      1
+      (* (factorial (- n 1)) n))
+    </SCHEME>
+  </SNIPPET>
+      </TEXT>
+
+      <TEXT>
+  <SCHEMEINLINE>Compile-if</SCHEMEINLINE> generates code that first computes the predicate (targeted to
+  <SCHEMEINLINE>val</SCHEMEINLINE>), then checks the result and branches around the true branch if the
+  predicate is false.  <SCHEMEINLINE>Env</SCHEMEINLINE> and <SCHEMEINLINE>continue</SCHEMEINLINE> are preserved around the
+  predicate code, since they may be needed for the rest of the <SCHEMEINLINE>if</SCHEMEINLINE>
+  expression.  Since the <SCHEMEINLINE>if</SCHEMEINLINE> expression is the final expression (and only
+  expression) in the sequence making up the
+  <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+  body, its target is <SCHEMEINLINE>val</SCHEMEINLINE> and its linkage is <SCHEMEINLINE>return</SCHEMEINLINE>, so the true and false branches are both
+  compiled with target <SCHEMEINLINE>val</SCHEMEINLINE> and linkage <SCHEMEINLINE>return</SCHEMEINLINE>.
+  (That is, the value of the conditional, which is the value computed by
+  either of its branches, is the value of the
+  <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>.)
+
+  <SNIPPET EVAL="no">
+    <SCHEME>
+      ^save^ continue^,^ env ^if modified by predicate and needed by branches^
+      ^compilation of predicate, target^ val^, linkage^ next
+      ^restore^ continue^,^ env ^if saved above^
+      (test (op false?) (reg val))
+      (branch (label false-branch4))
+      true-branch5
+      ^compilation of true branch, target^ val^, linkage^ return
+      false-branch4
+      ^compilation of false branch, target^ val^, linkage^ return
+      after-if3
+    </SCHEME>
+  </SNIPPET>
+      </TEXT>
+
+      <TEXT>
+  The predicate <SPLITINLINE><SCHEME><SCHEMEINLINE>(= n 1)</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>???</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> is a
+  <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+  call.  This
+  looks up the operator (the symbol <SCHEMEINLINE>=</SCHEMEINLINE>) and places this value in
+  <SCHEMEINLINE>proc</SCHEMEINLINE>.  It then assembles the arguments <SCHEMEINLINE>1</SCHEMEINLINE> and the value of
+  <SCHEMEINLINE>n</SCHEMEINLINE> into <SCHEMEINLINE>argl</SCHEMEINLINE>.  Then it tests whether <SCHEMEINLINE>proc</SCHEMEINLINE> contains a
+  primitive or a compound
+  <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>, and dispatches to a primitive branch
+  or a compound branch accordingly.  Both branches resume at the <SCHEMEINLINE>after-call</SCHEMEINLINE> label.  The requirements to preserve registers
+  around the evaluation of the operator and operands don<APOS/>t result in
+  any saving of registers, because in this case those evaluations don<APOS/>t
+  modify the registers in question.
+
+  <SNIPPET>
+    <SCHEME>
+      (assign proc
+            (op lookup-variable-value) (const =) (reg env))
+      (assign val (const 1))
+      (assign argl (op list) (reg val))
+      (assign val (op lookup-variable-value) (const n) (reg env))
+      (assign argl (op cons) (reg val) (reg argl))
+      (test (op primitive-procedure?) (reg proc))
+      (branch (label primitive-branch17))
+      compiled-branch16
+      (assign continue (label after-call15))
+      (assign val (op compiled-procedure-entry) (reg proc))
+      (goto (reg val))
+      primitive-branch17
+      (assign val (op apply-primitive-procedure)
+            (reg proc)
+            (reg argl))
+      after-call15
+    </SCHEME>
+  </SNIPPET>
+      </TEXT>
+
+      <TEXT>
+  The true branch, which is the constant 1, compiles (with target
+  <SCHEMEINLINE>val</SCHEMEINLINE> and linkage <SCHEMEINLINE>return</SCHEMEINLINE>) to
+
+  <SNIPPET>
+    <SCHEME>
+      (assign val (const 1))
+      (goto (reg continue))
+    </SCHEME>
+  </SNIPPET>
+      </TEXT>
+
+      <TEXT>
+  The code for the false branch is another a
+  <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+  call, where the
+  <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+  is the value of the symbol <SCHEMEINLINE>*</SCHEMEINLINE>, and the arguments are
+  <SCHEMEINLINE>n</SCHEMEINLINE> and the result of another
+  <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+  call (a call to <SCHEMEINLINE>factorial</SCHEMEINLINE>).
+  Each of these calls sets up <SCHEMEINLINE>proc</SCHEMEINLINE> and <SCHEMEINLINE>argl</SCHEMEINLINE> and its own primitive
+  and compound branches.  Figure<SPACE/><REF NAME="fig:comp-factorial1"/>
+  shows the complete compilation of the
+  definition of the <SCHEMEINLINE>factorial</SCHEMEINLINE>
+  <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>.
+  Notice that the possible <SCHEMEINLINE>save</SCHEMEINLINE> and <SCHEMEINLINE>restore</SCHEMEINLINE> of
+  <SCHEMEINLINE>continue</SCHEMEINLINE> and <SCHEMEINLINE>env</SCHEMEINLINE> around the predicate, shown above,
+  are in fact generated, because these registers are modified by the
+  <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+  call in the predicate and needed for the
+  <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+  call and the
+  <SCHEMEINLINE>return</SCHEMEINLINE> linkage in the branches.
+  <INDEX>compiler for Scheme<SUBINDEX>example compilation|)</SUBINDEX></INDEX>
+      </TEXT>
+
+      <EXERCISE>
+  Consider the following definition of a factorial
+  <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>, which is
+  slightly different from the one given above:
+  <SNIPPET>
+    <SCHEME>
+      (define (factorial-alt n)
+      (if (= n 1)
+      1
+      (* n (factorial-alt (- n 1)))))
+    </SCHEME>
+  </SNIPPET>
+  Compile this
+  <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+  and compare the resulting code with that produced for
+  <SCHEMEINLINE>factorial</SCHEMEINLINE>.  Explain any differences you find.  Does either
+  program execute more efficiently than the other?
+      </EXERCISE>
+
+      <EXERCISE>
+  <INDEX>iterative process<SUBINDEX>recursive process vs.</SUBINDEX></INDEX>
+  <INDEX>recursive process<SUBINDEX>iterative process vs.</SUBINDEX></INDEX>
+  Compile the iterative factorial
+  <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+  <SNIPPET>
+    <SCHEME>
+      (define (factorial n)
+      (define (iter product counter)
+      (if (&gt; counter n)
+            product
+            (iter (* counter product)
+            (+ counter 1))))
+      (iter 1 1))
+    </SCHEME>
+  </SNIPPET>
+  Annotate the resulting code, showing the essential difference between
+  the code for iterative and recursive versions of <SCHEMEINLINE>factorial</SCHEMEINLINE> that
+  makes one process build up stack space and the other run in constant
+  stack space.
+  <LABEL NAME="ex:compiled-fact"/>
+      </EXERCISE>
+      <!--  \indcode{factorial}[compilation of|)] -->
+
+      <TEXT>  
+  \begin{figure}
+  <SNIPPET>
+    <SCHEME>
+      <EM>;; construct the
+        <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+        and skip over code for the
+        <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+        body</EM>
+      (assign val
+            (op make-compiled-procedure) (label entry2) (reg env))
+      (goto (label after-lambda1))
+
+      entry2     <EM>; calls to <SCHEMEINLINE>factorial</SCHEMEINLINE> will enter here</EM>
+      (assign env (op compiled-procedure-env) (reg proc))
+      (assign env
+            (op extend-environment) (const (n)) (reg argl) (reg env))
+      <EM>;; begin actual procedure body</EM>
+      (save continue)
+      (save env)
+
+      <EM>;; compute <SPLITINLINE><SCHEME><SCHEMEINLINE>(= n 1)</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>???</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE></EM>
+      (assign proc (op lookup-variable-value) (const =) (reg env))
+      (assign val (const 1))
+      (assign argl (op list) (reg val))
+      (assign val (op lookup-variable-value) (const n) (reg env))
+      (assign argl (op cons) (reg val) (reg argl))
+      (test (op primitive-procedure?) (reg proc))
+      (branch (label primitive-branch17))
+      compiled-branch16
+      (assign continue (label after-call15))
+      (assign val (op compiled-procedure-entry) (reg proc))
+      (goto (reg val))
+      primitive-branch17
+      (assign val (op apply-primitive-procedure) (reg proc) (reg argl))
+
+      after-call15   <EM>; <SCHEMEINLINE>val</SCHEMEINLINE> now contains result of <SPLITINLINE><SCHEME><SCHEMEINLINE>(= n 1)</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>???</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE></EM>
+      (restore env)
+      (restore continue)
+      (test (op false?) (reg val))
+      (branch (label false-branch4))
+      true-branch5  <EM>; return 1</EM>
+      (assign val (const 1))
+      (goto (reg continue))
+
+      false-branch4
+      <EM>;; compute and return <SPLITINLINE><SCHEME><SCHEMEINLINE>(* (factorial (- n 1)) n)</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>???</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE></EM>
+      (assign proc (op lookup-variable-value) (const *) (reg env))
+      (save continue)
+      (save proc)   <EM>; save <SCHEMEINLINE>*</SCHEMEINLINE></EM> procedure
+      (assign val (op lookup-variable-value) (const n) (reg env))
+      (assign argl (op list) (reg val))
+      (save argl)   <EM>; save partial argument list for <SCHEMEINLINE>*</SCHEMEINLINE></EM>
+
+      <EM>;; compute <SPLITINLINE><SCHEME><SCHEMEINLINE>(factorial (- n 1))</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>???</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>, which is the other argument for <SCHEMEINLINE>*</SCHEMEINLINE></EM>
+      (assign proc
+            (op lookup-variable-value) (const factorial) (reg env))
+      (save proc)  <EM>; save <SCHEMEINLINE>factorial</SCHEMEINLINE> procedure</EM>
+    </SCHEME>
+  </SNIPPET>
+  \vskip -10pt
+  \figcaption {Compilation of the definition of the <SCHEMEINLINE>factorial</SCHEMEINLINE>
+  <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+  (continued on next page).}
+  <!--  \indcode{factorial}[compilation of] -->
+  \addtocounter{figure}{-1}
+  <LABEL NAME="fig:comp-factorial1"/>
+  \end{figure}
+      </TEXT>
+
+      <TEXT>
+  \begin{figure}
+  <SNIPPET>
+    <SCHEME>
+      <EM>;; compute <SPLITINLINE><SCHEME><SCHEMEINLINE>(- n 1)</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>???</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>, which is the argument for <SCHEMEINLINE>factorial</SCHEMEINLINE></EM>
+      (assign proc (op lookup-variable-value) (const -) (reg env))
+      (assign val (const 1))
+      (assign argl (op list) (reg val))
+      (assign val (op lookup-variable-value) (const n) (reg env))
+      (assign argl (op cons) (reg val) (reg argl))
+      (test (op primitive-procedure?) (reg proc))
+      (branch (label primitive-branch8))
+      compiled-branch7
+      (assign continue (label after-call6))
+      (assign val (op compiled-procedure-entry) (reg proc))
+      (goto (reg val))
+      primitive-branch8
+      (assign val (op apply-primitive-procedure) (reg proc) (reg argl))
+
+      after-call6   <EM>; <SCHEMEINLINE>val</SCHEMEINLINE> now contains result of <SPLITINLINE><SCHEME><SCHEMEINLINE>(- n 1)</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>???</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE></EM>
+      (assign argl (op list) (reg val))
+      (restore proc) <EM>; restore <SCHEMEINLINE>factorial</SCHEMEINLINE></EM>
+      <EM>;; apply <SCHEMEINLINE>factorial</SCHEMEINLINE></EM>
+      (test (op primitive-procedure?) (reg proc))
+      (branch (label primitive-branch11))
+      compiled-branch10
+      (assign continue (label after-call9))
+      (assign val (op compiled-procedure-entry) (reg proc))
+      (goto (reg val))
+      primitive-branch11
+      (assign val (op apply-primitive-procedure) (reg proc) (reg argl))
+
+      after-call9      <EM>; <SCHEMEINLINE>val</SCHEMEINLINE> now contains result of <SPLITINLINE><SCHEME><SCHEMEINLINE>(factorial (- n 1))</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>???</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE></EM>
+      (restore argl) <EM>; restore partial argument list for <SCHEMEINLINE>*</SCHEMEINLINE></EM>
+      (assign argl (op cons) (reg val) (reg argl))
+      (restore proc) <EM>; restore <SCHEMEINLINE>*</SCHEMEINLINE></EM>
+      (restore continue)
+      <EM>;; apply <SCHEMEINLINE>*</SCHEMEINLINE></EM> and return its value
+      (test (op primitive-procedure?) (reg proc))
+      (branch (label primitive-branch14))
+      compiled-branch13
+      <EM>;; note that a compound procedure here is called tail-recursively</EM>
+      (assign val (op compiled-procedure-entry) (reg proc))
+      (goto (reg val))
+      primitive-branch14
+      (assign val (op apply-primitive-procedure) (reg proc) (reg argl))
+      (goto (reg continue))
+      after-call12
+      after-if3
+      after-lambda1
+      <EM>;; assign the procedure to the variable <SCHEMEINLINE>factorial</SCHEMEINLINE></EM>
+      (perform
+      (op define-variable!) (const factorial) (reg val) (reg env))
+      (assign val (const ok))
+    </SCHEME>
+  </SNIPPET>
+  \vskip -10pt
+  \figcaption{(continued)}
+  \end{figure}
+      </TEXT>
+
+      <EXERCISE><LABEL NAME="ex:compiled-code"/>
+  What expression was compiled to produce the code shown in
+  figure<SPACE/><REF NAME="fig:compilation-example1"/>?
+  \begin{figure}
+  <SNIPPET>
+    <SCHEME>
+      (assign val (op make-compiled-procedure) (label entry16)
+            (reg env))
+      (goto (label after-lambda15))
+      entry16
+      (assign env (op compiled-procedure-env) (reg proc))
+      (assign env
+            (op extend-environment) (const (x)) (reg argl) (reg env))
+      (assign proc (op lookup-variable-value) (const +) (reg env))
+      (save continue)
+      (save proc)
+      (save env)
+      (assign proc (op lookup-variable-value) (const g) (reg env))
+      (save proc)
+      (assign proc (op lookup-variable-value) (const +) (reg env))
+      (assign val (const 2))
+      (assign argl (op list) (reg val))
+      (assign val (op lookup-variable-value) (const x) (reg env))
+      (assign argl (op cons) (reg val) (reg argl))
+      (test (op primitive-procedure?) (reg proc))
+      (branch (label primitive-branch19))
+      compiled-branch18
+      (assign continue (label after-call17))
+      (assign val (op compiled-procedure-entry) (reg proc))
+      (goto (reg val))
+      primitive-branch19
+      (assign val (op apply-primitive-procedure) (reg proc) (reg argl))
+      after-call17
+      (assign argl (op list) (reg val))
+      (restore proc)
+      (test (op primitive-procedure?) (reg proc))
+      (branch (label primitive-branch22))
+      compiled-branch21
+      (assign continue (label after-call20))
+      (assign val (op compiled-procedure-entry) (reg proc))
+      (goto (reg val))
+      primitive-branch22
+      (assign val (op apply-primitive-procedure) (reg proc) (reg argl))
+    </SCHEME>
+  </SNIPPET>
+  \vskip -10pt
+  \figcaption{An example of compiler output (continued on next page).
+  See exercise<SPACE/><REF NAME="ex:compiled-code"/>.}
+  \addtocounter{figure}{-1}
+  <LABEL NAME="fig:compilation-example1"/>
+  \end{figure}
+
+
+  \begin{figure}
+  <SNIPPET>
+    <SCHEME>
+      after-call20
+      (assign argl (op list) (reg val))
+      (restore env)
+      (assign val (op lookup-variable-value) (const x) (reg env))
+      (assign argl (op cons) (reg val) (reg argl))
+      (restore proc)
+      (restore continue)
+      (test (op primitive-procedure?) (reg proc))
+      (branch (label primitive-branch25))
+      compiled-branch24
+      (assign val (op compiled-procedure-entry) (reg proc))
+      (goto (reg val))
+      primitive-branch25
+      (assign val (op apply-primitive-procedure) (reg proc) (reg argl))
+      (goto (reg continue))
+      after-call23
+      after-lambda15
+      (perform (op define-variable!) (const f) (reg val) (reg env))
+      (assign val (const ok))
+    </SCHEME>
+  </SNIPPET>
+  \vskip -10pt
+  \figcaption{(continued)}
+  \end{figure}
+      </EXERCISE>
+
+      <EXERCISE> 
+  <INDEX>order of evaluation<SUBINDEX>in compiler</SUBINDEX></INDEX>
+  <INDEX>compiler for Scheme<SUBINDEX>order of operand evaluation</SUBINDEX></INDEX>
+  What order of evaluation does our compiler produce for operands of a
+  combination?  Is it left-to-right, right-to-left, or some other order?
+  Where in the compiler is this order determined?  Modify the compiler
+  so that it produces some other order of evaluation.  (See the
+  discussion of order of evaluation for the explicit-control evaluator
+  in section<SPACE/><REF NAME="sec:eceval-core"/>.)  How does changing the order of
+  operand evaluation affect the efficiency of the code that constructs
+  the argument list?
+      </EXERCISE>
+
+      <EXERCISE>
+  <INDEX>compiler for Scheme<SUBINDEX>stack usage</SUBINDEX></INDEX>
+  <!--  \indcode{preserving} -->
+  One way to understand the compiler<APOS/>s <SCHEMEINLINE>preserving</SCHEMEINLINE> mechanism for
+  optimizing stack usage is to see what extra operations would
+  be generated if we did not use this idea.  Modify <SCHEMEINLINE>preserving</SCHEMEINLINE> so
+  that it always generates the <SCHEMEINLINE>save</SCHEMEINLINE> and <SCHEMEINLINE>restore</SCHEMEINLINE> operations.
+  Compile some simple expressions and identify the unnecessary stack
+  operations that are generated.
+  Compare the code to that generated with the <SCHEMEINLINE>preserving</SCHEMEINLINE> mechanism intact.
+      </EXERCISE>
+
+      <EXERCISE>
+  <INDEX>compiler for Scheme<SUBINDEX>open coding of primitives</SUBINDEX></INDEX>
+  <INDEX>open coding of primitives</INDEX>
+  Our compiler is clever about avoiding unnecessary stack operations,
+  but it is not clever at all when it comes to compiling calls to the primitive
+  <SPLITINLINE><SCHEME>procedures</SCHEME><JAVASCRIPT>functions</JAVASCRIPT></SPLITINLINE>
+  of the language in terms of the primitive operations
+  supplied by the machine.  For example, consider how much code is
+  compiled to compute <SPLITINLINE><SCHEME><SCHEMEINLINE>(+ a 1)</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>???</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>: The code sets up an argument list
+  in <SCHEMEINLINE>argl</SCHEMEINLINE>, puts the primitive addition
+  <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+  (which it finds
+  by looking up the symbol <SCHEMEINLINE>+</SCHEMEINLINE> in the environment) into <SCHEMEINLINE>proc</SCHEMEINLINE>,
+  and tests whether the
+  <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+  is primitive or compound.  The
+  compiler always generates code to perform the test, as well as code
+  for primitive and compound branches (only one of which will be executed).
+  We have not shown the part of the controller that implements
+  primitives, but we presume that these instructions make use of
+  primitive arithmetic operations in the machine<APOS/>s data paths.  Consider
+  how much less code would be generated if the compiler could <EM>
+    open-code</EM> primitives<EMDASH/>that is, if it could generate code to directly
+  use these primitive machine operations.  The expression <SPLITINLINE><SCHEME><SCHEMEINLINE>(+ a 1)</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>???</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>
+  might be compiled into something as simple as<FOOTNOTE>We have used
+    the same symbol <SCHEMEINLINE>+</SCHEMEINLINE> here to denote both the source-language
+    <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+    and the machine operation.  In general there will not be a
+    one-to-one correspondence between primitives of the source language
+    and primitives of the machine.</FOOTNOTE>
+  <SNIPPET>
+    <SCHEME>
+      (assign val (op lookup-variable-value) (const a) (reg env))
+      (assign val (op +) (reg val) (const 1))
+    </SCHEME>
+  </SNIPPET>
+  In this exercise we will extend our compiler to support open coding of
+  selected primitives.  Special-purpose code will be generated for calls to these primitive
+  <SPLITINLINE><SCHEME>procedures</SCHEME><JAVASCRIPT>functions</JAVASCRIPT></SPLITINLINE>
+  instead of the general
+  <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>-application code.  In order to support this, we will augment
+  our machine with special argument registers <SCHEMEINLINE>arg1</SCHEMEINLINE> and <SCHEMEINLINE>arg2</SCHEMEINLINE>.
+  The primitive arithmetic operations of the machine will take their
+  inputs from <SCHEMEINLINE>arg1</SCHEMEINLINE> and <SCHEMEINLINE>arg2</SCHEMEINLINE>. The results may be put into
+  <SCHEMEINLINE>val</SCHEMEINLINE>, <SCHEMEINLINE>arg1</SCHEMEINLINE>, or <SCHEMEINLINE>arg2</SCHEMEINLINE>.
+
+  The compiler must be able to recognize the application of an
+  open-coded primitive in the source program.  We will augment the
+  dispatch in the <SCHEMEINLINE>compile</SCHEMEINLINE>
+  <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+  to recognize the names of
+  these primitives in addition to the 
+  <INDEX>reserved words</INDEX>
+  reserved words (the special forms)
+  it currently recognizes.<FOOTNOTE>Making the primitives into reserved
+    words is in general a bad idea, since a user cannot then rebind these
+    names to different
+    <SPLITINLINE><SCHEME>procedures</SCHEME><JAVASCRIPT>functions</JAVASCRIPT></SPLITINLINE>.  Moreover, if we add reserved words to
+    a compiler that is in use, existing programs that define
+    <SPLITINLINE><SCHEME>procedures</SCHEME><JAVASCRIPT>functions</JAVASCRIPT></SPLITINLINE>
+    with these names will stop working.  See
+    exercise<SPACE/><REF NAME="ex:cte-open-code"/> for ideas on how to avoid this
+    problem.</FOOTNOTE> For each special form our compiler has a code generator.  In
+  this exercise we will construct a family of code generators for the
+  open-coded primitives.
+  <OL>
+    <LI>
+      The open-coded primitives, unlike the special forms, all need their
+      operands evaluated.  Write a code generator <SCHEMEINLINE>spread-arguments</SCHEMEINLINE> for use by
+      all the open-coding code generators.  <SCHEMEINLINE>Spread-arguments</SCHEMEINLINE> should take an
+      operand list and compile the given operands targeted to successive argument
+      registers.  Note that an operand may contain a call to an open-coded
+      primitive, so argument registers will have to be preserved during operand
+      evaluation.
+    </LI>
+    <LI>
+      For each of the primitive
+      <SPLITINLINE><SCHEME>procedures</SCHEME><JAVASCRIPT>functions</JAVASCRIPT></SPLITINLINE>
+      <SCHEMEINLINE>=</SCHEMEINLINE>, <SCHEMEINLINE>*</SCHEMEINLINE>, <SCHEMEINLINE>-</SCHEMEINLINE>, and
+      <SCHEMEINLINE>+</SCHEMEINLINE>, write a code generator that takes a combination with that
+      operator, together with a target and a linkage descriptor, and
+      produces code to spread the arguments into the registers and then
+      perform the operation targeted to the given target with the given
+      linkage.  You need only handle expressions with two operands.  Make
+      <SCHEMEINLINE>compile</SCHEMEINLINE> dispatch to these code generators.
+    </LI>
+    <LI>
+      Try your new compiler on the <SCHEMEINLINE>factorial</SCHEMEINLINE> example.  Compare the
+      resulting code with the result produced without open coding.
+    </LI>
+    <LI>
+      Extend your code generators for <SCHEMEINLINE>+</SCHEMEINLINE> and <SCHEMEINLINE>*</SCHEMEINLINE> so that they
+      can handle expressions with arbitrary numbers of operands.  An
+      expression with more than two operands will have to be compiled into a
+      sequence of operations, each with only two inputs.
+      <LABEL NAME="ex:open-code"/>
+    </LI>
+  </OL>
+      </EXERCISE>
+
+    </SUBSECTION>
