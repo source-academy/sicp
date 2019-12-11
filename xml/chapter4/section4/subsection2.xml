@@ -1,0 +1,695 @@
+    <SUBSECTION>
+      <NAME>
+  How the Query System Works
+      </NAME>
+
+      <LABEL NAME="sec:how-query-works"/>
+      <INDEX>query interpreter<SUBINDEX>overview|(</SUBINDEX></INDEX>
+
+      <TEXT>
+  In section<SPACE/><REF NAME="sec:implementing-the-query-system"/> we will present an
+  implementation of the query interpreter as a collection of
+  <SPLITINLINE><SCHEME>procedures</SCHEME><JAVASCRIPT>functions</JAVASCRIPT></SPLITINLINE>.
+  In this section we give an overview that explains the general
+  structure of the system independent of low-level implementation
+  details.  After describing the implementation of the interpreter, we
+  will be in a position to understand some of its limitations and some
+  of the subtle ways in which the query language<APOS/>s logical operations
+  differ from the operations of mathematical logic.
+      </TEXT>
+
+      <TEXT>
+  It should be apparent that the query evaluator must perform some kind
+  of search in order to match queries against facts and rules in the
+  data base.  One way to do this would be to implement the query system
+  as a nondeterministic program, using the <SCHEMEINLINE>amb</SCHEMEINLINE> evaluator of
+  section<SPACE/><REF NAME="sec:nondeterministic-evaluation"/> (see
+  exercise<SPACE/><REF NAME="ex:query-lang-amb"/>).  Another possibility is to manage
+  the search with the aid of streams.  Our implementation follows this
+  second approach.
+      </TEXT>
+
+      <TEXT>
+  The query system is organized around two central operations called
+  <EM>pattern matching</EM> and <EM>unification</EM>.  We first describe
+  pattern matching and explain how this operation, together with the
+  organization of information in terms of streams of frames, enables us
+  to implement both simple and compound queries.  We next discuss
+  unification, a generalization of pattern matching needed to implement
+  rules.  Finally, we show how the entire query interpreter fits
+  together through a
+  <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+  that classifies expressions in a manner
+  analogous to the way
+  <SPLITINLINE>
+    <SCHEME>
+      <SCHEMEINLINE>eval</SCHEMEINLINE>
+    </SCHEME>
+    <JAVASCRIPT>
+      <JAVASCRIPTINLINE>evaluate</JAVASCRIPTINLINE>
+    </JAVASCRIPT>
+  </SPLITINLINE>
+  classifies expressions for the
+  interpreter described in section<SPACE/><REF NAME="sec:mc-eval"/>.
+      </TEXT>
+
+      <SUBHEADING>
+  <NAME>Pattern matching</NAME>
+      </SUBHEADING>
+
+      <INDEX>query interpreter<SUBINDEX>pattern matching|(</SUBINDEX></INDEX>
+      <INDEX>pattern matching|(</INDEX>
+      <TEXT>
+  A <EM>pattern matcher</EM> is a program that tests whether some datum
+  fits a specified pattern.  For example, the data list <SPLITINLINE><SCHEME><SCHEMEINLINE>((a b) c (a b))</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>list(list("a", "b"), "c", list("a", "b"))</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> matches the pattern <SPLITINLINE><SCHEME><SCHEMEINLINE>(?x c ?x)</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>list(x, "c", x)</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> with the pattern variable
+  <SPLITINLINE><SCHEME><SCHEMEINLINE>?x</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>x</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> bound to <SPLITINLINE><SCHEME><SCHEMEINLINE>(a b)</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>list("a", "b")</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>.  The same data list matches the pattern
+  <SPLITINLINE><SCHEME><SCHEMEINLINE>(?x ?y ?z)</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>list(x, y, z)</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> with <SPLITINLINE><SCHEME><SCHEMEINLINE>?x</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>x</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> and <SPLITINLINE><SCHEME><SCHEMEINLINE>?z</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>z</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> both bound to <SPLITINLINE><SCHEME><SCHEMEINLINE>(a b)</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>list("a", "b")</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>
+  and <SPLITINLINE><SCHEME><SCHEMEINLINE>?y</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>y</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> bound to <SPLITINLINE><SCHEME><SCHEMEINLINE>c</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>"c"</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>.  It also matches the pattern <SPLITINLINE><SCHEME><SCHEMEINLINE>((?x<SPACE/>?y)<SPACE/>c<SPACE/>(?x<SPACE/>?y))</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>list(list(x, y), "c", list(x, y))</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> with <SPLITINLINE><SCHEME><SCHEMEINLINE>?x</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>x</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> bound to <SPLITINLINE><SCHEME><SCHEMEINLINE>a</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>"a"</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>  and <SPLITINLINE><SCHEME><SCHEMEINLINE>?y</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>y</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> bound
+  to <SPLITINLINE><SCHEME><SCHEMEINLINE>b</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>"b"</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>.  However, it does not match the pattern <SPLITINLINE><SCHEME><SCHEMEINLINE>(?x a ?y)</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>list(x, "a", y)</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>,
+  since that pattern specifies a list whose second element is
+  <SPLITINLINE><SCHEME>the symbol <SCHEMEINLINE>a</SCHEMEINLINE></SCHEME><JAVASCRIPT>the string <JAVASCRIPTINLINE>"a"</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>.
+      </TEXT>
+
+      <TEXT>
+  <INDEX>query interpreter<SUBINDEX>frame</SUBINDEX></INDEX>
+  <INDEX>frame (query interpreter)</INDEX>
+  The pattern matcher used by the query system takes as inputs a
+  pattern, a datum, and a <EM>frame</EM> that specifies bindings for
+  various pattern variables.  It checks whether the datum matches the
+  pattern in a way that is consistent with the bindings already in the
+  frame.  If so, it returns the given frame augmented by any bindings
+  that may have been determined by the match.  Otherwise, it indicates
+  that the match has failed.
+      </TEXT>
+
+      <TEXT>
+  For example, using the pattern <SPLITINLINE><SCHEME><SCHEMEINLINE>(?x ?y ?x)</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>list(x, y, z)</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> to match <SPLITINLINE><SCHEME><SCHEMEINLINE>(a b a)</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>list("a", "b", "c")</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>
+  given an empty frame will return a frame specifying that <SPLITINLINE><SCHEME><SCHEMEINLINE>?x</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>x</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> is
+  bound to <SPLITINLINE><SCHEME><SCHEMEINLINE>a</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>"a"</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> and <SPLITINLINE><SCHEME><SCHEMEINLINE>?y</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>y</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> is bound to <SPLITINLINE><SCHEME><SCHEMEINLINE>b</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>"b"</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>. Trying the match
+  with the same pattern, the same datum, and a frame specifying that
+  <SPLITINLINE><SCHEME><SCHEMEINLINE>?y</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>y</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>  is bound to <SPLITINLINE><SCHEME><SCHEMEINLINE>a</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>"a"</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> will fail.  Trying the match with the
+  same pattern, the same datum, and a frame in which <SPLITINLINE><SCHEME><SCHEMEINLINE>?y</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>y</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> is bound
+  to <SPLITINLINE><SCHEME><SCHEMEINLINE>b</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>b</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> and <SPLITINLINE><SCHEME><SCHEMEINLINE>?x</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>x</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> is unbound will return the given frame
+  augmented by a binding of <SPLITINLINE><SCHEME><SCHEMEINLINE>?x</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>x</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> to <SPLITINLINE><SCHEME><SCHEMEINLINE>a</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>"a"</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>.
+      </TEXT>
+
+      <TEXT>
+  <INDEX>simple query<SUBINDEX>processing</SUBINDEX></INDEX>
+  The pattern matcher is all the mechanism that is needed to process
+  simple queries that don<APOS/>t involve rules.  For instance, to process the
+  query
+
+  <SNIPPET>
+    <SCHEME>
+      (job ?x (computer programmer))
+    </SCHEME>
+    <JAVASCRIPT>
+job(x, list("computer", "programmer"));
+    </JAVASCRIPT>
+  </SNIPPET>
+
+  we scan through all assertions in the data base and select those that
+  match the pattern with respect to an initially empty frame.  For each
+  match we find, we use the frame returned by the match to instantiate
+  the pattern with a value for <SPLITINLINE><SCHEME><SCHEMEINLINE>?x</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>x</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>.
+  <INDEX>query interpreter<SUBINDEX>pattern matching|)</SUBINDEX></INDEX>
+  <INDEX>pattern matching|)</INDEX>
+      </TEXT>
+
+      <SUBHEADING>
+  <NAME>Streams of frames</NAME>
+      </SUBHEADING>
+
+      <INDEX>query interpreter<SUBINDEX>streams of frames</SUBINDEX></INDEX>
+      <INDEX>stream(s)<SUBINDEX>used in query interpreter</SUBINDEX></INDEX>
+      <TEXT>
+  The testing of patterns against frames is organized through the use of
+  streams.  Given a single frame, the matching process runs through the
+  data-base entries one by one.  For each data-base entry, the matcher
+  generates either a special symbol indicating that the match has failed
+  or an extension to the frame.  The results for all the data-base
+  entries are collected into a stream, which is passed through a filter
+  to weed out the failures.  The result is a stream of all the frames
+  that extend the given frame via a match to some assertion in the data
+  base.<FOOTNOTE>Because matching is generally very expensive, we would
+    <INDEX>efficiency<SUBINDEX>data@of data-base access</SUBINDEX></INDEX>
+    like to avoid applying the full matcher to every element of the data
+    base.  This is usually arranged by breaking up the process into a
+    fast, coarse match and the final match.  The coarse match filters the
+    data base to produce a small set of candidates for the final match.
+    With care, we can arrange our data base so that some of the work of
+    coarse matching can be done when the data base is constructed rather
+    <INDEX>data base<SUBINDEX>indexing</SUBINDEX></INDEX><INDEX>indexing a data base</INDEX>
+    then when we want to select the candidates.  This is called <EM>
+      indexing</EM> the data base.  There is a vast technology built around
+    data-base-indexing schemes.  Our implementation, described in
+    section<SPACE/><REF NAME="sec:implementing-the-query-system"/>, contains a
+    simple-minded form of such an optimization.</FOOTNOTE>
+      </TEXT>
+
+      <TEXT>
+  In our system, a query takes an input stream of frames and performs
+  the above matching operation for every frame in the stream, as
+  indicated in Figure<SPACE/><REF NAME="fig:query-stream"/>.  That is, for each frame in
+  the input stream, the query generates a new stream consisting of all
+  extensions to that frame by matches to assertions in the data base.
+  All these streams are then combined to form one huge stream, which
+  contains all possible extensions of every frame in the input stream.
+  This stream is the output of the query.
+
+  <FIGURE src="img_javascript/Fig5.14b.std.svg">
+    <!-- /zu/hal/sicp/chapter-4/figs/query-stream.eps -->
+  <CAPTION>A query processes a stream of frames.</CAPTION>
+  <LABEL NAME="fig:query-stream"/>
+  </FIGURE>
+  
+      </TEXT>
+
+      <TEXT>
+  <INDEX>simple query<SUBINDEX>processing</SUBINDEX></INDEX>
+  To answer a simple query, we use the query with an input stream
+  consisting of a single empty frame.  The resulting output stream
+  contains all extensions to the empty frame (that is, all answers to
+  our query).  This stream of frames is then used to generate a stream
+  of copies of the original query pattern with the variables
+  instantiated by the values in each frame, and this is the stream that
+  is finally printed.
+      </TEXT>
+
+      <SUBHEADING>
+  <NAME>Compound queries</NAME>
+      </SUBHEADING>
+
+      <INDEX>compound query<SUBINDEX>processing|(</SUBINDEX></INDEX>
+      <TEXT>
+  The real elegance of the stream-of-frames implementation is evident
+  when we deal with compound queries.  The processing of compound
+  queries makes use of the ability of our matcher to demand that a match
+  <!-- \indcodeplus{and}{(query language)}[evaluation of]-->
+  be consistent with a specified frame.  For example, to handle the <SCHEMEINLINE>and</SCHEMEINLINE> of two queries, such as
+
+  <SNIPPET>
+    <SCHEME>
+      (and (can-do-job ?x (computer programmer trainee))
+      (job ?person ?x))
+    </SCHEME>
+    <JAVASCRIPT>
+and(can_do_job(x, list("computer", "programmer", "trainee")),
+    job(person, x))
+    </JAVASCRIPT>
+  </SNIPPET>
+
+  (informally, <QUOTE>Find all people who can do the job of a computer
+    programmer trainee</QUOTE>), we first find all entries that match the
+  pattern
+
+  <SNIPPET>
+    <SCHEME>
+      (can-do-job ?x (computer programmer trainee))
+    </SCHEME>
+    <JAVASCRIPT>
+can_do_job(x, list("computer", "programmer", "trainee"))
+    </JAVASCRIPT>
+  </SNIPPET>
+      </TEXT>
+
+      <TEXT>
+  This produces a stream of frames, each of which contains a binding for
+<SPLITINLINE><SCHEME><SCHEMEINLINE>?x</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>x</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>.  Then for each frame in the stream we find all entries that
+  match
+
+  <SNIPPET>
+    <SCHEME>
+      (job ?person ?x)
+    </SCHEME>
+    <JAVASCRIPT>
+job(person, x)
+    </JAVASCRIPT>
+  </SNIPPET>
+
+  in a way that is consistent with the given binding for <SPLITINLINE><SCHEME><SCHEMEINLINE>?x</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>x</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>.  Each
+  such match will produce a frame containing bindings for <SPLITINLINE><SCHEME><SCHEMEINLINE>?x</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>x</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> and
+  <SPLITINLINE><SCHEME><SCHEMEINLINE>?person</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>person</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>.  The <SCHEMEINLINE>and</SCHEMEINLINE> of two queries can be viewed as a series
+  combination of the two component queries, as shown in
+  figure<SPACE/><REF NAME="fig:query-and"/>.  The frames that pass through the first
+  query filter are filtered and further extended by the second query.
+
+  <FIGURE src="img_javascript/Fig5.14b.std.svg">
+    <!-- /zu/hal/sicp/chapter-4/figs/query-and.eps -->
+  <CAPTION>The <SCHEMEINLINE>and</SCHEMEINLINE> combination of two queries is
+  produced by operating on the stream of frames in series.</CAPTION>
+  <LABEL NAME="fig:query-and"/>
+  </FIGURE>
+  
+      </TEXT>
+
+      <TEXT>
+  <!-- \indcodeplus{or}{(query language)}[evaluation of]-->
+  Figure<SPACE/><REF NAME="fig:query-or"/> shows the analogous method for computing the
+  <SCHEMEINLINE>or</SCHEMEINLINE> of two queries as a parallel combination of the two component
+  queries.  The input stream of frames is extended separately by each
+  query.  The two resulting streams are then merged to produce the final
+  output stream.
+
+  <FIGURE src="img_javascript/Fig5.14b.std.svg">
+    <!-- /zu/hal/sicp/chapter-4/figs/query-or.eps -->
+  <CAPTION>The <SCHEMEINLINE>or</SCHEMEINLINE> combination of two queries is produced by 
+  operating on the stream of frames in parallel and merging the
+  results.</CAPTION>
+  <LABEL NAME="fig:query-or"/>
+  </FIGURE>
+
+      </TEXT>
+
+      <TEXT>
+  <INDEX>efficiency<SUBINDEX>query@of query processing</SUBINDEX></INDEX>
+  Even from this high-level description, it is apparent that the
+  processing of compound queries can be slow.
+  For example, since a query may produce more than one output frame for
+  each input frame, and each query in an <SCHEMEINLINE>and</SCHEMEINLINE> gets its input frames
+  from the previous query, an <SCHEMEINLINE>and</SCHEMEINLINE> query could, in the worst case,
+  have to perform a number of matches that is exponential in the number
+  of queries (see 
+  exercise<SPACE/><REF NAME="ex:q-exponential-and"/>).<FOOTNOTE>But this kind of exponential explosion is not common in <SCHEMEINLINE>and</SCHEMEINLINE>
+    queries because the added conditions tend to reduce rather than expand
+    the number of frames produced.</FOOTNOTE>
+  Though systems for handling only simple queries are quite practical,
+  dealing with complex queries is extremely 
+  difficult.<FOOTNOTE>There is a large literature on data-base-management
+    systems that is concerned with how to handle complex queries
+    efficiently.</FOOTNOTE>
+      </TEXT>
+
+      <TEXT>
+  <!-- \indcodeplus{not}{(query language)}[evaluation of]-->
+  From the stream-of-frames viewpoint, the <SCHEMEINLINE>not</SCHEMEINLINE> of some query acts
+  as a filter that removes all frames for which the query can be
+  satisfied.  For instance, given the pattern
+
+  <SNIPPET>
+    <SCHEME>
+      (not (job ?x (computer programmer)))
+    </SCHEME>
+    <JAVASCRIPT>
+not(job(x, list("computer", "programmer")))
+    </JAVASCRIPT>
+  </SNIPPET>
+
+  we attempt, for each frame in the input stream, to produce extension
+  frames that satisfy <SPLITINLINE><SCHEME><SCHEMEINLINE>(job ?x (computer programmer))</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>job(x, list("computer", "programmer"))</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>.  We remove
+  from the input stream all frames for which such extensions exist.  The
+  result is a stream consisting of only those frames in which the
+  binding for <SPLITINLINE><SCHEME><SCHEMEINLINE>?x</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>x</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> does not satisfy <SPLITINLINE><SCHEME><SCHEMEINLINE>(job ?x (computer programmer))</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>job(x, list("computer", "programmer"))</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>.  For example, in processing the query
+
+  <SNIPPET>
+    <SCHEME>
+      (and (supervisor ?x ?y)
+      (not (job ?x (computer programmer))))
+    </SCHEME>
+    <JAVASCRIPT>
+and(supervisor(x, y),
+    not(job(x, list("computer", "programmer"))));
+    </JAVASCRIPT>
+  </SNIPPET>
+
+  the first clause will generate frames with bindings for <SPLITINLINE><SCHEME><SCHEMEINLINE>?x</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>x</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> and
+  <SPLITINLINE><SCHEME><SCHEMEINLINE>?y</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>y</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>.  The <SCHEMEINLINE>not</SCHEMEINLINE> clause will then filter
+  these by removing all frames in which the binding for <SPLITINLINE><SCHEME><SCHEMEINLINE>?x</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>x</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>
+  satisfies the restriction that <SPLITINLINE><SCHEME><SCHEMEINLINE>?x</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>x</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> is a computer
+  programmer.<FOOTNOTE>There is a subtle difference between this filter
+    implementation of <SCHEMEINLINE>not</SCHEMEINLINE> and the usual meaning of <SCHEMEINLINE>not</SCHEMEINLINE> in
+    mathematical logic.  See section<SPACE/><REF NAME="sec:math-logic"/>.</FOOTNOTE>
+      </TEXT>
+
+      <TEXT>
+  <!-- \indcodeplus{lisp-value}{(query language)}[evaluation of]-->
+  The <SPLITINLINE><SCHEME><SCHEMEINLINE>lisp-value</SCHEMEINLINE> special form</SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>javascript-value</JAVASCRIPTINLINE> expression</JAVASCRIPT></SPLITINLINE> is implemented as a similar filter
+  on frame streams.  We use each frame in the stream to instantiate any
+  variables in the pattern, then apply the <SPLITINLINE><SCHEME>Lisp</SCHEME><JAVASCRIPT>JavaScript</JAVASCRIPT></SPLITINLINE> predicate.  We remove
+  from the input stream all frames for which the predicate fails.
+  <INDEX>compound query<SUBINDEX>processing|)</SUBINDEX></INDEX>
+      </TEXT>
+
+      <SUBHEADING>
+  <NAME>Unification</NAME>
+      </SUBHEADING>
+
+      <INDEX>query interpreter<SUBINDEX>unification|(</SUBINDEX></INDEX>
+      <INDEX>unification|(</INDEX>
+      <TEXT>
+  In order to handle rules in the query language, we must be able to
+  find the rules whose conclusions match a given query pattern.  Rule
+  conclusions are like assertions except that they can contain
+  variables, so we will need a generalization of pattern
+  matching<EMDASH/>called <EM>unification</EM><EMDASH/>in which both the <QUOTE>pattern</QUOTE>
+  and the <QUOTE>datum</QUOTE> may contain variables.
+      </TEXT>
+
+      <TEXT>
+  A unifier takes two patterns, each containing constants and variables,
+  and determines whether it is possible to assign values to the
+  variables that will make the two patterns equal.  If so, it returns a
+  frame containing these bindings.  For example, unifying <SPLITINLINE><SCHEME><SCHEMEINLINE>(?x a ?y)</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>list(x, "a", y)</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> and <SPLITINLINE><SCHEME><SCHEMEINLINE>(?y ?z a)</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>list(y, z, "a")</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> will specify a frame in which <SPLITINLINE><SCHEME><SCHEMEINLINE>?x</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>x</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>, <SPLITINLINE><SCHEME><SCHEMEINLINE>?y</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>y</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>, and <SPLITINLINE><SCHEME><SCHEMEINLINE>?z</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>z</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> must all be bound to <SPLITINLINE><SCHEME><SCHEMEINLINE>a</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>"a"</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>.  On the other
+  hand, unifying <SPLITINLINE><SCHEME><SCHEMEINLINE>(?x ?y a)</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>list(x, y, "a")</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> and <SPLITINLINE><SCHEME><SCHEMEINLINE>(?x b ?y)</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>list(x, "b", y)</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> will fail, because
+  there is no value for <SPLITINLINE><SCHEME><SCHEMEINLINE>?y</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>y</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> that can make the two patterns equal.
+  (For the second elements of the patterns to be equal, <SPLITINLINE><SCHEME><SCHEMEINLINE>?y</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>y</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> would
+  have to be <SPLITINLINE><SCHEME><SCHEMEINLINE>b</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>"b"</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>; however, for the third elements to be equal, <SPLITINLINE><SCHEME><SCHEMEINLINE>?y</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>y</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> would have to be <SPLITINLINE><SCHEME><SCHEMEINLINE>a</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>"a"</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>.)  The unifier used in the query system,
+  like the pattern matcher, takes a frame as input and performs
+  unifications that are consistent with this frame.
+      </TEXT>
+
+      <TEXT>
+  The unification algorithm is the most technically difficult part of
+  the query system.  With complex patterns, performing unification may
+  seem to require deduction.  To unify <SPLITINLINE><SCHEME><SCHEMEINLINE>(?x ?x)</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>list(x, x)</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> and <SPLITINLINE><SCHEME><SCHEMEINLINE>((a ?y c) (a b ?z))</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>list(list("a", y, "c"), list("a", "b", z))</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>, for example, the algorithm must infer that <SPLITINLINE><SCHEME><SCHEMEINLINE>?x</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>x</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> should
+  be <SPLITINLINE><SCHEME><SCHEMEINLINE>(a b c)</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>list("a", "b", "c")</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>, <SPLITINLINE><SCHEME><SCHEMEINLINE>?y</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>y</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> should be <SPLITINLINE><SCHEME><SCHEMEINLINE>b</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>"b"</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>, and <SPLITINLINE><SCHEME><SCHEMEINLINE>?z</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>z</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> should
+  be <SPLITINLINE><SCHEME><SCHEMEINLINE>c</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>"c"</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>.  We may think of this process as solving a set of
+  equations among the pattern components.  In general, these are
+  simultaneous equations, which may require substantial manipulation to
+  solve.<FOOTNOTE>In one-sided pattern matching, all the equations that
+    contain pattern variables are explicit and already solved for the
+    unknown (the pattern variable).</FOOTNOTE>  For example, unifying <SPLITINLINE><SCHEME><SCHEMEINLINE>(?x ?x)</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>list(x, x)</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> and <SPLITINLINE><SCHEME><SCHEMEINLINE>((a ?y c) (a b ?z))</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>list(list("a", y, "c"), list("a", "b", z))</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> may be thought of as specifying the
+  simultaneous equations
+
+  <SNIPPET LATEX="yes">
+    <SCHEME>
+      ?x <LATEXINLINE>$=$</LATEXINLINE> (a ?y c)
+      ?x <LATEXINLINE>$=$</LATEXINLINE> (a b ?z)
+    </SCHEME>
+    <JAVASCRIPT>
+x $=$ list("a", y, "c")
+x $=$ list("a", "b", z)
+    </JAVASCRIPT>
+  </SNIPPET>
+      </TEXT>
+
+      <TEXT>
+  These equations imply that
+
+  <SNIPPET LATEX="yes">
+    <SCHEME>
+      (a ?y c) <LATEXINLINE>$=$</LATEXINLINE> (a b ?z)
+    </SCHEME>
+    <JAVASCRIPT>
+list("a", y, "c") $=$ list("a", "b", z)      
+    </JAVASCRIPT>
+  </SNIPPET>
+
+  which in turn implies that
+
+  <SNIPPET LATEX="yes">
+    <SCHEME>
+      a <LATEXINLINE>$=$</LATEXINLINE> a, ?y <LATEXINLINE>$=$</LATEXINLINE> b, c <LATEXINLINE>$=$</LATEXINLINE> ?z,
+    </SCHEME>
+    <JAVASCRIPT>
+"a" $=$ "a", y $=$ "b", "c" $=$ z,      
+    </JAVASCRIPT>
+  </SNIPPET>
+
+  and hence that
+
+  <SNIPPET LATEX="yes">
+    <SCHEME>
+      ?x <LATEXINLINE>$=$</LATEXINLINE> (a b c)
+    </SCHEME>
+    <JAVASCRIPT>
+x $=$ list("a", "b", "c")      
+    </JAVASCRIPT>
+  </SNIPPET>
+      </TEXT>
+
+      <TEXT>
+  <INDEX>pattern matching<SUBINDEX>unification vs.</SUBINDEX></INDEX>
+  <INDEX>unification<SUBINDEX>pattern matching vs.</SUBINDEX></INDEX>
+  In a successful pattern match, all pattern variables become bound, and
+  the values to which they are bound contain only constants.  This is
+  also true of all the examples of unification we have seen so far.  In
+  general, however, a successful unification may not completely
+  determine the variable values; some variables may remain unbound and
+  others may be bound to values that contain variables.
+      </TEXT>
+
+      <TEXT>
+  Consider the unification of <SPLITINLINE><SCHEME><SCHEMEINLINE>(?x a)</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>list(x, "a")</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> and <SPLITINLINE><SCHEME><SCHEMEINLINE>((b ?y) ?z)</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>list(list("b", y), z)</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>.  We
+  can deduce that <SPLITINLINE><SCHEME><SCHEMEINLINE>?x</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>x</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> <LATEXINLINE>$=$</LATEXINLINE> <SPLITINLINE><SCHEME><SCHEMEINLINE>(b ?y)</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>list("b", y)</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> and <SPLITINLINE><SCHEME><SCHEMEINLINE>a</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>"a"</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> <LATEXINLINE>$=$</LATEXINLINE> <SPLITINLINE><SCHEME><SCHEMEINLINE>?z</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>z</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>, but we cannot
+  further solve for <SPLITINLINE><SCHEME><SCHEMEINLINE>?x</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>x</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> or<SPACE/><SPLITINLINE><SCHEME><SCHEMEINLINE>?y</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>y</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>.  The unification doesn<APOS/>t fail,
+  since it is certainly possible to make the two patterns equal by
+  assigning values to <SPLITINLINE><SCHEME><SCHEMEINLINE>?x</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>x</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> and <SPLITINLINE><SCHEME><SCHEMEINLINE>?y</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>y</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>.  Since this match in no way
+  restricts the values <SPLITINLINE><SCHEME><SCHEMEINLINE>?y</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>y</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> can take on, no binding for <SPLITINLINE><SCHEME><SCHEMEINLINE>?y</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>y</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> is
+  put into the result frame.  The match does, however, restrict the
+  value of<SPACE/><SPLITINLINE><SCHEME><SCHEMEINLINE>?x</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>x</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>.  Whatever value <SPLITINLINE><SCHEME><SCHEMEINLINE>?y</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>y</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> has, <SPLITINLINE><SCHEME><SCHEMEINLINE>?x</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>x</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> must be <SPLITINLINE><SCHEME><SCHEMEINLINE>(b ?y)</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>list("b", y)</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>.  A binding of <SPLITINLINE><SCHEME><SCHEMEINLINE>?x</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>x</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> to the pattern <SPLITINLINE><SCHEME><SCHEMEINLINE>(b ?y)</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>list("b", y)</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> is thus
+  put into the frame.  If a value for <SPLITINLINE><SCHEME><SCHEMEINLINE>?y</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>y</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> is later determined and
+  added to the frame (by a pattern match or unification that is required
+  to be consistent with this frame), the previously bound <SPLITINLINE><SCHEME><SCHEMEINLINE>?x</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>x</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> will
+  refer to this value.<FOOTNOTE>Another way to think of unification is that it generates the most
+    general pattern that is a specialization of the two input patterns.
+    That is, the unification of <SPLITINLINE><SCHEME><SCHEMEINLINE>(?x a)</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>list(x, "a")</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> and <SPLITINLINE><SCHEME><SCHEMEINLINE>((b<SPACE/>?y)<SPACE/>?z)</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>list(list("b", y), z)</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> is <SPLITINLINE><SCHEME><SCHEMEINLINE>((b ?y) a)</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>list(list("b", y), "a")</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>, and the unification of <SPLITINLINE><SCHEME><SCHEMEINLINE>(?x a ?y)</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>list(x, "a", y)</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> and <SPLITINLINE><SCHEME><SCHEMEINLINE>(?y ?z a)</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>list(y, z, "a")</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>, discussed above, is <SPLITINLINE><SCHEME><SCHEMEINLINE>(a a a)</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>list("a", "a", "a")</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>.
+    For our implementation, it is more convenient to think of the result
+    of unification as a frame rather than a pattern.</FOOTNOTE>
+  <INDEX>query interpreter<SUBINDEX>unification|)</SUBINDEX></INDEX>
+  <INDEX>unification|)</INDEX>
+      </TEXT>
+
+      <SUBHEADING>
+  <NAME>Applying rules</NAME>
+      </SUBHEADING>
+
+      <INDEX>rule (query language)<SUBINDEX>applying|(</SUBINDEX></INDEX>
+      <TEXT>
+  Unification is the key to the component of the query system that makes
+  inferences from rules. To see how this is accomplished, consider
+  processing a query that involves applying a rule, such as
+
+  <SNIPPET>
+    <SCHEME>
+      (lives-near ?x (Hacker Alyssa P))
+    </SCHEME>
+    <JAVASCRIPT>
+lives_near(x, list("Hacker", "Alyssa", "P"));
+    </JAVASCRIPT>
+  </SNIPPET>
+      </TEXT>
+
+      <TEXT>
+  To process this query, we first use the ordinary pattern-match
+  <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+  described above to see if there are any assertions in the
+  data base that match this pattern.  (There will not be any in this
+  case, since our data base includes no direct assertions about who
+  lives near whom.)  The next step is to attempt to unify the query
+  pattern with the conclusion of each rule.  We find that the pattern
+  unifies with the conclusion of the rule
+
+  <SNIPPET>
+    <SCHEME>
+      (rule (lives-near ?person-1 ?person-2)
+      (and (address ?person-1 (?town . ?rest-1))
+            (address ?person-2 (?town . ?rest-2))
+            (not (same ?person-1 ?person-2))))
+    </SCHEME>
+    <JAVASCRIPT>
+rule(lives_near(person_1, person_2),
+     and(address(person_1, pair(town, rest_1)),
+         address(person_2, list(town, rest_2)),
+         not(same(person_1, person_2))));
+    </JAVASCRIPT>
+  </SNIPPET>
+
+  resulting in a frame specifying that <SPLITINLINE><SCHEME><SCHEMEINLINE>?person-2</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>person_2</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> is bound
+  to <SPLITINLINE><SCHEME><SCHEMEINLINE>(Hacker Alyssa P)</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>list("Hacker", "Alyssa", "P")</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> and that <SPLITINLINE><SCHEME><SCHEMEINLINE>?x</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>x</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> should be bound to (have
+  the same value as) <SPLITINLINE><SCHEME><SCHEMEINLINE>?person-1</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>person_1</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>.  Now, relative to this frame, we
+  evaluate the compound query given by the body of the rule.  Successful
+  matches will extend this frame by providing a binding for <SPLITINLINE><SCHEME><SCHEMEINLINE>?person-1</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>person_1</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>, and consequently a value for <SPLITINLINE><SCHEME><SCHEMEINLINE>?x</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>x</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>, which we can use to
+  instantiate the original query pattern.
+      </TEXT>
+
+      <TEXT>
+  In general, the query evaluator uses the following method to apply a
+  rule when trying to establish a query pattern in a frame that
+  specifies bindings for some of the pattern variables:
+
+  <UL>
+    <LI>Unify the query with the conclusion of the rule to form, if
+      successful, an extension of the original frame.
+
+    </LI>
+    <LI>Relative to the extended frame, evaluate the query formed by
+      the body of the rule.
+    </LI>
+
+  </UL>
+      </TEXT>
+
+      <TEXT>
+  <INDEX>query interpreter<SUBINDEX><SPLITINLINE><SCHEME>Lisp</SCHEME><JAVASCRIPT>JavaScript</JAVASCRIPT></SPLITINLINE> interpreter vs.</SUBINDEX></INDEX>
+  Notice how similar this is to the method for applying a
+  <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+  in
+  the <SPLITINLINE><SCHEME><SCHEMEINLINE>eval</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>evaluate</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>/<SCHEMEINLINE>apply</SCHEMEINLINE> evaluator for <SPLITINLINE><SCHEME>Lisp</SCHEME><JAVASCRIPT>JavaScript</JAVASCRIPT></SPLITINLINE>:
+  <UL>
+
+    <LI>Bind the
+      <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE><APOS/>s parameters to its arguments to form a
+      frame that extends the original
+      <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+      environment.
+
+    </LI>
+    <LI>Relative to the extended environment, evaluate the expression
+      formed by the body of the
+      <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>.
+    </LI>
+
+  </UL>
+      </TEXT>
+
+      <TEXT>
+  The similarity between the two evaluators should come as no surprise.
+  Just as
+  <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+  definitions are the means of abstraction in <SPLITINLINE><SCHEME>Lisp</SCHEME><JAVASCRIPT>JavaScript</JAVASCRIPT></SPLITINLINE>,
+  rule definitions are the means of abstraction in the query language.
+  In each case, we unwind the abstraction by creating appropriate
+  bindings and evaluating the rule or
+  <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+  body relative to these.
+  <INDEX>rule (query language)<SUBINDEX>applying|)</SUBINDEX></INDEX>
+      </TEXT>
+
+      <SUBHEADING>
+  <NAME>Simple queries</NAME>
+      </SUBHEADING>
+
+      <INDEX>simple query<SUBINDEX>processing|(</SUBINDEX></INDEX>
+      <TEXT>
+  We saw earlier in this section how to evaluate simple queries in the
+  absence of rules.  Now that we have seen how to apply rules, we can
+  describe how to evaluate simple queries by using both rules and
+  assertions.
+      </TEXT>
+
+      <TEXT>
+  Given the query pattern and a stream of frames, we produce, for each
+  frame in the input stream, two streams:
+
+  <UL>
+    <LI>a stream of extended frames obtained by matching the pattern
+      against all assertions in the data base (using the pattern matcher),
+      and
+
+    </LI>
+    <LI>a stream of extended frames obtained by applying all
+      possible rules (using the unifier).<FOOTNOTE>Since unification is a
+        <INDEX>pattern matching<SUBINDEX>unification vs.</SUBINDEX></INDEX>
+        <INDEX>unification<SUBINDEX>pattern matching vs.</SUBINDEX></INDEX>
+        generalization of matching, we could simplify the system by using the
+        unifier to produce both streams.  Treating the easy case with the
+        simple matcher, however, illustrates how matching (as opposed to
+        full-blown unification) can be useful in its own right.</FOOTNOTE>
+    </LI>
+
+  </UL>
+      </TEXT>
+
+      <TEXT>
+  Appending these two streams produces a stream that consists of all the
+  ways that the given pattern can be satisfied consistent with the
+  original frame.  These streams (one for each frame in the input
+  stream) are now all combined to form one large stream, which therefore
+  consists of all the ways that any of the frames in the original input
+  stream can be extended to produce a match with the given pattern.
+  <INDEX>simple query<SUBINDEX>processing|)</SUBINDEX></INDEX>
+      </TEXT>
+
+      <SUBHEADING>
+  <NAME>The query evaluator and the driver loop</NAME>
+      </SUBHEADING>
+
+      <INDEX>query interpreter<SUBINDEX>query evaluator</SUBINDEX></INDEX>
+      <TEXT>
+  Despite the complexity of the underlying matching operations, the
+  system is organized much like an evaluator for any language.  The
+  <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+  that coordinates the matching operations is called 
+  <!--  \indcode{qeval} -->
+  <INDEX>query interpreter<SUBINDEX><SPLITINLINE><SCHEME>Lisp</SCHEME><JAVASCRIPT>JavaScript</JAVASCRIPT></SPLITINLINE> interpreter vs.</SUBINDEX></INDEX>
+  <SCHEMEINLINE>qeval</SCHEMEINLINE>, and it plays a role analogous to that of the <SPLITINLINE><SCHEME><SCHEMEINLINE>eval</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>evaluate</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>
+  <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+  for <SPLITINLINE><SCHEME>Lisp</SCHEME><JAVASCRIPT>JavaScript</JAVASCRIPT></SPLITINLINE>.  <SPLITINLINE><SCHEME><SCHEMEINLINE>Qeval</SCHEMEINLINE></SCHEME><JAVASCRIPT>The function <JAVASCRIPTINLINE>qeval</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> takes as inputs a query and a stream
+  of frames.  Its output is a stream of frames, corresponding to
+  successful matches to the query pattern, that extend some frame in the
+  input stream, as indicated in Figure<SPACE/><REF NAME="fig:query-stream"/>.  Like
+  <SPLITINLINE><SCHEME><SCHEMEINLINE>eval</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>evaluate</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>, <SCHEMEINLINE>qeval</SCHEMEINLINE> classifies the different types of expressions
+  (queries) and dispatches to an appropriate
+  <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+  for each.  There
+  is a
+  <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+  for each special form (<SCHEMEINLINE>and</SCHEMEINLINE>, <SCHEMEINLINE>or</SCHEMEINLINE>, <SCHEMEINLINE>not</SCHEMEINLINE>,
+  and
+    <SPLITINLINE>
+    <SCHEME>
+      <SCHEMEINLINE>lisp-value</SCHEMEINLINE>)
+    </SCHEME>
+    <JAVASCRIPT>
+      <JAVASCRIPTINLINE>javascript_value</JAVASCRIPTINLINE>)
+    </JAVASCRIPT>
+  </SPLITINLINE>
+  and one for simple queries.
+      </TEXT>
+
+      <TEXT>
+  <INDEX>driver loop<SUBINDEX>query@in query interpreter</SUBINDEX></INDEX>
+  <INDEX>query interpreter<SUBINDEX>driver loop</SUBINDEX></INDEX>
+  The driver loop, which is analogous to the
+  <SPLITINLINE><SCHEME>
+    <SCHEMEINLINE>driver-loop</SCHEMEINLINE>
+  </SCHEME>
+  <JAVASCRIPT>
+    <JAVASCRIPTINLINE>driver_loop</JAVASCRIPTINLINE>
+  </JAVASCRIPT></SPLITINLINE>
+  <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+  for the other evaluators in this chapter, reads queries from the
+  terminal.  For each query, it calls <SCHEMEINLINE>qeval</SCHEMEINLINE> with the query and a
+  stream that consists of a single empty frame.  This will produce the
+  stream of all possible matches (all possible extensions to the empty
+  frame).  For each frame in the resulting stream, it instantiates the
+  original query using the values of the variables found in the frame.
+  This stream of instantiated queries is then 
+  printed.<FOOTNOTE>The reason we use streams (rather than lists) of frames is that the
+    <INDEX>stream(s)<SUBINDEX>used in query interpreter</SUBINDEX></INDEX>
+    <INDEX>query interpreter<SUBINDEX>streams of frames</SUBINDEX></INDEX>
+    recursive application of rules can generate
+    infinite numbers of values that satisfy a query.  The delayed
+    evaluation embodied in streams is crucial here: The system will print
+    responses one by one as they are generated, regardless of whether
+    there are a finite or infinite number of responses.</FOOTNOTE>
+      </TEXT>
+
+      <TEXT>
+  <!-- \indcodeplus{assert!}{(query interpreter)}-->
+  <INDEX>query interpreter<SUBINDEX>adding rule or assertion</SUBINDEX></INDEX>
+  The driver also checks for the special command <SPLITINLINE><SCHEME><SCHEMEINLINE>assert!</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>assert</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>, which
+  signals that the input is not a query but rather an assertion or rule
+  to be added to the data base.  For instance,
+
+  <SNIPPET>
+    <SCHEME>
+      (assert! (job (Bitdiddle Ben) (computer wizard)))
+
+      (assert! (rule (wheel ?person)
+            (and (supervisor ?middle-manager ?person)
+            (supervisor ?x ?middle-manager))))
+    </SCHEME>
+    <JAVASCRIPT>
+assert(job(list("Bitdiddle", "Ben"), list("computer", "wizard")));
+
+assert(rule(wheel(person),
+            and(supervisor(middle-manager, person),
+                supervisor(x, middle-manager))));
+    </JAVASCRIPT>
+  </SNIPPET>
+  <INDEX>query interpreter<SUBINDEX>overview|)</SUBINDEX></INDEX>
+      </TEXT>
+
+    </SUBSECTION>
