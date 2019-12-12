@@ -40,6 +40,8 @@ class ChaptersController < ApplicationController
         order = @chapter.order
         ex_start_index = @chapter.exercise_start_number
 
+
+        
         # String substitutions
         content = content.gsub('\\LaTeX','$\\rm\\LaTeX$');
         content = content.gsub('^$\langle','$\langle');
@@ -489,6 +491,23 @@ class ChaptersController < ApplicationController
 
         remove_tag_name(xml_doc, "NAME")
 
+        # Finds all sections with attribute WIP="yes" and adds a note right after the heading
+        xml_doc.search('SECTION').each do |s|
+          if (s['WIP'] || "").downcase == 'yes' then
+            wip_stamp = xml_doc.create_element("div", :class => "wip-stamp")
+            wip_stamp.add_child("Note: this section is a work in progress!")
+            s.prepend_child(wip_stamp)
+          end
+        end
+        # Finds all subsections with attribute WIP="yes" and adds a note right after the heading
+        xml_doc.search('SUBSECTION').each do |s|
+          if (s['WIP'] || "").downcase == 'yes' then
+            wip_stamp = xml_doc.create_element("div", :class => "wip-stamp")
+            wip_stamp.add_child("Note: this section is a work in progress!")
+            s.prepend_child(wip_stamp)
+          end
+        end
+                
         @html_doc = Nokogiri::HTML::DocumentFragment.parse ""
     #      xml_doc.search('TEXT, EPIGRAPH, ABOUT, CAPTION, FOOTNOTE, REFERENCE, EXERCISE').each do |text|
     #          new_par = xml_doc.create_element("div", :class => text.name)
@@ -505,7 +524,8 @@ class ChaptersController < ApplicationController
         respond_to do |format|
             format.html
         end
-    return @html_doc
+        
+        return @html_doc
     end
 
     def permalink_wrap(xml_doc, tag, name)

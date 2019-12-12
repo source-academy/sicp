@@ -223,12 +223,18 @@ const processTextFunctionsDefault = {
     writeTo.push("\\section{");
     addName(node, writeTo);
     writeTo.push("\\pagestyle{section}\n");
+
+      if (node.getAttribute("WIP") === "yes") {
+          writeTo.push("\\begin{center}\\fbox{\\textcolor{red}{Note: this section is a work in progress!}}\\end{center}")
+      }
+
     recursiveProcessText(node.firstChild, writeTo);
   },
 
   SUBHEADING: (node, writeTo) => {
     writeTo.push("\\subsubsection{");
     addName(node, writeTo);
+
     recursiveProcessText(node.firstChild, writeTo);
   },
   SUBSUBSECTION: (node, writeTo) => processTextFunctions["SUBHEADING"](node, writeTo),
@@ -267,6 +273,11 @@ const processTextFunctionsDefault = {
     writeTo.push("\\subsection{");
     addName(node, writeTo);
     writeTo.push("\\pagestyle{subsection}\n");
+
+      if (node.getAttribute("WIP") === "yes") {
+          writeTo.push("\\begin{center}\\fbox{\\textcolor{red}{Note: this section is a work in progress!}}\\end{center}")
+      }
+
     recursiveProcessText(node.firstChild, writeTo);
   },
 
