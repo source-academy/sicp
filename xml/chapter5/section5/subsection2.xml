@@ -42,11 +42,11 @@
       <TEXT>
   For example, if the value of <SCHEMEINLINE>linkage</SCHEMEINLINE> is the <SPLIT><SCHEME>symbol</SCHEME><JAVASCRIPT>string</JAVASCRIPT></SPLIT>
   <SPLITINLINE><SCHEME><SCHEMEINLINE>branch25</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>"branch25"</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>, then the expression
-  <SPLITINLINE><SCHEME><SCHEMEINLINE>`((goto (label ,linkage)))</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>parse("go_to(label(#{linkage}))")"</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>
+  <SPLITINLINE><SCHEME><SCHEMEINLINE>`((goto (label ,linkage)))</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>go_to(label(linkage))</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>
   evaluates to the list
   <SPLITINLINE><SCHEME><SCHEMEINLINE>((goto (label branch25)))</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>go_to(label("branch25"))</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>.
   Similarly, if the value of <SPLITINLINE><SCHEME><SCHEMEINLINE>x</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>x</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> is the list <SPLITINLINE><SCHEME><SCHEMEINLINE>(a b c)</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>list("a", "b", "c")</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>, then
-  <SPLITINLINE><SCHEME><SCHEMEINLINE>`(1 2 ,x)</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>parse("list(1, 2, #{head(x)})")</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>
+  <SPLITINLINE><SCHEME><SCHEMEINLINE>`(1 2 ,x)</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>list(1, 2, head(x))</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>
   evaluates to the list
   <SPLITINLINE><SCHEME><SCHEMEINLINE>(1 2 a)</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>list(1, 2, "a")</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>.
 
@@ -66,10 +66,10 @@
     <JAVASCRIPT>
 function compile_linkage(linkage) {
     return linkage === "return"
-        ? make_instruction_sequence(list("continue"), list(), list("go_to(reg('continue'))"))
+        ? make_instruction_sequence(list("continue"), list(), list(go_to(reg("continue"))))
         : linkage === "next"
         ? empty_instruction_sequence()
-        : make_instruction_sequence(list(), list(), parse("go_to(label(#{linkage}))"));
+        : make_instruction_sequence(list(), list(), list(go_to(label(linkage))));
 }
     </JAVASCRIPT>
   </SNIPPET>
@@ -142,7 +142,7 @@ function end_with_linkage(linkage, instruction_sequence) {
             make_instruction_sequence(
                 list(),
                 list(target),
-                parse("assign(#{target}, const(#{exp}))")));
+                list(assign(target, constant(exp)))));
     }
 
 <!--  \indcode*{compile-quoted} -->
@@ -152,7 +152,7 @@ function end_with_linkage(linkage, instruction_sequence) {
             make_instruction_sequence(
                 list(),
                 list(target),
-                parse("assign(#{target}, const(text_of_quotation(#{exp})))")));
+                list(assign(target, constant(stringify(exp))))));
     }
 
 <!--  \indcode*{compile-variable} -->
@@ -162,7 +162,7 @@ function end_with_linkage(linkage, instruction_sequence) {
             make_instruction_sequence(
                 list("env"),
                 list(target),
-                parse("assign(#{target}, op('lookup_variable_value'), const(#{exp}), reg('env'));")));
+                list(assign(target, op("lookup_variable_value"), constant(exp), reg("env")))));
     }
     </JAVASCRIPT>
   </SNIPPET>
@@ -222,6 +222,7 @@ function end_with_linkage(linkage, instruction_sequence) {
             (assign ,target (const ok))))))))
     </SCHEME>
     <JAVASCRIPT>
+      /// TODO: missing
     </JAVASCRIPT>
   </SNIPPET>
       </TEXT>
@@ -303,7 +304,7 @@ function end_with_linkage(linkage, instruction_sequence) {
         let label_counter = 0;
 
         function new_label_number() {
-            label-counter = label-counter + 1;
+            label_counter = label_counter + 1;
             return label-counter;
         }
 
@@ -363,8 +364,9 @@ function compile_if(exp, target, linkage) {
                       append_instruction_sequences(
                           make_instruction_sequence(list("val"),
                                                     list(),
-                                                    parse("test(op('is_false'), reg('val'));" +
-                                                    "branch('label', #{f_branch})")),
+                                                    list(
+                                                        test(op("is_false"), reg("val")),
+                                                        branch(label(f_branch)))),
                           parallel_instruction_sequences(
                               append_instruction_sequences(t_branch, c_code),
                               append_instruction_sequences(f_branch, a_code)),
@@ -575,10 +577,10 @@ function compile_function_expression(exp, target, linkage) {
                 make_instruction_sequence(
                     list("env"), 
                     list(target),
-                    "assign(,target, op('make_compiled_procedure'), label(#{proc_entry}), reg('env'));")), 
+                    list(assign(target, op("make_compiled_procedure"), label(proc_entry), reg("env")))), 
             compile_function_expression_body(exp, proc_entry)),
-            after_lambda);
-};
+            after_lambda));
+}
     </JAVASCRIPT>
   </SNIPPET>
       </TEXT>
@@ -639,9 +641,9 @@ function compile_lambda_body(exp, proc_entry) {
         make_instruction_sequence(
             list("env", "proc", "argl"),
             list("env"),
-            parse("#{proc_entry}(" +
-                  "assign('env', opn('compiled_procedure_env'), reg('proc'));" +
-                  "assign('env', opn('extend_environment'), const(#{formals}), reg('argl'), reg('env')")),
+            list(proc_entry,
+                 assign("env", op("compiled_procedure_env"), reg("proc")),
+                 assign("env", op("extend_environment"), constant(formals), reg("argl"), reg("env")))),
         compiled_sequence(lambda_body(exp), "val", "return"));
 } 
     </JAVASCRIPT>
