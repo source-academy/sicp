@@ -29,6 +29,22 @@
       (define (statements s)
       (if (symbol? s) (list s) (caddr s)))
     </SCHEME>
+    <JAVASCRIPT>
+<!--  \indcode*{registers-needed} -->
+function registers_needed(s) {
+     return is_symbol(s) ? null : head(s);
+}
+
+<!--  \indcode*{registers-modified} -->
+function registers_modified(s) {
+     return is_symbol(s) ? null : head(tail(s));
+}
+
+<!--  \indcode*{statements} -->
+function statements(s) {
+     return is_symbol(s) ? list(s) : head(tail(tail(s));
+}
+    </JAVASCRIPT>
   </SNIPPET>
 
   and to determine whether a given
@@ -43,6 +59,17 @@
       (define (modifies-register? seq reg)
       (memq reg (registers-modified seq)))
     </SCHEME>
+    <JAVASCRIPT>
+<!--  \indcode*{needs-register?} -->
+function needs_register(seq, reg) {
+    return member(reg(registers_needed(seq))); /// FIXME: see https://github.com/source-academy/sicp/issues/170
+}
+
+<!--  \indcode*{modifies-register?} -->
+function modifies_register(seq, reg) {
+    return member(reg(registers_modified(seq)));
+}
+    </JAVASCRIPT>
   </SNIPPET>
       </TEXT>
 
@@ -52,7 +79,7 @@
       </TEXT>
 
       <TEXT>
-  The basic combiner is <SCHEMEINLINE>append-instruction-sequences</SCHEMEINLINE>.  This takes as
+  The basic combiner is <SPLITINLINE><SCHEME><SCHEMEINLINE>append-instruction-sequences</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>append_instruction_sequences</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>.  This takes as
   arguments an arbitrary number of instruction sequences that are to be executed
   sequentially and returns an instruction sequence whose statements are the
   statements of all the sequences appended together.  The subtle point is to
@@ -65,7 +92,7 @@
       </TEXT>
 
       <TEXT>
-  The sequences are appended two at a time by <SCHEMEINLINE>append-2-sequences</SCHEMEINLINE>.  This
+  The sequences are appended two at a time by <SPLITINLINE><SCHEME><SCHEMEINLINE>append-2-sequences</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>append_2_sequences</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>.  This
   takes two instruction sequences <SCHEMEINLINE>seq1</SCHEMEINLINE> and <SCHEMEINLINE>seq2</SCHEMEINLINE> and returns the
   instruction sequence whose statements are the statements of <SCHEMEINLINE>seq1</SCHEMEINLINE>
   followed by the statements of <SCHEMEINLINE>seq2</SCHEMEINLINE>, whose modified registers are those
@@ -74,7 +101,7 @@
   registers needed by <SCHEMEINLINE>seq2</SCHEMEINLINE> that are not modified by <SCHEMEINLINE>seq1</SCHEMEINLINE>.  (In terms
   of set operations, the new set of needed registers is the union of the set of
   registers needed by <SCHEMEINLINE>seq1</SCHEMEINLINE> with the set difference of the registers needed
-  by <SCHEMEINLINE>seq2</SCHEMEINLINE> and the registers modified by <SCHEMEINLINE>seq1</SCHEMEINLINE>.)  Thus, <SCHEMEINLINE>append-instruction-sequences</SCHEMEINLINE> is implemented as follows:
+  by <SCHEMEINLINE>seq2</SCHEMEINLINE> and the registers modified by <SCHEMEINLINE>seq1</SCHEMEINLINE>.)  Thus, <SPLITINLINE><SCHEME><SCHEMEINLINE>append-instruction-sequences</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>append_instruction_sequences</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> is implemented as follows:
 
   <SNIPPET EVAL="no">
     <SCHEME>
@@ -95,6 +122,30 @@
             (append-seq-list (cdr seqs)))))
       (append-seq-list seqs))
     </SCHEME>
+    <JAVASCRIPT>
+      <!--  \indcode*{append-instruction-sequences} -->
+function append_instruction_sequences( . seqs) {
+    function append_2_sequences(seq1, seq2) {
+        return make_instruction_sequence(
+            list_union(registers_needed(seq1),
+                       list_difference(registers_needed(seq2)
+                                       registers_modified(seq1))),
+            list_union(registers_modified(seq1),
+                       registers_modified(seq2)),
+            append(statements(seq1), statements(seq2)));
+    }
+    
+    function append_seq_list(seqs) {
+        return is_null(seqs)
+            ? empty_instruction_sequence
+            : append_2_sequences(
+                head(seqs),
+                append_seq_list(tail(seqs)));
+    }
+    
+    return append_seq_list(seqs);
+}
+    </JAVASCRIPT>
   </SNIPPET>
       </TEXT>
 
@@ -119,6 +170,25 @@
             (else (cons (car s1)
             (list-difference (cdr s1) s2)))))
     </SCHEME>
+    <JAVASCRIPT>
+      <!--  \indcode*{list-union} -->
+function list_union(s1, s2) {
+    return is_null(s1)
+        ? s2
+        : member(head(s1), s2)
+        ? list_union(tail(s1), s2)
+        : pair(head(s1), list_union(tail(s1), s2));
+}
+
+      <!--  \indcode*{list-difference} -->
+function list_difference(s1, s2) {
+    return is_null(s1)
+        ? null
+        : member(head(s1), s2)
+        ? list_difference(tail(s1), s2)
+        : pair(head(s1), list_difference(tail(s1), s2));
+}
+    </JAVASCRIPT>
   </SNIPPET>
       </TEXT>
 
@@ -164,12 +234,38 @@
             seq2)
             (preserving (cdr regs) seq1 seq2)))))
     </SCHEME>
+    <JAVASCRIPT>
+      <!--  \indcode*{preserving} -->
+function preserving(regs, seq1, seq2) {
+    if (is_null(regs)) {
+        return append_instruction_sequences(seq1, seq2)
+    } else {
+        const first_reg = head(regs);
+
+        if (need_register(seq2, first_reg) && modifies_register(seq1, first_reg)) {
+            return preserving(
+                tail(regs),
+                make_instruction_sequence(
+                    list_union(list(first_reg),
+                               registers_needed(seq1)),
+                    list_difference(registers_modified(seq1),
+                                    list(first_reg)),
+                    append(list(save(first_reg)),
+                           append(statements(seq1),
+                                  list(restore(first_reg)))))
+                seq2);
+        } else {
+            return preserving(tail(regs), seq1, seq2);
+        }
+    }
+}
+    </JAVASCRIPT>
   </SNIPPET>
       </TEXT>
 
       <TEXT>
-  Another sequence combiner, <SCHEMEINLINE>tack-on-instruction-sequence</SCHEMEINLINE>,
-  is used by <SCHEMEINLINE>compile-lambda</SCHEMEINLINE> to append a
+  Another sequence combiner, <SPLITINLINE><SCHEME><SCHEMEINLINE>tack-on-instruction-sequence</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>tack_on_instruction_sequence</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>,
+  is used by <SPLITINLINE><SCHEME><SCHEMEINLINE>compile-lambda</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>compile_lambda</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> to append a
   <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
   body to another
   sequence.  Because the
@@ -191,11 +287,20 @@
       (registers-modified seq)
       (append (statements seq) (statements body-seq))))
     </SCHEME>
+    <JAVASCRIPT>
+      <!--  \indcode*{tack-on-instruction-sequence} -->
+function tack_on_instruction_sequence(seq, body_seq) {
+    return make_instruction_sequence(
+        registers_needed(seq),
+        registers_modified(seq),
+        append(statements(seq), statements(body_seq)));
+}
+    </JAVASCRIPT>
   </SNIPPET>
       </TEXT>
 
       <TEXT>
-  <SCHEMEINLINE>Compile-if</SCHEMEINLINE> and <SCHEMEINLINE>compile-procedure-call</SCHEMEINLINE> use a special
+  <SPLITINLINE><SCHEME><SCHEMEINLINE>Compile-if</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>Compile_if</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> and <SPLITINLINE><SCHEME><SCHEMEINLINE>compile-procedure-call</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>compile_procedure_call</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> use a special
   combiner called <SCHEMEINLINE>parallel-instruction-sequences</SCHEMEINLINE> to append the two
   alternative branches that follow a test.  The two branches will never be
   executed sequentially; for any particular evaluation of the test, one
@@ -213,6 +318,21 @@
             (registers-modified seq2))
       (append (statements seq1) (statements seq2))))
     </SCHEME>
+    <JAVASCRIPT>
+      <!--  \indcode*{parallel-instruction-sequences} -->
+function parallel_instruction_sequences(seq1, seq2) {
+    return make_instruction_sequence(
+        list_union(
+            registers_needed(seq1),
+            registers_needed(seq2)),
+        list_union(
+            registers_modified(seq1),
+            registers_modified(seq2)),
+        append(
+            statements(seq1),
+            statements(seq2)));
+}
+    </JAVASCRIPT>
   </SNIPPET>
   <INDEX>instruction sequence|)</INDEX>
       </TEXT>
