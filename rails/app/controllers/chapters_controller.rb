@@ -207,16 +207,16 @@ class ChaptersController < ApplicationController
           permalink_wrap(xml_doc, heading, "h#{heading_number}")
         end
 
-        xml_doc.search('H1').each do |h1|
+        xml_doc.search('SUBSUBSECTION').each do |h1|
           h1.name = 'h1'
           heading_number += 1
-          permalink_wrap(xml_doc, heading, "h#{heading_number}")
+          permalink_wrap(xml_doc, h1, "h#{heading_number}")
         end
 
         xml_doc.search('MATTERSECTION').each do |h1|
           h1.name = 'h1'
           heading_number += 1
-          permalink_wrap(xml_doc, heading, "h#{heading_number}")
+          permalink_wrap(xml_doc, h1, "h#{heading_number}")
         end
 
         # Blockquote

@@ -1,0 +1,1429 @@
+    <SUBSECTION>
+      <NAME>
+  Deductive Information Retrieval
+      </NAME>
+
+      <LABEL NAME="sec:deductive-info-retrieval"/>
+      <INDEX>query language|(</INDEX>
+
+      <TEXT>
+  <INDEX>data base<SUBINDEX>logic programming and</SUBINDEX></INDEX>
+  Logic programming excels in providing interfaces to data bases for
+  information retrieval.  The query language we shall implement in this
+  chapter is designed to be used in this way.
+      </TEXT>
+
+      <TEXT>
+  In order to illustrate what the query system does, we will show how it
+  can be used to manage the data base of personnel records for
+  <INDEX>Microshaft</INDEX>
+  Microshaft, a thriving high-technology company in the
+  Boston area.  The language provides pattern-directed access to
+  personnel information and can also take advantage of general rules in
+  order to make logical deductions.
+      </TEXT>
+
+      <SUBHEADING>
+  <NAME>A sample data base</NAME>
+      </SUBHEADING>
+
+      <INDEX>query language<SUBINDEX>data base|(</SUBINDEX></INDEX>
+
+      <TEXT>
+  <INDEX>assertion</INDEX>
+  <INDEX>data base<SUBINDEX>Microshaft personnel|(</SUBINDEX></INDEX>
+  The personnel data base for Microshaft
+  contains <EM>assertions</EM> about company personnel.  Here is the
+  information about Ben Bitdiddle, the resident computer wizard:
+
+  <SNIPPET>
+    <SCHEME>
+      (address (Bitdiddle Ben) (Slumerville (Ridge Road) 10))
+      (job (Bitdiddle Ben) (computer wizard))
+      (salary (Bitdiddle Ben) 60000)
+    </SCHEME>
+    <JAVASCRIPT> 
+address(list("Bitdiddle", "Ben"), list("Slumerville", "Ridge Road", 10));
+job(list("Bitdiddle", "Ben"), list("computer", "wizard"));
+salary(list("Bitdiddle", "Ben"), 60000);
+    </JAVASCRIPT>
+  </SNIPPET>
+      </TEXT>
+
+      <TEXT>
+	<SPLIT>
+	  <SCHEME>
+	    Each assertion is a list (in this case a triple) whose elements can
+	    themselves be lists.
+	  </SCHEME>
+	  <JAVASCRIPT>
+	    Each assertion is an application whose arguments can be expressions
+	    such as lists.
+	  </JAVASCRIPT>
+	</SPLIT>
+      </TEXT>
+
+      <TEXT>
+  As resident wizard, Ben is in charge of the company<APOS/>s computer
+  division, and he supervises two programmers and one technician.  Here
+  is the information about them:
+
+  <SNIPPET>
+    <SCHEME>
+      (address (Hacker Alyssa P) (Cambridge (Mass Ave) 78))
+      (job (Hacker Alyssa P) (computer programmer))
+      (salary (Hacker Alyssa P) 40000)
+      (supervisor (Hacker Alyssa P) (Bitdiddle Ben))
+
+      (address (Fect Cy D) (Cambridge (Ames Street) 3))
+      (job (Fect Cy D) (computer programmer))
+      (salary (Fect Cy D) 35000)
+      (supervisor (Fect Cy D) (Bitdiddle Ben))
+
+      (address (Tweakit Lem E) (Boston (Bay State Road) 22))
+      (job (Tweakit Lem E) (computer technician))
+      (salary (Tweakit Lem E) 25000)
+      (supervisor (Tweakit Lem E) (Bitdiddle Ben))
+    </SCHEME>
+    <JAVASCRIPT>
+address(list("Hacker", "Alyssa", "P"), list("Cambridge", "Mass Ave", 78));
+job(list("Hacker", "Alyssa", "P"), list("computer", "programmer"));
+salary(list("Hacker", "Alyssa", "P"), 40000);
+supervisor(list("Hacker", "Alyssa", "P"), list("Bitdiddle", "Ben"));
+
+address(list("Fect", "Cy", "D"), list("Cambridge", "Ames Street", 3));
+job(list("Fect", "Cy", "D"), list("computer", "programmer"));
+salary(list("Fect", "Cy", "D"), 35000);
+supervisor(list("Fect", "Cy", "D"), list("Bitdiddle", "Ben"));
+
+address(list("Tweakit", "Lem", "E"), list("Boston", "Bay State Road", 22));
+job(list("Tweakit", "Lem", "E"), list("computer", "technician"));
+salary(list("Tweakit", "Lem", "E"), 25000);
+supervisor(list("Tweakit", "Lem", "E"), list("Bitdiddle", "Ben"));
+    </JAVASCRIPT>
+  </SNIPPET>
+      </TEXT>
+
+      <TEXT>
+  There is also a programmer trainee, who is supervised by Alyssa:
+  <SNIPPET>
+    <SCHEME>
+      (address (Reasoner Louis) (Slumerville (Pine Tree Road) 80))
+      (job (Reasoner Louis) (computer programmer trainee))
+      (salary (Reasoner Louis) 30000)
+      (supervisor (Reasoner Louis) (Hacker Alyssa P))
+    </SCHEME>
+    <JAVASCRIPT>
+address(list("Reasoner", "Louis"), list("Slumerville", "Pine Tree Road", 80));
+job(list("Reasoner", "Louis"), list("computer", "programmer trainee"));
+salary(list("Reasoner", "Louis"), 30000);
+supervisor(list("Reasoner", "Louis"), list("Hacker", "Alyssa", "P"));
+    </JAVASCRIPT>
+  </SNIPPET>
+      </TEXT>
+
+      <TEXT>
+  All of these people are in the computer division, as indicated by the
+  word <SCHEMEINLINE>computer</SCHEMEINLINE> as the first item in their job descriptions.
+
+  Ben is a high-level employee.  His supervisor is the company<APOS/>s big
+  wheel himself:
+
+  <SNIPPET>
+    <SCHEME>
+      (supervisor (Bitdiddle Ben) (Warbucks Oliver))
+
+      (address (Warbucks Oliver) (Swellesley (Top Heap Road)))
+      (job (Warbucks Oliver) (administration big wheel))
+      (salary (Warbucks Oliver) 150000)
+    </SCHEME>
+    <JAVASCRIPT>
+supervisor(list("Bitdiddle", "Ben"), list("Warbucks", "Oliver"));
+
+address(list("Warbucks", "Oliver"), list("Swellesley", "Top Heap Road"));
+job(list("Warbucks", "Oliver"), list("administration", "big", "wheel"));
+salary(list("Warbucks", "Oliver"), 150000);
+    </JAVASCRIPT>
+  </SNIPPET>
+      </TEXT>
+
+      <TEXT>
+  Besides the computer division supervised by Ben, the company has an
+  accounting division, consisting of a chief accountant and his
+  assistant:
+
+  <SNIPPET>
+    <SCHEME>
+      (address (Scrooge Eben) (Weston (Shady Lane) 10))
+      (job (Scrooge Eben) (accounting chief accountant))
+      (salary (Scrooge Eben) 75000)
+      (supervisor (Scrooge Eben) (Warbucks Oliver))
+
+      (address (Cratchet Robert) (Allston (N Harvard Street) 16))
+      (job (Cratchet Robert) (accounting scrivener))
+      (salary (Cratchet Robert) 18000)
+      (supervisor (Cratchet Robert) (Scrooge Eben))
+    </SCHEME>
+    <JAVASCRIPT>
+address(list("Scrooge", "Eben"), list("Weston", "Shady Lane", 10));
+job(list("Scrooge", "Eben"), list("accounting", list("chief", "accountant"));
+salary(list("Scrooge", "Eben"), 75000);
+supervisor(list("Scrooge", "Eben"), list("Warbucks", "Oliver"));
+
+address(list("Cratchet", "Robert"), list("Allston", "N Harvard Street", 16));
+job(list("Cratchet", "Robert"), list("accounting", "scrivener"));
+salary(list("Cratchet", "Robert"), 18000);
+supervisor(list("Cratchet", "Robert"), list("Scrooge", "Eben"));
+    </JAVASCRIPT>
+  </SNIPPET>
+      </TEXT>
+
+      <TEXT>
+  There is also a secretary for the big wheel:
+
+  <SNIPPET>
+    <SCHEME>
+      (address (Aull DeWitt) (Slumerville (Onion Square) 5))
+      (job (Aull DeWitt) (administration secretary))
+      (salary (Aull DeWitt) 25000)
+      (supervisor (Aull DeWitt) (Warbucks Oliver))
+    </SCHEME>
+    <JAVASCRIPT>
+address(list("Aull", "DeWitt"), list("Slumerville", "Onion Square", 5));
+job(list("Aull", "DeWitt"), list("administration", "secretary"));
+salary(list("Aull", "DeWitt"), 25000);
+supervisor(list("Aull", "DeWitt"), list("Warbucks", "Oliver"));
+    </JAVASCRIPT>
+  </SNIPPET>
+      </TEXT>
+
+      <TEXT>
+  The data base also contains assertions about which kinds of jobs can
+  be done by people holding other kinds of jobs.  For instance, a
+  computer wizard can do the jobs of both a computer programmer and a
+  computer technician:
+
+  <SNIPPET>
+    <SCHEME>
+      (can-do-job (computer wizard) (computer programmer))
+      (can-do-job (computer wizard) (computer technician))
+    </SCHEME>
+    <JAVASCRIPT>
+can_do_job(list("computer", "wizard"), list("computer", "programmer"));
+can_do_job(list("computer", "wizard"), list("computer", "technician"));
+    </JAVASCRIPT>
+  </SNIPPET>
+      </TEXT>
+
+      <TEXT>
+  A computer programmer could fill in for a trainee:
+  <SNIPPET>
+    <SCHEME>
+      (can-do-job (computer programmer)
+            (computer programmer trainee))
+    </SCHEME>
+    <JAVASCRIPT>
+can_do_job(list("computer", "programmer"),
+           list("computer", "programmer", "trainee"));
+    </JAVASCRIPT>
+  </SNIPPET>
+      </TEXT>
+
+      <TEXT>
+  <INDEX>secretary, importance of</INDEX>
+  Also, as is well known,
+  <SNIPPET>
+    <SCHEME>
+      (can-do-job (administration secretary)
+            (administration big wheel))
+    </SCHEME>
+    <JAVASCRIPT>
+can_do_job(list("administration", "secretary"),
+           list("administration", "big", "wheel"));
+    </JAVASCRIPT>
+  </SNIPPET>
+      </TEXT>
+
+      <INDEX>data base<SUBINDEX>Microshaft personnel|)</SUBINDEX></INDEX>
+      <INDEX>query language<SUBINDEX>data base|)</SUBINDEX></INDEX>
+
+      <SUBHEADING>
+  <NAME>Simple queries</NAME>
+      </SUBHEADING>
+
+      <INDEX>simple query|(</INDEX>
+      <TEXT>
+  The query language allows users to retrieve information from the data
+  base by posing queries in response to the system<APOS/>s prompt.  For
+  example, to find all computer programmers one can say
+
+  <SNIPPET>
+    <SCHEMEOUTPUT>
+      ;;; Query input:
+      (job ?x (computer programmer))
+    </SCHEMEOUTPUT>
+    <JAVASCRIPT>
+// Query input:
+job(x, list("computer", "programmer"));
+    </JAVASCRIPT>
+  </SNIPPET>
+      </TEXT>
+
+      <TEXT>
+  The system will respond with the following items:
+
+  <SNIPPET>
+    <SCHEMEOUTPUT>
+      ;;; Query results:
+      (job (Hacker Alyssa P) (computer programmer))
+      (job (Fect Cy D) (computer programmer))
+    </SCHEMEOUTPUT>
+    <JAVASCRIPT>
+// Query results:
+job(list("Hacker", "Alyssa", "P"), list("computer", "programmer"))
+job(list("Fect", "Cy", "D"), list("computer", "programmer"))
+    </JAVASCRIPT>
+  </SNIPPET>
+      </TEXT>
+
+      <TEXT>
+  <INDEX>pattern|(</INDEX>
+  The input query specifies that we are looking for entries in the data
+  base that match a certain <EM>pattern</EM>.  In this example, the pattern
+  specifies entries consisting of three items, of which the first is the
+  literal symbol <SCHEMEINLINE>job</SCHEMEINLINE>, the second can be anything, and the third is
+  the literal list <SPLITINLINE><SCHEME><SCHEMEINLINE>(computer programmer)</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>list("computer", "programmer")</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>.  The <QUOTE>anything</QUOTE> that
+  can be the second item in the matching list is specified by a 
+  <INDEX>pattern variable</INDEX>
+  <EM>
+    pattern variable</EM>,
+    <SPLITINLINE>
+      <SCHEME>
+	<SCHEMEINLINE>?x</SCHEMEINLINE>.
+      </SCHEME>
+      <JAVASCRIPT>
+	<JAVASCRIPTINLINE>x</JAVASCRIPTINLINE>.
+      </JAVASCRIPT>
+    </SPLITINLINE>
+
+    <SPLITINLINE>
+      <SCHEME>
+	The general form of a pattern variable is a
+	symbol, taken to be the name of the variable, preceded by a
+	question mark.
+	We will see below why it is useful to specify names
+	for pattern variables rather than just putting
+	<SCHEMEINLINE>?</SCHEMEINLINE>
+	into patterns
+	to represent <QUOTE>anything.</QUOTE>
+      </SCHEME>
+    </SPLITINLINE>
+	The system responds to a simple query by
+      showing all entries in the data base that match the specified pattern.
+      </TEXT>
+
+      <TEXT>
+  A pattern can have more than one variable.  For example, the query
+  <SNIPPET>
+    <SCHEME>
+      (address ?x ?y)
+    </SCHEME>
+    <JAVASCRIPT>
+address(x, y)      
+    </JAVASCRIPT>
+  </SNIPPET>
+  will list all the employees<APOS/> addresses.
+      </TEXT>
+
+      <TEXT>
+  A pattern can have no variables, in which case the query simply
+  determines whether that pattern is an entry in the data base.  If so,
+  there will be one match; if not, there will be no matches.
+      </TEXT>
+
+      <TEXT>
+  The same pattern variable can appear more than once in a query,
+  specifying that the same <QUOTE>anything</QUOTE> must appear in each position.
+  This is why variables have names.  For example,
+
+  <SNIPPET>
+    <SCHEME>
+      (supervisor ?x ?x)
+    </SCHEME>
+    <JAVASCRIPT>
+supervisor(x, x)      
+    </JAVASCRIPT>
+  </SNIPPET>
+
+  finds all people who supervise themselves (though there are no such
+  assertions in our sample data base).
+      </TEXT>
+
+      <TEXT>
+  The query
+  <SNIPPET>
+    <SCHEME>
+      (job ?x (computer ?type))
+    </SCHEME>
+    <JAVASCRIPT>
+job(x, list("computer",  type));
+    </JAVASCRIPT>
+  </SNIPPET>
+
+  matches all job entries whose third item is a two-element list whose
+  first item is
+  <SPLITINLINE>
+    <SCHEME>
+      <SCHEMEINLINE>computer</SCHEMEINLINE>:
+    </SCHEME>
+    <JAVASCRIPT>
+      <JAVASCRIPTINLINE>"computer"</JAVASCRIPTINLINE>:
+    </JAVASCRIPT>
+  </SPLITINLINE>
+  <SNIPPET>
+    <SCHEME>
+      (job (Bitdiddle Ben) (computer wizard))
+      (job (Hacker Alyssa P) (computer programmer))
+      (job (Fect Cy D) (computer programmer))
+      (job (Tweakit Lem E) (computer technician))
+    </SCHEME>
+    <JAVASCRIPT>
+job(list("Bitdiddle", "Ben"), list("computer", "wizard"));
+job(list("Hacker", "Alyssa", "P"), list("computer", "programmer"));
+job(list("Fect", "Cy", "D"), list("computer", "programmer"));
+job(list("Tweakit", "Lem", "E"), list("computer", "technician"));
+    </JAVASCRIPT>
+  </SNIPPET>
+
+      </TEXT>
+      <TEXT>
+  This same pattern does <EM>not</EM> match
+  <SNIPPET>
+    <SCHEME>
+      (job (Reasoner Louis) (computer programmer trainee))
+    </SCHEME>
+    <JAVASCRIPT>
+      job(list("Reasoner", "Louis"), list("computer", "programmer", "trainee"));
+    </JAVASCRIPT>
+  </SNIPPET>
+  because the third item in the entry is a list of three elements, and
+  the pattern<APOS/>s third item specifies that there should be two elements.
+  If we wanted to change the pattern so that the third item could be any
+  <INDEX>dotted-tail notation<SUBINDEX>query@in query pattern</SUBINDEX></INDEX>
+  list beginning with <SCHEMEINLINE>computer</SCHEMEINLINE>, we could 
+  specify<SPLITINLINE><SCHEME><FOOTNOTE>This uses the dotted-tail notation introduced in
+    exercise<SPACE/><REF NAME="ex:dotted-arglist"/>.</FOOTNOTE></SCHEME></SPLITINLINE>
+  <SNIPPET>
+    <SCHEME>
+      (job ?x (computer . ?type))
+    </SCHEME>
+    <JAVASCRIPT>
+job(x, pair("computer", type))
+    </JAVASCRIPT>
+  </SNIPPET>
+  For example,
+  <SNIPPET>
+    <SCHEME>
+      (computer . ?type)
+    </SCHEME>
+    <JAVASCRIPT>
+pair("computer", type)      
+    </JAVASCRIPT>
+  </SNIPPET>
+
+  matches the data
+
+  <SNIPPET>
+    <SCHEME>
+      (computer programmer trainee)
+    </SCHEME>
+    <JAVASCRIPT>
+list("computer", "programmer", "trainee")
+    </JAVASCRIPT>
+  </SNIPPET>
+
+  with
+  <SPLITINLINE>
+    <SCHEME>
+      <SCHEMEINLINE>?type</SCHEMEINLINE>
+    </SCHEME>
+    <JAVASCRIPT>
+      <JAVASCRIPTINLINE>type</JAVASCRIPTINLINE>
+    </JAVASCRIPT>
+  </SPLITINLINE>
+  as the list <SPLITINLINE><SCHEME><SCHEMEINLINE>(programmer trainee)</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>list("programmer", "trainee")</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>.  
+  It also matches the data
+
+  <SNIPPET>
+    <SCHEME>
+      (computer programmer)
+    </SCHEME>
+    <JAVASCRIPT>
+list("computer", "programmer")
+    </JAVASCRIPT>
+  </SNIPPET>
+
+  with
+  <SPLITINLINE>
+    <SCHEME>
+      <SCHEMEINLINE>?type</SCHEMEINLINE>
+    </SCHEME>
+    <JAVASCRIPT>
+type      
+    </JAVASCRIPT>
+  </SPLITINLINE>
+  as the list
+  <SPLITINLINE><SCHEME><SCHEMEINLINE>(programmer)</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>list("programmer")</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>, and matches the data
+
+  <SNIPPET>
+    <SCHEME>
+      (computer)
+    </SCHEME>
+    <JAVASCRIPT>
+list("computer")      
+    </JAVASCRIPT>
+  </SNIPPET>
+
+  with
+    <SPLITINLINE>
+    <SCHEME>
+      <SCHEMEINLINE>?type</SCHEMEINLINE>
+    </SCHEME>
+    <JAVASCRIPT>
+type      
+    </JAVASCRIPT>
+  </SPLITINLINE>
+  as the empty list <SPLITINLINE><SCHEME><SCHEMEINLINE>()</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>null</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>.
+  <INDEX>pattern|)</INDEX>
+      </TEXT>
+
+      <TEXT>
+  We can describe the query language<APOS/>s processing of simple queries as
+  follows:
+
+  <UL>
+    <LI>The system finds all assignments to variables in the query
+      <INDEX>satisfy a pattern (simple query)</INDEX>
+      pattern that <EM>satisfy</EM> the pattern<EMDASH/>that is, all sets of values
+      for the variables such that if the pattern variables are 
+      <INDEX>instantiate a pattern</INDEX>
+      <EM>
+        instantiated with</EM> (replaced by) the values, the result is in the data
+      base.
+
+    </LI>
+    <LI>
+      The system responds to the query by listing all instantiations of the
+      query pattern with the variable assignments that satisfy it.
+
+    </LI>
+  </UL>
+      </TEXT>
+
+      <TEXT>
+  Note that if the pattern has no variables, the query reduces to a
+  determination of whether that pattern is in the data base.  If so, the
+  empty assignment, which assigns no values to variables, satisfies that
+  pattern for that data base.
+      </TEXT>
+
+      <EXERCISE>
+  Give simple queries that retrieve the following information from the
+  data base:
+  <OL>
+    <LI>
+      all people supervised by Ben Bitdiddle;
+    </LI>
+    <LI>
+      the names and jobs of all people in the accounting division;
+    </LI>
+    <LI>
+      the names and addresses of all people who live 
+      in Slumerville.
+    </LI>
+  </OL>
+      </EXERCISE>
+      <INDEX>simple query|)</INDEX>
+
+      <SUBHEADING>
+  <NAME>Compound queries</NAME>
+      </SUBHEADING>
+
+      <INDEX>compound query|(</INDEX>
+
+      <TEXT>
+  Simple queries form the primitive operations of the query language.
+  In order to form compound operations, the query language provides
+  means of combination.  One thing that makes the query language a logic
+  programming language is that the means of combination mirror the means
+  of combination used in forming logical expressions: <SCHEMEINLINE>and</SCHEMEINLINE>, <SCHEMEINLINE>or</SCHEMEINLINE>, and <SCHEMEINLINE>not</SCHEMEINLINE>.  (Here <SCHEMEINLINE>and</SCHEMEINLINE>, <SCHEMEINLINE>or</SCHEMEINLINE>, and <SCHEMEINLINE>not</SCHEMEINLINE> are not
+  the <SPLITINLINE><SCHEME>Lisp</SCHEME><JAVASCRIPT>JavaScript</JAVASCRIPT></SPLITINLINE> primitives,
+  but rather operations built into the query language.)
+      </TEXT>
+
+      <TEXT>
+  <!-- \indcodeplus{and}{(query language)}-->
+  We can use <SCHEMEINLINE>and</SCHEMEINLINE> as follows to find the addresses of all the
+  computer programmers:
+
+  <SNIPPET>
+    <SCHEME>
+      (and (job ?person (computer programmer))
+      (address ?person ?where))
+    </SCHEME>
+    <JAVASCRIPT>
+and(job(person, list("computer", "programmer"),
+    address(person, where));
+    </JAVASCRIPT>
+  </SNIPPET>
+      </TEXT>
+
+      <TEXT>
+  The resulting output is
+  <SNIPPET>
+    <SCHEME>
+      (and (job (Hacker Alyssa P) (computer programmer))
+      (address (Hacker Alyssa P) (Cambridge (Mass Ave) 78)))
+
+      (and (job (Fect Cy D) (computer programmer))
+      (address (Fect Cy D) (Cambridge (Ames Street) 3)))
+    </SCHEME>
+    <JAVASCRIPT>
+and(job(list("Hacker", "Alyssa", "P"), list("computer", "programmer")),
+    address(list("Hacker", "Alyssa", "P"), list("Cambridge", "Mass Ave", 78)))
+
+and(job(list("Fect", "Cy", "D"), list("computer", "programmer")),
+    address(list("Fect", "Cy", "D"), list("Cambridge", "Ames Street", 3)))
+    </JAVASCRIPT>
+  </SNIPPET>
+      </TEXT>
+
+      <TEXT>
+  <INDEX>satisfy a compound query|(</INDEX>
+  In general,
+  <SNIPPET LATEX="yes">
+    <SCHEME>
+      (and ^query$_{1}$^ ^query$_{2}$^ ^$\ldots$^ ^query$_{n}$^)
+    </SCHEME>
+    <JAVASCRIPT>
+and($\textit{query}_{1}$, $\textit{query}_{2}$, $\ldots$, $\textit{query}_{n})$;
+    </JAVASCRIPT>
+  </SNIPPET>
+
+  is satisfied by all sets of values for the pattern variables that
+  simultaneously satisfy
+  <LATEXINLINE>$\textit{query}_{1}\ldots \textit{query}_{n}$</LATEXINLINE>.
+      </TEXT>
+
+      <TEXT>
+  As for simple queries, the system processes a compound query by
+  finding all assignments to the pattern variables that satisfy the
+  query, then displaying instantiations of the query with those values.
+      </TEXT>
+
+      <TEXT>
+  <!-- \indcodeplus{or}{(query language)}-->
+  Another means of constructing compound queries is through <SCHEMEINLINE>or</SCHEMEINLINE>.
+  For example,
+
+  <SNIPPET>
+    <SCHEME>
+      (or (supervisor ?x (Bitdiddle Ben))
+      (supervisor ?x (Hacker Alyssa P)))
+    </SCHEME>
+    <JAVASCRIPT>
+or(supervisor(x, list("Bitdiddle", "Ben")),
+   supervisor(x, list("Hacker", "Alyssa", "P")));
+    </JAVASCRIPT>
+  </SNIPPET>
+  
+  will find all employees supervised by Ben Bitdiddle or Alyssa P.
+  Hacker:
+
+  <SNIPPET>
+    <SCHEME>
+      (or (supervisor (Hacker Alyssa P) (Bitdiddle Ben))
+      (supervisor (Hacker Alyssa P) (Hacker Alyssa P)))
+
+      (or (supervisor (Fect Cy D) (Bitdiddle Ben))
+      (supervisor (Fect Cy D) (Hacker Alyssa P)))
+
+      (or (supervisor (Tweakit Lem E) (Bitdiddle Ben))
+      (supervisor (Tweakit Lem E) (Hacker Alyssa P)))
+
+      (or (supervisor (Reasoner Louis) (Bitdiddle Ben))
+      (supervisor (Reasoner Louis) (Hacker Alyssa P)))
+    </SCHEME>
+    <JAVASCRIPT>
+or(supervisor(list("Hacker", "Alyssa", "P"), list("Bitdiddle", "Ben")),
+supervisor(list("Hacker", "Alyssa", "P"), list("Hacker", "Alyssa", "P")))
+
+or(supervisor(list("Fect", "Cy", "D"), list("Bitdiddle", "Ben")),
+   supervisor(list("Fect", "Cy", "D"), list("Hacker", "Alyssa", "P")))
+
+or(supervisor(list("Tweakit", "Lem", "E"), list("Bitdiddle", "Ben")),
+   supervisor(list("Tweakit", "Lem", "E"), list("Hacker", "Alyssa", "P")))
+
+or(supervisor(list("Reasoner", "Louis"), list("Bitdiddle", "Ben")),
+   supervisor(list("Reasoner", "Louis"), list("Hacker", "Alyssa", "P")))
+    </JAVASCRIPT>
+  </SNIPPET>
+      </TEXT>
+
+      <TEXT>
+  In general,
+  <SNIPPET LATEX="yes">
+    <SCHEME>
+      (or ^query$_{1}$^ ^query$_{2}$^ ^$\ldots$^ ^query$_{n}$^)
+    </SCHEME>
+    <JAVASCRIPT>
+or($\textit{query}_{1}$, $\textit{query}_{2}$, $\ldots$, $\textit{query}_{n}$^);
+    </JAVASCRIPT>
+  </SNIPPET>
+
+  is satisfied by all sets of values for the pattern variables that
+  satisfy at least one of
+  <SPLITINLINE>
+    <SCHEME>
+      <LATEXINLINE>$\textit{query}_{1}\ldots \textit{query}_{n}$</LATEXINLINE>.
+    </SCHEME>
+    <JAVASCRIPT>
+      <LATEXINLINE>$\textit{query}_{1} \ldots \textit{query}_{n}$</LATEXINLINE>.
+    </JAVASCRIPT>
+  </SPLITINLINE>
+      </TEXT>
+
+      <TEXT>
+  <!-- \indcodeplus{not}{(query language)}-->
+  Compound queries can also be formed with
+  <SPLITINLINE>
+    <SCHEME>
+      <SCHEMEINLINE>not</SCHEMEINLINE>.
+    </SCHEME>
+    <JAVASCRIPT>
+      <JAVASCRIPTINLINE>not</JAVASCRIPTINLINE>.
+    </JAVASCRIPT>
+  </SPLITINLINE>
+  For example,
+  <SNIPPET>
+    <SCHEME>
+      (and (supervisor ?x (Bitdiddle Ben))
+      (not (job ?x (computer programmer))))
+    </SCHEME>
+    <JAVASCRIPT>
+and(supervisor(x, list("Bitdiddle", "Ben")),
+    not(job(x, list("computer", "programmer"))));
+    </JAVASCRIPT>
+  </SNIPPET>
+
+  finds all people supervised by Ben Bitdiddle who are not computer
+  programmers.  In general,
+
+  <SNIPPET EVAL="no" LATEX="yes">
+    <SCHEME>
+      (not ^query<LATEXINLINE>$_{1}$</LATEXINLINE>^)
+    </SCHEME>
+    <JAVASCRIPT>
+not($\textit{query}_{1}$);
+    </JAVASCRIPT>
+  </SNIPPET>
+
+  is satisfied by all assignments to the pattern variables that do not
+  satisfy <LATEXINLINE>$\textit{query}_{1}$</LATEXINLINE>.<FOOTNOTE>Actually, this description of
+  <SPLITINLINE>
+    <SCHEME>
+      <SCHEMEINLINE>not</SCHEMEINLINE>.
+    </SCHEME>
+    <JAVASCRIPT>
+      <JAVASCRIPTINLINE>not</JAVASCRIPTINLINE>.
+    </JAVASCRIPT>
+  </SPLITINLINE>
+  is valid only for simple cases.
+  The real behavior of
+  <SPLITINLINE>
+    <SCHEME>
+      <SCHEMEINLINE>not</SCHEMEINLINE>
+    </SCHEME>
+    <JAVASCRIPT>
+      <JAVASCRIPTINLINE>not</JAVASCRIPTINLINE>
+    </JAVASCRIPT>
+  </SPLITINLINE>
+  is more complex.  We will examine
+  <SCHEMEINLINE>not</SCHEMEINLINE><APOS/>s  peculiarities
+  in sections<SPACE/><REF NAME="sec:how-query-works"/> and<SPACE/><REF NAME="sec:math-logic"/>.</FOOTNOTE>
+      </TEXT>
+
+      <TEXT>
+  <!-- \indcodeplus{lisp-value}{(query language)}-->
+  The final combining form is called
+  <SPLITINLINE>
+    <SCHEME>
+      <SCHEMEINLINE>lisp-value</SCHEMEINLINE>.
+    </SCHEME>
+    <JAVASCRIPT>
+      <JAVASCRIPTINLINE>javascript_value</JAVASCRIPTINLINE>.
+    </JAVASCRIPT>
+  </SPLITINLINE>
+  When
+  <SPLITINLINE>
+    <SCHEME>
+      <SCHEMEINLINE>lisp-value</SCHEMEINLINE>
+    </SCHEME>
+    <JAVASCRIPT>
+      <JAVASCRIPTINLINE>javascript_value</JAVASCRIPTINLINE>
+    </JAVASCRIPT>
+  </SPLITINLINE>
+  is the first element of a pattern, it specifies that the
+  next element is a <SPLITINLINE><SCHEME>Lisp</SCHEME><JAVASCRIPT>JavaScript</JAVASCRIPT></SPLITINLINE> predicate to be applied to the rest of the
+  (instantiated) elements as arguments.  In general,
+
+  <SNIPPET EVAL="no" LATEX="yes">
+    <SCHEME>
+      (lisp-value ^predicate^ ^arg$_{1}$^ ^$\ldots$^ ^arg$_{n}$^)
+    </SCHEME>
+    <JAVASCRIPT>
+javascript_value($\textit{predicate}$, $\textit{arg}_{1}$, $\ldots$, $\textit{arg}_{n}$)
+    </JAVASCRIPT>
+  </SNIPPET>
+
+  will be satisfied by assignments to the pattern variables for which the
+  <LATEXINLINE>$\textit{predicate}$</LATEXINLINE> applied to the instantiated
+  <LATEXINLINE>$\textit{arg}_{1}, \ldots, \textit{arg}_{n}$</LATEXINLINE>
+  is true.  For example, to find all people whose salary is greater than
+  <DOLLAR/>30,000 we could write<FOOTNOTE><SPLITINLINE><SCHEME>Lisp-value</SCHEME><JAVASCRIPT>Such <JAVASCRIPTINLINE>javascript_value</JAVASCRIPTINLINE> expressions</JAVASCRIPT></SPLITINLINE> should be used only to perform an operation not
+    <INDEX>query language<SUBINDEX>equality testing in</SUBINDEX></INDEX>
+    provided in the query language.  In particular, it should not
+    be used to test equality (since that is what the matching in the
+    query language is designed to do) or inequality (since that can
+    be done with the <SCHEMEINLINE>same</SCHEMEINLINE> rule shown below).</FOOTNOTE>
+
+  <SNIPPET>
+    <SCHEME>
+      (and (salary ?person ?amount)
+      (lisp-value &gt; ?amount 30000))
+    </SCHEME>
+    <JAVASCRIPT>
+and(salary(person, amount),
+    javascript_value(greater_than, amount, 30000));
+    </JAVASCRIPT>
+  </SNIPPET>
+  <INDEX>satisfy a compound query|)</INDEX>
+      </TEXT>
+
+      <EXERCISE>
+  Formulate compound queries that retrieve the following information:
+  <OL>
+    <LI>
+      the names of all people who are supervised by Ben Bitdiddle, together
+      with their addresses;
+    </LI>
+    <LI>
+      all people whose salary is less than Ben Bitdiddle<APOS/>s, together with
+      their salary and Ben Bitdiddle<APOS/>s salary;
+    </LI>
+    <LI>
+      all people who are supervised by someone who is not in the computer
+      division, together with the supervisor<APOS/>s name and job.
+    </LI>
+  </OL>
+      </EXERCISE>
+      <INDEX>compound query|)</INDEX>
+
+      <SUBHEADING>
+  <NAME>Rules</NAME>
+      </SUBHEADING>
+
+      <INDEX>rule (query language)|(</INDEX>
+      <TEXT>
+  <INDEX>query language<SUBINDEX>abstraction in</SUBINDEX></INDEX>
+  In addition to primitive queries and compound queries, the query
+  language provides means for abstracting queries.  These are given by
+  <EM>rules</EM>.  The rule
+
+  <SNIPPET>
+    <SCHEME>
+      <!-- \indcodeplus*{lives-near}{(rule)}-->
+      (rule (lives-near ?person-1 ?person-2)
+      (and (address ?person-1 (?town . ?rest-1))
+            (address ?person-2 (?town . ?rest-2))
+            (not (same ?person-1 ?person-2))))
+    </SCHEME>
+    <JAVASCRIPT>
+rule(lives_near(person_1, person_2),
+     and(address(person_1, pair(town, rest_1)),
+         address(person_2, pair(town, rest_2)),
+         not(same(person_1, person_2))));
+    </JAVASCRIPT>
+  </SNIPPET>
+
+  specifies that two people live near each other if they live in the
+  same town.  The final <SPLITINLINE><SCHEME><SCHEMEINLINE>not</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>not</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> clause prevents the rule from saying
+  that all people live near themselves.  The <SCHEMEINLINE>same</SCHEMEINLINE> relation is
+  defined by a very simple rule:<FOOTNOTE>Notice 
+    that we do not need <SCHEMEINLINE>same</SCHEMEINLINE> in order to make two things be
+    the same: We just use the same pattern variable for each<EMDASH/>in effect,
+    we have one thing instead of two things in the first place.  For
+    example, see
+    <SPLITINLINE>
+      <SCHEME>
+	<SCHEMEINLINE>?town</SCHEMEINLINE>
+      </SCHEME>
+      <JAVASCIPT>
+	<JAVASCRIPTINLINE>town</JAVASCRIPTINLINE>
+      </JAVASCIPT>
+    </SPLITINLINE>
+    in the
+    <SPLITINLINE>
+      <SCHEME>
+    <SCHEMEINLINE>lives-near</SCHEMEINLINE>
+      </SCHEME>
+      <JAVASCIPT>
+    <SCHEMEINLINE>lives_near</SCHEMEINLINE>
+      </JAVASCIPT>
+    </SPLITINLINE>
+    rule and
+    <SPLITINLINE>
+      <SCHEME>
+	<SCHEMEINLINE>?middle-manager</SCHEMEINLINE>
+      </SCHEME>
+      <JAVASCIPT>
+	<JAVASCRIPTINLINE>middle-manager</JAVASCRIPTINLINE>
+      </JAVASCIPT>
+    </SPLITINLINE>
+    in the
+    <SCHEMEINLINE>wheel</SCHEMEINLINE>
+    rule below.
+    <SPLITINLINE>
+      <SCHEME>
+	<SCHEMEINLINE>Same</SCHEMEINLINE>
+      </SCHEME>
+      <JAVASCRIPT>
+	The <JAVASCRIPTINLINE>same</JAVASCRIPTINLINE> relation
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    is useful when we want to force two things to be
+    different, such as
+    <SPLITINLINE>
+      <SCHEME>
+	<SCHEMEINLINE>?person-1</SCHEMEINLINE>
+      </SCHEME>
+      <JAVASCIPT>
+	<JAVASCRIPTINLINE>person_1</JAVASCRIPTINLINE>
+      </JAVASCIPT>
+    </SPLITINLINE>
+    and
+    <SPLITINLINE>
+      <SCHEME>
+	<SCHEMEINLINE>?person-2</SCHEMEINLINE>
+      </SCHEME>
+      <JAVASCIPT>
+	<JAVASCRIPTINLINE>person_2</JAVASCRIPTINLINE>
+      </JAVASCIPT>
+    </SPLITINLINE>
+    in the
+    <SPLITINLINE>
+      <SCHEME>
+	<SCHEMEINLINE>lives-near</SCHEMEINLINE>
+      </SCHEME>
+      <JAVASCIPT>
+	<JAVASCRIPTINLINE>"lives-near"</JAVASCRIPTINLINE>
+      </JAVASCIPT>
+    </SPLITINLINE>
+    rule.  Although using the same pattern variable in two
+    parts of a query forces the same value to appear in both places, using
+    different pattern variables does not force different values to appear.
+    (The values assigned to different pattern variables may be the same or
+    different.)</FOOTNOTE>
+
+  <SNIPPET>
+    <SCHEME>
+      <!-- \indcodeplus*{same}{(rule)}-->
+      (rule (same ?x ?x))
+    </SCHEME>
+    <JAVASCRIPT>
+rule(same(x, x));
+    </JAVASCRIPT>
+  </SNIPPET>
+      </TEXT>
+
+      <TEXT>
+  The following rule declares that a person is a <QUOTE>wheel</QUOTE> in an
+  organization if he supervises someone who is in turn a supervisor:
+
+  <SNIPPET>
+    <SCHEME>
+      <!-- \indcodeplus*{wheel}{(rule)}-->
+      (rule (wheel ?person)
+      (and (supervisor ?middle-manager ?person)
+            (supervisor ?x ?middle-manager)))
+    </SCHEME>
+    <JAVASCRIPT>
+rule(wheel(person),
+     and(supervisor(middle_manager, person),
+         supervisor(x, middle_manager)));
+    </JAVASCRIPT>
+  </SNIPPET>
+      </TEXT>
+
+      <TEXT>
+  The general form of a rule is
+  <SNIPPET LATEX="yes">
+    <SCHEME>
+      (rule ^conclusion^ ^body^)
+    </SCHEME>
+    <JAVASCRIPT>
+rule($\textit{conclusion}$, $\textit{body}$);
+    </JAVASCRIPT>
+  </SNIPPET>
+
+  where <LATEXINLINE>$\textit{conclusion}$</LATEXINLINE> is a pattern and <LATEXINLINE>$\textit{body}$</LATEXINLINE> is any
+  query.<FOOTNOTE>We will also allow rules without bodies, as in
+  <INDEX>rule (query language)<SUBINDEX>without body</SUBINDEX></INDEX>
+  <SCHEMEINLINE>same</SCHEMEINLINE>, and we will interpret such a rule to mean that the rule
+    conclusion is satisfied by any values of the variables.</FOOTNOTE> We can think
+  of a rule as representing a large (even infinite) set of assertions,
+  namely all instantiations of the rule conclusion with variable
+  assignments that satisfy the rule body.  When we described simple
+  queries (patterns), we said that an assignment to variables satisfies
+  a pattern if the instantiated pattern is in the data base.  But the
+  pattern needn<APOS/>t be explicitly in the data base as an assertion.  It
+  <INDEX>assertion<SUBINDEX>implicit</SUBINDEX></INDEX>
+  can be an implicit assertion implied by a rule.  For example, the
+  query
+  <SNIPPET>
+    <SCHEME>
+      (lives-near ?x (Bitdiddle Ben))
+    </SCHEME>
+    <JAVASCRIPT>
+lives_near(x, list("Bitdiddle", "Ben"))
+    </JAVASCRIPT>
+  </SNIPPET>
+  results in
+  <SNIPPET>
+    <SCHEME>
+      (lives-near (Reasoner Louis) (Bitdiddle Ben))
+      (lives-near (Aull DeWitt) (Bitdiddle Ben))
+    </SCHEME>
+    <JAVASCRIPT>
+lives_near(list("Reasoner", "Louis"), list("Bitdiddle", "Ben"))            
+lives_near(list("Aull", "DeWitt"), list("Bitdiddle", "Ben"))            
+    </JAVASCRIPT>
+  </SNIPPET>
+      </TEXT>
+
+      <TEXT>
+  To find all computer programmers who live near Ben Bitdiddle, we can
+  ask
+  <SNIPPET>
+    <SCHEME>
+      (and (job ?x (computer programmer))
+      (lives-near ?x (Bitdiddle Ben)))
+    </SCHEME>
+    <JAVASCRIPT>
+and(job(x, list("computer", "programmer")),
+    lives_near(x, list("Bitdiddle", "Ben")));
+    </JAVASCRIPT>
+  </SNIPPET>
+      </TEXT>
+
+      <TEXT>
+  <INDEX>recursion<SUBINDEX>rules@in rules</SUBINDEX></INDEX>
+  As in the case of compound
+  <SPLITINLINE><SCHEME>procedures</SCHEME><JAVASCRIPT>functions</JAVASCRIPT></SPLITINLINE>, rules can be used as parts of
+  other rules (as we saw with the <SCHEMEINLINE>lives-near</SCHEMEINLINE> rule above)
+  or even be defined recursively.  For instance, the rule
+  <SNIPPET>
+    <SCHEME>
+      <!-- \indcodeplus*{outranked-by}{(rule)}-->
+      (rule (outranked-by ?staff-person ?boss)
+      (or (supervisor ?staff-person ?boss)
+            (and (supervisor ?staff-person ?middle-manager)
+            (outranked-by ?middle-manager ?boss))))
+    </SCHEME>
+    <JAVASCRIPT>
+rule(outranked_by(staff_person, boss),
+     or(supervisor(staff_person, boss),
+        and(supervisor(staff_person, middle_manager),
+            outranked_by(middle_manager, boss))));
+    </JAVASCRIPT>
+  </SNIPPET>
+  says that a staff person is outranked by a boss in the organization if
+  the boss is the person<APOS/>s supervisor or (recursively) if the person<APOS/>s
+  supervisor is outranked by the boss.
+      </TEXT>
+
+      <EXERCISE>
+  Define a rule that says that person 1 can replace person 2 if either
+  person 1 does the same job as person 2 or someone who does person 1<APOS/>s
+  job can also do person<SPACE/>2<APOS/>s job, and if person 1 and person 2 are not
+  the same person. Using your rule, give queries that find the
+  following:
+  <OL>
+    <LI>
+      all people who can replace Cy D. Fect;
+    </LI>
+    <LI>
+      all people who can replace someone who is being paid more than they
+      are, together with the two salaries.
+    </LI>
+  </OL>
+      </EXERCISE>
+
+      <EXERCISE>
+  Define a rule that says that a person is a <QUOTE>big shot</QUOTE> in a division
+  if the person works in the division but does not have a supervisor who
+  works in the division.
+      </EXERCISE>
+
+      <!-- %Exercise source: Spring '84 Final - -&gt; manual M4.28 - - &gt; here-->
+      <EXERCISE>
+  Ben Bitdiddle has missed one meeting too many.
+  Fearing that his habit of forgetting meetings could cost him his
+  job, Ben decides to do something about it.  He adds all the weekly
+  meetings of the firm to the Microshaft data base by
+  asserting the following:
+  <SNIPPET>
+    <SCHEME>
+      (meeting accounting (Monday 9am))
+      (meeting administration (Monday 10am))
+      (meeting computer (Wednesday 3pm))
+      (meeting administration (Friday 1pm))
+    </SCHEME>
+    <JAVASCRIPT>
+meeting("accounting", list("Monday", "9am"))
+meeting("administration", list("Monday", "10am"))
+meeting("computer", list("Wednesday", "3pm"))
+meeting("administration", list("Friday", "1pm"))
+    </JAVASCRIPT>
+  </SNIPPET>
+
+  Each of the above assertions is for a meeting of an entire division.
+  Ben also adds an entry for the company-wide meeting that spans all the
+  divisions.  All of the company<APOS/>s employees attend this meeting.
+  <SNIPPET>
+    <SCHEME>
+      (meeting whole-company (Wednesday 4pm))
+    </SCHEME>
+    <JAVASCRIPT>
+meeting("whole-company", list("Wednesday", "4pm"))
+    </JAVASCRIPT>
+  </SNIPPET>
+
+  <OL>
+    <LI>
+      On Friday morning, Ben wants to query the data base for all the meetings
+      that occur that day.  What query should he use?
+    </LI>
+    <LI>
+      Alyssa P. Hacker is unimpressed.  She thinks it would be much more
+      useful to be able to ask for her meetings by specifying her name.  So
+      she designs a rule that says that a person<APOS/>s meetings include all
+      <SPLITINLINE>
+	<SCHEME>
+	  <SCHEMEINLINE>whole-company</SCHEMEINLINE>
+	</SCHEME>
+	<JAVASCRIPT>
+	  <JAVASCRIPTINLINE>whole-company</JAVASCRIPTINLINE>
+	</JAVASCRIPT>
+      </SPLITINLINE>
+      meetings plus all meetings of that person<APOS/>s division.
+      Fill in the body of Alyssa<APOS/>s rule.
+      <SNIPPET EVAL="no" LATEX="yes">
+        <SCHEME>
+    (rule (meeting-time ?person ?day-and-time)
+    ^rule-body^)
+        </SCHEME>
+	<JAVASCRIPT>
+rule(meeting_time(person, day_and_time),
+     $\textit{rule-body}$);
+	</JAVASCRIPT>
+      </SNIPPET>
+    </LI>
+    <LI>
+      Alyssa arrives at work on Wednesday morning and wonders what meetings she 
+      has to attend that day.  Having defined the above rule,
+      what query should she make to find this out?
+    </LI>
+  </OL>
+      </EXERCISE>
+
+      <EXERCISE>
+  <!-- \indcodeplus{lives-near}{(rule)}-->
+  By giving the query
+  <SNIPPET>
+    <SCHEME>
+      (lives-near ?person (Hacker Alyssa P))
+    </SCHEME>
+    <JAVASCRIPT>
+lives_near(person, list("Hacker", "Alyssa", "P"));
+    </JAVASCRIPT>
+  </SNIPPET>
+
+  Alyssa P. Hacker is able to find people who live near her, with whom
+  she can ride to work.  On the other hand, when she tries to find all
+  pairs of people who live near each other by querying
+
+  <SNIPPET>
+    <SCHEME>
+      (lives-near ?person-1 ?person-2)
+    </SCHEME>
+    <JAVASCRIPT>
+lives_near(person_1, person_2)
+    </JAVASCRIPT>
+  </SNIPPET>
+
+  she notices that each pair of people who live near each other is
+  listed twice; for example,
+
+  <SNIPPET>
+    <SCHEME>
+lives_near(list("Hacker", "Alyssa", "P"), 
+           list("Fect", "Cy", "D"))
+lives_near(list("Fect", "Cy", "D"),
+           list("Hacker", "Alyssa", "P"))
+    </SCHEME>
+  </SNIPPET>
+
+  Why does this happen?
+  Is there a way to find a list of people who live near each other, in
+  which each pair appears only once?  Explain.
+  <LABEL NAME="ex:lives-near"/>
+      </EXERCISE>
+
+
+      <SUBHEADING>
+  <NAME>Logic as programs</NAME>
+      </SUBHEADING>
+
+      <INDEX>query language<SUBINDEX>logical deductions|(</SUBINDEX></INDEX>
+      <TEXT>
+  We can regard a rule as a kind of logical implication: <EM>If</EM> an
+  assignment of values to pattern variables satisfies the body, <EM>
+    then</EM> it satisfies the conclusion.  Consequently, we can regard the
+  query language as having the ability to perform <EM>logical
+    deductions</EM> based upon the rules.  As an example, consider the <SCHEMEINLINE>append</SCHEMEINLINE> operation described at the beginning of
+  section<SPACE/><REF NAME="sec:logic-programming"/>.  As we said, <SCHEMEINLINE>append</SCHEMEINLINE> can be
+  characterized by the following two rules:
+
+  <UL>
+    <LI>For any list <SCHEMEINLINE>y</SCHEMEINLINE>, the empty list and <SCHEMEINLINE>y</SCHEMEINLINE> <SCHEMEINLINE>append</SCHEMEINLINE> to form <SCHEMEINLINE>y</SCHEMEINLINE>.
+
+    </LI>
+    <LI>For any <SCHEMEINLINE>u</SCHEMEINLINE>,<LATEXINLINE>$\,$</LATEXINLINE> <SCHEMEINLINE>v</SCHEMEINLINE>,<LATEXINLINE>$\,$</LATEXINLINE> <SCHEMEINLINE>y</SCHEMEINLINE>, and <SCHEMEINLINE>z</SCHEMEINLINE>,
+      <LATEXINLINE>$\,$</LATEXINLINE><SPLITINLINE><SCHEME><SCHEMEINLINE>(cons u v)</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>pair(u, v)</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> and <SCHEMEINLINE>y</SCHEMEINLINE> <SCHEMEINLINE>append</SCHEMEINLINE> to form <SPLITINLINE><SCHEME><SCHEMEINLINE>(cons<SPACE/>u<SPACE/>z)</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>pair(u, z)</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>
+      if <SCHEMEINLINE>v</SCHEMEINLINE> and <SCHEMEINLINE>y</SCHEMEINLINE> <SCHEMEINLINE>append</SCHEMEINLINE> to form <SCHEMEINLINE>z</SCHEMEINLINE>.
+    </LI>
+
+  </UL>
+      </TEXT>
+
+      <TEXT>
+  To express this in our query language, we define two rules for a
+  relation
+  <SNIPPET>
+    <SCHEME>
+      (append-to-form x y z)
+    </SCHEME>
+    <JAVASCRIPT>
+append-to-form("x", "y", "z")      
+    </JAVASCRIPT>
+  </SNIPPET>
+
+  which we can interpret to mean <QUOTE><SCHEMEINLINE>x</SCHEMEINLINE> and <SCHEMEINLINE>y</SCHEMEINLINE> <SCHEMEINLINE>append</SCHEMEINLINE> to
+    form <SCHEMEINLINE>z</SCHEMEINLINE></QUOTE>:
+
+  <SNIPPET>
+    <SCHEME>
+      <!-- \indcodeplus*{append-to-form}{(rules)}-->
+      (rule (append-to-form () ?y ?y))
+
+      (rule (append-to-form (?u . ?v) ?y (?u . ?z))
+      (append-to-form ?v ?y ?z))
+    </SCHEME>
+    <JAVASCRIPT>
+rule(append_to_form(null, y, y));
+rule(append_to_form(pair(u, v), y, pair(u, z)),
+     append-to-form(v, y, z));
+    </JAVASCRIPT>
+  </SNIPPET>
+      </TEXT>
+
+      <TEXT>
+	<INDEX>rule (query language)<SUBINDEX>without body</SUBINDEX></INDEX>
+  The first rule has no body, which means that the conclusion holds for
+  any value of<SPACE/><SPLITINLINE><SCHEME><SCHEMEINLINE>?y</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>y</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>.  Note how the second rule makes use of
+  <INDEX>dotted-tail notation<SUBINDEX>query@in query-language rule</SUBINDEX></INDEX>
+  dotted-tail notation to name the <SPLITINLINE><SCHEME><SCHEMEINLINE>car</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>head</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> and <SPLITINLINE><SCHEME><SCHEMEINLINE>cdr</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>tail</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> of a list.
+      </TEXT>
+
+      <TEXT>
+  Given these two rules, we can formulate queries that compute the <SCHEMEINLINE>append</SCHEMEINLINE> of two lists:
+  <SNIPPET>
+    <SCHEMEOUTPUT>
+      ;;; Query input:
+      (append-to-form (a b) (c d) ?z)
+      ;;; Query results:
+      (append-to-form (a b) (c d) (a b c d))
+    </SCHEMEOUTPUT>
+    <JAVASCRIPT>
+// Query input:
+append-to-form(list("a", "b"), list("c", "d"), z);
+// Query results:
+append-to-form(list("a", "b"), list("c", "d"), list("a", "b", "c", "d"))
+    </JAVASCRIPT>
+  </SNIPPET>
+      </TEXT>
+
+      <TEXT>
+  What is more striking, we can use the same rules to ask the question
+  <QUOTE>Which list, when <SCHEMEINLINE>append</SCHEMEINLINE>ed to <SPLITINLINE><SCHEME><SCHEMEINLINE>(a b)</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>list("a", "b")</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>, yields <SPLITINLINE><SCHEME><SCHEMEINLINE>(a b c d)</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>list("a", "b", "c", "d")</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>?</QUOTE>
+  This is done as follows:
+  <SNIPPET>
+    <SCHEMEOUTPUT>
+      ;;; Query input:
+      (append-to-form (a b) ?y (a b c d))
+      ;;; Query results:
+      (append-to-form (a b) (c d) (a b c d))
+    </SCHEMEOUTPUT>
+    <JAVASCRIPT>
+// Query input:
+append-to-form(list("a", "b"), y, list("a", "b", "c", "d"));
+// Query results:
+append-to-form(list("a", "b"), list("c", "d"), list("a", "b", "c", "d"))
+    </JAVASCRIPT>
+  </SNIPPET>
+      </TEXT>
+
+      <TEXT>
+  We can also ask for all pairs of lists that <SCHEMEINLINE>append</SCHEMEINLINE> to form <SPLITINLINE><SCHEME><SCHEMEINLINE>(a b c d)</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>list("a", "b", "c", "d")</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>:
+  <SNIPPET>
+    <SCHEMEOUTPUT>
+      ;;; Query input:
+      (append-to-form ?x ?y (a b c d))
+      ;;; Query results:
+      (append-to-form () (a b c d) (a b c d))
+      (append-to-form (a) (b c d) (a b c d))
+      (append-to-form (a b) (c d) (a b c d))
+      (append-to-form (a b c) (d) (a b c d))
+      (append-to-form (a b c d) () (a b c d))
+    </SCHEMEOUTPUT>
+    <JAVASCRIPT>
+// Query input:
+append-to-form(x, y, list("a", "b", "c", "d"));
+// Query results:
+append-to-form(null, list("a", "b", "c", "d"), list("a", "b", "c", "d"))
+append-to-form(list("a"), list("b", "c", "d"), list("a", "b", "c", "d"))
+append-to-form(list("a", "b"), list("c", "d"), list("a", "b", "c", "d"))
+append-to-form(list("a", "b", "c"), list("d"), list("a", "b", "c", "d"))
+append-to-form(list("a", "b", "c", "d"), null, list("a", "b", "c", "d"))
+    </JAVASCRIPT>
+  </SNIPPET>
+      </TEXT>
+
+      <TEXT>
+  The query system may seem to exhibit quite a bit of intelligence in
+  using the rules to deduce the answers to the queries above.  Actually,
+  as we will see in the next section, the system is following a
+  well-determined algorithm in unraveling the rules.  Unfortunately,
+  although the system works impressively in the <SCHEMEINLINE>append</SCHEMEINLINE> case, the
+  general methods may break down in more complex cases, as we will see
+  in section<SPACE/><REF NAME="sec:math-logic"/>.
+      </TEXT>
+
+      <!-- %Exercise source: Manual p.147 &amp;&amp; ex M4.30-->
+      <EXERCISE><LABEL NAME="ex:next-to"/>
+  The following rules implement a <SCHEMEINLINE>next-to</SCHEMEINLINE> relation that finds
+  adjacent elements of a list:
+  <SNIPPET>
+    <SCHEME>
+      <!-- \indcodeplus*{next-to}{(rules)}-->
+      (rule (?x next-to ?y in (?x ?y . ?u)))
+
+      (rule (?x next-to ?y in (?v . ?z))
+      (?x next-to ?y in ?z))
+    </SCHEME>
+    <JAVASCRIPT>
+rule(next_to_in(x, y, pair(x, pair(y, u))),
+     and(next_to_in(x, y, pair(v, z)),
+         next_to_in(x, y, z));
+    </JAVASCRIPT>
+  </SNIPPET>
+
+  What will the response be to the following queries?
+  <SNIPPET>
+    <SCHEME>
+      (?x next-to ?y in (1 (2 3) 4))
+
+      (?x next-to 1 in (2 1 3 1))
+    </SCHEME>
+    <JAVASCRIPT>
+next_to_in(x, y, list(1, list(2, 3), 4));
+
+next_to_in(x, 1, list(2, 1, 3, 1));
+    </JAVASCRIPT>
+  </SNIPPET>
+      </EXERCISE>
+
+      <EXERCISE>
+  <!--  \indcode{last-pair}[rules] -->
+  Define rules to implement the
+  <SPLITINLINE>
+    <SCHEME>
+      <SCHEMEINLINE>last-pair</SCHEMEINLINE>
+    </SCHEME>
+    <JAVASCRIPT>
+      <JAVASCRIPTINLINE>last_pair</JAVASCRIPTINLINE>
+    </JAVASCRIPT>
+  </SPLITINLINE>
+    operation of
+  exercise<SPACE/><REF NAME="ex:last"/>, which returns a list containing the last
+  element of a nonempty list.  Check your rules on queries such as
+  <SPLITINLINE><SCHEME><SCHEMEINLINE>(last-pair (3) ?x)</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>last_pair(list(3), x)</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>, <SPLITINLINE><SCHEME><SCHEMEINLINE>(last-pair (1 2 3) ?x)</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>last_pair(list(1, 2, 3), x)</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>, and <SPLITINLINE><SCHEME><SCHEMEINLINE>(last-pair (2 ?x) (3))</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>last_pair(list(2, x, list(3))</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>.
+  Do your rules work correctly on queries such as <SPLITINLINE><SCHEME><SCHEMEINLINE>(last-pair ?x (3))</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>last_pair(x, list(3))</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE><LATEXINLINE>$\,$</LATEXINLINE>?
+  <LABEL NAME="ex:last-pair-rules"/>
+      </EXERCISE>
+
+      <EXERCISE>
+  <INDEX>Ada</INDEX><INDEX>Genesis</INDEX>
+  The following data base (see Genesis 4) traces the genealogy of the
+  descendants of Ada back to Adam, by way of Cain:
+
+  <SNIPPET>
+    <SCHEME>
+      (son Adam Cain)
+      (son Cain Enoch)
+      (son Enoch Irad)
+      (son Irad Mehujael)
+      (son Mehujael Methushael)
+      (son Methushael Lamech)
+      (wife Lamech Ada)
+      (son Ada Jabal)
+      (son Ada Jubal)
+    </SCHEME>
+    <JAVASCRIPT>
+son("Adam", "Cain");     
+son("Cain", "Enoch");
+son("Enoch", "Irad");      
+son("Methushael", "Lamech");
+wife("Lamech", "Ada");
+son("Ada", "Jabal");
+son("Ada", "Jubal");
+    </JAVASCRIPT>
+  </SNIPPET>
+
+  Formulate rules such as <QUOTE>If <EM>S</EM> is the son of <EM>F</EM>, and <EM>
+      F</EM> is the son of <EM>G</EM>, then <EM>S</EM> is the grandson of <EM>G</EM></QUOTE>
+  and <QUOTE>If <EM>W</EM> is the wife of <EM>M</EM>, and <EM>S</EM> is the son of
+    <EM>W</EM>, then <EM>S</EM> is the son of <EM>M</EM></QUOTE> (which was supposedly
+  more true in biblical times than today) that will enable the query
+  system to find the grandson of Cain; the sons of Lamech; the grandsons
+  of Methushael.
+  (See exercise<SPACE/><REF NAME="ex:great-grandson"/> for some rules to
+  deduce more complicated relationships.)
+  <LABEL NAME="ex:genesis"/>
+      </EXERCISE>
+      <INDEX>rule (query language)|)</INDEX>
+      <INDEX>query language<SUBINDEX>logical deductions|)</SUBINDEX></INDEX>
+      <INDEX>query language|)</INDEX>
+
+    </SUBSECTION>

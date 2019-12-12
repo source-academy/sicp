@@ -104,7 +104,7 @@ class Chapter < ActiveRecord::Base
            heading.name = 'h2'
        end
 
-       xml_doc.search('H1').each do |h1|
+       xml_doc.search('SUBSUBSECTION').each do |h1|
             h1.name = 'h1'
        end
 
