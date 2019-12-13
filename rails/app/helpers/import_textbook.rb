@@ -195,8 +195,8 @@ def update_chapter_attributes
                 chapter.title = xml_doc.at('NAME').text.tr("\t\n\r", '')
             end
             # update the chapter section names
-            if (!xml_doc.at('LABEL').nil?)
-                full_name = xml_doc.at('LABEL')['NAME']
+            xml_doc.search('LABEL').each do |label|
+                full_name = label['NAME']
                 # add section into reference table
                 kind, name = full_name.split(":")
                 if kind == "sec"
