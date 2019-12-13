@@ -132,3 +132,11 @@ inkscape -D -z --file=rails/public/chapters/img_javascript/Fig5.15c.std.svg --ex
 inkscape -D -z --file=rails/public/chapters/img_original/527table.svg --export-pdf=rails/public/chapters/img_original/527table.svg.pdf
 inkscape -D -z --file=rails/public/chapters/img_original/preserving_table.svg --export-pdf=rails/public/chapters/img_original/preserving_table.svg.pdf
 inkscape -D -z --file=rails/public/chapters/img_javascript/preserving_table.svg --export-pdf=rails/public/chapters/img_javascript/preserving_table.svg.pdf
+
+inkscape -D -z --file=./rails/public/chapters/img_javascript/Fig4.4a.std.svg --export-pdf=./rails/public/chapters/img_javascript/Fig4.4a.std.svg.pdf
+inkscape -D -z --file=./rails/public/chapters/img_javascript/Fig4.5a.std.svg --export-pdf=./rails/public/chapters/img_javascript/Fig4.5a.std.svg.pdf
+inkscape -D -z --file=./rails/public/chapters/img_javascript/Fig4.6a.std.svg --export-pdf=./rails/public/chapters/img_javascript/Fig4.6a.std.svg.pdf
+inkscape -D -z --file=./rails/public/chapters/img_original/Fig4.4a.std.svg   --export-pdf=./rails/public/chapters/img_original/Fig4.4a.std.svg.pdf
+inkscape -D -z --file=./rails/public/chapters/img_original/Fig4.5a.std.svg   --export-pdf=./rails/public/chapters/img_original/Fig4.5a.std.svg.pdf
+inkscape -D -z --file=./rails/public/chapters/img_original/Fig4.6a.std.svg   --export-pdf=./rails/public/chapters/img_original/Fig4.6a.std.svg.pdf
+
