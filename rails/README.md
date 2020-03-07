@@ -31,7 +31,7 @@ Before deploying, change the configurations at `config/initializers/constants.rb
 `GCSE_CX`: The search engine ID of Googel Custom Search. Create a new one [here](https://cse.google.com/cse/create/new).
 
 ## Deployment
-Run `make javascript` or `make scheme` at the project root. The generated html pages and assets are saved in `rails-html` folder.
+Run `make javascript` or `make scheme` at the project root. The generated html pages and assets are saved in `docs` folder.
 
 Run `make clean` to remove all generated pages, logs and temporary files.
 
