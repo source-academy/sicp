@@ -20,4 +20,4 @@ All JavaScript programs in this work are licensed under the
 [cc-by-sa]: http://creativecommons.org/licenses/by-sa/4.0/
 [cc-by-sa-image]: https://licensebuttons.net/l/by-sa/4.0/88x31.png
 [gpl3]: https://www.gnu.org/licenses/gpl-3.0.en.html
-[gpl3-image]: https://upload.wikimedia.org/wikipedia/commons/thumb/7/79/License_icon-gpl.svg/100px-License_icon-gpl.svg.png
+[gpl3-image]: https://upload.wikimedia.org/wikipedia/commons/thumb/7/79/License_icon-gpl.svg/50px-License_icon-gpl.svg.png
