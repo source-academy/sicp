@@ -5,13 +5,22 @@ const title = `\\begin{titlepage}
   Programs — JavaScript Adaptation\\par}
   \\vspace{0.5cm}
   \\begin{flushright}
-  {\\Large Harold Abelson and Gerald Jay Sussman \\\\}
-  {\\large with Julie Sussman \\\\ — \\textit{authors} \\par}
-  \\vspace{0.5cm}
   {\\Large Martin Henz and Tobias Wrigstad\\\\}
-  {\\large with Liu Hang, Feng Piaopiao, Jolyn Tan and Chan Ger Hean \\\\
+  {\\large with Chan Ger Hean, He Xinyue, Liu Hang, Feng Piaopiao, Jolyn Tan and Wang Qian 
    — \\textit{adapters to JavaScript}\\par}
+  \\vspace{0.5cm}
+  {\\large \\textit{original textbook by}\\\\}
+  {\\Large Harold Abelson and Gerald Jay Sussman \\\\}
+  {\\large with Julie Sussman}
   \\end{flushright}
+
+\\vspace{5mm}
+{\\footnotesize This work is licensed under a\\\\}
+{\\footnotesize \\href{http://creativecommons.org/licenses/by-sa/4.0/}{Creative Commons Attribution-ShareAlike 4.0
+International License}.\\\\[2mm]}
+{\\footnotesize All JavaScript programs in this work are licensed under the 
+                \\href{https://www.gnu.org/licenses/gpl-3.0.en.html}{GNU General Public License Version 3}.}
+
 \\end{titlepage}`
 
 export const preamble = `\\documentclass[a4paper, 12pt]{report}

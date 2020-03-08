@@ -20,6 +20,7 @@ generate:
 	rails s -d
 	bundle exec rake static:generate
 	if test -f tmp/pids/server.pid; then kill `cat tmp/pids/server.pid`; fi
+	rm -r ../docs
 	mv out ../docs
 clean:
 	rm -rf out
