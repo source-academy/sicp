@@ -19,7 +19,7 @@ svg_pdf:
 	./svg_to_pdf.sh
 
 clean:
-	rm -rf $(DOCS)
+	rm -rf $(DOCS)/*
 	$(MAKE) -C rails clean
 	rm -rf latex
 

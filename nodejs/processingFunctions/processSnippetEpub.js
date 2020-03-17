@@ -37,7 +37,7 @@ export const setupSnippets = (node) => {
 	}
 }
 
-const sourceAcademyURL = "https://sourceacademy.nus.edu.sg";
+const sourceAcademyURL = "https://source-academy.github.io";
 // to change to localhost if required
 // http://localhost:8075 
 
