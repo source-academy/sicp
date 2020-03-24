@@ -52,6 +52,8 @@ export const preamble = `\\documentclass[a4paper, 12pt]{report}
 \\usepackage{setspace}
 \\onehalfspacing
 
+\\hyphenation{JavaScript}
+
 \\setlength{\\parskip}{0.5em}
 \\setlength{\\parindent}{0pt}%
 
@@ -85,6 +87,8 @@ export const preamble = `\\documentclass[a4paper, 12pt]{report}
 \\newcounter{ExerciseDisplayNumber}[chapter]
 \\renewcommand{\\theExercise}{\\thechapter.\\arabic{ExerciseDisplayNumber}}
 \\addtolength{\\ExerciseSkipBefore}{1em}
+\\renewcommand{\\AnswerHeader}{\\medskip\\centerline{\\textbf{
+Solution to \\ExerciseName\\ \\ExerciseHeaderNB}\\smallskip}}
 
 \\usepackage{listings}
 \\expandafter\\patchcmd\\csname \\string\\lstinline\\endcsname{%
@@ -175,8 +179,8 @@ export const ending = `
 \\addcontentsline{toc}{chapter}{List Of Exercises}
 \\listofexercises
 
-\\chapter*{Solution To Exercises}
-\\addcontentsline{toc}{chapter}{Solution To Exercises}
+\\chapter*{Solutions to Exercises}
+\\addcontentsline{toc}{chapter}{Solutions to Exercises}
 \\shipoutAnswer
 
 \\input{./others/97references97.tex}
