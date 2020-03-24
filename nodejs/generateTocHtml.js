@@ -2,7 +2,7 @@ import {
     recursiveProcessTextHtml
 } from "./parseXmlHtml.js";
 import {tableOfContent, allFilepath} from "./index.js";
-import { testCSS_part1, testCSS_part2, indexPage } from './htmlContent';
+import { html_links_part1, html_links_part2, indexPage } from './htmlContent';
 
 const generateChapterIndex = (filename) => {
     let chapterIndex = "";
@@ -18,12 +18,6 @@ const generateChapterIndex = (filename) => {
       // "subsection"
       chapterIndex += "." + filename.match(/(?<=subsection)\d+/g)[0];
     } 
-    /*
-    if (filename.match(/others/)) {
-        // account for files in others folder
-        chapterIndex += filename.match(/[^/]+(?=\.)/g)[0];
-    } 
-    */
     
     //console.log(chapterNumber);
     return chapterIndex;
@@ -209,14 +203,14 @@ export const indexHtml = (writeToIndex) => {
     //let chapArrIndex = 0;
 
     //console.log(tableOfContent);
-    writeToIndex.push(testCSS_part1);
+    writeToIndex.push(html_links_part1);
     writeToIndex.push(`
     <meta name="description" content="" />
         <title>
         Structure and Interpretation of Computer Programs, JavaScript Adaptation
         </title>
     `);
-    writeToIndex.push(testCSS_part2);
+    writeToIndex.push(html_links_part2);
 
     // TOC at the sidebar
     recursiveProcessTOC(0, writeToIndex, "sidebar");

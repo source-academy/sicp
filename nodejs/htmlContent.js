@@ -1,12 +1,12 @@
 // `\\\\`' is used to display double back-slash \\ in template literals
-export const testCSS_part1 = `<!DOCTYPE html>
+export const html_links_part1 = `<!DOCTYPE html>
 <html lang="en">
   <head>
     <meta charset="utf-8">
     <meta http-equiv="X-UA-Compatible" content="IE=Edge,chrome=1">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
   `
-export const testCSS_part2  = `
+export const html_links_part2  = `
 
     <!--<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-alpha.6/css/bootstrap.min.css" integrity="sha384-rwoIResjU2yc3z8GV/NPeZWAv56rSmLldC3R/AZzGRnGxQQKnKkoFVhFQhNUwEyJ" crossorigin="anonymous">
     -->

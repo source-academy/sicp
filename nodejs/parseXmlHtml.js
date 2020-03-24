@@ -4,7 +4,7 @@ import {
   checkIndexBadEndWarning
 } from "./processingFunctions/warnings.js";
 import { allFilepath, tableOfContent} from "./index.js";
-import { testCSS_part1, testCSS_part2, beforeContentWrapper } from './htmlContent';
+import { html_links_part1, html_links_part2, beforeContentWrapper } from './htmlContent';
 import { recursiveProcessTOC} from './generateTocHtml';
 
 import {
@@ -16,7 +16,6 @@ import {
   processSnippetHtml,
   recursiveProcessPureText,
 } from './processingFunctions';
-import { write } from "fs";
 
 let paragraph_count = 0;
 let heading_count = 0;
@@ -24,13 +23,8 @@ let footnote_count = 0;
 let snippet_count = 0;
 let display_footnote_count = 0;
 let chapArrIndex = 0;
-export let chapterIndex = "";
 let chapterTitle = "";
-/*
-const chapter = chapterIndex.substring(0,1);
-const section = chapterIndex.substring(2,3);
-const subsection = chapterIndex.substring(4,5);
-*/
+export let chapterIndex = "";
 
 export const tagsToRemove = new Set([
   "ATTRIBUTION",
@@ -88,19 +82,12 @@ export const preserveTags = new Set([
 export const processTextFunctionsHtml = {
 
   "#text": (node, writeTo) => {
-    /*
-    const trimedValue = node.nodeValue
-      .replace(/[\r\n]+/, " ")
-      .replace(/\s+/g, " ")
-      .replace(/\^/g, "\^{}")
-      .replace(/%/g, "\\%");
-    */
+
    // ignore the section/subsection tags at the end of chapter/section files
     if (!node.nodeValue.match(/&(\w|\.|\d)+;/)) {
       writeTo.push(node.nodeValue);
     } 
-    // if (!trimedValue.match(/^\s*$/)) {
-    // }
+
   },
 
   ABOUT: (node, writeTo) => {
@@ -163,18 +150,6 @@ export const processTextFunctionsHtml = {
     writeTo.push("\n</CHAPTER></div></div>\n");
   },
 
-  /*
-  CITATION: (node, writeTo) => {
-    // Currently just text. Not linked to biblography.
-    const text = node.getElementsByTagName("TEXT")[0];
-    if (text) {
-      recursiveProcessText(text.firstChild, writeTo);
-    } else {
-      recursiveProcessText(node.firstChild, writeTo);
-    }
-  },
-  */
-
   em: (node, writeTo) => {
     node.nodeName = "EM";
     recursiveProcessTextHtml(node, writeTo);
@@ -195,7 +170,7 @@ export const processTextFunctionsHtml = {
   FOOTNOTE: (node, writeTo) => {
     footnote_count += 1;
     writeTo.push("<a class='superscript' id='footnote-link-" + footnote_count + "' href='#footnote-" + footnote_count + "'>[" + footnote_count + "]</a>");
-   // clone the current FOOTNOTE node and its children
+    // clone the current FOOTNOTE node and its children
     let cloneNode = node.cloneNode(true);
     cloneNode.nodeName = "DISPLAYFOOTNOTE";
     let parent = node.parentNode;
@@ -406,8 +381,6 @@ export const processTextFunctionsHtml = {
   }
 };
 
-//export let processTextFunctionsHtml = processTextFunctionsDefault;
-
 export const processTextHtml = (node, writeTo) => {
   const name = node.nodeName;
   if (processTextFunctionsHtml[name]) {
@@ -437,14 +410,14 @@ export const recursiveProcessTextHtml = (node, writeTo) => {
 };
 
 const beforeContent = (writeTo) => {
-  writeTo.push(testCSS_part1);
+  writeTo.push(html_links_part1);
   writeTo.push(`
   <meta name="description" content="${chapterIndex + " " + chapterTitle}" />
     <title>
       ${chapterIndex + " " + chapterTitle}
     </title>
     `);
-  writeTo.push(testCSS_part2);
+  writeTo.push(html_links_part2);
   recursiveProcessTOC(0, writeTo, "sidebar");
   writeTo.push("</div>\n"); 
   writeTo.push(beforeContentWrapper);
