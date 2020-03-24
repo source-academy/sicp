@@ -5,12 +5,12 @@ import {
   missingExampleWarning,
   repeatedNameWarning
 } from "./warnings.js";
-import { recursiveProcessText, processText } from '../parseXML';
+import { recursiveProcessTextLatex, processTextLatex } from '../parseXmlLatex';
 import recursiveProcessPureText from "./recursiveProcessPureText";
 
 const snippetStore = {};
 
-export const setupSnippets = (node) => {
+export const setupSnippetsEpub = (node) => {
 	const snippets = node.getElementsByTagName("SNIPPET");
 	for (let i = 0; snippets[i]; i++) {
 		const snippet = snippets[i];

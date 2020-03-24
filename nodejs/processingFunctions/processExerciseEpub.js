@@ -1,4 +1,4 @@
-import { recursiveProcessText, processText } from '../parseXML';
+import { recursiveProcessTextLatex, processTextLatex } from '../parseXmlLatex';
 import {getChildrenByTagName, ancestorHasTag} from '../utilityFunctions';
 
 let unlabeledEx = 0;
@@ -21,11 +21,11 @@ const processExerciseEpub = (node, writeTo) => {
   }
   writeTo.push("\n");
 
-  recursiveProcessText(node.firstChild, writeTo);
+  recursiveProcessTextLatex(node.firstChild, writeTo);
 
   if (solution) {
     writeTo.push("\n\\paragraph{Solution}");
-    recursiveProcessText(solution.firstChild, writeTo);
+    recursiveProcessTextLatex(solution.firstChild, writeTo);
   }
 };
 

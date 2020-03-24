@@ -1,4 +1,4 @@
-import { recursiveProcessText, processText } from '../parseXML';
+import { recursiveProcessTextLatex, processTextLatex } from '../parseXmlLatex';
 
 export const processTable = (node, writeTo) => {
   const firstRow = node.getElementsByTagName("TR")[0];
@@ -19,13 +19,13 @@ export const processTable = (node, writeTo) => {
         } else {
           writeTo.push(" & ");
         }
-        recursiveProcessText(col.firstChild, writeTo);
+        recursiveProcessTextLatex(col.firstChild, writeTo);
       }
       writeTo.push(" \\\\ \\hline\n");
     }
     writeTo.push("\\end{tabular}\n\n");
   } else {
-    recursiveProcessText(node.firstChild, writeTo);
+    recursiveProcessTextLatex(node.firstChild, writeTo);
   }
 };
 

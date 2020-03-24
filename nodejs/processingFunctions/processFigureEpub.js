@@ -1,4 +1,4 @@
-import { recursiveProcessText, processText } from '../parseXML';
+import { recursiveProcessTextLatex, processTextLatex } from '../parseXmlLatex';
 
 export const processFigureEpub = (node, writeTo) => {
   writeTo.push("\n\\begin{figure}[H]\n\\centering\n");
@@ -24,7 +24,7 @@ export const processFigureEpub = (node, writeTo) => {
   const caption = node.getElementsByTagName("CAPTION")[0];
   if (caption) {
     writeTo.push("\\caption{");
-    recursiveProcessText(caption.firstChild, writeTo);
+    recursiveProcessTextLatex(caption.firstChild, writeTo);
     writeTo.push("}\n");
   }
   const label = node.getElementsByTagName("LABEL")[0];

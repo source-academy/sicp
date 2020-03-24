@@ -9,9 +9,11 @@ export const checkLongLineWarning = str => {
   const lines = str.split("\n");
   for (const line of lines) {
     if (line.length >= 75) {
+      
       console.log(
         "WARNING, line is too long (>74 chars) and will overflow the page:\n" +
           line + "\n"
+      
       );
     }
   }
@@ -28,3 +30,15 @@ export const missingExampleWarning = (name) => {
 export const repeatedNameWarning = (name) => {
   console.log("WARNING, Repeated SNIPPET name: " + name + "\n");
 };
+
+export const repeatedRefNameWarning = (name) => {
+  console.log("WARNING, Repeated REF name: " + name + "\n");
+};
+
+export const missingExerciseWarning = (name) => {
+  console.log("WARNING, EXERCISE not found:" + name + "\n");
+}
+
+export const missingReferenceWarning = (name) => {
+  console.log("WARNING, REF not found:" + name + "\n");
+}
