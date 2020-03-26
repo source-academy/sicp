@@ -97,7 +97,7 @@ async function translateXml(filepath, filename, option) {
       return;
   
     } else if (option == "setupSnippet") {
-      console.log("setting up " + filepath + " " + filename);
+      //console.log("setting up " + filepath + " " + filename);
       setupSnippetsHtml(doc.documentElement);
       setupReferences(doc.documentElement, relativeFilePath);
       return;
@@ -268,16 +268,16 @@ async function main() {
     outputDir = path.join(__dirname, "../html");  
 
     createMain();
-    console.log("generate table of content\n")
+    console.log("\ngenerate table of content\n")
     await recursiveTranslateXml("", "generateTOC");
     allFilepath = sortTOC(allFilepath);
     console.log(tableOfContent);
     //console.log(allFilepath);
     createIndexHtml();
 
-    console.log("setup snippets\n");
+    console.log("setup snippets and references\n");
     await recursiveXmlToHtmlInOrder("setupSnippet");
-    console.log("setup snippets done\n");
+    console.log("setup snippets and references done\n");
 
     recursiveXmlToHtmlInOrder("parseXml");
 

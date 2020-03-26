@@ -10,6 +10,7 @@ export const referenceStore = {};
 
 let chapter_number = 0;
 let fig_count;
+let foot_count;
 let ex_count;
 let unlabeledEx = 0;
 
@@ -27,12 +28,13 @@ export const setupReferences = (node, filename) => {
 	const chapArrIndex = allFilepath.indexOf(filename);
 	const chapterIndex = tableOfContent[filename].index;
 
+	foot_count = 0;
 	if (chapter_number != chapterIndex.substring(0,1)) {
 		chapter_number = chapterIndex.substring(0,1);
 		fig_count = 0;
 		ex_count = 0;
 	}
-	console.log(chapterIndex);
+	//console.log("setting up " + chapterIndex);
 	const labels = node.getElementsByTagName("LABEL");
 	
 	for (let i = 0; labels[i]; i++) {
@@ -46,6 +48,7 @@ export const setupReferences = (node, filename) => {
 		//console.log(referenceName + " processed");
 
       	if (referenceStore[referenceName]) {
+			console.log(chapterIndex);
         	repeatedRefNameWarning(referenceName);
         	continue;
 		}
@@ -57,11 +60,17 @@ export const setupReferences = (node, filename) => {
 			href = `${allFilepath[chapArrIndex]}`;
 		
 		} else if (ref_type == "fig") {
-			fig_count ++;
+			fig_count++;
 			displayName = `${chapter_number}.${fig_count}`;
 			href = `${allFilepath[chapArrIndex]}#fig_${displayName}`;
 	
+		} else if (ref_type == "foot") {
+			foot_count++;
+			displayName = foot_count;
+			href = `${allFilepath[chapArrIndex]}#footnote-${foot_count}`;
+		
 		} else { continue; }
+
 		//console.log(referenceName + " added");
 	    referenceStore[referenceName] = { href, displayName, chapterIndex };
 	}
@@ -69,7 +78,6 @@ export const setupReferences = (node, filename) => {
 	// set up exercise references separately
 	// account for unlabeled exercises
 	const exercises = node.getElementsByTagName("EXERCISE");
-
 	for (let i = 0; exercises[i]; i++) {
 		const exercise = exercises[i];
 
@@ -77,16 +85,22 @@ export const setupReferences = (node, filename) => {
 
 		const label  = exercise.getElementsByTagName("LABEL")[0];
 		let referenceName;
+		let ref_type;
 		if (!label) {
 			//unlabelled exercise
 			unlabeledEx ++;
 			referenceName = "ex:unlabeled" + unlabeledEx;
+			ref_type = referenceName.split(":")[0];
     		
 		} else {
 			referenceName = label.getAttribute("NAME");
+			ref_type = referenceName.split(":")[0];
 		}
 
+		if (ref_type != "ex") {continue;}
+
 		if (referenceStore[referenceName]) {
+			console.log(chapterIndex);
         	repeatedRefNameWarning(referenceName);
         	continue;
 		}
@@ -99,7 +113,7 @@ export const setupReferences = (node, filename) => {
 	}
 }
 
-export const processReferenceHtml = (node, writeTo) => {
+export const processReferenceHtml = (node, writeTo, chapterIndex) => {
 	const referenceName = node.getAttribute("NAME");
 	if (!referenceStore[referenceName]) {
 		missingReferenceWarning(referenceName);
@@ -113,11 +127,14 @@ export const processReferenceHtml = (node, writeTo) => {
 	writeTo.push(`<REF NAME="${referenceName}">`);
 
 	if (ref_type == "sec") {
-		writeTo.push(`<a class="superscript" id="2.2.1-sec-link-${displayName}" href="${href}">${displayName}</a></REF>`);
+		writeTo.push(`<a class="superscript" id="${chapterIndex}-sec-link-${displayName}" href="${href}">${displayName}</a></REF>`);
 	} else if (ref_type == "fig") {
-		writeTo.push(`<a class="superscript" id="2.2.1-fig-link-${displayName}" href="${href}">${displayName}</a></REF>`);
+		writeTo.push(`<a class="superscript" id="${chapterIndex}-fig-link-${displayName}" href="${href}">${displayName}</a></REF>`);
 	} else if (ref_type == "ex") {
-		writeTo.push(`<a class="superscript" id="2.2.1-ex-link-${displayName}" href="${href}">${displayName}</a></REF>`);
+		writeTo.push(`<a class="superscript" id="${chapterIndex}-ex-link-${displayName}" href="${href}">${displayName}</a></REF>`);
+	} else if (ref_type == "foot") {
+		writeTo.push(`<a class="superscript" id="${chapterIndex}-foot-link-${displayName}" href="${href}">${displayName}</a></REF>`);
+
 	}
 }
 

@@ -170,7 +170,7 @@ export const processTextFunctionsHtml = {
 
   FOOTNOTE: (node, writeTo) => {
     footnote_count += 1;
-    writeTo.push("<a class='superscript' id='footnote-link-" + footnote_count + "' href='#footnote-" + footnote_count + "'>[" + footnote_count + "]</a>");
+    writeTo.push(`<a class='superscript' id='footnote-link-${footnote_count}' href='#footnote-${footnote_count}'>[${footnote_count}]</a>`);
     // clone the current FOOTNOTE node and its children
     let cloneNode = node.cloneNode(true);
     cloneNode.nodeName = "DISPLAYFOOTNOTE";
@@ -187,8 +187,9 @@ export const processTextFunctionsHtml = {
     display_footnote_count += 1;
     if (display_footnote_count == 1) {writeTo.push("<hr>");}
     writeTo.push("<div class='footnote'>");
-    writeTo.push("\n<a class='footnote-number' id='footnote-" + display_footnote_count + "' href='#footnote-link-" + display_footnote_count + "'>");
-    writeTo.push("[" + display_footnote_count + "] </a><FOOTNOTE>");
+    writeTo.push(`
+      <a class='footnote-number' id='footnote-${display_footnote_count}' href='#footnote-link-${display_footnote_count}'>`);
+    writeTo.push(`[${display_footnote_count}] </a><FOOTNOTE>`);
     recursiveProcessTextHtml(node.firstChild, writeTo);
     writeTo.push("</FOOTNOTE>");
     writeTo.push("</div>");
@@ -244,7 +245,7 @@ export const processTextFunctionsHtml = {
   },
 
   REF: (node, writeTo) => {
-    processReferenceHtml(node, writeTo);
+    processReferenceHtml(node, writeTo, chapterIndex);
   },
 
   REFERENCE: (node, writeTo) => {
@@ -471,7 +472,7 @@ export const parseXmlHtml = (doc, writeTo, filename) => {
   heading_count = 0;
   snippet_count = 0;
   chapArrIndex = allFilepath.indexOf(filename);
-  console.log(chapArrIndex + " " + filename + "\n");
+  console.log(`${chapArrIndex} parsing chapter ${chapterIndex != "" ? chapterIndex : filename}`);
 
   beforeContent(writeTo);
   recursiveProcessTextHtml(doc.documentElement, writeTo);
