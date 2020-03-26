@@ -1,4 +1,4 @@
-import { recursiveProcessTextHtml, processTextHtml } from '../parseXmlHtml';
+import { recursiveProcessTextHtml, processTextHtml, toIndexFolder } from '../parseXmlHtml';
 import { processSnippetHtml } from '.';
 import { referenceStore } from './processReferenceHtml';
 
@@ -12,7 +12,7 @@ export const processFigureHtml = (node, writeTo) => {
 
   if (src && !label) {
       writeTo.push(`
-        <img src="/html/${src}">
+        <img src="${toIndexFolder}${src}">
       `);
       return;
   } else if (!src) {
@@ -34,7 +34,7 @@ export const processFigureHtml = (node, writeTo) => {
   if (src && label) { 
     writeTo.push(`
     <FIGURE>
-      <img id="fig_${displayName}" src="/${src}">`
+      <img id="fig_${displayName}" src="${toIndexFolder}${src}">`
     ); 
   } 
     
@@ -47,7 +47,7 @@ export const processFigureHtml = (node, writeTo) => {
   if (caption) {
     writeTo.push(`
       <div class="chapter-text-CAPTION">
-      <b><a class="caption" href="${href}">Figure ${displayName} </a></b>`);
+      <b><a class="caption" href="${toIndexFolder}${href}">Figure ${displayName} </a></b>`);
     recursiveProcessTextHtml(caption.firstChild, writeTo);
     writeTo.push("</div>");
   }

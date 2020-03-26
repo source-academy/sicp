@@ -25,6 +25,7 @@ let display_footnote_count = 0;
 let chapArrIndex = 0;
 let chapterTitle = "";
 export let chapterIndex = "";
+export let toIndexFolder = "";
 
 export const tagsToRemove = new Set([
   "ATTRIBUTION",
@@ -417,8 +418,8 @@ const beforeContent = (writeTo) => {
       ${chapterIndex + " " + chapterTitle}
     </title>
     `);
-  writeTo.push(html_links_part2);
-  recursiveProcessTOC(0, writeTo, "sidebar");
+  html_links_part2(writeTo, toIndexFolder);
+  recursiveProcessTOC(0, writeTo, "sidebar", toIndexFolder);
   writeTo.push("</div>\n"); 
   writeTo.push(beforeContentWrapper);
 }
@@ -432,7 +433,7 @@ const afterContent = (writeTo) => {
   if (chapArrIndex > 1) {
     writeTo.push(`
       <button type='button' class='btn btn-secondary' style='background-color: #fff;'>
-        <a href='/${allFilepath[chapArrIndex - 1]}'>&lt; Previous</a>
+        <a href='${toIndexFolder}${allFilepath[chapArrIndex - 1]}'>&lt; Previous</a>
       </button>
     `);
   }
@@ -443,7 +444,7 @@ const afterContent = (writeTo) => {
   if (chapArrIndex < allFilepath.length) {
     writeTo.push(`
       <button type='button' class='btn btn-secondary' style='background-color: #fff;'>
-        <a class='scroll-next' href='/${allFilepath[chapArrIndex + 1]}'>Next &gt;</a>
+        <a class='scroll-next' href='${toIndexFolder}${allFilepath[chapArrIndex + 1]}'>Next &gt;</a>
       </button>
       `);
   }
@@ -462,6 +463,7 @@ export const parseXmlHtml = (doc, writeTo, filename) => {
   //console.log(allFilepath);
   chapterIndex = tableOfContent[filename].index;
   chapterTitle = tableOfContent[filename].title;
+  toIndexFolder = tableOfContent[filename].relativePathToMain;
   //console.log(chapterIndex + " " + chapterTitle);
   paragraph_count = 0;
   footnote_count = 0;

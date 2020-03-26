@@ -3,7 +3,7 @@ import {
   missingReferenceWarning
 } from "./warnings.js";
 import { allFilepath, tableOfContent } from "../index.js";
-import { tagsToRemove, recursiveProcessTextHtml, processTextHtml } from '../parseXmlHtml';
+import { tagsToRemove, toIndexFolder, recursiveProcessTextHtml, processTextHtml } from '../parseXmlHtml';
 import { getChildrenByTagName, ancestorHasTag } from '../utilityFunctions';
 
 export const referenceStore = {};
@@ -26,6 +26,7 @@ export const setupReferences = (node, filename) => {
 
 	const chapArrIndex = allFilepath.indexOf(filename);
 	const chapterIndex = tableOfContent[filename].index;
+
 	if (chapter_number != chapterIndex.substring(0,1)) {
 		chapter_number = chapterIndex.substring(0,1);
 		fig_count = 0;
@@ -53,12 +54,12 @@ export const setupReferences = (node, filename) => {
 		let displayName;
 		if (ref_type == "sec") {
 			displayName = chapterIndex;
-			href = `/${allFilepath[chapArrIndex]}`;
+			href = `${allFilepath[chapArrIndex]}`;
 		
 		} else if (ref_type == "fig") {
 			fig_count ++;
 			displayName = `${chapter_number}.${fig_count}`;
-			href = `/${allFilepath[chapArrIndex]}#fig_${displayName}`;
+			href = `${allFilepath[chapArrIndex]}#fig_${displayName}`;
 	
 		} else { continue; }
 		//console.log(referenceName + " added");
@@ -92,7 +93,7 @@ export const setupReferences = (node, filename) => {
 
 		ex_count ++;
 		const displayName = `${chapter_number}.${ex_count}`;
-		const href = `/${allFilepath[chapArrIndex]}#ex_${displayName}`;
+		const href = `${allFilepath[chapArrIndex]}#ex_${displayName}`;
 		//console.log(referenceName + " added");
 		referenceStore[referenceName] = { href, displayName, chapterIndex };
 	}
@@ -105,7 +106,7 @@ export const processReferenceHtml = (node, writeTo) => {
 		return;
 	}
 
-	const href = referenceStore[referenceName].href;
+	const href = toIndexFolder + referenceStore[referenceName].href;
 	const displayName = referenceStore[referenceName].displayName;
 	const ref_type = referenceName.split(":")[0];
 

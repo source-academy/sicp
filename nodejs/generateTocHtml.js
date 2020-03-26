@@ -48,7 +48,11 @@ export const generateTOC = (doc, tableOfContent, filename) => {
     const chapterTitle = [];
     recursiveFindTitle(doc.documentElement, chapterTitle);
     const title = truncateTitle(chapterTitle);
-    tableOfContent[filename] = {index, title};
+    let relativePathToMain = "";
+    for (let i = 1; i < filename.split("/").length; i++) {
+        relativePathToMain += "../"
+    }
+    tableOfContent[filename] = {index, title, relativePathToMain};
 }
 
 export const sortTOC = (allFilepath) => {
@@ -80,7 +84,7 @@ export const sortTOC = (allFilepath) => {
 }
 
 
-export const recursiveProcessTOC = (index, writeTo, option) => {
+export const recursiveProcessTOC = (index, writeTo, option, toIndexFolder) => {
     if (index >= allFilepath.length) { 
         return; 
     }
@@ -89,6 +93,7 @@ export const recursiveProcessTOC = (index, writeTo, option) => {
     const filename = allFilepath[index];
     const chapterIndex = tableOfContent[filename].index;
     const chapterTitle = tableOfContent[filename].title;
+
     const nextOption = option;
     
     if (index == 0 && option == "sidebar") {
@@ -107,7 +112,7 @@ export const recursiveProcessTOC = (index, writeTo, option) => {
           <div class="card-header" role="tab" id="index-${index}">
             <h5 class="mb-0">
               <span class="collapsed" data-toggle="collapse" href="#index-collapse-${index}" aria-expanded="false" aria-controls="index-collapse-${index}">
-                <a href="/${filename}"> ${chapterIndex + " " + chapterTitle}</a>
+                <a href="${filename}"> ${chapterIndex + " " + chapterTitle}</a>
               </span>
             </h5>
           </div>
@@ -119,7 +124,7 @@ export const recursiveProcessTOC = (index, writeTo, option) => {
           <div class="card-header" role="tab" id="sidebar-${index}">
             <h5 class="mb-0">
               <span class="collapsed" data-toggle="collapse" href="#sidebar-collapse-${index}" aria-expanded="false" aria-controls="sidebar-collapse-${index}">
-                <a href="/${filename}"> ${chapterIndex + " " + chapterTitle}</a>
+                <a href="${toIndexFolder}${filename}"> ${chapterIndex + " " + chapterTitle}</a>
               </span>
             </h5>
           </div>
@@ -128,9 +133,9 @@ export const recursiveProcessTOC = (index, writeTo, option) => {
         }
 
         if (filename.match(/others/)) {
-            return recursiveProcessTOC(next, writeTo, nextOption); 
+            return recursiveProcessTOC(next, writeTo, nextOption, toIndexFolder); 
         } else if (allFilepath[next].match(/subsection/)) {
-            return recursiveProcessTOC(next, writeTo, nextOption); 
+            return recursiveProcessTOC(next, writeTo, nextOption, toIndexFolder); 
         } else {
             return;
         }
@@ -147,7 +152,7 @@ export const recursiveProcessTOC = (index, writeTo, option) => {
               <a class="index-hide collapsed" data-toggle="collapse" href="#index-collapse-${index}" aria-expanded="true" aria-controls="index-collapse-${index}">
               &#x25BC;    <!-- ▼ (because the corresponding one is not rendered) -->
               </a>
-              <a href="/${filename}">${chapterIndex + " " + chapterTitle}</a>
+              <a href="${filename}">${chapterIndex + " " + chapterTitle}</a>
             </h5>
           </div>
 
@@ -165,7 +170,7 @@ export const recursiveProcessTOC = (index, writeTo, option) => {
                   <a class="sidebar-hide collapsed" data-toggle="collapse" href="#sidebar-collapse-${index}" aria-expanded="true" aria-controls="sidebar-collapse-${index}">
                   &#x25BC;    <!-- ▼ (because the corresponding one is not rendered) -->
                   </a>
-                  <a href="/${filename}">${chapterIndex + " " + chapterTitle}</a>
+                  <a href="${toIndexFolder}${filename}">${chapterIndex + " " + chapterTitle}</a>
                 </h5>
               </div>
     
@@ -174,7 +179,7 @@ export const recursiveProcessTOC = (index, writeTo, option) => {
             `);   
         }
 
-        recursiveProcessTOC(next, writeTo, nextOption);
+        recursiveProcessTOC(next, writeTo, nextOption, toIndexFolder);
         writeTo.push(`
                 </div>
               </div>
@@ -186,7 +191,7 @@ export const recursiveProcessTOC = (index, writeTo, option) => {
                 next++;
             }
             if (allFilepath[next].match(/section/)) {
-                return recursiveProcessTOC(next, writeTo, nextOption); 
+                return recursiveProcessTOC(next, writeTo, nextOption, toIndexFolder); 
             } else {
                 return;
             }
@@ -194,7 +199,7 @@ export const recursiveProcessTOC = (index, writeTo, option) => {
             while (allFilepath[next].match(/section/)) {
                 next++;
             }
-            return recursiveProcessTOC(next, writeTo, nextOption); 
+            return recursiveProcessTOC(next, writeTo, nextOption, toIndexFolder); 
         }
     }
 }
@@ -210,10 +215,10 @@ export const indexHtml = (writeToIndex) => {
         Structure and Interpretation of Computer Programs, JavaScript Adaptation
         </title>
     `);
-    writeToIndex.push(html_links_part2);
+    html_links_part2(writeToIndex, "");
 
     // TOC at the sidebar
-    recursiveProcessTOC(0, writeToIndex, "sidebar");
+    recursiveProcessTOC(0, writeToIndex, "sidebar", "");
     writeToIndex.push("</div>\n"); // <div class='collapse'>
 
     // index page content
@@ -225,7 +230,7 @@ export const indexHtml = (writeToIndex) => {
     // TOC at index page
     writeToIndex.push("<h2>Content</h2>");
     writeToIndex.push("\n<div class='nav-index'>");
-    recursiveProcessTOC(0, writeToIndex, "index");
+    recursiveProcessTOC(0, writeToIndex, "index", "");
     writeToIndex.push("</div>\n"); // <div class='nav-index'>
     writeToIndex.push("</div>\n");// <div class="chapter-content">
 

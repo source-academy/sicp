@@ -6,20 +6,21 @@ export const html_links_part1 = `<!DOCTYPE html>
     <meta http-equiv="X-UA-Compatible" content="IE=Edge,chrome=1">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
   `
-export const html_links_part2  = `
+export const html_links_part2  = (writeTo, toIndexFolder) => {
+  writeTo.push(  `
 
     <!--<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-alpha.6/css/bootstrap.min.css" integrity="sha384-rwoIResjU2yc3z8GV/NPeZWAv56rSmLldC3R/AZzGRnGxQQKnKkoFVhFQhNUwEyJ" crossorigin="anonymous">
     -->
     <link href="https://fonts.googleapis.com/css?family=Inconsolata&display?swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css?family=Droid+Sans|Droid+Serif" rel="stylesheet">
-    <link rel="stylesheet" media="all" href="/assets/stylesheet.css" />
+    <link rel="stylesheet" media="all" href="${toIndexFolder}assets/stylesheet.css" />
 
-   <link rel="shortcut icon" type="image/x-icon" href="/assets/favicon.ico" />
+   <link rel="shortcut icon" type="image/x-icon" href="${toIndexFolder}assets/favicon.ico" />
 
-<!--    <link rel="shortcut icon" type="image/png" href="/images/lambda.png" /> -->
+<!--    <link rel="shortcut icon" type="image/png" href="${toIndexFolder}images/lambda.png" /> -->
 
     <!-- for support of progressive web app, see github README
-    <link rel="manifest" href="/static/manifest.json">
+    <link rel="manifest" href="${toIndexFolder}static/manifest.json">
     -->
     <script src="https://code.jquery.com/jquery-3.2.1.min.js" 
 		     	  integrity="sha256-hwg4gsxgFZhOsEEamdOYGBf13FyQuiTwlAQgxVSNgt4="
@@ -35,11 +36,11 @@ export const html_links_part2  = `
       src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.4/latest.js?config=TeX-AMS-MML_HTMLorMML-full">
     </script>
    <!--  <script type="text/javascript" 
-      src="/MathJax/MathJax.js?config=TeX-AMS-MML_HTMLorMML-full">
+      src="${toIndexFolder}MathJax/MathJax.js?config=TeX-AMS-MML_HTMLorMML-full">
     </script> -->
     
     <!-- THIS DISABLED ALL BUTTONS AND LINKS FIND OUT WHY!! --> 
-    <script src="/assets/formatting.js"></script>
+    <script src="${toIndexFolder}assets/formatting.js"></script>
   
     <!-- Rendering inline LaTeX -->
     <script type="text/x-mathjax-config">
@@ -117,7 +118,7 @@ export const html_links_part2  = `
      
      <div class="container scroll">
 
-      `
+      `);}
 
 
 export const indexPage = `
