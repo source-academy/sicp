@@ -19,18 +19,20 @@ export const html_links_part2  = (writeTo, toIndexFolder) => {
 
 <!--    <link rel="shortcut icon" type="image/png" href="${toIndexFolder}images/lambda.png" /> -->
 
-    <!-- for support of progressive web app, see github README
+    <!-- for support of progressive web app, see github README 
     <link rel="manifest" href="${toIndexFolder}static/manifest.json">
-    -->
+    
     <script src="https://code.jquery.com/jquery-3.2.1.min.js" 
 		     	  integrity="sha256-hwg4gsxgFZhOsEEamdOYGBf13FyQuiTwlAQgxVSNgt4="
 	          crossorigin="anonymous">
-    </script>
+    </script> 
+    -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tether/1.4.0/js/tether.min.js"></script>
-
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.6/umd/popper.min.js" integrity="sha384-wHAiFfRlMFy6i5SRaxvfOCifBUQy1xHdJ/yoi7FRNXMRBu5WHdZYu1hA6ZOblgut" crossorigin="anonymous"></script>
-    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.2.1/js/bootstrap.min.js" integrity="sha384-B0UglyR+jN6CkvvICOB2joaf5I4l3gm9GU6Hc1og6Ls7i6U/mkkaduKaBhlAXv9k" crossorigin="anonymous"></script>
     
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.6/umd/popper.min.js" integrity="sha384-wHAiFfRlMFy6i5SRaxvfOCifBUQy1xHdJ/yoi7FRNXMRBu5WHdZYu1hA6ZOblgut" crossorigin="anonymous"></script>
+    
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.2.1/js/bootstrap.min.js" integrity="sha384-B0UglyR+jN6CkvvICOB2joaf5I4l3gm9GU6Hc1og6Ls7i6U/mkkaduKaBhlAXv9k" crossorigin="anonymous"></script>
+
     <!-- <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-alpha.6/js/bootstrap.min.js" integrity="sha384-vBWWzlZJ8ea9aCX4pEW3rVHjgjt7zpkNpZk+02D9phzyeVkE+jo0ieGizqPLForn" crossorigin="anonymous"></script> -->
     <script type="text/javascript" 
       src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.4/latest.js?config=TeX-AMS-MML_HTMLorMML-full">
@@ -124,7 +126,7 @@ export const html_links_part2  = (writeTo, toIndexFolder) => {
 export const indexPage = `
   <TABLE class="tight">
 	<TD  class="tight" width="70%" valign="top" align="right">
-          <img class="tight" src="/sicp.png"
+          <img class="tight" src="./sicp.png"
 	       height="auto" width="100%">
 	</TD>
 	<TD  class="tight" width="30%" valign="top" align="left">
