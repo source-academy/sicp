@@ -109,9 +109,9 @@ export const recursiveProcessTOC = (index, writeTo, option, toIndexFolder) => {
         if (option == "index") {
             writeTo.push(`
         <div class="card card-inverse">
-          <div class="card-header" role="tab" id="index-${index}">
+          <div class="card-header" role="tab" id="index-${index+1}">
             <h5 class="mb-0">
-              <span class="collapsed" data-toggle="collapse" href="#index-collapse-${index}" aria-expanded="false" aria-controls="index-collapse-${index}">
+              <span class="collapsed" data-toggle="collapse" href="#index-collapse-${index+1}" aria-expanded="false" aria-controls="index-collapse-${index+1}">
                 <a href="${filename}"> ${chapterIndex + " " + chapterTitle}</a>
               </span>
             </h5>
@@ -121,9 +121,9 @@ export const recursiveProcessTOC = (index, writeTo, option, toIndexFolder) => {
         } else if (option == "sidebar"){
             writeTo.push(`
         <div class="card card-inverse">
-          <div class="card-header" role="tab" id="sidebar-${index}">
+          <div class="card-header" role="tab" id="sidebar-${index+1}">
             <h5 class="mb-0">
-              <span class="collapsed" data-toggle="collapse" href="#sidebar-collapse-${index}" aria-expanded="false" aria-controls="sidebar-collapse-${index}">
+              <span class="collapsed" data-toggle="collapse" href="#sidebar-collapse-${index+1}" aria-expanded="false" aria-controls="sidebar-collapse-${index+1}">
                 <a href="${toIndexFolder}${filename}"> ${chapterIndex + " " + chapterTitle}</a>
               </span>
             </h5>
@@ -144,37 +144,37 @@ export const recursiveProcessTOC = (index, writeTo, option, toIndexFolder) => {
         if (option == "index") {
         writeTo.push(`
         <div class="card card-inverse">
-          <div class="card-header" role="tab" id="index-${index}">
+          <div class="card-header" role="tab" id="index-${index+1}">
             <h5 class="mb-0">
-              <a class="index-show collapsed" data-toggle="collapse" href="#index-collapse-${index}" aria-expanded="true" aria-controls="index-collapse-${index}">
+              <a class="index-show collapsed" data-toggle="collapse" href="#index-collapse-${index+1}" aria-expanded="true" aria-controls="index-collapse-${index+1}">
               &#10148;   <!-- ➤ (because this one is rendered blue on mobile: ▶  -->
               </a>
-              <a class="index-hide collapsed" data-toggle="collapse" href="#index-collapse-${index}" aria-expanded="true" aria-controls="index-collapse-${index}">
+              <a class="index-hide collapsed" data-toggle="collapse" href="#index-collapse-${index+1}" aria-expanded="true" aria-controls="index-collapse-${index+1}">
               &#x25BC;    <!-- ▼ (because the corresponding one is not rendered) -->
               </a>
               <a href="${filename}">${chapterIndex + " " + chapterTitle}</a>
             </h5>
           </div>
 
-          <div id="index-collapse-${index}" class="collapse" role="tabpanel" aria-labelledby="headingOne">
+          <div id="index-collapse-${index+1}" class="collapse" role="tabpanel" aria-labelledby="headingOne">
             <div class="card-block">
         `);
         } else if (option == "sidebar") {
             writeTo.push(`
             <div class="card card-inverse">
-              <div class="card-header" role="tab" id="sidebar-${index}">
+              <div class="card-header" role="tab" id="sidebar-${index+1}">
                 <h5 class="mb-0">
-                  <a class="sidebar-show collapsed" data-toggle="collapse" href="#sidebar-collapse-${index}" aria-expanded="true" aria-controls="sidebar-collapse-${index}">
+                  <a class="sidebar-show collapsed" data-toggle="collapse" href="#sidebar-collapse-${index+1}" aria-expanded="true" aria-controls="sidebar-collapse-${index+1}">
                   &#10148;   <!-- ➤ (because this one is rendered blue on mobile: ▶  -->
                   </a>
-                  <a class="sidebar-hide collapsed" data-toggle="collapse" href="#sidebar-collapse-${index}" aria-expanded="true" aria-controls="sidebar-collapse-${index}">
+                  <a class="sidebar-hide collapsed" data-toggle="collapse" href="#sidebar-collapse-${index+1}" aria-expanded="true" aria-controls="sidebar-collapse-${index+1}">
                   &#x25BC;    <!-- ▼ (because the corresponding one is not rendered) -->
                   </a>
                   <a href="${toIndexFolder}${filename}">${chapterIndex + " " + chapterTitle}</a>
                 </h5>
               </div>
     
-              <div id="sidebar-collapse-${index}" class="collapse" role="tabpanel" aria-labelledby="headingOne">
+              <div id="sidebar-collapse-${index+1}" class="collapse" role="tabpanel" aria-labelledby="headingOne">
                 <div class="card-block">
             `);   
         }

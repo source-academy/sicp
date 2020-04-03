@@ -19,14 +19,14 @@ export const html_links_part2  = (writeTo, toIndexFolder) => {
 
 <!--    <link rel="shortcut icon" type="image/png" href="${toIndexFolder}images/lambda.png" /> -->
 
-    <!-- for support of progressive web app, see github README 
+    <!-- for support of progressive web app, see github README -->
     <link rel="manifest" href="${toIndexFolder}static/manifest.json">
-    
+  
     <script src="https://code.jquery.com/jquery-3.2.1.min.js" 
 		     	  integrity="sha256-hwg4gsxgFZhOsEEamdOYGBf13FyQuiTwlAQgxVSNgt4="
 	          crossorigin="anonymous">
     </script> 
-    -->
+
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tether/1.4.0/js/tether.min.js"></script>
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.6/umd/popper.min.js" integrity="sha384-wHAiFfRlMFy6i5SRaxvfOCifBUQy1xHdJ/yoi7FRNXMRBu5WHdZYu1hA6ZOblgut" crossorigin="anonymous"></script>
@@ -42,7 +42,7 @@ export const html_links_part2  = (writeTo, toIndexFolder) => {
     </script> -->
     
     <!-- THIS DISABLED ALL BUTTONS AND LINKS FIND OUT WHY!! --> 
-    <script src="${toIndexFolder}assets/formatting.js"></script>
+    <script src="${toIndexFolder}assets/application.js"></script>
   
     <!-- Rendering inline LaTeX -->
     <script type="text/x-mathjax-config">
@@ -77,8 +77,8 @@ export const html_links_part2  = (writeTo, toIndexFolder) => {
        <button id="btn" class="navbar-toggler collapsed" type="button" data-toggle="collapse" data-target="#nav-sidebar" aria-controls="nav-sidebar" aria-expanded="false" aria-label="Toggle navigation" title="navigation">
          <span class="navbar-toggler-icon"></span>
        </button>
-       <span class="navbar-brand-short"><a title="Go back to front page" href="/index.html" class="gray">SICP &mdash; JS</a></span>
-       <span class="navbar-brand-long" ><a title="Go back to front page" href="/index.html" class="gray">Structure and Interpretation
+       <span class="navbar-brand-short"><a title="Go back to front page" href="${toIndexFolder}index.html" class="gray">SICP &mdash; JS</a></span>
+       <span class="navbar-brand-long" ><a title="Go back to front page" href="${toIndexFolder}index.html" class="gray">Structure and Interpretation
             of Computer Programs &mdash; JavaScript Adaptation</a></span>
 
        <!-- edit the search engine by visiting: 

@@ -21,6 +21,7 @@ let paragraph_count = 0;
 let heading_count = 0;
 let footnote_count = 0;
 let snippet_count = 0;
+let exercise_count = 0;
 let display_footnote_count = 0;
 let chapArrIndex = 0;
 let chapterTitle = "";
@@ -49,6 +50,7 @@ export const ignoreTags = new Set([
   "CHAPTERCONTENT",
   "NOBR",
   "span",
+  "SPLIT",
   "SPLITINLINE",
   "JAVASCRIPT",
   //typos
@@ -64,7 +66,6 @@ export const preserveTags = new Set([
   "EM",
   "QUOTE",
   "SC",
-  "SPLIT",
   "UL",
   "LI",
   "OL",
@@ -161,7 +162,8 @@ export const processTextFunctionsHtml = {
   },
 
   EXERCISE: (node, writeTo) => {
-    processExerciseHtml(node, writeTo);
+    exercise_count += 1;
+    processExerciseHtml(node, writeTo, chapArrIndex, exercise_count);
   },
 
   FIGURE: (node, writeTo) => {
@@ -202,7 +204,7 @@ export const processTextFunctionsHtml = {
 
   
   IMAGE: (node, writeTo) => {
-    writeTo.push(`<IMAGE src="/${node.getAttribute("src")}"/>`);
+    writeTo.push(`<IMAGE src="${toIndexFolder}${node.getAttribute("src")}"/>`);
   },
   
 
@@ -431,7 +433,7 @@ const afterContent = (writeTo) => {
     <div class='nav'>
   `);
 
-  if (chapArrIndex > 1) {
+  if (chapArrIndex > 0) {
     writeTo.push(`
       <button type='button' class='btn btn-secondary' style='background-color: #fff;'>
         <a href='${toIndexFolder}${allFilepath[chapArrIndex - 1]}'>&lt; Previous</a>
@@ -442,7 +444,7 @@ const afterContent = (writeTo) => {
     <div style='flex-grow: 1;'></div>
   `);
   
-  if (chapArrIndex < allFilepath.length) {
+  if (chapArrIndex < allFilepath.length - 1) {
     writeTo.push(`
       <button type='button' class='btn btn-secondary' style='background-color: #fff;'>
         <a class='scroll-next' href='${toIndexFolder}${allFilepath[chapArrIndex + 1]}'>Next &gt;</a>
@@ -453,6 +455,8 @@ const afterContent = (writeTo) => {
     <div class='chapter_sign'>
       ${chapterIndex + " " + chapterTitle}
     </div>
+    <script> var chapter_id = ${chapArrIndex + 1}; </script>
+    <script> var chapter_path = "${toIndexFolder}${allFilepath[chapArrIndex]}"; </script>
     <div class='next-page'></div>
     </div>
     </div> <!-- /.container -->
@@ -471,6 +475,7 @@ export const parseXmlHtml = (doc, writeTo, filename) => {
   display_footnote_count = 0;
   heading_count = 0;
   snippet_count = 0;
+  exercise_count = 0;
   chapArrIndex = allFilepath.indexOf(filename);
   console.log(`${chapArrIndex} parsing chapter ${chapterIndex != "" ? chapterIndex : filename}`);
 
