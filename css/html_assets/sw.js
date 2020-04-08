@@ -6,7 +6,9 @@ var preLoad = function(){
   console.log("Installing web app");
   return caches.open("offline").then(function(cache) {
     console.log("caching index and important routes");
-    return cache.addAll(["/assets/", "/"]);
+    return cache.addAll(["/chapters/"])
+    .then(console.log("cached"))
+    .catch(error => console.error(`Oops! ${error}`));
   });
 };
 

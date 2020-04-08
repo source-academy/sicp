@@ -18,7 +18,19 @@ const generateChapterIndex = (filename) => {
       // "subsection"
       chapterIndex += "." + filename.match(/(?<=subsection)\d+/g)[0];
     } 
-    
+    if (filename.match(/foreword/)) {
+        chapterIndex = "foreword";
+    } else if (filename.match(/prefaces/)) {
+        chapterIndex = "prefaces";
+    } else if (filename.match(/acknowledgements/)) {
+        chapterIndex = "acknowledgements";
+    } else if (filename.match(/references/)) {
+        chapterIndex = "references";
+    } else if (filename.match(/indexpreface/)) {
+        chapterIndex = "index";
+    } else if (filename.match(/making/)) {
+        chapterIndex = "making-of";
+    }
     //console.log(chapterNumber);
     return chapterIndex;
 }
@@ -65,15 +77,15 @@ export const sortTOC = (allFilepath) => {
         
         if (filename.match(/foreword/)) {
             sortedFilepath[0] = filename;
-        } else if (allFilepath[i].match(/prefaces/)) {
+        } else if (filename.match(/prefaces/)) {
             sortedFilepath[1] = filename;
-        } else if (allFilepath[i].match(/acknowledgements/)) {
+        } else if (filename.match(/acknowledgements/)) {
             sortedFilepath[2] = filename;
-        } else if (allFilepath[i].match(/references/)) {
+        } else if (filename.match(/references/)) {
             sortedFilepath[totalFileCount - 3] = filename;
-        } else if (allFilepath[i].match(/indexpreface/)) {
+        } else if (filename.match(/indexpreface/)) {
             sortedFilepath[totalFileCount - 2] = filename;
-        } else if (allFilepath[i].match(/making/)) {
+        } else if (filename.match(/making/)) {
             sortedFilepath[totalFileCount - 1] = filename;
         } else {
             sortedFilepath[i + 3] = filename;
@@ -93,6 +105,8 @@ export const recursiveProcessTOC = (index, writeTo, option, toIndexFolder) => {
     const filename = allFilepath[index];
     const chapterIndex = tableOfContent[filename].index;
     const chapterTitle = tableOfContent[filename].title;
+    const displayTitle = 
+        chapterIndex.match(/^[a-z]+$/) ? chapterTitle : `${chapterIndex} ${chapterTitle}`;
 
     const nextOption = option;
     
@@ -112,7 +126,7 @@ export const recursiveProcessTOC = (index, writeTo, option, toIndexFolder) => {
           <div class="card-header" role="tab" id="index-${index+1}">
             <h5 class="mb-0">
               <span class="collapsed" data-toggle="collapse" href="#index-collapse-${index+1}" aria-expanded="false" aria-controls="index-collapse-${index+1}">
-                <a href="${filename}"> ${chapterIndex + " " + chapterTitle}</a>
+                <a href="${toIndexFolder}${chapterIndex}.html"> ${displayTitle}</a>
               </span>
             </h5>
           </div>
@@ -124,7 +138,7 @@ export const recursiveProcessTOC = (index, writeTo, option, toIndexFolder) => {
           <div class="card-header" role="tab" id="sidebar-${index+1}">
             <h5 class="mb-0">
               <span class="collapsed" data-toggle="collapse" href="#sidebar-collapse-${index+1}" aria-expanded="false" aria-controls="sidebar-collapse-${index+1}">
-                <a href="${toIndexFolder}${filename}"> ${chapterIndex + " " + chapterTitle}</a>
+                <a href="${toIndexFolder}${chapterIndex}.html"> ${displayTitle}</a>
               </span>
             </h5>
           </div>
@@ -152,7 +166,7 @@ export const recursiveProcessTOC = (index, writeTo, option, toIndexFolder) => {
               <a class="index-hide collapsed" data-toggle="collapse" href="#index-collapse-${index+1}" aria-expanded="true" aria-controls="index-collapse-${index+1}">
               &#x25BC;    <!-- ▼ (because the corresponding one is not rendered) -->
               </a>
-              <a href="${filename}">${chapterIndex + " " + chapterTitle}</a>
+              <a href="${toIndexFolder}${chapterIndex}.html">${displayTitle}</a>
             </h5>
           </div>
 
@@ -170,7 +184,7 @@ export const recursiveProcessTOC = (index, writeTo, option, toIndexFolder) => {
                   <a class="sidebar-hide collapsed" data-toggle="collapse" href="#sidebar-collapse-${index+1}" aria-expanded="true" aria-controls="sidebar-collapse-${index+1}">
                   &#x25BC;    <!-- ▼ (because the corresponding one is not rendered) -->
                   </a>
-                  <a href="${toIndexFolder}${filename}">${chapterIndex + " " + chapterTitle}</a>
+                  <a href="${toIndexFolder}${chapterIndex}.html">${displayTitle}</a>
                 </h5>
               </div>
     
@@ -218,7 +232,7 @@ export const indexHtml = (writeToIndex) => {
     html_links_part2(writeToIndex, "");
 
     // TOC at the sidebar
-    recursiveProcessTOC(0, writeToIndex, "sidebar", "");
+    recursiveProcessTOC(0, writeToIndex, "sidebar", "chapters/");
     writeToIndex.push("</div>\n"); // <div class='collapse'>
 
     // index page content
@@ -230,7 +244,7 @@ export const indexHtml = (writeToIndex) => {
     // TOC at index page
     writeToIndex.push("<h2>Content</h2>");
     writeToIndex.push("\n<div class='nav-index'>");
-    recursiveProcessTOC(0, writeToIndex, "index", "");
+    recursiveProcessTOC(0, writeToIndex, "index", "chapters/");
     writeToIndex.push("</div>\n"); // <div class='nav-index'>
     writeToIndex.push("</div>\n");// <div class="chapter-content">
 

@@ -106,22 +106,16 @@ async function translateXml(filepath, filename, option) {
       
       // parsing over here
       parseXmlHtml(doc, writeTo, relativeFilePath);
-  
-      ensureDirectoryExists(path.join(outputDir, filepath), err => {
-        if (err) {
-          console.log(err);
-          return;
-        }
-        const outputFile = path.join(
-          outputDir,
-          filepath,
-          filename.replace(/\.xml$/, "") + ".html"
-        );
-        const stream = fs.createWriteStream(outputFile);
-        stream.once("open", fd => {
-          stream.write(writeTo.join(""));
-          stream.end();
-        });
+
+      const outputFile = path.join(
+        outputDir,
+        "/chapters",
+        tableOfContent[relativeFilePath].index + ".html"
+      );
+      const stream = fs.createWriteStream(outputFile);
+      stream.once("open", fd => {
+        stream.write(writeTo.join(""));
+        stream.end();
       });
     }
     return;
@@ -206,11 +200,16 @@ const createMain = () => {
   if (!fs.existsSync(outputDir)) {
     fs.mkdirSync(outputDir);
   }
+
   if (parseType =="js") {
     return;
   }
+
   if (parseType == "web") {
-    fse.copy(path.join(__dirname, "../css/html_assets/html"), 
+    if (!fs.existsSync(path.join(outputDir, "/chapters"))) {
+      fs.mkdirSync(path.join(outputDir, "/chapters"));
+    }
+    fse.copy(path.join(__dirname, "../css/html_assets"), 
       path.join(__dirname, "../html"), 
       err => {
         if (err) return console.error(err)
@@ -268,6 +267,7 @@ async function main() {
     outputDir = path.join(__dirname, "../html");  
 
     createMain();
+    
     console.log("\ngenerate table of content\n")
     await recursiveTranslateXml("", "generateTOC");
     allFilepath = sortTOC(allFilepath);
@@ -280,7 +280,7 @@ async function main() {
     console.log("setup snippets and references done\n");
 
     recursiveXmlToHtmlInOrder("parseXml");
-
+  
 
   } else if (parseType == "js") {
 

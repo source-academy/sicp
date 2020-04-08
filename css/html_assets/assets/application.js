@@ -33013,34 +33013,36 @@ var ready = function() {
     if (typeof chapter_id !== 'undefined') {
         hightlight_sidebar(chapter_id);
     }
-    
+    /*
     $(window).scroll(function () {
         if ($(window).scrollTop() >= $(document).height() - $(window).height() - 5) {
-            chapter_id++;
-            newpage_ready();
-            /*
+            
             next_link = $('a.scroll-next:last').attr('href');
+            next_id = $('a.scroll-next:last').attr('id');
             next_chapter = $(".next-page:last");
             last_chapter = next_chapter.parent();
-
-            if (next_link[next_link.length-1] !== 'e' ) {
+            
+            if (next_link) {
                 // Last chapter links to 'e' for end; however the link will be
                 // expanded by wget, so we check for the last char of the link
                 next_chapter.load(next_link,
                     function(responseTxt, statusTxt, xhr){
                         // There should be a better way than regex to get chapter id
-                        var id_regex = /[0-9]+$/;
-                        chapter_id++;
+                        //var id_regex = /[0-9]+$/;
+                        //chapter_id++;
+                        //var id_regex = /[0-9]+$/;
+                        //chapter_id = id_regex.exec(next_id);
+                        console.log(chapter_id);
                         $(".chapter-content:last").before("<hr/>");
                         newpage_ready();
                         addPermaLinks(next_chapter);
                     }
                 );
             }
-            */
+            
         }
     });
-    
+    */
     $("#search-button").click(function() {
         $('#gsc-i-id1').val($("#search-box").val());
         $('input.gsc-search-button').trigger("click");
@@ -33063,6 +33065,7 @@ function hightlight_sidebar(chapter_id) {
         parent_tab = parent_tab.parent();
     }
 }
+
 
 $(document).ready(ready);
 //$(document).on('page:change', ready);

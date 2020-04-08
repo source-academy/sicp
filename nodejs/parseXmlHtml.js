@@ -26,7 +26,7 @@ let display_footnote_count = 0;
 let chapArrIndex = 0;
 let chapterTitle = "";
 export let chapterIndex = "";
-export let toIndexFolder = "";
+export let toIndexFolder = "../";
 
 export const tagsToRemove = new Set([
   "ATTRIBUTION",
@@ -422,7 +422,7 @@ const beforeContent = (writeTo) => {
     </title>
     `);
   html_links_part2(writeTo, toIndexFolder);
-  recursiveProcessTOC(0, writeTo, "sidebar", toIndexFolder);
+  recursiveProcessTOC(0, writeTo, "sidebar", "");
   writeTo.push("</div>\n"); 
   writeTo.push(beforeContentWrapper);
 }
@@ -436,7 +436,7 @@ const afterContent = (writeTo) => {
   if (chapArrIndex > 0) {
     writeTo.push(`
       <button type='button' class='btn btn-secondary' style='background-color: #fff;'>
-        <a href='${toIndexFolder}${allFilepath[chapArrIndex - 1]}'>&lt; Previous</a>
+        <a href='${tableOfContent[allFilepath[chapArrIndex-1]].index}.html'>&lt; Previous</a>
       </button>
     `);
   }
@@ -447,7 +447,7 @@ const afterContent = (writeTo) => {
   if (chapArrIndex < allFilepath.length - 1) {
     writeTo.push(`
       <button type='button' class='btn btn-secondary' style='background-color: #fff;'>
-        <a class='scroll-next' href='${toIndexFolder}${allFilepath[chapArrIndex + 1]}'>Next &gt;</a>
+        <a class='scroll-next' id='${chapArrIndex+2}' href='${tableOfContent[allFilepath[chapArrIndex+1]].index}.html'>Next &gt;</a>
       </button>
       `);
   }
@@ -456,7 +456,7 @@ const afterContent = (writeTo) => {
       ${chapterIndex + " " + chapterTitle}
     </div>
     <script> var chapter_id = ${chapArrIndex + 1}; </script>
-    <script> var chapter_path = "${toIndexFolder}${allFilepath[chapArrIndex]}"; </script>
+    <script> var chapter_path = "${chapterIndex}.html"; </script>
     <div class='next-page'></div>
     </div>
     </div> <!-- /.container -->
@@ -468,7 +468,7 @@ export const parseXmlHtml = (doc, writeTo, filename) => {
   //console.log(allFilepath);
   chapterIndex = tableOfContent[filename].index;
   chapterTitle = tableOfContent[filename].title;
-  toIndexFolder = tableOfContent[filename].relativePathToMain;
+  //toIndexFolder = tableOfContent[filename].relativePathToMain;
   //console.log(chapterIndex + " " + chapterTitle);
   paragraph_count = 0;
   footnote_count = 0;
@@ -477,7 +477,7 @@ export const parseXmlHtml = (doc, writeTo, filename) => {
   snippet_count = 0;
   exercise_count = 0;
   chapArrIndex = allFilepath.indexOf(filename);
-  console.log(`${chapArrIndex} parsing chapter ${chapterIndex != "" ? chapterIndex : filename}`);
+  console.log(`${chapArrIndex} parsing chapter ${chapterIndex}`);
 
   beforeContent(writeTo);
   recursiveProcessTextHtml(doc.documentElement, writeTo);
