@@ -106,7 +106,7 @@ export const recursiveProcessTOC = (index, writeTo, option, toIndexFolder) => {
     const chapterIndex = tableOfContent[filename].index;
     const chapterTitle = tableOfContent[filename].title;
     const displayTitle = 
-        chapterIndex.match(/^[a-z]+$/) ? chapterTitle : `${chapterIndex} ${chapterTitle}`;
+        chapterIndex.match(/[a-z]+/) ? chapterTitle : `${chapterIndex} ${chapterTitle}`;
 
     const nextOption = option;
     

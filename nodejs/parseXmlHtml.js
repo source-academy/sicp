@@ -25,6 +25,7 @@ let exercise_count = 0;
 let display_footnote_count = 0;
 let chapArrIndex = 0;
 let chapterTitle = "";
+let displayTitle = "";
 export let chapterIndex = "";
 export let toIndexFolder = "../";
 
@@ -61,7 +62,6 @@ export const ignoreTags = new Set([
 
 export const preserveTags = new Set([
   "B",
-  "br",
   "BLOCKQUOTE",
   "EM",
   "QUOTE",
@@ -78,7 +78,9 @@ export const preserveTags = new Set([
   "tr",
   "TD",
   "td",
-  "kbd"
+  "kbd",
+  "p",
+  "REFERENCE"
 ]);
 
 export const processTextFunctionsHtml = {
@@ -98,7 +100,7 @@ export const processTextFunctionsHtml = {
         <div class='permalink'>
         <a name='top' class='permalink'> 
     `);
-    writeTo.push(chapterIndex + " " + chapterTitle);
+    writeTo.push(displayTitle);
     writeTo.push(`
         </a>
         </div>
@@ -121,10 +123,11 @@ export const processTextFunctionsHtml = {
   WEBPREFACE: (node, writeTo) => processTextFunctionsHtml["ABOUT"](node, writeTo),
   MATTER: (node, writeTo) => processTextFunctionsHtml["ABOUT"](node, writeTo),
 
-  BR: (node, writeTo) => {
-    node.nodeName = "br";
-    recursiveProcessTextHtml(node, writeTo);
+  br: (node, writeTo) => {
+    writeTo.push("<br>");
   },
+
+  BR: (node, writeTo) => processTextFunctionsHtml["br"](node, writeTo),
 
   CHAPTER: (node, writeTo) => {
     writeTo.push(`
@@ -132,7 +135,7 @@ export const processTextFunctionsHtml = {
         <div class='permalink'>
         <a name='top' class='permalink'> 
     `);
-    writeTo.push(chapterIndex + " " + chapterTitle);
+    writeTo.push(displayTitle);
     writeTo.push(`
         </a>
         </div>
@@ -154,7 +157,7 @@ export const processTextFunctionsHtml = {
 
   em: (node, writeTo) => {
     node.nodeName = "EM";
-    recursiveProcessTextHtml(node, writeTo);
+    processTextHtml(node, writeTo);
   },
 
   EPIGRAPH: (node, writeTo) => {
@@ -199,7 +202,7 @@ export const processTextFunctionsHtml = {
 
   H2: (node, writeTo) => {
     node.nodeName = "h2";
-    recursiveProcessTextHtml(node, writeTo);
+    processTextHtml(node, writeTo);
   },
 
   
@@ -234,7 +237,10 @@ export const processTextFunctionsHtml = {
     recursiveProcessTextHtml(node.firstChild, writeTo);
   },
 
-  P: (node, writeTo) => processTextFunctionsHtml["TEXT"](node, writeTo),
+  P: (node, writeTo) => {
+    node.nodeName = "p";
+    processTextHtml(node, writeTo);
+  },
   
   TEXT: (node, writeTo) => {
     paragraph_count += 1;
@@ -250,20 +256,13 @@ export const processTextFunctionsHtml = {
     processReferenceHtml(node, writeTo, chapterIndex);
   },
 
-  REFERENCE: (node, writeTo) => {
-    // Doesn't do anything special
-    writeTo.push("\n");
-    recursiveProcessTextHtml(node.firstChild, writeTo);
-    writeTo.push("\n");
-  },
-
   SECTION: (node, writeTo) => {
     writeTo.push(`
       <div class='chapter-title'>
         <div class='permalink'>
         <a name='top' class='permalink'> 
     `);
-    writeTo.push(chapterIndex + " " + chapterTitle);
+    writeTo.push(displayTitle);
     writeTo.push(`
         </a>
         </div>
@@ -299,7 +298,7 @@ export const processTextFunctionsHtml = {
       writeTo.push("<kbd class='snippet'>");
       const textit = getChildrenByTagName(node, "JAVASCRIPT")[0];
       if (textit) {
-        recursiveProcessPureText(textit.firstChild, writeTo, { removeNewline: true });
+        recursiveProcessPureText(textit.firstChild, writeTo, { removeNewline: false });
       } else {
         recursiveProcessTextHtml(node.firstChild, writeTo);
       }
@@ -336,7 +335,7 @@ export const processTextFunctionsHtml = {
         <div class='permalink'>
         <a name='top' class='permalink'> 
     `);
-    writeTo.push(chapterIndex + " " + chapterTitle);
+    writeTo.push(displayTitle);
     writeTo.push(`
         </a>
         </div>
@@ -360,7 +359,7 @@ export const processTextFunctionsHtml = {
     heading_count += 1;
     writeTo.push(`
       <div class='permalink'>
-        <a name='h${heading_count}' class='permalink'></a><h1>
+        <a name='h${heading_count}' class='permalink'></a><h2>
     `);
     recursiveProcessTextHtml(node.firstChild, writeTo);
     writeTo.push("</h2></div>");
@@ -416,9 +415,9 @@ export const recursiveProcessTextHtml = (node, writeTo) => {
 const beforeContent = (writeTo) => {
   writeTo.push(html_links_part1);
   writeTo.push(`
-  <meta name="description" content="${chapterIndex + " " + chapterTitle}" />
+  <meta name="description" content="${displayTitle}" />
     <title>
-      ${chapterIndex + " " + chapterTitle}
+      ${displayTitle}
     </title>
     `);
   html_links_part2(writeTo, toIndexFolder);
@@ -468,6 +467,13 @@ export const parseXmlHtml = (doc, writeTo, filename) => {
   //console.log(allFilepath);
   chapterIndex = tableOfContent[filename].index;
   chapterTitle = tableOfContent[filename].title;
+  
+  if (chapterIndex.match(/[a-z]+/)) {
+    displayTitle = chapterTitle;
+  } else {
+    displayTitle = chapterIndex + " " + chapterTitle;
+  }
+
   //toIndexFolder = tableOfContent[filename].relativePathToMain;
   //console.log(chapterIndex + " " + chapterTitle);
   paragraph_count = 0;
@@ -483,17 +489,5 @@ export const parseXmlHtml = (doc, writeTo, filename) => {
   recursiveProcessTextHtml(doc.documentElement, writeTo);
   afterContent(writeTo);
 }
-
-/*
-const permalink_wrap = (node, name) => {
-  const permalink = doc.createElement('QUOTE');
-  permalink.setAttribute('name', name);
-  permalink.setAttribute('class', 'permalink');
-  const wrapper_div = doc.createElement('QUOTE');
-  wrapper_div.setAttribute('class', 'permalink');
-  node.appendChild(wrapper_div).appendChild(permalink)
-};
-*/
-
 
 

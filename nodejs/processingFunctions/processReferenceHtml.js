@@ -57,17 +57,17 @@ export const setupReferences = (node, filename) => {
 		let displayName;
 		if (ref_type == "sec") {
 			displayName = chapterIndex;
-			href = `${allFilepath[chapArrIndex]}`;
+			href = `${chapterIndex}.html`;
 		
 		} else if (ref_type == "fig") {
 			fig_count++;
 			displayName = `${chapter_number}.${fig_count}`;
-			href = `${allFilepath[chapArrIndex]}#fig_${displayName}`;
+			href = `${chapterIndex}.html#fig_${displayName}`;
 	
 		} else if (ref_type == "foot") {
 			foot_count++;
 			displayName = foot_count;
-			href = `${allFilepath[chapArrIndex]}#footnote-${foot_count}`;
+			href = `${chapterIndex}.html#footnote-${foot_count}`;
 		
 		} else { continue; }
 
@@ -107,7 +107,7 @@ export const setupReferences = (node, filename) => {
 
 		ex_count ++;
 		const displayName = `${chapter_number}.${ex_count}`;
-		const href = `${allFilepath[chapArrIndex]}#ex_${displayName}`;
+		const href = `${chapterIndex}.html#ex_${displayName}`;
 		//console.log(referenceName + " added");
 		referenceStore[referenceName] = { href, displayName, chapterIndex };
 	}
@@ -120,7 +120,7 @@ export const processReferenceHtml = (node, writeTo, chapterIndex) => {
 		return;
 	}
 
-	const href = toIndexFolder + referenceStore[referenceName].href;
+	const href = referenceStore[referenceName].href;
 	const displayName = referenceStore[referenceName].displayName;
 	const ref_type = referenceName.split(":")[0];
 

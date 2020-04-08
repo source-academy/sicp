@@ -42,8 +42,7 @@ export const html_links_part2  = (writeTo, toIndexFolder) => {
    <!--  <script type="text/javascript" 
       src="${toIndexFolder}MathJax/MathJax.js?config=TeX-AMS-MML_HTMLorMML-full">
     </script> -->
-    
-    <!-- THIS DISABLED ALL BUTTONS AND LINKS FIND OUT WHY!! --> 
+  
     <script src="${toIndexFolder}assets/application.js"></script>
   
     <!-- Rendering inline LaTeX -->

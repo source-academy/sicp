@@ -3,7 +3,7 @@ import { processSnippetHtml } from '.';
 import { referenceStore } from './processReferenceHtml';
 
 export const processFigureHtml = (node, writeTo) => {
-
+  
   let src = node.getAttribute("src");
   if (!src && node.getElementsByTagName("FIGURE")[0]) {
     src = node.getElementsByTagName("FIGURE")[0].getAttribute("src");
@@ -17,10 +17,11 @@ export const processFigureHtml = (node, writeTo) => {
       return;
   } else if (!src) {
     // console.log(node.toString());
+    writeTo.push(`<FIGURE>`);
     const images = node.getElementsByTagName("IMAGE");
     for (let i = 0; i < images.length; i++) {
       writeTo.push(`
-      <img src="${images[i].getAttribute("src")}">
+      <img src="${toIndexFolder}${images[i].getAttribute("src")}">
       `);
     }
   }
@@ -47,7 +48,7 @@ export const processFigureHtml = (node, writeTo) => {
   if (caption) {
     writeTo.push(`
       <div class="chapter-text-CAPTION">
-      <b><a class="caption" href="${toIndexFolder}${href}">Figure ${displayName} </a></b>`);
+      <b><a class="caption" href="${href}">Figure ${displayName} </a></b>`);
     recursiveProcessTextHtml(caption.firstChild, writeTo);
     writeTo.push("</div>");
   }
