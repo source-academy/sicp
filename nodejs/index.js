@@ -20,7 +20,7 @@ $dvi_mode = 0;
 $postscript_mode = 0;`;
 
 // html (web version)
-import { parseXmlHtml } from './parseXmlHtml';
+import { switchParseFunctionsHtml, parseXmlHtml } from './parseXmlHtml';
 import { setupSnippetsHtml } from './processingFunctions/processSnippetHtml';
 import { setupReferences } from './processingFunctions/processReferenceHtml';
 import { generateTOC, sortTOC, indexHtml } from './generateTocHtml';
@@ -32,6 +32,7 @@ import { parseXmlJs } from './parseXmlJs';
 import { setupSnippetsJs } from './processingFunctions/processSnippetJs';
 
 let parseType;
+let version;
 let outputDir; // depends on parseType
 const inputDir = path.join(__dirname, "../xml");
 
@@ -98,6 +99,11 @@ async function translateXml(filepath, filename, option) {
   
     } else if (option == "setupSnippet") {
       //console.log("setting up " + filepath + " " + filename);
+      if (version == "split") {
+        setupSnippetsHtml(doc.documentElement);
+        setupReferences(doc.documentElement, relativeFilePath);
+        return;
+      }
       setupSnippetsHtml(doc.documentElement);
       setupReferences(doc.documentElement, relativeFilePath);
       return;
@@ -210,7 +216,7 @@ const createMain = () => {
       fs.mkdirSync(path.join(outputDir, "/chapters"));
     }
     fse.copy(path.join(__dirname, "../css/html_assets"), 
-      path.join(__dirname, "../html"), 
+      outputDir, 
       err => {
         if (err) return console.error(err)
     });
@@ -263,9 +269,18 @@ async function main() {
 
 
   } else if (parseType == "web") {
+    version = process.argv[3];
 
-    outputDir = path.join(__dirname, "../html");  
+    if (!version) {
+      version = "js";
+      outputDir = path.join(__dirname, "../sicpjs_html");  
+    } else if (version == "split") {
+      outputDir = path.join(__dirname, "../sicp_split_html");  
+    } else if (version == "scheme") {
+      outputDir = path.join(__dirname, "../sicp_scheme_html");  
+    }
 
+    switchParseFunctionsHtml(version);
     createMain();
     
     console.log("\ngenerate table of content\n")

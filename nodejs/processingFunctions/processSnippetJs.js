@@ -64,13 +64,14 @@ export const processSnippetJs = (node, writeTo, fileFormat) => {
     recursiveProcessPureText(jsSnippet.firstChild, codeArr);
     const codeStr = codeArr.join("").trim();
 
-    let reqStr = '';
-    const snippetName = node.getElementsByTagName("NAME")[0];
+  let reqStr = '';
+  let reqArr = [];
+  const snippetName = node.getElementsByTagName("NAME")[0];
+  let nameStr;
     if (snippetName) {
-      const nameStr = snippetName.firstChild.nodeValue;
+      nameStr = snippetName.firstChild.nodeValue;
       const reqSet = new Set();
       recursiveGetRequires(nameStr, reqSet);
-      const reqArr = [];
       for (const reqName of reqSet) {
         const snippetEntry = snippetStore[reqName]; 
         if (snippetEntry && reqName!==nameStr) {
@@ -81,7 +82,6 @@ export const processSnippetJs = (node, writeTo, fileFormat) => {
       reqStr = reqArr.join("");
     } else {
       const requirements = node.getElementsByTagName("REQUIRES");
-      const reqArr = [];
       for (let i = 0; requirements[i]; i++) {
         const required = requirements[i].firstChild.nodeValue;
         if (snippetStore[required]) {
@@ -100,7 +100,19 @@ export const processSnippetJs = (node, writeTo, fileFormat) => {
       const example = examples[i].firstChild.nodeValue;
       if (snippetStore[example]) {
         exampleArr.push("\n\n");
-        exampleArr.push(snippetStore[example].codeStr);
+    exampleArr.push(snippetStore[example].codeStr);
+    
+    const reqSet = new Set();
+      recursiveGetRequires(example, reqSet);
+      for (const reqName of reqSet) {
+        const snippetEntry = snippetStore[reqName]; 
+        if (snippetEntry && reqName!==example && reqName!==nameStr) {
+          reqArr.push(snippetEntry.codeStr);
+            reqArr.push("\n");
+        }
+      }
+    reqStr = reqArr.join("");
+
       } else {
         missingExampleWarning(example);
       }
@@ -113,8 +125,6 @@ export const processSnippetJs = (node, writeTo, fileFormat) => {
       writeTo.push(exampleStr);
       return;
     }
-    
-
   }
 };
 

@@ -2,7 +2,7 @@ all: clean web pdf # epub
 
 web:
 	npm start web
-	cd html
+	cd sicpjs_html
 
 # If you exceed the TeX memory capacity on MikTeX:
 # http://blog.analogmachine.org/2013/08/12/how-to-increase-miktex-2-9-memory/

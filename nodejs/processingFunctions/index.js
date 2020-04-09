@@ -21,6 +21,8 @@ import processExerciseHtml from './processExerciseHtml';
 import processFigureHtml from "./processFigureHtml";
 import processReferenceHtml from "./processReferenceHtml";
 import processSnippetHtml from './processSnippetHtml';
+import processSnippetHtmlScheme from './processSnippetHtml_scheme';
+
 
 
 export const processList = (node, writeTo) => {
@@ -63,5 +65,6 @@ export {
   processExerciseHtml,
   processFigureHtml,
   processReferenceHtml,
-  processSnippetHtml
+  processSnippetHtml,
+  processSnippetHtmlScheme
 }

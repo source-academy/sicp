@@ -14,7 +14,6 @@ import {
   processExerciseHtml,
   processReferenceHtml,
   processSnippetHtml,
-  processSnippetHtmlScheme,
   recursiveProcessPureText,
 } from './processingFunctions';
 
@@ -30,7 +29,7 @@ let displayTitle = "";
 export let chapterIndex = "";
 export let toIndexFolder = "../";
 
-const tagsToRemoveDefault = new Set([
+export const tagsToRemove = new Set([
   "ATTRIBUTION",
   "AUTHOR",
   "#comment",
@@ -48,7 +47,7 @@ const tagsToRemoveDefault = new Set([
 ]);
 // SOLUTION tag handled by processSnippet
 
-const ignoreTagsDefault = new Set([
+export const ignoreTags = new Set([
   "CHAPTERCONTENT",
   "NOBR",
   "span",
@@ -61,7 +60,7 @@ const ignoreTagsDefault = new Set([
   "SPLTINLINE"
 ]);
 
-const preserveTagsDefault = new Set([
+export const preserveTags = new Set([
   "B",
   "BLOCKQUOTE",
   "EM",
@@ -84,7 +83,7 @@ const preserveTagsDefault = new Set([
   "REFERENCE"
 ]);
 
-const processTextFunctionsDefaultHtml = {
+export const processTextFunctionsHtml = {
 
   "#text": (node, writeTo) => {
 
@@ -384,137 +383,6 @@ const processTextFunctionsDefaultHtml = {
     writeTo.push("\n</SUBSUBSUBSECTION>\n");
   }
 };
-
-const processTextFunctionsSplit = {
-  SCHEME: (node, writeTo) => {
-    writeTo.push(`<span style="color:teal">`);
-    recursiveProcessTextHtml(node.firstChild, writeTo)
-    writeTo.push(`</span>`);
-  },
-
-  JAVASCRIPT: (node, writeTo) => {
-    if (ancestorHasTag(node, "SPLITINLINE")) {
-      writeTo.push("/");
-    }
-    writeTo.push(`<span style="color:blue">`);
-    recursiveProcessTextHtml(node.firstChild, writeTo);
-    writeTo.push(`</span>`);
-  },
-
-  SPLIT: (node, writeTo) => {
-    const scheme = getChildrenByTagName(node, "SCHEME")[0];
-    const js = getChildrenByTagName(node, "JAVASCRIPT")[0];
-    if (scheme && js) {
-      writeTo.push(`<table width="100%">
-        <colgroup><col width="48%"><col width="52%"></colgroup>
-        <tr>
-          <td class="meta" style = "color:grey; text-align: center">Scheme version</td>
-          <td class="meta" style = "color:grey; text-align: center">JavaScript version</td>
-        </tr>`);
-      writeTo.push(`
-        <tr>
-          <td>`);
-      writeTo.push(`<span style="color:teal">`);
-      recursiveProcessTextHtml(scheme.firstChild, writeTo)
-      writeTo.push(`</span>`);
-    
-      writeTo.push(`    </td>
-          <td>`);
-      writeTo.push(`<span style="color:blue">`);
-      recursiveProcessTextHtml(js.firstChild, writeTo)
-      writeTo.push(`</span>`);
-      
-      writeTo.push(`</td></tr>`);
-      writeTo.push(`</table>`);
-    } else if (js) {
-      recursiveProcessTextHtml(js.firstChild, writeTo);
-    } else if (scheme) {
-      recursiveProcessTextHtml(scheme.firstChild, writeTo);
-    }
-  },
-
-  SNIPPET: (node, writeTo) => {
-    if (node.getAttribute("HIDE") == "yes") {
-      return;
-    } else if (node.getAttribute("LATEX") == "yes") {
-      writeTo.push("<kbd class='snippet'>");
-      const textit = getChildrenByTagName(node, "JAVASCRIPT")[0];
-      if (textit) {
-        recursiveProcessPureText(textit.firstChild, writeTo, { removeNewline: false });
-      } else {
-        recursiveProcessTextHtml(node.firstChild, writeTo);
-      }
-      writeTo.push("</kbd>");
-      return;
-    } 
-    snippet_count += 1;
-
-    const scheme = getChildrenByTagName(node, "SCHEME")[0];
-    const js = getChildrenByTagName(node, "JAVASCRIPT")[0];
-    if (scheme && js) {
-      writeTo.push(`<table width="100%">
-          <colgroup><col width="48%"><col width="52%"></colgroup>
-          <tr>
-            <td class="meta" style = "color:grey; text-align: center">Scheme version</td>
-            <td class="meta" style = "color:grey; text-align: center">JavaScript version</td>
-          </tr>`);
-        writeTo.push(`
-          <tr>
-            <td>`);
-        //writeTo.push(`<span style="color:teal">`);
-        writeTo.push("<div class='snippet' id='javascript_"+chapArrIndex+"_"+snippet_count+"_div'>")
-        writeTo.push("<div class='pre-prettyprint'>");
-        processSnippetHtmlScheme(node, writeTo);
-        writeTo.push("</div></div>");
-        //writeTo.push(`</span>`);
-      
-        writeTo.push(`    </td>
-            <td>`);
-        //writeTo.push(`<span style="color:blue">`);
-        writeTo.push("<div class='snippet' id='javascript_"+chapArrIndex+"_"+snippet_count+"_div'>")
-        writeTo.push("<div class='pre-prettyprint'>");
-        processSnippetHtml(node, writeTo);
-        writeTo.push("</div></div>");
-        //writeTo.push(`</span>`);
-        
-        writeTo.push(`</td></tr>`);
-        writeTo.push(`</table>`);
-    } else {
-      writeTo.push("<div class='snippet' id='javascript_"+chapArrIndex+"_"+snippet_count+"_div'>")
-      writeTo.push("<div class='pre-prettyprint'>");
-      processSnippetHtmlScheme(node, writeTo);
-      processSnippetHtml(node, writeTo);
-      writeTo.push("</div></div>");
-    }
-  }
-};
-
-let processTextFunctionsHtml = processTextFunctionsDefaultHtml;
-export let tagsToRemove = tagsToRemoveDefault;
-let ignoreTags = ignoreTagsDefault;
-let preserveTags = preserveTagsDefault;
-
-export const switchParseFunctionsHtml = (version) => {
-  if (version == "js") {
-    console.log('generate sicp.js web textbook');
-    tagsToRemove = tagsToRemoveDefault;
-    ignoreTags = ignoreTagsDefault;
-    preserveTags = preserveTagsDefault;
-    processTextFunctionsHtml = processTextFunctionsDefaultHtml;
-  } else if (version == "split") {
-    console.log('generate split version of web textbook')
-    tagsToRemove.delete("SCHEME");
-    tagsToRemove.delete("SPLIT");
-    ignoreTags.delete("JAVASCRIPT");
-    processTextFunctionsHtml = {
-      ...processTextFunctionsDefaultHtml,
-      ...processTextFunctionsSplit,
-      // the second object overwrites the first one
-    };
-  } else if (version == "scheme") {
-    console.log('generate sicp schceme web textook')
-  }
-}
 
 export const processTextHtml = (node, writeTo) => {
   const name = node.nodeName;
