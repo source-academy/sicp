@@ -48,7 +48,7 @@ export const processFigureHtml = (node, writeTo) => {
   if (caption) {
     writeTo.push(`
       <div class="chapter-text-CAPTION">
-      <b><a class="caption" href="${href}">Figure ${displayName} </a></b>`);
+      <b><a class="caption" href="./${href}">Figure ${displayName} </a></b>`);
     recursiveProcessTextHtml(caption.firstChild, writeTo);
     writeTo.push("</div>");
   }

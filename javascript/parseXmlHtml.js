@@ -553,7 +553,7 @@ const beforeContent = (writeTo) => {
     </title>
     `);
   html_links_part2(writeTo, toIndexFolder);
-  recursiveProcessTOC(0, writeTo, "sidebar", "");
+  recursiveProcessTOC(0, writeTo, "sidebar", "./");
   writeTo.push("</div>\n"); 
   writeTo.push(beforeContentWrapper);
 }
@@ -567,7 +567,7 @@ const afterContent = (writeTo) => {
   if (chapArrIndex > 0) {
     writeTo.push(`
       <button type='button' class='btn btn-secondary' style='background-color: #fff;'>
-        <a href='${tableOfContent[allFilepath[chapArrIndex-1]].index}.html'>&lt; Previous</a>
+        <a href='./${tableOfContent[allFilepath[chapArrIndex-1]].index}.html'>&lt; Previous</a>
       </button>
     `);
   }
@@ -578,7 +578,7 @@ const afterContent = (writeTo) => {
   if (chapArrIndex < allFilepath.length - 1) {
     writeTo.push(`
       <button type='button' class='btn btn-secondary' style='background-color: #fff;'>
-        <a class='scroll-next' id='${chapArrIndex+2}' href='${tableOfContent[allFilepath[chapArrIndex+1]].index}.html'>Next &gt;</a>
+        <a class='scroll-next' id='${chapArrIndex+2}' href='./${tableOfContent[allFilepath[chapArrIndex+1]].index}.html'>Next &gt;</a>
       </button>
       `);
   }
