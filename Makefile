@@ -3,12 +3,13 @@ DOCS = docs
 all: web pdf epub
 	cp latex/sicpjs.pdf latex/sicp.epub $(DOCS); 
 web:
-	$(MAKE) -C rails javascript
+	npm start web
+	cd sicpjs_html
 
 # If you exceed the TeX memory capacity on MikTeX:
 # http://blog.analogmachine.org/2013/08/12/how-to-increase-miktex-2-9-memory/
 pdf: 
-	npm start
+	npm start pdf
 	cd latex && latexmk -pdf -pdflatex="pdflatex --synctex=1" -f sicpjs
 
 epub:
