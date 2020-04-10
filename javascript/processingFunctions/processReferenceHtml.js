@@ -127,13 +127,13 @@ export const processReferenceHtml = (node, writeTo, chapterIndex) => {
 	writeTo.push(`<REF NAME="${referenceName}">`);
 
 	if (ref_type == "sec") {
-		writeTo.push(`<a class="superscript" id="${chapterIndex}-sec-link-${displayName}" href="${href}">${displayName}</a></REF>`);
+		writeTo.push(`<a class="superscript" id="${chapterIndex}-sec-link-${displayName}" href="./${href}">${displayName}</a></REF>`);
 	} else if (ref_type == "fig") {
-		writeTo.push(`<a class="superscript" id="${chapterIndex}-fig-link-${displayName}" href="${href}">${displayName}</a></REF>`);
+		writeTo.push(`<a class="superscript" id="${chapterIndex}-fig-link-${displayName}" href="./${href}">${displayName}</a></REF>`);
 	} else if (ref_type == "ex") {
-		writeTo.push(`<a class="superscript" id="${chapterIndex}-ex-link-${displayName}" href="${href}">${displayName}</a></REF>`);
+		writeTo.push(`<a class="superscript" id="${chapterIndex}-ex-link-${displayName}" href="./${href}">${displayName}</a></REF>`);
 	} else if (ref_type == "foot") {
-		writeTo.push(`<a class="superscript" id="${chapterIndex}-foot-link-${displayName}" href="${href}">${displayName}</a></REF>`);
+		writeTo.push(`<a class="superscript" id="${chapterIndex}-foot-link-${displayName}" href="./${href}">${displayName}</a></REF>`);
 
 	}
 }

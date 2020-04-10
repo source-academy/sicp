@@ -152,12 +152,13 @@ export const indexPage = `
     </TABLE>
     
     <div class="title-text-ATTRIBUTION">
-      <span class="title-text-AUTHOR">Harold Abelson and Gerald Jay Sussman<br/>with Julie Sussman</span> <span class="title-text-TITLE">authors</span>
+      <span class="title-text-AUTHOR">Martin Henz and Tobias Wrigstad<br/>with Chan Ger Hean, He Xinyue, Liu Hang, Feng Piaopiao, Jolyn Tan and Wang Qian</span> <span class="title-text-TITLE">adapters to JavaScript</span>
     </div>
 
     <div class="title-text-ATTRIBUTION">
-      <span class="title-text-AUTHOR">Martin Henz and Tobias Wrigstad<br/>with Chan Ger Hean, Feng Piaopiao, Jolyn Tan and Liu Hang</span> <span class="title-text-TITLE">adapters to JavaScript</span>
+      <span class="title-text-TITLE">original textbook by</span> <span class="title-text-AUTHOR">Harold Abelson and Gerald Jay Sussman<br/>with Julie Sussman</span>
     </div>
+
     `
 
 

@@ -232,7 +232,7 @@ export const indexHtml = (writeToIndex) => {
     html_links_part2(writeToIndex, "");
 
     // TOC at the sidebar
-    recursiveProcessTOC(0, writeToIndex, "sidebar", "chapters/");
+    recursiveProcessTOC(0, writeToIndex, "sidebar", "./chapters/");
     writeToIndex.push("</div>\n"); // <div class='collapse'>
 
     // index page content
@@ -244,7 +244,7 @@ export const indexHtml = (writeToIndex) => {
     // TOC at index page
     writeToIndex.push("<h2>Content</h2>");
     writeToIndex.push("\n<div class='nav-index'>");
-    recursiveProcessTOC(0, writeToIndex, "index", "chapters/");
+    recursiveProcessTOC(0, writeToIndex, "index", "./chapters/");
     writeToIndex.push("</div>\n"); // <div class='nav-index'>
     writeToIndex.push("</div>\n");// <div class="chapter-content">
 
