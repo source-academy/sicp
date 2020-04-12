@@ -456,9 +456,6 @@ class ChaptersController < ApplicationController
                                                      :id => "javascript_#{@chapter.id}_#{count}_div")
 
                 chap = order[0];
-                if (order == "3.4.2")
-                    chap = "3_Concurrent" # use Source 3 Concurrent instead for chapter 3.4.2 snippets
-                end
                 chap_string = snippet["CHAP"]
                     if (!chap_string.nil?)
                         chap = chap_string
