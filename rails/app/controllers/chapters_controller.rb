@@ -461,9 +461,15 @@ class ChaptersController < ApplicationController
                         chap = chap_string
                     end
                 
+                variant = ""
+                variant_string = snippet["VARIANT"]
+                    if (!variant_string.nil?)
+                        variant = "&variant=" + variant_string
+                    end
+                
                 
                 snippet_event = "var compressed = LZString.compressToEncodedURIComponent('#{hidden_code}'+'\n'+'#{platform_code}'+'\n'+'#{example_code}'+'\n'); " + 
-                        "var url = 'https://source-academy.github.io/playground#chap=#{chap}#{ext}&prgrm='+compressed;" +
+                        "var url = 'https://source-academy.github.io/playground#chap=#{chap}#{variant}#{ext}&prgrm='+compressed;" +
                         ### "var url = '#{`echo $SOURCE_ACADEMY`}playground#chap=#{order[0]}&prgrm='+compressed;" +
                         " window.open(url); "
                 
