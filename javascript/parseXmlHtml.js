@@ -20,6 +20,7 @@ import {
 
 let paragraph_count = 0;
 let heading_count = 0;
+let subsubsection_count = 0;
 let footnote_count = 0;
 let snippet_count = 0;
 let exercise_count = 0;
@@ -44,7 +45,9 @@ const tagsToRemoveDefault = new Set([
   "SOLUTION",
   "INDEX",
   "NAME",
-  "LABEL"
+  "LABEL",
+  "CODEINDEX",
+  "EXPLANATION"
 ]);
 // SOLUTION tag handled by processSnippet
 
@@ -111,7 +114,7 @@ const processTextFunctionsDefaultHtml = {
     `);
     
     if (node.getAttribute("WIP") === "yes") {
-         writeTo.push(`<div class="wip-stamp">Note: this section is a work in progress!</div>`)
+         writeTo.push(`<div style="color:red" class="wip-stamp">Note: this section is a work in progress!</div>`)
     }
     let childNode = node.firstChild;
     while (childNode.nodeName != "NAME") {
@@ -123,6 +126,10 @@ const processTextFunctionsDefaultHtml = {
   REFERENCES: (node, writeTo) => processTextFunctionsHtml["ABOUT"](node, writeTo),
   WEBPREFACE: (node, writeTo) => processTextFunctionsHtml["ABOUT"](node, writeTo),
   MATTER: (node, writeTo) => processTextFunctionsHtml["ABOUT"](node, writeTo),
+
+  APOS: (node, writeTo) => {
+    writeTo.push("'");
+  },
 
   br: (node, writeTo) => {
     writeTo.push("<br>");
@@ -146,7 +153,7 @@ const processTextFunctionsDefaultHtml = {
     `);
 
     if (node.getAttribute("WIP") === "yes") {
-      writeTo.push(`<div class="wip-stamp">Note: this section is a work in progress!</div>`)
+      writeTo.push(`<div style="color:red" class="wip-stamp">Note: this section is a work in progress!</div>`)
  }
     let childNode = node.firstChild;
     while (childNode.nodeName != "NAME") {
@@ -160,6 +167,12 @@ const processTextFunctionsDefaultHtml = {
     node.nodeName = "EM";
     processTextHtml(node, writeTo);
   },
+
+  EM_NO_INDEX: (node, writeTo) => {
+    node.nodeName = "EM";
+    processTextHtml(node, writeTo);
+  },
+
 
   EPIGRAPH: (node, writeTo) => {
     processEpigraphHtml(node, writeTo);
@@ -191,14 +204,19 @@ const processTextFunctionsDefaultHtml = {
 
   DISPLAYFOOTNOTE: (node, writeTo) => {
     display_footnote_count += 1;
-    if (display_footnote_count == 1) {writeTo.push("<hr>");}
-    writeTo.push("<div class='footnote'>");
+    if (display_footnote_count == 1) {writeTo.push("<hr>\n");}
+    writeTo.push(`
+    <div class='footnote'>`);
     writeTo.push(`
       <a class='footnote-number' id='footnote-${display_footnote_count}' href='#footnote-link-${display_footnote_count}'>`);
-    writeTo.push(`[${display_footnote_count}] </a><FOOTNOTE>`);
+    writeTo.push(`[${display_footnote_count}] </a>
+    <FOOTNOTE>
+    `);
     recursiveProcessTextHtml(node.firstChild, writeTo);
-    writeTo.push("</FOOTNOTE>");
-    writeTo.push("</div>");
+    writeTo.push(`
+    </FOOTNOTE></div>
+
+    `);
   },
 
   H2: (node, writeTo) => {
@@ -273,7 +291,7 @@ const processTextFunctionsDefaultHtml = {
     `);
     
     if (node.getAttribute("WIP") === "yes") {
-         writeTo.push(`<div class="wip-stamp">Note: this section is a work in progress!</div>`)
+         writeTo.push(`<div style="color:red" class="wip-stamp">Note: this section is a work in progress!</div>`)
     }
     let childNode = node.firstChild;
     while (childNode.nodeName != "NAME") {
@@ -287,9 +305,13 @@ const processTextFunctionsDefaultHtml = {
     processTextFunctionsHtml["JAVASCRIPTINLINE"](node, writeTo),
 
   JAVASCRIPTINLINE: (node, writeTo) => {
-    writeTo.push("<kbd>");
-    recursiveProcessPureText(node.firstChild, writeTo, { removeNewline: true });
-    writeTo.push("</kbd>");
+    if(ancestorHasTag(node, "NAME")){
+      recursiveProcessPureText(node.firstChild, writeTo, { removeNewline: "all" });
+    } else {
+      writeTo.push("<kbd>");
+      recursiveProcessPureText(node.firstChild, writeTo, { removeNewline: "all" });
+      writeTo.push("</kbd>"); 
+    }
   },
 
   SNIPPET: (node, writeTo) => {
@@ -299,7 +321,7 @@ const processTextFunctionsDefaultHtml = {
       writeTo.push("<kbd class='snippet'>");
       const textit = getChildrenByTagName(node, "JAVASCRIPT")[0];
       if (textit) {
-        recursiveProcessPureText(textit.firstChild, writeTo, { removeNewline: false });
+        recursiveProcessPureText(textit.firstChild, writeTo, { removeNewline: "beginning&end" });
       } else {
         recursiveProcessTextHtml(node.firstChild, writeTo);
       }
@@ -346,7 +368,7 @@ const processTextFunctionsDefaultHtml = {
     `);
     
     if (node.getAttribute("WIP") === "yes") {
-      writeTo.push(`<div class="wip-stamp">Note: this section is a work in progress!</div>`)
+      writeTo.push(`<div style="color:red" class="wip-stamp">Note: this section is a work in progress!</div>`)
     }
     let childNode = node.firstChild;
     while (childNode.nodeName != "NAME") {
@@ -366,12 +388,15 @@ const processTextFunctionsDefaultHtml = {
     writeTo.push("</h2></div>");
   },
 
+  // e.g. section 4.4.4
   SUBSUBSECTION: (node, writeTo) => {
+    subsubsection_count += 1;
     heading_count += 1;
     writeTo.push(`
       <div class='permalink'>
-        <a name='h${heading_count}' class='permalink'></a><h1>
+        <a name='sec${chapterIndex}.${subsubsection_count}' class='permalink'></a><h1>
     `);
+    writeTo.push(`${chapterIndex}.${subsubsection_count} `);
     recursiveProcessTextHtml(node.firstChild, writeTo);
     writeTo.push("</h1></div>");
   },
@@ -406,10 +431,11 @@ const processTextFunctionsSplit = {
     const js = getChildrenByTagName(node, "JAVASCRIPT")[0];
     if (scheme && js) {
       writeTo.push(`<table width="100%">
-        <colgroup><col width="48%"><col width="52%"></colgroup>
+        <colgroup><col width="48%"><col width="1%"><col width="51%"></colgroup>
         <tr>
-          <td class="meta" style = "color:grey; text-align: center">Scheme version</td>
-          <td class="meta" style = "color:grey; text-align: center">JavaScript version</td>
+          <td class="meta" style = "color:grey; text-align: center">Original</td>
+          <td></td>
+          <td class="meta" style = "color:grey; text-align: center">JavaScript</td>
         </tr>`);
       writeTo.push(`
         <tr>
@@ -419,6 +445,7 @@ const processTextFunctionsSplit = {
       writeTo.push(`</span>`);
     
       writeTo.push(`    </td>
+          <td></td>
           <td>`);
       writeTo.push(`<span style="color:blue">`);
       recursiveProcessTextHtml(js.firstChild, writeTo)
@@ -433,6 +460,67 @@ const processTextFunctionsSplit = {
     }
   },
 
+  FOOTNOTE: (node, writeTo) => {
+    footnote_count += 1;
+    writeTo.push(`<a class='superscript' id='footnote-link-${footnote_count}' href='#footnote-${footnote_count}'`);
+    
+    if (ancestorHasTag(node, "SCHEME")) {
+      writeTo.push(`style="color:teal"`);
+    } else if (ancestorHasTag(node, "JAVASCRIPT")) {
+      writeTo.push(`style="color:blue"`);
+    }
+
+    writeTo.push(`>[${footnote_count}]</a>`);
+    // clone the current FOOTNOTE node and its children
+    let cloneNode = node.cloneNode(true);
+    cloneNode.nodeName = "DISPLAYFOOTNOTE";
+    
+    if (ancestorHasTag(node, "SCHEME")) {
+      cloneNode.setAttribute("version", "scheme");
+    } else if (ancestorHasTag(node, "JAVASCRIPT")) {
+      cloneNode.setAttribute("version", "js");
+    }
+
+    let parent = node.parentNode;
+    // the last parentNode is <#document> the second last node is either <CHAPTER>/<(SUB)SECTION>
+    while (parent.parentNode.parentNode) {
+      parent = parent.parentNode;
+    }
+    // append the cloned node as the last elements inside <CHAPTER>/<SECTION> node
+    parent.appendChild(cloneNode); 
+  },
+
+  DISPLAYFOOTNOTE: (node, writeTo) => {
+    display_footnote_count += 1;
+    if (display_footnote_count == 1) {writeTo.push("<hr>\n");}
+    writeTo.push(`
+    <div class='footnote'>`);
+    if (node.getAttribute("version") == "scheme") {
+      writeTo.push(`<span style="color:teal">`);
+    } else if (node.getAttribute("version") == "js") {
+      writeTo.push(`<span style="color:blue">`);
+    }
+    writeTo.push(`
+      <a class='footnote-number' id='footnote-${display_footnote_count}' href='#footnote-link-${display_footnote_count}' `);
+    if (node.getAttribute("version") == "scheme") {
+      writeTo.push(`style="color:teal"`);
+    } else if (node.getAttribute("version") == "js") {
+      writeTo.push(`style="color:blue"`);
+    }
+      writeTo.push(`>[${display_footnote_count}] </a>
+    <FOOTNOTE>
+    `);
+    recursiveProcessTextHtml(node.firstChild, writeTo);
+    writeTo.push(`
+    </FOOTNOTE>`);
+    if (node.getAttribute("version")) {
+      writeTo.push(`</span>`);
+    }
+    writeTo.push(`</div>
+    
+    `);
+  },
+
   SNIPPET: (node, writeTo) => {
     if (node.getAttribute("HIDE") == "yes") {
       return;
@@ -440,7 +528,7 @@ const processTextFunctionsSplit = {
       writeTo.push("<kbd class='snippet'>");
       const textit = getChildrenByTagName(node, "JAVASCRIPT")[0];
       if (textit) {
-        recursiveProcessPureText(textit.firstChild, writeTo, { removeNewline: false });
+        recursiveProcessPureText(textit.firstChild, writeTo, { removeNewline: "beginning&end" });
       } else {
         recursiveProcessTextHtml(node.firstChild, writeTo);
       }
@@ -454,10 +542,7 @@ const processTextFunctionsSplit = {
     if (scheme && js) {
       writeTo.push(`<table width="100%">
           <colgroup><col width="48%"><col width="52%"></colgroup>
-          <tr>
-            <td class="meta" style = "color:grey; text-align: center">Scheme version</td>
-            <td class="meta" style = "color:grey; text-align: center">JavaScript version</td>
-          </tr>`);
+          `);
         writeTo.push(`
           <tr>
             <td>`);
@@ -587,7 +672,7 @@ const afterContent = (writeTo) => {
       ${chapterIndex + " " + chapterTitle}
     </div>
     <script> var chapter_id = ${chapArrIndex + 1}; </script>
-    <script> var chapter_path = "${chapterIndex}.html"; </script>
+    <script> var chapter_path = "chapters/${chapterIndex}.html"; </script>
     <div class='next-page'></div>
     </div>
     </div> <!-- /.container -->
@@ -612,6 +697,7 @@ export const parseXmlHtml = (doc, writeTo, filename) => {
   footnote_count = 0;
   display_footnote_count = 0;
   heading_count = 0;
+  subsubsection_count = 0;
   snippet_count = 0;
   exercise_count = 0;
   chapArrIndex = allFilepath.indexOf(filename);

@@ -9,6 +9,7 @@ import { getChildrenByTagName, ancestorHasTag } from '../utilityFunctions';
 export const referenceStore = {};
 
 let chapter_number = 0;
+let subsubsection_count;
 let fig_count;
 let foot_count;
 let ex_count;
@@ -28,6 +29,7 @@ export const setupReferences = (node, filename) => {
 	const chapArrIndex = allFilepath.indexOf(filename);
 	const chapterIndex = tableOfContent[filename].index;
 
+	subsubsection_count = 0;
 	foot_count = 0;
 	if (chapter_number != chapterIndex.substring(0,1)) {
 		chapter_number = chapterIndex.substring(0,1);
@@ -56,8 +58,14 @@ export const setupReferences = (node, filename) => {
 		let href;
 		let displayName;
 		if (ref_type == "sec") {
-			displayName = chapterIndex;
-			href = `${chapterIndex}.html`;
+			if (ancestorHasTag(label, "SUBSUBSECTION")) {
+				subsubsection_count++;
+				displayName = `${chapterIndex}.${subsubsection_count}`;
+				href = `${chapterIndex}.html#sec${chapterIndex}.${subsubsection_count}`;
+			} else {
+				displayName = chapterIndex;
+				href = `${chapterIndex}.html`;
+			}
 		
 		} else if (ref_type == "fig") {
 			fig_count++;

@@ -1,3 +1,64 @@
+import { write } from "fs-extra";
+
+const shortTitleDefault = `SICP &mdash; JS`;
+const longTitleDefault = `Structure and Interpretation of Computer Programs &mdash; JavaScript Adaptation`;
+let shortTitle = shortTitleDefault;
+let longTitle = longTitleDefault;
+let legend = `
+<div class="title-text-ALSO">
+  <span class="title-text-ALSO">also available</span><BR/>
+</div>
+<div class="title-text-OTHEREDITIONS">
+  <span class="title-text-OTHEREDITIONS">
+<a href="https://sicp.comp.nus.edu.sg/sicpjs.pdf">PDF edition</a></span>
+</div>
+<div class="title-text-OTHEREDITIONS">
+  <span class="title-text-OTHEREDITIONS">
+<a href="https://sicp.comp.nus.edu.sg/sicp.epub">E-book edition</a></span>
+</div>`;
+
+export const switchTitle = (version) => {
+  if (version == "js") {
+    shortTitle = shortTitleDefault;
+    longTitle = longTitleDefault;
+    legend = `
+    <div class="title-text-ALSO">
+      <span class="title-text-ALSO">also available</span><BR/>
+    </div>
+    <div class="title-text-OTHEREDITIONS">
+      <span class="title-text-OTHEREDITIONS">
+    <a href="https://sicp.comp.nus.edu.sg/sicpjs.pdf">PDF edition</a></span>
+    </div>
+    <div class="title-text-OTHEREDITIONS">
+      <span class="title-text-OTHEREDITIONS">
+    <a href="https://sicp.comp.nus.edu.sg/sicp.epub">E-book edition</a></span>
+    </div>`;
+
+  } else if (version == "split") {
+    shortTitle = `SICP &mdash; Scheme/JS`;
+    longTitle = `Structure and Interpretation of Computer Programs &mdash; Orginal / JavaScript Adaptation Comparison`;
+    legend = `
+    <div class="title-text-ALSO">
+      <span class="title-text-ALSO">Differences highlighted in</span><BR/>
+    </div>
+    <div class="title-text-OTHEREDITIONS">
+      <span class="title-text-OTHEREDITIONS">
+      <span style="color:teal">Original █</span>
+      </span>
+    </div>
+    <div class="title-text-OTHEREDITIONS">
+      <span class="title-text-OTHEREDITIONS">
+      <span style="color:blue">Javascript █</span>
+      </span>
+    </div>`;
+    
+  } else if (version == "scheme") {
+    // scheme version of the web textbook has yet been developed
+    console.log('generate sicp schceme web textook')
+  }
+}
+
+
 // `\\\\`' is used to display double back-slash \\ in template literals
 export const html_links_part1 = `<!DOCTYPE html>
 <html lang="en">
@@ -21,9 +82,10 @@ export const html_links_part2  = (writeTo, toIndexFolder) => {
 
 <!--    <link rel="shortcut icon" type="image/png" href="${toIndexFolder}images/lambda.png" /> -->
 
-    <!-- for support of progressive web app, see github README -->
+    <!-- for support of progressive web app, see github README, DISABLED!
     <link rel="manifest" href="${toIndexFolder}static/manifest.json">
-  
+    -->
+
     <script src="https://code.jquery.com/jquery-3.2.1.min.js" 
 		     	  integrity="sha256-hwg4gsxgFZhOsEEamdOYGBf13FyQuiTwlAQgxVSNgt4="
 	          crossorigin="anonymous">
@@ -64,7 +126,7 @@ export const html_links_part2  = (writeTo, toIndexFolder) => {
   <body>
 
     
-    <!-- support for progressive web app, see README -->
+    <!-- support for progressive web app, see README, DISABLED
     <script>
       if ('serviceWorker' in navigator && !navigator.serviceWorker.controller) {
           navigator.serviceWorker.register("../sw.js").then(function(reg) {
@@ -72,15 +134,14 @@ export const html_links_part2  = (writeTo, toIndexFolder) => {
           });
       }
     </script>
-
+    -->
 
      <nav class="navbar navbar-expand-sm navbar-dark bg-dark fixed-top justify-content-between">
        <button id="btn" class="navbar-toggler collapsed" type="button" data-toggle="collapse" data-target="#nav-sidebar" aria-controls="nav-sidebar" aria-expanded="false" aria-label="Toggle navigation" title="navigation">
          <span class="navbar-toggler-icon"></span>
        </button>
-       <span class="navbar-brand-short"><a title="Go back to front page" href="${toIndexFolder}index.html" class="gray">SICP &mdash; JS</a></span>
-       <span class="navbar-brand-long" ><a title="Go back to front page" href="${toIndexFolder}index.html" class="gray">Structure and Interpretation
-            of Computer Programs &mdash; JavaScript Adaptation</a></span>
+       <span class="navbar-brand-short"><a title="Go back to front page" href="${toIndexFolder}index.html" class="gray">${shortTitle}</a></span>
+       <span class="navbar-brand-long" ><a title="Go back to front page" href="${toIndexFolder}index.html" class="gray">${longTitle}</a></span>
 
        <!-- edit the search engine by visiting: 
 	    https://cse.google.com/cse/setup/basic?cx=015760785273492757659:nc_tznrzlsg 
@@ -124,7 +185,8 @@ export const html_links_part2  = (writeTo, toIndexFolder) => {
       `);}
 
 
-export const indexPage = `
+export const indexPage = (writeTo) => { 
+  writeTo.push(`
   <TABLE class="tight">
 	<TD  class="tight" width="70%" valign="top" align="right">
           <img class="tight" src="./sicp.png"
@@ -136,17 +198,7 @@ export const indexPage = `
 	  </div>
 	  <span style="vertical-align:-77%"/>
 	  <BR/>
-	  <div class="title-text-ALSO">
-	    <span class="title-text-ALSO">also available</span><BR/>
-	  </div>
-	  <div class="title-text-OTHEREDITIONS">
-	    <span class="title-text-OTHEREDITIONS">
-	  <a href="https://sicp.comp.nus.edu.sg/sicpjs.pdf">PDF edition</a></span>
-	  </div>
-	  <div class="title-text-OTHEREDITIONS">
-	    <span class="title-text-OTHEREDITIONS">
-	  <a href="https://sicp.comp.nus.edu.sg/sicp.epub">E-book edition</a></span>
-	  </div>
+	  ${legend}
 	</TD>
       </TR>
     </TABLE>
@@ -159,7 +211,8 @@ export const indexPage = `
       <span class="title-text-TITLE">original textbook by</span> <span class="title-text-AUTHOR">Harold Abelson and Gerald Jay Sussman<br/>with Julie Sussman</span>
     </div>
 
-    `
+    `);
+}
 
 
 export const beforeContentWrapper = `<div id='permalink-msg'>

@@ -76,46 +76,58 @@ export const processSnippetPdf = (node, writeTo) => {
       writeTo.push("\n\\end{JavaScript}\n");
     } else {
 
-    	let reqStr = '';
-    	const snippetName = node.getElementsByTagName("NAME")[0];
-    	if (snippetName) {
-    		const nameStr = snippetName.firstChild.nodeValue;
-    		const reqSet = new Set();
-    		recursiveGetRequires(nameStr, reqSet);
-    		const reqArr = [];
-    		for (const reqName of reqSet) {
-    			const snippetEntry = snippetStore[reqName]; 
-    			if (snippetEntry && reqName!==nameStr) {
-	    			reqArr.push(snippetEntry.codeStr);
-			      reqArr.push("\n");
-    			}
-    		}
-    		reqStr = reqArr.join("");
-    	} else {
-		    const requirements = node.getElementsByTagName("REQUIRES");
-		    const reqArr = [];
-		    for (let i = 0; requirements[i]; i++) {
-		      const required = requirements[i].firstChild.nodeValue;
-		      if (snippetStore[required]) {
-		        reqArr.push(snippetStore[required].codeStr);
-		        reqArr.push("\n");
-		      } else {
-		        missingRequireWarning(required);
-		      }
-		    }
-		    reqStr = reqArr.join("");
-    	}
+      let reqStr = '';
+      let reqArr = [];
+      const snippetName = node.getElementsByTagName("NAME")[0];
+      let nameStr;
+        if (snippetName) {
+          nameStr = snippetName.firstChild.nodeValue;
+          const reqSet = new Set();
+          recursiveGetRequires(nameStr, reqSet);
+          for (const reqName of reqSet) {
+            const snippetEntry = snippetStore[reqName]; 
+            if (snippetEntry && reqName!==nameStr) {
+              reqArr.push(snippetEntry.codeStr);
+              reqArr.push("\n");
+            }
+          }
+          reqStr = reqArr.join("");
+        } else {
+          const requirements = node.getElementsByTagName("REQUIRES");
+          for (let i = 0; requirements[i]; i++) {
+            const required = requirements[i].firstChild.nodeValue;
+            if (snippetStore[required]) {
+              reqArr.push(snippetStore[required].codeStr);
+              reqArr.push("\n");
+            } else {
+              missingRequireWarning(required);
+            }
+          }
+          reqStr = reqArr.join("");
+        }
 
       const examples = node.getElementsByTagName("EXAMPLE");
       const exampleArr = [];
       for (let i = 0; examples[i]; i++) {
-      	const example = examples[i].firstChild.nodeValue;
-	      if (snippetStore[example]) {
-	        exampleArr.push("\n\n");
-	        exampleArr.push(snippetStore[example].codeStr);
-	      } else {
-	        missingExampleWarning(example);
-	      }
+        const example = examples[i].firstChild.nodeValue;
+        if (snippetStore[example]) {
+          exampleArr.push("\n\n");
+          exampleArr.push(snippetStore[example].codeStr);
+          
+          const reqSet = new Set();
+            recursiveGetRequires(example, reqSet);
+            for (const reqName of reqSet) {
+              const snippetEntry = snippetStore[reqName]; 
+              if (snippetEntry && reqName!==example && reqName!==nameStr) {
+                reqArr.push(snippetEntry.codeStr);
+                  reqArr.push("\n");
+              }
+            }
+            reqStr = reqArr.join("");
+
+        } else {
+          missingExampleWarning(example);
+        }
       }
       const exampleStr = exampleArr.join("");
 
@@ -123,16 +135,23 @@ export const processSnippetPdf = (node, writeTo) => {
       const compressed = lzString.compressToEncodedURIComponent(
         reqStr + codeStr + exampleStr
       );
-      const chap = "4";
-      const ext = "";
-      const url =
-        sourceAcademyURL +
-        "/playground#chap=" +
-        chap +
-        ext +
-        "&prgrm=" +
-        compressed;
-
+      const chap = node.getAttribute("CHAP");
+      let variant = node.getAttribute("VARIANT");
+      if (variant) {
+        variant = "&variant="+ variant;
+      } else {
+        variant = "";
+      }
+        const ext = "";
+        const url =
+          sourceAcademyURL +
+          "/playground#chap=" +
+          chap +
+          variant +
+          ext +
+          "&prgrm=" +
+          compressed;
+        
       const chunks = (codeStr + "\n").match(/^((?:.*?[\r\n]+){1,6})((?:.|\n|\r)*)$/);
       // 6 lines plus rest
       writeTo.push(

@@ -137,12 +137,19 @@ export const processSnippetHtml = (node, writeTo) => {
       const compressed = lzString.compressToEncodedURIComponent(
         reqStr + codeStr + exampleStr
       );
-      const chap = chapterIndex.substring(0,1);
+	  const chap = chapterIndex.substring(0,1);
+	  let variant = node.getAttribute("VARIANT");
+	  if (variant) {
+		  variant = "&variant="+ variant;
+	  } else {
+		  variant = "";
+	  }
       const ext = "";
       const url =
         sourceAcademyURL +
         "/playground#chap=" +
-        chap +
+		chap +
+		variant +
         ext +
         "&prgrm=" +
         compressed;

@@ -82,8 +82,6 @@ export const sortTOC = (allFilepath) => {
         } else if (filename.match(/acknowledgements/)) {
             sortedFilepath[2] = filename;
         } else if (filename.match(/references/)) {
-            sortedFilepath[totalFileCount - 3] = filename;
-        } else if (filename.match(/indexpreface/)) {
             sortedFilepath[totalFileCount - 2] = filename;
         } else if (filename.match(/making/)) {
             sortedFilepath[totalFileCount - 1] = filename;
@@ -239,7 +237,7 @@ export const indexHtml = (writeToIndex) => {
     writeToIndex.push(`
     <div class="chapter-content">
     <div class="chapter-text" >`);
-    writeToIndex.push(indexPage);
+    indexPage(writeToIndex);
 
     // TOC at index page
     writeToIndex.push("<h2>Content</h2>");

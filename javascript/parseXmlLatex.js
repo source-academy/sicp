@@ -237,7 +237,7 @@ const processTextFunctionsDefaultLatex = {
     processTextFunctionsLatex["JAVASCRIPTINLINE"](node, writeTo),
   JAVASCRIPTINLINE: (node, writeTo) => {
     writeTo.push("{\\lstinline[mathescape=true]$");
-    recursiveProcessPureText(node.firstChild, writeTo, { removeNewline: true });
+    recursiveProcessPureText(node.firstChild, writeTo, { removeNewline: "all" });
     writeTo.push("$}");
   },
 
@@ -301,7 +301,7 @@ const processTextFunctionsEpub = {
   },
   JAVASCRIPTINLINE: (node, writeTo) => {
     writeTo.push("{\\lstinline[mathescape=true, language=JavaScript]$");
-    recursiveProcessPureText(node.firstChild, writeTo, { removeNewline: true });
+    recursiveProcessPureText(node.firstChild, writeTo, { removeNewline: "all" });
     writeTo.push("$}");
   },
   SNIPPET: (node, writeTo) => {
