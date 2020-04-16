@@ -155,11 +155,8 @@ const processTextFunctionsDefaultHtml = {
     if (node.getAttribute("WIP") === "yes") {
       writeTo.push(`<div style="color:red" class="wip-stamp">Note: this section is a work in progress!</div>`)
  }
-    let childNode = node.firstChild;
-    while (childNode.nodeName != "NAME") {
-      childNode = childNode.nextSibling;
-    }
-    recursiveProcessTextHtml(childNode.nextSibling, writeTo);
+    const name = getChildrenByTagName(node, "NAME")[0];
+    recursiveProcessTextHtml(name.nextSibling, writeTo);
     writeTo.push("\n</CHAPTER></div></div>\n");
   },
 
@@ -293,11 +290,8 @@ const processTextFunctionsDefaultHtml = {
     if (node.getAttribute("WIP") === "yes") {
          writeTo.push(`<div style="color:red" class="wip-stamp">Note: this section is a work in progress!</div>`)
     }
-    let childNode = node.firstChild;
-    while (childNode.nodeName != "NAME") {
-      childNode = childNode.nextSibling;
-    }
-    recursiveProcessTextHtml(childNode.nextSibling, writeTo);
+    const name = getChildrenByTagName(node, "NAME")[0];
+    recursiveProcessTextHtml(name.nextSibling, writeTo);
     writeTo.push("\n</SECTION></div></div>\n");
   },
 
@@ -370,11 +364,8 @@ const processTextFunctionsDefaultHtml = {
     if (node.getAttribute("WIP") === "yes") {
       writeTo.push(`<div style="color:red" class="wip-stamp">Note: this section is a work in progress!</div>`)
     }
-    let childNode = node.firstChild;
-    while (childNode.nodeName != "NAME") {
-      childNode = childNode.nextSibling;
-    }
-    recursiveProcessTextHtml(childNode.nextSibling, writeTo);
+    const name = getChildrenByTagName(node, "NAME")[0];
+    recursiveProcessTextHtml(name.nextSibling, writeTo);
     writeTo.push("\n</SUBSECTION></div></div>\n");
   },
 
@@ -392,13 +383,15 @@ const processTextFunctionsDefaultHtml = {
   SUBSUBSECTION: (node, writeTo) => {
     subsubsection_count += 1;
     heading_count += 1;
+    const name = getChildrenByTagName(node, "NAME")[0];
     writeTo.push(`
       <div class='permalink'>
         <a name='sec${chapterIndex}.${subsubsection_count}' class='permalink'></a><h1>
     `);
     writeTo.push(`${chapterIndex}.${subsubsection_count} `);
-    recursiveProcessTextHtml(node.firstChild, writeTo);
+    recursiveProcessTextHtml(name.firstChild, writeTo);
     writeTo.push("</h1></div>");
+    recursiveProcessTextHtml(name.nextSibling, writeTo);
   },
 
   SUBSUBSUBSECTION:(node, writeTo) => {
