@@ -23,7 +23,7 @@ $postscript_mode = 0;`;
 import { switchTitle } from './htmlContent';
 import { switchParseFunctionsHtml, parseXmlHtml } from './parseXmlHtml';
 import { setupSnippetsHtml } from './processingFunctions/processSnippetHtml';
-import { setupReferences } from './processingFunctions/processReferenceHtml';
+import { setupReferences, referenceStore } from './processingFunctions/processReferenceHtml';
 import { generateTOC, sortTOC, indexHtml } from './generateTocHtml';
 export let allFilepath = [];
 export let tableOfContent = {};
@@ -100,11 +100,6 @@ async function translateXml(filepath, filename, option) {
   
     } else if (option == "setupSnippet") {
       //console.log("setting up " + filepath + " " + filename);
-      if (version == "split") {
-        setupSnippetsHtml(doc.documentElement);
-        setupReferences(doc.documentElement, relativeFilePath);
-        return;
-      }
       setupSnippetsHtml(doc.documentElement);
       setupReferences(doc.documentElement, relativeFilePath);
       return;
@@ -299,6 +294,7 @@ async function main() {
 
     console.log("setup snippets and references\n");
     await recursiveXmlToHtmlInOrder("setupSnippet");
+    //console.log(referenceStore);
     console.log("setup snippets and references done\n");
 
     recursiveXmlToHtmlInOrder("parseXml");
