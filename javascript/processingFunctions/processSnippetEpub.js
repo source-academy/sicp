@@ -10,7 +10,7 @@ import recursiveProcessPureText from "./recursiveProcessPureText";
 
 const snippetStore = {};
 
-export const setupSnippetsHtml = (node) => {
+export const setupSnippetsEpub = (node) => {
 	const snippets = node.getElementsByTagName("SNIPPET");
 	for (let i = 0; snippets[i]; i++) {
 		const snippet = snippets[i];
