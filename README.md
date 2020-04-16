@@ -3,8 +3,8 @@
 This repository contains the sources for the textbook SICP JS: Structure and Interpretation of Computer Programs, JavaScript Adaptation. See Preface of JavaScript adaptation for background:
 https://sicp.comp.nus.edu.sg
 
-More info are in the Making-of section (see end of document):
-https://sicp.comp.nus.edu.sg
+More info are in the Making-of section (it is at the end of textbook SICP JS):
+https://sicp.comp.nus.edu.sg/chapters/127
 
 Details for developers in the wiki:
 https://github.com/source-academy/sicp/wiki
