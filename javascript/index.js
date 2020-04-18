@@ -257,7 +257,7 @@ async function main() {
   if (parseType == "pdf" || parseType == "epub") {
 
     if (parseType == "pdf") {outputDir = path.join(__dirname, "../latex_pdf");}
-    if (parseType == "pdf") {outputDir = path.join(__dirname, "../latex_epub");}
+    if (parseType == "epub") {outputDir = path.join(__dirname, "../latex_epub");}
 
     switchParseFunctionsLatex(parseType);
     createMain();
