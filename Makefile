@@ -42,7 +42,8 @@ clean:
 	rm -r $(LATEX_PDF)/*; \
 	rm -r $(LATEX_EPUB)/*; \
 	rm -r $(GENERATED_HTML_JS)/*; \
-	rm -r $(GENERATED_HTML_SPLIT)/*
+	rm -r $(GENERATED_HTML_SPLIT)/* \
+	rm -r $(GENERATED_JS)/*
 
 try:
 	cd $(DOCS); http-server
