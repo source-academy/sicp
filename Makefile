@@ -2,10 +2,10 @@
 DOCS = docs_out
 
 # temp folders for different editions
-LATEX_PDF = latex
-LATEX_EPUB = latex
-GENERATED_HTML_JS = sicpjs_html
-GENERATED_HTML_SPLIT = sicp_split_html
+LATEX_PDF = latex_pdf
+LATEX_EPUB = latex_epub
+GENERATED_HTML_JS = html_js
+GENERATED_HTML_SPLIT = html_split
 GENERATED_JS = js_programs
 
 # RESOURCES
