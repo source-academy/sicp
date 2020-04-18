@@ -9,9 +9,9 @@ GENERATED_HTML_SPLIT = sicp_split_html
 GENERATED_JS = js_programs
 
 # RESOURCES
-FONTS = fonts
-CSS = css
-IMAGES = static
+FONTS = static/fonts
+CSS = static/css
+IMAGES = static/images
 
 all: web pdf epub split
 
@@ -50,7 +50,7 @@ try:
 prepare: 
 	cp -f latex/sicpjs.pdf latex/sicp.epub $(DOCS); \
 	cp -rf $(GENERATED_HTML_JS)/* $(DOCS); \
-	rm -r $(DOCS)/split; cp -rf $(GENERATED_HTML_SPLIT) $(DOCS)/splitg
+	rm -r $(DOCS)/split; cp -rf $(GENERATED_HTML_SPLIT) $(DOCS)/split
 
 install:
 	cd $(DOCS); scp -p -r * sicp@web1.comp.nus.edu.sg:public_html; echo "check the website and make sure everything works: https://sicp.comp.nus.edu.sg"
@@ -59,5 +59,5 @@ staging:
 	cd $(DOCS); scp -p -r * sicp@web1.comp.nus.edu.sg:public_html/staging; echo "check the website and make sure everything works: https://sicp.comp.nus.edu.sg/staging"
 
 henz:
-	cd $(DOCS); scp -p -r * henz@suna.comp.nus.edu.sg:public_html/sicp; echo "check the website and make sure everything works: https://www.comp.nus.edu.sg/~henz/sicpg"
+	cd $(DOCS); scp -p -r * henz@suna.comp.nus.edu.sg:public_html/sicp; echo "check the website and make sure everything works: https://www.comp.nus.edu.sg/~henz/sicp"
 
