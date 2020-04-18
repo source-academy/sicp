@@ -15,7 +15,7 @@ IMAGES = static/images
 
 all: js pdf epub split
 
-js:
+web:
 	npm start web; npm start web
 
 split:
