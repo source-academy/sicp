@@ -274,11 +274,11 @@ async function main() {
 
     if (!version) {
       version = "js";
-      outputDir = path.join(__dirname, "../sicpjs_html");  
+      outputDir = path.join(__dirname, "../html_js");  
     } else if (version == "split") {
-      outputDir = path.join(__dirname, "../sicp_split_html");  
+      outputDir = path.join(__dirname, "../html_split");  
     } else if (version == "scheme") {
-      outputDir = path.join(__dirname, "../sicp_scheme_html");  
+      outputDir = path.join(__dirname, "../html_scheme");  
     }
 
     switchParseFunctionsHtml(version);
