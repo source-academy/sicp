@@ -256,7 +256,8 @@ async function main() {
   parseType = process.argv[2];
   if (parseType == "pdf" || parseType == "epub") {
 
-    outputDir = path.join(__dirname, "../latex");
+    if (parseType == "pdf") {outputDir = path.join(__dirname, "../latex_pdf");}
+    if (parseType == "pdf") {outputDir = path.join(__dirname, "../latex_epub");}
 
     switchParseFunctionsLatex(parseType);
     createMain();
