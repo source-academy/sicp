@@ -256,7 +256,8 @@ async function main() {
   parseType = process.argv[2];
   if (parseType == "pdf" || parseType == "epub") {
 
-    outputDir = path.join(__dirname, "../latex");
+    if (parseType == "pdf") {outputDir = path.join(__dirname, "../latex_pdf");}
+    if (parseType == "epub") {outputDir = path.join(__dirname, "../latex_epub");}
 
     switchParseFunctionsLatex(parseType);
     createMain();
@@ -273,11 +274,11 @@ async function main() {
 
     if (!version) {
       version = "js";
-      outputDir = path.join(__dirname, "../sicpjs_html");  
+      outputDir = path.join(__dirname, "../html_js");  
     } else if (version == "split") {
-      outputDir = path.join(__dirname, "../sicp_split_html");  
+      outputDir = path.join(__dirname, "../html_split");  
     } else if (version == "scheme") {
-      outputDir = path.join(__dirname, "../sicp_scheme_html");  
+      outputDir = path.join(__dirname, "../html_scheme");  
     }
 
     switchParseFunctionsHtml(version);
