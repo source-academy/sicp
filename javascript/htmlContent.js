@@ -4,39 +4,58 @@ const shortTitleDefault = `SICP &mdash; JS`;
 const longTitleDefault = `Structure and Interpretation of Computer Programs &mdash; JavaScript Adaptation`;
 let shortTitle = shortTitleDefault;
 let longTitle = longTitleDefault;
+let this_edition = `
+<div class="title-text-EDITION">
+	    <span class="title-text-EDITION">Mobile-friendly Web Edition</span>
+	  </div>`;
 let legend = `
 <div class="title-text-ALSO">
   <span class="title-text-ALSO">also available</span><BR/>
 </div>
 <div class="title-text-OTHEREDITIONS">
   <span class="title-text-OTHEREDITIONS">
-<a href="https://sicp.comp.nus.edu.sg/sicpjs.pdf">PDF edition</a></span>
+<a href="sicpjs.pdf">PDF edition</a></span>
 </div>
 <div class="title-text-OTHEREDITIONS">
   <span class="title-text-OTHEREDITIONS">
-<a href="https://sicp.comp.nus.edu.sg/sicp.epub">E-book edition</a></span>
+<a href="sicp.epub">E-book edition</a></span>
+<div class="title-text-OTHEREDITIONS">
+  <span class="title-text-OTHEREDITIONS">
+<a href="split">Comparison edition</a></span>
 </div>`;
 
 export const switchTitle = (version) => {
   if (version == "js") {
     shortTitle = shortTitleDefault;
     longTitle = longTitleDefault;
+    this_edition = `
+    <div class="title-text-EDITION">
+       <span class="title-text-EDITION">Mobile-friendly Web Edition</span>
+    </div>`;
     legend = `
     <div class="title-text-ALSO">
       <span class="title-text-ALSO">also available</span><BR/>
     </div>
     <div class="title-text-OTHEREDITIONS">
       <span class="title-text-OTHEREDITIONS">
-    <a href="https://sicp.comp.nus.edu.sg/sicpjs.pdf">PDF edition</a></span>
+    <a href="sicpjs.pdf">PDF edition</a></span>
     </div>
     <div class="title-text-OTHEREDITIONS">
       <span class="title-text-OTHEREDITIONS">
-    <a href="https://sicp.comp.nus.edu.sg/sicp.epub">E-book edition</a></span>
+    <a href="sicp.epub">E-book edition</a></span>
+    </div>
+    <div class="title-text-OTHEREDITIONS">
+      <span class="title-text-OTHEREDITIONS">
+    <a href="split">Comparison edition</a></span>
     </div>`;
 
   } else if (version == "split") {
     shortTitle = `SICP &mdash; Scheme/JS`;
-    longTitle = `Structure and Interpretation of Computer Programs &mdash; Orginal / JavaScript Adaptation Comparison`;
+      longTitle = `Structure and Interpretation of Computer Programs &mdash; Comparison Edition`;
+    this_edition = `
+    <div class="title-text-EDITION">
+       <span class="title-text-EDITION">Comparison Edition</span>
+    </div>`;
     legend = `
     <div class="title-text-ALSO">
       <span class="title-text-ALSO">Differences highlighted in</span><BR/>
@@ -182,7 +201,7 @@ export const html_links_part2  = (writeTo, toIndexFolder) => {
      
      <div class="container scroll">
 
-      `);}
+     `);}
 
 
 export const indexPage = (writeTo) => { 
@@ -193,9 +212,7 @@ export const indexPage = (writeTo) => {
 	       height="auto" width="100%">
 	</TD>
 	<TD  class="tight" width="30%" valign="top" align="left">
-	  <div class="title-text-EDITION">
-	    <span class="title-text-EDITION">Mobile-friendly Web Edition</span>
-	  </div>
+	  ${this_edition}
 	  <span style="vertical-align:-77%"/>
 	  <BR/>
 	  ${legend}

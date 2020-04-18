@@ -70,7 +70,7 @@ export const preamble = `\\documentclass[a4paper, 12pt]{report}
 }
 
 \\usepackage{graphicx}
-\\graphicspath{ {../rails/public/chapters/} }
+\\graphicspath{ {../static/} }
 
 \\usepackage[answerdelayed]{exercise}
 \\newcounter{ExerciseDisplayNumber}[chapter]

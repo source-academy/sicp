@@ -644,9 +644,7 @@ const afterContent = (writeTo) => {
 
   if (chapArrIndex > 0) {
     writeTo.push(`
-      <button type='button' class='btn btn-secondary' style='background-color: #fff;'>
-        <a href='./${tableOfContent[allFilepath[chapArrIndex-1]].index}.html'>&lt; Previous</a>
-      </button>
+        <a class='btn btn-secondary btn-nav' href='./${tableOfContent[allFilepath[chapArrIndex-1]].index}.html'>&lt; Previous</a>
     `);
   }
   writeTo.push(`
@@ -655,9 +653,7 @@ const afterContent = (writeTo) => {
   
   if (chapArrIndex < allFilepath.length - 1) {
     writeTo.push(`
-      <button type='button' class='btn btn-secondary' style='background-color: #fff;'>
-        <a class='scroll-next' id='${chapArrIndex+2}' href='./${tableOfContent[allFilepath[chapArrIndex+1]].index}.html'>Next &gt;</a>
-      </button>
+        <a class='btn btn-secondary btn-nav' id='${chapArrIndex+2}' href='./${tableOfContent[allFilepath[chapArrIndex+1]].index}.html'>Next &gt;</a>
       `);
   }
   writeTo.push(`</div>

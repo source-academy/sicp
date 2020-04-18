@@ -215,7 +215,7 @@ const createMain = () => {
     if (!fs.existsSync(path.join(outputDir, "/chapters"))) {
       fs.mkdirSync(path.join(outputDir, "/chapters"));
     }
-    fse.copy(path.join(__dirname, "/html_assets"), 
+    fse.copy(path.join(__dirname, "/../static"), 
       outputDir, 
       err => {
         if (err) return console.error(err)
