@@ -13,9 +13,9 @@ FONTS = static/fonts
 CSS = static/css
 IMAGES = static/images
 
-all: web pdf epub split
+all: js pdf epub split
 
-web:
+js:
 	npm start web; npm start web
 
 split:
