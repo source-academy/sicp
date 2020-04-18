@@ -1,5 +1,5 @@
 # DOCS is the local target folder, before deployment
-DOCS = docs
+DOCS = docs_out
 
 # temp folders for different editions
 LATEX_PDF = latex
