@@ -31,7 +31,7 @@ pdf:
 	npm start pdf; npm start pdf; \
 	cd $(LATEX_PDF); latexmk -pdf -pdflatex="pdflatex --synctex=1" -f sicpjs
 
-# for some reason, npm start epub needs to run twice
+# wait needed after npm start epub
 epub:
 	npm start epub; wait; \
 	cd $(LATEX_EPUB); pandoc sicpjs.tex --listings -o sicp.epub --toc --epub-chapter-level=3 --number-sections --metadata=title:"Structure and Interpretation of Computer Programs—JavaScript Adaptation" --css ../$(CSS)/sicp.css --epub-cover-image=../$(IMAGES)/coverpage.png --epub-embed-font=../$(FONTS)/STIXGeneral-Bold-subset.woff --epub-embed-font=../$(FONTS)/STIXGeneral-Italic-subset.woff --epub-embed-font=../$(FONTS)/STIXGeneral-Regular-subset.woff --epub-embed-font=../$(FONTS)/STIXIntegralsD-Regular.woff --epub-embed-font=../$(FONTS)/STIXSizeFiveSym-Regular.woff --epub-embed-font=../$(FONTS)/STIXSizeFourSym-Regular.woff --epub-embed-font=../$(FONTS)/STIXSizeOneSym-Regular.woff --epub-embed-font=../$(FONTS)/STIXSizeThreeSym-Regular.woff --epub-embed-font=../$(FONTS)/STIXSizeTwoSym-Regular.woff --epub-embed-font=../$(FONTS)/dejamono-r-subset.woff --epub-embed-font=../$(FONTS)/dejasans-b-arrows.woff --epub-embed-font=../$(FONTS)/incons-r-subset.woff --epub-embed-font=../$(FONTS)/incons-rb-subset.woff --epub-embed-font=../$(FONTS)/incons-ri-subset.woff --epub-embed-font=../$(FONTS)/jsMath-cmex10-subset.woff --epub-embed-font=../$(FONTS)/linbio-r-subset.woff --epub-embed-font=../$(FONTS)/linbio-rb-subset.woff --epub-embed-font=../$(FONTS)/linbio-ri-subset.woff --epub-embed-font=../$(FONTS)/linlib-as-subset.woff --epub-embed-font=../$(FONTS)/linlib-r-subset.woff --epub-embed-font=../$(FONTS)/linlib-rb-subset.woff --epub-embed-font=../$(FONTS)/linlib-ri-subset.woff 
