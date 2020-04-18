@@ -31,6 +31,7 @@ export let tableOfContent = {};
 // js (javascrirpt programs)
 import { parseXmlJs } from './parseXmlJs';
 import { setupSnippetsJs } from './processingFunctions/processSnippetJs';
+import { setupSnippetsEpub } from "./processingFunctions/processSnippetEpub";
 
 let parseType;
 let version;
@@ -66,6 +67,7 @@ async function translateXml(filepath, filename, option) {
 
     if (option == "setupSnippet") {
       setupSnippetsPdf(doc.documentElement);
+      setupSnippetsEpub(doc.documentElement);
       return;
     }
     console.log(path.join(filepath, filename));
