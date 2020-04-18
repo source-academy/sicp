@@ -6,6 +6,7 @@ LATEX_PDF = latex
 LATEX_EPUB = latex
 GENERATED_HTML_JS = sicpjs_html
 GENERATED_HTML_SPLIT = sicp_split_html
+GENERATED_JS = js_programs
 
 # RESOURCES
 FONTS = fonts
@@ -19,6 +20,9 @@ web:
 
 split:
 	npm start web split; npm start web split
+
+js:
+	npm start js
 
 # If you exceed the TeX memory capacity on MikTeX:
 # http://blog.analogmachine.org/2013/08/12/how-to-increase-miktex-2-9-memory/
