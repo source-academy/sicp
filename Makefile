@@ -80,5 +80,5 @@ henz:
 
 covid:
 	cd $(DOCS); scp -p -r * henz@suna.comp.nus.edu.sg:sicp; \
-	echo "next: ssh henz@suna.comp.nus.edu.sg" \
+	echo "next: ssh henz@suna.comp.nus.edu.sg"; \
 	echo "finally: cd sicp; scp -p -r * sicp@web1.comp.nus.edu.sg:public_html/staging"
