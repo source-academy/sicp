@@ -18,7 +18,7 @@ let legend = `
 </div>
 <div class="title-text-OTHEREDITIONS">
   <span class="title-text-OTHEREDITIONS">
-<a href="sicp.epub">E-book edition</a></span>
+<a href="sicpjs.epub">E-book edition</a></span>
 <div class="title-text-OTHEREDITIONS">
   <span class="title-text-OTHEREDITIONS">
 <a href="split">Comparison edition</a></span>
@@ -42,11 +42,15 @@ export const switchTitle = (version) => {
     </div>
     <div class="title-text-OTHEREDITIONS">
       <span class="title-text-OTHEREDITIONS">
-    <a href="sicp.epub">E-book edition</a></span>
+    <a href="sicpjs.epub">E-book edition</a></span>
     </div>
     <div class="title-text-OTHEREDITIONS">
       <span class="title-text-OTHEREDITIONS">
     <a href="split">Comparison edition</a></span>
+    </div>
+    <div class="title-text-OTHEREDITIONS">
+      <span class="title-text-OTHEREDITIONS">
+    <a href="sicpjs.zip">All programs zipped</a></span>
     </div>`;
 
   } else if (version == "split") {
@@ -54,7 +58,7 @@ export const switchTitle = (version) => {
       longTitle = `Structure and Interpretation of Computer Programs &mdash; Comparison Edition`;
     this_edition = `
     <div class="title-text-EDITION">
-       <span class="title-text-EDITION">Comparison Edition</span>
+       <span class="title-text-EDITION">Scheme-JavaScript Comparison Edition</span>
     </div>`;
     legend = `
     <div class="title-text-ALSO">
@@ -69,6 +73,10 @@ export const switchTitle = (version) => {
       <span class="title-text-OTHEREDITIONS">
       <span style="color:blue">Javascript █</span>
       </span>
+    </div>
+    <div class="title-text-OTHEREDITIONS">
+      <span class="title-text-OTHEREDITIONS">
+    <a href="..">Back to web edition</a></span>
     </div>`;
     
   } else if (version == "scheme") {
