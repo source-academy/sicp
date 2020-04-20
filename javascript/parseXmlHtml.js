@@ -388,7 +388,9 @@ const processTextFunctionsDefaultHtml = {
       <div class='permalink'>
         <a name='sec${chapterIndex}.${subsubsection_count}' class='permalink'></a><h1>
     `);
-    writeTo.push(`${chapterIndex}.${subsubsection_count} `);
+    if (chapterIndex !== "prefaces") {
+	writeTo.push(`${chapterIndex}.${subsubsection_count} `);
+    }
     recursiveProcessTextHtml(name.firstChild, writeTo);
     writeTo.push("</h1></div>");
     recursiveProcessTextHtml(name.nextSibling, writeTo);
