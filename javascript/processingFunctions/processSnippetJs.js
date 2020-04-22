@@ -25,6 +25,14 @@ export const setupSnippetsJs = (node) => {
 		}
       	const codeArr = [];
 		recursiveProcessPureText(jsRunSnippet.firstChild, codeArr);
+
+                if (snippet.getElementsByTagName("EXPECTED")[0]) {
+		    codeArr.push("\n// result: " +
+ 		          snippet.getElementsByTagName("EXPECTED")[0]
+ 	  	  	  .firstChild.nodeValue +
+			  "\n");
+		}
+		    
 		const codeStr = codeArr.join("").trim();
 
 		const requirements = snippet.getElementsByTagName("REQUIRES");
@@ -110,24 +118,14 @@ export const processSnippetJs = (node, writeTo, fileFormat) => {
       const example = examples[i].firstChild.nodeValue;
       if (snippetStore[example]) {
         exampleArr.push("\n\n");
-    exampleArr.push(snippetStore[example].codeStr);
-    
-    const reqSet = new Set();
-      recursiveGetRequires(example, reqSet);
-      for (const reqName of reqSet) {
-        const snippetEntry = snippetStore[reqName]; 
-        if (snippetEntry && reqName!==example && reqName!==nameStr) {
-          reqArr.push(snippetEntry.codeStr);
-            reqArr.push("\n");
-        }
-      }
-    reqStr = reqArr.join("");
-
+        exampleArr.push(snippetStore[example].codeStr);
+	      
+        reqStr = reqArr.join("");
       } else {
         missingExampleWarning(example);
       }
     }
-    const exampleStr = exampleArr.join("");
+    const exampleStr = exampleArr.join("") + "\n";
 
     if (fileFormat == "js") {
       writeTo.push(reqStr);

@@ -123,18 +123,7 @@ export const processSnippetPdf = (node, writeTo) => {
         if (snippetStore[example]) {
           exampleArr.push("\n\n");
           exampleArr.push(snippetStore[example].codeStr);
-          
-          const reqSet = new Set();
-            recursiveGetRequires(example, reqSet);
-            for (const reqName of reqSet) {
-              const snippetEntry = snippetStore[reqName]; 
-              if (snippetEntry && reqName!==example && reqName!==nameStr) {
-                reqArr.push(snippetEntry.codeStr);
-                  reqArr.push("\n");
-              }
-            }
-            reqStr = reqArr.join("");
-
+          reqStr = reqArr.join("");
         } else {
           missingExampleWarning(example);
         }

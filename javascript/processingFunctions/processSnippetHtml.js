@@ -122,24 +122,13 @@ export const processSnippetHtml = (node, writeTo) => {
       const exampleArr = [];
       for (let i = 0; examples[i]; i++) {
       	const example = examples[i].firstChild.nodeValue;
-	      if (snippetStore[example]) {
-	        exampleArr.push("\n\n");
-			exampleArr.push(snippetStore[example].codeStr);
-			
-			const reqSet = new Set();
-    		recursiveGetRequires(example, reqSet);
-    		for (const reqName of reqSet) {
-    			const snippetEntry = snippetStore[reqName]; 
-    			if (snippetEntry && reqName!==example && reqName!==nameStr) {
-	    			reqArr.push(snippetEntry.codeStr);
-			      	reqArr.push("\n");
-    			}
-    		}
-			reqStr = reqArr.join("");
-
-	      } else {
-	        missingExampleWarning(example);
-	      }
+	if (snippetStore[example]) {
+	  exampleArr.push("\n\n");
+	  exampleArr.push(snippetStore[example].codeStr);
+	  reqStr = reqArr.join("");
+	} else {
+	  missingExampleWarning(example);
+	}
       }
       const exampleStr = exampleArr.join("");
 

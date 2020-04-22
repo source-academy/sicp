@@ -55,7 +55,7 @@ clean:
 	rm -f $(ZIP_FILE)
 
 try:
-	cd $(DOCS); http-server
+	cd $(DOCS); http-server --port 3000
 
 prepare: 
 	[ ! -f $(LATEX_PDF)/$(PDF_FILE) ] || cp $(LATEX_PDF)/$(PDF_FILE) $(DOCS)
