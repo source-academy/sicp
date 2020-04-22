@@ -57,6 +57,9 @@ clean:
 try:
 	cd $(DOCS); http-server --port 3000
 
+test:
+	npm test
+
 prepare: 
 	[ ! -f $(LATEX_PDF)/$(PDF_FILE) ] || cp $(LATEX_PDF)/$(PDF_FILE) $(DOCS)
 	[ ! -f $(LATEX_EPUB)/$(EPUB_FILE) ] || cp $(LATEX_EPUB)/$(EPUB_FILE) $(DOCS)
