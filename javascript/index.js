@@ -1,6 +1,6 @@
 import fs from "fs";
 import fse from "fs-extra";
-import util from 'util';
+import util from "util";
 import path from "path";
 
 import xpath from "xpath";
@@ -11,26 +11,32 @@ const open = util.promisify(fs.open);
 const readFile = util.promisify(fs.readFile);
 
 // latex (pdf & epub version)
-import { switchParseFunctionsLatex, recursiveProcessTextLatex } from './parseXmlLatex';
-import { setupSnippetsPdf } from './processingFunctions/processSnippetPdf';
-import { preamble, ending } from './latexContent';
+import {
+  switchParseFunctionsLatex,
+  recursiveProcessTextLatex
+} from "./parseXmlLatex";
+import { setupSnippetsPdf } from "./processingFunctions/processSnippetPdf";
+import { preamble, ending } from "./latexContent";
 const latexmkrcContent = `$pdflatex = "xelatex %O %S";
 $pdf_mode = 1;
 $dvi_mode = 0;
 $postscript_mode = 0;`;
 
 // html (web version)
-import { switchTitle } from './htmlContent';
-import { switchParseFunctionsHtml, parseXmlHtml } from './parseXmlHtml';
-import { setupSnippetsHtml } from './processingFunctions/processSnippetHtml';
-import { setupReferences, referenceStore } from './processingFunctions/processReferenceHtml';
-import { generateTOC, sortTOC, indexHtml } from './generateTocHtml';
+import { switchTitle } from "./htmlContent";
+import { switchParseFunctionsHtml, parseXmlHtml } from "./parseXmlHtml";
+import { setupSnippetsHtml } from "./processingFunctions/processSnippetHtml";
+import {
+  setupReferences,
+  referenceStore
+} from "./processingFunctions/processReferenceHtml";
+import { generateTOC, sortTOC, indexHtml } from "./generateTocHtml";
 export let allFilepath = [];
 export let tableOfContent = {};
 
 // js (javascrirpt programs)
-import { parseXmlJs } from './parseXmlJs';
-import { setupSnippetsJs } from './processingFunctions/processSnippetJs';
+import { parseXmlJs } from "./parseXmlJs";
+import { setupSnippetsJs } from "./processingFunctions/processSnippetJs";
 import { setupSnippetsEpub } from "./processingFunctions/processSnippetEpub";
 
 let parseType;
@@ -50,12 +56,12 @@ const ensureDirectoryExists = (path, cb) => {
 
 async function translateXml(filepath, filename, option) {
   const fullFilepath = path.join(inputDir, filepath, filename);
-  const fileToRead = await open(fullFilepath, "r")
+  const fileToRead = await open(fullFilepath, "r");
   // if (err) {
   //   console.log(err);
   //   return;
   // }
-  const data = await readFile(fileToRead, { encoding: "utf-8" })
+  const data = await readFile(fileToRead, { encoding: "utf-8" });
   // if (err) {
   //   console.log(err);
   //   return;
@@ -64,7 +70,6 @@ async function translateXml(filepath, filename, option) {
   const writeTo = [];
 
   if (parseType == "pdf" || parseType == "epub") {
-
     if (option == "setupSnippet") {
       setupSnippetsPdf(doc.documentElement);
       setupSnippetsEpub(doc.documentElement);
@@ -92,22 +97,22 @@ async function translateXml(filepath, filename, option) {
     });
     return;
   }
-  
+
   if (parseType == "web") {
-    const relativeFilePath = path.join(filepath, filename.replace(/\.xml$/, "") + ".html");
-    
+    const relativeFilePath = path.join(
+      filepath,
+      filename.replace(/\.xml$/, "") + ".html"
+    );
+
     if (option == "generateTOC") {
       generateTOC(doc, tableOfContent, relativeFilePath);
       return;
-  
     } else if (option == "setupSnippet") {
       //console.log("setting up " + filepath + " " + filename);
       setupSnippetsHtml(doc.documentElement);
       setupReferences(doc.documentElement, relativeFilePath);
       return;
-  
-    } else if (option == "parseXml"){
-      
+    } else if (option == "parseXml") {
       // parsing over here
       parseXmlHtml(doc, writeTo, relativeFilePath);
 
@@ -124,9 +129,8 @@ async function translateXml(filepath, filename, option) {
     }
     return;
   }
-  
-  if (parseType == "js") {
 
+  if (parseType == "js") {
     if (option == "setupSnippet") {
       setupSnippetsJs(doc.documentElement);
       return;
@@ -135,7 +139,7 @@ async function translateXml(filepath, filename, option) {
 
     const relativeFileDir = path.join(
       outputDir,
-      filepath, 
+      filepath,
       filename.replace(/\.xml$/, "") + ""
     );
     ensureDirectoryExists(path.join(outputDir, filepath), err => {});
@@ -148,7 +152,7 @@ async function translateXml(filepath, filename, option) {
     });
     return;
   }
-};
+}
 
 // for web version only
 // process files according to allFilepath order after sorting
@@ -159,9 +163,9 @@ async function recursiveXmlToHtmlInOrder(option) {
     const filepath = xmlfilepath.match(/(.*)\/(.*)/)[1];
     const file = xmlfilepath.match(/(.*)\/(.*)/)[2];
     //console.log(i + " " + xmlfilepath + "add to promises\n");
-      await translateXml(filepath, file, option)
+    await translateXml(filepath, file, option);
   }
-};
+}
 
 async function recursiveTranslateXml(filepath, option) {
   let files;
@@ -175,25 +179,23 @@ async function recursiveTranslateXml(filepath, option) {
         // remove index section for web textbook
       } else {
         if (option == "generateTOC") {
-          allFilepath.push(path.join(filepath, file.replace(/\.xml$/, "") + ".html"));
-        };
-        promises.push(
-          translateXml(filepath, file, option)
-        );
+          allFilepath.push(
+            path.join(filepath, file.replace(/\.xml$/, "") + ".html")
+          );
+        }
+        promises.push(translateXml(filepath, file, option));
       }
     } else if (fs.lstatSync(path.join(fullPath, file)).isDirectory()) {
-      promises.push(
-        recursiveTranslateXml(path.join(filepath, file), option)
-      );
+      promises.push(recursiveTranslateXml(path.join(filepath, file), option));
     }
   });
   await Promise.all(promises);
-};
+}
 
 // for web version only
 // create index.html content
 const createIndexHtml = () => {
-  const indexFilepath = path.join(outputDir, "index.html")
+  const indexFilepath = path.join(outputDir, "index.html");
   const writeToIndex = [];
   indexHtml(writeToIndex);
   const stream = fs.createWriteStream(indexFilepath);
@@ -201,15 +203,14 @@ const createIndexHtml = () => {
     stream.write(writeToIndex.join(""));
     stream.end();
   });
-}
+};
 
 const createMain = () => {
-
   if (!fs.existsSync(outputDir)) {
     fs.mkdirSync(outputDir);
   }
 
-  if (parseType =="js") {
+  if (parseType == "js") {
     return;
   }
 
@@ -217,10 +218,8 @@ const createMain = () => {
     if (!fs.existsSync(path.join(outputDir, "/chapters"))) {
       fs.mkdirSync(path.join(outputDir, "/chapters"));
     }
-    fse.copy(path.join(__dirname, "/../static"), 
-      outputDir, 
-      err => {
-        if (err) return console.error(err)
+    fse.copy(path.join(__dirname, "/../static"), outputDir, err => {
+      if (err) return console.error(err);
     });
     return;
   }
@@ -257,9 +256,12 @@ const createMain = () => {
 async function main() {
   parseType = process.argv[2];
   if (parseType == "pdf" || parseType == "epub") {
-
-    if (parseType == "pdf") {outputDir = path.join(__dirname, "../latex_pdf");}
-    if (parseType == "epub") {outputDir = path.join(__dirname, "../latex_epub");}
+    if (parseType == "pdf") {
+      outputDir = path.join(__dirname, "../latex_pdf");
+    }
+    if (parseType == "epub") {
+      outputDir = path.join(__dirname, "../latex_epub");
+    }
 
     switchParseFunctionsLatex(parseType);
     createMain();
@@ -269,25 +271,23 @@ async function main() {
     console.log("setup snippets done\n");
 
     recursiveTranslateXml("", "parseXml");
-
-
   } else if (parseType == "web") {
     version = process.argv[3];
 
     if (!version) {
       version = "js";
-      outputDir = path.join(__dirname, "../html_js");  
+      outputDir = path.join(__dirname, "../html_js");
     } else if (version == "split") {
-      outputDir = path.join(__dirname, "../html_split");  
+      outputDir = path.join(__dirname, "../html_split");
     } else if (version == "scheme") {
-      outputDir = path.join(__dirname, "../html_scheme");  
+      outputDir = path.join(__dirname, "../html_scheme");
     }
 
     switchParseFunctionsHtml(version);
     switchTitle(version);
     createMain();
-    
-    console.log("\ngenerate table of content\n")
+
+    console.log("\ngenerate table of content\n");
     await recursiveTranslateXml("", "generateTOC");
     allFilepath = sortTOC(allFilepath);
     console.log(tableOfContent);
@@ -301,10 +301,7 @@ async function main() {
     console.log("setup snippets and references done\n");
 
     recursiveXmlToHtmlInOrder("parseXml");
-  
-
   } else if (parseType == "js") {
-
     outputDir = path.join(__dirname, "../js_programs");
 
     createMain();
@@ -313,6 +310,6 @@ async function main() {
     console.log("setup snippets done\n");
     recursiveTranslateXml("", "parseXml");
   }
-};
+}
 
 main();

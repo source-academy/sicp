@@ -1,5 +1,5 @@
-import { recursiveProcessTextLatex, processTextLatex } from '../parseXmlLatex';
-import { processSnippetPdf } from '.';
+import { recursiveProcessTextLatex, processTextLatex } from "../parseXmlLatex";
+import { processSnippetPdf } from ".";
 
 export const processFigurePdf = (node, writeTo) => {
   writeTo.push("\n\\begin{figure}[H]\n\\centering\n");
@@ -8,26 +8,24 @@ export const processFigurePdf = (node, writeTo) => {
     src = node.getElementsByTagName("FIGURE")[0].getAttribute("src");
   }
   if (src) {
-    writeTo.push(
-      generateImage(src) + "\n"
-    );
+    writeTo.push(generateImage(src) + "\n");
   } else {
     // console.log(node.toString());
     const images = node.getElementsByTagName("IMAGE");
     for (let i = 0; i < images.length; i++) {
       writeTo.push(
         "\\subcaptionbox{}{" +
-        generateImage(images[i].getAttribute("src")) +
-        "}\n"
+          generateImage(images[i].getAttribute("src")) +
+          "}\n"
       );
     }
   }
-    
-    const snippet = node.getElementsByTagName("SNIPPET")[0];
-    if (snippet) {
-        processSnippetPdf(snippet, writeTo);
-    }
-    
+
+  const snippet = node.getElementsByTagName("SNIPPET")[0];
+  if (snippet) {
+    processSnippetPdf(snippet, writeTo);
+  }
+
   const caption = node.getElementsByTagName("CAPTION")[0];
   if (caption) {
     writeTo.push("\\caption{");
@@ -41,15 +39,16 @@ export const processFigurePdf = (node, writeTo) => {
   writeTo.push("\\end{figure}\n");
 };
 
-export const generateImage = (imagePath) => {
+export const generateImage = imagePath => {
   return (
-    "\n\\maxsizebox{\\linewidth}{0.8\\paperheight}{"
-    + "\\includegraphics[scale=0.8]{{"
-    + imagePath.replace(/\.gif$/, ".png")
+    "\n\\maxsizebox{\\linewidth}{0.8\\paperheight}{" +
+    "\\includegraphics[scale=0.8]{{" +
+    imagePath
+      .replace(/\.gif$/, ".png")
       .replace(/\.(?=[^.]*$)/, "}.")
-      .replace(/_/g, "\\string_")
-    + "}}"
+      .replace(/_/g, "\\string_") +
+    "}}"
   );
-}
+};
 
 export default processFigurePdf;

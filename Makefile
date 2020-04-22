@@ -18,14 +18,18 @@ PDF_FILE = sicpjs.pdf
 EPUB_FILE = sicpjs.epub
 ZIP_FILE = sicpjs.zip
 
+# make all editions
 all: web split js pdf epub
 
+# mobile-friendly web edition: files go to html_js
 web:
 	npm start web
 
+# comparison edition: files go to html_split
 split:
 	npm start web split
 
+# generate all js programs from SICP JS and put them in js_programs
 js:
 	npm start js
 
@@ -45,6 +49,7 @@ epub:
 svg_pdf:
 	./svg_to_pdf.sh
 
+# remove all generated files
 clean:
 	rm -rf $(DOCS)/*
 	rm -rf $(LATEX_PDF)/*
@@ -54,12 +59,19 @@ clean:
 	rm -rf $(GENERATED_JS)/*
 	rm -f $(ZIP_FILE)
 
+# fire up local web server; after "make try", point browser to localhost:3000
 try:
 	cd $(DOCS); http-server --port 3000
 
+# run all programs in js_programs and compare result with test cases
 test:
 	npm test
 
+# check syntax of all programs in js_programs
+check:
+	npm check
+
+# prepare installation by copying all generated files to docs_out folder
 prepare: 
 	[ ! -f $(LATEX_PDF)/$(PDF_FILE) ] || cp $(LATEX_PDF)/$(PDF_FILE) $(DOCS)
 	[ ! -f $(LATEX_EPUB)/$(EPUB_FILE) ] || cp $(LATEX_EPUB)/$(EPUB_FILE) $(DOCS)
@@ -69,18 +81,22 @@ prepare:
 	[ ! -d $(GENERATED_JS) ] || ( zip -r $(ZIP_FILE) $(GENERATED_JS); \
 	                              cp $(ZIP_FILE) $(DOCS) )
 
+# install all files in docs_out to official website
 install:
 	cd $(DOCS); scp -p -r * sicp@web1.comp.nus.edu.sg:public_html; \
 	echo "check the website and make sure everything works: https://sicp.comp.nus.edu.sg"
 
+# install all files in docs_out to staging folder of official website
 staging:
 	cd $(DOCS); scp -p -r * sicp@web1.comp.nus.edu.sg:public_html/staging; \
 	echo "check that everything works: https://sicp.comp.nus.edu.sg/staging"
 
+# install all files in docs_out to http://www.comp.nus.edu.sg/~henz/sicp
 henz:
 	cd $(DOCS); scp -p -r * henz@suna.comp.nus.edu.sg:public_html/sicp; \
 	echo "check that everything works: https://www.comp.nus.edu.sg/~henz/sicp"
 
+# install all files in docs_out to henz@suna, and copy from there to staging folder
 covid:
 	cd $(DOCS); scp -p -r * henz@suna.comp.nus.edu.sg:sicp; \
 	echo "next: ssh henz@suna.comp.nus.edu.sg"; \

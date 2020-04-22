@@ -1,11 +1,13 @@
 import path from "path";
-import {getChildrenByTagName, ancestorHasTag} from './utilityFunctions';
+import { getChildrenByTagName, ancestorHasTag } from "./utilityFunctions";
+import { checkIndexBadEndWarning } from "./processingFunctions/warnings.js";
+import { allFilepath, tableOfContent } from "./index.js";
 import {
-  checkIndexBadEndWarning
-} from "./processingFunctions/warnings.js";
-import { allFilepath, tableOfContent} from "./index.js";
-import { html_links_part1, html_links_part2, beforeContentWrapper } from './htmlContent';
-import { recursiveProcessTOC} from './generateTocHtml';
+  html_links_part1,
+  html_links_part2,
+  beforeContentWrapper
+} from "./htmlContent";
+import { recursiveProcessTOC } from "./generateTocHtml";
 
 import {
   replaceTagWithSymbol,
@@ -15,8 +17,8 @@ import {
   processReferenceHtml,
   processSnippetHtml,
   processSnippetHtmlScheme,
-  recursiveProcessPureText,
-} from './processingFunctions';
+  recursiveProcessPureText
+} from "./processingFunctions";
 
 let paragraph_count = 0;
 let heading_count = 0;
@@ -88,14 +90,11 @@ const preserveTagsDefault = new Set([
 ]);
 
 const processTextFunctionsDefaultHtml = {
-
   "#text": (node, writeTo) => {
-
-   // ignore the section/subsection tags at the end of chapter/section files
+    // ignore the section/subsection tags at the end of chapter/section files
     if (!node.nodeValue.match(/&(\w|\.|\d)+;/)) {
       writeTo.push(node.nodeValue);
-    } 
-
+    }
   },
 
   ABOUT: (node, writeTo) => {
@@ -112,9 +111,11 @@ const processTextFunctionsDefaultHtml = {
       <div class='chapter-text'>
         <div class='MATTER'><MATTER>
     `);
-    
+
     if (node.getAttribute("WIP") === "yes") {
-         writeTo.push(`<div style="color:red" class="wip-stamp">Note: this section is a work in progress!</div>`)
+      writeTo.push(
+        `<div style="color:red" class="wip-stamp">Note: this section is a work in progress!</div>`
+      );
     }
     let childNode = node.firstChild;
     while (childNode.nodeName != "NAME") {
@@ -123,8 +124,10 @@ const processTextFunctionsDefaultHtml = {
     recursiveProcessTextHtml(childNode.nextSibling, writeTo);
     writeTo.push("\n</MATTER></div></div>\n");
   },
-  REFERENCES: (node, writeTo) => processTextFunctionsHtml["ABOUT"](node, writeTo),
-  WEBPREFACE: (node, writeTo) => processTextFunctionsHtml["ABOUT"](node, writeTo),
+  REFERENCES: (node, writeTo) =>
+    processTextFunctionsHtml["ABOUT"](node, writeTo),
+  WEBPREFACE: (node, writeTo) =>
+    processTextFunctionsHtml["ABOUT"](node, writeTo),
   MATTER: (node, writeTo) => processTextFunctionsHtml["ABOUT"](node, writeTo),
 
   APOS: (node, writeTo) => {
@@ -153,8 +156,10 @@ const processTextFunctionsDefaultHtml = {
     `);
 
     if (node.getAttribute("WIP") === "yes") {
-      writeTo.push(`<div style="color:red" class="wip-stamp">Note: this section is a work in progress!</div>`)
- }
+      writeTo.push(
+        `<div style="color:red" class="wip-stamp">Note: this section is a work in progress!</div>`
+      );
+    }
     const name = getChildrenByTagName(node, "NAME")[0];
     recursiveProcessTextHtml(name.nextSibling, writeTo);
     writeTo.push("\n</CHAPTER></div></div>\n");
@@ -169,7 +174,6 @@ const processTextFunctionsDefaultHtml = {
     node.nodeName = "EM";
     processTextHtml(node, writeTo);
   },
-
 
   EPIGRAPH: (node, writeTo) => {
     processEpigraphHtml(node, writeTo);
@@ -186,7 +190,9 @@ const processTextFunctionsDefaultHtml = {
 
   FOOTNOTE: (node, writeTo) => {
     footnote_count += 1;
-    writeTo.push(`<a class='superscript' id='footnote-link-${footnote_count}' href='#footnote-${footnote_count}'>[${footnote_count}]</a>`);
+    writeTo.push(
+      `<a class='superscript' id='footnote-link-${footnote_count}' href='#footnote-${footnote_count}'>[${footnote_count}]</a>`
+    );
     // clone the current FOOTNOTE node and its children
     let cloneNode = node.cloneNode(true);
     cloneNode.nodeName = "DISPLAYFOOTNOTE";
@@ -196,12 +202,14 @@ const processTextFunctionsDefaultHtml = {
       parent = parent.parentNode;
     }
     // append the cloned node as the last elements inside <CHAPTER>/<SECTION> node
-    parent.appendChild(cloneNode); 
+    parent.appendChild(cloneNode);
   },
 
   DISPLAYFOOTNOTE: (node, writeTo) => {
     display_footnote_count += 1;
-    if (display_footnote_count == 1) {writeTo.push("<hr>\n");}
+    if (display_footnote_count == 1) {
+      writeTo.push("<hr>\n");
+    }
     writeTo.push(`
     <div class='footnote'>`);
     writeTo.push(`
@@ -221,20 +229,26 @@ const processTextFunctionsDefaultHtml = {
     processTextHtml(node, writeTo);
   },
 
-  
   IMAGE: (node, writeTo) => {
     writeTo.push(`<IMAGE src="${toIndexFolder}${node.getAttribute("src")}"/>`);
   },
-  
 
   LINK: (node, writeTo) => {
-    writeTo.push("<a address='" + node.getAttribute("address") + "' href='" + node.getAttribute("address") + "'>");
+    writeTo.push(
+      "<a address='" +
+        node.getAttribute("address") +
+        "' href='" +
+        node.getAttribute("address") +
+        "'>"
+    );
     recursiveProcessTextHtml(node.firstChild, writeTo);
     writeTo.push("</a>");
   },
 
-  LATEX: (node, writeTo) => processTextFunctionsHtml["LATEXINLINE"](node, writeTo),
-  TREETAB: (node, writeTo) => processTextFunctionsHtml["LATEXINLINE"](node, writeTo),
+  LATEX: (node, writeTo) =>
+    processTextFunctionsHtml["LATEXINLINE"](node, writeTo),
+  TREETAB: (node, writeTo) =>
+    processTextFunctionsHtml["LATEXINLINE"](node, writeTo),
   LATEXINLINE: (node, writeTo) => {
     recursiveProcessPureText(node.firstChild, writeTo);
   },
@@ -257,7 +271,7 @@ const processTextFunctionsDefaultHtml = {
     node.nodeName = "p";
     processTextHtml(node, writeTo);
   },
-  
+
   TEXT: (node, writeTo) => {
     paragraph_count += 1;
     writeTo.push("<div class='permalink'>");
@@ -286,9 +300,11 @@ const processTextFunctionsDefaultHtml = {
       <div class='chapter-text'>
         <div class='SECTION'><SECTION>
     `);
-    
+
     if (node.getAttribute("WIP") === "yes") {
-         writeTo.push(`<div style="color:red" class="wip-stamp">Note: this section is a work in progress!</div>`)
+      writeTo.push(
+        `<div style="color:red" class="wip-stamp">Note: this section is a work in progress!</div>`
+      );
     }
     const name = getChildrenByTagName(node, "NAME")[0];
     recursiveProcessTextHtml(name.nextSibling, writeTo);
@@ -299,12 +315,16 @@ const processTextFunctionsDefaultHtml = {
     processTextFunctionsHtml["JAVASCRIPTINLINE"](node, writeTo),
 
   JAVASCRIPTINLINE: (node, writeTo) => {
-    if(ancestorHasTag(node, "NAME")){
-      recursiveProcessPureText(node.firstChild, writeTo, { removeNewline: "all" });
+    if (ancestorHasTag(node, "NAME")) {
+      recursiveProcessPureText(node.firstChild, writeTo, {
+        removeNewline: "all"
+      });
     } else {
       writeTo.push("<kbd>");
-      recursiveProcessPureText(node.firstChild, writeTo, { removeNewline: "all" });
-      writeTo.push("</kbd>"); 
+      recursiveProcessPureText(node.firstChild, writeTo, {
+        removeNewline: "all"
+      });
+      writeTo.push("</kbd>");
     }
   },
 
@@ -315,15 +335,23 @@ const processTextFunctionsDefaultHtml = {
       writeTo.push("<kbd class='snippet'>");
       const textit = getChildrenByTagName(node, "JAVASCRIPT")[0];
       if (textit) {
-        recursiveProcessPureText(textit.firstChild, writeTo, { removeNewline: "beginning&end" });
+        recursiveProcessPureText(textit.firstChild, writeTo, {
+          removeNewline: "beginning&end"
+        });
       } else {
         recursiveProcessTextHtml(node.firstChild, writeTo);
       }
       writeTo.push("</kbd>");
       return;
-    } 
+    }
     snippet_count += 1;
-    writeTo.push("<div class='snippet' id='javascript_"+chapArrIndex+"_"+snippet_count+"_div'>")
+    writeTo.push(
+      "<div class='snippet' id='javascript_" +
+        chapArrIndex +
+        "_" +
+        snippet_count +
+        "_div'>"
+    );
     writeTo.push("<div class='pre-prettyprint'>");
     processSnippetHtml(node, writeTo);
     writeTo.push("</div></div>");
@@ -360,9 +388,11 @@ const processTextFunctionsDefaultHtml = {
       <div class='chapter-text'>
         <div class='SECTION'><SECTION>
     `);
-    
+
     if (node.getAttribute("WIP") === "yes") {
-      writeTo.push(`<div style="color:red" class="wip-stamp">Note: this section is a work in progress!</div>`)
+      writeTo.push(
+        `<div style="color:red" class="wip-stamp">Note: this section is a work in progress!</div>`
+      );
     }
     const name = getChildrenByTagName(node, "NAME")[0];
     recursiveProcessTextHtml(name.nextSibling, writeTo);
@@ -389,14 +419,14 @@ const processTextFunctionsDefaultHtml = {
         <a name='sec${chapterIndex}.${subsubsection_count}' class='permalink'></a><h1>
     `);
     if (chapterIndex !== "prefaces") {
-	writeTo.push(`${chapterIndex}.${subsubsection_count} `);
+      writeTo.push(`${chapterIndex}.${subsubsection_count} `);
     }
     recursiveProcessTextHtml(name.firstChild, writeTo);
     writeTo.push("</h1></div>");
     recursiveProcessTextHtml(name.nextSibling, writeTo);
   },
 
-  SUBSUBSUBSECTION:(node, writeTo) => {
+  SUBSUBSUBSECTION: (node, writeTo) => {
     writeTo.push("<SUBSUBSUBSECTION>\n");
     const name = getChildrenByTagName(node, "NAME")[0];
     recursiveProcessTextHtml(name.firstChild, writeTo);
@@ -408,7 +438,7 @@ const processTextFunctionsDefaultHtml = {
 const processTextFunctionsSplit = {
   SCHEME: (node, writeTo) => {
     writeTo.push(`<span style="color:teal">`);
-    recursiveProcessTextHtml(node.firstChild, writeTo)
+    recursiveProcessTextHtml(node.firstChild, writeTo);
     writeTo.push(`</span>`);
   },
 
@@ -436,16 +466,16 @@ const processTextFunctionsSplit = {
         <tr>
           <td>`);
       writeTo.push(`<span style="color:teal">`);
-      recursiveProcessTextHtml(scheme.firstChild, writeTo)
+      recursiveProcessTextHtml(scheme.firstChild, writeTo);
       writeTo.push(`</span>`);
-    
+
       writeTo.push(`    </td>
           <td></td>
           <td>`);
       writeTo.push(`<span style="color:blue">`);
-      recursiveProcessTextHtml(js.firstChild, writeTo)
+      recursiveProcessTextHtml(js.firstChild, writeTo);
       writeTo.push(`</span>`);
-      
+
       writeTo.push(`</td></tr>`);
       writeTo.push(`</table>`);
     } else if (js) {
@@ -457,8 +487,10 @@ const processTextFunctionsSplit = {
 
   FOOTNOTE: (node, writeTo) => {
     footnote_count += 1;
-    writeTo.push(`<a class='superscript' id='footnote-link-${footnote_count}' href='#footnote-${footnote_count}'`);
-    
+    writeTo.push(
+      `<a class='superscript' id='footnote-link-${footnote_count}' href='#footnote-${footnote_count}'`
+    );
+
     if (ancestorHasTag(node, "SCHEME")) {
       writeTo.push(`style="color:teal"`);
     } else if (ancestorHasTag(node, "JAVASCRIPT")) {
@@ -469,7 +501,7 @@ const processTextFunctionsSplit = {
     // clone the current FOOTNOTE node and its children
     let cloneNode = node.cloneNode(true);
     cloneNode.nodeName = "DISPLAYFOOTNOTE";
-    
+
     if (ancestorHasTag(node, "SCHEME")) {
       cloneNode.setAttribute("version", "scheme");
     } else if (ancestorHasTag(node, "JAVASCRIPT")) {
@@ -482,12 +514,14 @@ const processTextFunctionsSplit = {
       parent = parent.parentNode;
     }
     // append the cloned node as the last elements inside <CHAPTER>/<SECTION> node
-    parent.appendChild(cloneNode); 
+    parent.appendChild(cloneNode);
   },
 
   DISPLAYFOOTNOTE: (node, writeTo) => {
     display_footnote_count += 1;
-    if (display_footnote_count == 1) {writeTo.push("<hr>\n");}
+    if (display_footnote_count == 1) {
+      writeTo.push("<hr>\n");
+    }
     writeTo.push(`
     <div class='footnote'>`);
     if (node.getAttribute("version") == "scheme") {
@@ -502,7 +536,7 @@ const processTextFunctionsSplit = {
     } else if (node.getAttribute("version") == "js") {
       writeTo.push(`style="color:blue"`);
     }
-      writeTo.push(`>[${display_footnote_count}] </a>
+    writeTo.push(`>[${display_footnote_count}] </a>
     <FOOTNOTE>
     `);
     recursiveProcessTextHtml(node.firstChild, writeTo);
@@ -523,13 +557,15 @@ const processTextFunctionsSplit = {
       writeTo.push("<kbd class='snippet'>");
       const textit = getChildrenByTagName(node, "JAVASCRIPT")[0];
       if (textit) {
-        recursiveProcessPureText(textit.firstChild, writeTo, { removeNewline: "beginning&end" });
+        recursiveProcessPureText(textit.firstChild, writeTo, {
+          removeNewline: "beginning&end"
+        });
       } else {
         recursiveProcessTextHtml(node.firstChild, writeTo);
       }
       writeTo.push("</kbd>");
       return;
-    } 
+    }
     snippet_count += 1;
 
     const scheme = getChildrenByTagName(node, "SCHEME")[0];
@@ -538,29 +574,47 @@ const processTextFunctionsSplit = {
       writeTo.push(`<table width="100%">
           <colgroup><col width="48%"><col width="52%"></colgroup>
           `);
-        writeTo.push(`
+      writeTo.push(`
           <tr>
             <td>`);
-        //writeTo.push(`<span style="color:teal">`);
-        writeTo.push("<div class='snippet' id='javascript_"+chapArrIndex+"_"+snippet_count+"_div'>")
-        writeTo.push("<div class='pre-prettyprint'>");
-        processSnippetHtmlScheme(node, writeTo);
-        writeTo.push("</div></div>");
-        //writeTo.push(`</span>`);
-      
-        writeTo.push(`    </td>
+      //writeTo.push(`<span style="color:teal">`);
+      writeTo.push(
+        "<div class='snippet' id='javascript_" +
+          chapArrIndex +
+          "_" +
+          snippet_count +
+          "_div'>"
+      );
+      writeTo.push("<div class='pre-prettyprint'>");
+      processSnippetHtmlScheme(node, writeTo);
+      writeTo.push("</div></div>");
+      //writeTo.push(`</span>`);
+
+      writeTo.push(`    </td>
             <td>`);
-        //writeTo.push(`<span style="color:blue">`);
-        writeTo.push("<div class='snippet' id='javascript_"+chapArrIndex+"_"+snippet_count+"_div'>")
-        writeTo.push("<div class='pre-prettyprint'>");
-        processSnippetHtml(node, writeTo);
-        writeTo.push("</div></div>");
-        //writeTo.push(`</span>`);
-        
-        writeTo.push(`</td></tr>`);
-        writeTo.push(`</table>`);
+      //writeTo.push(`<span style="color:blue">`);
+      writeTo.push(
+        "<div class='snippet' id='javascript_" +
+          chapArrIndex +
+          "_" +
+          snippet_count +
+          "_div'>"
+      );
+      writeTo.push("<div class='pre-prettyprint'>");
+      processSnippetHtml(node, writeTo);
+      writeTo.push("</div></div>");
+      //writeTo.push(`</span>`);
+
+      writeTo.push(`</td></tr>`);
+      writeTo.push(`</table>`);
     } else {
-      writeTo.push("<div class='snippet' id='javascript_"+chapArrIndex+"_"+snippet_count+"_div'>")
+      writeTo.push(
+        "<div class='snippet' id='javascript_" +
+          chapArrIndex +
+          "_" +
+          snippet_count +
+          "_div'>"
+      );
       writeTo.push("<div class='pre-prettyprint'>");
       processSnippetHtmlScheme(node, writeTo);
       processSnippetHtml(node, writeTo);
@@ -574,27 +628,27 @@ export let tagsToRemove = tagsToRemoveDefault;
 let ignoreTags = ignoreTagsDefault;
 let preserveTags = preserveTagsDefault;
 
-export const switchParseFunctionsHtml = (version) => {
+export const switchParseFunctionsHtml = version => {
   if (version == "js") {
-    console.log('generate sicp.js web textbook');
+    console.log("generate sicp.js web textbook");
     tagsToRemove = tagsToRemoveDefault;
     ignoreTags = ignoreTagsDefault;
     preserveTags = preserveTagsDefault;
     processTextFunctionsHtml = processTextFunctionsDefaultHtml;
   } else if (version == "split") {
-    console.log('generate split version of web textbook')
+    console.log("generate split version of web textbook");
     tagsToRemove.delete("SCHEME");
     tagsToRemove.delete("SPLIT");
     ignoreTags.delete("JAVASCRIPT");
     processTextFunctionsHtml = {
       ...processTextFunctionsDefaultHtml,
-      ...processTextFunctionsSplit,
+      ...processTextFunctionsSplit
       // the second object overwrites the first one
     };
   } else if (version == "scheme") {
-    console.log('generate sicp schceme web textook')
+    console.log("generate sicp schceme web textook");
   }
-}
+};
 
 export const processTextHtml = (node, writeTo) => {
   const name = node.nodeName;
@@ -607,10 +661,10 @@ export const processTextHtml = (node, writeTo) => {
     } else if (ignoreTags.has(name)) {
       recursiveProcessTextHtml(node.firstChild, writeTo);
       return true;
-    } else if (preserveTags.has(name)){
-      writeTo.push("<"+ name + ">");
+    } else if (preserveTags.has(name)) {
+      writeTo.push("<" + name + ">");
       recursiveProcessTextHtml(node.firstChild, writeTo);
-      writeTo.push("</"+ name + ">");
+      writeTo.push("</" + name + ">");
       return true;
     }
   }
@@ -624,7 +678,7 @@ export const recursiveProcessTextHtml = (node, writeTo) => {
   return recursiveProcessTextHtml(node.nextSibling, writeTo);
 };
 
-const beforeContent = (writeTo) => {
+const beforeContent = writeTo => {
   writeTo.push(html_links_part1);
   writeTo.push(`
   <meta name="description" content="${displayTitle}" />
@@ -634,28 +688,31 @@ const beforeContent = (writeTo) => {
     `);
   html_links_part2(writeTo, toIndexFolder);
   recursiveProcessTOC(0, writeTo, "sidebar", "./");
-  writeTo.push("</div>\n"); 
+  writeTo.push("</div>\n");
   writeTo.push(beforeContentWrapper);
-}
+};
 
-const afterContent = (writeTo) => {
-
+const afterContent = writeTo => {
   writeTo.push(`
     <div class='nav'>
   `);
 
   if (chapArrIndex > 0) {
     writeTo.push(`
-        <a class='btn btn-secondary btn-nav' href='./${tableOfContent[allFilepath[chapArrIndex-1]].index}.html'>&lt; Previous</a>
+        <a class='btn btn-secondary btn-nav' href='./${
+          tableOfContent[allFilepath[chapArrIndex - 1]].index
+        }.html'>&lt; Previous</a>
     `);
   }
   writeTo.push(`
     <div style='flex-grow: 1;'></div>
   `);
-  
+
   if (chapArrIndex < allFilepath.length - 1) {
     writeTo.push(`
-        <a class='btn btn-secondary btn-nav' id='${chapArrIndex+2}' href='./${tableOfContent[allFilepath[chapArrIndex+1]].index}.html'>Next &gt;</a>
+        <a class='btn btn-secondary btn-nav' id='${chapArrIndex + 2}' href='./${
+      tableOfContent[allFilepath[chapArrIndex + 1]].index
+    }.html'>Next &gt;</a>
       `);
   }
   writeTo.push(`</div>
@@ -668,14 +725,13 @@ const afterContent = (writeTo) => {
     </div>
     </div> <!-- /.container -->
     </body></html>`);
-}
+};
 
 export const parseXmlHtml = (doc, writeTo, filename) => {
-  
   //console.log(allFilepath);
   chapterIndex = tableOfContent[filename].index;
   chapterTitle = tableOfContent[filename].title;
-  
+
   if (chapterIndex.match(/[a-z]+/)) {
     displayTitle = chapterTitle;
   } else {
@@ -697,6 +753,4 @@ export const parseXmlHtml = (doc, writeTo, filename) => {
   beforeContent(writeTo);
   recursiveProcessTextHtml(doc.documentElement, writeTo);
   afterContent(writeTo);
-}
-
-
+};

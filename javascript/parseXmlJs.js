@@ -1,14 +1,11 @@
 import path from "path";
 import fs from "fs";
-import util from 'util';
+import util from "util";
 
-import {
-  processSnippetJs,
-} from './processingFunctions';
+import { processSnippetJs } from "./processingFunctions";
 
 let snippet_count = 0;
 let relativeFileDirectory = "";
-
 
 const tagsToRemove = new Set([
   "#comment",
@@ -47,9 +44,7 @@ const preserveTags = new Set([
 ]);
 
 const processTextFunctions = {
-
   SNIPPET: (node, writeTo) => {
-    
     if (node.getAttribute("HIDE") == "yes") {
       return;
     } else if (node.getAttribute("LATEX") == "yes") {
@@ -62,18 +57,14 @@ const processTextFunctions = {
     snippet_count += 1;
     processSnippetJs(node, writeTojs, "js");
 
-    const outputFile = path.join(
-      relativeFileDirectory,
-      `${snippet_count}.js`
-    );
-    
+    const outputFile = path.join(relativeFileDirectory, `${snippet_count}.js`);
+
     const stream = fs.createWriteStream(outputFile);
     stream.once("open", fd => {
       stream.write(writeTojs.join(""));
       stream.end();
     });
   }
-
 };
 
 const processText = (node, writeTo) => {
@@ -97,15 +88,9 @@ const recursiveProcessText = (node, writeTo) => {
   return recursiveProcessText(node.nextSibling, writeTo);
 };
 
-
 export const parseXmlJs = (doc, writeTo, filename) => {
-
   snippet_count = 0;
   relativeFileDirectory = filename;
-  
+
   recursiveProcessText(doc.documentElement, writeTo);
-}
-
-
-
-
+};

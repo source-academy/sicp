@@ -1,9 +1,12 @@
-import { recursiveProcessTextHtml, processTextHtml, toIndexFolder } from '../parseXmlHtml';
-import { processSnippetHtml } from '.';
-import { referenceStore } from './processReferenceHtml';
+import {
+  recursiveProcessTextHtml,
+  processTextHtml,
+  toIndexFolder
+} from "../parseXmlHtml";
+import { processSnippetHtml } from ".";
+import { referenceStore } from "./processReferenceHtml";
 
 export const processFigureHtml = (node, writeTo) => {
-  
   let src = node.getAttribute("src");
   if (!src && node.getElementsByTagName("FIGURE")[0]) {
     src = node.getElementsByTagName("FIGURE")[0].getAttribute("src");
@@ -11,10 +14,10 @@ export const processFigureHtml = (node, writeTo) => {
   const label = node.getElementsByTagName("LABEL")[0];
 
   if (src && !label) {
-      writeTo.push(`
+    writeTo.push(`
         <img src="${toIndexFolder}${src}">
       `);
-      return;
+    return;
   } else if (!src) {
     // console.log(node.toString());
     writeTo.push(`<FIGURE>`);
@@ -32,16 +35,15 @@ export const processFigureHtml = (node, writeTo) => {
   const displayName = referenceStore[referenceName].displayName;
   //console.log("reference name is " + referenceName);
 
-  if (src && label) { 
+  if (src && label) {
     writeTo.push(`
     <FIGURE>
-      <img id="fig_${displayName}" src="${toIndexFolder}${src}">`
-    ); 
-  } 
-    
+      <img id="fig_${displayName}" src="${toIndexFolder}${src}">`);
+  }
+
   const snippet = node.getElementsByTagName("SNIPPET")[0];
   if (snippet) {
-      processSnippetHtml(snippet, writeTo);
+    processSnippetHtml(snippet, writeTo);
   }
 
   const caption = node.getElementsByTagName("CAPTION")[0];

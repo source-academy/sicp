@@ -1,7 +1,5 @@
-import {getChildrenByTagName, ancestorHasTag} from './utilityFunctions';
-import {
-  checkIndexBadEndWarning
-} from "./processingFunctions/warnings.js";
+import { getChildrenByTagName, ancestorHasTag } from "./utilityFunctions";
+import { checkIndexBadEndWarning } from "./processingFunctions/warnings.js";
 
 import {
   replaceTagWithSymbol,
@@ -17,8 +15,8 @@ import {
   processTable,
   recursiveProcessPureText,
   processList,
-  addName,
-} from './processingFunctions';
+  addName
+} from "./processingFunctions";
 
 const tagsToRemove = new Set([
   "#comment",
@@ -49,7 +47,7 @@ const processTextFunctionsDefaultLatex = {
     const trimedValue = node.nodeValue
       .replace(/[\r\n]+/, " ")
       .replace(/\s+/g, " ")
-      .replace(/\^/g, "\^{}")
+      .replace(/\^/g, "^{}")
       .replace(/%/g, "\\%");
     if (trimedValue.match(/&(\w|\.)+;/)) {
       processFileInput(trimedValue.trim(), writeTo);
@@ -64,11 +62,13 @@ const processTextFunctionsDefaultLatex = {
     writeTo.push("\\chapter*{");
     const name = addName(node, writeTo);
     writeTo.push("\n\\addcontentsline{toc}{chapter}{");
-    writeTo.push(name + '}\n\n');
+    writeTo.push(name + "}\n\n");
     recursiveProcessTextLatex(node.firstChild, writeTo);
   },
-  REFERENCES: (node, writeTo) => processTextFunctionsLatex["ABOUT"](node, writeTo),
-  WEBPREFACE: (node, writeTo) => processTextFunctionsLatex["ABOUT"](node, writeTo),
+  REFERENCES: (node, writeTo) =>
+    processTextFunctionsLatex["ABOUT"](node, writeTo),
+  WEBPREFACE: (node, writeTo) =>
+    processTextFunctionsLatex["ABOUT"](node, writeTo),
   MATTER: (node, writeTo) => processTextFunctionsLatex["ABOUT"](node, writeTo),
 
   B: (node, writeTo) => {
@@ -110,7 +110,6 @@ const processTextFunctionsDefaultLatex = {
     recursiveProcessTextLatex(node.firstChild, writeTo);
     writeTo.push("}");
   },
-
 
   EPIGRAPH: (node, writeTo) => {
     processEpigraphPdf(node, writeTo);
@@ -155,8 +154,9 @@ const processTextFunctionsDefaultLatex = {
 
   IMAGE: (node, writeTo) => {
     writeTo.push(
-      "\\begin{figure}[H]\n\\centering"
-      + generateImage(node.getAttribute("src")) + "\n\\end{figure}\n"
+      "\\begin{figure}[H]\n\\centering" +
+        generateImage(node.getAttribute("src")) +
+        "\n\\end{figure}\n"
     );
   },
 
@@ -170,8 +170,10 @@ const processTextFunctionsDefaultLatex = {
     writeTo.push("}");
   },
 
-  LATEX: (node, writeTo) => processTextFunctionsLatex["LATEXINLINE"](node, writeTo),
-  TREETAB: (node, writeTo) => processTextFunctionsLatex["LATEXINLINE"](node, writeTo),
+  LATEX: (node, writeTo) =>
+    processTextFunctionsLatex["LATEXINLINE"](node, writeTo),
+  TREETAB: (node, writeTo) =>
+    processTextFunctionsLatex["LATEXINLINE"](node, writeTo),
   LATEXINLINE: (node, writeTo) => {
     recursiveProcessPureText(node.firstChild, writeTo);
   },
@@ -231,13 +233,16 @@ const processTextFunctionsDefaultLatex = {
     addName(node, writeTo);
     recursiveProcessTextLatex(node.firstChild, writeTo);
   },
-  SUBSUBSECTION: (node, writeTo) => processTextFunctionsLatex["SUBHEADING"](node, writeTo),
+  SUBSUBSECTION: (node, writeTo) =>
+    processTextFunctionsLatex["SUBHEADING"](node, writeTo),
 
   SCHEMEINLINE: (node, writeTo) =>
     processTextFunctionsLatex["JAVASCRIPTINLINE"](node, writeTo),
   JAVASCRIPTINLINE: (node, writeTo) => {
     writeTo.push("{\\lstinline[mathescape=true]$");
-    recursiveProcessPureText(node.firstChild, writeTo, { removeNewline: "all" });
+    recursiveProcessPureText(node.firstChild, writeTo, {
+      removeNewline: "all"
+    });
     writeTo.push("$}");
   },
 
@@ -301,7 +306,9 @@ const processTextFunctionsEpub = {
   },
   JAVASCRIPTINLINE: (node, writeTo) => {
     writeTo.push("{\\lstinline[mathescape=true, language=JavaScript]$");
-    recursiveProcessPureText(node.firstChild, writeTo, { removeNewline: "all" });
+    recursiveProcessPureText(node.firstChild, writeTo, {
+      removeNewline: "all"
+    });
     writeTo.push("$}");
   },
   SNIPPET: (node, writeTo) => {
@@ -317,22 +324,23 @@ const processTextFunctionsEpub = {
     addName(node, writeTo);
     recursiveProcessTextLatex(node.firstChild, writeTo);
   },
-  SUBSUBSECTION: (node, writeTo) => processTextFunctionsEpub["SUBHEADING"](node, writeTo),    
-}
+  SUBSUBSECTION: (node, writeTo) =>
+    processTextFunctionsEpub["SUBHEADING"](node, writeTo)
+};
 
 let processTextFunctionsLatex = processTextFunctionsDefaultLatex;
 
-export const switchParseFunctionsLatex = (parseType) => {
+export const switchParseFunctionsLatex = parseType => {
   if (parseType == "pdf") {
     processTextFunctionsLatex = processTextFunctionsDefaultLatex;
   } else if (parseType == "epub") {
-    console.log('using parsetype epub')
+    console.log("using parsetype epub");
     processTextFunctionsLatex = {
       ...processTextFunctionsDefaultLatex,
-      ...processTextFunctionsEpub,
+      ...processTextFunctionsEpub
     };
   }
-}
+};
 
 export const processTextLatex = (node, writeTo) => {
   const name = node.nodeName;
@@ -356,4 +364,3 @@ export const recursiveProcessTextLatex = (node, writeTo) => {
   processTextLatex(node, writeTo);
   return recursiveProcessTextLatex(node.nextSibling, writeTo);
 };
-

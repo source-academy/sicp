@@ -1,4 +1,4 @@
-import { recursiveProcessTextHtml, processTextHtml } from '../parseXmlHtml';
+import { recursiveProcessTextHtml, processTextHtml } from "../parseXmlHtml";
 
 export const processEpigraphHtml = (node, writeTo) => {
   writeTo.push("<blockquote class='blockquote'>");

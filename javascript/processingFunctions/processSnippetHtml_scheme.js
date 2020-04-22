@@ -1,6 +1,5 @@
 import recursiveProcessPureText from "./recursiveProcessPureText";
 
-
 export const processSnippetHtmlScheme = (node, writeTo) => {
   if (node.getAttribute("HIDE") == "yes") {
     return;
@@ -11,11 +10,10 @@ export const processSnippetHtmlScheme = (node, writeTo) => {
     const codeArr = [];
     recursiveProcessPureText(schemeSnippet.firstChild, codeArr);
     const codeStr = codeArr.join("").trim();
-	
-	writeTo.push("<pre class='prettyprint no-eval'>\n");
-	writeTo.push(codeStr);
-	writeTo.push("\n</pre>");
-    
+
+    writeTo.push("<pre class='prettyprint no-eval'>\n");
+    writeTo.push(codeStr);
+    writeTo.push("\n</pre>");
   }
 };
 

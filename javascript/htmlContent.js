@@ -24,7 +24,7 @@ let legend = `
 <a href="split">Comparison edition</a></span>
 </div>`;
 
-export const switchTitle = (version) => {
+export const switchTitle = version => {
   if (version == "js") {
     shortTitle = shortTitleDefault;
     longTitle = longTitleDefault;
@@ -52,10 +52,9 @@ export const switchTitle = (version) => {
       <span class="title-text-OTHEREDITIONS">
     <a href="sicpjs.zip">All programs zipped</a></span>
     </div>`;
-
   } else if (version == "split") {
     shortTitle = `SICP &mdash; Scheme/JS`;
-      longTitle = `Structure and Interpretation of Computer Programs &mdash; Comparison Edition`;
+    longTitle = `Structure and Interpretation of Computer Programs &mdash; Comparison Edition`;
     this_edition = `
     <div class="title-text-EDITION">
        <span class="title-text-EDITION">Scheme-JavaScript Comparison Edition</span>
@@ -78,13 +77,11 @@ export const switchTitle = (version) => {
       <span class="title-text-OTHEREDITIONS">
     <a href="..">Back to web edition</a></span>
     </div>`;
-    
   } else if (version == "scheme") {
     // scheme version of the web textbook has yet been developed
-    console.log('generate sicp schceme web textook')
+    console.log("generate sicp schceme web textook");
   }
-}
-
+};
 
 // `\\\\`' is used to display double back-slash \\ in template literals
 export const html_links_part1 = `<!DOCTYPE html>
@@ -93,9 +90,9 @@ export const html_links_part1 = `<!DOCTYPE html>
     <meta charset="utf-8">
     <meta http-equiv="X-UA-Compatible" content="IE=Edge,chrome=1">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  `
-export const html_links_part2  = (writeTo, toIndexFolder) => {
-  writeTo.push(  `
+  `;
+export const html_links_part2 = (writeTo, toIndexFolder) => {
+  writeTo.push(`
   <meta name="csrf-param" content="authenticity_token" />
   <meta name="csrf-token" content="EMTEijVc2kiiKUH4nYH0lQG3pLPfMowQ/Stg//t6DCo0e5pWMQwamnTvIdmVZqY/MqSx2IYYE+2bpNV6UNSMwQ==" />
 
@@ -209,10 +206,10 @@ export const html_links_part2  = (writeTo, toIndexFolder) => {
      
      <div class="container scroll">
 
-     `);}
+     `);
+};
 
-
-export const indexPage = (writeTo) => { 
+export const indexPage = writeTo => {
   writeTo.push(`
   <TABLE class="tight">
 	<TD  class="tight" width="70%" valign="top" align="right">
@@ -237,8 +234,7 @@ export const indexPage = (writeTo) => {
     </div>
 
     `);
-}
-
+};
 
 export const beforeContentWrapper = `<div id='permalink-msg'>
 <div class='screen'>
@@ -248,4 +244,4 @@ export const beforeContentWrapper = `<div id='permalink-msg'>
 </div>
 </div>
 <div class='chapter-content'>
-`
+`;

@@ -1,4 +1,4 @@
-import { recursiveProcessTextLatex, processTextLatex } from '../parseXmlLatex';
+import { recursiveProcessTextLatex, processTextLatex } from "../parseXmlLatex";
 
 export const processFigureEpub = (node, writeTo) => {
   writeTo.push("\n\\begin{figure}[H]\n\\centering\n");
@@ -7,17 +7,15 @@ export const processFigureEpub = (node, writeTo) => {
     src = node.getElementsByTagName("FIGURE")[0].getAttribute("src");
   }
   if (src) {
-    writeTo.push(
-      generateImage(src) + "\n"
-    );
+    writeTo.push(generateImage(src) + "\n");
   } else {
     // console.log(node.toString());
     const images = node.getElementsByTagName("IMAGE");
     for (let i = 0; i < images.length; i++) {
       writeTo.push(
         "\\subcaptionbox{}{" +
-        generateImage(images[i].getAttribute("src")) +
-        "}\n"
+          generateImage(images[i].getAttribute("src")) +
+          "}\n"
       );
     }
   }
@@ -34,12 +32,8 @@ export const processFigureEpub = (node, writeTo) => {
   writeTo.push("\\end{figure}\n");
 };
 
-export const generateImage = (imagePath) => {
-  return (
-  "\\includegraphics{"
-    + imagePath.replace(/\.gif$/, ".png")
-    + "}"
-  );
-}
+export const generateImage = imagePath => {
+  return "\\includegraphics{" + imagePath.replace(/\.gif$/, ".png") + "}";
+};
 
 export default processFigureEpub;

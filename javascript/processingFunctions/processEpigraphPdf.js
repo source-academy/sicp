@@ -1,4 +1,4 @@
-import { recursiveProcessTextLatex, processTextLatex } from '../parseXmlLatex';
+import { recursiveProcessTextLatex, processTextLatex } from "../parseXmlLatex";
 
 export const processEpigraphPdf = (node, writeTo) => {
   writeTo.push("\\epigraph{");
