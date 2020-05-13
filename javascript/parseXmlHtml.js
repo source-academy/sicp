@@ -717,7 +717,7 @@ const afterContent = writeTo => {
   }
   writeTo.push(`</div>
     <div class='chapter_sign'>
-      ${chapterIndex + " " + chapterTitle}
+      ${displayTitle}
     </div>
     <script> var chapter_id = ${chapArrIndex + 1}; </script>
     <script> var chapter_path = "chapters/${chapterIndex}.html"; </script>
