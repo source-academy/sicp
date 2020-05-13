@@ -92,14 +92,4 @@ via() {
  	echo "finally: cd sicp; scp -p -r * sicp@web1.comp.nus.edu.sg:public_html/staging"
 }
 
-# Can provide 0 or 1 arguments.
-# If no arguments provided, checks for all invalid tags.
-# If argument provided, checks for all instances of the provided tag.
-checktags() {
-	if [ "$1" == "" ]; then
-		checktags
-	else
-    checktags "$1"
-}
-
 main $1

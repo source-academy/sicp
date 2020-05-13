@@ -219,5 +219,7 @@ async function main() {
 
 // babel-node ./javascript/findBadTags <tagname>
 
-// if <tagname> is empty, will just check if tags are part of those in validTags.
+// Can provide 0 or 1 arguments.
+// If no arguments provided, checks for all invalid tags.
+// If argument provided, checks for all instances of the provided tag.
 main();
