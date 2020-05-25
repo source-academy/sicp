@@ -38,7 +38,8 @@ const tagsToRemoveDefault = new Set([
   "AUTHOR",
   "#comment",
   "COMMENT",
-  "CHANGE",
+  "WEB_ONLY",
+  "PDF_ONLY",
   "EDIT",
   "EXCLUDE",
   "HISTORY",
@@ -59,11 +60,7 @@ const ignoreTagsDefault = new Set([
   "span",
   "SPLIT",
   "SPLITINLINE",
-  "JAVASCRIPT",
-  //typos
-  "JAVASCIPT",
-  "JAVSCRIPT",
-  "SPLTINLINE"
+  "JAVASCRIPT"
 ]);
 
 const preserveTagsDefault = new Set([
@@ -90,6 +87,10 @@ const preserveTagsDefault = new Set([
 ]);
 
 const processTextFunctionsDefaultHtml = {
+  WEB_ONLY: (node, writeTo) => {
+    recursiveProcessTextHtml(node.firstChild, writeTo);
+  },
+
   "#text": (node, writeTo) => {
     // ignore the section/subsection tags at the end of chapter/section files
     if (!node.nodeValue.match(/&(\w|\.|\d)+;/)) {
@@ -353,7 +354,7 @@ const processTextFunctionsDefaultHtml = {
         "_div'>"
     );
     writeTo.push("<div class='pre-prettyprint'>");
-    processSnippetHtml(node, writeTo);
+    processSnippetHtml(node, writeTo, false);
     writeTo.push("</div></div>");
   },
 
@@ -436,6 +437,24 @@ const processTextFunctionsDefaultHtml = {
 };
 
 const processTextFunctionsSplit = {
+  WEB_ONLY: (node, writeTo) => {
+    writeTo.push(`<span style="color:purple">`);
+    recursiveProcessTextHtml(node.firstChild, writeTo);
+    writeTo.push(`</span>`);
+  },
+
+  PDF_ONLY: (node, writeTo) => {
+    writeTo.push(`<span style="color:maroon">`);
+    recursiveProcessTextHtml(node.firstChild, writeTo);
+    writeTo.push(`</span>`);
+  },
+
+  COMMENT: (node, writeTo) => {
+    writeTo.push(`<span style="color:grey">`);
+    recursiveProcessTextHtml(node.firstChild, writeTo);
+    writeTo.push(`</span>`);
+  },
+
   SCHEME: (node, writeTo) => {
     writeTo.push(`<span style="color:teal">`);
     recursiveProcessTextHtml(node.firstChild, writeTo);
@@ -601,7 +620,7 @@ const processTextFunctionsSplit = {
           "_div'>"
       );
       writeTo.push("<div class='pre-prettyprint'>");
-      processSnippetHtml(node, writeTo);
+      processSnippetHtml(node, writeTo, true);
       writeTo.push("</div></div>");
       //writeTo.push(`</span>`);
 
@@ -617,7 +636,7 @@ const processTextFunctionsSplit = {
       );
       writeTo.push("<div class='pre-prettyprint'>");
       processSnippetHtmlScheme(node, writeTo);
-      processSnippetHtml(node, writeTo);
+      processSnippetHtml(node, writeTo, true);
       writeTo.push("</div></div>");
     }
   }

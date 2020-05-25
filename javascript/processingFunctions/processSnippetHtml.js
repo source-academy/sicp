@@ -62,7 +62,7 @@ const recursiveGetRequires = (name, seen) => {
   }
 };
 
-export const processSnippetHtml = (node, writeTo) => {
+export const processSnippetHtml = (node, writeTo, split) => {
   if (node.getAttribute("HIDE") == "yes") {
     return;
   }
@@ -74,6 +74,8 @@ export const processSnippetHtml = (node, writeTo) => {
     if (!jsRunSnippet) {
       jsRunSnippet = jsSnippet;
     }
+
+    let jsOutputSnippet = node.getElementsByTagName("JAVASCRIPT_OUTPUT")[0];
 
     const codeArr = [];
     recursiveProcessPureText(jsSnippet.firstChild, codeArr);
@@ -173,6 +175,11 @@ export const processSnippetHtml = (node, writeTo) => {
         writeTo.push(chunks[2]);
       }
 
+      writeTo.push("\n</pre>");
+    }
+    if (jsOutputSnippet && split) {
+      writeTo.push("<pre class='prettyprintoutput'>\n");
+      writeTo.push(jsOutputSnippet.firstChild.nodeValue);
       writeTo.push("\n</pre>");
     }
   }

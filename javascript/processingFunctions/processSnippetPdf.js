@@ -71,6 +71,8 @@ export const processSnippetPdf = (node, writeTo) => {
       jsRunSnippet = jsSnippet;
     }
 
+    let jsOutputSnippet = node.getElementsByTagName("JAVASCRIPT_OUTPUT")[0];
+
     const codeArr = [];
     recursiveProcessPureText(jsSnippet.firstChild, codeArr);
     const codeStr = codeArr.join("").trim();
@@ -137,21 +139,24 @@ export const processSnippetPdf = (node, writeTo) => {
       const compressed = lzString.compressToEncodedURIComponent(
         reqStr + codeStr_run + exampleStr
       );
-      const chap = node.getAttribute("CHAP");
-      let variant = node.getAttribute("VARIANT");
-      if (variant) {
-        variant = "&variant=" + variant;
+      let chap = node.getAttribute("CHAP");
+      if (chap) {
+        chap = "chap=" + chap + "&";
       } else {
         variant = "";
       }
-      const ext = "";
+      let variant = node.getAttribute("VARIANT");
+      if (variant) {
+        variant = "variant=" + variant + "&";
+      } else {
+        variant = "";
+      }
       const url =
         sourceAcademyURL +
-        "/playground#chap=" +
+        "/playground#" +
         chap +
         variant +
-        ext +
-        "&prgrm=" +
+        "prgrm=" +
         compressed;
 
       const chunks = (codeStr + "\n").match(
@@ -172,6 +177,12 @@ export const processSnippetPdf = (node, writeTo) => {
       } else {
         writeTo.push("\n\n\\href{" + url + "}{\\usebox\\lstbox}");
       }
+      if (jsOutputSnippet) {
+        writeTo.push("\n\\begin{JavaScriptOutput}\n");
+        writeTo.push(jsOutputSnippet.firstChild.nodeValue);
+        writeTo.push("\n\\end{JavaScriptOutput}");
+      }
+
       writeTo.push("\n\n");
     }
   }

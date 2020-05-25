@@ -61,7 +61,12 @@ export const switchTitle = version => {
     </div>`;
     legend = `
     <div class="title-text-ALSO">
-      <span class="title-text-ALSO">Differences highlighted in</span><BR/>
+      <span class="title-text-ALSO">Color highlighting:</span><BR/>
+    </div>
+    <div class="title-text-OTHEREDITIONS">
+      <span class="title-text-OTHEREDITIONS">
+      <span style="color:black">Unchanged █</span>
+      </span>
     </div>
     <div class="title-text-OTHEREDITIONS">
       <span class="title-text-OTHEREDITIONS">
@@ -71,6 +76,21 @@ export const switchTitle = version => {
     <div class="title-text-OTHEREDITIONS">
       <span class="title-text-OTHEREDITIONS">
       <span style="color:blue">Javascript █</span>
+      </span>
+    </div>
+    <div class="title-text-OTHEREDITIONS">
+      <span class="title-text-OTHEREDITIONS">
+      <span style="color:grey">Explanation █</span>
+      </span>
+    </div>
+    <div class="title-text-OTHEREDITIONS">
+      <span class="title-text-OTHEREDITIONS">
+      <span style="color:purple">Web-only █</span>
+      </span>
+    </div>
+    <div class="title-text-OTHEREDITIONS">
+      <span class="title-text-OTHEREDITIONS">
+      <span style="color:maroon">Print-only █</span>
       </span>
     </div>
     <div class="title-text-OTHEREDITIONS">
