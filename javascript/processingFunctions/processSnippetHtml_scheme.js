@@ -14,6 +14,13 @@ export const processSnippetHtmlScheme = (node, writeTo) => {
     writeTo.push("<pre class='prettyprint no-eval'>\n");
     writeTo.push(codeStr);
     writeTo.push("\n</pre>");
+
+    let schemeOutputSnippet = node.getElementsByTagName("SCHEMEOUTPUT")[0];
+    if (schemeOutputSnippet) {
+      writeTo.push("<pre class='prettyprintoutput'>\n");
+      writeTo.push(schemeOutputSnippet.firstChild.nodeValue);
+      writeTo.push("\n</pre>");
+    }
   }
 };
 

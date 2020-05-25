@@ -9,6 +9,8 @@ LATEX_EPUB="latex_epub"
 GENERATED_HTML_JS="html_js"
 GENERATED_HTML_SPLIT="html_split"
 GENERATED_JS="js_programs"
+PDF_FILE="sicpjs.pdf"
+EPUB_FILE="sicpjs.epub"
 
 # RESOURCES
 FONTS="static/fonts"
@@ -54,13 +56,13 @@ epub() {
 }
 
 clean() {
-	echo "rm -rf ${DOCS}/* "
-	echo "rm -rf ${LATEX_PDF}/* "
-	echo "rm -rf ${LATEX_EPUB}/* "
-	echo "rm -rf ${GENERATED_HTML_JS}/* "
-	echo "rm -rf ${GENERATED_HTML_SPLIT}/* "
-	echo "rm -rf ${GENERATED_JS}/*"
-	echo "rm -f ${ZIP_FILE}"
+	rm -rf ${DOCS}/*
+	rm -rf ${LATEX_PDF}/*
+	rm -rf ${LATEX_EPUB}/*
+	rm -rf ${GENERATED_HTML_JS}/*
+	rm -rf ${GENERATED_HTML_SPLIT}/*
+	rm -rf ${GENERATED_JS}/*
+	rm -f ${ZIP_FILE}
 }
 
 prepare() {

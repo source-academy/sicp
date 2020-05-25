@@ -126,6 +126,21 @@ export const preamble = `\\documentclass[a4paper, 12pt]{report}
 }
 \\lstnewenvironment{JavaScript}{\\lstset{style=JavaScript}}{}
 \\lstnewenvironment{JavaScriptClickable}{\\lstset{style=JavaScript,frame=leftline}}{}
+\\lstdefinestyle{JavaScriptOutput}{
+   language=JavaScript,
+   basicstyle=\\linespread{1.0}\\slshape,
+   showstringspaces=false,
+   showspaces=false,
+   keepspaces=true,
+   fontadjust=true,
+   basewidth=0.55em,
+   mathescape=true,
+   framerule=0.5ex,
+   framesep=1em,
+   rulecolor=\\color{LeftBarClickable},
+   escapeinside={/*!}{!*/}
+}
+\\lstnewenvironment{JavaScriptOutput}{\\lstset{style=JavaScriptOutput}}{}
 
 \\usepackage{epigraph}
 \\setlength\\epigraphwidth{11cm}

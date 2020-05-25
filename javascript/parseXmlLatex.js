@@ -43,6 +43,10 @@ const ignoreTags = new Set([
 ]);
 
 const processTextFunctionsDefaultLatex = {
+  PDF_ONLY: (node, writeTo) => {
+    recursiveProcessTextLatex(node.firstChild, writeTo);
+  },
+
   "#text": (node, writeTo) => {
     const trimedValue = node.nodeValue
       .replace(/[\r\n]+/, " ")
