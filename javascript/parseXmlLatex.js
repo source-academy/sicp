@@ -176,8 +176,6 @@ const processTextFunctionsDefaultLatex = {
 
   LATEX: (node, writeTo) =>
     processTextFunctionsLatex["LATEXINLINE"](node, writeTo),
-  TREETAB: (node, writeTo) =>
-    processTextFunctionsLatex["LATEXINLINE"](node, writeTo),
   LATEXINLINE: (node, writeTo) => {
     recursiveProcessPureText(node.firstChild, writeTo);
   },
