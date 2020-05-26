@@ -232,8 +232,6 @@ export const processTextFunctionsHtml = {
 
   LATEX: (node, writeTo) =>
     processTextFunctionsHtml["LATEXINLINE"](node, writeTo),
-  TREETAB: (node, writeTo) =>
-    processTextFunctionsHtml["LATEXINLINE"](node, writeTo),
   LATEXINLINE: (node, writeTo) => {
     recursiveProcessPureText(node.firstChild, writeTo);
   },
