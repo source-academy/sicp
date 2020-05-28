@@ -133,9 +133,9 @@ export const processSnippetJs = (node, writeTo, fileFormat) => {
       writeTo.push(exampleStr);
       if (node.getElementsByTagName("EXPECTED")[0]) {
         writeTo.push(
-            "\n// expected: " +
-		node.getElementsByTagName("EXPECTED")[0].firstChild.nodeValue +
-		"\n"
+          "\n// expected: " +
+            node.getElementsByTagName("EXPECTED")[0].firstChild.nodeValue +
+            "\n"
         );
       }
       return;

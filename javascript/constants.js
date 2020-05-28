@@ -9,6 +9,5 @@ export const authors_with = "Julie Sussman";
 
 export const adapters = "Martin Henz and Tobias Wrigstad";
 
-export const adapters_with = "Chan Ger Hean, He Xinyue, Liu Hang, Feng Piaopiao, Jolyn Tan and Wang Qian";
-
-
+export const adapters_with =
+  "Chan Ger Hean, He Xinyue, Liu Hang, Feng Piaopiao, Jolyn Tan and Wang Qian";

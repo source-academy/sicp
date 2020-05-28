@@ -1,5 +1,4 @@
-import { adapters, adapters_with, authors, authors_with 
-} from "constants";
+import { adapters, adapters_with, authors, authors_with } from "constants";
 
 const title = `\\begin{titlepage}
   \\centering
