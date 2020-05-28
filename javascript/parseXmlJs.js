@@ -53,6 +53,7 @@ const processTextFunctions = {
 
     const writeTojs = [];
     snippet_count += 1;
+
     const snippet_count_string =
       snippet_count < 10 ? "0" + snippet_count : snippet_count;
     processSnippetJs(node, writeTojs, "js");

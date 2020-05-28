@@ -1,4 +1,4 @@
-import { adapters, adapters_with, authors, authors_with } from "constants";
+mport { adapters, adapters_with, authors, authors_with } from "constants";
 
 import { write } from "fs-extra";
 
