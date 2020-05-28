@@ -1,5 +1,5 @@
-import { sourceAcademyURL
-} from "../constants";
+import { sourceAcademyURL } from "../constants";
+
 import lzString from "lz-string";
 import {
   checkLongLineWarning,
