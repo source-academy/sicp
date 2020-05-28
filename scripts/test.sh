@@ -24,15 +24,15 @@ failed=0
 
 test_source() {
 #    echo $1
-#    echo "$(cat $1 | tail -1 | cut -c 1-11)"
-    if [  "$(cat $1 | tail -1 | cut -c 1-11)" = "// result: " ]
+#    echo "$(cat $1 | tail -1 | cut -c 1-13)"
+    if [  "$(cat $1 | tail -1 | cut -c 1-13)" = "// expected: " ]
     then
-	echo "$(cat $1 | tail -1)"
+	echo "${normal}$1, expecting: $(cat $1 | tail -1 | cut -c14-)"
         DIFF=$(diff <($JS_SLANG -e --chapter=$2 "$(cat $1)") \
-	            <(cat $1 | tail -1 | cut -c12-))
+	            <(cat $1 | tail -1 | cut -c14-))
 	if [ "$DIFF" = "" ]
-	then passed=$(($passed+1)); echo "${green}PASS $1"
-	else failed=$(($failed+1)); echo "${red}FAIL $1:
+	then passed=$(($passed+1)); echo "${green}PASS"
+	else failed=$(($failed+1)); echo "${red}FAIL:
 $DIFF"
 	fi
     fi    

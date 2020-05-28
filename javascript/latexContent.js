@@ -1,18 +1,29 @@
+import { adapters, adapters_with, authors, authors_with 
+} from "constants";
+
 const title = `\\begin{titlepage}
   \\centering
-  \\includegraphics[width=0.8\\textwidth]{./sicp.png}\\par
+  \\includegraphics[width=0.6\\textwidth]{./sicp.png}\\par
   {\\LARGE\\bfseries Structure and Interpretation of Computer\\\\
   Programs — JavaScript Adaptation\\par}
   \\vspace{0.5cm}
   \\begin{flushright}
-  {\\Large Harold Abelson and Gerald Jay Sussman \\\\}
-  {\\large with Julie Sussman \\\\ — \\textit{authors} \\par}
-  \\vspace{0.5cm}
-  {\\Large Martin Henz and Tobias Wrigstad\\\\}
-  {\\large with Liu Hang, Feng Piaopiao, Jolyn Tan and Chan Ger Hean \\\\
+  {\\Large Martin Henz and Tobias Wrigstad \\\\}
+  {\\large with Chan Ger Hean, He Xinyue, Liu Hang, \\\\ Feng Piaopiao, Jolyn Tan and Wang Qian \\\\
    — \\textit{adapters to JavaScript}\\par}
+  \\vspace{0.5cm}
+  {\\large \\textit{original textbook by} \\\\}
+  {\\Large Harold Abelson and Gerald Jay Sussman \\\\}
+  {\\large with Julie Sussman \\par}
   \\end{flushright}
-\\end{titlepage}`;
+
+  {This work is licensed under the \\href{https://creativecommons.org/licenses/by-sa/4.0/}{Creative Commons Attribution-ShareAlike 4.0 International License}.}
+
+  \\vspace{0.2cm}
+{All JavaScript programs in this work are licensed under the \\href{https://www.gnu.org/licenses/gpl-3.0.en.html}{GNU General Public License Version 3}.}
+
+\\end{titlepage}
+`;
 
 export const preamble = `\\documentclass[a4paper, 12pt]{report}
 \\usepackage[T1]{fontenc}
@@ -104,7 +115,7 @@ export const preamble = `\\documentclass[a4paper, 12pt]{report}
    basicstyle=\\linespread{1.0}\\ttfamily,
    showstringspaces=false,
    showspaces=false,
-   escapeinside={/*!}{!*/}
+   escapechar=^
 }
 
 \\usepackage{xcolor}
@@ -122,10 +133,10 @@ export const preamble = `\\documentclass[a4paper, 12pt]{report}
    framerule=0.5ex,
    framesep=1em,
    rulecolor=\\color{LeftBarClickable},
-   escapeinside={/*!}{!*/}
+   escapechar=^
 }
 \\lstnewenvironment{JavaScript}{\\lstset{style=JavaScript}}{}
-\\lstnewenvironment{JavaScriptClickable}{\\lstset{style=JavaScript,frame=leftline}}{}
+\\lstnewenvironment{JavaScriptClickable}{\\lstset{style=JavaScript,frame=leftline,escapeinside={/*!}{!*/}}}{}
 \\lstdefinestyle{JavaScriptOutput}{
    language=JavaScript,
    basicstyle=\\linespread{1.0}\\slshape,
@@ -138,7 +149,7 @@ export const preamble = `\\documentclass[a4paper, 12pt]{report}
    framerule=0.5ex,
    framesep=1em,
    rulecolor=\\color{LeftBarClickable},
-   escapeinside={/*!}{!*/}
+   escapechar=^
 }
 \\lstnewenvironment{JavaScriptOutput}{\\lstset{style=JavaScriptOutput}}{}
 

@@ -1,3 +1,5 @@
+import { sourceAcademyURL
+} from "../constants";
 import lzString from "lz-string";
 import {
   checkLongLineWarning,
@@ -41,13 +43,8 @@ export const setupSnippetsPdf = node => {
   }
 };
 
-const sourceAcademyURL = "https://sourceacademy.nus.edu.sg";
-// to change to localhost if required
-// http://localhost:8075
-
 const recursiveGetRequires = (name, seen) => {
   if (seen.has(name)) return;
-  seen.add(name);
   const snippetEntry = snippetStore[name];
   if (!snippetEntry) {
     missingRequireWarning(name);
@@ -56,6 +53,7 @@ const recursiveGetRequires = (name, seen) => {
   for (const requirement of snippetEntry.requireNames) {
     recursiveGetRequires(requirement, seen);
   }
+  seen.add(name);
 };
 
 export const processSnippetPdf = (node, writeTo) => {
@@ -99,6 +97,17 @@ export const processSnippetPdf = (node, writeTo) => {
         nameStr = snippetName.firstChild.nodeValue;
         const reqSet = new Set();
         recursiveGetRequires(nameStr, reqSet);
+        const examples = node.getElementsByTagName("EXAMPLE");
+        for (let i = 0; examples[i]; i++) {
+          const exampleString = examples[i].firstChild.nodeValue;
+          const exampleNode = snippetStore[exampleString];
+          if (exampleNode) {
+            const exampleRequires = exampleNode.requireNames;
+            for (let j = 0; exampleRequires[j]; j++) {
+              recursiveGetRequires(exampleRequires[j], reqSet);
+            }
+          }
+        }
         for (const reqName of reqSet) {
           const snippetEntry = snippetStore[reqName];
           if (snippetEntry && reqName !== nameStr) {
