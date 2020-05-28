@@ -87,11 +87,12 @@ staging() {
  	echo "check that everything works: https://sicp.comp.nus.edu.sg/staging"
 }
 
-# install all files in docs_out to henz@suna, and copy from there to staging folder
+# install all files in docs_out to henz@suna, and copy from there to
+# the official website
 via() {
  	cd ${DOCS}; scp -p -r * henz@suna.comp.nus.edu.sg:sicp; \
  	echo "next: ssh henz@suna.comp.nus.edu.sg"; \
- 	echo "finally: cd sicp; scp -p -r * sicp@web1.comp.nus.edu.sg:public_html/staging"
+ 	echo "finally: cd sicp; scp -p -r * sicp@web1.comp.nus.edu.sg:public_html"
 }
 
 main $1

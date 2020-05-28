@@ -45,9 +45,7 @@ const preserveTags = new Set([
 
 const processTextFunctions = {
   SNIPPET: (node, writeTo) => {
-    if (node.getAttribute("HIDE") == "yes") {
-      return;
-    } else if (node.getAttribute("LATEX") == "yes") {
+    if (node.getAttribute("LATEX") == "yes") {
       return;
     } else if (node.getAttribute("EVAL") === "no") {
       return;
@@ -55,9 +53,18 @@ const processTextFunctions = {
 
     const writeTojs = [];
     snippet_count += 1;
+    const snippet_count_string = snippet_count < 10
+	  ? "0" + snippet_count
+	  : snippet_count;
     processSnippetJs(node, writeTojs, "js");
 
-    const outputFile = path.join(relativeFileDirectory, `${snippet_count}.js`);
+    const nameNode = node.getElementsByTagName("NAME")[0];      
+
+      const fileName = (nameNode) ?
+	    snippet_count_string + "_" + nameNode.firstChild.nodeValue
+	    : snippet_count_string;
+      
+    const outputFile = path.join(relativeFileDirectory, fileName + `.js`);
 
     const stream = fs.createWriteStream(outputFile);
     stream.once("open", fd => {
