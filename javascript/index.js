@@ -160,8 +160,8 @@ async function recursiveXmlToHtmlInOrder(option) {
   for (let i = 0; i < allFilepath.length; i++) {
     const xmlfilepath = allFilepath[i].replace(/\.html$/, "") + ".xml";
     // split the filepath and filename
-    const filepath = xmlfilepath.match(/(.*)\/(.*)/)[1];
-    const file = xmlfilepath.match(/(.*)\/(.*)/)[2];
+    const filepath = xmlfilepath.match(/(.*)[\/\\](.*)/)[1];
+    const file = xmlfilepath.match(/(.*)[\/\\](.*)/)[2];
     //console.log(i + " " + xmlfilepath + "add to promises\n");
     await translateXml(filepath, file, option);
   }
