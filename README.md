@@ -21,7 +21,7 @@ All JavaScript programs in this work are licensed under the
 
 [![CC BY-NC-SA 4.0][cc-by-nc-sa-image]][cc-by-nc-sa] 
 The final version of this work will be published by The MIT Press under the [Creative Commons Attribution-ShareAlike 4.0
-International License][cc-by-sa].
+International License][cc-by-nc-sa].
 
 [cc-by-sa]: http://creativecommons.org/licenses/by-sa/4.0/
 [cc-by-sa-image]: https://licensebuttons.net/l/by-sa/4.0/88x31.png
