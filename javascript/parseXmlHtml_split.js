@@ -55,11 +55,7 @@ export const ignoreTags = new Set([
   "span",
   "SPLIT",
   "SPLITINLINE",
-  "JAVASCRIPT",
-  //typos
-  "JAVASCIPT",
-  "JAVSCRIPT",
-  "SPLTINLINE"
+  "JAVASCRIPT"
 ]);
 
 export const preserveTags = new Set([
