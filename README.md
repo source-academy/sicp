@@ -11,17 +11,13 @@ https://github.com/source-academy/sicp/wiki
 
 ## Licenses
 
-[![CC BY-SA 4.0][cc-by-sa-image]][cc-by-sa] 
-This work is licensed under the [Creative Commons Attribution-ShareAlike 4.0
-International License][cc-by-sa].
+[![CC BY-NC-SA 4.0][cc-by-nc-sa-image]][cc-by-nc-sa] 
+This work is licensed under the [Creative Commons Attribution-NonCommercial-ShareAlike 4.0
+International License][cc-by-nc-sa].
 
 [![GPL 3][gpl3-image]][gpl3]
 All JavaScript programs in this work are licensed under the 
 [GNU General Public License Version 3][gpl3].
-
-[![CC BY-NC-SA 4.0][cc-by-nc-sa-image]][cc-by-nc-sa] 
-The final version of this work will be published by The MIT Press under the [Creative Commons Attribution-NonCommercial-ShareAlike 4.0
-International License][cc-by-nc-sa].
 
 [cc-by-sa]: http://creativecommons.org/licenses/by-sa/4.0/
 [cc-by-sa-image]: https://licensebuttons.net/l/by-sa/4.0/88x31.png
