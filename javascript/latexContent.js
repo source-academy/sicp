@@ -16,10 +16,14 @@ const title = `\\begin{titlepage}
   {\\large with Julie Sussman \\par}
   \\end{flushright}
 
-  {This work is licensed under the \\href{https://creativecommons.org/licenses/by-sa/4.0/}{Creative Commons Attribution-ShareAlike 4.0 International License}.}
-
   \\vspace{0.2cm}
+  {This work is licensed under a \\href{https://creativecommons.org/licenses/by-nc-sa/4.0/}{Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International License}.}
+
+  \\vspace{0.1cm}
 {All JavaScript programs in this work are licensed under the \\href{https://www.gnu.org/licenses/gpl-3.0.en.html}{GNU General Public License Version 3}.}
+
+  \\vspace{0.1cm}
+  {The final version of this work will be published by The MIT Press under a \\href{https://creativecommons.org/licenses/by-nc-sa/4.0/}{Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International License}.}
 
 \\end{titlepage}
 `;

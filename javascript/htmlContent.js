@@ -255,9 +255,9 @@ export const indexPage = writeTo => {
       <span class="title-text-TITLE">original textbook by</span> <span class="title-text-AUTHOR">Harold Abelson and Gerald Jay Sussman<br/>with Julie Sussman</span>
     </div>
 
-    <div><a href="http://creativecommons.org/licenses/by-sa/4.0/" rel="nofollow"><img src="https://camo.githubusercontent.com/68525ec5f8acf359e826761fa50e9262da143eb5/68747470733a2f2f6c6963656e7365627574746f6e732e6e65742f6c2f62792d73612f342e302f38387833312e706e67" alt="CC BY-SA 4.0" data-canonical-src="https://licensebuttons.net/l/by-sa/4.0/88x31.png" style="max-width:100%;"></a>
+    <div><a href="http://creativecommons.org/licenses/by-nc-sa/4.0/" rel="nofollow"><img src="https://licensebuttons.net/l/by-nc-sa/4.0/88x31.png" style="max-width:100%;"></a>
 <p>
-This work is licensed under the <a href="http://creativecommons.org/licenses/by-sa/4.0/" rel="nofollow">Creative Commons Attribution-ShareAlike 4.0
+This work is licensed under a <a href="http://creativecommons.org/licenses/by-nc-sa/4.0/" rel="nofollow">Creative Commons Attribution-NonCommercial-ShareAlike 4.0
 International License</a>.
      </div>
 
@@ -265,6 +265,12 @@ International License</a>.
 <p>
 All JavaScript programs in this work are licensed under the
 <a href="https://www.gnu.org/licenses/gpl-3.0.en.html" rel="nofollow">GNU General Public License Version 3</a>.
+     </div>
+
+    <div><a href="http://creativecommons.org/licenses/by-nc-sa/4.0/" rel="nofollow"><img src="https://licensebuttons.net/l/by-nc-sa/4.0/88x31.png" style="max-width:100%;"></a>
+<p>
+The final version of this work will be published by The MIT Press under a <a href="http://creativecommons.org/licenses/by-nc-sa/4.0/" rel="nofollow">Creative Commons Attribution-NonCommercial-ShareAlike 4.0
+International License</a>.
      </div>
 
     `);

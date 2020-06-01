@@ -460,9 +460,6 @@ const processTextFunctionsSplit = {
   },
 
   JAVASCRIPT: (node, writeTo) => {
-    if (ancestorHasTag(node, "SPLITINLINE")) {
-      writeTo.push("/");
-    }
     writeTo.push(`<span style="color:blue">`);
     recursiveProcessTextHtml(node.firstChild, writeTo);
     writeTo.push(`</span>`);
