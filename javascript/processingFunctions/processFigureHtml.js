@@ -31,9 +31,10 @@ export const processFigureHtml = (node, writeTo) => {
 
   // get href and displayed name from "referenceStore"
   const referenceName = label.getAttribute("NAME");
+  // console.log("reference name is " + referenceName);
   const href = referenceStore[referenceName].href;
+  // console.log("lookup successful");
   const displayName = referenceStore[referenceName].displayName;
-  //console.log("reference name is " + referenceName);
 
   if (src && label) {
     writeTo.push(`
