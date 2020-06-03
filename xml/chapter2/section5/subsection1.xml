@@ -465,6 +465,77 @@ put("angle",     list("complex"), angle);
         <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
         is dispatched to
         in each case?
+        <SOLUTION>
+          Putting the above lines to the package will open up z, and those lines act as a pass-through. <SPLITINLINE><SCHEME><SCHEMEINLINE>apply-generic</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>apply_generic</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> ill be invoked twice. We shall trace with substitution model how the program evaluates.
+          <SNIPPET EVAL="no">
+            <JAVASCRIPT>
+magnitude(z);
+apply_generic("magnitude", list(z));
+// In this case:
+// type_tags = map(type_tag, list(z))
+// Which evaluates to:
+// type_tags = list("complex");
+// and
+// fun = get("magnitude", list("complex"));
+// which, due to the addition of the put("magnitude", list("complex"), magnitude);
+// fun = magnitude;
+apply(magnitude, map(contents, list(z)));
+apply(magnitude, pair("rectangular", pair(3,4)));
+magnitude(pair("rectangular"), pair(3,4));
+apply_generic("magnitude", list(pair("rectangular"), pair(3,4)));
+// type_tags = map(type_tag, list(z)) evaluates to list("rectangular")
+// fun = get("magnitude", list("rectangular")) which evaluates to
+// z => math_sqrt(square(real_part(z)) + square(imag_part(z)))
+// z => math_sqrt(square(head(z)) + square(tail(z)))
+apply(fun, map(contents, list(pair("rectangular"), pair(3,4))))
+apply(fun, pair(3,4))
+(z => math_sqrt(square(head(z)) + square(tail(z))))(pair(3,4));
+math_sqrt(square(head(pair(3,4))) + square(tail(pair(3,4))))
+...
+math_sqrt(square(3) + square(4));
+...
+math_sqrt(9 + 16);
+math_sqrt(25);
+5
+            </JAVASCRIPT>
+            <SCHEME>
+;;*** Use substitution rule:
+(magnitude z)
+
+;;** First apply-generic:
+(apply-generic 'magnitude z) ;; where z is the whole objec including symbol 'complex.
+;;recall
+(define (apply-generic op . args)
+  (let ((type-tags (map type-tag args)))
+    (let ((proc (get op type-tags)))
+      (if proc
+          (apply proc (map contents args))
+          (error
+            "No method for these types -- APPLY-GENERIC"
+            (list op type-tags))))))
+;; substitution
+(let ((type-tags '(complex))  ... ))
+(let ((proc (get op '(complex))) ... ))
+(let ((proc magnitude) ... ))
+(if proc...  ;; true
+(apply magnitude (contents z))
+(magnitude z-prime) ;; where z-prime is the contents (the cdr) of the original object, that is, with the 'complex stripped off.
+
+;;** Second apply-generic:
+(let ((type-tags '(rectangular)) ... ))
+(let ((proc (get op '(rectangular))) ... ))
+(let ((proc (get 'magnitude '(rectangular))) ... ))
+(let ((proc (lambda (z) (sqrt (+ (square (real-part z))
+                                 (square (imag-part z))))))  ...  )))
+
+(if proc... ;; true
+(apply (lambda (z) (sqrt (+ (square (real-part z))
+                            (square (imag-part z))))) (contents z-prime))
+(sqrt (+ (square 3) (square 4)))
+5
+            </SCHEME>
+          </SNIPPET>
+        </SOLUTION>
       </EXERCISE>
 
       <EXERCISE> 
