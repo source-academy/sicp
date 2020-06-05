@@ -15,11 +15,16 @@ export const setupSnippetsJs = node => {
     const snippet = snippets[i];
     const jsSnippet = snippet.getElementsByTagName("JAVASCRIPT")[0];
     let jsRunSnippet = snippet.getElementsByTagName("JAVASCRIPT_RUN")[0];
-    if (!jsRunSnippet) {
-      jsRunSnippet = jsSnippet;
+    let jsTestSnippet = snippet.getElementsByTagName("JAVASCRIPT_TEST")[0];
+    if (jsTestSnippet) {
+      jsRunSnippet = jsTestSnippet;
+    } else {
+      if (!jsRunSnippet) {
+        jsRunSnippet = jsSnippet;
+      }
     }
     const snippetName = snippet.getElementsByTagName("NAME")[0];
-    if (snippetName && jsSnippet) {
+    if (snippetName && jsRunSnippet) {
       const nameStr = snippetName.firstChild.nodeValue;
       if (snippetStore[nameStr]) {
         repeatedNameWarning(nameStr);
@@ -59,10 +64,14 @@ export const processSnippetJs = (node, writeTo, fileFormat) => {
   if (jsSnippet) {
     // JavaScript source for running. Overrides JAVASCRIPT if present.
     let jsRunSnippet = node.getElementsByTagName("JAVASCRIPT_RUN")[0];
-    if (!jsRunSnippet) {
-      jsRunSnippet = jsSnippet;
+    let jsTestSnippet = node.getElementsByTagName("JAVASCRIPT_TEST")[0];
+    if (jsTestSnippet) {
+      jsRunSnippet = jsTestSnippet;
+    } else {
+      if (!jsRunSnippet) {
+        jsRunSnippet = jsSnippet;
+      }
     }
-
     const codeArr = [];
     recursiveProcessPureText(jsSnippet.firstChild, codeArr);
     const codeStr = codeArr.join("").trim();

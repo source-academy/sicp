@@ -160,16 +160,23 @@ export const processSnippetHtml = (node, writeTo, split) => {
       const explicit_chap = node.getAttribute("CHAP");
       const chap = explicit_chap ? explicit_chap : current_chap;
       let variant = node.getAttribute("VARIANT");
+      let ext = node.getAttribute("EXT");
       if (variant) {
         variant = "&variant=" + variant;
       } else {
         variant = "";
+      }
+      if (ext) {
+        ext = "&ext=" + ext;
+      } else {
+        ext = "";
       }
       const url =
         sourceAcademyURL +
         "/playground#chap=" +
         chap +
         variant +
+        ext +
         "&prgrm=" +
         compressed;
 

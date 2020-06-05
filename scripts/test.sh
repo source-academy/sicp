@@ -41,16 +41,32 @@ $DIFF"
 main() {
     for s in ${SOURCEFILES}
     do
-        DIR=$(dirname ${s})	
-	# check if first line of test file contains 'chapter=' and retrieve its value. Set to the default chapter if it does not
-	chapter=$($AWK -F 'chapter=' 'FNR==1{ if ($0~"chapter=") { print $2 } else { print '$DEFAULT_CHAPTER' } }' $s | $AWK -F ' ' '{ print $1 }')
-        
-	# check if first line of test file contains 'variant=' and retrieve its value. Set to the default variant if it does not
-	variant=$($AWK -F 'variant=' 'FNR==1{ if ($0~"variant=") { print $2 } else { print '$DEFAULT_VARIANT' } }' $s | $AWK -F ' ' '{ print $1 }')
-	test_source ${s} ${chapter} ${variant}
+	# DIR is full path including js_programs
+        DIR=$(dirname ${s})
+	# CHAPTERDIR is path starting with chapterx
+	CHAPTERDIR=${DIR#*/}
+	# CHAPTER is just the chapter name, e.g. chapter2
+	CHAPTER=${CHAPTERDIR%%/*}
+	# SECTIONDIR is path starting with sectionx
+	SECTIONDIR=${CHAPTERDIR#*/}
+	# SECTION is just the section name, e.g. section3
+	SECTION=${SECTIONDIR%%/*}
+	if [[ ($1 == $CHAPTER || $1 == "") && ($2 == $SECTION || $2 == "") ]];
+	then
+	    # check if first line of test file contains 'chapter=' and retrieve
+	    # its value. Set to the default chapter if it does not
+	    chapter=$($AWK -F 'chapter=' 'FNR==1{ if ($0~"chapter=") { print $2 } else { print '$DEFAULT_CHAPTER' } }' $s | $AWK -F ' ' '{ print $1 }')
+            
+	    # check if first line of test file contains 'variant=' and retrieve
+	    # its value. Set to the default variant if it does not
+	    variant=$($AWK -F 'variant=' 'FNR==1{ if ($0~"variant=") { print $2 } else { print '$DEFAULT_VARIANT' } }' $s | $AWK -F ' ' '{ print $1 }')
+	    test_source ${s} ${chapter} ${variant}
+	fi
     done
 }
 
-main
+# optional arguments: chapter... section..., limiting testing only to the
+# named chapter (or section): e.g. yarn test chapter2 section3
+main $1 $2
 echo "${normal}test cases completed; $passed passed, $failed failed"
 exit 0
