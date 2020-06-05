@@ -28,7 +28,8 @@ const tagsToRemove = new Set([
   "NAME",
   "ORDER",
   "SCHEME",
-  "SOLUTION"
+  "SOLUTION",
+  "WEB_ONLY"
 ]);
 // SOLUTION tag handled by processSnippet
 

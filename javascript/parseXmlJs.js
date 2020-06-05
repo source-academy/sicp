@@ -16,12 +16,10 @@ const tagsToRemove = new Set([
   "HISTORY",
   "ORDER",
   "SCHEME",
-  "SOLUTION",
   "INDEX",
   "LABEL",
   "NAME"
 ]);
-// SOLUTION tag handled by processSnippet
 
 const ignoreTags = new Set([
   "CHAPTERCONTENT",

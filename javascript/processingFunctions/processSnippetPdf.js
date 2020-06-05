@@ -147,9 +147,8 @@ export const processSnippetPdf = (node, writeTo) => {
       const compressed = lzString.compressToEncodedURIComponent(
         reqStr + codeStr_run + exampleStr
       );
-      const current_chap = chapterIndex.substring(0, 1);
-      const explicit_chap = node.getAttribute("CHAP");
-      const chap = explicit_chap ? explicit_chap : current_chap;
+      // in this version we dont have access to the current chapter
+      const chap = 4; // hard-wire chapter to 4
       let variant = node.getAttribute("VARIANT");
       if (variant) {
         variant = "variant=" + variant + "&";
