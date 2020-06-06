@@ -16,7 +16,7 @@ This work is licensed under a [Creative Commons Attribution-NonCommercial-ShareA
 International License][cc-by-nc-sa].
 
 [![GPL 3][gpl3-image]][gpl3]
-All JavaScript programs in this work are licensed under the 
+All JavaScript and Scheme programs in this work are licensed under the 
 [GNU General Public License Version 3][gpl3].
 
 [cc-by-sa]: http://creativecommons.org/licenses/by-sa/4.0/
