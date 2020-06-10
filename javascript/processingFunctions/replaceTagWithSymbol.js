@@ -16,7 +16,7 @@ const tagsToReplace = {
   OUML_UPPER: "Ö",
   UUML_LOWER: "ü",
   UUML_UPPER: "Ü",
-  CCEDIL_LOWER: "Ç",
+  CCEDIL_LOWER: "ç",
   ELLIPSIS: "…",
   AMP: "\\&",
   DOLLAR: "\\$",
