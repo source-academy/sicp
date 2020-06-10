@@ -40,7 +40,6 @@ export const setupSnippetsHtml = node => {
       for (let i = 0; requirements[i]; i++) {
         requireNames.push(requirements[i].firstChild.nodeValue);
       }
-
       snippetStore[nameStr] = { codeStr, requireNames };
     }
   }
@@ -99,10 +98,10 @@ export const processSnippetHtml = (node, writeTo, split) => {
       let reqStr = "";
       let reqArr = [];
       const snippetName = node.getElementsByTagName("NAME")[0];
-
       let nameStr;
       if (snippetName) {
         nameStr = snippetName.firstChild.nodeValue;
+	// console.log(nameStr);
         const reqSet = new Set();
         recursiveGetRequires(nameStr, reqSet);
         const examples = node.getElementsByTagName("EXAMPLE");
