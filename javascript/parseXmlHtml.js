@@ -34,9 +34,9 @@ export let chapterIndex = "";
 export let toIndexFolder = "../";
 
 const tagsToRemoveDefault = new Set([
+  "#comment",
   "ATTRIBUTION",
   "AUTHOR",
-  "#comment",
   "COMMENT",
   "WEB_ONLY",
   "PDF_ONLY",
@@ -57,7 +57,6 @@ const tagsToRemoveDefault = new Set([
 const ignoreTagsDefault = new Set([
   "CHAPTERCONTENT",
   "NOBR",
-  "span",
   "SPLIT",
   "SPLITINLINE",
   "JAVASCRIPT"
@@ -76,12 +75,8 @@ const preserveTagsDefault = new Set([
   "CITATION",
   "TT",
   "TABLE",
-  "table",
   "TR",
-  "tr",
   "TD",
-  "td",
-  "kbd",
   "p",
   "REFERENCE"
 ]);
@@ -164,11 +159,6 @@ const processTextFunctionsDefaultHtml = {
     const name = getChildrenByTagName(node, "NAME")[0];
     recursiveProcessTextHtml(name.nextSibling, writeTo);
     writeTo.push("\n</CHAPTER></div></div>\n");
-  },
-
-  em: (node, writeTo) => {
-    node.nodeName = "EM";
-    processTextHtml(node, writeTo);
   },
 
   EM_NO_INDEX: (node, writeTo) => {

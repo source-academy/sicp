@@ -46,6 +46,7 @@ export const setupSnippetsHtml = node => {
 };
 
 const recursiveGetRequires = (name, seen) => {
+  // console.log("in recursiveGetRequires: " + name);
   if (seen.has(name)) return;
   const snippetEntry = snippetStore[name];
   if (!snippetEntry) {
@@ -101,7 +102,7 @@ export const processSnippetHtml = (node, writeTo, split) => {
       let nameStr;
       if (snippetName) {
         nameStr = snippetName.firstChild.nodeValue;
-	// console.log(nameStr);
+        // console.log(nameStr);
         const reqSet = new Set();
         recursiveGetRequires(nameStr, reqSet);
         const examples = node.getElementsByTagName("EXAMPLE");

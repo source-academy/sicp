@@ -32,9 +32,9 @@ export let chapterIndex = "";
 export let toIndexFolder = "../";
 
 export const tagsToRemove = new Set([
+  "#comment",
   "ATTRIBUTION",
   "AUTHOR",
-  "#comment",
   "COMMENT",
   "CHANGE",
   "EDIT",
@@ -52,7 +52,6 @@ export const tagsToRemove = new Set([
 export const ignoreTags = new Set([
   "CHAPTERCONTENT",
   "NOBR",
-  "span",
   "SPLIT",
   "SPLITINLINE",
   "JAVASCRIPT"
@@ -71,12 +70,8 @@ export const preserveTags = new Set([
   "CITATION",
   "TT",
   "TABLE",
-  "table",
   "TR",
-  "tr",
   "TD",
-  "td",
-  "kbd",
   "p",
   "REFERENCE"
 ]);
@@ -121,10 +116,6 @@ export const processTextFunctionsHtml = {
   WEBPREFACE: (node, writeTo) =>
     processTextFunctionsHtml["ABOUT"](node, writeTo),
   MATTER: (node, writeTo) => processTextFunctionsHtml["ABOUT"](node, writeTo),
-
-  br: (node, writeTo) => {
-    writeTo.push("<br>");
-  },
 
   BR: (node, writeTo) => processTextFunctionsHtml["br"](node, writeTo),
 
