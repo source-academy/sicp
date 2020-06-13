@@ -62,6 +62,17 @@ const recursiveGetRequires = (name, seen) => {
 export const processSnippetJs = (node, writeTo, fileFormat) => {
   const jsSnippet = node.getElementsByTagName("JAVASCRIPT")[0];
   if (jsSnippet) {
+    if (node.getAttribute("CHAP") || node.getAttribute("VARIANT")) {
+      writeTo.push("// ");
+      if (node.getAttribute("CHAP")) {
+        writeTo.push("chapter=" + node.getAttribute("CHAP") + " ");
+      }
+      if (node.getAttribute("VARIANT")) {
+        writeTo.push("variant=" + node.getAttribute("VARIANT") + " ");
+      }
+      writeTo.push("\n");
+    }
+
     // JavaScript source for running. Overrides JAVASCRIPT if present.
     let jsRunSnippet = node.getElementsByTagName("JAVASCRIPT_RUN")[0];
     let jsTestSnippet = node.getElementsByTagName("JAVASCRIPT_TEST")[0];

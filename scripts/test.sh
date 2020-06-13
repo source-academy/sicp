@@ -18,17 +18,23 @@ passed=0
 failed=0
 
 # $1 is the source file to be tested
-# $2 is the test file
-# $3 is the chapter
-# $4 is the variant
+# $2 is the chapter
+# $3 is the variant
 
 test_source() {
 #    echo $1
+#    echo $2
+#    echo $3
+    if [ $3 ];  then
+	variant=$3
+    else
+	variant=$DEFAULT_VARIANT
+    fi
 #    echo "$(cat $1 | tail -1 | cut -c 1-13)"
     if [  "$(cat $1 | tail -1 | cut -c 1-13)" = "// expected: " ]
     then
 	echo "${normal}$1, expecting: $(cat $1 | tail -1 | cut -c14-)"
-        DIFF=$(diff <($JS_SLANG -e --chapter=$2 "$(cat $1)") \
+        DIFF=$(diff <($JS_SLANG -e --chapter=$2 --variant=$variant "$(cat $1)") \
 	            <(cat $1 | tail -1 | cut -c14-))
 	if [ "$DIFF" = "" ]
 	then passed=$(($passed+1)); echo "${green}PASS"
