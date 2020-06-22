@@ -1,4 +1,4 @@
-<SUBSECTION WIP="yes">
+<SUBSECTION>
   <NAME>
     Separating Syntactic Analysis from Execution
   </NAME>
@@ -23,8 +23,10 @@
     <JAVASCRIPT><JAVASCRIPTINLINE>factorial(4)</JAVASCRIPTINLINE></JAVASCRIPT>
     </SPLITINLINE> using the following definition of
     <SCHEMEINLINE>factorial</SCHEMEINLINE>:
-
     <SNIPPET>
+      <NAME>factorial_4_1_7</NAME>
+      <EXAMPLE>factorial_example</EXAMPLE>
+      <EXPECTED>120</EXPECTED>
       <SCHEME>
       (define (factorial n)
       (if (= n 1)
@@ -34,8 +36,8 @@
       <JAVASCRIPT>
 function factorial(n) {      
     return n === 1
-           ?
-           factorial(n - 1) * n;
+           ? 1
+           : factorial(n - 1) * n;
 }
       </JAVASCRIPT>
     </SNIPPET>
@@ -133,8 +135,16 @@ function factorial(n) {
       <JAVASCRIPT><JAVASCRIPTINLINE>evaluate</JAVASCRIPTINLINE></JAVASCRIPT>
     </SPLITINLINE>
     now becomes
-
-    <SNIPPET EVAL="no">
+    <SNIPPET HIDE="yes">
+      <NAME>analyze_headline</NAME>
+      <JAVASCRIPT>
+// functions from SICP JS 4.1.7
+      </JAVASCRIPT>
+    </SNIPPET>
+    <SNIPPET>
+      <NAME>evaluate_4_1_7</NAME>
+      <REQUIRES>analyze</REQUIRES>
+      <EXAMPLE>evaluate_4_1_7_simple_function</EXAMPLE>
       <SCHEME>
       <!-- \indcodeplus*{eval}{(metacircular)}[analyzing version]-->
       (define (eval exp env)
@@ -142,29 +152,68 @@ function factorial(n) {
       </SCHEME>
       <JAVASCRIPT>
 function evaluate(exp, env) {      
-    return (analyze(exp))(env);
+    return analyze(exp)(env);
 }
+      </JAVASCRIPT>
+    </SNIPPET>
+    <SNIPPET HIDE="yes">
+      <NAME>evaluate_4_1_7_simple_function</NAME>
+      <REQUIRES>evaluate_4_1_7</REQUIRES>
+      <EXPECTED>5</EXPECTED>
+      <JAVASCRIPT>
+evaluate(parse("{ function f(x) { return x + 1; } f(4); }"), 
+         the_global_environment);
       </JAVASCRIPT>
     </SNIPPET>
   </TEXT>
 
   <TEXT>
     The result of calling <SCHEMEINLINE>analyze</SCHEMEINLINE> is the execution
-    <SPLITINLINE><SCHEME>procedure</SCHEME>
-    <JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
-    to be applied to the environment.  The
-    <SCHEMEINLINE>analyze</SCHEMEINLINE>
-    <SPLITINLINE><SCHEME>procedure</SCHEME>
-    <JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+    <SPLITINLINE>
+      <SCHEME>procedure</SCHEME>
+      <JAVASCRIPT>function</JAVASCRIPT>
+    </SPLITINLINE>
+    to be applied to the environment.  The <SCHEMEINLINE>analyze</SCHEMEINLINE>
+    <SPLITINLINE>
+      <SCHEME>procedure</SCHEME>
+      <JAVASCRIPT>function</JAVASCRIPT>
+    </SPLITINLINE>
     is the same case analysis as performed by the original
-    <SCHEMEINLINE>eval</SCHEMEINLINE> of
-    section<SPACE/><REF NAME="sec:core-of-evaluator"/>,
-    except that the
-    <SPLITINLINE><SCHEME>procedures</SCHEME>
-    <JAVASCRIPT>functions</JAVASCRIPT></SPLITINLINE>
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>eval</SCHEMEINLINE></SCHEME>
+      <JAVASCRIPT><JAVASCRIPTINLINE>evaluate</JAVASCRIPTINLINE></JAVASCRIPT>
+    </SPLITINLINE>
+    of section<SPACE/><REF NAME="sec:core-of-evaluator"/>, except that the
+    <SPLITINLINE>
+      <SCHEME>procedures</SCHEME>
+      <JAVASCRIPT>functions</JAVASCRIPT>
+    </SPLITINLINE>
     to which we dispatch perform only analysis, not full evaluation:
-
-    <SNIPPET EVAL="no">
+    <SNIPPET HIDE="yes">
+      <NAME>analyze_example</NAME>
+      <JAVASCRIPT>
+analyze(parse("{ const x = 1; x + 1; }"))
+       (the_global_environment);
+      </JAVASCRIPT>
+    </SNIPPET>
+    <SNIPPET>
+      <NAME>analyze</NAME>
+      <REQUIRES>functions_4_1_2</REQUIRES>
+      <REQUIRES>functions_4_1_3</REQUIRES>
+      <REQUIRES>functions_4_1_4</REQUIRES>
+      <REQUIRES>analyze_headline</REQUIRES>
+      <REQUIRES>analyze_self_evaluating</REQUIRES>
+      <REQUIRES>analyze_variable</REQUIRES>
+      <REQUIRES>analyze_assignment</REQUIRES>
+      <REQUIRES>analyze_if</REQUIRES>
+      <REQUIRES>scan_out_declarations</REQUIRES>
+      <REQUIRES>analyze_lambda</REQUIRES>
+      <REQUIRES>analyze_sequence</REQUIRES>
+      <REQUIRES>analyze_block</REQUIRES>
+      <REQUIRES>analyze_return_statement</REQUIRES>
+      <REQUIRES>analyze_application</REQUIRES>
+      <EXAMPLE>analyze_example</EXAMPLE>
+      <EXPECTED>2</EXPECTED>
       <SCHEME>
       <!--  \indcode*{analyze}[metacircular] -->
       (define (analyze exp)
@@ -196,34 +245,44 @@ function analyze(stmt) {
            ? analyze_assignment(stmt)
          : is_conditional_expression(stmt)
            ? analyze_conditional_expression(stmt)
-         : is_function_definition(stmt)
-           ? analyze_function_definition(stmt)
+         : is_lambda(stmt)
+           ? analyze_lambda(stmt)
          : is_sequence(stmt)
-           ? analyze_sequence(sequence_actions(stmt))
+           ? analyze_sequence(sequence_statements(stmt))
          : is_block(stmt)
-           ? analyze_block(block_body(stmt))
-         : is_return_statement(stmt)
+           ? analyze_block(stmt)
+         : is_return(stmt)
            ? analyze_return_statement(stmt)
          : is_application(stmt)
            ? analyze_application(stmt)
-         : error(stmt, "Unknown statement type in analyze");
+         : error(stmt, "Unknown syntax in analyze:");
 }
       </JAVASCRIPT>
     </SNIPPET>
   </TEXT>
-
   <TEXT>
     Here is the simplest syntactic analysis
-    <SPLITINLINE><SCHEME>procedure</SCHEME>
-    <JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>, which handles
-    self-evaluating expressions.  It returns an execution
-    <SPLITINLINE><SCHEME>procedure</SCHEME>
-    <JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
-    that
-    ignores its environment argument and just returns the expression:
-
+    <SPLITINLINE>
+      <SCHEME>procedure,</SCHEME>
+    <JAVASCRIPT>function,</JAVASCRIPT></SPLITINLINE>
+    which handles self-evaluating expressions.  It returns an execution
+    <SPLITINLINE>
+      <SCHEME>procedure</SCHEME>
+      <JAVASCRIPT>function</JAVASCRIPT>
+    </SPLITINLINE>
+    that ignores its environment argument and just returns the expression:
     <!--  \indcode{analyze-...}[metacircular|(] -->
-    <SNIPPET EVAL="no">
+    <SNIPPET HIDE="yes">
+      <NAME>analyze_self_evaluating_example</NAME>
+      <JAVASCRIPT>
+// null is the empty environment (not used here)	
+analyze_self_evaluating(parse("true;"))(null);	
+      </JAVASCRIPT>
+    </SNIPPET>
+    <SNIPPET>
+      <NAME>analyze_self_evaluating</NAME>
+      <EXAMPLE>analyze_self_evaluating_example</EXAMPLE>
+      <EXPECTED>true</EXPECTED>
       <SCHEME>
       (define (analyze-self-evaluating exp)
       (lambda (env) exp))
@@ -242,8 +301,9 @@ function analyze_self_evaluating(stmt) {
 	For a quoted expression, we can gain a little efficiency by
 	extracting the text of the quotation only once, in the analysis phase,
 	rather than in the execution phase.
-
-	<SNIPPET EVAL="no">
+	<SNIPPET>
+	  <NAME>analyze_quoted</NAME>
+	  <EXAMPLE>analyze_quoted_quoted</EXAMPLE>
 	  <SCHEME>
       (define (analyze-quoted exp)
       (let ((qval (text-of-quotation exp)))
@@ -252,6 +312,8 @@ function analyze_self_evaluating(stmt) {
 	</SNIPPET>
       </TEXT>
     </SCHEME>
+    <JAVASCRIPT>
+    </JAVASCRIPT>
   </SPLIT>
   
   <TEXT>
@@ -264,34 +326,52 @@ function analyze_self_evaluating(stmt) {
 	the value of a name
       </JAVASCRIPT>
     </SPLITINLINE>
-    must still be done in the execution phase,
-    since this depends upon knowing the environment.<FOOTNOTE>There is,
-    however, an important part of the variable search that <EM>can</EM> be
-    done as part of the syntactic analysis.
-    <SPLIT>
+    must still be done in the execution phase, since this depends upon knowing
+    the environment.<FOOTNOTE>There is, however, an important part of the
+    <SPLITINLINE>
       <SCHEME>
-        As we will show in
-    section<SPACE/><REF NAME="sec:lexical-addressing"/>,
-    one can determine the position
-    in the environment structure where the value of the variable will be
-    found, thus obviating the need to scan the environment for the entry
-    that matches the variable.
+	variable search    
       </SCHEME>
       <JAVASCRIPT>
-        <!-- FIXME: remove split and replace with scheme text once Chapter 5.5.6 is adapted to JavaScript -->
+	search for a name
       </JAVASCRIPT>
-    </SPLIT>
-</FOOTNOTE>
-
-    <SNIPPET EVAL="no">
+    </SPLITINLINE>
+    that <EM>can</EM> be done as part of the syntactic analysis.
+    <SPLIT>
+      <SCHEME>
+        As we will show in section<SPACE/><REF NAME="sec:lexical-addressing"/>,
+	one can determine the position in the environment structure where the
+	value of the variable will be found, thus obviating the need to scan the
+	environment for the entry that matches the variable.
+      </SCHEME>
+      <JAVASCRIPT>
+        <!-- FIXME: remove split and replace with scheme text once 
+	     Chapter 5.5.6 is adapted to JavaScript -->
+      </JAVASCRIPT>
+    </SPLIT></FOOTNOTE>
+    <SNIPPET HIDE="yes">
+      <NAME>analyze_variable_example</NAME>
+      <REQUIRES>functions_4_1_2</REQUIRES>
+      <REQUIRES>functions_4_1_3</REQUIRES>
+      <REQUIRES>functions_4_1_4</REQUIRES>
+      <JAVASCRIPT>
+analyze_name(parse("myname;"))
+ (extend_environment(list("myname"), list(1), 
+                     the_global_environment));
+      </JAVASCRIPT>
+    </SNIPPET>
+    <SNIPPET>
+      <NAME>analyze_variable</NAME>
+      <EXAMPLE>analyze_variable_example</EXAMPLE>
+      <EXPECTED>1</EXPECTED>
       <SCHEME>
       (define (analyze-variable exp)
       (lambda (env) (lookup-variable-value exp env)))
       </SCHEME>
       <JAVASCRIPT>
 function analyze_name(stmt) {      
-    return env => lookup_name_value(
-                      name_of_name(stmt, env));
+    return env => lookup_symbol_value(
+                      symbol_of_name(stmt), env);
 }
       </JAVASCRIPT>
     </SNIPPET>
@@ -306,9 +386,8 @@ function analyze_name(stmt) {
       <JAVASCRIPTINLINE>analyze_assignment</JAVASCRIPTINLINE>
       </JAVASCRIPT>
     </SPLITINLINE>
-    also must defer actually setting the variable
-    until the execution, when the environment has been supplied.  However,
-    the fact that the
+    also must defer actually setting the variable until the execution, when the
+    environment has been supplied.  However, the fact that the
     <SPLITINLINE>
       <SCHEME>
 	<SCHEMEINLINE>assignment-value</SCHEMEINLINE>
@@ -317,8 +396,8 @@ function analyze_name(stmt) {
       <JAVASCRIPTINLINE>assignment_value</JAVASCRIPTINLINE>
       </JAVASCRIPT>
     </SPLITINLINE>
-    expression can be analyzed (recursively) during analysis is a
-    major gain in efficiency, because the
+    expression can be analyzed (recursively) during analysis is a major gain in
+    efficiency, because the
     <SPLITINLINE>
       <SCHEME>
 	<SCHEMEINLINE>assignment-value</SCHEMEINLINE>
@@ -327,13 +406,23 @@ function analyze_name(stmt) {
       <JAVASCRIPTINLINE>assignment_value</JAVASCRIPTINLINE>
       </JAVASCRIPT>
     </SPLITINLINE>
-    expression will now be analyzed
-    only once.  The same holds true for
+    expression will now be analyzed only once.  The same holds true for
     <SPLITINLINE>
       <SCHEME>definitions.</SCHEME>
       <JAVASCRIPT>constant and variable declarations.</JAVASCRIPT>
     </SPLITINLINE>
-    <SNIPPET EVAL="no">
+    <SNIPPET HIDE="yes">
+      <NAME>analyze_assignment_example</NAME>
+      <REQUIRES>analyze</REQUIRES>
+      <JAVASCRIPT>
+analyze_assignment(parse("x = x + 1;"))
+   (extend_environment(list("x"), list(7), the_global_environment));
+      </JAVASCRIPT>
+    </SNIPPET>
+    <SNIPPET>
+      <NAME>analyze_assignment</NAME>
+      <EXAMPLE>analyze_assignment_example</EXAMPLE>
+      <EXPECTED>8</EXPECTED>
       <SCHEME>
       (define (analyze-assignment exp)
       (let ((var (assignment-variable exp))
@@ -351,37 +440,25 @@ function analyze_name(stmt) {
       </SCHEME>
       <JAVASCRIPT>
 function analyze_assignment(stmt) {
-    const variable = assignment_variable(stmt);
+    const symbol = assignment_symbol(stmt);
     const vfun = analyze(assignment_value(stmt));
     return env => {
-               set_variable_value(variable,
-                   vfun(env), env);
-               return "ok";
+               const value = vfun(env);
+               assign_symbol_value(symbol, value, env);
+               return value;
            };
 }
 function analyze_variable_declaration(stmt) {	   
-    const name = 
-        variable_declaration_name(stmt);
-    const vfun =
-        variable_declaration_value(stmt);
-    return env => {
-               declare_variable(name, 
-                                vfun(env),
-				env);
-	       return "ok";
-           };
+    const symbol = variable_declaration_symbol(stmt);
+    const vfun = analyze(variable_declaration_value(stmt));
+    return env => 
+           assign_symbol_value(symbol, vfun(env), env);
 }
 function analyze_constant_declaration(stmt) {	   
-    const name = 
-        constant_declaration_name(stmt);
-    const vfun =
-        constant_declaration_value(stmt);
-    return env => {
-               declare_constant(name, 
-                                vfun(env),
-				env);
-	       return "ok";
-           };
+    const symbol = constant_declaration_symbol(stmt);
+    const vfun = analyze(constant_declaration_value(stmt));
+    return env => 
+           assign_symbol_value(symbol, vfun(env), env);
 }
        </JAVASCRIPT>
     </SNIPPET>
@@ -397,10 +474,20 @@ function analyze_constant_declaration(stmt) {
 	conditional expressions,
       </JAVASCRIPT>
     </SPLITINLINE>
-    we extract and analyze the predicate,
-    consequent, and alternative at analysis time.
-
-    <SNIPPET EVAL="no">
+    we extract and analyze the predicate, consequent, and alternative at
+    analysis time.
+    <SNIPPET HIDE="yes">
+      <NAME>analyze_if_example</NAME>
+      <REQUIRES>analyze</REQUIRES>
+      <JAVASCRIPT>
+analyze_conditional_expression(parse("true ? 3 : 7;"))
+   (the_global_environment);	
+      </JAVASCRIPT>
+    </SNIPPET>
+    <SNIPPET>
+      <NAME>analyze_if</NAME>
+      <EXAMPLE>analyze_if_example</EXAMPLE>
+      <EXPECTED>3</EXPECTED>
       <SCHEME>
       (define (analyze-if exp)
       (let ((pproc (analyze (if-predicate exp)))
@@ -416,9 +503,8 @@ function analyze_conditional_expression(stmt) {
     const pfun = analyze(cond_expr_pred(stmt));
     const cfun = analyze(cond_expr_cons(stmt));
     const afun = analyze(cond_expr_alt(stmt));
-    return env => is_true(pfun(env))
-                  ? cfun(env) 
-		  : afun(env);
+    return env =>
+           is_true(pfun(env)) ? cfun(env) : afun(env);
 }
       </JAVASCRIPT>
     </SNIPPET>
@@ -434,20 +520,18 @@ function analyze_conditional_expression(stmt) {
 	lambda
       </JAVASCRIPT>
     </SPLITINLINE>
-    expression also achieves a major
-    gain in efficiency: We analyze the
+    expression also achieves a major gain in efficiency: We analyze the
     <SPLITINLINE>
       <SCHEME>
 	<SCHEMEINLINE>lambda</SCHEMEINLINE>
       </SCHEME>
-      <JAVASCRIPT>
-	function
-      </JAVASCRIPT>
+      <JAVASCRIPT>lambda</JAVASCRIPT>
     </SPLITINLINE>
-    body
-    only once, even though
-    <SPLITINLINE><SCHEME>procedures</SCHEME>
-    <JAVASCRIPT>functions</JAVASCRIPT></SPLITINLINE>
+    body only once, even though
+    <SPLITINLINE>
+      <SCHEME>procedures</SCHEME>
+      <JAVASCRIPT>functions</JAVASCRIPT>
+    </SPLITINLINE>
     resulting from evaluation of the
     <SPLITINLINE>
       <SCHEME>
@@ -458,8 +542,30 @@ function analyze_conditional_expression(stmt) {
       </JAVASCRIPT>
     </SPLITINLINE>
     may be applied many times.
-
-    <SNIPPET EVAL="no">
+    <SPLITINLINE>
+      <JAVASCRIPT>
+	The scanning-out of local declarations is also only
+	done once, and their bindings to the
+	<LATEXINLINE>$\textit{unassigned}$</LATEXINLINE> value are
+	installed in the environment of the function object, once
+	the execution function of the lambda expression is called.
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    <SNIPPET HIDE="yes">
+      <NAME>analyze_lambda_example</NAME>
+      <REQUIRES>analyze</REQUIRES>
+      <JAVASCRIPT>
+list_ref(analyze_lambda(parse("x => x;"))
+         (the_global_environment),
+         2)
+        (extend_environment(list("x"), list(7), 
+                            the_global_environment));
+      </JAVASCRIPT>
+    </SNIPPET>
+    <SNIPPET>
+      <NAME>analyze_lambda</NAME>
+      <EXAMPLE>analyze_lambda_example</EXAMPLE>
+      <EXPECTED>[ 'return_value', [ 7, null ] ]</EXPECTED>
       <SCHEME>
       (define (analyze-lambda exp)
       (let ((vars (lambda-parameters exp))
@@ -467,13 +573,15 @@ function analyze_conditional_expression(stmt) {
       (lambda (env) (make-procedure vars bproc env))))
       </SCHEME>
       <JAVASCRIPT>
-function analyze_function_definition(stmt) {
-    const vars = 
-        function_definition_parameters(stmt);
-    const bfun =
-        analyze(function_definition_body(stmt);
+function analyze_lambda(stmt) {
+    const parameters = lambda_parameters(stmt);
+    const body = lambda_body(stmt);
+    const locals = scan_out_declarations(body);
+    const unassigneds = map(_ => unassigned, locals);
+    const bfun = analyze(body);
     return env =>
-	make_function(vars, bfun, env);
+           make_function(parameters, bfun,
+             extend_environment(locals, unassigneds, env));
 }
       </JAVASCRIPT>
     </SNIPPET>
@@ -492,10 +600,8 @@ function analyze_function_definition(stmt) {
       </JAVASCRIPT>
     </SPLITINLINE>
     is more 
-    involved.<FOOTNOTE>See
-    exercise<SPACE/><REF NAME="ex:analyze-sequence"/> for some insight
-    into the processing of sequences.</FOOTNOTE>
-    Each
+    involved.<FOOTNOTE>See exercise<SPACE/><REF NAME="ex:analyze-sequence"/> for
+    some insight into the processing of sequences.</FOOTNOTE> Each
     <SPLITINLINE>
       <SCHEME>
 	expression
@@ -505,21 +611,39 @@ function analyze_function_definition(stmt) {
       </JAVASCRIPT>
     </SPLITINLINE>
     in the sequence is analyzed, yielding an execution
-    <SPLITINLINE><SCHEME>procedure</SCHEME>
-    <JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>.
+    <SPLITINLINE>
+      <SCHEME>procedure.</SCHEME>
+      <JAVASCRIPT>function.</JAVASCRIPT>
+    </SPLITINLINE>
     These execution
-    <SPLITINLINE><SCHEME>procedures</SCHEME>
-    <JAVASCRIPT>functions</JAVASCRIPT></SPLITINLINE>
+    <SPLITINLINE>
+      <SCHEME>procedures</SCHEME>
+      <JAVASCRIPT>functions</JAVASCRIPT>
+    </SPLITINLINE>
     are combined to produce an execution
-    <SPLITINLINE><SCHEME>procedure</SCHEME>
-    <JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+    <SPLITINLINE>
+      <SCHEME>procedure</SCHEME>
+      <JAVASCRIPT>function</JAVASCRIPT>
+    </SPLITINLINE>
     that takes an environment as argument and sequentially
     calls each individual execution
-    <SPLITINLINE><SCHEME>procedure</SCHEME>
-    <JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+    <SPLITINLINE>
+      <SCHEME>procedure</SCHEME>
+      <JAVASCRIPT>function</JAVASCRIPT>
+    </SPLITINLINE>
     with the environment as argument.
-
-    <SNIPPET EVAL="no">
+    <SNIPPET HIDE="yes">
+      <NAME>analyze_sequence_example</NAME>
+      <REQUIRES>analyze</REQUIRES>
+      <JAVASCRIPT>
+analyze_sequence(sequence_statements(parse("10; 20; 30;")))
+   (the_global_environment);	
+      </JAVASCRIPT>
+    </SNIPPET>
+    <SNIPPET>
+      <NAME>analyze_sequence</NAME>
+      <EXAMPLE>analyze_sequence_example</EXAMPLE>
+      <EXPECTED>30</EXPECTED>
       <SCHEME>
       (define (analyze-sequence exps)
       (define (sequentially proc1 proc2)
@@ -538,9 +662,11 @@ function analyze_function_definition(stmt) {
 function analyze_sequence(stmts) {
     function sequentially(fun1, fun2) {
         return env => {
-                   fun1(env);
-                   fun2(env);
-               };
+            const fun1_val = fun1(env);
+            return is_return_value(fun1_val)
+                   ? fun1_val
+                   : fun2(env);
+        };
     }
     function loop(first_fun, rest_funs) {
         return is_null(rest_funs)
@@ -558,20 +684,83 @@ function analyze_sequence(stmts) {
     </SNIPPET>
   </TEXT>
 
+
   <TEXT>
-    To analyze an application, we analyze the operator and
-    operands and construct an execution
-    <SPLITINLINE><SCHEME>procedure</SCHEME>
-    <JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+    For return statements, we analyze the return expression and
+    apply the resulting execution function in the execution function
+    for the return statement.
+    <SNIPPET HIDE="yes">
+      <NAME>analyze_return_statement_example</NAME>
+      <REQUIRES>analyze</REQUIRES>
+      <JAVASCRIPT>
+analyze_return_statement(list_ref(parse("() => x + 1;"), 2))
+   (extend_environment(list("x"), list(6), the_global_environment));
+      </JAVASCRIPT>
+    </SNIPPET>
+    <SNIPPET>
+      <NAME>analyze_return_statement</NAME>
+      <EXAMPLE>analyze_return_statement_example</EXAMPLE>
+      <EXPECTED>[ 'return_value', [ 7, null ] ]</EXPECTED>
+      <JAVASCRIPT>
+function analyze_return_statement(stmt) {
+    const rfun = analyze(return_expression(stmt));
+    return env => make_return_value(rfun(env));
+}
+      </JAVASCRIPT>
+    </SNIPPET>
+  </TEXT>
+
+  <TEXT>
+    Just like the bodies of lambda expressions, the bodies of
+    blocks are scanned only once for local declarations, and
+    their bindings are installed in the environment, once
+    the execution function for the block is called.
+    <SNIPPET HIDE="yes">
+      <NAME>analyze_block_example</NAME>
+      <REQUIRES>analyze</REQUIRES>
+      <JAVASCRIPT>
+analyze_block(parse("{ const x = 4; x; }"))
+   (the_global_environment);
+      </JAVASCRIPT>
+    </SNIPPET>
+    <SNIPPET>
+      <NAME>analyze_block</NAME>
+      <EXAMPLE>analyze_block_example</EXAMPLE>
+      <EXPECTED>4</EXPECTED>
+      <JAVASCRIPT>
+function analyze_block(stmt) {
+    const body = block_body(stmt);
+    const locals = scan_out_declarations(body);	    
+    const unassigneds = map(_ => unassigned, locals);
+    const bfun = analyze(body);
+    return env => bfun(extend_environment(locals, unassigneds, env));
+}
+      </JAVASCRIPT>
+    </SNIPPET>
+  </TEXT>
+  
+  <TEXT>
+    To analyze an application, we analyze the operator and operands and
+    construct an execution
+    <SPLITINLINE>
+      <SCHEME>procedure</SCHEME>
+      <JAVASCRIPT>function</JAVASCRIPT>
+    </SPLITINLINE>
     that calls the operator execution
-    <SPLITINLINE><SCHEME>procedure</SCHEME>
-    <JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+    <SPLITINLINE>
+      <SCHEME>procedure</SCHEME>
+      <JAVASCRIPT>function</JAVASCRIPT>
+    </SPLITINLINE>
     (to obtain the actual
-    <SPLITINLINE><SCHEME>procedure</SCHEME>
-    <JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+    <SPLITINLINE>
+      <SCHEME>procedure</SCHEME>
+      <JAVASCRIPT>function</JAVASCRIPT>
+    </SPLITINLINE>
     to be applied) and the operand execution
-    <SPLITINLINE><SCHEME>procedures</SCHEME>
-    <JAVASCRIPT>functions</JAVASCRIPT></SPLITINLINE>
+    <SPLITINLINE>
+      <SCHEME>procedures</SCHEME>
+      <JAVASCRIPT>functions</JAVASCRIPT>
+    </SPLITINLINE>
     (to obtain the actual arguments).  We then pass these to
     <SPLITINLINE>
       <SCHEME>
@@ -581,32 +770,45 @@ function analyze_sequence(stmts) {
 	<JAVASCRIPTINLINE>execute_application</JAVASCRIPTINLINE>,
       </JAVASCRIPT>
     </SPLITINLINE>
-    which is the analog of
-    <SCHEMEINLINE>apply</SCHEMEINLINE> in
+    which is the analog of <SCHEMEINLINE>apply</SCHEMEINLINE> in
     section<SPACE/><REF NAME="sec:core-of-evaluator"/>.
     <SPLITINLINE>
       <SCHEME>
 	<SCHEMEINLINE>Execute-application</SCHEMEINLINE>
       </SCHEME>
       <JAVASCRIPT>
-	The function
-	<JAVASCRIPTINLINE>execute_application</JAVASCRIPTINLINE>
+	The function <JAVASCRIPTINLINE>execute_application</JAVASCRIPTINLINE>
       </JAVASCRIPT>
     </SPLITINLINE>
-    differs from
-    <SCHEMEINLINE>apply</SCHEMEINLINE>
-    in that the
-    <SPLITINLINE><SCHEME>procedure</SCHEME>
-    <JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+    differs from <SCHEMEINLINE>apply</SCHEMEINLINE> in that the
+    <SPLITINLINE>
+      <SCHEME>procedure</SCHEME>
+      <JAVASCRIPT>function</JAVASCRIPT>
+    </SPLITINLINE>
     body for a compound
-    <SPLITINLINE><SCHEME>procedure</SCHEME>
-    <JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
-    has already been analyzed, so there is no need to
-    do further analysis.  Instead, we just call the execution
-    <SPLITINLINE><SCHEME>procedure</SCHEME>
-    <JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+    <SPLITINLINE>
+      <SCHEME>procedure</SCHEME>
+      <JAVASCRIPT>function</JAVASCRIPT>
+    </SPLITINLINE>
+    has already been analyzed, so there is no need to do further analysis.
+    Instead, we just call the execution
+    <SPLITINLINE>
+      <SCHEME>procedure</SCHEME>
+      <JAVASCRIPT>function</JAVASCRIPT>
+    </SPLITINLINE>
     for the body on the extended environment.
-    <SNIPPET EVAL="no">
+    <SNIPPET HIDE="yes">
+      <NAME>analyze_application_example</NAME>
+      <REQUIRES>analyze</REQUIRES>
+      <JAVASCRIPT>
+analyze_application(parse("x + 1;"))
+   (extend_environment(list("x"), list(5), the_global_environment));
+      </JAVASCRIPT>
+    </SNIPPET>
+    <SNIPPET>
+      <NAME>analyze_application</NAME>
+      <EXAMPLE>analyze_application_example</EXAMPLE>
+      <EXPECTED>6</EXPECTED>
       <SCHEME>
       (define (analyze-application exp)
       (let ((fproc (analyze (operator exp)))
@@ -634,23 +836,26 @@ function analyze_sequence(stmts) {
       </SCHEME>
       <JAVASCRIPT>
 function analyze_application(stmt) {	
-    const ffun = analyze(operator(stmt));
-    const afuns = map(analyze, operands(stmt));
+    const ffun = analyze(function_expression(stmt));
+    const afuns = map(analyze, args(stmt));
     return env =>
            execute_application(ffun(env),
                map(afun => afun(env), afuns));
 }
-function execute_application(fun, args) {	       
-    return is_primitive_function(fun)
-           ? apply_primitive_function(fun, args)
-           : is_compound_function(fun) 
-             ? (function_body(fun))
-               (extend_environment(
-                    function_parameters(fun),
-                    args,
-                    function_environment(fun)))
-             : error(fun, "unknown function type in " +
-                          "execute_application");
+function execute_application(fun, args) {
+    if (is_primitive_function(fun)) {
+        return apply_primitive_function(fun, args);
+    } else if (is_compound_function(fun)) {
+        const parameters = function_parameters(fun);
+        const body = function_body(fun);
+        const result = body(extend_environment(parameters, args,
+	                       function_environment(fun)));
+        return is_return_value(result)
+               ? return_value_content(result)
+               : undefined;
+    } else {
+        error(fun, "unknown function type in execute_application");
+    }
 }
       </JAVASCRIPT>
     </SNIPPET>
@@ -658,13 +863,16 @@ function execute_application(fun, args) {
 
   <TEXT>
     Our new evaluator uses the same data structures, syntax
-    <SPLITINLINE><SCHEME>procedures,</SCHEME>
-    <JAVASCRIPT>functions,</JAVASCRIPT></SPLITINLINE>
+    <SPLITINLINE>
+      <SCHEME>procedures,</SCHEME>
+      <JAVASCRIPT>functions,</JAVASCRIPT>
+    </SPLITINLINE>
     and run-time support
-    <SPLITINLINE><SCHEME>procedures</SCHEME>
-    <JAVASCRIPT>functions</JAVASCRIPT></SPLITINLINE>
-    as in
-    sections<SPACE/><REF NAME="sec:representing-expressions"/>,
+    <SPLITINLINE>
+      <SCHEME>procedures</SCHEME>
+      <JAVASCRIPT>functions</JAVASCRIPT>
+    </SPLITINLINE>
+    as in sections<SPACE/><REF NAME="sec:representing-expressions"/>,
     <SPACE/><REF NAME="sec:eval-data-structures"/>,
     and<SPACE/><REF NAME="sec:running-eval"/>.
   </TEXT>
@@ -675,17 +883,29 @@ function execute_application(fun, args) {
 	<INDEX>analyzing evaluator
 	<SUBINDEX>let@<SCHEMEINLINE>let</SCHEMEINLINE></SUBINDEX></INDEX>
 	Extend the evaluator in this section to support the special form
-	<SCHEMEINLINE>let</SCHEMEINLINE>.
-	(See exercise<SPACE/><REF NAME="ex:implement-let"/>.)
+	<SCHEMEINLINE>let</SCHEMEINLINE>. (See
+	exercise<SPACE/><REF NAME="ex:implement-let"/>.)
 	<LABEL NAME="ex:implement-analyze-let"/>
       </EXERCISE>
     </SCHEME>
     <JAVASCRIPT>
       <EXERCISE>
 	<INDEX>analyzing evaluator
-	<SUBINDEX>conditional expressions</SUBINDEX></INDEX>
-	Extend the evaluator in this section to support
-	conditional expressions.
+	<SUBINDEX>conditional statements</SUBINDEX></INDEX>
+	Eva Lu Ator ponders over the treatment of locally
+	declared names in the function
+	<JAVASCRIPTINLINE>analyze_lambda</JAVASCRIPTINLINE>, drawing
+	environment model diagrams. Alyssa P. Hacker notices
+	and asks her what's wrong. Eva complains that she is getting
+	different diagrams than the ones obtained from following
+	the evaluator in section<SPACE/><REF NAME="sec:core-of-evaluator"/>.
+	Eva agrees, but says: <QUOTE>Don't worry. Any program that runs properly
+	in the original evaluator will properly in the syntactic analysis
+	evaluator.</QUOTE> Is Eva right? Try to draw the diagrams that Eva
+	is talking about. How about the other way around: Are there programs
+	that run <QUOTE>properly</QUOTE> in the syntactic analysis evaluator,
+	but not in the original one? If yes, can you change the syntactic
+	analysis evaluator such that it behaves exactly like the original one.
       </EXERCISE>
     </JAVASCRIPT>
   </SPLIT>
@@ -701,13 +921,16 @@ function execute_application(fun, args) {
 	<JAVASCRIPTINLINE>analyze_sequence</JAVASCRIPTINLINE>
       </JAVASCRIPT>
     </SPLITINLINE>
-    needs to be
-    so complicated.  All the other analysis
-    <SPLITINLINE><SCHEME>procedures</SCHEME>
-    <JAVASCRIPT>functions</JAVASCRIPT></SPLITINLINE>
+    needs to be so complicated.  All the other analysis
+    <SPLITINLINE>
+      <SCHEME>procedures</SCHEME>
+      <JAVASCRIPT>functions</JAVASCRIPT>
+    </SPLITINLINE>
     are straightforward transformations of the corresponding evaluation
-    <SPLITINLINE><SCHEME>procedures</SCHEME>
-    <JAVASCRIPT>functions</JAVASCRIPT></SPLITINLINE>
+    <SPLITINLINE>
+      <SCHEME>procedures</SCHEME>
+      <JAVASCRIPT>functions</JAVASCRIPT>
+    </SPLITINLINE>
     (or <SCHEMEINLINE>eval</SCHEMEINLINE> clauses) in
     section<SPACE/><REF NAME="sec:core-of-evaluator"/>.
     She expected
@@ -720,14 +943,14 @@ function execute_application(fun, args) {
       </JAVASCRIPT>
     </SPLITINLINE>
     to look like this:
-
     <!-- 
 	 %***But note one drawback - - eval-sequence used first-exp/etc.
 	 %(the not-really-a-data-abstraction selectors), whereas this
 	 %has to use car/etc., so the match isn't perfectly clear.
     -->
-
-    <SNIPPET EVAL="no">
+    <SNIPPET>
+      <NAME>analyze_sequence_2</NAME>
+      <EXAMPLE>analyze_sequence_example</EXAMPLE>
       <SCHEME>
       (define (analyze-sequence exps)
       (define (execute-sequence procs env)
@@ -742,26 +965,24 @@ function execute_application(fun, args) {
       <JAVASCRIPT>
 function analyze_sequence(stmts) {	
     function execute_sequence(funs, env) {
-        if (is_null(tail(funs))) {
+        if (is_null(funs)) {
+            return undefined;
+        } else if (is_null(tail(funs))) {
             return head(funs)(env);
         } else {
-            head(funs)(env);
-            execute_sequence(tail(funs), 
-                             env);
+            const head_val = head(funs)(env);
+	    return is_return_value(head_val)
+	           ? head_val
+                   : execute_sequence(tail(funs), env);
         }
     }
     const funs = map(analyze, stmts);
-    return is_null(funs)
-           ? env => undefined
-           : env => execute_sequence(funs, 
-                                     env);
+    return execute_sequence(funs, env);
 }
       </JAVASCRIPT>
     </SNIPPET>
-
-    Eva Lu Ator explains to Alyssa that the version in the text does more
-    of the work of evaluating a sequence at analysis time.
-    Alyssa<APOS/>s 
+    Eva Lu Ator explains to Alyssa that the version in the text does more of the
+    work of evaluating a sequence at analysis time. Alyssa<APOS/>s 
     <SPLITINLINE>
       <SCHEME><SCHEMEINLINE>sequence-execution</SCHEMEINLINE> procedure,
       </SCHEME>
@@ -770,14 +991,18 @@ function analyze_sequence(stmts) {
       </JAVASCRIPT>
     </SPLITINLINE>
     rather than having the calls to the individual execution
-    <SPLITINLINE><SCHEME>procedures</SCHEME>
-    <JAVASCRIPT>functions</JAVASCRIPT></SPLITINLINE>
+    <SPLITINLINE>
+      <SCHEME>procedures</SCHEME>
+      <JAVASCRIPT>functions</JAVASCRIPT>
+    </SPLITINLINE>
     built in, loops through the
-    <SPLITINLINE><SCHEME>procedures</SCHEME>
-    <JAVASCRIPT>functions</JAVASCRIPT></SPLITINLINE>
+    <SPLITINLINE>
+      <SCHEME>procedures</SCHEME>
+      <JAVASCRIPT>functions</JAVASCRIPT>
+    </SPLITINLINE>
     in order to call them: In effect, although the individual expressions
     in the sequence have been analyzed, the sequence itself has not been.
-
+    <P/>
     Compare the two versions of
     <SPLITINLINE>
       <SCHEME><SCHEMEINLINE>sequence-execution</SCHEMEINLINE>.
@@ -786,34 +1011,104 @@ function analyze_sequence(stmts) {
 	<JAVASCRIPTINLINE>sequence_execution</JAVASCRIPTINLINE>.
       </JAVASCRIPT>
     </SPLITINLINE>
-    For example,
-    consider the common case (typical of
-    <SPLITINLINE><SCHEME>procedure</SCHEME>
-    <JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
-    bodies) where the
-    sequence has just one expression.  What work will the execution
-    <SPLITINLINE><SCHEME>procedure</SCHEME>
-    <JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+    For example, consider the common case (typical of
+    <SPLITINLINE>
+      <SCHEME>procedure</SCHEME>
+      <JAVASCRIPT>function</JAVASCRIPT>
+    </SPLITINLINE>
+    bodies) where the sequence has just one expression.  What work will the
+    execution
+    <SPLITINLINE>
+      <SCHEME>procedure</SCHEME>
+      <JAVASCRIPT>function</JAVASCRIPT>
+    </SPLITINLINE>
     produced by Alyssa<APOS/>s program do?  What about the execution
-    <SPLITINLINE><SCHEME>procedure</SCHEME>
-    <JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
-    produced by the program in the text above?  How do the two
-    versions compare for a sequence with two expressions?
+    <SPLITINLINE>
+      <SCHEME>procedure</SCHEME>
+      <JAVASCRIPT>function</JAVASCRIPT>
+    </SPLITINLINE>
+    produced by the program in the text above?  How do the two versions compare
+    for a sequence with two expressions?
     <LABEL NAME="ex:analyze-sequence"/>
   </EXERCISE>
 
   <EXERCISE>
-    Design and carry out some experiments to 
-    compare the speed of the original metacircular evaluator
-    with the version in this section.  Use your results to estimate the
-    fraction of time that is spent in analysis versus execution for various
-    <SPLITINLINE><SCHEME>procedures</SCHEME>
-    <JAVASCRIPT>functions</JAVASCRIPT></SPLITINLINE>.
+    Design and carry out some experiments to compare the speed of the original
+    metacircular evaluator with the version in this section.  Use your results
+    to estimate the fraction of time that is spent in analysis versus execution
+    for various
+    <SPLITINLINE>
+      <SCHEME>procedures.</SCHEME>
+      <JAVASCRIPT>functions.</JAVASCRIPT>
+    </SPLITINLINE>
   </EXERCISE>
+
   <INDEX>syntactic analysis, separated from execution
   <SUBINDEX>in metacircular evaluator|)</SUBINDEX></INDEX>
   <INDEX>analyzing evaluator|)</INDEX>
   <INDEX>metacircular evaluator for Scheme
   <SUBINDEX>analyzing version|)</SUBINDEX></INDEX>
 
+
+  <!-- test cases -->
+
+  <SNIPPET HIDE="yes">
+    <NAME>parse_and_evaluate_4_1_7</NAME>
+    <REQUIRES>evaluate_4_1_7</REQUIRES>
+    <JAVASCRIPT>
+function parse_and_evaluate(input) {
+    const program = parse(input);
+    const locals = scan_out_declarations(program);
+    const unassigneds = map(x => unassigned, locals);
+    const program_env = extend_environment(locals, unassigneds,
+                                       the_global_environment);
+    return evaluate(program, program_env);
+}
+    </JAVASCRIPT>
+  </SNIPPET>
+  
+  <SNIPPET HIDE="yes">
+    <NAME>evaluate_4_1_7_test_factorial</NAME>
+    <REQUIRES>parse_and_evaluate_4_1_7</REQUIRES>
+    <EXPECTED>120</EXPECTED>
+    <JAVASCRIPT>
+parse_and_evaluate("               \
+function factorial(n) {            \
+    return n === 1                 \
+           ? 1                     \
+           : n * factorial(n - 1); \
+}                                  \
+factorial(5);                      ");
+    </JAVASCRIPT>
+  </SNIPPET>
+  <SNIPPET HIDE="yes">
+    <NAME>evaluate_4_1_7_test_append</NAME>
+    <REQUIRES>parse_and_evaluate_4_1_7</REQUIRES>
+    <EXPECTED>[ 'a', [ 'b', [ 'c', [ 'd', null ] ] ] ]</EXPECTED>
+    <JAVASCRIPT>
+parse_and_evaluate("                                \
+function append(xs, ys) {                           \
+    return is_null(xs)                              \
+           ? ys                                     \
+           : pair(head(xs), append(tail(xs), ys));  \
+}                                                   \
+append(list('a', 'b'), list('c', 'd'));             ");
+    </JAVASCRIPT>
+  </SNIPPET>
+  <SNIPPET HIDE="yes">
+    <NAME>evaluate_4_1_7_test_map</NAME>
+    <REQUIRES>parse_and_evaluate_4_1_7</REQUIRES>
+    <EXPECTED>[ 2, [ 3, [ 4, [ 5, null ] ] ] ]</EXPECTED>
+    <JAVASCRIPT>
+parse_and_evaluate("                              \
+function map(f, xs) {                             \
+    return is_null(xs)                            \
+           ? null                                 \
+           : pair(f(head(xs)), map(f, tail(xs))); \
+}                                                 \
+map(x => x + 1, list(1, 2, 3, 4));                ");
+    </JAVASCRIPT>
+  </SNIPPET>
+
+  
 </SUBSECTION>

@@ -119,8 +119,11 @@ export const processSnippetHtml = (node, writeTo, split) => {
         for (const reqName of reqSet) {
           const snippetEntry = snippetStore[reqName];
           if (snippetEntry && reqName !== nameStr) {
-            reqArr.push(snippetEntry.codeStr);
-            reqArr.push("\n");
+            if (snippetEntry.codeStr) {
+              reqArr.push("\n\n");
+              reqArr.push(snippetEntry.codeStr);
+              reqStr = reqArr.join("");
+            }
           }
         }
         reqStr = reqArr.join("");
@@ -129,8 +132,11 @@ export const processSnippetHtml = (node, writeTo, split) => {
         for (let i = 0; requirements[i]; i++) {
           const required = requirements[i].firstChild.nodeValue;
           if (snippetStore[required]) {
-            reqArr.push(snippetStore[required].codeStr);
-            reqArr.push("\n");
+            if (snippetStore[required].codeStr) {
+              reqArr.push("\n\n");
+              reqArr.push(snippetStore[required].codeStr);
+              reqStr = reqArr.join("");
+            }
           } else {
             missingRequireWarning(required);
           }
@@ -143,9 +149,11 @@ export const processSnippetHtml = (node, writeTo, split) => {
       for (let i = 0; examples[i]; i++) {
         const example = examples[i].firstChild.nodeValue;
         if (snippetStore[example]) {
-          exampleArr.push("\n\n");
-          exampleArr.push(snippetStore[example].codeStr);
-          reqStr = reqArr.join("");
+          if (snippetStore[example].codeStr) {
+            exampleArr.push("\n\n");
+            exampleArr.push(snippetStore[example].codeStr);
+            reqStr = reqArr.join("");
+          }
         } else {
           missingExampleWarning(example);
         }
@@ -154,7 +162,12 @@ export const processSnippetHtml = (node, writeTo, split) => {
 
       // make url for source academy link
       const compressed = lzString.compressToEncodedURIComponent(
-        reqStr + codeStr_run + exampleStr
+        "// SICP JS " +
+          chapterIndex +
+          reqStr +
+          "\n\n" +
+          codeStr_run +
+          exampleStr
       );
       const current_chap = chapterIndex.substring(0, 1);
       const explicit_chap = node.getAttribute("CHAP");
