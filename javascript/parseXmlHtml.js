@@ -22,10 +22,10 @@ import {
 
 let paragraph_count = 0;
 let heading_count = 0;
-let subsubsection_count = 0;
 let footnote_count = 0;
 let snippet_count = 0;
 let exercise_count = 0;
+let subsubsection_count = 0;
 let display_footnote_count = 0;
 let chapArrIndex = 0;
 let chapterTitle = "";
