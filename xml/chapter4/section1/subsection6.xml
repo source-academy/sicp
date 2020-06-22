@@ -152,295 +152,7 @@
 	don<APOS/>t obey this restriction will in fact run in such
 	implementations.</FOOTNOTE>
 	<INDEX>internal definition<SUBINDEX>scope of name|)</SUBINDEX></INDEX>
-	<INDEX>block structure|)</INDEX>
       </TEXT>
-
-      <EXERCISE>
-	In this exercise we implement the method just described for interpreting
-	internal definitions.
-	We assume that the evaluator supports <SCHEMEINLINE>let</SCHEMEINLINE>
-	(see exercise<SPACE/><REF NAME="ex:implement-let"/>).
-	<OL>
-	  <!--  \indcode{lookup-variable-value}[for scanned-out definitions] -->
-	  <LI>
-	    Change <SCHEMEINLINE>lookup-variable-value</SCHEMEINLINE>
-	    (section<SPACE/><REF NAME="sec:operations-on-environments"/>)
-	    to signal an error if the value it finds is the symbol
-	    <SCHEMEINLINE>*unassigned*</SCHEMEINLINE>.
-	  </LI>
-	  <LI>
-	    <!--  \indcode{scan-out-defines} -->
-	    Write a procedure <SCHEMEINLINE>scan-out-defines</SCHEMEINLINE>
-	    that takes a procedure body and returns an equivalent one that has no
-	    internal definitions, by making the transformation described above.
-	  </LI>
-	  <LI>
-	    Install <SCHEMEINLINE>scan-out-defines</SCHEMEINLINE> in the
-	    interpreter, either in  <SCHEMEINLINE>make-procedure</SCHEMEINLINE>
-	    or in <SCHEMEINLINE>procedure-body</SCHEMEINLINE> (see
-	    section<SPACE/><REF NAME="sec:eval-data-structures"/>).
-	    Which place is better? Why?
-	  </LI>
-	</OL>
-	<LABEL NAME="ex:internal-defs_scheme"/>
-      </EXERCISE>
-
-      <EXERCISE>
-	Draw diagrams of the environment in effect when evaluating the
-	expression <LATEXINLINE>e3</LATEXINLINE> in the procedure in the text,
-	comparing how this will be structured when definitions are interpreted
-	sequentially with how it will be structured if definitions are scanned
-	out as described. Why is there an extra frame in the transformed program?
-	Explain why this difference in environment structure can never make a
-	difference in the behavior of a correct program.  Design a way to make
-	the interpreter implement the <QUOTE>simultaneous</QUOTE> scope rule for
-	internal definitions without constructing the extra frame.
-      </EXERCISE>
-
-      <EXERCISE>
-	Consider an alternative strategy for scanning out definitions that
-	translates the example in the text to
-	<SNIPPET EVAL="no" LATEX="yes">
-	  <SCHEME>
-(lambda ^vars^
-   (let ((u '*unassigned*)
-         (v '*unassigned*))
-      (let ((a ^e1^)
-            (b ^e2^))
-         (set! u a)
-   (set! v b))
-   ^e3^))
-	  </SCHEME>
-	</SNIPPET>
-	Here <SCHEMEINLINE>a</SCHEMEINLINE> and <SCHEMEINLINE>b</SCHEMEINLINE>
-	are meant to represent new variable names, created by the interpreter,
-	that do	not appear in the user<APOS/>s program. Consider the
-	<SCHEMEINLINE>solve</SCHEMEINLINE> procedure from
-	section<SPACE/><REF NAME="sec:streams-and-delayed-evaluation"/>:
-	<SNIPPET>
-	  <SCHEME>
-	<!-- \indcodeplus*{solve}{differential equation}
-	     [scan@with scanned-out definitions]-->
-(define (solve f y0 dt)
-(define y (integral (delay dy) y0 dt))
-(define dy (stream-map f y))
-      y)
-	  </SCHEME>
-	</SNIPPET>
-	Will this procedure work if internal definitions are scanned out as
-	shown in this exercise? What if they are scanned out as shown in the
-	text?  Explain.
-	<LABEL NAME="ex:alternative-scanout_scheme"/>
-      </EXERCISE>
-
-      <EXERCISE>
-	Ben Bitdiddle, Alyssa P. Hacker, and Eva Lu Ator are arguing about
-	the desired result of evaluating the expression
-	<SNIPPET>
-	  <SCHEME>
-(let ((a 1))
-   (define (f x)
-      (define b (+ a x))
-      (define a 5)
-      (+ a b))
-   (f 10))
-	  </SCHEME>
-	</SNIPPET>
-	Ben asserts that the result should be obtained using the sequential rule
-	for <SCHEMEINLINE>define</SCHEMEINLINE>: <SCHEMEINLINE>b</SCHEMEINLINE>
-	is defined to be 11, then <SCHEMEINLINE>a</SCHEMEINLINE> is defined to
-	be 5, so the result is 16.  Alyssa objects that mutual recursion requires
-	the simultaneous scope rule for internal procedure definitions,	and that
-	it is unreasonable to treat procedure names differently from other names.
-	Thus, she argues for the mechanism implemented in
-	exercise<SPACE/><REF NAME="ex:internal-defs_scheme"/>. This would lead to
-	<SCHEMEINLINE>a</SCHEMEINLINE> being unassigned at the time that the
-	value for <SCHEMEINLINE>b</SCHEMEINLINE> is to be computed.  Hence, in
-	Alyssa<APOS/>s view the procedure should produce an error.  Eva has a
-	third opinion.  She says that if the definitions of
-	<SCHEMEINLINE>a</SCHEMEINLINE> and <SCHEMEINLINE>b</SCHEMEINLINE> are
-	truly meant to be simultaneous, then the value 5 for
-	<SCHEMEINLINE>a</SCHEMEINLINE> should be used in evaluating
-	<SCHEMEINLINE>b</SCHEMEINLINE>.  Hence, in Eva<APOS/>s view
-	<SCHEMEINLINE>a</SCHEMEINLINE> should be 5,
-	<SCHEMEINLINE>b</SCHEMEINLINE> should be 15, and the result should be 20.
-	Which (if any) of these	viewpoints do you support?  Can you devise a way
-	to implement internal definitions so that they behave as Eva
-	prefers?<FOOTNOTE>The MIT implementors of Scheme support Alyssa on the
-	following grounds: Eva is in principle correct<EMDASH/>the definitions
-	should be regarded as simultaneous.  But it seems difficult to implement
-	a general, efficient mechanism that does what Eva requires. In the
-	absence of such a mechanism, it is better to generate an error in the
-	difficult cases of simultaneous definitions (Alyssa<APOS/>s notion) than
-	to produce an incorrect answer (as Ben would have it).</FOOTNOTE>
-	<LABEL NAME="ex:simultaneous-def_scheme"/>
-      </EXERCISE>
-
-      <EXERCISE>
-	<LABEL NAME="ex:letrec"/>
-	<!-- 
-	     \indsf*{letrec}
-	     \ind*{special forms (those marked <EM>ns</EM> are not in the 
-	     IEEE Scheme standard)}[letrec@<SCHEMEINLINE>letrec</SCHEMEINLINE>]
-	-->
-	Because internal definitions look sequential but are actually
-	simultaneous, some people prefer to avoid them entirely, and use the
-	special form <SCHEMEINLINE>letrec</SCHEMEINLINE> instead.  
-	<SCHEMEINLINE>Letrec</SCHEMEINLINE> looks like
-	<SCHEMEINLINE>let</SCHEMEINLINE>, so it is not surprising that the
-	variables it binds are bound simultaneously and have the same scope as
-	each other.  The sample	procedure <SCHEMEINLINE>f</SCHEMEINLINE> above
-	can be written without internal definitions, but with exactly the same
-	meaning, as
-	<SNIPPET EVAL="no">
-	  <SCHEME>
-(define (f x)
-   (letrec ((even?
-               (lambda (n)
-                  (if (= n 0)
-                      true
-                      (odd? (- n 1)))))
-            (odd?
-               (lambda (n)
-                  (if (= n 0)
-                      false
-                      (even? (- n 1))))))
-      ^rest of body of^ f))
-	  </SCHEME>
-	</SNIPPET>
-	<SCHEMEINLINE>Letrec</SCHEMEINLINE> expressions, which have the form
-	<SNIPPET EVAL="no">
-	  <SCHEME>
-(letrec ((^var$_{1}$^ ^exp$_{1}$^) ^$\ldots$^ (^var$_{n}$^ ^exp$_{n}$^))
-    ^body^)
-	  </SCHEME>
-	</SNIPPET>
-	are a variation on <SCHEMEINLINE>let</SCHEMEINLINE> in which the
-	expressions <LATEXINLINE>exp$_{k}$</LATEXINLINE> that provide the
-	initial values for the variables <LATEXINLINE>var$_{k}$</LATEXINLINE>
-	are evaluated in an environment that includes all the
-	<SCHEMEINLINE>letrec</SCHEMEINLINE> bindings.  This permits recursion in
-	the bindings, such as the mutual recursion of
-	<SCHEMEINLINE>even?</SCHEMEINLINE> and <SCHEMEINLINE>odd?</SCHEMEINLINE>
-	in the example above, or
-	<INDEX>factorial<SUBINDEX>letrec@with
-	<SCHEMEINLINE>letrec</SCHEMEINLINE></SUBINDEX></INDEX>
-	the evaluation of 10 factorial with
-	<SNIPPET>
-	  <SCHEME>
-(letrec ((fact
-            (lambda (n)
-               (if (= n 1)
-                   1
-                   (* n (fact (- n 1)))))))
-        (fact 10))
-	  </SCHEME>
-	</SNIPPET>
-	<OL>
-	  <LI>
-	    Implement <SCHEMEINLINE>letrec</SCHEMEINLINE> as a derived
-	    expression, by transforming a <SCHEMEINLINE>letrec</SCHEMEINLINE>
-	    expression into a <SCHEMEINLINE>let</SCHEMEINLINE> expression as
-	    shown in  the text above or in
-	    exercise<SPACE/><REF NAME="ex:alternative-scanout_scheme"/>. That is,
-	    the <SCHEMEINLINE>letrec</SCHEMEINLINE> variables should be created
-	    with a <SCHEMEINLINE>let</SCHEMEINLINE> and then be assigned their
-	    values with <SCHEMEINLINE>set!</SCHEMEINLINE>.
-	  </LI>
-	  <LI>
-	    Louis Reasoner is confused by all this fuss about internal
-	    definitions.  The way he sees it, if you don<APOS/>t like to use
-	    <SCHEMEINLINE>define</SCHEMEINLINE> inside a procedure, you can just
-	    use <SCHEMEINLINE>let</SCHEMEINLINE>. Illustrate what is loose about
-	    his reasoning by drawing an environment diagram that shows the
-	    environment in which the
-	    <SCHEMEINLINE>^rest of body of^ f</SCHEMEINLINE> is evaluated during
-	    evaluation of the expression <SCHEMEINLINE>(f 5)</SCHEMEINLINE>, with
-	    <SCHEMEINLINE>f</SCHEMEINLINE> defined as in this exercise. Draw an
-	    environment diagram for the same evaluation, but with
-	    <SCHEMEINLINE>let</SCHEMEINLINE> in place of
-	    <SCHEMEINLINE>letrec</SCHEMEINLINE> in the definition of
-	    <SCHEMEINLINE>f</SCHEMEINLINE>.
-	  </LI>
-	</OL>
-      </EXERCISE>
-
-      <EXERCISE>
-	<INDEX>recursive procedure<SUBINDEX>specifying without
-	<SCHEMEINLINE>define</SCHEMEINLINE></SUBINDEX></INDEX>
-	Amazingly, Louis<APOS/>s intuition in
-	exercise<SPACE/><REF NAME="ex:letrec"/> is correct. It is indeed
-	possible to specify recursive procedures without using
-	<SCHEMEINLINE>letrec</SCHEMEINLINE> (or even
-	<SCHEMEINLINE>define</SCHEMEINLINE>), although the method for
-	accomplishing this is much more subtle than Louis imagined.
-	The following expression computes 10 factorial by applying a recursive
-	<INDEX>factorial<SUBINDEX>letrec@without
-	<SCHEMEINLINE>letrec</SCHEMEINLINE> or
-	<SCHEMEINLINE>define</SCHEMEINLINE></SUBINDEX></INDEX>
-	factorial procedure:<FOOTNOTE>This example illustrates a programming
-	trick for formulating recursive procedures without using
-	<SCHEMEINLINE>define</SCHEMEINLINE>. The
-	<INDEX>Y@<LATEXINLINE>$Y$</LATEXINLINE> operator</INDEX>
-	most general trick of this sort is the <LATEXINLINE>$Y$</LATEXINLINE>
-	<EM>operator</EM>, which can be used to give a <QUOTE>pure
-	<LATEXINLINE>$\lambda$</LATEXINLINE>-calculus</QUOTE> implementation of
-	<INDEX>Stoy, Joseph E.</INDEX><INDEX>Gabriel, Richard P.</INDEX>
-	recursion.  (See <CITATION>Stoy 1977</CITATION> for details on the lambda
-	calculus, and <CITATION>Gabriel 1988</CITATION> for an exposition of the
-	<LATEXINLINE>$Y$</LATEXINLINE> operator in Scheme.)</FOOTNOTE>
-	<SNIPPET>
-	  <SCHEME>
-((lambda (n)
-    ((lambda (fact)
-        (fact fact n))
-     (lambda (ft k)
-        (if (= k 1)
-            1
-            (* k (ft ft (- k 1)))))))
- 10)
-	  </SCHEME>
-	</SNIPPET>
-	<OL>
-	  <LI>
-	    Check (by evaluating the expression) that this really does compute
-	    factorials.  Devise an analogous expression for computing Fibonacci
-	    numbers.
-	  </LI>
-	  <LI>
-	    Consider the following procedure, which includes mutually recursive
-	    internal definitions:
-	    <SNIPPET>
-              <SCHEME>
-(define (f x)
-   (define (even? n)
-      (if (= n 0)
-          true
-      (odd? (- n 1))))
-   (define (odd? n)
-      (if (= n 0)
-          false
-          (even? (- n 1))))
-   (even? x))
-              </SCHEME>
-	    </SNIPPET>
-	    Fill in the missing expressions to complete an alternative definition
-	    of <SCHEMEINLINE>f</SCHEMEINLINE>, which uses neither internal
-	    definitions nor <SCHEMEINLINE>letrec</SCHEMEINLINE>:
-	    <SNIPPET EVAL="no">
-              <SCHEME>
-(define (f x)
-   ((lambda (even? odd?)
-  (even? even? odd? x))
-    (lambda (ev? od? n)
-  (if (= n 0) true (od? ^??^ ^??^ ^??^)))
-    (lambda (ev? od? n)
-  (if (= n 0) false (ev? ^??^ ^??^ ^??^)))))
-              </SCHEME>
-	    </SNIPPET>
-	  </LI>
-	</OL>
-      </EXERCISE>
     </SCHEME>
 
     <JAVASCRIPT>
@@ -557,10 +269,41 @@ function f(x) {
 	declared names<APOS/> values can be evaluated without using any of the
 	names<APOS/> values.
 	<INDEX>internal definition<SUBINDEX>scope of name|)</SUBINDEX></INDEX>
-	<INDEX>block structure|)</INDEX>
       </TEXT>
-
-      <EXERCISE>
+    </JAVASCRIPT>
+  </SPLIT>
+  <EXERCISE>
+    <SPLIT>
+      <SCHEME>
+	In this exercise we implement the method just described for interpreting
+	internal definitions.
+	We assume that the evaluator supports <SCHEMEINLINE>let</SCHEMEINLINE>
+	(see exercise<SPACE/><REF NAME="ex:implement-let"/>).
+	<OL>
+	  <!--  \indcode{lookup-variable-value}[for scanned-out definitions] -->
+	  <LI>
+	    Change <SCHEMEINLINE>lookup-variable-value</SCHEMEINLINE>
+	    (section<SPACE/><REF NAME="sec:operations-on-environments"/>)
+	    to signal an error if the value it finds is the symbol
+	    <SCHEMEINLINE>*unassigned*</SCHEMEINLINE>.
+	  </LI>
+	  <LI>
+	    <!--  \indcode{scan-out-defines} -->
+	    Write a procedure <SCHEMEINLINE>scan-out-defines</SCHEMEINLINE>
+	    that takes a procedure body and returns an equivalent one that has no
+	    internal definitions, by making the transformation described above.
+	  </LI>
+	  <LI>
+	    Install <SCHEMEINLINE>scan-out-defines</SCHEMEINLINE> in the
+	    interpreter, either in  <SCHEMEINLINE>make-procedure</SCHEMEINLINE>
+	    or in <SCHEMEINLINE>procedure-body</SCHEMEINLINE> (see
+	    section<SPACE/><REF NAME="sec:eval-data-structures"/>).
+	    Which place is better? Why?
+	  </LI>
+	</OL>
+	<LABEL NAME="ex:internal-defs_scheme"/>
+      </SCHEME>
+      <JAVASCRIPT>
 	In this exercise we implement the method just described for interpreting
 	internal declarations as syntactic sugar for immediately invoked
 	functions that carry out assignments.
@@ -593,9 +336,24 @@ function f(x) {
 	  </LI>
 	</OL>
 	<LABEL NAME="ex:internal-defs"/>
-      </EXERCISE>
+      </JAVASCRIPT>
+    </SPLIT>
+  </EXERCISE>
 
-      <EXERCISE>
+  <EXERCISE>
+    <SPLIT>
+      <SCHEME>
+	Draw diagrams of the environment in effect when evaluating the
+	expression <LATEXINLINE>e3</LATEXINLINE> in the procedure in the text,
+	comparing how this will be structured when definitions are interpreted
+	sequentially with how it will be structured if definitions are scanned
+	out as described. Why is there an extra frame in the transformed program?
+	Explain why this difference in environment structure can never make a
+	difference in the behavior of a correct program.  Design a way to make
+	the interpreter implement the <QUOTE>simultaneous</QUOTE> scope rule for
+	internal definitions without constructing the extra frame.
+      </SCHEME>
+      <JAVASCRIPT>
 	Consider an alternative strategy for scanning out declarations
 	that translates the example in the text to
 	<SNIPPET EVAL="no" LATEX="yes">
@@ -629,9 +387,49 @@ function solve(f, y0, dt) {
 	work if internal definitions are scanned out as shown in this exercise?
 	What if they are scanned out as shown in the text?  Explain.
 	<LABEL NAME="ex:alternative-scanout"/>
-      </EXERCISE>
+      </JAVASCRIPT>
+    </SPLIT>
+  </EXERCISE>
 
-      <EXERCISE>
+  <EXERCISE>
+    <LABEL NAME="ex:add_binding_to_frame"/>	
+    <SPLIT>
+      <SCHEME>
+	Consider an alternative strategy for scanning out definitions that
+	translates the example in the text to
+	<SNIPPET EVAL="no" LATEX="yes">
+	  <SCHEME>
+(lambda ^vars^
+   (let ((u '*unassigned*)
+         (v '*unassigned*))
+      (let ((a ^e1^)
+            (b ^e2^))
+         (set! u a)
+   (set! v b))
+   ^e3^))
+	  </SCHEME>
+	</SNIPPET>
+	Here <SCHEMEINLINE>a</SCHEMEINLINE> and <SCHEMEINLINE>b</SCHEMEINLINE>
+	are meant to represent new variable names, created by the interpreter,
+	that do	not appear in the user<APOS/>s program. Consider the
+	<SCHEMEINLINE>solve</SCHEMEINLINE> procedure from
+	section<SPACE/><REF NAME="sec:streams-and-delayed-evaluation"/>:
+	<SNIPPET>
+	  <SCHEME>
+	<!-- \indcodeplus*{solve}{differential equation}
+	     [scan@with scanned-out definitions]-->
+(define (solve f y0 dt)
+(define y (integral (delay dy) y0 dt))
+(define dy (stream-map f y))
+      y)
+	  </SCHEME>
+	</SNIPPET>
+	Will this procedure work if internal definitions are scanned out as
+	shown in this exercise? What if they are scanned out as shown in the
+	text?  Explain.
+	<LABEL NAME="ex:alternative-scanout_scheme"/>
+      </SCHEME>
+      <JAVASCRIPT>
 	Our implementation of lambda expressions and blocks in
 	section<SPACE/><REF NAME="sec:core-of-evaluator"/> imposes a
 	runtime burden on every function application: It needs to scan
@@ -683,10 +481,56 @@ add_binding_to_frame($\textit{name}$, $\textit{value}$, $\textit{frame}$)
 	    <JAVASCRIPTINLINE>set_name_value</JAVASCRIPTINLINE>.
 	  </LI>
 	</UL>
-	<LABEL NAME="ex:add_binding_to_frame"/>	
-      </EXERCISE>
-      
-      <EXERCISE>
+      </JAVASCRIPT>
+    </SPLIT>
+  </EXERCISE>
+
+  <EXERCISE>
+    bla
+    <SPLIT>
+      <SCHEME>
+	Ben Bitdiddle, Alyssa P. Hacker, and Eva Lu Ator are arguing about
+	the desired result of evaluating the expression
+	<SNIPPET>
+	  <SCHEME>
+(let ((a 1))
+   (define (f x)
+      (define b (+ a x))
+      (define a 5)
+      (+ a b))
+   (f 10))
+	  </SCHEME>
+	</SNIPPET>
+	Ben asserts that the result should be obtained using the sequential rule
+	for <SCHEMEINLINE>define</SCHEMEINLINE>: <SCHEMEINLINE>b</SCHEMEINLINE>
+	is defined to be 11, then <SCHEMEINLINE>a</SCHEMEINLINE> is defined to
+	be 5, so the result is 16.  Alyssa objects that mutual recursion requires
+	the simultaneous scope rule for internal procedure definitions,	and that
+	it is unreasonable to treat procedure names differently from other names.
+	Thus, she argues for the mechanism implemented in
+	exercise<SPACE/><REF NAME="ex:internal-defs_scheme"/>. This would lead to
+	<SCHEMEINLINE>a</SCHEMEINLINE> being unassigned at the time that the
+	value for <SCHEMEINLINE>b</SCHEMEINLINE> is to be computed.  Hence, in
+	Alyssa<APOS/>s view the procedure should produce an error.  Eva has a
+	third opinion.  She says that if the definitions of
+	<SCHEMEINLINE>a</SCHEMEINLINE> and <SCHEMEINLINE>b</SCHEMEINLINE> are
+	truly meant to be simultaneous, then the value 5 for
+	<SCHEMEINLINE>a</SCHEMEINLINE> should be used in evaluating
+	<SCHEMEINLINE>b</SCHEMEINLINE>.  Hence, in Eva<APOS/>s view
+	<SCHEMEINLINE>a</SCHEMEINLINE> should be 5,
+	<SCHEMEINLINE>b</SCHEMEINLINE> should be 15, and the result should be 20.
+	Which (if any) of these	viewpoints do you support?  Can you devise a way
+	to implement internal definitions so that they behave as Eva
+	prefers?<FOOTNOTE>The MIT implementors of Scheme support Alyssa on the
+	following grounds: Eva is in principle correct<EMDASH/>the definitions
+	should be regarded as simultaneous.  But it seems difficult to implement
+	a general, efficient mechanism that does what Eva requires. In the
+	absence of such a mechanism, it is better to generate an error in the
+	difficult cases of simultaneous definitions (Alyssa<APOS/>s notion) than
+	to produce an incorrect answer (as Ben would have it).</FOOTNOTE>
+	<LABEL NAME="ex:simultaneous-def_scheme"/>
+      </SCHEME>
+      <JAVASCRIPT>
 	Draw diagrams of the environment in effect when evaluating the
 	<LATEXINLINE>$\textit{statement}$</LATEXINLINE> in the
 	function in the text, comparing how this will be structured when
@@ -699,9 +543,103 @@ add_binding_to_frame($\textit{name}$, $\textit{value}$, $\textit{frame}$)
 	behavior of a correct program.  Design a way to make the interpreter
 	implement the <QUOTE>simultaneous</QUOTE> scope rule for internal 
 	declarations without constructing the extra frame.
-      </EXERCISE>
-      
-      <EXERCISE>
+      </JAVASCRIPT>
+    </SPLIT>
+  </EXERCISE>
+
+  <EXERCISE>
+    <LABEL NAME="ex:simultaneous-def"/> 
+    <LABEL NAME="ex:letrec"/>  
+    bal
+    <SPLIT>
+      <SCHEME>
+	<!-- 
+	     \indsf*{letrec}
+	     \ind*{special forms (those marked <EM>ns</EM> are not in the 
+	     IEEE Scheme standard)}[letrec@<SCHEMEINLINE>letrec</SCHEMEINLINE>]
+	-->
+	Because internal definitions look sequential but are actually
+	simultaneous, some people prefer to avoid them entirely, and use the
+	special form <SCHEMEINLINE>letrec</SCHEMEINLINE> instead.  
+	<SCHEMEINLINE>Letrec</SCHEMEINLINE> looks like
+	<SCHEMEINLINE>let</SCHEMEINLINE>, so it is not surprising that the
+	variables it binds are bound simultaneously and have the same scope as
+	each other.  The sample	procedure <SCHEMEINLINE>f</SCHEMEINLINE> above
+	can be written without internal definitions, but with exactly the same
+	meaning, as
+	<SNIPPET EVAL="no">
+	  <SCHEME>
+(define (f x)
+   (letrec ((even?
+               (lambda (n)
+                  (if (= n 0)
+                      true
+                      (odd? (- n 1)))))
+            (odd?
+               (lambda (n)
+                  (if (= n 0)
+                      false
+                      (even? (- n 1))))))
+      ^rest of body of^ f))
+	  </SCHEME>
+	</SNIPPET>
+	<SCHEMEINLINE>Letrec</SCHEMEINLINE> expressions, which have the form
+	<SNIPPET EVAL="no">
+	  <SCHEME>
+(letrec ((^var$_{1}$^ ^exp$_{1}$^) ^$\ldots$^ (^var$_{n}$^ ^exp$_{n}$^))
+    ^body^)
+	  </SCHEME>
+	</SNIPPET>
+	are a variation on <SCHEMEINLINE>let</SCHEMEINLINE> in which the
+	expressions <LATEXINLINE>exp$_{k}$</LATEXINLINE> that provide the
+	initial values for the variables <LATEXINLINE>var$_{k}$</LATEXINLINE>
+	are evaluated in an environment that includes all the
+	<SCHEMEINLINE>letrec</SCHEMEINLINE> bindings.  This permits recursion in
+	the bindings, such as the mutual recursion of
+	<SCHEMEINLINE>even?</SCHEMEINLINE> and <SCHEMEINLINE>odd?</SCHEMEINLINE>
+	in the example above, or
+	<INDEX>factorial<SUBINDEX>letrec@with
+	<SCHEMEINLINE>letrec</SCHEMEINLINE></SUBINDEX></INDEX>
+	the evaluation of 10 factorial with
+	<SNIPPET>
+	  <SCHEME>
+(letrec ((fact
+            (lambda (n)
+               (if (= n 1)
+                   1
+                   (* n (fact (- n 1)))))))
+        (fact 10))
+	  </SCHEME>
+	</SNIPPET>
+	<OL>
+	  <LI>
+	    Implement <SCHEMEINLINE>letrec</SCHEMEINLINE> as a derived
+	    expression, by transforming a <SCHEMEINLINE>letrec</SCHEMEINLINE>
+	    expression into a <SCHEMEINLINE>let</SCHEMEINLINE> expression as
+	    shown in  the text above or in
+	    exercise<SPACE/><REF NAME="ex:alternative-scanout_scheme"/>. That is,
+	    the <SCHEMEINLINE>letrec</SCHEMEINLINE> variables should be created
+	    with a <SCHEMEINLINE>let</SCHEMEINLINE> and then be assigned their
+	    values with <SCHEMEINLINE>set!</SCHEMEINLINE>.
+	  </LI>
+	  <LI>
+	    Louis Reasoner is confused by all this fuss about internal
+	    definitions.  The way he sees it, if you don<APOS/>t like to use
+	    <SCHEMEINLINE>define</SCHEMEINLINE> inside a procedure, you can just
+	    use <SCHEMEINLINE>let</SCHEMEINLINE>. Illustrate what is loose about
+	    his reasoning by drawing an environment diagram that shows the
+	    environment in which the
+	    <SCHEMEINLINE>^rest of body of^ f</SCHEMEINLINE> is evaluated during
+	    evaluation of the expression <SCHEMEINLINE>(f 5)</SCHEMEINLINE>, with
+	    <SCHEMEINLINE>f</SCHEMEINLINE> defined as in this exercise. Draw an
+	    environment diagram for the same evaluation, but with
+	    <SCHEMEINLINE>let</SCHEMEINLINE> in place of
+	    <SCHEMEINLINE>letrec</SCHEMEINLINE> in the definition of
+	    <SCHEMEINLINE>f</SCHEMEINLINE>.
+	  </LI>
+	</OL>
+      </SCHEME>
+      <JAVASCRIPT>
 	Ben Bitdiddle, Alyssa P. Hacker, and Eva Lu Ator are arguing about
 	the desired result of evaluating the expression
 	<SNIPPET>
@@ -744,12 +682,95 @@ f(10);
 	absence of such a mechanism, it is better to generate an error in the
 	difficult cases of simultaneous definitions (Alyssa<APOS/>s notion) than
 	to produce an incorrect answer (as Ben would have it).</FOOTNOTE>
-	<LABEL NAME="ex:simultaneous-def"/>
-      </EXERCISE>
+      </JAVASCRIPT>
+    </SPLIT>
+  </EXERCISE>
 
-      <EXERCISE>
+  <EXERCISE>
+    <LABEL NAME="ex:lambda_calculus"/>
+    <SPLIT>
+      <SCHEME>
 	<INDEX>recursive procedure<SUBINDEX>specifying without
 	<SCHEMEINLINE>define</SCHEMEINLINE></SUBINDEX></INDEX>
+	Amazingly, Louis<APOS/>s intuition in
+	exercise<SPACE/><REF NAME="ex:letrec"/> is correct. It is indeed
+	possible to specify recursive procedures without using
+	<SCHEMEINLINE>letrec</SCHEMEINLINE> (or even
+	<SCHEMEINLINE>define</SCHEMEINLINE>), although the method for
+	accomplishing this is much more subtle than Louis imagined.
+	The following expression computes 10 factorial by applying a recursive
+	<INDEX>factorial<SUBINDEX>letrec@without
+	<SCHEMEINLINE>letrec</SCHEMEINLINE> or
+	<SCHEMEINLINE>define</SCHEMEINLINE></SUBINDEX></INDEX>
+	factorial procedure:<FOOTNOTE>This example illustrates a programming
+	trick for formulating recursive procedures without using
+	<SCHEMEINLINE>define</SCHEMEINLINE>. The
+	<INDEX>Y@<LATEXINLINE>$Y$</LATEXINLINE> operator</INDEX>
+	most general trick of this sort is the <LATEXINLINE>$Y$</LATEXINLINE>
+	<EM>operator</EM>, which can be used to give a <QUOTE>pure
+	<LATEXINLINE>$\lambda$</LATEXINLINE>-calculus</QUOTE> implementation of
+	<INDEX>Stoy, Joseph E.</INDEX><INDEX>Gabriel, Richard P.</INDEX>
+	recursion.  (See <CITATION>Stoy 1977</CITATION> for details on the lambda
+	calculus, and <CITATION>Gabriel 1988</CITATION> for an exposition of the
+	<LATEXINLINE>$Y$</LATEXINLINE> operator in Scheme.)</FOOTNOTE>
+	<SNIPPET>
+	  <SCHEME>
+((lambda (n)
+    ((lambda (fact)
+        (fact fact n))
+     (lambda (ft k)
+        (if (= k 1)
+            1
+            (* k (ft ft (- k 1)))))))
+ 10)
+	  </SCHEME>
+	</SNIPPET>
+	<OL>
+	  <LI>
+	    Check (by evaluating the expression) that this really does compute
+	    factorials.  Devise an analogous expression for computing Fibonacci
+	    numbers.
+	  </LI>
+	  <LI>
+	    Consider the following procedure, which includes mutually recursive
+	    internal definitions:
+	    <SNIPPET>
+              <SCHEME>
+(define (f x)
+   (define (even? n)
+      (if (= n 0)
+          true
+      (odd? (- n 1))))
+   (define (odd? n)
+      (if (= n 0)
+          false
+          (even? (- n 1))))
+   (even? x))
+              </SCHEME>
+	    </SNIPPET>
+	    Fill in the missing expressions to complete an alternative definition
+	    of <SCHEMEINLINE>f</SCHEMEINLINE>, which uses neither internal
+	    definitions nor <SCHEMEINLINE>letrec</SCHEMEINLINE>:
+	    <SNIPPET EVAL="no">
+              <SCHEME>
+(define (f x)
+   ((lambda (even? odd?)
+  (even? even? odd? x))
+    (lambda (ev? od? n)
+  (if (= n 0) true (od? ^??^ ^??^ ^??^)))
+    (lambda (ev? od? n)
+  (if (= n 0) false (ev? ^??^ ^??^ ^??^)))))
+              </SCHEME>
+	    </SNIPPET>
+	  </LI>
+	</OL>
+
+      </SCHEME>
+      <JAVASCRIPT>
+	<!--
+	<INDEX>recursive procedure<SUBINDEX>specifying without
+	<SCHEMEINLINE>define</SCHEMEINLINE></SUBINDEX></INDEX>
+        -->
 	Recursive functions are obtained in a roundabout way in our
 	interpreter: First declare the name that will refer to the recursive
 	function and assign it to the special value
@@ -796,10 +817,10 @@ f(10);
 	  <LI>
 	    Consider the following function, which includes mutually recursive
 	    internal definitions:
-	    <SNIPPET>
+	    <SNIPPET HIDE="yes">
 	      <NAME>even_odd_4_1_6_example</NAME>
               <JAVASCRIPT>
-f(99);		
+f(99);
 	      </JAVASCRIPT>
 	    </SNIPPET>
 	    <SNIPPET>
@@ -822,8 +843,8 @@ function f(x) {
 }    
 	      </JAVASCRIPT>
 	    </SNIPPET>
-	    Fill in the missing expressions to complete an alternative definition
-	    of <SCHEMEINLINE>f</SCHEMEINLINE>, which uses
+	    Fill in the missing expressions to complete an alternative
+	    declaration of <SCHEMEINLINE>f</SCHEMEINLINE>, which uses
 	    neither <JAVASCRIPTINLINE>const</JAVASCRIPTINLINE> nor
 	    <JAVASCRIPTINLINE>let</JAVASCRIPTINLINE> nor internal function
 	    declarations:
@@ -844,10 +865,11 @@ function f(x) {
 	    </SNIPPET>
 	  </LI>
 	</OL>
-      </EXERCISE>
-    </JAVASCRIPT>
-  </SPLIT>
-
+      </JAVASCRIPT>
+    </SPLIT>
+  </EXERCISE>
+  <!--
   <INDEX>block structure|(</INDEX>
-
+  <INDEX>block structure|)</INDEX>
+  -->
 </SUBSECTION>
