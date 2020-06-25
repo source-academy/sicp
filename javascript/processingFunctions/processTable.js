@@ -4,11 +4,11 @@ export const processTable = (node, writeTo) => {
   const firstRow = node.getElementsByTagName("TR")[0];
   if (firstRow) {
     const colNum = firstRow.getElementsByTagName("TD").length;
-    writeTo.push("\n\n\\noindent\\begin{tabular}{ | ");
+    writeTo.push("\n\n\\noindent\\begin{tabular}{  ");
     for (let i = 0; i < colNum; i++) {
-      writeTo.push("l | ");
+      writeTo.push("l  ");
     }
-    writeTo.push("} \\hline\n");
+    writeTo.push("} \n");
     for (let row = node.firstChild; row; row = row.nextSibling) {
       if (row.nodeName != "TR") continue;
       let first = true;
@@ -21,7 +21,7 @@ export const processTable = (node, writeTo) => {
         }
         recursiveProcessTextLatex(col.firstChild, writeTo);
       }
-      writeTo.push(" \\\\ \\hline\n");
+      writeTo.push(" \\\\ \n");
     }
     writeTo.push("\\end{tabular}\n\n");
   } else {
