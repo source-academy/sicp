@@ -23,7 +23,8 @@ const processExercisePdf = (node, writeTo) => {
 
   recursiveProcessTextLatex(node.firstChild, writeTo);
   if (solution) {
-    writeTo.push("\\hfill{\\hyperref[" + labelName + "-Answer]{Solution}}\\\\");
+    //  include the following line for a clickable "Solution"
+    //  writeTo.push("\\hfill{\\hyperref[" + labelName + "-Answer]{Solution}}\\\\");
   }
   writeTo.push("\n\\end{Exercise}\n");
 
