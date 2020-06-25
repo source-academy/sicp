@@ -65,6 +65,8 @@ export const processSnippetHtml = (node, writeTo, split) => {
   }
 
   const jsSnippet = node.getElementsByTagName("JAVASCRIPT")[0];
+  const jsOutputSnippet = node.getElementsByTagName("JAVASCRIPT_OUTPUT")[0];
+
   if (jsSnippet) {
     // JavaScript source for running. Overrides JAVASCRIPT if present.
     let jsRunSnippet = node.getElementsByTagName("JAVASCRIPT_RUN")[0];
@@ -72,14 +74,13 @@ export const processSnippetHtml = (node, writeTo, split) => {
       jsRunSnippet = jsSnippet;
     }
 
-    let jsOutputSnippet = node.getElementsByTagName("JAVASCRIPT_OUTPUT")[0];
-
     const codeArr = [];
-    recursiveProcessPureText(jsSnippet.firstChild, codeArr);
+    if (jsSnippet) recursiveProcessPureText(jsSnippet.firstChild, codeArr);
     const codeStr = codeArr.join("").trim();
 
     const codeArr_run = [];
-    recursiveProcessPureText(jsRunSnippet.firstChild, codeArr_run);
+    if (jsRunSnippet)
+      recursiveProcessPureText(jsRunSnippet.firstChild, codeArr_run);
     const codeStr_run = codeArr_run.join("").trim();
 
     // Do warning for very long lines if no latex
@@ -206,11 +207,11 @@ export const processSnippetHtml = (node, writeTo, split) => {
 
       writeTo.push("\n</pre>");
     }
-    if (jsOutputSnippet && split) {
-      writeTo.push("<pre class='prettyprintoutput'>\n");
-      writeTo.push(jsOutputSnippet.firstChild.nodeValue);
-      writeTo.push("\n</pre>");
-    }
+  }
+  if (jsOutputSnippet) {
+    writeTo.push("<pre class='prettyprintoutput'>\n");
+    writeTo.push(jsOutputSnippet.firstChild.nodeValue);
+    writeTo.push("\n</pre>");
   }
 };
 

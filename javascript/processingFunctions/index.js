@@ -16,6 +16,7 @@ import processTable from "./processTable";
 
 import { recursiveProcessTextHtml, processTextHtml } from "../parseXmlHtml";
 import processEpigraphHtml from "./processEpigraphHtml";
+import processBlockquoteHtml from "./processBlockquoteHtml";
 import processExerciseHtml from "./processExerciseHtml";
 import processFigureHtml from "./processFigureHtml";
 import processReferenceHtml from "./processReferenceHtml";
@@ -59,6 +60,7 @@ export {
   processSnippetJs,
   processTable,
   processEpigraphHtml,
+  processBlockquoteHtml,
   processExerciseHtml,
   processFigureHtml,
   processReferenceHtml,
