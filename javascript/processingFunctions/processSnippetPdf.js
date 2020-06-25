@@ -68,8 +68,6 @@ export const processSnippetPdf = (node, writeTo) => {
       jsRunSnippet = jsSnippet;
     }
 
-    let jsOutputSnippet = node.getElementsByTagName("JAVASCRIPT_OUTPUT")[0];
-
     const codeArr = [];
     recursiveProcessPureText(jsSnippet.firstChild, codeArr);
     const codeStr = codeArr.join("").trim();
@@ -181,15 +179,18 @@ export const processSnippetPdf = (node, writeTo) => {
       } else {
         writeTo.push("\n\n\\href{" + url + "}{\\usebox\\lstbox}");
       }
-      if (jsOutputSnippet) {
-        writeTo.push("\n\\begin{JavaScriptOutput}\n");
-        writeTo.push(jsOutputSnippet.firstChild.nodeValue);
-        writeTo.push("\n\\end{JavaScriptOutput}");
-      }
-
-      writeTo.push("\n\n");
     }
   }
+
+  const jsOutputSnippet = node.getElementsByTagName("JAVASCRIPT_OUTPUT")[0];
+
+  if (jsOutputSnippet) {
+    writeTo.push("\n\\begin{JavaScriptOutput}");
+    writeTo.push(jsOutputSnippet.firstChild.nodeValue);
+    writeTo.push("\\end{JavaScriptOutput}");
+  }
+
+  writeTo.push("\n\n");
 };
 
 export default processSnippetPdf;

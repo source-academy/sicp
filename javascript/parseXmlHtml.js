@@ -11,6 +11,7 @@ import { recursiveProcessTOC } from "./generateTocHtml";
 
 import {
   replaceTagWithSymbol,
+  processBlockquoteHtml,
   processEpigraphHtml,
   processFigureHtml,
   processExerciseHtml,
@@ -64,7 +65,6 @@ const ignoreTagsDefault = new Set([
 
 const preserveTagsDefault = new Set([
   "B",
-  "BLOCKQUOTE",
   "EM",
   "QUOTE",
   "SC",
@@ -168,6 +168,10 @@ const processTextFunctionsDefaultHtml = {
 
   EPIGRAPH: (node, writeTo) => {
     processEpigraphHtml(node, writeTo);
+  },
+
+  BLOCKQUOTE: (node, writeTo) => {
+    processBlockquoteHtml(node, writeTo);
   },
 
   EXERCISE: (node, writeTo) => {
@@ -426,21 +430,21 @@ const processTextFunctionsDefaultHtml = {
 
 const processTextFunctionsSplit = {
   WEB_ONLY: (node, writeTo) => {
-    writeTo.push(`<span style="color:purple">`);
+    writeTo.push("<div class='webonly'>");
     recursiveProcessTextHtml(node.firstChild, writeTo);
-    writeTo.push(`</span>`);
+    writeTo.push("</div>");
   },
 
   PDF_ONLY: (node, writeTo) => {
-    writeTo.push(`<span style="color:maroon">`);
+    writeTo.push("<div class='pdfonly'>");
     recursiveProcessTextHtml(node.firstChild, writeTo);
-    writeTo.push(`</span>`);
+    writeTo.push("</div>");
   },
 
   COMMENT: (node, writeTo) => {
-    writeTo.push(`<span style="color:grey">`);
+    writeTo.push("<span class='comment'>");
     recursiveProcessTextHtml(node.firstChild, writeTo);
-    writeTo.push(`</span>`);
+    writeTo.push("</span>");
   },
 
   SCHEME: (node, writeTo) => {
@@ -458,35 +462,30 @@ const processTextFunctionsSplit = {
   SPLIT: (node, writeTo) => {
     const scheme = getChildrenByTagName(node, "SCHEME")[0];
     const js = getChildrenByTagName(node, "JAVASCRIPT")[0];
-    if (scheme && js) {
-      writeTo.push(`<table width="100%">
+    writeTo.push(`<table width="100%">
         <colgroup><col width="48%"><col width="1%"><col width="51%"></colgroup>
         <tr>
           <td class="meta" style = "color:grey; text-align: center">Original</td>
           <td></td>
           <td class="meta" style = "color:grey; text-align: center">JavaScript</td>
         </tr>`);
-      writeTo.push(`
-        <tr>
-          <td>`);
+    writeTo.push(`
+        <tr><td>`);
+    if (scheme) {
       writeTo.push(`<span style="color:teal">`);
       recursiveProcessTextHtml(scheme.firstChild, writeTo);
       writeTo.push(`</span>`);
-
-      writeTo.push(`    </td>
+    }
+    writeTo.push(`    </td>
           <td></td>
           <td>`);
+    if (js) {
       writeTo.push(`<span style="color:blue">`);
       recursiveProcessTextHtml(js.firstChild, writeTo);
       writeTo.push(`</span>`);
-
-      writeTo.push(`</td></tr>`);
-      writeTo.push(`</table>`);
-    } else if (js) {
-      recursiveProcessTextHtml(js.firstChild, writeTo);
-    } else if (scheme) {
-      recursiveProcessTextHtml(scheme.firstChild, writeTo);
     }
+    writeTo.push(`</td></tr>`);
+    writeTo.push(`</table>`);
   },
 
   FOOTNOTE: (node, writeTo) => {
@@ -574,7 +573,9 @@ const processTextFunctionsSplit = {
 
     const scheme = getChildrenByTagName(node, "SCHEME")[0];
     const js = getChildrenByTagName(node, "JAVASCRIPT")[0];
-    if (scheme && js) {
+    const scheme_output = getChildrenByTagName(node, "SCHEMEOUTPUT")[0];
+    const js_output = getChildrenByTagName(node, "JAVASCRIPT_OUTPUT")[0];
+    if ((scheme || scheme_output) && (js || js_output)) {
       writeTo.push(`<table width="100%">
           <colgroup><col width="48%"><col width="52%"></colgroup>
           `);
