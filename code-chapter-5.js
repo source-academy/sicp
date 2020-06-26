@@ -87,7 +87,7 @@ function gcd_machine() {
 function make_machine(register_names, ops, controller_text) {
     const machine = make_new_machine();
 
-    map(reg_name => machine("allocate_register")(reg_name), register_names);
+    for_each(reg_name => machine("allocate_register")(reg_name), register_names);
     machine("install_operations")(ops);
     machine("install_instruction_sequence")(assemble(controller_text, machine));
 
@@ -783,6 +783,13 @@ function length(xs) {
 
 function map(f, xs) {
     return is_null(xs) ? null : pair(f(head(xs)), map(f, tail(xs)))
+}
+
+function for_each(f, xs) {
+    if (!is_null(xs)) {
+        f(head(xs));
+        for_each(f, tail(xs));
+    }
 }
 
 function reverse(xs) {
