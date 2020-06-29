@@ -11,11 +11,21 @@ export const processFigureHtml = (node, writeTo) => {
   if (!src && node.getElementsByTagName("FIGURE")[0]) {
     src = node.getElementsByTagName("FIGURE")[0].getAttribute("src");
   }
+
+  let scale_factor = "scale_factor_0";
+  if (!node.getAttribute("scale_factor") && node.getElementsByTagName("FIGURE")[0]) {
+      scale_factor = "scale_factor_" +
+          node.getElementsByTagName("FIGURE")[0].getAttribute("scale_factor");
+  } else {
+      scale_factor = "scale_factor_" +
+          node.getAttribute("scale_factor");
+  }
+    
   const label = node.getElementsByTagName("LABEL")[0];
 
   if (src && !label) {
     writeTo.push(`
-        <img src="${toIndexFolder}${src}">
+        <img class="${scale_factor}" src="${toIndexFolder}${src}">
       `);
     return;
   } else if (!src) {
@@ -24,7 +34,7 @@ export const processFigureHtml = (node, writeTo) => {
     const images = node.getElementsByTagName("IMAGE");
     for (let i = 0; i < images.length; i++) {
       writeTo.push(`
-      <img src="${toIndexFolder}${images[i].getAttribute("src")}">
+      <img class="${scale_factor}" src="${toIndexFolder}${images[i].getAttribute("src")}">
       `);
     }
   }
@@ -39,7 +49,7 @@ export const processFigureHtml = (node, writeTo) => {
   if (src && label) {
     writeTo.push(`
     <FIGURE>
-      <img id="fig_${displayName}" src="${toIndexFolder}${src}">`);
+      <img class="${scale_factor}" id="fig_${displayName}" src="${toIndexFolder}${src}">`);
   }
 
   const snippet = node.getElementsByTagName("SNIPPET")[0];
