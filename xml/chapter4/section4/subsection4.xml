@@ -32,7 +32,38 @@
       used to form a new stream consisting of copies of the original query in
       which the variables are instantiated with values supplied by the stream of
       frames, and this final stream is printed at the terminal:
-      <SNIPPET EVAL="no">
+      <SNIPPET HIDE="yes">
+	<NAME>lp_header</NAME>
+	<JAVASCRIPT>
+// functions from SICP JS 4.4.4
+	</JAVASCRIPT>
+      </SNIPPET>
+      <SNIPPET HIDE="yes">
+	<NAME>functions_4_4_4</NAME>
+	<REQUIRES>functions_4_1_1</REQUIRES>
+	<REQUIRES>functions_4_1_2</REQUIRES>
+	<REQUIRES>functions_4_1_3</REQUIRES>
+	<REQUIRES>functions_4_1_4</REQUIRES>
+	<REQUIRES>lp_header</REQUIRES>
+	<REQUIRES>contract_question_mark</REQUIRES>
+	<REQUIRES>query_syntax_process</REQUIRES>
+	<REQUIRES>assertion_to_be_added</REQUIRES>
+	<REQUIRES>instantiate</REQUIRES>
+	<REQUIRES>evaluate_query</REQUIRES>
+	<REQUIRES>singleton_stream</REQUIRES>
+	<REQUIRES>add_rule_or_assertion</REQUIRES>
+	<REQUIRES>put_and</REQUIRES>
+	<REQUIRES>disjoin</REQUIRES>
+	<REQUIRES>negate</REQUIRES>
+	<REQUIRES>javascript_value</REQUIRES>
+	<REQUIRES>display_stream</REQUIRES>
+	<REQUIRES>always_true</REQUIRES>
+	<JAVASCRIPT>
+	</JAVASCRIPT>
+      </SNIPPET>
+      <SNIPPET>
+	<NAME>query_driver_loop</NAME>
+	<REQUIRES>functions_4_4_4</REQUIRES>
 	<SCHEME>
           <INDEX>prompts<SUBINDEX>query interpreter</SUBINDEX></INDEX>
         (define input-prompt ";;; Query input:")
@@ -61,27 +92,97 @@
               (query-driver-loop)))))
 	</SCHEME>
 	<JAVASCRIPT>
-const input_prompt = "// Query input:";
-const output_prompt = "// Query results:";
+const input_prompt = "query input:";
+const output_prompt = "query results:";
 
 function query_driver_loop() {
     const input = prompt(input_prompt);
-    const q = query_syntax_process(parse(input));
+    const q = query_syntax_process(parse(input + ";"));
     if (assertion_to_be_added(q)) {
         add_rule_or_assertion(add_assertion_body(q));
         display("Assertion added to data base.");
     } else {
         display(output_prompt);
         display_stream(
-            stream_map(
-                frame =>
-                    instantiate(q, frame,
-                                (v, f) =>
-                                   contract_question_mark(v)),
-                evaluate_query(q, singleton_stream(null))));
-        
+          stream_map(
+            frame =>
+              pretty_query(
+                instantiate(q, frame, (v, _) => v)),
+            evaluate_query(q, singleton_stream(null))));
     }
     query_driver_loop();
+}
+	</JAVASCRIPT>
+	<JAVASCRIPT_RUN>
+const input_prompt = "query input:";
+
+function query_driver_loop() {
+    const input = prompt(input_prompt);
+    if (is_null(input)) {
+        display("--- evaluator terminated ---");
+    } else {
+        const q = query_syntax_process(parse(input + ";"));
+        display("---- driver loop input -----");
+        display(pretty_query(q));
+        if (assertion_to_be_added(q)) {
+            add_rule_or_assertion(add_assertion_body(q));
+            display("Assertion added to data base.");
+        } else {
+            display("------ query results -------", "");
+            display_stream(
+              stream_map(
+                frame =>
+                  pretty_query(
+		    instantiate(q, frame, (v, _) => v)),
+                evaluate_query(q, singleton_stream(null))));
+        }
+        query_driver_loop();
+    }
+}
+	</JAVASCRIPT_RUN>
+      </SNIPPET>
+      <SNIPPET HIDE="yes">
+	<NAME>process_query</NAME>
+	<REQUIRES>functions_4_4_4</REQUIRES>
+	<EXAMPLE>process_query_example_1</EXAMPLE>
+	<JAVASCRIPT>
+function process_query(input, verbosity) {
+    const q = query_syntax_process(parse(input + ";"));
+    if (verbosity !== "silent") {
+        display("--- process query input  ---"); 
+        display(pretty_query(q)); } else {}
+    if (assertion_to_be_added(q)) {
+        add_rule_or_assertion(add_assertion_body(q));
+        if (verbosity !== "silent") {
+            display("----- assertion added ------"); } else {}
+    } else {
+        display("------ query results -------");
+        display_stream(
+            stream_map(
+                frame =>
+                    pretty_query(
+                        instantiate(q, frame, (v, f) => v)),
+                evaluate_query(q, singleton_stream(null))));
+    }
+}
+	</JAVASCRIPT>
+      </SNIPPET>
+      <SNIPPET HIDE="yes">
+	<NAME>process_query_example_1</NAME>
+	<JAVASCRIPT>
+process_query('assert(son("Adam", "Cain"))');
+process_query('son("Adam", x)');	  
+	</JAVASCRIPT>
+      </SNIPPET>
+      <SNIPPET HIDE="yes">
+	<NAME>first_answer</NAME>
+	<REQUIRES>functions_4_4_4</REQUIRES>
+	<EXAMPLE>process_query_example_1</EXAMPLE>
+	<JAVASCRIPT>
+function first_answer(input) {
+    const q = query_syntax_process(parse(input + ";"));
+    const first_frame = head(evaluate_query(q, singleton_stream(null)));
+    return pretty_query(instantiate(q, first_frame, (v, f) => v));
 }
 	</JAVASCRIPT>
       </SNIPPET>
@@ -124,7 +225,21 @@ function query_driver_loop() {
     <TEXT>
       Before doing any processing on an input expression, the driver loop
       transforms it syntactically into a form that makes the processing more
-      efficient.  This involves changing the 
+      <SPLITINLINE>
+	<SCHEME>efficient.</SCHEME>
+	<JAVASCRIPT>convenient.</JAVASCRIPT>
+      </SPLITINLINE>
+      <COMMENT>
+	In the JavaScript adaptation, there is no need to precede variable
+	names with <QUOTE>?</QUOTE>, see comment in section 4.4.1. We are
+	using the same internal representation as in the Scheme version, because
+	this way, we can distinguish the name
+	<JAVASCRIPTINLINE>my_name</JAVASCRIPTINLINE> from the data log list
+	<JAVASCRIPTINLINE>list("name", "my_name")</JAVASCRIPTINLINE>.
+	The original authors were saying <QUOTE>efficient</QUOTE> because
+	of the string manipulations that would be required at runtime.
+      </COMMENT>
+      This involves changing the 
       <INDEX>pattern variable<SUBINDEX>representation of</SUBINDEX></INDEX>
       <INDEX>query interpreter
       <SUBINDEX>pattern-variable representation</SUBINDEX></INDEX>
@@ -177,9 +292,17 @@ function query_driver_loop() {
 	<JAVASCRIPT><JAVASCRIPTINLINE>y</JAVASCRIPTINLINE></JAVASCRIPT>
       </SPLITINLINE>
       is in turn bound to<SPACE/>5).  The action to take if a variable cannot be
-      instantiated is given by a procedural argument to
+      instantiated is given by a
+      <SPLITINLINE>
+	<SCHEME>procedural</SCHEME>
+	<JAVASCRIPT>functional</JAVASCRIPT>
+      </SPLITINLINE>
+      argument to
       <SCHEMEINLINE>instantiate</SCHEMEINLINE>.
-      <SNIPPET EVAL="no">
+      <SNIPPET>
+	<NAME>instantiate</NAME>
+	<REQUIRES>make_binding</REQUIRES>
+	<REQUIRES>is_var</REQUIRES>
 	<SCHEME>
         <!--  \indcode*{instantiate} -->
         (define (instantiate exp frame unbound-var-handler)
@@ -199,18 +322,16 @@ function instantiate(exp, frame, unbound_var_handler) {
     function copy(exp) {
         if (is_var(exp)) {
             const binding = binding_in_frame(exp, frame);
-            if (! binding === undefined) {
-                return unbound_var_handler(exp, frame);
-     	    } else {
- 	        return copy(binding_value(binding));
-            }
-	} else if (is_pair(exp)) {
+            return binding === undefined
+                ? unbound_var_handler(exp, frame)
+                : copy(binding_value(binding));
+        } else if (is_pair(exp)) {
             return pair(copy(head(exp)), copy(tail(exp)));
         } else {
             return exp;
-	}
+        }
     }
-    copy(exp);
+    return copy(exp);
 }
 	</JAVASCRIPT>
       </SNIPPET>
@@ -271,7 +392,12 @@ function instantiate(exp, frame, unbound_var_handler) {
 	  <JAVASCRIPTINLINE>simple_query</JAVASCRIPTINLINE>.
 	</JAVASCRIPT>
       </SPLITINLINE>
-      <SNIPPET EVAL="no">
+      <SNIPPET>
+	<NAME>evaluate_query</NAME>
+	<REQUIRES>operation_table_from_chapter_3</REQUIRES>
+	<REQUIRES>operation_table</REQUIRES>
+	<REQUIRES>simple_query</REQUIRES>
+	<REQUIRES>type</REQUIRES>
 	<SCHEME>
         <!--  \indcode*{qeval} -->
         (define (qeval query frame-stream)
@@ -281,8 +407,8 @@ function instantiate(exp, frame, unbound_var_handler) {
               (simple-query query frame-stream))))
 	</SCHEME>
 	<JAVASCRIPT>
-function evaluate_query(query, frame_stream) {	
-    const qfun = get(type(query), "qeval");
+function evaluate_query(query, frame_stream) {
+    const qfun = get(type(query), "evaluate_query");
     return qfun === undefined
         ? simple_query(query, frame_stream)
         : qfun(contents(query), frame_stream);
@@ -327,6 +453,10 @@ function evaluate_query(query, frame_stream) {
       extending each frame by all data-base matches of the query.
 
       <SNIPPET EVAL="no">
+	<NAME>simple_query</NAME>
+	<REQUIRES>stream_flatmap</REQUIRES>
+	<REQUIRES>find_assertions</REQUIRES>
+	<REQUIRES>apply_rules</REQUIRES>
 	<SCHEME>
         <!--  \indcode*{simple-query} -->
         (define (simple-query query-pattern frame-stream)
@@ -338,11 +468,11 @@ function evaluate_query(query, frame_stream) {
         frame-stream))
 	</SCHEME>
 	<JAVASCRIPT>
-function simple_query(query_pattern, frame_stream) {	
+function simple_query(query_pattern, frame_stream) {
     return stream_flatmap(
         frame => 
             stream_append_delayed(find_assertions(query_pattern, frame),
-                                  delay(apply_rules(query_pattern, frame))),
+                                  () => apply_rules(query_pattern, frame)),
         frame_stream);
 }
 	</JAVASCRIPT>
@@ -407,7 +537,15 @@ function simple_query(query_pattern, frame_stream) {
     <TEXT>
       <!-- \indcodeplus{and}{(query language)}[evaluation of]-->
       <SCHEMEINLINE>And</SCHEMEINLINE> queries are handled as illustrated in
-      figure<SPACE/><REF NAME="fig:query-and"/> by the
+      <SPLITINLINE>
+	<SCHEME>
+	  figure<SPACE/><REF NAME="fig:query-and_scheme"/>
+	</SCHEME>
+	<JAVASCRIPT>
+	  figure<SPACE/><REF NAME="fig:query-and"/>
+	</JAVASCRIPT>
+      </SPLITINLINE>
+      by the
       <SCHEMEINLINE>conjoin</SCHEMEINLINE>
       <SPLITINLINE>
 	<SCHEME>procedure. <SCHEMEINLINE>Conjoin</SCHEMEINLINE></SCHEME>
@@ -419,7 +557,10 @@ function simple_query(query_pattern, frame_stream) {
       that satisfy the first query in the conjunction.  Then, using this as the
       new frame stream, it recursively applies
       <SCHEMEINLINE>conjoin</SCHEMEINLINE> to the rest of the queries.
+      <!-- mutual recursion -->
       <SNIPPET EVAL="no">
+	<NAME>conjoin</NAME>
+	<REQUIRES>is_empty_conjunction</REQUIRES>
 	<SCHEME>
         <!--  \indcode*{conjoin} -->
         (define (conjoin conjuncts frame-stream)
@@ -430,7 +571,7 @@ function simple_query(query_pattern, frame_stream) {
               frame-stream))))
 	</SCHEME>
 	<JAVASCRIPT>
-function conjoin(conjuncts, frame_stream) {	
+function conjoin(conjuncts, frame_stream) {
     return is_empty_conjunction(conjuncts)
         ? frame_stream
         : conjoin(rest_conjuncts(conjuncts),
@@ -444,11 +585,15 @@ function conjoin(conjuncts, frame_stream) {
     <TEXT>
       The expression
       <SNIPPET EVAL="no">
+	<NAME>put_and</NAME>
+	<REQUIRES>operation_table_from_chapter_3</REQUIRES>
+	<REQUIRES>operation_table</REQUIRES>
+	<REQUIRES>conjoin</REQUIRES>
 	<SCHEME>
           (put 'and 'qeval conjoin)
 	</SCHEME>
 	<JAVASCRIPT>
-	  put("and", "qeval", conjoin);	
+put("and", "evaluate_query", conjoin);
 	</JAVASCRIPT>
       </SNIPPET>
       sets up
@@ -476,8 +621,16 @@ function conjoin(conjuncts, frame_stream) {
 	  We handle <SCHEMEINLINE>or</SCHEMEINLINE> queries
 	</JAVASCRIPT>
       </SPLITINLINE>
-      similarly, as shown in figure<SPACE/><REF NAME="fig:query-or"/>.  The
-      output streams for the various disjuncts of the
+      similarly, as shown in
+      <SPLITINLINE>
+	<SCHEME>
+      figure<SPACE/><REF NAME="fig:query-or_scheme"/>.
+	</SCHEME>
+	<JAVASCRIPT>
+      figure<SPACE/><REF NAME="fig:query-or"/>.
+	</JAVASCRIPT>
+      </SPLITINLINE>
+      The output streams for the various disjuncts of the
       <SCHEMEINLINE>or</SCHEMEINLINE> are computed separately and merged using
       the
       <SPLITINLINE>
@@ -495,7 +648,13 @@ function conjoin(conjuncts, frame_stream) {
       from section<SPACE/><REF NAME="sec:query-streams"/>.
       (See exercises<SPACE/><REF NAME="ex:q-why-not-append"/>
       and<SPACE/><REF NAME="ex:q-why-interleave"/>.)
+      <!-- mutual recursion -->
       <SNIPPET EVAL="no">
+	<NAME>disjoin</NAME>
+	<REQUIRES>operation_table_from_chapter_3</REQUIRES>
+	<REQUIRES>operation_table</REQUIRES>
+	<REQUIRES>is_empty_conjunction</REQUIRES>
+	<REQUIRES>stream_append_delayed</REQUIRES>
 	<SCHEME>
         <!--  \indcode*{disjoin} -->
         (define (disjoin disjuncts frame-stream)
@@ -514,10 +673,10 @@ function disjoin(disjuncts, frame_stream) {
         ? null
         : interleave_delayed(
               evaluate_query(first_disjunct(disjuncts), frame_stream),
-	      delay(disjoin(rest_disjuncts(disjuncts),
-	                    frame_stream)));
+	      () => disjoin(rest_disjuncts(disjuncts),
+	                    frame_stream));
 }
-put("or", "qeval", disjoin);
+put("or", "evaluate_query", disjoin);
 	</JAVASCRIPT>
       </SNIPPET>
     </TEXT>
@@ -537,7 +696,13 @@ put("or", "qeval", disjoin);
       section<SPACE/><REF NAME="sec:how-query-works"/>.  We attempt to extend
       each frame in the input stream to satisfy the query being negated, and we
       include a given frame in the output stream only if it cannot be extended.
+      <!-- mutual recursion -->
       <SNIPPET EVAL="no">
+	<NAME>negate</NAME>
+	<REQUIRES>operation_table_from_chapter_3</REQUIRES>
+	<REQUIRES>operation_table</REQUIRES>
+	<REQUIRES>stream_flatmap</REQUIRES>
+	<REQUIRES>singleton_stream</REQUIRES>
 	<SCHEME>
         <!--  \indcode*{negate} -->
         (define (negate operands frame-stream)
@@ -552,16 +717,16 @@ put("or", "qeval", disjoin);
         (put 'not 'qeval negate)
 	</SCHEME>
 	<JAVASCRIPT>
-function negate(operands, frame_stream) {
+function negate(args, frame_stream) {
     return stream_flatmap(
               frame =>
-	         is_null(evaluate_query(negated_query(operands),
+	         is_null(evaluate_query(negated_query(args),
                                singleton_stream(frame)))
 	         ? singleton_stream(frame)
 		 : null,
 	      frame_stream);
 }
-put("not", "qeval", negate);
+put("not", "evaluate_query", negate);
 	</JAVASCRIPT>
       </SNIPPET>
     </TEXT>
@@ -580,8 +745,14 @@ put("not", "qeval", negate);
       indicated predicate is applied, and the frames for which the predicate
       returns false are filtered out of the input stream.  An error results
       if there are unbound pattern variables.
-
+      <!-- mutual recursion -->
       <SNIPPET EVAL="no">
+	<NAME>javascript_value</NAME>
+	<REQUIRES>operation_table_from_chapter_3</REQUIRES>
+	<REQUIRES>operation_table</REQUIRES>
+	<REQUIRES>stream_flatmap</REQUIRES>
+	<REQUIRES>execute</REQUIRES>
+	<REQUIRES>singleton_stream</REQUIRES>
 	<SCHEME>
         <!-- \indcodeplus*{lisp-value}{(query interpreter)}-->
         (define (lisp-value call frame-stream)
@@ -644,22 +815,28 @@ put("javascript_value", "evaluate_query", javascript_value);
 	<SCHEME><SCHEMEINLINE>eval</SCHEMEINLINE></SCHEME>
 	<JAVASCRIPT><JAVASCRIPTINLINE>evaluate</JAVASCRIPTINLINE></JAVASCRIPT>
       </SPLITINLINE>
-      and <SCHEMEINLINE>apply</SCHEMEINLINE> from the underlying
+      and <SCHEMEINLINE>apply</SCHEMEINLINE> from the
       <SPLITINLINE>
-	<SCHEME>Lisp</SCHEME>
-	<JAVASCRIPT>JavaScript</JAVASCRIPT>
+	<SCHEME>underlying Lisp system.</SCHEME>
+	<JAVASCRIPT>
+	  evaluator in section<SPACE/><REF NAME="sec:mc-eval"/>.
+	</JAVASCRIPT>
       </SPLITINLINE>
-      system.
-      <SNIPPET EVAL="no">
+      <SNIPPET>
+	<NAME>execute</NAME>
+	<REQUIRES>functions_4_1_1</REQUIRES>
+	<REQUIRES>functions_4_1_2</REQUIRES>
+	<REQUIRES>functions_4_1_3</REQUIRES>
+	<REQUIRES>functions_4_1_4</REQUIRES>
+	<REQUIRES>is_empty_conjunction</REQUIRES>
 	<SCHEME>
         (define (execute exp)
         (apply (eval (predicate exp) user-initial-environment)
               (args exp)))
 	</SCHEME>
 	<JAVASCRIPT>
-function execute(exp) {	
-    return apply(evaluate(predicate(exp), user_initial_environment),
-                 args(exp));
+function execute(exp) {
+    return evaluate(predicate(exp), the_global_environment);
 }
 	</JAVASCRIPT>
       </SNIPPET>
@@ -670,15 +847,15 @@ function execute(exp) {
       <SPLITINLINE>
 	<SCHEME><SCHEMEINLINE>always-true</SCHEMEINLINE> special form</SCHEME>
 	<JAVASCRIPT>
-	  <JAVASCRIPTINLINE>always_true</JAVASCRIPTINLINE> expression
+	  <JAVASCRIPTINLINE>"always_true"</JAVASCRIPTINLINE> expression
 	</JAVASCRIPT>
       </SPLITINLINE>
-      provides for a query that is alwaysd satisfied.  It ignores its contents
+      provides for a query that is always satisfied.  It ignores its contents
       (normally empty) and simply passes through all the frames in the input
       stream.
       <SPLITINLINE>
 	<SCHEME><SCHEMEINLINE>Always-true</SCHEMEINLINE></SCHEME>
-	<JAVASCRIPT>The <JAVASCRIPTINLINE>always_true</JAVASCRIPTINLINE>
+	<JAVASCRIPT>The <JAVASCRIPTINLINE>"always_true"</JAVASCRIPTINLINE>
 	expression
 	</JAVASCRIPT>
       </SPLITINLINE>
@@ -687,11 +864,14 @@ function execute(exp) {
 	<SCHEME><SCHEMEINLINE>rule-body</SCHEMEINLINE></SCHEME>
 	<JAVASCRIPT><JAVASCRIPTINLINE>rule_body</JAVASCRIPTINLINE></JAVASCRIPT>
       </SPLITINLINE>
-      selector (section<SPACE/>7<REF NAME="sec:query-syntax"/>)
+      selector (section<SPACE/><REF NAME="sec:query-syntax"/>)
       <INDEX>rule (query language)<SUBINDEX>without body</SUBINDEX></INDEX>
       to provide bodies for rules that were defined without bodies (that is,
       rules whose bodies are always satisfied).
-      <SNIPPET EVAL="no">
+      <SNIPPET>
+	<NAME>always_true</NAME>
+	<REQUIRES>operation_table_from_chapter_3</REQUIRES>
+	<REQUIRES>operation_table</REQUIRES>
 	<SCHEME>
         <!--  \indcode*{always-true} -->
         (define (always-true ignore frame-stream) frame-stream)
@@ -699,10 +879,10 @@ function execute(exp) {
         (put 'always-true 'qeval always-true)
 	</SCHEME>
 	<JAVASCRIPT>
-function always_true(ignore, frame_stream) {	
+function always_true(ignore, frame_stream) {
     return frame_stream;
 }
-put("always_true", "qeval", always_true);    
+put("always_true", "evaluate_query", always_true);    
 	</JAVASCRIPT>
       </SNIPPET>
     </TEXT>
@@ -773,7 +953,11 @@ put("always_true", "qeval", always_true);
       and simply checked a stream of all assertions in the data base, but
       the computation would be less efficient because we would need to make
       many more calls to the matcher.
-      <SNIPPET EVAL="no">
+      <SNIPPET>
+	<NAME>find_assertions</NAME>
+	<REQUIRES>stream_flatmap</REQUIRES>
+	<REQUIRES>check_an_assertion</REQUIRES>
+	<REQUIRES>fetch_assertions</REQUIRES>
 	<SCHEME>
         <!--  \indcode*{find-assertions} -->
         (define (find-assertions pattern frame)
@@ -782,7 +966,7 @@ put("always_true", "qeval", always_true);
               (fetch-assertions pattern frame)))
 	</SCHEME>
 	<JAVASCRIPT>
-function find_assertions(pattern, frame) {	
+function find_assertions(pattern, frame) {
     return stream_flatmap(
               datum =>
                  check_an_assertion(datum, pattern, frame),
@@ -809,7 +993,10 @@ function find_assertions(pattern, frame) {
 	</JAVASCRIPT>
       </SPLITINLINE>
       if the match fails.
-      <SNIPPET EVAL="no">
+      <SNIPPET>
+	<NAME>check_an_assertion</NAME>
+	<REQUIRES>pattern_match</REQUIRES>
+	<REQUIRES>singleton_stream</REQUIRES>
 	<SCHEME>
         (define (check-an-assertion assertion query-pat query-frame)
         (let ((match-result
@@ -865,8 +1052,16 @@ function check_an_assertion(assertion, query_pat, query_frame) {
 	<JAVASCRIPT><JAVASCRIPTINLINE>tail</JAVASCRIPTINLINE></JAVASCRIPT>
       </SPLITINLINE>
       of the data.  If none of these cases are applicable, the match fails and
-      we return the symbol <SCHEMEINLINE>failed</SCHEMEINLINE>.
-      <SNIPPET EVAL="no">
+      we return the
+      <SPLITINLINE>
+	<SCHEME>symbol <SCHEMEINLINE>failed</SCHEMEINLINE>.</SCHEME>
+	<JAVASCRIPT>string <JAVASCRIPTINLINE>"failed"</JAVASCRIPTINLINE>.
+	</JAVASCRIPT>
+      </SPLITINLINE>
+      <SNIPPET>
+	<NAME>pattern_match</NAME>
+	<REQUIRES>extend_if_consistent</REQUIRES>
+	<REQUIRES>is_var</REQUIRES>
 	<SCHEME>
         <!--  \indcode*{pattern-match} -->
         (define (pattern-match pat dat frame)
@@ -910,6 +1105,10 @@ function pattern_match(pat, dat, frame) {
       that extends a frame by adding a new binding, if this is consistent with
       the bindings already in the frame:
       <SNIPPET EVAL="no">
+	<NAME>extend_if_consistent</NAME>
+	<!-- mutual recursion -->
+	<!-- <REQUIRES>pattern_match</REQUIRES> -->
+	<REQUIRES>make_binding</REQUIRES>
 	<SCHEME>
         <!--  \indcode*{extend-if-consistent} -->
         (define (extend-if-consistent var dat frame)
@@ -921,7 +1120,7 @@ function pattern_match(pat, dat, frame) {
 	<JAVASCRIPT>
 function extend_if_consistent(variable, dat, frame) {
     const binding = binding_in_frame(variable, frame);
-    return binding !== undefined
+    return binding === undefined
         ? extend(variable, dat, frame)
         : pattern_match(binding_value(binding), dat, frame);
 }
@@ -1095,6 +1294,14 @@ function extend_if_consistent(variable, dat, frame) {
 	</TEXT>
       </SCHEME>
       <JAVASCRIPT>
+	<COMMENT>
+	  Dotted tail notation is unnecessary in the JavaScript edition. We
+	  simply use the <JAVASCRIPTINLINE>pair</JAVASCRIPTINLINE> constructor
+	  rather than the <JAVASCRIPTINLINE>list</JAVASCRIPTINLINE> constructor
+	  when we want to refer to the rest of a list, as shown in
+	  section<SPACE/><REF NAME="sec:deductive-info-retrieval"/>.
+	  See also section<SPACE/><REF NAME="sec:query-syntax"/>.
+	</COMMENT>
       </JAVASCRIPT>
     </SPLIT>
   </SUBSUBSECTION>
@@ -1140,7 +1347,12 @@ function extend_if_consistent(variable, dat, frame) {
       </SPLITINLINE>
       section<SPACE/><REF NAME="sec:query-db"/>) and combines the resulting
       streams of frames.
+      <!-- mutual recursion -->
       <SNIPPET EVAL="no">
+	<NAME>apply_rules</NAME>
+	<REQUIRES>stream_flatmap</REQUIRES>
+	<REQUIRES>apply_a_rule</REQUIRES>
+	<REQUIRES>fetch_rules</REQUIRES>
 	<SCHEME>
         <!--  \indcode*{apply-rules} -->
         (define (apply-rules pattern frame)
@@ -1149,7 +1361,7 @@ function extend_if_consistent(variable, dat, frame) {
               (fetch-rules pattern frame)))
 	</SCHEME>
 	<JAVASCRIPT>
-function apply_rules(pattern, frame) {	
+function apply_rules(pattern, frame) {
     return stream_flatmap(
               rule => 
                  apply_a_rule(rule, pattern, frame),
@@ -1208,6 +1420,11 @@ function apply_rules(pattern, frame) {
 	<JAVASCRIPT>function:</JAVASCRIPT>
       </SPLITINLINE>
       <SNIPPET EVAL="no">
+	<NAME>apply_a_rule</NAME>
+	<REQUIRES>rename_variables_in</REQUIRES>
+	<REQUIRES>unify_match</REQUIRES>
+	<REQUIRES>singleton_stream</REQUIRES>
+	<REQUIRES>is_rule</REQUIRES>
 	<SCHEME>
         (define (apply-a-rule rule query-pattern query-frame)
         (let ((clean-rule (rename-variables-in rule)))
@@ -1287,7 +1504,10 @@ function apply_a_rule(rule, query_pattern, query_frame) {
 	<JAVASCRIPT>functions</JAVASCRIPT>
       </SPLITINLINE>
       in section<SPACE/><REF NAME="sec:query-syntax"/>.)
-      <SNIPPET EVAL="no">
+      <SNIPPET>
+	<NAME>rename_variables_in</NAME>
+	<REQUIRES>new_rule_application_id</REQUIRES>
+	<REQUIRES>is_var</REQUIRES>
 	<SCHEME>
         (define (rename-variables-in rule)
         (let ((rule-application-id (new-rule-application-id)))
@@ -1311,7 +1531,7 @@ function rename_variables_in(rule) {
                    tree_walk(tail(exp)))
             : exp;
     }
-    tree_walk(rule);
+    return tree_walk(rule);
 }
 	</JAVASCRIPT>
       </SNIPPET>
@@ -1349,7 +1569,10 @@ function rename_variables_in(rule) {
       except that there is extra code (marked
       <QUOTE><SCHEMEINLINE>***</SCHEMEINLINE></QUOTE> below) to handle
       the case where the object on the right side of the match is a variable.
-      <SNIPPET EVAL="no">
+      <SNIPPET>
+	<NAME>unify_match</NAME>
+	<REQUIRES>extend_if_possible</REQUIRES>
+	<REQUIRES>is_var</REQUIRES>
 	<SCHEME>
         <!--  \indcode*{unify-match} -->
         (define (unify-match p1 p2 frame)
@@ -1375,7 +1598,7 @@ function unify_match(p1, p2, frame) {
         ? extend_if_possible(p1, p2, frame)
         : is_var(p2) 
         ? extend_if_possible(p2, p1, frame)  // ***
-        : pair(p1) &amp;&amp; pair(p2)
+        : is_pair(p1) &amp;&amp; is_pair(p2)
         ? unify_match(tail(p1),
                       tail(p2),
                       unify_match(head(p1),
@@ -1656,6 +1879,12 @@ function unify_match(p1, p2, frame) {
 	</JAVASCRIPT>
       </SPLITINLINE>
       <SNIPPET EVAL="no">
+	<NAME>extend_if_possible</NAME>
+	<REQUIRES>make_binding</REQUIRES>
+	<REQUIRES>depends_on</REQUIRES>
+	<REQUIRES>is_var</REQUIRES>
+	<!-- mutual recursion -->
+	<!-- <REQUIRES>unify_match</REQUIRES> -->
 	<SCHEME>
         <!--  \indcode*{extend-if-possible} -->
         (define (extend-if-possible var val frame)
@@ -1713,7 +1942,10 @@ function extend_if_possible(variable, val, frame) {
       </SPLITINLINE>
       is a simple recursive tree walk in which we substitute for the values of
       variables whenever necessary.
-      <SNIPPET EVAL="no">
+      <SNIPPET>
+	<NAME>depends_on</NAME>
+	<REQUIRES>is_var</REQUIRES>
+	<REQUIRES>make_binding</REQUIRES>
 	<SCHEME>
         (define (depends-on? exp var frame)
         (define (tree-walk e)
@@ -1738,17 +1970,14 @@ function depends_on(exp, variable, frame) {
                 return true;
             } else {
                 const b = binding_in_frame(e, frame);
-                if (b !== undefined) {
-                    return tree_walk(binding_value(b));
-                } else {
-                    return false;
-                }
+                return b === undefined
+                    ? false
+                    : tree_walk(binding_value(b));
             }
-	} else if (is_pair(e)) {
-            return tree_walk(head(e)) ||
-                   tree_walk(tail(e));
-        } else {
-            return false;
+	} else {
+            return is_pair(e) 
+                ? tree_walk(head(e)) || tree_walk(tail(e))
+                : false;
         }
     }
     return tree_walk(exp);
@@ -1778,14 +2007,28 @@ function depends_on(exp, variable, frame) {
 	<SCHEME><SCHEMEINLINE>car</SCHEMEINLINE>s</SCHEME>
 	<JAVASCRIPT><JAVASCRIPTINLINE>head</JAVASCRIPTINLINE>s</JAVASCRIPT>
       </SPLITINLINE>
-      are constant symbols in separate streams, in a table indexed by the
-      symbol.  To fetch an assertion that may match a pattern, we first check
+      are
+      <SPLITINLINE>
+	<SCHEME>constant symbols</SCHEME>
+	<JAVASCRIPT>strings</JAVASCRIPT>
+      </SPLITINLINE>
+      in separate streams, in a table indexed by the
+      <SPLITINLINE>
+	<SCHEME>symbol.</SCHEME>
+	<JAVASCRIPT>string.</JAVASCRIPT>
+      </SPLITINLINE>
+      To fetch an assertion that may match a pattern, we first check
       to see if the
       <SPLITINLINE>
 	<SCHEME><SCHEMEINLINE>car</SCHEMEINLINE></SCHEME>
 	<JAVASCRIPT><JAVASCRIPTINLINE>head</JAVASCRIPTINLINE></JAVASCRIPT>
       </SPLITINLINE>
-      of the pattern is a constant symbol.  If so, we return (to be tested using
+      of the pattern is a
+      <SPLITINLINE>
+	<SCHEME>constant symbol.</SCHEME>
+	<JAVASCRIPT>string.</JAVASCRIPT>
+      </SPLITINLINE>
+      If so, we return (to be tested using
       the matcher) all the stored assertions that have the same
       <SPLITINLINE>
 	<SCHEME><SCHEMEINLINE>car</SCHEMEINLINE>.</SCHEME>
@@ -1795,22 +2038,41 @@ function depends_on(exp, variable, frame) {
       <SPLITINLINE><SCHEME><SCHEMEINLINE>car</SCHEMEINLINE></SCHEME>
       <JAVASCRIPT><JAVASCRIPTINLINE>head</JAVASCRIPTINLINE></JAVASCRIPT>
       </SPLITINLINE>
-      is not a constant symbol, we return all the stored assertions.  Cleverer
+      is not a
+      <SPLITINLINE>
+	<SCHEME>constant symbol,</SCHEME>
+	<JAVASCRIPT>string,</JAVASCRIPT>
+      </SPLITINLINE>
+      we return all the stored assertions.  Cleverer
       methods could also take advantage of information in the frame, or try also
       to optimize the case where the
       <SPLITINLINE>
 	<SCHEME><SCHEMEINLINE>car</SCHEMEINLINE></SCHEME>
 	<JAVASCRIPT><JAVASCRIPTINLINE>head</JAVASCRIPTINLINE></JAVASCRIPT>
       </SPLITINLINE>
-      of the pattern is not a constant symbol.  We avoid building our criteria
+      of the pattern is not a
+      <SPLITINLINE>
+	<SCHEME>constant symbol.</SCHEME>
+	<JAVASCRIPT>string.</JAVASCRIPT>
+      </SPLITINLINE>
+      We avoid building our criteria
       for indexing (using the
       <SPLITINLINE>
 	<SCHEME><SCHEMEINLINE>car</SCHEMEINLINE>,</SCHEME>
 	<JAVASCRIPT><JAVASCRIPTINLINE>head</JAVASCRIPTINLINE>,</JAVASCRIPT>
       </SPLITINLINE>
-      handling only the case of constant symbols) into the program; instead
+      handling only the case of
+      <SPLITINLINE>
+	<SCHEME>constant symbols)</SCHEME>
+	<JAVASCRIPT>strings)</JAVASCRIPT>
+      </SPLITINLINE>
+      into the program; instead
       we call on predicates and selectors that embody our criteria.
-      <SNIPPET EVAL="no">
+      <SNIPPET>
+	<NAME>fetch_assertions</NAME>
+	<REQUIRES>use_index</REQUIRES>
+	<REQUIRES>get_stream</REQUIRES>
+	<REQUIRES>index_key_of</REQUIRES>
 	<SCHEME>
         (define THE-ASSERTIONS the-empty-stream)
 
@@ -1851,16 +2113,19 @@ function get_indexed_assertions(pattern) {
       </SPLITINLINE>
       looks up a stream in the table and returns an empty stream if nothing is
       stored there.
-      <SNIPPET EVAL="no">
+      <SNIPPET>
+	<NAME>get_stream</NAME>
+	<REQUIRES>operation_table_from_chapter_3</REQUIRES>
+	<REQUIRES>operation_table</REQUIRES>
 	<SCHEME>
         (define (get-stream key1 key2)
         (let ((s (get key1 key2)))
         (if s s the-empty-stream)))
 	</SCHEME>
 	<JAVASCRIPT>
-function get_stream(key1, key2) {	
+function get_stream(key1, key2) {
     const s = get(key1, key2);
-    return s !== undefined ? s : null;
+    return s === undefined ? null : s;
 }
 	</JAVASCRIPT>
       </SNIPPET>
@@ -1879,7 +2144,12 @@ function get_stream(key1, key2) {
 	<SCHEME><SCHEMEINLINE>car</SCHEMEINLINE></SCHEME>
 	<JAVASCRIPT><JAVASCRIPTINLINE>head</JAVASCRIPTINLINE></JAVASCRIPT>
       </SPLITINLINE>
-      is a constant symbol can match rules whose conclusions start with a
+      is a
+      <SPLITINLINE>
+	<SCHEME>constant symbol</SCHEME>
+	<JAVASCRIPT>string</JAVASCRIPT>
+      </SPLITINLINE>
+      can match rules whose conclusions start with a
       variable as well as rules whose conclusions have the same
       <SPLITINLINE>
 	<SCHEME><SCHEMEINLINE>car</SCHEMEINLINE>.</SCHEME>
@@ -1890,7 +2160,12 @@ function get_stream(key1, key2) {
 	<SCHEME><SCHEMEINLINE>car</SCHEMEINLINE></SCHEME>
 	<JAVASCRIPT><JAVASCRIPTINLINE>head</JAVASCRIPTINLINE></JAVASCRIPT>
       </SPLITINLINE>
-      is a constant symbol we fetch all rules whose conclusions start with a
+      is a
+      <SPLITINLINE>
+	<SCHEME>constant symbol</SCHEME>
+	<JAVASCRIPT>string</JAVASCRIPT>
+      </SPLITINLINE>
+      we fetch all rules whose conclusions start with a
       variable as well as those whose conclusions have the same
       <SPLITINLINE>
 	<SCHEME><SCHEMEINLINE>car</SCHEMEINLINE></SCHEME>
@@ -1900,10 +2175,14 @@ function get_stream(key1, key2) {
       start with a variable in a separate stream in our table, indexed by the
       <SPLITINLINE>
 	<SCHEME>symbol <SCHEMEINLINE>?</SCHEMEINLINE>.</SCHEME>
-	<JAVASCRIPT>string <JAVASCRIPTINLINE>"variables"</JAVASCRIPTINLINE>.
+	<JAVASCRIPT>string <JAVASCRIPTINLINE>"?"</JAVASCRIPTINLINE>.
 	</JAVASCRIPT>
       </SPLITINLINE>
-      <SNIPPET EVAL="no">
+      <SNIPPET>
+	<NAME>fetch_rules</NAME>
+	<REQUIRES>use_index</REQUIRES>
+	<REQUIRES>get_stream</REQUIRES>
+	<REQUIRES>index_key_of</REQUIRES>
 	<SCHEME>
         (define THE-RULES the-empty-stream)
 
@@ -1935,7 +2214,7 @@ function get_indexed_rules(pattern) {
     return stream_append(
               get_stream(index_key_of(pattern),
                          "rule-stream"),
-	      get_stream("variables", "rule-stream"));
+              get_stream("?", "rule-stream"));
 }
 	</JAVASCRIPT>
       </SNIPPET>
@@ -1956,7 +2235,12 @@ function get_indexed_rules(pattern) {
       to add assertions and rules to the data base.  Each item is stored in the
       index, if appropriate, and in a stream of all assertions or rules in
       the data base.
-      <SNIPPET EVAL="no">
+      <SNIPPET>
+	<NAME>add_rule_or_assertion</NAME>
+	<REQUIRES>is_rule</REQUIRES>
+	<REQUIRES>store_assertion_in_index</REQUIRES>
+	<REQUIRES>fetch_assertions</REQUIRES>
+	<REQUIRES>fetch_rules</REQUIRES>
 	<SCHEME>
         <!--  \indcode*{add-rule-or-assertion!} -->
         (define (add-rule-or-assertion! assertion)
@@ -2002,7 +2286,14 @@ function add_rule(rule) {
     <TEXT>  
       To actually store an assertion or a rule, we check to see if it can be
       indexed.  If so, we store it in the appropriate stream.
-      <SNIPPET EVAL="no">
+      <SNIPPET>
+	<NAME>store_assertion_in_index</NAME>
+	<REQUIRES>operation_table_from_chapter_3</REQUIRES>
+	<REQUIRES>operation_table</REQUIRES>
+	<REQUIRES>is_indexable</REQUIRES>
+	<REQUIRES>index_key_of</REQUIRES>
+	<REQUIRES>get_stream</REQUIRES>
+	<REQUIRES>is_rule</REQUIRES>
 	<SCHEME>
         (define (store-assertion-in-index assertion)
         (if (indexable? assertion)
@@ -2063,15 +2354,17 @@ function store_rule_in_index(rule) {
 	<SCHEME>constant symbol.</SCHEME>
 	<JAVASCRIPT>string.</JAVASCRIPT>
       </SPLITINLINE>
-      <SNIPPET EVAL="no">
+      <SNIPPET>
+	<NAME>is_indexable</NAME>
+	<REQUIRES>is_var</REQUIRES>
 	<SCHEME>
         (define (indexable? pat)
         (or (constant-symbol? (car pat))
         (var? (car pat))))
 	</SCHEME>
 	<JAVASCRIPT>
-function indexable(pat) {	
-    return is_string(pat) || is_var(head(pat));
+function is_indexable(pat) {
+    return is_string(head(pat)) || is_var(head(pat));
 }
 	</JAVASCRIPT>
       </SNIPPET>
@@ -2089,16 +2382,18 @@ function indexable(pat) {
 	<JAVASCRIPT>string</JAVASCRIPT>
       </SPLITINLINE>
       with which it starts.
-      <SNIPPET EVAL="no">
+      <SNIPPET>
+	<NAME>index_key_of</NAME>
+	<REQUIRES>is_var</REQUIRES>
 	<SCHEME>
         (define (index-key-of pat)
         (let ((key (car pat)))
         (if (var? key) '? key)))
 	</SCHEME>
 	<JAVASCRIPT>
-function index_key_of(pat) {	
+function index_key_of(pat) {
     const key = head(pat);
-    return is_var(key) ? "variables" : key;
+    return is_var(key) ? "?" : key;
 }
 	</JAVASCRIPT>
       </SNIPPET>
@@ -2108,15 +2403,17 @@ function index_key_of(pat) {
       The index will be used to retrieve items that might match a pattern if
       the pattern starts with a
       <SPLITINLINE>
-	<SCHEME>constant symbol.</SCHEME><JAVASCRIPT>string.</JAVASCRIPT>
+	<SCHEME>constant symbol.</SCHEME>
+	<JAVASCRIPT>string.</JAVASCRIPT>
       </SPLITINLINE>
-      <SNIPPET EVAL="no">
+      <SNIPPET>
+	<NAME>use_index</NAME>
 	<SCHEME>
         (define (use-index? pat)
         (constant-symbol? (car pat)))
 	</SCHEME>
 	<JAVASCRIPT>
-function use_index(pat) {	
+function use_index(pat) {
     return is_string(head(pat));
 }
 	</JAVASCRIPT>
@@ -2147,7 +2444,7 @@ function use_index(pat) {
       What would be wrong with the following implementation of
       <SPLITINLINE>
 	<SCHEME><SCHEMEINLINE>add-assertion!</SCHEMEINLINE>?</SCHEME>
-	<JAVASCRIPT><JAVASCRIPTINLINE>add_assertion</JAVASCRIPTINLINE>>
+	<JAVASCRIPT><JAVASCRIPTINLINE>add_assertion</JAVASCRIPTINLINE>?
 	</JAVASCRIPT>
       </SPLITINLINE>
       Hint: Recall the definition of the infinite stream of ones in
@@ -2160,7 +2457,10 @@ function use_index(pat) {
 	  <JAVASCRIPTINLINE>const ones = pair(1, () => ones);</JAVASCRIPTINLINE>.
 	</JAVASCRIPT>
 	</SPLITINLINE>
-      <SNIPPET EVAL="no">
+      <SNIPPET>
+	<NAME>add_assertion</NAME>
+	<REQUIRES>store_assertion_in_index</REQUIRES>
+	<REQUIRES>fetch_assertions</REQUIRES>
 	<SCHEME>
         (define (add-assertion! assertion)
         (store-assertion-in-index assertion)
@@ -2221,7 +2521,8 @@ function add_assertion(assertion) {
       in section<SPACE/><REF NAME="sec:streams-and-delayed-evaluation"/>).
       This postpones looping in some cases (see
       exercise<SPACE/><REF NAME="ex:q-why-not-append"/>).
-      <SNIPPET EVAL="no">
+      <SNIPPET>
+	<NAME>stream_append_delayed</NAME>
 	<SCHEME>
         <!--  \indcode*{stream-append-delayed} -->
         (define (stream-append-delayed s1 delayed-s2)
@@ -2246,7 +2547,7 @@ function stream_append_delayed(s1, delayed_s2) {
         ? delayed_s2()
         : pair(head(s1),
                () => stream_append_delayed(stream_tail(s1),
-      	                                   delayed_s2));
+                                           delayed_s2));
 }
 function interleave_delayed(s1, delayed_s2) {
     return is_null(s1)
@@ -2282,7 +2583,9 @@ function interleave_delayed(s1, delayed_s2) {
       with an interleaving process, rather than simply appending them (see
       exercises<SPACE/><REF NAME="ex:q-why-interleave"/>
       and<SPACE/><REF NAME="ex:q-why-delay"/>).
-      <SNIPPET EVAL="no">
+      <SNIPPET>
+	<NAME>stream_flatmap</NAME>
+	<REQUIRES>stream_append_delayed</REQUIRES>
 	<SCHEME>
         <!--  \indcode*{stream-flatmap} -->
         (define (stream-flatmap proc s)
@@ -2317,15 +2620,16 @@ function flatten_stream(stream) {
 	<JAVASCRIPT>function</JAVASCRIPT>
       </SPLITINLINE>
       to generate a stream consisting of a single element:
-      <SNIPPET EVAL="no">
+      <SNIPPET>
+	<NAME>singleton_stream</NAME>
 	<SCHEME>
         <!--  \indcode*{singleton-stream} -->
         (define (singleton-stream x)
         (cons-stream x the-empty-stream))
 	</SCHEME>
 	<JAVASCRIPT>
-function singleton_stream(x) {	
-    pair(x, () => null);
+function singleton_stream(x) {
+    return pair(x, () => null);
 }
 	</JAVASCRIPT>
       </SNIPPET>
@@ -2365,7 +2669,8 @@ function singleton_stream(x) {
       is identified by
       <SPLITINLINE>
 	<SCHEME>the symbol in its <SCHEMEINLINE>car</SCHEMEINLINE>.</SCHEME>
-	<JAVASCRIPT>name of its operator.</JAVASCRIPT>
+	<JAVASCRIPT>string in its <SCHEMEINLINE>head</SCHEMEINLINE>.
+	</JAVASCRIPT>
       </SPLITINLINE>
       They are the same as the
       <SPLITINLINE>
@@ -2380,7 +2685,9 @@ function singleton_stream(x) {
       </SPLITINLINE>
       in section<SPACE/><REF NAME="sec:manifest-types"/>, except for the
       error message.
-      <SNIPPET EVAL="no">
+      <SNIPPET>
+	<NAME>type</NAME>
+	<REQUIRES>functions_4_1_2</REQUIRES>
 	<SCHEME>
         (define (type exp)
         (if (pair? exp)
@@ -2394,14 +2701,14 @@ function singleton_stream(x) {
 	</SCHEME>
 	<JAVASCRIPT>
 function type(exp) {
-    return is_application(exp) &amp;&amp; is_name(operator(exp))
-        ? name_of_name(operator(exp))
-        : error(exp, "Unknown expression TYPE");
+    return is_pair(exp)
+        ? head(exp)
+        : error(exp, "Unknown expression in type:");
 }
 function contents(exp) {
-    return is_application(exp) &amp;&amp; is_name(operator(exp))
-        ? operands(exp)
-        : error(exp, "Unknown expression CONTENTS");
+    return is_pair(exp)
+        ? tail(exp)
+        : error(exp, "Unknown expression in contents:");
 }
 	</JAVASCRIPT>
       </SNIPPET>
@@ -2431,7 +2738,9 @@ function contents(exp) {
 	  <JAVASCRIPTINLINE>)</JAVASCRIPTINLINE>:
 	</JAVASCRIPT>
       </SPLITINLINE>
-      <SNIPPET EVAL="no">
+      <SNIPPET>
+	<NAME>assertion_to_be_added</NAME>
+	<REQUIRES>type</REQUIRES>
 	<SCHEME>
         (define (assertion-to-be-added? exp)
         (eq? (type exp) 'assert!))
@@ -2463,7 +2772,8 @@ function add_assertion_body(exp) {
 	</JAVASCRIPT>
       </SPLITINLINE>
       (section<SPACE/><REF NAME="sec:query-eval"/>):
-      <SNIPPET EVAL="no">
+      <SNIPPET>
+	<NAME>is_empty_conjunction</NAME>
 	<SCHEME>
         (define (empty-conjunction? exps) (null? exps))
         (define (first-conjunct exps) (car exps))
@@ -2479,7 +2789,7 @@ function add_assertion_body(exp) {
         (define (args exps) (cdr exps))
 	</SCHEME>
 	<JAVASCRIPT>
-function empty_conjunction(exps) {
+function is_empty_conjunction(exps) {
     return is_null(exps);
 }
 function first_conjunct(exps) {
@@ -2503,11 +2813,20 @@ function negated_query(exps) {
 function predicate(exps) {
     return head(exps);
 }
-function args(exps) {
+function argmnts(exps) {
     return tail(exps);
 }
 	</JAVASCRIPT>
       </SNIPPET>
+      <COMMENT>
+	We use 
+	<JAVASCRIPTINLINE>argmnts</JAVASCRIPTINLINE>
+	because 
+	<JAVASCRIPTINLINE>args</JAVASCRIPTINLINE> is already
+	taken, see section 4.1.2, and 
+	<JAVASCRIPTINLINE>arguments</JAVASCRIPTINLINE> is reserved
+	in JavaScript.
+      </COMMENT>
     </TEXT>
 
     <TEXT>
@@ -2517,7 +2836,9 @@ function args(exps) {
 	<JAVASCRIPT>functions</JAVASCRIPT>
       </SPLITINLINE>
       define the syntax of rules:
-      <SNIPPET EVAL="no">
+      <SNIPPET>
+	<NAME>is_rule</NAME>
+	<REQUIRES>functions_4_1_2</REQUIRES>
 	<SCHEME>
         (define (rule? statement)
         (tagged-list? statement 'rule))
@@ -2531,17 +2852,15 @@ function args(exps) {
 	</SCHEME>
 	<JAVASCRIPT>
 function is_rule(statement) {
-    return is_application(statement) &amp;&amp;  
-           is_name(operator(statement)) &amp;&amp;
-           name_of_name(operator(statement)) === "rule";
+    return is_tagged_list(statement, "rule");
 }
 function conclusion(rule) {
-    return head(operands(rule));
+    return head(tail(rule));
 }
 function rule_body(rule) {
-    return is_null(tail(operands(rule)))
-        ? "always_true"
-        : tail(operands(rule));
+    return is_null(tail(tail(rule)))
+        ? list("always_true")
+        : head(tail(tail(rule)));
 }
 	</JAVASCRIPT>
       </SNIPPET>
@@ -2552,7 +2871,8 @@ function rule_body(rule) {
 	<TEXT>
 	  <INDEX>query interpreter
 	  <SUBINDEX>pattern-variable representation|(</SUBINDEX></INDEX>
-	  <INDEX>pattern variable<SUBINDEX>representation of|(</SUBINDEX></INDEX>
+	  <INDEX>pattern variable
+	  <SUBINDEX>representation of|(</SUBINDEX></INDEX>
 	  <SCHEMEINLINE>Query-driver-loop</SCHEMEINLINE>
 	  (section<SPACE/><REF NAME="sec:query-driver"/>) calls
 	  <SCHEMEINLINE>query-syntax-process</SCHEMEINLINE>
@@ -2573,7 +2893,8 @@ function rule_body(rule) {
 	  procedure to perform such transformations by defining 
 	  <INDEX>reader macro character</INDEX>
 	  <!-- \indprim{read}[macro characters]-->
-	  <!-- \indcodeplus{'}{(single quote)}[read@<SCHEMEINLINE>read</SCHEMEINLINE> and]-->
+	  <!-- \indcodeplus{'}{(single quote)}[read@
+	       <SCHEMEINLINE>read</SCHEMEINLINE> and]-->
 	  <!-- \indsf{quote}[read@<SCHEMEINLINE>read</SCHEMEINLINE> and]-->
 	  <EM>reader macro characters</EM>.  Quoted
 	  expressions are already handled in this way: The reader automatically
@@ -2591,7 +2912,8 @@ function rule_body(rule) {
 	  <SCHEMEINLINE>contract-question-mark</SCHEMEINLINE> use several
 	  procedures with <SCHEMEINLINE>string</SCHEMEINLINE> in their names.
 	  These are Scheme primitives.</FOOTNOTE>
-	  <SNIPPET EVAL="no">
+	  <SNIPPET>
+	    <NAME>query_syntax_process_scheme</NAME>
 	    <SCHEME>
         (define (query-syntax-process exp)
         (map-over-symbols expand-question-mark exp))
@@ -2614,26 +2936,130 @@ function rule_body(rule) {
 	    </SCHEME>
 	  </SNIPPET>
 	</TEXT>
-
+      </SCHEME>
+      <JAVASCRIPT>
 	<TEXT>
-	  Once the variables are transformed in this way, the variables in a
-	  pattern are lists starting with <SCHEMEINLINE>?</SCHEMEINLINE>, and
-	  the constant symbols (which need to be recognized for
-	  data-base indexing, section<SPACE/><REF NAME="sec:query-db"/>) are
-	  just the symbols.
-	  <SNIPPET EVAL="no">
-	    <SCHEME>
+	  <INDEX>query interpreter
+	  <SUBINDEX>pattern-variable representation|(</SUBINDEX></INDEX>
+	  <INDEX>pattern variable
+	  <SUBINDEX>representation of|(</SUBINDEX></INDEX>
+	  The function <JAVASCRIPTINLINE>query_driver_loop</JAVASCRIPTINLINE>
+	  (section<SPACE/><REF NAME="sec:query-driver"/>) calls
+	  <JAVASCRIPTINLINE>query_syntax_process</JAVASCRIPTINLINE>
+	  to transform the syntax of the query to a tagged list
+	  representation, where the tags represent the kinds
+	  of queries described in
+	  section<SPACE/><REF NAME="sec:deductive-info-retrieval"/>.
+	  Along the way, pattern variables in the expression, which
+	  are identified using  <JAVASCRIPTINLINE>is_name</JAVASCRIPTINLINE>,
+	  are converted into the internal format
+	  <JAVASCRIPTINLINE>list("?", symbol)</JAVASCRIPTINLINE>.
+	  That is to say, a pattern such as
+	  <JAVASCRIPTINLINE>job(x, y)</JAVASCRIPTINLINE> is actually represented
+	  internally by the system as
+	  <JAVASCRIPTINLINE>list("job", list("?", x), list("?", y)))</JAVASCRIPTINLINE>.
+	  This means that the system can
+	  check to see if an expression is a pattern variable by checking
+	  whether the <SCHEMEINLINE>head</SCHEMEINLINE> of the expression is the
+	  string <JAVASCRIPTINLINE>"?"</JAVASCRIPTINLINE>.
+	  The syntax transformation is accomplished
+	  by the following procedure:
+	  <SNIPPET>
+	    <NAME>query_syntax_process</NAME>
+	    <REQUIRES>functions_4_1_2</REQUIRES>
+	    <REQUIRES>javascript_value_process</REQUIRES>
+	    <JAVASCRIPT>
+function query_syntax_process(exp) {
+    if (is_application(exp)) {
+      const function_symbol = 
+        symbol_of_name(function_expression(exp));
+      const processed_args = map(query_syntax_process, args(exp));
+      return function_symbol === "pair"
+        ? pair(head(processed_args), head(tail(processed_args)))
+        : function_symbol === "list"
+        ? processed_args
+        : function_symbol === "javascript_value"
+        ? pair(function_symbol,
+               list(javascript_value_process(head(args(exp)))))
+        : pair(function_symbol, processed_args);
+    } else if (is_name(exp)) {
+      return list("?", symbol_of_name(exp));
+    } else {
+      return exp;
+    }
+}
+	    </JAVASCRIPT>
+	  </SNIPPET>
+	  Exceptions to this processing are
+	  <JAVASCRIPTINLINE>javascript_value</JAVASCRIPTINLINE>
+	  queries. Since the instantiated syntax of the argument of
+	  such a query is passed to the
+	  <JAVASCRIPTINLINE>evaluate</JAVASCRIPTINLINE>
+	  function of section<SPACE/><REF NAME="sec:core-of-evaluator"/>,
+	  its applications and self-evaluating expressions remain intact,
+	  and only its names are converted to pattern variables.
+	  <SNIPPET>
+	    <NAME>javascript_value_process</NAME>
+	    <REQUIRES>functions_4_1_2</REQUIRES>
+	    <JAVASCRIPT>
+function javascript_value_process(exp) {
+    return is_application(exp)
+        ? list("application", function_expression(exp),
+               map(javascript_value_process, args(exp)))
+        : is_name(exp)
+        ? list("?", symbol_of_name(exp))
+        : exp;
+}
+	    </JAVASCRIPT>
+	  </SNIPPET>
+	</TEXT>
+      </JAVASCRIPT>
+    </SPLIT>
+
+    <TEXT>
+      Once the variables are transformed in this way, the variables in a
+      pattern are lists starting with
+      <SPLITINLINE>
+	<SCHEME>
+	  <SCHEMEINLINE>?</SCHEMEINLINE>,
+	</SCHEME>
+	<JAVASCRIPT>
+	  <JAVASCRIPTINLINE>"?"</JAVASCRIPTINLINE>
+	</JAVASCRIPT>
+      </SPLITINLINE>
+      and the
+      <SPLITINLINE>
+	<SCHEME>constant symbols</SCHEME>
+	<JAVASCRIPT>strings</JAVASCRIPT>
+      </SPLITINLINE>
+      (which need to be recognized for
+      data-base indexing, section<SPACE/><REF NAME="sec:query-db"/>) are
+      just
+      <SPLITINLINE>
+	<SCHEME>
+	  the symbols.
+	</SCHEME>
+	<JAVASCRIPT>
+	  strings.
+	</JAVASCRIPT>
+      </SPLITINLINE>
+      <SNIPPET>
+	<NAME>is_var</NAME>
+	<REQUIRES>functions_4_1_2</REQUIRES>
+	<SCHEME>
         (define (var? exp)
         (tagged-list? exp '?))
 
         (define (constant-symbol? exp) (symbol? exp))
-	    </SCHEME>
-	  </SNIPPET>
-	</TEXT>
-      </SCHEME>
-      <JAVASCRIPT>
-      </JAVASCRIPT>
-    </SPLIT>
+	</SCHEME>
+	<JAVASCRIPT>
+function is_var(exp) {
+    return is_tagged_list(exp, "?");
+}
+	</JAVASCRIPT>
+      </SNIPPET>
+    </TEXT>
+    
     <TEXT>
       Unique variables are constructed during rule application
       (in section<SPACE/><REF NAME="sec:query-unify"/>) by means of
@@ -2644,7 +3070,8 @@ function rule_body(rule) {
       </SPLITINLINE>
       The unique identifier for a rule application is a number, which is
       incremented each time a rule is applied.
-      <SNIPPET EVAL="no">
+      <SNIPPET>
+	<NAME>new_rule_application_id</NAME>
 	<SCHEME>
         (define rule-counter 0)
 
@@ -2663,23 +3090,21 @@ function new_rule_application_id() {
     return rule_counter;
 }
 function make_new_variable(variable, rule_application_id) {
-    return list("?", tail(variable) + stringify(rule_application_id));
+    return pair("?", pair(rule_application_id, tail(variable)));
 }
 	</JAVASCRIPT>
       </SNIPPET>
     </TEXT>
 
     <TEXT>
-      When
-      <SPLITINLINE>
-	<SCHEME><SCHEMEINLINE>query-driver-loop</SCHEMEINLINE></SCHEME>
-	<JAVASCRIPT><JAVASCRIPTINLINE>query_driver_loop</JAVASCRIPTINLINE>
-	</JAVASCRIPT>
-      </SPLITINLINE>
-      instantiates the query to print the answer, it converts any unbound
-      pattern variables back to the right form for printing, using
-      <SNIPPET EVAL="no">
+      <SPLIT>
 	<SCHEME>
+	  When <SCHEMEINLINE>query-driver-loop</SCHEMEINLINE> instantiates the
+	  query to print the answer, it converts any unbound pattern variables
+	  back to the right form for printing, using
+	  <SNIPPET>
+	    <NAME>contract_question_mark_scheme</NAME>
+	    <SCHEME>
         (define (contract-question-mark variable)
         (string-&gt;symbol
         (string-append "?" 
@@ -2688,18 +3113,105 @@ function make_new_variable(variable, rule_application_id) {
               "-"
               (number-&gt;string (cadr variable)))
               (symbol-&gt;string (cadr variable))))))
+	    </SCHEME>
+	  </SNIPPET>
+	  <INDEX>query interpreter
+	  <SUBINDEX>pattern-variable representation|)</SUBINDEX></INDEX>
+	  <INDEX>pattern variable<SUBINDEX>representation of|)</SUBINDEX></INDEX>
+	  <INDEX>query interpreter
+	  <SUBINDEX>syntax of query language|)</SUBINDEX></INDEX>
 	</SCHEME>
 	<JAVASCRIPT>
+	  After <JAVASCRIPTINLINE>query_driver_loop</JAVASCRIPTINLINE>
+	  instantiates the query, it converts it to a string
+	  using <JAVASCRIPTINLINE>pretty_query</JAVASCRIPTINLINE>, following
+	  the syntax described in
+	  section<SPACE/><REF NAME="sec:deductive-info-retrieval"/>.
+	  The function <JAVASCRIPTINLINE>pretty_term</JAVASCRIPTINLINE>
+	  formats unbound pattern variables using
+	  <JAVASCRIPTINLINE>contract_question_mark</JAVASCRIPTINLINE>.
+	  Note that it needs to distinguish genuine lists from pairs
+	  whose tail is a pattern variable (and therefore technically a list).
+	  <SNIPPET>
+	    <NAME>contract_question_mark</NAME>
+	    <REQUIRES>functions_4_1_2</REQUIRES>
+	    <JAVASCRIPT>
 function contract_question_mark(variable) {
-    return list("name", tail(variable));
+    return is_number(head(tail(variable)))
+        ? head(tail(tail(variable))) + "_" + stringify(head(tail(variable)))
+        : head(tail(variable));
 }
+function comma_separated(strings) {
+    return accumulate((s, acc) => s + (acc === "" ? "" : ", " + acc),
+                      "", strings);
+}
+function pretty(string, args, arg_pretty) {	
+    return string + "(" + comma_separated(map(arg_pretty, args)) + ")";
+}
+function pretty_term(arg) {
+    return is_null(arg)
+        ? "null"
+        : is_list(arg) &amp;&amp;
+	  (is_null(tail(arg)) || head(tail(arg)) !== "?")
+        ? (head(arg) === "?"
+           ? contract_question_mark(arg)
+	   : pretty("list", arg, pretty_term))
+        : is_pair(arg)
+        ? pretty("pair", list(head(arg), tail(arg)), pretty_term)
+	: is_string(arg)
+        ? "'" + arg + "'"
+	: stringify(arg);
+}
+function pretty_query(query) {
+    return is_null(member(head(query),
+                          list("and", "or", "not", "assert", "rule")))
+	? pretty(head(query), tail(query), pretty_term)
+        : pretty(head(query), tail(query), pretty_query);
+}
+	    </JAVASCRIPT>
+	    <JAVASCRIPT_RUN>
+function contract_question_mark(variable) {
+    return is_number(head(tail(variable)))
+        ? head(tail(tail(variable))) + "_" + stringify(head(tail(variable)))
+        : head(tail(variable));
+}
+function comma_separated(strings) {
+    return accumulate((s, acc) => s + (acc === "" ? "" : ", " + acc),
+                      "", strings);
+}
+function pretty(string, args, arg_pretty) {	
+    return string + "(" + comma_separated(map(arg_pretty, args)) + ")";
+}
+function pretty_term(arg) {
+    return is_null(arg)
+        ? "null"
+        : is_list(arg) &amp;&amp;
+	  (is_null(tail(arg)) || head(tail(arg)) !== "?")
+        ? (head(arg) === "?"
+           ? contract_question_mark(arg)
+           : (is_application(arg) &amp;&amp;
+	      is_name(function_expression(arg)))
+	   ? "(" + pretty_term(head(args(arg))) + 
+	     " " + symbol_of_name(function_expression(arg)) + 
+             " " + pretty_term(head(tail(args(arg)))) +
+	     ")"
+	   : pretty("list", arg, pretty_term))
+        : is_pair(arg)
+        ? pretty("pair", list(head(arg), tail(arg)), pretty_term)
+	: is_string(arg)
+        ? "'" + arg + "'"
+	: stringify(arg);
+}
+function pretty_query(query) {
+    return is_null(member(head(query),
+                          list("and", "or", "not", "assert", "rule")))
+	? pretty(head(query), tail(query), pretty_term)
+        : pretty(head(query), tail(query), pretty_query);
+}
+	    </JAVASCRIPT_RUN>
+	  </SNIPPET>
 	</JAVASCRIPT>
-      </SNIPPET>
-      <INDEX>query interpreter
-      <SUBINDEX>pattern-variable representation|)</SUBINDEX></INDEX>
-      <INDEX>pattern variable<SUBINDEX>representation of|)</SUBINDEX></INDEX>
-      <INDEX>query interpreter
-      <SUBINDEX>syntax of query language|)</SUBINDEX></INDEX>
+      </SPLIT>
     </TEXT>
   </SUBSUBSECTION>
 
@@ -2712,7 +3224,10 @@ function contract_question_mark(variable) {
       <INDEX>frame (query interpreter)<SUBINDEX>representation</SUBINDEX></INDEX>
       Frames are represented as lists of bindings, which are
       variable-value pairs:
-      <SNIPPET EVAL="no">
+      <SNIPPET>
+	<NAME>make_binding</NAME>
+	<REQUIRES>operation_table_from_chapter_3</REQUIRES>
+	<REQUIRES>operation_table</REQUIRES>
 	<SCHEME>
         (define (make-binding variable value)
         (cons variable value))
@@ -2744,7 +3259,7 @@ function binding_in_frame(variable, frame) {
 }
 function extend(variable, value, frame) {
     return pair(make_binding(variable, value), frame);
-}	
+}
 	</JAVASCRIPT>
       </SNIPPET>
       <INDEX>query interpreter<SUBINDEX>frame|)</SUBINDEX></INDEX>
@@ -2769,7 +3284,13 @@ function extend(variable, value, frame) {
 	</SCHEME><JAVASCRIPT>delay</JAVASCRIPT>
       </SPLITINLINE>
       operations, rather than being defined as follows:
+      <!-- mutual recursion -->
       <SNIPPET EVAL="no">
+	<NAME>simple_query_pattern</NAME>
+	<REQUIRES>stream_flatmap</REQUIRES>
+	<REQUIRES>find_assertions</REQUIRES>
+	<REQUIRES>apply_rules</REQUIRES>
+	<REQUIRES>is_empty_conjunction</REQUIRES>
 	<SCHEME>
         (define (simple-query query-pattern frame-stream)
         (stream-flatmap
@@ -2834,6 +3355,7 @@ function disjoin(disjuncts, frame_stream) {
     </SPLITINLINE>
     What would be wrong with defining it as follows:
     <SNIPPET EVAL="no">
+      <NAME>flatten_stream</NAME>
       <SCHEME>
         (define (flatten-stream stream)
         (if (stream-null? stream)
@@ -2885,6 +3407,7 @@ function flatten_stream(stream) {
 	<LI>
           Fill in the missing expressions in Alyssa<APOS/>s program.
           <SNIPPET EVAL="no">
+	    <NAME>simple_stream_flatmap</NAME>
 	    <SCHEME>
       (define (simple-stream-flatmap proc s)
       (simple-flatten (stream-map proc s)))
@@ -2933,15 +3456,17 @@ function simple_flatten(stream) {
       should succeed if there is precisely one item in the data base satisfying
       a specified query.  For example,
       <SNIPPET EVAL="no">
+	<NAME>unique_example_1</NAME>
 	<SCHEME>
         (unique (job ?x (computer wizard)))
 	</SCHEME>
 	<JAVASCRIPT>
-unique(job(x, list("computer", "wizard")));	
+unique(job(x, list("computer", "wizard")))
 	</JAVASCRIPT>
       </SNIPPET>
       should print the one-item stream
       <SNIPPET EVAL="no">
+	<NAME>unique_example_2</NAME>
 	<SCHEME>
         (unique (job (Bitdiddle Ben) (computer wizard)))
 	</SCHEME>
@@ -2951,21 +3476,23 @@ unique(job(list("Bitdiddle", "Ben"), list("computer", "wizard")))
       </SNIPPET>
       since Ben is the only computer wizard, and
       <SNIPPET EVAL="no">
+	<NAME>unique_example_3</NAME>
 	<SCHEME>
         (unique (job ?x (computer programmer)))
 	</SCHEME>
 	<JAVASCRIPT>
-unique(job(x, list("computer", "programmer")));
+unique(job(x, list("computer", "programmer")))
 	</JAVASCRIPT>
       </SNIPPET>
       should print the empty stream, since there is more than one computer
       programmer.  Moreover,
       <SNIPPET EVAL="no">
+	<NAME>unique_example_4</NAME>
 	<SCHEME>
         (and (job ?x ?j) (unique (job ?anyone ?j)))
 	</SCHEME>
 	<JAVASCRIPT>
-and(job(x, j), unique(job(anyone, j)));
+and(job(x, j), unique(job(anyone, j)))
 	</JAVASCRIPT>
       </SNIPPET>
       should list all the jobs that are filled by only one person, and the
@@ -3007,11 +3534,14 @@ and(job(x, j), unique(job(anyone, j)));
       </SPLITINLINE>
       all you need to do is
       <SNIPPET EVAL="no">
+	<NAME>put_unique</NAME>
+	<REQUIRES>operation_table_from_chapter_3</REQUIRES>
+	<REQUIRES>operation_table</REQUIRES>
 	<SCHEME>
         (put 'unique 'qeval uniquely-asserted)
 	</SCHEME>
 	<JAVASCRIPT>
-put("unique", "qeval", uniquely_asserted);	
+put("unique", "evaluate_query", uniquely_asserted);
 	</JAVASCRIPT>
       </SNIPPET>
       and
@@ -3080,7 +3610,16 @@ put("unique", "qeval", uniquely_asserted);
       <!-- \indcodeplus{and}{(query language)}[evaluation of]-->
       <INDEX>compound query<SUBINDEX>processing</SUBINDEX></INDEX>
       Our implementation of <SCHEMEINLINE>and</SCHEMEINLINE> as a series
-      combination of queries (figure<SPACE/><REF NAME="fig:query-and"/>) is
+      combination of queries
+      <SPLITINLINE>
+	<SCHEME>
+	  (figure<SPACE/><REF NAME="fig:query-and_scheme"/>)
+	</SCHEME>
+	<JAVASCRIPT>
+	  (figure<SPACE/><REF NAME="fig:query-and"/>)
+	</JAVASCRIPT>
+      </SPLITINLINE>
+      is
       elegant, but it is inefficient because in processing the second query of
       the <SCHEMEINLINE>and</SCHEMEINLINE> we must scan the data base for each
       frame produced by the first query.  If the data base has
@@ -3176,6 +3715,7 @@ put("unique", "qeval", uniquely_asserted);
       </SPLITINLINE>
       For example, in evaluating
       <SNIPPET>
+	<NAME>sum_of_squares_in_lp</NAME>
 	<SCHEME>
         (define (square x)
         (* x x))
