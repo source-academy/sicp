@@ -47,17 +47,16 @@ const ignoreTags = new Set([
 ]);
 
 const processTextFunctionsDefaultLatex = {
-
   SCHEME: (node, writeTo) => {
-      writeTo.push("{\\color{teal} ");
-      recursiveProcessTextLatex(node.firstChild, writeTo);
-      writeTo.push("}");
+    writeTo.push("{\\color{teal} ");
+    recursiveProcessTextLatex(node.firstChild, writeTo);
+    writeTo.push("}");
   },
 
   JAVASCRIPT: (node, writeTo) => {
-      writeTo.push("{\\color{blue} ");
-      recursiveProcessTextLatex(node.firstChild, writeTo);
-      writeTo.push("}");
+    writeTo.push("{\\color{blue} ");
+    recursiveProcessTextLatex(node.firstChild, writeTo);
+    writeTo.push("}");
   },
 
   PDF_ONLY: (node, writeTo) => {
@@ -156,7 +155,7 @@ const processTextFunctionsDefaultLatex = {
     writeTo.push("}\n");
   },
 
-    /*
+  /*
   INDEX: (node, writeTo) => {
     writeTo.push("\\index{");
     const indexArr = [];
@@ -174,7 +173,7 @@ const processTextFunctionsDefaultLatex = {
     writeTo.push("}");
   },
     */
-    
+
   IMAGE: (node, writeTo) => {
     writeTo.push(
       "\\begin{figure}[H]\n\\centering" +
