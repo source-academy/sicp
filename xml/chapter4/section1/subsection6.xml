@@ -167,9 +167,9 @@
 	Our environment model of evaluation
 	(section<SPACE/><REF NAME="sec:env-internal-def"/>)
 	and our metacircular evaluator
-	(section<SPACE/><REF NAME="sec:core-of-evaluator"/>) evaluate function
-	bodies and blocks by extending an environment with bindings for the
-	local names that occur in the body of the function or block. Initially,
+	(section<SPACE/><REF NAME="sec:core-of-evaluator"/>) evaluate 
+	blocks by extending an environment with bindings for the
+	local names that occur in the body of the block. Initially,
 	the names refer to the special value
 	<LATEXINLINE>$\textit{unassigned}$</LATEXINLINE>, but evaluation of the
 	declaration statements assign them to their proper values. Correct
@@ -208,7 +208,7 @@ function f(x) {
 	should refer to the function <JAVASCRIPTINLINE>is_odd</JAVASCRIPTINLINE>
 	that is declared after <JAVASCRIPTINLINE>is_even</JAVASCRIPTINLINE>.
 	The scope of the name <JAVASCRIPTINLINE>is_odd</JAVASCRIPTINLINE> is the
-	entire body of <SCHEMEINLINE>f</SCHEMEINLINE>, not just the portion of
+	body block of <SCHEMEINLINE>f</SCHEMEINLINE>, not just the portion of
 	the body of <SCHEMEINLINE>f</SCHEMEINLINE> starting at the point where
 	the declaration of <JAVASCRIPTINLINE>is_odd</JAVASCRIPTINLINE>
 	occurs. Indeed, when we consider that
@@ -221,19 +221,20 @@ function f(x) {
 	<JAVASCRIPTINLINE>is_even</JAVASCRIPTINLINE> and
 	<JAVASCRIPTINLINE>is_odd</JAVASCRIPTINLINE>
 	were being added to the environment simultaneously. More generally, in
-	block structure, the scope of a local name is the entire function
-	body in which the declaration is evaluated. 
+	block structure, the scope of a local name is the entire block
+	in which the declaration is evaluated.
       </TEXT>
       <TEXT>
-	This is achieved in section<SPACE/><REF NAME="sec:core-of-evaluator"/> by
-	the function <JAVASCRIPTINLINE>scan_out_declarations</JAVASCRIPTINLINE>,
-	and binding them to the value
-	<JAVASCRIPTINLINE>unassigned</JAVASCRIPTINLINE>, whenever the function,
-	here <JAVASCRIPTINLINE>f</JAVASCRIPTINLINE>, is applied. We can make
-	this treatment of local names explicit by transforming them into
+	The evaluator in section<SPACE/><REF NAME="sec:core-of-evaluator"/>
+	finds all locally declared names of a block using
+	<JAVASCRIPTINLINE>scan_out_declarations</JAVASCRIPTINLINE>,
+	and binds them to the value
+	<JAVASCRIPTINLINE>unassigned</JAVASCRIPTINLINE>, whenever the block is
+	evaluated. For lambda expressions with local declarations, we can achieve
+	the same effect by transforming their bodies into
 	immediately invoked lambda expressions
-	(see section<SPACE/><REF NAME="sec:env-local-state"/>). For example, the
-	lambda expression
+	(see section<SPACE/><REF NAME="sec:env-local-state"/>). For example,
+	the lambda expression
 	<SNIPPET EVAL="no" LATEX="yes">
 	  <JAVASCRIPT>
 ($\textit{vars}$) => {
@@ -256,9 +257,7 @@ function f(x) {
 	  </JAVASCRIPT>
 	</SNIPPET>
 	where <SCHEMEINLINE>unassigned</SCHEMEINLINE>
-	is as defined in section<SPACE/><REF NAME="sec:eval-data-structures"/>,
-	which causes looking up a name to signal an error if an attempt is made
-	to use the value of the not-yet-assigned name.
+	is as defined in section<SPACE/><REF NAME="sec:eval-data-structures"/>.
       </TEXT>
 
       <TEXT>
@@ -306,7 +305,8 @@ function f(x) {
       </SCHEME>
       <JAVASCRIPT>
 	In this exercise we implement the method just described for interpreting
-	internal declarations as syntactic sugar for immediately invoked
+	internal declarations of lambda expressions
+	as syntactic sugar for immediately invoked
 	functions that carry out assignments.
 	<OL>
 	  <!--  \indcode{lookup-variable-value}[for scanned-out definitions] -->
@@ -324,13 +324,10 @@ function f(x) {
 	    <!--  \indcode{scan-out-defines} -->
 	    Write a function
 	    <JAVASCRIPTINLINE>transform_lambda</JAVASCRIPTINLINE>
-	    that transforms any lambda expression as shown above. Analogously,
-	    write a function <JAVASCRIPTINLINE>transform_block</JAVASCRIPTINLINE>
-	    that transforms any block in a similar manner.
+	    that transforms any lambda expression as shown above.
 	  </LI>
 	  <LI>
-	    Install <JAVASCRIPTINLINE>transform_lambda</JAVASCRIPTINLINE> and
-	    <JAVASCRIPTINLINE>transform_block</JAVASCRIPTINLINE>
+	    Install <JAVASCRIPTINLINE>transform_lambda</JAVASCRIPTINLINE>
 	    in the interpreter by modifying the function 
 	    <JAVASCRIPTINLINE>evaluate</JAVASCRIPTINLINE>
 	    in an appropriate way.
@@ -366,7 +363,7 @@ function f(x) {
                           v = b;
                           $\textit{statements}$
 		      })($e_1$, $e_2$);
-           })("*unassigned*", "*unassigned*");
+           })(unassigned, unassigned);
 }
 	  </JAVASCRIPT>
 	</SNIPPET>
@@ -433,34 +430,22 @@ function solve(f, y0, dt) {
     <JAVASCRIPT>
       <EXERCISE>
 	<LABEL NAME="ex:add_binding_to_frame"/>	
-	Our implementation of lambda expressions and blocks in
+	Our implementation of blocks in
 	section<SPACE/><REF NAME="sec:core-of-evaluator"/> imposes a
-	runtime burden on every function application: It needs to scan
-	the function body for locally declared names. We shall devise
-	a simpler mechanism in this exercise. In it, we fall back on
-	the penultimate specification of the environment model of
-	function application, given in
-	section<SPACE/><REF NAME="sec:env-model-rules"/>. Recall that
-	in this specification, a  function object is applied to a set of
-	arguments by constructing a frame, in which we create variable bindings
-	of the parameters of the function to the arguments of the call, and then
-	evaluating the body of the function in the context of the new
-	environment constructed. (The ultimate specification adds
-	bindings for the local names, and is given in
-	section<SPACE/><REF NAME="sec:env-internal-def"/>.) Using the
-	penultimate specification, we can achieve the desired result in
-	many cases by changing the evaluation of constant and variable
+	runtime burden: It needs to scan
+	the body of the block for locally declared names. We shall devise
+	a simpler mechanism in this exercise. We can achieve the desired result
+	in many cases by changing the evaluation of constant and variable
 	declaration such that they force into the innermost
 	frame of the given environment a binding of the declared name to
 	the result of evaluating the expression on the right hand side of the
 	declaration.
 	<UL>
 	  <LI>
-	    Simplify the declaration of
-	    <JAVASCRIPTINLINE>apply</JAVASCRIPTINLINE> in
-	    section<SPACE/><REF NAME="sec:core-of-evaluator"/> to adhere
-	    to the penultimate specification of function application, given in
-	    section<SPACE/><REF NAME="sec:env-model-rules"/>.
+	    Simplify the declaration of 
+	    <JAVASCRIPTINLINE>eval_block</JAVASCRIPTINLINE> in
+	    section<SPACE/><REF NAME="sec:core-of-evaluator"/> to 
+	    ignore local declarations.
 	  </LI>
 	  <LI>
 	    Declare a function
@@ -482,6 +467,11 @@ add_binding_to_frame($\textit{name}$, $\textit{value}$, $\textit{frame}$)
 	    such that they make use of
 	    <JAVASCRIPTINLINE>add_binding_to_frame</JAVASCRIPTINLINE> instead of
 	    <JAVASCRIPTINLINE>set_name_value</JAVASCRIPTINLINE>.
+	  </LI>
+	  <LI>
+	    Can you find programs that behave differently with this treatment
+	    of local declarations, compared to the implementation
+	    in section<SPACE/><REF NAME="sec:core-of-evaluator"/>?
 	  </LI>
 	</UL>
       </EXERCISE>
@@ -534,17 +524,19 @@ add_binding_to_frame($\textit{name}$, $\textit{value}$, $\textit{frame}$)
       </SCHEME>
       <JAVASCRIPT>
 	Draw diagrams of the environment in effect when evaluating the
-	<LATEXINLINE>$\textit{statement}$</LATEXINLINE> in the
+	<LATEXINLINE>$\textit{statements}$</LATEXINLINE> in the
 	function in the text, comparing how this will be structured when
 	declarations are interpreted sequentially as described in
 	exercise<SPACE/><REF NAME="ex:add_binding_to_frame"/>
-	with how it is structured if declarations are scanned out as described in
-	section<SPACE/><SPACE/><REF NAME="sec:core-of-evaluator"/>.
-	Why is there an extra frame in the latter case?  Explain why this
-	difference in environment structure can never make a difference in the
-	behavior of a correct program.  Design a way to make the interpreter
-	implement the <QUOTE>simultaneous</QUOTE> scope rule for internal 
-	declarations without constructing the extra frame.
+	with how it is structured if declarations are scanned out as described
+	in section<SPACE/><SPACE/><REF NAME="sec:core-of-evaluator"/>.
+	Why is there an extra frame in the latter case?
+	JavaScript forbids the re-declaration of parameters
+	as local names in the body block of any function. With this restriction,
+	can you achieve the scoping for local names
+	in lambda expressions of 
+	section<SPACE/><SPACE/><REF NAME="sec:core-of-evaluator"/>,
+	without constructing the extra frame?
       </JAVASCRIPT>
     </SPLIT>
   </EXERCISE>
