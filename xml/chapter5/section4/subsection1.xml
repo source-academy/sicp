@@ -51,26 +51,30 @@
     </SCHEME>
     <JAVASCRIPT>
       <!--  \indcode*{eval-dispatch} -->
-      "eval_dispatch",
-          test(op("is_self_evaluating"), reg("exp")),
-          branch(label("ev_self_eval")),
-          test(op("is_variable"), reg("exp")),
-          branch(label("ev_variable")),
-          test(op("is_quoted"), reg("exp")),
-          branch(label("ev_quoted")), /// FIXME
-          test(op("is_assignment"), reg("exp")),
-          branch(label("ev_assignment")),
-          test(op("is_definition"), reg("exp")),
-          branch(label("ev_definition")),
-          test(op("is_conditional_statement"), reg("exp")),
-          branch(label("ev_if")),
-          test(op("is_function_expression"), reg("exp")),
-          branch(label("ev_lambda")),
-          test(op("is_block"), reg("exp")),
-          branch(label("ev_begin")),
-          test(op("is_application"), reg("exp")),
-          branch(label("ev_application")),
-          go_to(label("unknown_expression_type")),
+     "eval_dispatch",
+         test(op("is_self_evaluating"), reg("exp")), 
+         branch(label("ev_self_eval")),
+         test(op("is_name"), reg("exp")),
+         branch(label("ev_name")),
+
+         test(op("is_variable_declaration"), reg("exp")),
+         branch(label("ev_variable_declaration")),
+         test(op("is_constant_declaration"), reg("exp")),
+         branch(label("ev_constant_declaration")),
+         test(op("is_assignment"), reg("exp")),
+         branch(label("ev_assignment")),
+
+         test(op("is_conditional_expression"), reg("exp")),
+         branch(label("ev_if")),
+         test(op("is_function_definition"), reg("exp")),
+         branch(label("ev_lambda")),
+         test(op("is_sequence"), reg("exp")),
+         branch(label("ev_seq")),
+         test(op("is_block"), reg("exp")),
+         branch(label("ev_block")),
+         test(op("is_application"), reg("exp")),
+         branch(label("ev_application")),
+         go_to(label("unknown_expression_type")),
     </JAVASCRIPT>
   </SNIPPET>
       </TEXT>
@@ -111,23 +115,20 @@
         (goto (reg continue))
       </SCHEME>
       <JAVASCRIPT>
-<!--  \indcode*{ev-self-eval} -->
 "ev_self_eval",
-    assign("val", reg("exp")),
+    assign("val", list(reg("exp"))),
     go_to(reg("continue")),
-<!--  \indcode*{ev-variable} -->
-"ev_variable",
-    assign("val", op("lookup_variable_value"), reg("exp"), reg("env")),
+    
+"ev_name",
+    assign("val", list(op("lookup_name_value"), reg("exp"), reg("env"))),
     go_to(reg("continue")),
-<!--  \indcode*{ev-quoted} -->
-"ev_quoted",
-    assign("val", op("text_of_quotation"), reg("exp")),
-    go_to(reg("continue")),
-<!--  \indcode*{ev-lambda} -->
+    
 "ev_lambda",
-    assign("unev", op("lambda_parameters"), reg("exp")),
-    assign("exp", op("lambda_body"), reg("exp")),
-    assign("val", op("make_procedure"), reg("unev"), reg("exp"), reg("env")),
+    assign("unev", list(op("function_definition_parameters"), reg("exp"))),
+    assign("exp", list(op("function_definition_body"), reg("exp"))),
+    assign("val",
+           list(op("make_compound_function"), 
+                reg("unev"), reg("exp"), reg("env"))),
     go_to(reg("continue")),
       </JAVASCRIPT>
     </SNIPPET>
@@ -214,13 +215,12 @@
       (goto (label eval-dispatch))
     </SCHEME>
     <JAVASCRIPT>
-      <!--  \indcode*{ev-application} -->
       "ev_application",
           save("continue"),
           save("env"),
-          assign("unev", op("operands"), reg("exp")),
+          assign("unev", list(op("operands"), reg("exp"))),
           save("unev"),
-          assign("exp", op("operator"), reg("exp")),
+          assign("exp", list(op("operator"), reg("exp"))),
           assign("continue", label("ev_appl_did_operator")),
           go_to(label("eval_dispatch")),
     </JAVASCRIPT>
@@ -295,13 +295,13 @@ function is_last_operand(ops) {
     </SCHEME>
     <JAVASCRIPT>
       "ev_appl_did_operator",
-           restore("unev"),                  // the operands
-           restore("env"),
-           assign("argl", op("empty_arglist")),
-           assign("fun", reg("val")),       // the operator
-           test(op("has_no_operands"), reg("unev")),
-           branch(label("apply_dispatch")),
-           save("fun"),
+          restore("unev"), // the operands
+          restore("env"),
+          assign("argl", list(op("empty_arglist"))),
+          assign("fun", list(reg("val"))), // the operator
+          test(op("has_no_operands"), reg("unev")),
+          branch(label("apply_dispatch")),
+          save("fun"),
     </JAVASCRIPT>
   </SNIPPET>
       </TEXT>
@@ -331,14 +331,14 @@ function is_last_operand(ops) {
     </SCHEME>
     <JAVASCRIPT>
        "ev_appl_operand_loop",
-           save("argl"),
-           assign("exp", (op("first_operand"), reg("unev")),
-           test(op("is_last_operand"), reg("unev")),
-           branch(label("ev_appl_last_arg")),
-           save("env"),
-           save("unev"),
-           assign("continue", (label("ev_appl_accumulate_arg"))),
-           go_to(label("eval_dispatch")),
+            save("argl"),
+            assign("exp", list(op("first_operand"), reg("unev"))),
+            test(op("is_last_operand"), reg("unev")),
+            branch(label("ev_appl_last_arg")),
+            save("env"),
+            save("unev"),
+            assign("continue", label("ev_appl_accumulate_arg")),
+            go_to(label("eval_dispatch")),
     </JAVASCRIPT>
   </SNIPPET>
       </TEXT>
@@ -363,8 +363,8 @@ function is_last_operand(ops) {
           restore("unev"),
           restore("env"),
           restore("argl"),
-          assign("argl", op("adjoin_arg"), reg("val"), reg("argl")),
-          assign("unev", op("rest_operands"), reg("unev")),
+          assign("argl", list(op("adjoin_arg"), reg("val"), reg("argl"))),
+          assign("unev", list(op("rest_operands"), reg("unev"))),
           go_to(label("ev_appl_operand_loop")),
     </JAVASCRIPT>
   </SNIPPET>
@@ -375,7 +375,7 @@ function is_last_operand(ops) {
   need to save the environment or the list of unevaluated operands
   before going to <SPLITINLINE><SCHEMEINLINE>eval-dispatch</SCHEMEINLINE><JAVASCRIPTINLINE>eval_dispatch</JAVASCRIPTINLINE></SPLITINLINE>,
   since they will not be required after the last operand is evaluated.
-  Thus, we return from the evaluation to a special entry point <SPLITINLINE><SCHEMEINLINE>ev-appl-accum-last-arg</SCHEMEINLINE><JAVASCRIPTINLINE>ev_appl_accum_last_arg</JAVASCRIPTINLINE></SPLITINLINE>, which restores the argument list, accumulates
+  Thus, we return from the evaluation to a special entry point <SPLITINLINE><SCHEME><SCHEMEINLINE>ev-appl-accum-last-arg</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>ev_appl_accum_last_arg</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>, which restores the argument list, accumulates
   the new argument, restores the saved
   <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>, and goes off to
   perform the 
@@ -407,15 +407,15 @@ function is_last_operand(ops) {
       (goto (label apply-dispatch))
     </SCHEME>
     <JAVASCRIPT>
-"ev_appl_last_arg",
-      assign("continue", label("ev_appl_accum_last_arg")),
-      go_to(label("eval_dispatch")),
-
-"ev_appl_accum_last_arg",
-      restore(argl),
-      assign("argl", op("adjoin_arg"), reg("val"), reg("argl")),
-      restore("fun"),
-      go_to(label("apply_dispatch")),
+    "ev_appl_last_arg",
+        assign("continue", label("ev_appl_accum_last_arg")),
+        go_to(label("eval_dispatch")),
+    
+    "ev_appl_accum_last_arg",
+        restore("argl"),
+        assign("argl", list(op("adjoin_arg"), reg("val"), reg("argl"))),
+        restore("fun"),
+        go_to(label("apply_dispatch")),
     </JAVASCRIPT>
   </SNIPPET>
       </TEXT>
@@ -433,7 +433,7 @@ function is_last_operand(ops) {
     in the
     <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
     <SPLITINLINE><SCHEME><SCHEMEINLINE>list-of-values</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>list_of_values</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> of section<SPACE/><REF NAME="sec:core-of-evaluator"/>
-    (see exercise<SPACE/><REF NAME="ex:arg-eval-order"/>).</FOOTNOTE> Because the <SPLITINLINE><SCHEMEINLINE>first-operand</SCHEMEINLINE><JAVASCRIPTINLINE>first_operand</JAVASCRIPTINLINE></SPLITINLINE>
+    (see exercise<SPACE/><REF NAME="ex:arg-eval-order"/>).</FOOTNOTE> Because the <SPLITINLINE><SCHEME><SCHEMEINLINE>first-operand</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>first_operand</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>
   selector (used in <SPLITINLINE><SCHEME><SCHEMEINLINE>ev-appl-operand-loop</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>ev_appl_operand_loop</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> to extract successive operands
   from <SCHEMEINLINE>unev</SCHEMEINLINE>) is implemented as <SPLITINLINE><SCHEME><SCHEMEINLINE>car</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>head</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> and the <SPLITINLINE><SCHEME><SCHEMEINLINE>rest-operands</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>rest_operands</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> selector is implemented as <SPLITINLINE><SCHEME><SCHEMEINLINE>cdr</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>tail</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>, the
   explicit-control evaluator will evaluate the operands of a combination
@@ -477,13 +477,12 @@ function is_last_operand(ops) {
       (goto (label unknown-procedure-type))
     </SCHEME>
     <JAVASCRIPT>
-      <!--  \indcode*{apply-dispatch} -->
-      "apply_dispatch",
-          test(op("is_primitive_procedure"), reg("fun")),
-          branch(label("primitive_apply")),
-          test(op("is_compound_procedure"), reg("fun")),
-          branch(label("compound_apply")),
-          go_to(label("unknown_procedure_type")),
+    "apply_dispatch",
+        test(op("is_primitive_function"), reg("fun")),
+        branch(label("primitive_apply")),
+        test(op("is_compound_function"), reg("fun")),
+        branch(label("compound_apply")),
+        go_to(label("unknown_procedure_type")),
     </JAVASCRIPT>
   </SNIPPET>
       </TEXT>
@@ -534,11 +533,13 @@ function is_last_operand(ops) {
       (goto (reg continue))
     </SCHEME>
     <JAVASCRIPT>
-      <!--  \indcode*{primitive-apply} -->
       "primitive_apply",
-          assign("val", op("apply_primitive_procedure"), reg("fun"), reg("argl")),
-          restore("continue"),
-          go_to(reg("continue")),
+      assign(
+          "val",
+          list(op("apply_primitive_function"), reg("fun"), reg("argl"))
+      ),
+      restore("continue"),
+      go_to(reg("continue")),
     </JAVASCRIPT>
   </SNIPPET>
       </TEXT>
@@ -570,12 +571,25 @@ function is_last_operand(ops) {
       (goto (label ev-sequence))
     </SCHEME>
     <JAVASCRIPT>
-      <!--  \indcode*{compound-apply} -->
       "compound_apply",
-          assign("unev", op("procedure_parameters"), reg("fun")),
-          assign("env", op("procedure_environment") reg("fun")),
-          assign("env", op("extend_environment"), reg("unev"), reg("argl"), reg("env")),
-          assign("unev", op("procedure_body"), reg("fun")),
+          assign("unev", list(op("function_parameters"), reg("fun"))), // params
+          // FIXME: A QUICK HACK HERE, UNSURE WHY IT'S NEEDED
+          assign("unev", list(op("all_names_of_names"), reg("unev"))), // params destructured
+          
+          assign("temp", list(op("function_body"), reg("fun"))), // body
+          assign("temp", list(op("local_names"), reg("unev"))), // locals
+          
+          assign("unev", list(op("insert_all"), reg("unev"), reg("temp"))), //names
+          assign("temp", list(op("get_temp_block_values"), reg("temp"))), // temp_values
+          
+          assign("temp", list(op("append"), reg("argl"), reg("temp"))), // values
+          assign("env", list(op("function_environment"), reg("fun"))),
+          
+          assign(
+          "env",
+          list(op("extend_environment"), reg("unev"), reg("temp"), reg("env"))
+          ),
+          assign("unev", list(op("function_body"), reg("fun"))),
           go_to(label("ev_sequence")),
     </JAVASCRIPT>
   </SNIPPET>
