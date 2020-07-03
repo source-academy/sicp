@@ -48,13 +48,13 @@ const ignoreTags = new Set([
 
 const processTextFunctionsDefaultLatex = {
   SCHEME: (node, writeTo) => {
-    writeTo.push("{\\color{teal} ");
+    writeTo.push("{\\color{LightGrey} ");
     recursiveProcessTextLatex(node.firstChild, writeTo);
     writeTo.push("}");
   },
 
   JAVASCRIPT: (node, writeTo) => {
-    writeTo.push("{\\color{blue} ");
+    writeTo.push("{\\color{DarkGrey} ");
     recursiveProcessTextLatex(node.firstChild, writeTo);
     writeTo.push("}");
   },

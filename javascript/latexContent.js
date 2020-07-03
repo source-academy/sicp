@@ -121,7 +121,7 @@ export const preamble = `\\documentclass[a4paper, 12pt]{report}
    escapechar=^
 }
 
-\\usepackage{xcolor}
+\\usepackage[svgnames]{xcolor}
 \\definecolor{LeftBarClickable}{RGB}{187, 187, 187}
 
 \\lstdefinestyle{JavaScript}{
