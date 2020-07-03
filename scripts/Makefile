@@ -139,4 +139,5 @@ svgs: $(orig_path)/ch2-Z-G-65.svg.pdf \
       $(js_path)/ch1-Z-G-6.svg.pdf \
       $(js_path)/Fig4.6a.std.svg.pdf \
       $(js_path)/ch2-Z-G-54.svg.pdf \
-      $(js_path)/Fig5.15c.std.svg.pdf 
+      $(js_path)/Fig5.15c.std.svg.pdf \
+			$(js_path)/ch2-Z-G-ex-2-24.svg.pdf 
