@@ -1,485 +1,740 @@
-    <SUBSECTION>
-      <NAME>
-  Maintaining the Illusion of Infinite Memory
-      </NAME>
+<SUBSECTION>
+  <NAME>
+    Maintaining the Illusion of Infinite Memory
+  </NAME>
 
-      <INDEX>garbage collection|(</INDEX>
-      <LABEL NAME="sec:gc"/>
-      <TEXT>
-  The representation method outlined in
-  section<SPACE/><REF NAME="sec:memory-as-vectors"/> solves the problem of implementing
-  list structure, provided that we have an infinite amount of memory.
-  With a real computer we will eventually run out of free space in which
-  to construct new pairs.<FOOTNOTE>This may not be true eventually,
+  <INDEX>garbage collection|(</INDEX>
+  <LABEL NAME="sec:gc"/>
+  <TEXT>
+    The representation method outlined in
+    section<SPACE/><REF NAME="sec:memory-as-vectors"/> solves the problem of
+    implementing list structure, provided that we have an infinite amount of
+    memory. With a real computer we will eventually run out of free space in
+    which to construct new pairs.<FOOTNOTE>This may not be true eventually,
     because memories may get large enough so that it would be impossible
     to run out of free memory in the lifetime of the computer.  For
-    example, there are about <LATEXINLINE>$3\times 10^{13}$</LATEXINLINE>, microseconds in a year, so
-    if we were to <SPLITINLINE><SCHEME><SCHEMEINLINE>cons</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>pair</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> once per microsecond we would need about
-    <LATEXINLINE>$10^{15}$</LATEXINLINE> cells of memory to build a machine that could operate for 30
-    years without running out of memory.  That much memory seems absurdly
-    large by today<APOS/>s standards, but it is not physically impossible.  On
-    the other hand, processors are getting faster and a future computer
-    may have large numbers of processors operating in parallel on a single
-    memory, so it may be possible to use up memory much faster than we
-    have postulated.</FOOTNOTE>
-  However, most of the pairs generated in a typical
-  computation are used only to hold intermediate results.  After these
-  results are accessed, the pairs are no longer needed<EMDASH/>they are <EM>
+    example, there are about <LATEXINLINE>$3\times 10^{13}$</LATEXINLINE>,
+    microseconds in a year, so if we were to
+    <SPLITINLINE>
+      <SCHEME>
+      <SCHEMEINLINE>cons</SCHEMEINLINE></SCHEME>
+      <JAVASCRIPT><JAVASCRIPTINLINE>pair</JAVASCRIPTINLINE></JAVASCRIPT>
+    </SPLITINLINE>
+    once per microsecond we would need about
+    <LATEXINLINE>$10^{15}$</LATEXINLINE> cells of memory to build a machine
+    that could operate for 30 years without running out of memory.  That much
+    memory seems absurdly large by today<APOS/>s standards, but it is not
+    physically impossible.  On the other hand, processors are getting faster
+    and a future computer may have large numbers of processors operating in
+    parallel on a single memory, so it may be possible to use up memory much
+    faster than we have postulated.</FOOTNOTE> However, most of the pairs
+    generated in a typical computation are used only to hold intermediate
+    results.  After these
+    results are accessed, the pairs are no longer needed<EMDASH/>they are <EM>
     garbage</EM>.  For instance, the computation
-
-  <SNIPPET EVAL="no">
-    <SCHEME>
-      (accumulate + 0 (filter odd? (enumerate-interval 0 n)))
-    </SCHEME>
-    <JAVASCRIPT>
+    <SNIPPET EVAL="no">
+      <SCHEME>
+(accumulate + 0 (filter odd? (enumerate-interval 0 n)))
+      </SCHEME>
+      <JAVASCRIPT>
 accumulate((x, y) => x + y, 0, filter(is_odd, enumerate_interval(0, n)))
-    </JAVASCRIPT>
-  </SNIPPET>
-  constructs two lists: the enumeration and the result of filtering
-  the enumeration.  When the accumulation is complete, these lists are
-  no longer needed, and the allocated memory can be reclaimed.  If we
-  can arrange to collect all the garbage periodically, and if this turns
-  out to recycle memory at about the same rate at which we construct new
-  pairs, we will have preserved the illusion that there is an infinite
-  amount of memory.
-      </TEXT>
+      </JAVASCRIPT>
+    </SNIPPET>
+    constructs two lists: the enumeration and the result of filtering
+    the enumeration.  When the accumulation is complete, these lists are
+    no longer needed, and the allocated memory can be reclaimed.  If we
+    can arrange to collect all the garbage periodically, and if this turns
+    out to recycle memory at about the same rate at which we construct new
+    pairs, we will have preserved the illusion that there is an infinite
+    amount of memory.
+  </TEXT>
 
-      <TEXT>
-  In order to recycle pairs, we must have a way to determine which
-  allocated pairs are not needed (in the sense that their contents can
-  no longer influence the future of the computation).  The method we
-  shall examine for accomplishing this is known as <EM>garbage
+  <TEXT>
+    In order to recycle pairs, we must have a way to determine which
+    allocated pairs are not needed (in the sense that their contents can
+    no longer influence the future of the computation).  The method we
+    shall examine for accomplishing this is known as <EM>garbage
     collection</EM>.  Garbage collection is based on the observation that, at
-  any moment in a <SPLITINLINE><SCHEME>Lisp</SCHEME><JAVASCRIPT>JavaScript</JAVASCRIPT></SPLITINLINE> interpretation, the only objects that can
-  affect the future of the computation are those that can be reached by
-  some succession of <SPLITINLINE><SCHEME><SCHEMEINLINE>car</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>head</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> and <SPLITINLINE><SCHEME><SCHEMEINLINE>cdr</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>tail</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> operations starting from
-  the pointers that are currently in the machine registers.<FOOTNOTE>We
-    assume here that the stack is represented as a list as described in
-    section<SPACE/><REF NAME="sec:memory-as-vectors"/>, so that items on the stack are
-    accessible via the pointer in the stack register.</FOOTNOTE>  Any memory cell
-  that is not so accessible may be recycled.
-      </TEXT>
+    any moment in a
+    <SPLITINLINE>
+      <SCHEME>Lisp</SCHEME>
+      <JAVASCRIPT>JavaScript</JAVASCRIPT>
+    </SPLITINLINE>
+    interpretation, the only objects that can
+    affect the future of the computation are those that can be reached by
+    some succession of
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>car</SCHEMEINLINE></SCHEME>
+      <JAVASCRIPT><JAVASCRIPTINLINE>head</JAVASCRIPTINLINE></JAVASCRIPT>
+    </SPLITINLINE>
+    and
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>cdr</SCHEMEINLINE></SCHEME>
+      <JAVASCRIPT><JAVASCRIPTINLINE>tail</JAVASCRIPTINLINE></JAVASCRIPT>
+    </SPLITINLINE>
+    operations starting from the pointers that are currently in the machine
+    registers.<FOOTNOTE>We assume here that the stack is represented as a list
+    as described in section<SPACE/><REF NAME="sec:memory-as-vectors"/>, so that
+    items on the stack are accessible via the pointer in the stack
+    register.</FOOTNOTE>  Any memory cell that is not so accessible may be
+    recycled.
+  </TEXT>
 
-      <TEXT>
-  There are many ways to perform garbage collection.  The method we
-  shall examine here is called 
-  <INDEX>stop-and-copy garbage collector|(</INDEX>
-  <INDEX>garbage collector<SUBINDEX>stop-and-copy|(</SUBINDEX></INDEX>
-  <EM>stop-and-copy</EM>.  The basic idea is
-  to divide memory into two halves: <QUOTE>working memory</QUOTE> and <QUOTE>free
-    memory.</QUOTE>  When <SPLITINLINE><SCHEME><SCHEMEINLINE>cons</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>pair</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> constructs pairs, it allocates these in
-  working memory.  When working memory is full, we perform garbage
-  collection by locating all the useful pairs in working memory and
-  copying these into consecutive locations in free memory.  (The useful
-  pairs are located by tracing all the <SPLITINLINE><SCHEME><SCHEMEINLINE>car</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>head</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> and <SPLITINLINE><SCHEME><SCHEMEINLINE>cdr</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>tail</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> pointers,
-  starting with the machine registers.)  Since we do not copy the
-  garbage, there will presumably be additional free memory that we can
-  use to allocate new pairs.  In addition, nothing in the working memory
-  is needed, since all the useful pairs in it have been copied.  Thus,
-  if we interchange the roles of working memory and free memory, we can
-  continue processing; new pairs will be allocated in the new working
-  memory (which was the old free memory).  When this is full, we can
-  copy the useful pairs into the new free memory (which was the old
-  working memory).<FOOTNOTE>This idea was invented and first implemented
-      <INDEX>Minsky, Marvin Lee</INDEX>
-      by Minsky, as part of the implementation of 
-      <INDEX>Lisp<SUBINDEX>DEC@on DEC PDP-1</SUBINDEX></INDEX>
-      Lisp for the PDP-1 at the
-      <INDEX>MIT<SUBINDEX>Research Laboratory of Electronics</SUBINDEX></INDEX>
-      MIT Research Laboratory of Electronics.  It was further developed by
-      <INDEX>Fenichel, Robert</INDEX><INDEX>Yochelson, Jerome C.</INDEX>
-      Fenichel and Yochelson (1969) for use in the Lisp implementation for
-      <INDEX>Multics time-sharing system</INDEX>
-      the Multics time-sharing system.  Later, 
-      <INDEX>Baker, Henry G., Jr.</INDEX>
-      Baker (1978) developed a
-      <QUOTE>real-time</QUOTE> version of the method, which does not require the
-      computation to stop during garbage collection. Baker<APOS/>s idea was
-      extended by 
-      <INDEX>Hewitt, Carl Eddie</INDEX><INDEX>Lieberman, Henry</INDEX><INDEX>Moon, David A.</INDEX>
-      Hewitt, Lieberman, and Moon (see Lieberman and Hewitt
-      1983) to take advantage of the fact that some structure is more volatile
-      and other structure is more permanent.  
+  <TEXT>
+    There are many ways to perform garbage collection.  The method we
+    shall examine here is called 
+    <INDEX>stop-and-copy garbage collector|(</INDEX>
+    <INDEX>garbage collector<SUBINDEX>stop-and-copy|(</SUBINDEX></INDEX>
+    <EM>stop-and-copy</EM>.  The basic idea is to divide memory into two
+    halves: <QUOTE>working memory</QUOTE> and <QUOTE>free memory.</QUOTE>  When
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>cons</SCHEMEINLINE></SCHEME>
+      <JAVASCRIPT><JAVASCRIPTINLINE>pair</JAVASCRIPTINLINE></JAVASCRIPT>
+    </SPLITINLINE>
+    constructs pairs, it allocates these in working memory.  When working memory
+    is full, we perform garbage collection by locating all the useful pairs in
+    working memory and copying these into consecutive locations in free memory.
+    (The useful pairs are located by tracing all the
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>car</SCHEMEINLINE></SCHEME>
+      <JAVASCRIPT><JAVASCRIPTINLINE>head</JAVASCRIPTINLINE></JAVASCRIPT>
+    </SPLITINLINE
+    > and
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>cdr</SCHEMEINLINE></SCHEME>
+      <JAVASCRIPT><JAVASCRIPTINLINE>tail</JAVASCRIPTINLINE></JAVASCRIPT>
+    </SPLITINLINE>
+    pointers, starting with the machine registers.)  Since we do not copy the
+    garbage, there will presumably be additional free memory that we can
+    use to allocate new pairs.  In addition, nothing in the working memory
+    is needed, since all the useful pairs in it have been copied.  Thus,
+    if we interchange the roles of working memory and free memory, we can
+    continue processing; new pairs will be allocated in the new working
+    memory (which was the old free memory).  When this is full, we can
+    copy the useful pairs into the new free memory (which was the old
+    working memory).<FOOTNOTE>This idea was invented and first implemented
+    <INDEX>Minsky, Marvin Lee</INDEX>
+    by Minsky, as part of the implementation of 
+    <INDEX>Lisp<SUBINDEX>DEC@on DEC PDP-1</SUBINDEX></INDEX>
+    Lisp for the PDP-1 at the
+    <INDEX>MIT<SUBINDEX>Research Laboratory of Electronics</SUBINDEX></INDEX>
+    MIT Research Laboratory of Electronics.  It was further developed by
+    <INDEX>Fenichel, Robert</INDEX><INDEX>Yochelson, Jerome C.</INDEX>
+    Fenichel and Yochelson (1969) for use in the Lisp implementation for
+    <INDEX>Multics time-sharing system</INDEX>
+    the Multics time-sharing system.  Later, 
+    <INDEX>Baker, Henry G., Jr.</INDEX>
+    Baker (1978) developed a <QUOTE>real-time</QUOTE> version of the method,
+    which does not require the computation to stop during garbage collection.
+    Baker<APOS/>s idea was extended by 
+    <INDEX>Hewitt, Carl Eddie</INDEX>
+    <INDEX>Lieberman, Henry</INDEX><INDEX>Moon, David A.</INDEX>
+    Hewitt, Lieberman, and Moon (see Lieberman and Hewitt 1983) to take
+    advantage of the fact that some structure is more volatile
+    and other structure is more permanent.  
+    <P/>
+    An alternative commonly used garbage-collection technique is the 
+    <INDEX>mark-sweep garbage collector</INDEX>
+    <INDEX>garbage collector<SUBINDEX>mark-sweep</SUBINDEX></INDEX>
+    <EM>mark-sweep</EM> method. This consists of tracing all the structure
+    accessible from the machine registers and marking each pair we reach.
+    We then scan all of memory, and any location that is unmarked is
+    <QUOTE>swept up</QUOTE> as garbage and made available for reuse.  A full
+    <INDEX>Allen, John</INDEX>
+    discussion of the mark-sweep method can be found in 
+    <CITATION>Allen 1978</CITATION>.
+    <P/>
+    The Minsky-Fenichel-Yochelson algorithm is the dominant algorithm in
+    use for large-memory systems because it examines only the useful part
+    of memory.  This is in contrast to mark-sweep, in which the sweep
+    phase must check all of memory.  A second advantage of stop-and-copy
+    is that it is a 
+    <INDEX>compacting garbage collector</INDEX>
+    <INDEX>garbage collector<SUBINDEX>compacting</SUBINDEX></INDEX>
+    <EM>compacting</EM> garbage collector.  That is, at the
+    end of the garbage-collection phase the useful data will have been
+    moved to consecutive memory locations, with all garbage pairs
+    compressed out.  This can be an extremely important performance
+    consideration in machines with virtual memory, in which accesses to
+    widely separated memory addresses may require extra paging
+    operations.</FOOTNOTE>
+  </TEXT>
 
-      An alternative commonly used garbage-collection technique is the 
-      <INDEX>mark-sweep garbage collector</INDEX>
-      <INDEX>garbage collector<SUBINDEX>mark-sweep</SUBINDEX></INDEX>
-      <EM>
-        mark-sweep</EM> method. This consists of tracing all the structure
-      accessible from the machine registers and marking each pair we reach.
-      We then scan all of memory, and any location that is unmarked is
-      <QUOTE>swept up</QUOTE> as garbage and made available for reuse.  A full
-      <INDEX>Allen, John</INDEX>
-      discussion of the mark-sweep method can be found in 
-      <CITATION>Allen 1978</CITATION>.
+  <SUBHEADING> 
+    <NAME>Implementation of a stop-and-copy garbage collector</NAME>
+  </SUBHEADING>
 
-      The Minsky-Fenichel-Yochelson algorithm is the dominant algorithm in
-      use for large-memory systems because it examines only the useful part
-      of memory.  This is in contrast to mark-sweep, in which the sweep
-      phase must check all of memory.  A second advantage of stop-and-copy
-      is that it is a 
-      <INDEX>compacting garbage collector</INDEX>
-      <INDEX>garbage collector<SUBINDEX>compacting</SUBINDEX></INDEX>
-      <EM>compacting</EM> garbage collector.  That is, at the
-      end of the garbage-collection phase the useful data will have been
-      moved to consecutive memory locations, with all garbage pairs
-      compressed out.  This can be an extremely important performance
-      consideration in machines with virtual memory, in which accesses to
-      widely separated memory addresses may require extra paging
-      operations.</FOOTNOTE>
-      </TEXT>
+  <TEXT>
+    We now use our register-machine language to describe the stop-and-copy
+    algorithm in more detail.  We will assume that there is a register
+    called 
+    <!-- \indcodeplus{root}{register}-->
+    <SCHEMEINLINE>root</SCHEMEINLINE> that contains a pointer to a structure
+    that eventually points at all accessible data.  This can be arranged by
+    storing the contents of all the machine registers in a pre-allocated list
+    pointed at by <SCHEMEINLINE>root</SCHEMEINLINE> just before starting
+    garbage collection.<FOOTNOTE>This list of registers does not include
+    the registers used by the storage-allocation
+    system<EMDASH/><SCHEMEINLINE>root</SCHEMEINLINE>,
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>the-cars</SCHEMEINLINE>,</SCHEME>
+      <JAVASCRIPT><JAVASCRIPTINLINE>the-heads</JAVASCRIPTINLINE>,</JAVASCRIPT>
+    </SPLITINLINE>
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>the-cdrs</SCHEMEINLINE>,</SCHEME>
+      <JAVASCRIPT><JAVASCRIPTINLINE>the-tails</JAVASCRIPTINLINE>,</JAVASCRIPT>
+    </SPLITINLINE>
+    and the other registers that will be introduced in this section.</FOOTNOTE>
+    We also assume that, in addition to the current working memory, there is
+    free memory available into which we can copy the useful data.  The current
+    working memory consists of vectors whose base addresses are in 
+    <!--  \indcode{the-cars}[register] -->
+    <!--  \indcode{the-cdrs}[register] -->
+    registers called
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>the-cars</SCHEMEINLINE></SCHEME>
+      <JAVASCRIPT><JAVASCRIPTINLINE>the_heads</JAVASCRIPTINLINE></JAVASCRIPT>
+    </SPLITINLINE>
+    and
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>the-cdrs</SCHEMEINLINE>,</SCHEME>
+      <JAVASCRIPT><JAVASCRIPTINLINE>the_tails</JAVASCRIPTINLINE>,</JAVASCRIPT>
+    </SPLITINLINE>
+    and the free memory is in registers called 
+    <!-- \indcodeplus{new-cars}{register}-->
+    <!-- \indcodeplus{new-cdrs}{register}-->
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>new-cars</SCHEMEINLINE></SCHEME>
+      <JAVASCRIPT><JAVASCRIPTINLINE>new_heads</JAVASCRIPTINLINE></JAVASCRIPT>
+    </SPLITINLINE>
+    and
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>new-cdrs</SCHEMEINLINE>.</SCHEME>
+      <JAVASCRIPT><JAVASCRIPTINLINE>new_tails</JAVASCRIPTINLINE>.</JAVASCRIPT>
+    </SPLITINLINE>
+  </TEXT>
 
-      <SUBHEADING> 
-  <NAME>Implementation of a stop-and-copy garbage collector</NAME>
-      </SUBHEADING>
+  <TEXT>
+    Garbage collection is triggered when we exhaust the free cells in the
+    current working memory, that is, when a
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>cons</SCHEMEINLINE></SCHEME>
+      <JAVASCRIPT><JAVASCRIPTINLINE>pair</JAVASCRIPTINLINE></JAVASCRIPT>
+    </SPLITINLINE>
+    operation attempts to increment the <SCHEMEINLINE>free</SCHEMEINLINE>
+    pointer beyond the end of the memory vector.  When the garbage-collection
+    process is complete, the <SCHEMEINLINE>root</SCHEMEINLINE> pointer will
+    point into the new memory, all objects accessible from the
+    <SCHEMEINLINE>root</SCHEMEINLINE> will have been moved to the new memory,
+    and the <SCHEMEINLINE>free</SCHEMEINLINE> pointer will indicate the next
+    place in the new memory where a new pair can be allocated.  In addition,
+    the roles of working memory and new memory will have been
+    interchanged<EMDASH/>new pairs will be constructed in the new memory,
+    beginning at the place indicated by <SCHEMEINLINE>free</SCHEMEINLINE>, and
+    the (previous) working memory will be available as the new memory for the
+    next garbage collection.
+    <SPLITINLINE>
+      <SCHEME>Figure<SPACE/><REF NAME="fig:memory-reconfig_scheme"/></SCHEME>
+      <JAVASCRIPT>Figure<SPACE/><REF NAME="fig:memory-reconfig"/></JAVASCRIPT>
+    </SPLITINLINE>
+    shows the arrangement of memory just before and just after garbage
+    collection.
+    <SPLIT>
+      <SCHEME>
+	<FIGURE src="img_original/Fig5.15c.std.svg">
+          <CAPTION>
+	    Reconfiguration of memory by the garbage-collection process.
+	  </CAPTION>
+          <LABEL NAME="fig:memory-reconfig_scheme"/>
+	</FIGURE>
+      </SCHEME>
+      <JAVASCRIPT>
+	<FIGURE>
+	  <FIGURE scale_factor="3" src="img_javascript/Fig5.15c.std.svg"/>
+          <CAPTION>
+	    Reconfiguration of memory by the garbage-collection process.
+	  </CAPTION>
+          <LABEL NAME="fig:memory-reconfig"/>
+	</FIGURE>
+      </JAVASCRIPT>
+    </SPLIT>
+  </TEXT>
 
-      <TEXT>
-  We now use our register-machine language to describe the stop-and-copy
-  algorithm in more detail.  We will assume that there is a register
-  called 
-  <!-- \indcodeplus{root}{register}-->
-  <SCHEMEINLINE>root</SCHEMEINLINE> that contains a pointer to a structure that
-  eventually points at all accessible data.  This can be arranged by
-  storing the contents of all the machine registers in a
-  pre-allocated list pointed at by <SCHEMEINLINE>root</SCHEMEINLINE> just before starting
-  garbage collection.<FOOTNOTE>This list of registers does not include
-    the registers used by the storage-allocation system<EMDASH/><SCHEMEINLINE>root</SCHEMEINLINE>, <SPLITINLINE><SCHEME><SCHEMEINLINE>the-cars</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>the-heads</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>, <SPLITINLINE><SCHEME><SCHEMEINLINE>the-cdrs</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>the-tails</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>, and the other registers that will be
-    introduced in this section.</FOOTNOTE> We also assume that, in addition to the
-  current working memory, there is free memory available into which we
-  can copy the useful data.  The current working memory consists of
-  vectors whose base addresses are in 
-  <!--  \indcode{the-cars}[register] -->
-  <!--  \indcode{the-cdrs}[register] -->
-  registers called
-  <SPLITINLINE><SCHEME><SCHEMEINLINE>the-cars</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>the_heads</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>
-  and <SPLITINLINE><SCHEME><SCHEMEINLINE>the-cdrs</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>the_tails</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>, and the free memory is in registers called 
-  <!-- \indcodeplus{new-cars}{register}-->
-  <!-- \indcodeplus{new-cdrs}{register}-->
-  <SPLITINLINE><SCHEME><SCHEMEINLINE>new-cars</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>new_heads</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> and <SPLITINLINE><SCHEME><SCHEMEINLINE>new-cdrs</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>new_tails</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>.
-      </TEXT>
+  <TEXT>
+    <!-- \indcodeplus{free}{register}-->
+    <!-- \indcodeplus{scan}{register}-->
+    The state of the garbage-collection process is controlled by
+    maintaining two pointers: <SCHEMEINLINE>free</SCHEMEINLINE> and
+    <SCHEMEINLINE>scan</SCHEMEINLINE>.  These are initialized to point to the
+    beginning of the new memory.  The algorithm begins by relocating the pair
+    pointed at by <SCHEMEINLINE>root</SCHEMEINLINE> to the beginning of the new
+    memory.  The pair is copied, the <SCHEMEINLINE>root</SCHEMEINLINE> pointer
+    is adjusted to point to the new location, and the
+    <SCHEMEINLINE>free</SCHEMEINLINE> pointer is incremented.  In addition, the
+    old location of the pair is marked to show that its contents have been
+    moved.  This marking is done as follows: In the
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>car</SCHEMEINLINE></SCHEME>
+      <JAVASCRIPT><JAVASCRIPTINLINE>head</JAVASCRIPTINLINE></JAVASCRIPT>
+    </SPLITINLINE>
+    position, we place a special tag that signals that this is an already-moved
+    object.  (Such an object is traditionally called a 
+    <INDEX>broken heart</INDEX>
+    <EM>broken heart</EM>.)<FOOTNOTE>The term <EM>
+    <INDEX>Cressey, David</INDEX>
+    broken heart</EM> was coined by David Cressey, who wrote a garbage collector
+    for 
+    <INDEX>MDL</INDEX>
+    <INDEX>Lisp dialects<SUBINDEX>MDL</SUBINDEX></INDEX>
+    MDL, a dialect of Lisp developed at MIT during the early 1970s.</FOOTNOTE>
+    In the
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>cdr</SCHEMEINLINE></SCHEME>
+      <JAVASCRIPT><JAVASCRIPTINLINE>tail</JAVASCRIPTINLINE></JAVASCRIPT>
+    </SPLITINLINE>
+    position we place a 
+    <INDEX>forwarding address</INDEX>
+    <EM>forwarding address</EM> that points at the location to which the object
+    has been moved.
+  </TEXT>
 
-      <TEXT>
-  Garbage collection is triggered when we exhaust the free cells in the
-  current working memory, that is, when a <SPLITINLINE><SCHEME><SCHEMEINLINE>cons</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>pair</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> operation attempts
-  to increment the <SCHEMEINLINE>free</SCHEMEINLINE> pointer beyond the end of the memory
-  vector.  When the garbage-collection process is complete, the <SCHEMEINLINE>root</SCHEMEINLINE> pointer will point into the new memory, all objects accessible
-  from the <SCHEMEINLINE>root</SCHEMEINLINE> will have been moved to the new memory, and the
-  <SCHEMEINLINE>free</SCHEMEINLINE> pointer will indicate the next place in the new memory
-  where a new pair can be allocated.  In addition, the roles of working
-  memory and new memory will have been interchanged<EMDASH/>new pairs will be
-  constructed in the new memory, beginning at the place indicated by
-  <SCHEMEINLINE>free</SCHEMEINLINE>, and the (previous) working memory will be available as the
-  new memory for the next garbage collection.
-  Figure<SPACE/><REF NAME="fig:memory-reconfig"/> shows the arrangement of memory just
-  before and just after garbage collection.
-
-  <SPLIT>
-    <SCHEME>
-      <FIGURE src="img_original/Fig5.15c.std.svg">
-        <CAPTION>Reconfiguration of memory by the garbage-collection process.</CAPTION>
-        <LABEL NAME="fig:memory-reconfig"/>
-      </FIGURE>
-    </SCHEME>
-    <JAVASCRIPT>
-      <FIGURE>
-      <FIGURE scale_factor="3" src="img_javascript/Fig5.15c.std.svg"/>
-        <CAPTION>Reconfiguration of memory by the garbage-collection process.</CAPTION>
-        <LABEL NAME="fig:memory-reconfig"/>
-      </FIGURE>
-    </JAVASCRIPT>
-  </SPLIT>
+  <TEXT>
+    After relocating the root, the garbage collector enters its basic
+    cycle.  At each step in the algorithm, the
+    <SCHEMEINLINE>scan</SCHEMEINLINE> pointer
+    (initially pointing at the relocated root) points at a pair that has
+    been moved to the new memory but whose
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>car</SCHEMEINLINE></SCHEME>
+      <JAVASCRIPT><JAVASCRIPTINLINE>head</JAVASCRIPTINLINE></JAVASCRIPT>
+    </SPLITINLINE>
+    and
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>cdr</SCHEMEINLINE></SCHEME>
+      <JAVASCRIPT><JAVASCRIPTINLINE>tail</JAVASCRIPTINLINE></JAVASCRIPT>
+    </SPLITINLINE>
+    pointers still refer to objects in the old memory.  These objects are each
+    relocated, and the <SCHEMEINLINE>scan</SCHEMEINLINE> pointer is incremented.
+    To relocate an object (for example, the object indicated by the
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>car</SCHEMEINLINE></SCHEME>
+      <JAVASCRIPT><JAVASCRIPTINLINE>head</JAVASCRIPTINLINE></JAVASCRIPT>
+    </SPLITINLINE>
+    pointer of the pair we are scanning) we check to see if the object has
+    already been moved (as indicated by the presence of a broken-heart tag
+    in the
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>car</SCHEMEINLINE></SCHEME>
+      <JAVASCRIPT><JAVASCRIPTINLINE>head</JAVASCRIPTINLINE></JAVASCRIPT>
+    </SPLITINLINE>
+    position of the object).  If the object has not
+    already been moved, we copy it to the place indicated by
+    <SCHEMEINLINE>free</SCHEMEINLINE>,
+    update <SCHEMEINLINE>free</SCHEMEINLINE>, set up a broken heart at the
+    object<APOS/>s old location, and update the pointer to the object (in this
+    example, the
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>car</SCHEMEINLINE></SCHEME>
+      <JAVASCRIPT><JAVASCRIPTINLINE>head</JAVASCRIPTINLINE></JAVASCRIPT>
+    </SPLITINLINE>
+    pointer of the pair we are scanning) to point
+    to the new location.  If the object has already been moved, its
+    forwarding address (found in the
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>cdr</SCHEMEINLINE></SCHEME>
+      <JAVASCRIPT><JAVASCRIPTINLINE>tail</JAVASCRIPTINLINE></JAVASCRIPT>
+    </SPLITINLINE>
+    position of the broken heart) is substituted for the pointer in the pair
+    being scanned. Eventually, all accessible objects will have been moved and
+    scanned, at which point the <SCHEMEINLINE>scan</SCHEMEINLINE> pointer will
+    overtake the <SCHEMEINLINE>free</SCHEMEINLINE> pointer and the process will
+    terminate.
+  </TEXT>
   
-      </TEXT>
-
-      <TEXT>
-  <!-- \indcodeplus{free}{register}-->
-  <!-- \indcodeplus{scan}{register}-->
-  The state of the garbage-collection process is controlled by
-  maintaining two pointers: <SCHEMEINLINE>free</SCHEMEINLINE> and <SCHEMEINLINE>scan</SCHEMEINLINE>.  These are
-  initialized to point to the beginning of the new memory.  The
-  algorithm begins by relocating the pair pointed at by <SCHEMEINLINE>root</SCHEMEINLINE> to
-  the beginning of the new memory.  The pair is copied, the <SCHEMEINLINE>root</SCHEMEINLINE>
-  pointer is adjusted to point to the new location, and the <SCHEMEINLINE>free</SCHEMEINLINE>
-  pointer is incremented.  In addition, the old location of the pair is
-  marked to show that its contents have been moved.  This marking is
-  done as follows: In the <SPLITINLINE><SCHEME><SCHEMEINLINE>car</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>head</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> position, we place a special tag
-  that signals that this is an already-moved object.  (Such an object is
-  traditionally called a 
-  <INDEX>broken heart</INDEX>
-  <EM>broken heart</EM>.)<FOOTNOTE>The term <EM>
-      <INDEX>Cressey, David</INDEX>
-      broken heart</EM> was coined by David Cressey, who wrote a garbage
-    collector for 
-    <INDEX>MDL</INDEX><INDEX><SPLITINLINE><SCHEME>Lisp</SCHEME><JAVASCRIPT>JavaScript</JAVASCRIPT></SPLITINLINE> dialects<SUBINDEX>MDL</SUBINDEX></INDEX>
-    MDL, a dialect of <SPLITINLINE><SCHEME>Lisp</SCHEME><JAVASCRIPT>JavaScript</JAVASCRIPT></SPLITINLINE> developed at MIT during the early
-    1970s.</FOOTNOTE>
-  In the <SPLITINLINE><SCHEME><SCHEMEINLINE>cdr</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>tail</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> position we place a 
-  <INDEX>forwarding address</INDEX>
-  <EM>forwarding
-    address</EM> that points at the location to which the object has been
-  moved.
-      </TEXT>
-
-      <TEXT>
-  After relocating the root, the garbage collector enters its basic
-  cycle.  At each step in the algorithm, the <SCHEMEINLINE>scan</SCHEMEINLINE> pointer
-  (initially pointing at the relocated root) points at a pair that has
-  been moved to the new memory but whose <SPLITINLINE><SCHEME><SCHEMEINLINE>car</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>head</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> and <SPLITINLINE><SCHEME><SCHEMEINLINE>cdr</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>tail</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>
-  pointers still refer to objects in the old memory.  These objects are
-  each relocated, and the <SCHEMEINLINE>scan</SCHEMEINLINE> pointer is incremented.  To
-  relocate an object (for example, the object indicated by the <SPLITINLINE><SCHEME><SCHEMEINLINE>car</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>head</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>
-  pointer of the pair we are scanning) we check to see if the object has
-  already been moved (as indicated by the presence of a broken-heart tag
-  in the <SPLITINLINE><SCHEME><SCHEMEINLINE>car</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>head</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> position of the object).  If the object has not
-  already been moved, we copy it to the place indicated by <SCHEMEINLINE>free</SCHEMEINLINE>,
-  update <SCHEMEINLINE>free</SCHEMEINLINE>, set up a broken heart at the object<APOS/>s old location,
-  and update the pointer to the object (in this
-  example, the <SPLITINLINE><SCHEME><SCHEMEINLINE>car</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>head</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> pointer of the pair we are scanning) to point
-  to the new location.  If the object has already been moved, its
-  forwarding address (found in the <SPLITINLINE><SCHEME><SCHEMEINLINE>cdr</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>tail</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> position of the broken
-  heart) is substituted for the pointer in the pair being scanned.
-  Eventually, all accessible objects will have been moved and scanned,
-  at which point the <SCHEMEINLINE>scan</SCHEMEINLINE> pointer will overtake the <SCHEMEINLINE>free</SCHEMEINLINE>
-  pointer and the process will terminate.
-      </TEXT>
-      
-      <TEXT>
-  We can specify the stop-and-copy algorithm as a sequence of
-  instructions for a register
-  machine.  The basic step of relocating an object is accomplished by a
-  subroutine called <SPLITINLINE><SCHEME><SCHEMEINLINE>relocate-old-result-in-new</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>relocate_old_result_in_new</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>.  This
-  subroutine gets its argument, a pointer to the object to be relocated,
-  from a register named 
-  <!-- \indcodeplus{old}{register}-->
-  <SCHEMEINLINE>old</SCHEMEINLINE>.  It relocates the designated object
-  (incrementing <SCHEMEINLINE>free</SCHEMEINLINE> in the process),
-  puts a pointer to the relocated object into a register called 
-  <!-- \indcodeplus{new}{register}-->
-  <SCHEMEINLINE>new</SCHEMEINLINE>, and returns by branching to the entry point stored in the register
-  <SCHEMEINLINE>relocate-continue</SCHEMEINLINE>.  To begin garbage collection, we invoke this
-  subroutine to relocate the <SCHEMEINLINE>root</SCHEMEINLINE> pointer, after initializing <SCHEMEINLINE>free</SCHEMEINLINE> and <SCHEMEINLINE>scan</SCHEMEINLINE>.  When the relocation of <SCHEMEINLINE>root</SCHEMEINLINE> has been
-  accomplished, we install the new pointer as the new <SCHEMEINLINE>root</SCHEMEINLINE> and
-  enter the main loop of the garbage collector.
-
-  <SNIPPET EVAL="no">
-    <SCHEME>
-      begin-garbage-collection
-      (assign free (const 0))
-      (assign scan (const 0))
-      (assign old (reg root))
-      (assign relocate-continue (label reassign-root))
-      (goto (label relocate-old-result-in-new))
-      reassign-root
-      (assign root (reg new))
-      (goto (label gc-loop))
-    </SCHEME>
-    <JAVASCRIPT>
+  <TEXT>
+    We can specify the stop-and-copy algorithm as a sequence of instructions for
+    a register machine.  The basic step of relocating an object is accomplished
+    by a subroutine called
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>relocate-old-result-in-new</SCHEMEINLINE>.</SCHEME>
+      <JAVASCRIPT>
+	<JAVASCRIPTINLINE>relocate_old_result_in_new</JAVASCRIPTINLINE>.
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    This subroutine gets its argument, a pointer to the object to be relocated,
+    from a register named 
+    <!-- \indcodeplus{old}{register}-->
+    <SCHEMEINLINE>old</SCHEMEINLINE>.  It relocates the designated object
+    (incrementing <SCHEMEINLINE>free</SCHEMEINLINE> in the process),
+    puts a pointer to the relocated object into a register called 
+    <!-- \indcodeplus{new}{register}-->
+    <SCHEMEINLINE>new</SCHEMEINLINE>, and returns by branching to the entry
+    point stored in the register
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>relocate-continue</SCHEMEINLINE>.</SCHEME>
+      <JAVASCRIPT><JAVASCRIPTINLINE>relocate_continue</JAVASCRIPTINLINE>
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    To begin garbage collection, we invoke this subroutine to relocate the
+    <SCHEMEINLINE>root</SCHEMEINLINE> pointer, after initializing
+    <SCHEMEINLINE>free</SCHEMEINLINE> and <SCHEMEINLINE>scan</SCHEMEINLINE>.
+    When the relocation of <SCHEMEINLINE>root</SCHEMEINLINE> has been
+    accomplished, we install the new pointer as the new
+    <SCHEMEINLINE>root</SCHEMEINLINE> and enter the main loop of the garbage
+    collector.
+    <SNIPPET>
+      <NAME>begin_garbage_collection</NAME>
+      <SCHEME>
+begin-garbage-collection
+  (assign free (const 0))
+  (assign scan (const 0))
+  (assign old (reg root))
+  (assign relocate-continue (label reassign-root))
+  (goto (label relocate-old-result-in-new))
+reassign-root
+  (assign root (reg new))
+  (goto (label gc-loop))
+      </SCHEME>
+      <JAVASCRIPT>
 "begin_garbage_collection",
-    assign("free", constant(0)),
-    assign("scan", constant(0)),
-    assign("old", reg("root")),
-    assign("relocate_continue", label("reassign_root")),
-    go_to(label("relocate_old_result_in_new")),
+  assign("free", constant(0)),
+  assign("scan", constant(0)),
+  assign("old", reg("root")),
+  assign("relocate_continue", label("reassign_root")),
+  go_to(label("relocate_old_result_in_new")),
 "reassign_root",
-    assign("root", reg("new")),
-    go_to(label("gc_loop")),
-    </JAVASCRIPT>
-  </SNIPPET>
-      </TEXT>
+  assign("root", reg("new")),
+  go_to(label("gc_loop")),
+      </JAVASCRIPT>
+    </SNIPPET>
+  </TEXT>
 
-      <TEXT>
-  In the main loop of the garbage collector we must determine whether
-  there are any more objects to be scanned.  We do this by testing
-  whether the <SCHEMEINLINE>scan</SCHEMEINLINE> pointer is coincident with the <SCHEMEINLINE>free</SCHEMEINLINE>
-  pointer.  If the pointers are equal, then all accessible objects have
-  been relocated, and we branch to <SPLITINLINE><SCHEMEINLINE>gc-flip</SCHEMEINLINE><JAVASCRIPTINLINE>gc_flip</JAVASCRIPTINLINE></SPLITINLINE>, which cleans things up
-  so that we can continue the interrupted computation.  If there are
-  still pairs to be scanned, we call the relocate subroutine to relocate
-  the <SPLITINLINE><SCHEME><SCHEMEINLINE>car</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>head</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> of the next pair (by placing the <SPLITINLINE><SCHEME><SCHEMEINLINE>car</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>head</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> pointer in <SCHEMEINLINE>old</SCHEMEINLINE>).  The <SPLITINLINE><SCHEME><SCHEMEINLINE>relocate-continue</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>relocate_continue</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> register is set up so that the
-  subroutine will return to update the <SPLITINLINE><SCHEME><SCHEMEINLINE>car</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>head</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> pointer.
-
-  <SNIPPET EVAL="no">
-    <SCHEME>
-      gc-loop
-      (test (op =) (reg scan) (reg free))
-      (branch (label gc-flip))
-      (assign old (op vector-ref) (reg new-cars) (reg scan))
-      (assign relocate-continue (label update-car))
-      (goto (label relocate-old-result-in-new))
-    </SCHEME>
-    <JAVASCRIPT>
+  <TEXT>
+    In the main loop of the garbage collector we must determine whether
+    there are any more objects to be scanned.  We do this by testing
+    whether the <SCHEMEINLINE>scan</SCHEMEINLINE> pointer is coincident with
+    the <SCHEMEINLINE>free</SCHEMEINLINE> pointer.  If the pointers are equal,
+    then all accessible objects have been relocated, and we branch to
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>gc-flip</SCHEMEINLINE>,</SCHEME>
+      <JAVASCRIPT><JAVASCRIPTINLINE>gc_flip</JAVASCRIPTINLINE>,</JAVASCRIPT>
+    </SPLITINLINE>
+    which cleans things up so that we can continue the interrupted computation.
+    If there are still pairs to be scanned, we call the relocate subroutine to
+    relocate the
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>car</SCHEMEINLINE></SCHEME>
+      <JAVASCRIPT><JAVASCRIPTINLINE>head</JAVASCRIPTINLINE></JAVASCRIPT>
+    </SPLITINLINE>
+    of the next pair (by placing the
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>car</SCHEMEINLINE></SCHEME>
+      <JAVASCRIPT><JAVASCRIPTINLINE>head</JAVASCRIPTINLINE></JAVASCRIPT>
+    </SPLITINLINE>
+    pointer in <SCHEMEINLINE>old</SCHEMEINLINE>).  The
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>relocate-continue</SCHEMEINLINE></SCHEME>
+      <JAVASCRIPT><JAVASCRIPTINLINE>relocate_continue</JAVASCRIPTINLINE>
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    register is set up so that the subroutine will return to update the
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>car</SCHEMEINLINE></SCHEME>
+      <JAVASCRIPT><JAVASCRIPTINLINE>head</JAVASCRIPTINLINE></JAVASCRIPT>
+    </SPLITINLINE>
+    pointer.
+    <SNIPPET>
+      <NAME>gc_loop</NAME>
+      <SCHEME>
+gc-loop
+  (test (op =) (reg scan) (reg free))
+  (branch (label gc-flip))
+  (assign old (op vector-ref) (reg new-cars) (reg scan))
+  (assign relocate-continue (label update-car))
+  (goto (label relocate-old-result-in-new))
+      </SCHEME>
+      <JAVASCRIPT>
 "gc_loop",
-    test(list(op("==="), reg("scan"), reg("free"))),
-    branch(label("gc_flip")),
-    assign("old", list(op("vector_ref"), reg("new_heads"), reg("scan"))),
-    assign("relocate_continue", label("update_head")),
-    go_to(label("relocate_old_result_in_new")),
-    </JAVASCRIPT>
-  </SNIPPET>
-      </TEXT>
-      
-      <TEXT>
-  At <SPLITINLINE><SCHEME><SCHEMEINLINE>update-car</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>update_head</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>, we modify the <SPLITINLINE><SCHEME><SCHEMEINLINE>car</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>head</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> pointer of the pair being
-  scanned, then proceed to relocate the <SPLITINLINE><SCHEME><SCHEMEINLINE>cdr</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>tail</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> of the pair.  We
-  return to <SPLITINLINE><SCHEME><SCHEMEINLINE>update-cdr</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>update_tail</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> when that relocation has been accomplished.
-  After relocating and updating the <SPLITINLINE><SCHEME><SCHEMEINLINE>cdr</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>tail</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>, we are finished scanning
-  that pair, so we continue with the main loop.
+  test(list(op("==="), reg("scan"), reg("free"))),
+  branch(label("gc_flip")),
+  assign("old", list(op("vector_ref"), reg("new_heads"), reg("scan"))),
+  assign("relocate_continue", label("update_head")),
+  go_to(label("relocate_old_result_in_new")),
+      </JAVASCRIPT>
+    </SNIPPET>
+  </TEXT>
+  
+  <TEXT>
+    At
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>update-car</SCHEMEINLINE>,</SCHEME>
+      <JAVASCRIPT><JAVASCRIPTINLINE>update_head</JAVASCRIPTINLINE>,</JAVASCRIPT>
+    </SPLITINLINE>
+    we modify the
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>car</SCHEMEINLINE></SCHEME>
+      <JAVASCRIPT><JAVASCRIPTINLINE>head</JAVASCRIPTINLINE></JAVASCRIPT>
+    </SPLITINLINE>
+    pointer of the pair being scanned, then proceed to relocate the
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>cdr</SCHEMEINLINE></SCHEME>
+      <JAVASCRIPT><JAVASCRIPTINLINE>tail</JAVASCRIPTINLINE></JAVASCRIPT>
+    </SPLITINLINE>
+    of the pair.  We return to
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>update-cdr</SCHEMEINLINE></SCHEME>
+      <JAVASCRIPT><JAVASCRIPTINLINE>update_tail</JAVASCRIPTINLINE></JAVASCRIPT>
+    </SPLITINLINE>
+    when that relocation has been accomplished. After relocating and updating
+    the
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>cdr</SCHEMEINLINE>,</SCHEME>
+      <JAVASCRIPT><JAVASCRIPTINLINE>tail</JAVASCRIPTINLINE>,</JAVASCRIPT>
+    </SPLITINLINE>
+    we are finished scanning that pair, so we continue with the main loop.
+    <SNIPPET>
+      <NAME>update_head</NAME>
+      <SCHEME>
+update-car
+  (perform
+  (op vector-set!) (reg new-cars) (reg scan) (reg new))
+  (assign old (op vector-ref) (reg new-cdrs) (reg scan))
+  (assign relocate-continue (label update-cdr))
+  (goto (label relocate-old-result-in-new))
 
-  <SNIPPET EVAL="no">
-    <SCHEME>
-      update-car
-      (perform
-      (op vector-set!) (reg new-cars) (reg scan) (reg new))
-      (assign old (op vector-ref) (reg new-cdrs) (reg scan))
-      (assign relocate-continue (label update-cdr))
-      (goto (label relocate-old-result-in-new))
-
-      update-cdr
-      (perform
-      (op vector-set!) (reg new-cdrs) (reg scan) (reg new))
-      (assign scan (op +) (reg scan) (const 1))
-      (goto (label gc-loop))
-    </SCHEME>
-    <JAVASCRIPT>
+update-cdr
+  (perform
+  (op vector-set!) (reg new-cdrs) (reg scan) (reg new))
+  (assign scan (op +) (reg scan) (const 1))
+  (goto (label gc-loop))
+      </SCHEME>
+      <JAVASCRIPT>
 "update_head",
-     perform(list(op("vector_set"), reg("new_heads"), reg("scan"), reg("new"))),
-     assign("old", list(op("vector_ref"), reg("new_tails"), reg("scan"))),
-     assign("relocate_continue", label("update_tail")),
-     go_to(label("relocate_old_result_in_new")),
+  perform(list(op("vector_set"), 
+               reg("new_heads"), reg("scan"), reg("new"))),
+  assign("old", list(op("vector_ref"), 
+                     reg("new_tails"), reg("scan"))),
+  assign("relocate_continue", label("update_tail")),
+  go_to(label("relocate_old_result_in_new")),
 
 "update_tail",
-     perform(list(op("vector_set"), reg("new_tails"), reg("scan"), reg("new"))),
-     assign("scan", list(op("+"), reg("scan"), constant(1))),
-     go_to(label("gc_loop")),
-    </JAVASCRIPT>
-  </SNIPPET>
-      </TEXT>
+  perform(list(op("vector_set"), 
+               reg("new_tails"), reg("scan"), reg("new"))),
+  assign("scan", list(op("+"), reg("scan"), constant(1))),
+  go_to(label("gc_loop")),
+      </JAVASCRIPT>
+    </SNIPPET>
+  </TEXT>
 
-      <TEXT>
-  The subroutine <SPLITINLINE><SCHEME><SCHEMEINLINE>relocate-old-result-in-new</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>relocate_old_result_in_new</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> relocates objects as
-  follows: If the object to be relocated (pointed at by <SCHEMEINLINE>old</SCHEMEINLINE>) is
-  not a pair, then we return the same pointer to the object unchanged
-  (in <SCHEMEINLINE>new</SCHEMEINLINE>).  (For example, we may be scanning a pair whose <SPLITINLINE><SCHEME><SCHEMEINLINE>car</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>head</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> is the number 4.  If we represent the <SPLITINLINE><SCHEME><SCHEMEINLINE>car</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>head</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> by <SCHEMEINLINE>n4</SCHEMEINLINE>, as
-  described in section<SPACE/><REF NAME="sec:impl-list-ops"/>, then we want the
-  <QUOTE>relocated</QUOTE> <SPLITINLINE><SCHEME><SCHEMEINLINE>car</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>head</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> pointer to still be <SCHEMEINLINE>n4</SCHEMEINLINE>.)  Otherwise, we
-  must perform the relocation.  If the <SPLITINLINE><SCHEME><SCHEMEINLINE>car</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>head</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> position of the pair to
-  be relocated contains a broken-heart tag, then the pair has in fact
-  already been moved, so we retrieve the forwarding address (from the
-  <SPLITINLINE><SCHEME><SCHEMEINLINE>cdr</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>tail</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> position of the broken heart) and return this in <SCHEMEINLINE>new</SCHEMEINLINE>.
-  If the pointer in <SCHEMEINLINE>old</SCHEMEINLINE> points at a yet-unmoved pair, then we move
-  the pair to the first free cell in new memory (pointed at by <SCHEMEINLINE>free</SCHEMEINLINE>) and set up the broken heart by storing a broken-heart tag and
-  forwarding address at the old location.
-  <SPLITINLINE><SCHEME>Relocate-old-result-in-new</SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>Relocate_old_result_in_new</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> uses a register 
-  <SPLIT>
-    <SCHEME>
-      <!-- \indcodeplus{oldcr}{register}-->
-    </SCHEME>
-    <JAVASCRIPT>
-      <!-- \indcodeplus{oldhr}{register}-->
-    </JAVASCRIPT>
-  </SPLIT> 
-  <SPLITINLINE><SCHEME><SCHEMEINLINE>oldcr</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>oldhr</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>
-  to hold the <SPLITINLINE><SCHEME><SCHEMEINLINE>car</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>head</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> or the <SPLITINLINE><SCHEME><SCHEMEINLINE>cdr</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>tail</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> of the object pointed at by
-  <SCHEMEINLINE>old</SCHEMEINLINE>.<FOOTNOTE>The garbage collector uses the low-level predicate
-  <SPLITINLINE><SCHEME><SCHEMEINLINE>pointer-to-pair?</SCHEMEINLINE></SCHEME>
-  <JAVASCRIPT><JAVASCRIPTINLINE>is_pointer_to_pair</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>
-  instead of the list-structure
-  <SPLITINLINE><SCHEME><SCHEMEINLINE>pair?</SCHEMEINLINE>
-  <JAVASCRIPT><JAVASCRIPTINLINE>is_pair</JAVASCRIPTINLINE></JAVASCRIPT>
-</SCHEME></SPLITINLINE>
+  <TEXT>
+    The subroutine
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>relocate-old-result-in-new</SCHEMEINLINE>
+      </SCHEME>
+      <JAVASCRIPT>
+	<JAVASCRIPTINLINE>relocate_old_result_in_new</JAVASCRIPTINLINE>
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    relocates objects as follows: If the object to be relocated (pointed at by
+    <SCHEMEINLINE>old</SCHEMEINLINE>) is not a pair, then we return the same
+    pointer to the object unchanged (in <SCHEMEINLINE>new</SCHEMEINLINE>).
+    (For example, we may be scanning a pair whose
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>car</SCHEMEINLINE></SCHEME>
+      <JAVASCRIPT><JAVASCRIPTINLINE>head</JAVASCRIPTINLINE></JAVASCRIPT>
+    </SPLITINLINE>
+    is the number 4.  If we represent the
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>car</SCHEMEINLINE></SCHEME>
+      <JAVASCRIPT><JAVASCRIPTINLINE>head</JAVASCRIPTINLINE></JAVASCRIPT>
+    </SPLITINLINE>
+    by <SCHEMEINLINE>n4</SCHEMEINLINE>, as described in
+    section<SPACE/><REF NAME="sec:impl-list-ops"/>, then we want the
+    <QUOTE>relocated</QUOTE>
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>car</SCHEMEINLINE></SCHEME>
+      <JAVASCRIPT><JAVASCRIPTINLINE>head</JAVASCRIPTINLINE></JAVASCRIPT>
+    </SPLITINLINE>
+    pointer to still be <SCHEMEINLINE>n4</SCHEMEINLINE>.)  Otherwise, we
+    must perform the relocation.  If the
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>car</SCHEMEINLINE></SCHEME>
+      <JAVASCRIPT><JAVASCRIPTINLINE>head</JAVASCRIPTINLINE></JAVASCRIPT>
+    </SPLITINLINE>
+    position of the pair to be relocated contains a broken-heart tag, then the
+    pair has in fact already been moved, so we retrieve the forwarding address
+    (from the
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>cdr</SCHEMEINLINE></SCHEME>
+      <JAVASCRIPT><JAVASCRIPTINLINE>tail</JAVASCRIPTINLINE></JAVASCRIPT>
+    </SPLITINLINE>
+    position of the broken heart) and return this in
+    <SCHEMEINLINE>new</SCHEMEINLINE>. If the pointer in
+    <SCHEMEINLINE>old</SCHEMEINLINE> points at a yet-unmoved pair, then we move
+    the pair to the first free cell in new memory (pointed at by
+    <SCHEMEINLINE>free</SCHEMEINLINE>) and set up the broken heart by storing a
+    broken-heart tag and forwarding address at the old location.
+    <SPLITINLINE>
+      <SCHEME>Relocate-old-result-in-new</SCHEME>
+      <JAVASCRIPT>The subroutine
+      <JAVASCRIPTINLINE>Relocate_old_result_in_new</JAVASCRIPTINLINE>
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    uses a register 
+    <SPLIT>
+      <SCHEME>
+	<!-- \indcodeplus{oldcr}{register}-->
+      </SCHEME>
+      <JAVASCRIPT>
+	<!-- \indcodeplus{oldht}{register}-->
+      </JAVASCRIPT>
+    </SPLIT> 
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>oldcr</SCHEMEINLINE></SCHEME>
+      <JAVASCRIPT><JAVASCRIPTINLINE>oldht</JAVASCRIPTINLINE></JAVASCRIPT>
+    </SPLITINLINE>
+    to hold the
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>car</SCHEMEINLINE></SCHEME>
+      <JAVASCRIPT><JAVASCRIPTINLINE>head</JAVASCRIPTINLINE></JAVASCRIPT>
+    </SPLITINLINE>
+    or the
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>cdr</SCHEMEINLINE></SCHEME>
+      <JAVASCRIPT><JAVASCRIPTINLINE>tail</JAVASCRIPTINLINE></JAVASCRIPT>
+    </SPLITINLINE>
+    of the object pointed at by <SCHEMEINLINE>old</SCHEMEINLINE>.<FOOTNOTE>The
+    garbage collector uses the low-level predicate
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>pointer-to-pair?</SCHEMEINLINE></SCHEME>
+      <JAVASCRIPT><JAVASCRIPTINLINE>is_pointer_to_pair</JAVASCRIPTINLINE>
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    instead of the list-structure
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>pair?</SCHEMEINLINE></SCHEME>
+      <JAVASCRIPT><JAVASCRIPTINLINE>is_pair</JAVASCRIPTINLINE></JAVASCRIPT>
+    </SPLITINLINE>
     operation because in a real system there might be various things
     that are treated as pairs for garbage-collection purposes.
-    For example, in a <SPLITINLINE><SCHEME>Scheme</SCHEME><JAVASCRIPT>JavaScript</JAVASCRIPT></SPLITINLINE> system that conforms to the 
-    <SPLITINLINE><SCHEME>IEEE standard
-    a procedure</SCHEME><JAVASCRIPT>ECMAScript standard a function</JAVASCRIPT></SPLITINLINE>
-    object may be implemented as a special kind of <QUOTE>pair</QUOTE>
-    that doesn<APOS/>t satisfy the
-    <SPLITINLINE><SCHEME><SCHEMEINLINE>pair?</SCHEMEINLINE></SCHEME>
-    <JAVASCRIPT><JAVASCRIPTINLINE>is_pair</JAVASCRIPTINLINE></JAVASCRIPT>
+    For example, in a Scheme system that conforms to the 
+    IEEE standard a procedure object may be implemented as a special kind of
+    <QUOTE>pair</QUOTE> that doesn<APOS/>t satisfy the
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>pair?</SCHEMEINLINE></SCHEME>
+      <JAVASCRIPT><JAVASCRIPTINLINE>is_pair</JAVASCRIPTINLINE></JAVASCRIPT>
     </SPLITINLINE>
     predicate.
     For simulation purposes,
-  <SPLITINLINE><SCHEME><SCHEMEINLINE>pointer-to-pair?</SCHEMEINLINE></SCHEME>
-  <JAVASCRIPT><JAVASCRIPTINLINE>is_pointer_to_pair</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>pointer-to-pair?</SCHEMEINLINE></SCHEME>
+      <JAVASCRIPT><JAVASCRIPTINLINE>is_pointer_to_pair</JAVASCRIPTINLINE>
+      </JAVASCRIPT>
+    </SPLITINLINE>
     can be implemented as
-    <SPLITINLINE><SCHEME><SCHEMEINLINE>pair?</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>is_pair</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>.
-    </FOOTNOTE>
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>pair?</SCHEMEINLINE>.</SCHEME>
+      <JAVASCRIPT><JAVASCRIPTINLINE>is_pair</JAVASCRIPTINLINE>.</JAVASCRIPT>
+    </SPLITINLINE></FOOTNOTE>
 
-  <SNIPPET EVAL="no">
-    <SCHEME>
-      relocate-old-result-in-new
-      (test (op pointer-to-pair?) (reg old))
-      (branch (label pair))
-      (assign new (reg old))
-      (goto (reg relocate-continue))
-      pair
-      (assign oldcr (op vector-ref) (reg the-cars) (reg old))
-      (test (op broken-heart?) (reg oldcr))
-      (branch (label already-moved))
-      (assign new (reg free)) <EM>; new location for pair</EM>
-      <EM>;; Update free pointer.</EM>
-      (assign free (op +) (reg free) (const 1))
-      <EM>;; Copy the car and cdr to new memory.</EM>
-      (perform (op vector-set!)
-            (reg new-cars) (reg new) (reg oldcr))
-      (assign oldcr (op vector-ref) (reg the-cdrs) (reg old))
-      (perform (op vector-set!)
-            (reg new-cdrs) (reg new) (reg oldcr))
-      <EM>;; Construct the broken heart.</EM>
-      (perform (op vector-set!)
-            (reg the-cars) (reg old) (const broken-heart))
-      (perform
-      (op vector-set!) (reg the-cdrs) (reg old) (reg new))
-      (goto (reg relocate-continue))
-      already-moved
-      (assign new (op vector-ref) (reg the-cdrs) (reg old))
-      (goto (reg relocate-continue))
-    </SCHEME>
-    <JAVASCRIPT>
+    <SNIPPET>
+      <NAME>relocate_old_result_in_new</NAME>
+      <SCHEME>
+relocate-old-result-in-new
+  (test (op pointer-to-pair?) (reg old))
+  (branch (label pair))
+  (assign new (reg old))
+  (goto (reg relocate-continue))
+pair
+  (assign oldcr (op vector-ref) (reg the-cars) (reg old))
+  (test (op broken-heart?) (reg oldcr))
+  (branch (label already-moved))
+  (assign new (reg free)) <EM>; new location for pair</EM>
+  <EM>;; Update free pointer.</EM>
+  (assign free (op +) (reg free) (const 1))
+  <EM>;; Copy the car and cdr to new memory.</EM>
+  (perform (op vector-set!)
+  (reg new-cars) (reg new) (reg oldcr))
+  (assign oldcr (op vector-ref) (reg the-cdrs) (reg old))
+  (perform (op vector-set!)
+  (reg new-cdrs) (reg new) (reg oldcr))
+  <EM>;; Construct the broken heart.</EM>
+  (perform (op vector-set!)
+  (reg the-cars) (reg old) (const broken-heart))
+  (perform
+  (op vector-set!) (reg the-cdrs) (reg old) (reg new))
+  (goto (reg relocate-continue))
+already-moved
+  (assign new (op vector-ref) (reg the-cdrs) (reg old))
+  (goto (reg relocate-continue))
+      </SCHEME>
+      <JAVASCRIPT>
 "relocate_old_result_in_new",
-    test(list(op("is_pointer_to_pair"), reg("old"))),
-    branch(label("pair")),
-    assign("new", reg("old")),
-    go_to(reg("relocate_continue")),
+  test(list(op("is_pointer_to_pair"), reg("old"))),
+  branch(label("pair")),
+  assign("new", reg("old")),
+  go_to(reg("relocate_continue")),
 "pair",
-    assign("oldhr", list(op("vector_ref"), reg("the_heads"), reg("old"))),
-    test(list(op("is_broken_heart"), reg("oldhr"))),
-    branch(label("already_moved")),
-    assign("new", reg("free")),       // new location for pair
-    // Update "free" pointer.
-    assign("free", list((op("+"), reg("free"), constant(1))),
-    // Copy the head and tail to new memory
-    perform(list(op("vector_set"), 
-                 reg("new_heads"), reg("new"), reg("oldhr"))),
-    assign("oldhr", list(op("vector_ref"), reg("the_tails"), reg("old"))),
-    perform(list(op("vector_set"), 
-                 reg("new_tails"), reg("new"), reg("oldhr"))),
-    // Construct the broken heart
-    perform(list(op("vector_set"),
-                 reg("the_heads"), reg("old"), constant("broken_heart"))),
-    perform(list(op("vector_set"),
-		 reg("the_tails"), reg("old"), reg("new"))),
-    go_to(reg("relocate_continue")),
+  assign("oldht", list(op("vector_ref"), 
+                       reg("the_heads"), reg("old"))),
+  test(list(op("is_broken_heart"), reg("oldht"))),
+  branch(label("already_moved")),
+  assign("new", reg("free")),     // new location for pair
+  // Update "free" pointer.
+  assign("free", list((op("+"), reg("free"), constant(1))),
+  // Copy the head and tail to new memory
+  perform(list(op("vector_set"), 
+  reg("new_heads"), reg("new"), reg("oldht"))),
+  assign("oldht", list(op("vector_ref"), 
+                       reg("the_tails"), reg("old"))),
+  perform(list(op("vector_set"), 
+  reg("new_tails"), reg("new"), reg("oldht"))),
+  // Construct the broken heart
+  perform(list(op("vector_set"),
+               reg("the_heads"), reg("old"), 
+               constant("broken_heart"))),
+  perform(list(op("vector_set"),
+  reg("the_tails"), reg("old"), reg("new"))),
+  go_to(reg("relocate_continue")),
 "already_moved",
-    assign("new", list(op("vector_ref"), reg("the_tails"), reg("old"))),
-    go_to(reg("relocate_continue")),
-    </JAVASCRIPT>
-  </SNIPPET>
-      </TEXT>
+  assign("new", list(op("vector_ref"), 
+                     reg("the_tails"), reg("old"))),
+  go_to(reg("relocate_continue")),
+      </JAVASCRIPT>
+    </SNIPPET>
+  </TEXT>
 
-      <TEXT>
-  At the very end of the garbage collection process, we interchange the
-  role of old and new memories by interchanging pointers: interchanging
-  <SPLITINLINE><SCHEME><SCHEMEINLINE>the-cars</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>the_heads</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>
-  with
-  <SPLITINLINE><SCHEME><SCHEMEINLINE>new-cars</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>new_heads</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>, and
-  <SPLITINLINE><SCHEME><SCHEMEINLINE>the-cdrs</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>the_tails</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> with
-  <SPLITINLINE><SCHEME><SCHEMEINLINE>new-cdrs</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>new_tails</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>.
-  We will then be ready to perform another garbage
-  collection the next time memory runs out.
-
-  <SNIPPET EVAL="yes">
-    <SCHEME>
+  <TEXT>
+    At the very end of the garbage collection process, we interchange the
+    role of old and new memories by interchanging pointers: interchanging
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>the-cars</SCHEMEINLINE></SCHEME>
+      <JAVASCRIPT><JAVASCRIPTINLINE>the_heads</JAVASCRIPTINLINE></JAVASCRIPT>
+    </SPLITINLINE>
+    with
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>new-cars</SCHEMEINLINE>,</SCHEME>
+      <JAVASCRIPT><JAVASCRIPTINLINE>new_heads</JAVASCRIPTINLINE>,</JAVASCRIPT>
+    </SPLITINLINE>
+    and
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>the-cdrs</SCHEMEINLINE></SCHEME>
+      <JAVASCRIPT><JAVASCRIPTINLINE>the_tails</JAVASCRIPTINLINE></JAVASCRIPT>
+    </SPLITINLINE>
+    with
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>new-cdrs</SCHEMEINLINE>.</SCHEME>
+      <JAVASCRIPT><JAVASCRIPTINLINE>new_tails</JAVASCRIPTINLINE>.</JAVASCRIPT>
+    </SPLITINLINE>
+    We will then be ready to perform another garbage
+    collection the next time memory runs out.
+    <SNIPPET>
+      <NAME>testing_5_3_2</NAME>
+      <REQUIRES>tagged_list</REQUIRES>
+      <REQUIRES>make_register</REQUIRES>
+      <REQUIRES>pop</REQUIRES>
+      <REQUIRES>assoc</REQUIRES>
+      <SCHEME>
       gc-flip
       (assign temp (reg the-cdrs))
       (assign the-cdrs (reg new-cdrs))
@@ -487,8 +742,8 @@ accumulate((x, y) => x + y, 0, filter(is_odd, enumerate_interval(0, n)))
       (assign temp (reg the-cars))
       (assign the-cars (reg new-cars))
       (assign new-cars (reg temp))
-    </SCHEME>
-    <JAVASCRIPT_RUN>
+      </SCHEME>
+      <JAVASCRIPT_RUN>
 // TYPED POINTERS
 
 const NUMBER_TYPE = "number";
@@ -638,27 +893,8 @@ function setup_environment() {
                null);
 }
 
-// HELPERS
-function is_equal(a, b) {
-    return (is_pair(a) &amp;&amp; is_pair(b) &amp;&amp;
-            is_equal(head(a), head(b)) &amp;&amp; is_equal(tail(a), tail(b)))
-           || 
-           a === b;
-}
-        
-function assoc(key, records) {
-    return is_null(records)
-           ? undefined
-           : is_equal(key, head(head(records)))
-             ? head(records)
-             : assoc(key, tail(records));
-}
-
-function is_tagged_list(exp, tag) {
-    return is_pair(exp) &amp;&amp; head(exp) === tag;
-}
-
-function flatten_list_to_vectors(the_heads, the_tails, lst, make_ptr_fn, starting_index) {
+function flatten_list_to_vectors(the_heads, the_tails, lst,
+                                 make_ptr_fn, starting_index) {
     let free = starting_index;
     function helper(lst) {
         if (!is_pair(lst)) {
@@ -724,34 +960,6 @@ function make_stack() {
     return dispatch;
 }
 
-function pop(stack) {
-    return stack("pop");
-}
-
-function push(stack, value) {
-    return stack("push")(value);
-}
-
-function make_register(name) {
-    let contents = "*unassigned*";
-
-    function dispatch(message) {
-        if (message === "get") {
-            return contents;
-
-        } else {
-            if (message === "set") {
-                return value => { contents = value; };
-
-            } else {
-                error(message, "Unknown request: REGISTER");
-            }
-        }
-    }
-
-    return dispatch;
-}
-
 function make_new_machine() {
     const SIZE = make_register("SIZE");
     const pc = make_register("pc");
@@ -769,7 +977,7 @@ function make_new_machine() {
         list("new", make_register("new")),
         list("relocate_continue", make_register("relocate_continue")),
         list("temp", make_register("temp")),
-        list("oldhr", make_register("oldhr"))
+        list("oldht", make_register("oldht"))
     );
     const exp = make_register("exp");
     const env = make_register("env");
@@ -804,21 +1012,88 @@ function make_new_machine() {
     const prog_heads = make_register("prog_heads");
     const prog_tails = make_register("prog_tails");
     let the_instruction_sequence = null;
-    let the_ops = list(list("initialize_stack", () => stack("initialize")));
+    let the_ops = list(list("initialize_stack",
+                            () => stack("initialize")));
     the_ops = append(the_ops, vector_ops);
-    let register_table = list(list("SIZE", SIZE), list("pc", pc), list("flag", flag),
-                              list("root", root), list("root_populate_proc", root_populate_proc),
-                              list("root_restore_proc", root_restore_proc), list("stack_reassign_proc", stack_reassign_proc),
-                              list("the_heads", the_heads), list("the_tails", the_tails),
-                              list("new_heads", new_heads), list("new_tails", new_tails),
-                              list("prog_heads", prog_heads), list("prog_tails", prog_tails));
+    let register_table =
+          list(list("SIZE", SIZE),
+               list("pc", pc),
+               list("flag", flag),
+               list("root", root),
+               list("root_populate_proc", root_populate_proc),
+               list("root_restore_proc", root_restore_proc),
+               list("stack_reassign_proc", stack_reassign_proc),
+               list("the_heads", the_heads),
+               list("the_tails", the_tails),
+               list("new_heads", new_heads),
+               list("new_tails", new_tails),
+               list("prog_heads", prog_heads),
+               list("prog_tails", prog_tails));
     register_table = append(register_table, gc_registers);
     register_table = append(register_table, evaluator_registers);
     register_table = append(register_table, aux_registers);
 
+    function start() {
+        const root_registers = 
+                append(aux_registers, evaluator_registers);
+        set_contents(pc, the_instruction_sequence);
+        set_contents(free,
+                     make_ptr_ptr(flatten_list_to_vectors(
+                                    the_heads("get"),
+                                    the_tails("get"),
+                                    setup_environment(), 
+                                    make_ptr_ptr,
+                                    length(root_registers))));
+        set_contents(env, make_ptr_ptr(length(root_registers)));
+        function root_populate_proc_fn() {
+            const root_ptr = free("get");
+            root("set")(root_ptr);
+            let register_list = root_registers;
+            while (!is_null(register_list)) {
+                const content = head(tail(head(register_list)))("get");
+                const index = unwrap_ptr(free("get"));
+                the_heads("get")[index] = 
+                  content === "*unassigned*"
+                  ? make_null_ptr() : content;
+                free("set")(make_ptr_ptr(index + 1));
+                the_tails("get")[index] = free("get");
+                register_list = tail(register_list);
+            }
+            the_tails("get")[unwrap_ptr(free("get")) - 1] =
+              make_null_ptr();
+        }
+        function root_restore_proc_fn() {
+            let root_ptr = root("get");
+            let register_list = root_registers;
+            while (!is_null(register_list)) {
+                const index = unwrap_ptr(root_ptr);
+                const value = the_heads("get")[index];
+                head(tail(head(register_list)))("set")(value);
+                root_ptr = the_tails("get")[index];
+                register_list = tail(register_list);
+            }
+        }
+        function stack_reassign_proc_fn() {
+            let local_stack = stack("stack");
+            while (!is_null(local_stack)) {
+                const value = head(local_stack);
+                if (is_ptr_ptr(value)) {
+                    const index = unwrap_ptr(value);
+                    const new_ptr = the_tails("get")[index];
+                    set_head(local_stack, new_ptr);
+                } else {}
+                local_stack = tail(local_stack);
+            }
+        }
+        set_contents(root_populate_proc, root_populate_proc_fn);
+        set_contents(root_restore_proc, root_restore_proc_fn);
+        set_contents(stack_reassign_proc, stack_reassign_proc_fn);
+        return execute();  
+    } 
     function allocate_register(name) {
         if (assoc(name, register_table) === undefined) {
-            register_table = pair(list(name, make_register(name)), register_table);
+        register_table = pair(list(name, make_register(name)),
+                              register_table);
         } else {
             error(name, "Multiply defined register: ");
         }
@@ -842,66 +1117,19 @@ function make_new_machine() {
     }
     function dispatch(message) {
         return message === "start"
-                ? () => { const root_registers = append(aux_registers, evaluator_registers);
-                          set_contents(pc, the_instruction_sequence);
-                          set_contents(free,
-                            make_ptr_ptr(flatten_list_to_vectors(the_heads("get"), the_tails("get"),
-                                setup_environment(), make_ptr_ptr, length(root_registers))));
-                          set_contents(env, make_ptr_ptr(length(root_registers)));
-                          function root_populate_proc_fn() {
-                              const root_ptr = free("get");
-                              root("set")(root_ptr);
-                              let register_list = root_registers;
-                              while (!is_null(register_list)) {
-                                  const content = head(tail(head(register_list)))("get");
-                                  const index = unwrap_ptr(free("get"));
-                                  the_heads("get")[index] = content === "*unassigned*"
-                                        ? make_null_ptr() : content;
-                                  free("set")(make_ptr_ptr(index + 1));
-                                  the_tails("get")[index] = free("get");
-                                  register_list = tail(register_list);
-                              }
-                              the_tails("get")[unwrap_ptr(free("get")) - 1] = make_null_ptr();
-                          }
-                          function root_restore_proc_fn() {
-                              let root_ptr = root("get");
-                              let register_list = root_registers;
-                              while (!is_null(register_list)) {
-                                  const index = unwrap_ptr(root_ptr);
-                                  const value = the_heads("get")[index];
-                                  head(tail(head(register_list)))("set")(value);
-                                  root_ptr = the_tails("get")[index];
-                                  register_list = tail(register_list);
-                              }
-                          }
-                          function stack_reassign_proc_fn() {
-                              let local_stack = stack("stack");
-                              while (!is_null(local_stack)) {
-                                  const value = head(local_stack);
-                                  if (is_ptr_ptr(value)) {
-                                      const index = unwrap_ptr(value);
-                                      const new_ptr = the_tails("get")[index];
-                                      set_head(local_stack, new_ptr);
-                                  } else {}
-                                  local_stack = tail(local_stack);
-                              }
-                          }
-                          set_contents(root_populate_proc, root_populate_proc_fn);
-                          set_contents(root_restore_proc, root_restore_proc_fn);
-                          set_contents(stack_reassign_proc, stack_reassign_proc_fn);
-                          return execute();                          }
+            ? start
             : message === "install_instruction_sequence"
-                ? seq => { the_instruction_sequence = seq; }
+            ? seq => { the_instruction_sequence = seq; }
             : message === "allocate_register"
-                ? allocate_register
+            ? allocate_register
             : message === "get_register"
-                ? lookup_register
+            ? lookup_register
             : message === "install_operations"
-                ? ops => { the_ops = append(the_ops, ops); }
+            ? ops => { the_ops = append(the_ops, ops); }
             : message === "stack"
-                ? stack
+            ? stack
             : message === "operations"
-                ? the_ops
+            ? the_ops
             : error(message, "Unknown request: MACHINE");
     }
     return dispatch;
@@ -933,6 +1161,7 @@ function set_register_contents(machine, register_name, value) {
 function get_register(machine, reg_name) {
     return machine("get_register")(reg_name);
 }
+
 
 // ASSEMBLER
 
@@ -1072,7 +1301,8 @@ function make_test(inst, machine, labels, operations, flag, pc) {
     const condition = test_condition(inst);
 
     if (is_operation_exp(condition)) {
-        const condition_fun = make_operation_exp(condition, machine, labels, operations);
+    const condition_fun = make_operation_exp(condition, machine,
+                                             labels, operations);
 
         function perform_make_test() {
             set_contents(flag, unwrap_ptr(condition_fun()));
@@ -1081,7 +1311,7 @@ function make_test(inst, machine, labels, operations, flag, pc) {
 
         return perform_make_test; 
     } else {
-        error(inst, "Bad TEST instruction: ASSEMBLE");
+        error(inst, "Bad test instruction in assemble:");
     }
 }
 
@@ -1111,7 +1341,7 @@ function make_branch(inst, machine, labels, flag, pc) {
         return perform_make_branch;
 
     } else {
-        error(inst, "Bad BRANCH instruction: ASSEMBLE");
+        error(inst, "Bad branch instruction in assemble:");
     }
 }
 
@@ -1185,7 +1415,8 @@ function make_perform(inst, machine, labels, operations, pc) {
     const action = perform_action(inst);
 
     if (is_operation_exp(action)) {
-        const action_fun = make_operation_exp(action, machine, labels, operations);
+        const action_fun = make_operation_exp(action, machine, 
+                                              labels, operations);
         return () => { action_fun(); advance_pc(pc); };
 
     } else {
@@ -1296,12 +1527,12 @@ function lookup_prim(symbol, operations) {
 
 // head in "a", tail in "b"
 const pair_controller = list(
-    "pair",
+  "pair",
     save("continue"),
     assign("continue", label("pair_after_gc")),
     test(list(op("==="), reg("free"), reg("SIZE"))),
     branch(label("begin_garbage_collection")),
-    "pair_after_gc",
+  "pair_after_gc",
     restore("continue"),
     perform(list(op("vector_set"), reg("the_heads"), reg("free"), reg("a"))),
     perform(list(op("vector_set"), reg("the_tails"), reg("free"), reg("b"))),
@@ -1352,21 +1583,35 @@ const vector_ops = list(
 );
 
 // MACHINE SETUP
-const ptr_ops = list(
-    list("make_ptr_ptr", unwrap_args(underlying_javascript_closure(make_ptr_ptr))),
-    list("make_null_ptr", underlying_javascript_closure(make_null_ptr)),
-    list("make_no_value_yet_ptr", underlying_javascript_closure(make_no_value_yet_ptr)),
+const ptr_ops =
+  list(
+    list("make_ptr_ptr",
+         unwrap_args(underlying_javascript_closure(make_ptr_ptr))),
+    list("make_null_ptr",
+         underlying_javascript_closure(make_null_ptr)),
+    list("make_no_value_yet_ptr",
+         underlying_javascript_closure(make_no_value_yet_ptr)),
     list("make_prog_ptr", underlying_javascript_closure(make_prog_ptr)),
-    list("make_broken_heart_ptr", underlying_javascript_closure(make_broken_heart_ptr)),
-    list("is_number_ptr", wrap_return_value(underlying_javascript_closure(is_number_ptr))),
-    list("is_bool_ptr", wrap_return_value(underlying_javascript_closure(is_bool_ptr))),
-    list("is_string_ptr", wrap_return_value(underlying_javascript_closure(is_string_ptr))),
-    list("is_ptr_ptr", wrap_return_value(underlying_javascript_closure(is_ptr_ptr))),
-    list("is_null_ptr", wrap_return_value(underlying_javascript_closure(is_null_ptr))),
-    list("is_undefined_ptr", wrap_return_value(underlying_javascript_closure(is_undefined_ptr))),
-    list("is_prog_ptr", wrap_return_value(underlying_javascript_closure(is_prog_ptr))),
-    list("is_no_value_yet_ptr", wrap_return_value(underlying_javascript_closure(is_no_value_yet_ptr))),
-    list("is_broken_heart_ptr", wrap_return_value(underlying_javascript_closure(is_broken_heart_ptr)))
+    list("make_broken_heart_ptr",
+         underlying_javascript_closure(make_broken_heart_ptr)),
+    list("is_number_ptr",
+         wrap_return_value(underlying_javascript_closure(is_number_ptr))),
+    list("is_bool_ptr",
+         wrap_return_value(underlying_javascript_closure(is_bool_ptr))),
+    list("is_string_ptr",
+         wrap_return_value(underlying_javascript_closure(is_string_ptr))),
+    list("is_ptr_ptr",
+         wrap_return_value(underlying_javascript_closure(is_ptr_ptr))),
+    list("is_null_ptr",
+         wrap_return_value(underlying_javascript_closure(is_null_ptr))),
+    list("is_undefined_ptr",
+         wrap_return_value(underlying_javascript_closure(is_undefined_ptr))),
+    list("is_prog_ptr",
+         wrap_return_value(underlying_javascript_closure(is_prog_ptr))),
+    list("is_no_value_yet_ptr",
+         wrap_return_value(underlying_javascript_closure(is_no_value_yet_ptr))),
+    list("is_broken_heart_ptr",
+         wrap_return_value(underlying_javascript_closure(is_broken_heart_ptr)))
 );
 
 const primitive_ops = list(
@@ -1393,39 +1638,39 @@ const gc_ops = list(
 );
 
 const gc_controller = list(
-    "begin_garbage_collection",
+  "begin_garbage_collection",
     perform(list(op("call_proc"), reg("root_populate_proc"))),
     assign("free", list(op("make_ptr_ptr"), constant(0))),
     assign("scan", list(op("make_ptr_ptr"), constant(0))),
     assign("old", reg("root")),
     assign("relocate_continue", label("reassign_root")),
     go_to(label("relocate_old_result_in_new")),
-    "reassign_root",
+  "reassign_root",
     assign("root", reg("new")),
     go_to(label("gc_loop")),
-    "gc_loop",
+  "gc_loop",
     test(list(op("==="), reg("scan"), reg("free"))),
     branch(label("gc_flip")),
     assign("old", list(op("vector_ref"), reg("new_heads"), reg("scan"))),
     assign("relocate_continue", label("update_head")),
     go_to(label("relocate_old_result_in_new")),
-    "update_head",
+  "update_head",
     perform(list(op("vector_set"), reg("new_heads"), reg("scan"), reg("new"))),
     assign("old", list(op("vector_ref"), reg("new_tails"), reg("scan"))),
     assign("relocate_continue", label("update_tail")),
     go_to(label("relocate_old_result_in_new")),
-    "update_tail",
+  "update_tail",
     perform(list(op("vector_set"), reg("new_tails"), reg("scan"), reg("new"))),
     assign("scan", list(op("inc_ptr"), reg("scan"))),
     go_to(label("gc_loop")),
-    "relocate_old_result_in_new",
+  "relocate_old_result_in_new",
     test(list(op("is_ptr_ptr"), reg("old"))),
     branch(label("gc_pair")),
     assign("new", reg("old")),
     go_to(reg("relocate_continue")),
-    "gc_pair",
-    assign("oldhr", list(op("vector_ref"), reg("the_heads"), reg("old"))),
-    test(list(op("is_broken_heart_ptr"), reg("oldhr"))),
+  "gc_pair",
+    assign("oldht", list(op("vector_ref"), reg("the_heads"), reg("old"))),
+    test(list(op("is_broken_heart_ptr"), reg("oldht"))),
     branch(label("already_moved")),
     assign("new", reg("free")),
     // new location for pair
@@ -1433,21 +1678,21 @@ const gc_controller = list(
     assign("free", list(op("inc_ptr"), reg("free"))),
     // Copy the head and tail to new memory
     perform(list(op("vector_set"),
-                 reg("new_heads"), reg("new"), reg("oldhr"))),
-    assign("oldhr", list(op("vector_ref"), reg("the_tails"), reg("old"))),
+                 reg("new_heads"), reg("new"), reg("oldht"))),
+    assign("oldht", list(op("vector_ref"), reg("the_tails"), reg("old"))),
     perform(list(op("vector_set"),
-                 reg("new_tails"), reg("new"), reg("oldhr"))),
+                 reg("new_tails"), reg("new"), reg("oldht"))),
     // Construct the broken heart
-    assign("oldhr", list(op("make_broken_heart_ptr"))),
+    assign("oldht", list(op("make_broken_heart_ptr"))),
     perform(list(op("vector_set"),
-                 reg("the_heads"), reg("old"), reg("oldhr"))),
+                 reg("the_heads"), reg("old"), reg("oldht"))),
     perform(list(op("vector_set"),
                  reg("the_tails"), reg("old"), reg("new"))),
     go_to(reg("relocate_continue")),
-    "already_moved",
+  "already_moved",
     assign("new", list(op("vector_ref"), reg("the_tails"), reg("old"))),
     go_to(reg("relocate_continue")),
-    "gc_flip",
+  "gc_flip",
     perform(list(op("call_proc"), reg("stack_reassign_proc"))),
     assign("temp", reg("the_tails")),
     assign("the_tails", reg("new_tails")),
@@ -1465,68 +1710,69 @@ const error_controller = list(
     go_to(label("end_evaluation"))
 );
 
-const begin_controller =  list("fig_5_14",
-                               "pair4",
-                               assign("a", constant(4)),
-                               assign("b", list(op("make_null_ptr"))),
-                               assign("continue", label("garbage1")),
-                               go_to(label("pair")),
-                               /// The following creates a garbage
-                               /// pair (9999, 9999) which will
-                               /// not affect live object count at
-                               /// the end of the program. You can
-                               /// verify by adding more garbage
-                               /// or remove this line. Or
-                               /// uncomment the use of
-                               /// dump_memory() below, before and
-                               /// after GC.
-                               "garbage1",
-                               assign("a", constant(9999)),
-                               assign("b", constant(9999)),
-                               assign("continue", label("pair2")),
-                               go_to(label("pair")),
-                               "pair2",
-                               assign("a", constant(3)),
-                               assign("b", reg("res")),
-                               assign("continue", label("garbage2")),
-                               go_to(label("pair")), 
-                               /// The following creates a garbage
-                               /// pair (9999, 9999) which will
-                               /// not affect live object count at
-                               /// the end of the program. You can
-                               /// verify by adding more garbage
-                               /// or remove this line. Or
-                               /// uncomment the use of
-                               /// dump_memory() below, before and
-                               /// after GC.
-                              "garbage2",
-                               assign("a", constant(9999)),
-                               assign("b", constant(9999)),
-                               assign("continue", label("pair7")),
-                               go_to(label("pair")),
-                               "pair7",
-                               assign("temp", reg("res")),
-                               assign("a", constant(2)),
-                               assign("b", list(op("make_null_ptr"))),
-                               assign("continue", label("pair5")),
-                               go_to(label("pair")),
-                               "pair5",
-                               assign("a", constant(1)),
-                               assign("b", reg("res")),
-                               assign("continue", label("pair1")),
-                               go_to(label("pair")),
-                               "pair1",
-                               assign("a", reg("res")),
-                               assign("b", reg("temp")),
-                               assign("continue", label("done")),
-                               go_to(label("pair")),
-                               "done",
-                               // dump_memory(), // uncomment to get a dump of heads and tails vectors
-                               assign("continue", label("after_gc")),
-                               go_to(label("begin_garbage_collection")),
-                               "after_gc",
-                               // dump_memory(), // uncomment to get a dump of heads and tails vectors
-                               go_to(label("end_evaluation")));
+const begin_controller =  list(
+  "fig_5_14",
+  "pair4",
+    assign("a", constant(4)),
+    assign("b", list(op("make_null_ptr"))),
+    assign("continue", label("garbage1")),
+    go_to(label("pair")),
+    /// The following creates a garbage
+    /// pair (9999, 9999) which will
+    /// not affect live object count at
+    /// the end of the program. You can
+    /// verify by adding more garbage
+    /// or remove this line. Or
+    /// uncomment the use of
+    /// dump_memory() below, before and
+    /// after GC.
+  "garbage1",
+    assign("a", constant(9999)),
+    assign("b", constant(9999)),
+    assign("continue", label("pair2")),
+    go_to(label("pair")),
+  "pair2",
+    assign("a", constant(3)),
+    assign("b", reg("res")),
+    assign("continue", label("garbage2")),
+    go_to(label("pair")), 
+    /// The following creates a garbage
+    /// pair (9999, 9999) which will
+    /// not affect live object count at
+    /// the end of the program. You can
+    /// verify by adding more garbage
+    /// or remove this line. Or
+    /// uncomment the use of
+    /// dump_memory() below, before and
+    /// after GC.
+  "garbage2",
+    assign("a", constant(9999)),
+    assign("b", constant(9999)),
+    assign("continue", label("pair7")),
+    go_to(label("pair")),
+  "pair7",
+    assign("temp", reg("res")),
+    assign("a", constant(2)),
+    assign("b", list(op("make_null_ptr"))),
+    assign("continue", label("pair5")),
+    go_to(label("pair")),
+  "pair5",
+    assign("a", constant(1)),
+    assign("b", reg("res")),
+    assign("continue", label("pair1")),
+    go_to(label("pair")),
+  "pair1",
+    assign("a", reg("res")),
+    assign("b", reg("temp")),
+    assign("continue", label("done")),
+    go_to(label("pair")),
+  "done",
+    // dump_memory(), // uncomment to get a dump of heads and tails vectors
+    assign("continue", label("after_gc")),
+    go_to(label("begin_garbage_collection")),
+  "after_gc",
+    // dump_memory(), // uncomment to get a dump of heads and tails vectors
+    go_to(label("end_evaluation")));
 
 const end_controller = list(
     "end_evaluation"
@@ -1561,9 +1807,9 @@ set_register_contents(evaluator_machine, "b", wrap_ptr(40));
 start(evaluator_machine);
 get_register_contents(evaluator_machine, "free");
 // [ 'ptr', 108 ] The number of live objects in the program at termination
-    </JAVASCRIPT_RUN>      
-    <EXPECTED>[ 'ptr', 108 ]</EXPECTED>
-    <JAVASCRIPT>
+      </JAVASCRIPT_RUN>      
+      <EXPECTED>[ 'ptr', 108 ]</EXPECTED>
+      <JAVASCRIPT>
 "gc_flip",
     assign("temp", reg("the_tails")),
     assign("the_tails", reg("new_tails")),
@@ -1571,13 +1817,12 @@ get_register_contents(evaluator_machine, "free");
     assign("temp", reg("the_heads")),
     assign("the_heads", reg("new_heads")),
     assign("new_heads", reg("temp")),
-    </JAVASCRIPT>
-  </SNIPPET>
-  <INDEX>list-structured memory|)</INDEX>
-  <INDEX>memory<SUBINDEX>list-structured|)</SUBINDEX></INDEX>
-  <INDEX>garbage collection|)</INDEX>
-  <INDEX>stop-and-copy garbage collector|)</INDEX>
-  <INDEX>garbage collector<SUBINDEX>stop-and-copy|)</SUBINDEX></INDEX>
-      </TEXT>
-
-    </SUBSECTION>
+      </JAVASCRIPT>
+    </SNIPPET>
+    <INDEX>list-structured memory|)</INDEX>
+    <INDEX>memory<SUBINDEX>list-structured|)</SUBINDEX></INDEX>
+    <INDEX>garbage collection|)</INDEX>
+    <INDEX>stop-and-copy garbage collector|)</INDEX>
+    <INDEX>garbage collector<SUBINDEX>stop-and-copy|)</SUBINDEX></INDEX>
+  </TEXT>
+</SUBSECTION>
