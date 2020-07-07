@@ -33106,7 +33106,10 @@ function addPermaLinks(scope) {
             
         div_tag.effect("highlight", "slow");
         $("#permalink-msg").show().delay(2000).fadeOut();
-        copyTextToClipboard(window.location.protocol + "//" + window.location.host + "/" + chapter_path + "#" + anchor);
+
+        const location = window.location.toString();
+        const chapter_file = chapter_path.substring(chapter_path.indexOf("/"));
+        copyTextToClipboard(location.substring(0, location.lastIndexOf("/")) + chapter_file + "#" + anchor);
     });
 }
 
