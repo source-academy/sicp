@@ -94,7 +94,7 @@ export const processSnippetHtml = (node, writeTo, split) => {
       writeTo.push("\n</pre>");
     } else {
       writeTo.push(
-        "<pre class='prettyprint' title='Evaluate Javascript expression'"
+        "<pre class='prettyprint eval' title='Evaluate Javascript program'"
       );
 
       let reqStr = "";
