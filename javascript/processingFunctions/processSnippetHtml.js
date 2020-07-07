@@ -91,7 +91,7 @@ export const processSnippetHtml = (node, writeTo, split) => {
     if (node.getAttribute("EVAL") === "no") {
       writeTo.push("<pre class='prettyprint no-eval'>\n");
       writeTo.push(codeStr);
-      writeTo.push("\n</pre>");
+      writeTo.push("</pre>");
     } else {
       writeTo.push(
         "<pre class='prettyprint' title='Evaluate Javascript expression'"
@@ -205,13 +205,13 @@ export const processSnippetHtml = (node, writeTo, split) => {
         writeTo.push(chunks[2]);
       }
 
-      writeTo.push("\n</pre>");
+      writeTo.push("</pre>");
     }
   }
   if (jsOutputSnippet) {
-    writeTo.push("<pre class='prettyprintoutput'>\n");
-    writeTo.push(jsOutputSnippet.firstChild.nodeValue);
-    writeTo.push("\n</pre>");
+    writeTo.push("<pre class='prettyprintoutput'>");
+    writeTo.push(jsOutputSnippet.firstChild.nodeValue.trimRight());
+    writeTo.push("</pre>");
   }
 };
 
