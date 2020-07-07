@@ -392,17 +392,7 @@ const processTextFunctionsDefaultHtml = {
     writeTo.push("\n</SUBSECTION></div></div>\n");
   },
 
-  SUBHEADING: (node, writeTo) => {
-    heading_count += 1;
-    writeTo.push(`
-      <div class='permalink'>
-        <a name='h${heading_count}' class='permalink'></a><h2>
-    `);
-    recursiveProcessTextHtml(node.firstChild, writeTo);
-    writeTo.push("</h2></div>");
-  },
-
-  // e.g. section 4.4.4
+  // e.g. section 4.4.4.4
   SUBSUBSECTION: (node, writeTo) => {
     subsubsection_count += 1;
     heading_count += 1;
@@ -419,12 +409,24 @@ const processTextFunctionsDefaultHtml = {
     recursiveProcessTextHtml(name.nextSibling, writeTo);
   },
 
-  SUBSUBSUBSECTION: (node, writeTo) => {
-    writeTo.push("<SUBSUBSUBSECTION>\n");
-    const name = getChildrenByTagName(node, "NAME")[0];
-    recursiveProcessTextHtml(name.firstChild, writeTo);
-    recursiveProcessTextHtml(name.nextSibling, writeTo);
-    writeTo.push("\n</SUBSUBSUBSECTION>\n");
+  SUBHEADING: (node, writeTo) => {
+    heading_count += 1;
+    writeTo.push(`
+      <div class='permalink'>
+        <a name='h${heading_count}' class='permalink'></a><h2>
+    `);
+    recursiveProcessTextHtml(node.firstChild, writeTo);
+    writeTo.push("</h2></div>");
+  },
+
+  SUBSUBHEADING: (node, writeTo) => {
+    heading_count += 1;
+    writeTo.push(`
+      <div class='permalink'>
+        <a name='h${heading_count}' class='permalink'></a><h3>
+    `);
+    recursiveProcessTextHtml(node.firstChild, writeTo);
+    writeTo.push("</h3></div>");
   }
 };
 

@@ -28,7 +28,7 @@ const title = `\\begin{titlepage}
 \\end{titlepage}
 `;
 
-export const preamble = `\\documentclass[a4paper, 12pt]{report}
+export const preamble = `\\documentclass[a4paper, 12pt]{book}
 \\usepackage[T1]{fontenc}
 \\usepackage[utf8]{inputenc}
 \\DeclareUnicodeCharacter{1F00}{-}
@@ -59,6 +59,8 @@ export const preamble = `\\documentclass[a4paper, 12pt]{report}
 
 \\setlength{\\parskip}{0.5em}
 \\setlength{\\parindent}{0pt}%
+
+\\setcounter{secnumdepth}{5}
 
 \\usepackage{titleps}
 \\newpagestyle{main}{

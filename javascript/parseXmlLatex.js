@@ -92,13 +92,6 @@ const processTextFunctionsDefaultLatex = {
     writeTo.push("\\end{quote}\n");
   },
 
-  CHAPTER: (node, writeTo) => {
-    writeTo.push("\\chapter{");
-    addName(node, writeTo);
-    writeTo.push("\\pagestyle{main}\n");
-    recursiveProcessTextLatex(node.firstChild, writeTo);
-  },
-
   CITATION: (node, writeTo) => {
     // Currently just text. Not linked to biblography.
     const text = node.getElementsByTagName("TEXT")[0];
@@ -224,6 +217,13 @@ const processTextFunctionsDefaultLatex = {
     writeTo.push("}");
   },
 
+  CHAPTER: (node, writeTo) => {
+    writeTo.push("\\chapter{");
+    addName(node, writeTo);
+    writeTo.push("\\pagestyle{main}\n");
+    recursiveProcessTextLatex(node.firstChild, writeTo);
+  },
+
   SECTION: (node, writeTo) => {
     writeTo.push("\\section{");
     addName(node, writeTo);
@@ -231,14 +231,32 @@ const processTextFunctionsDefaultLatex = {
     recursiveProcessTextLatex(node.firstChild, writeTo);
   },
 
-  SUBHEADING: (node, writeTo) => {
+  SUBSECTION: (node, writeTo) => {
+    writeTo.push("\\subsection{");
+    addName(node, writeTo);
+    writeTo.push("\\pagestyle{subsection}\n");
+    recursiveProcessTextLatex(node.firstChild, writeTo);
+  },
+    
+  SUBSUBSECTION: (node, writeTo) => {
     writeTo.push("\\subsubsection{");
     addName(node, writeTo);
     recursiveProcessTextLatex(node.firstChild, writeTo);
   },
-  SUBSUBSECTION: (node, writeTo) =>
-    processTextFunctionsLatex["SUBHEADING"](node, writeTo),
 
+  SUBHEADING: (node, writeTo) => {
+    writeTo.push("\\subsubsection*{");
+    addName(node, writeTo);
+    recursiveProcessTextLatex(node.firstChild, writeTo);
+  },
+    
+  SUBSUBHEADING: (node, writeTo) => {
+    writeTo.push("{\\emph{");
+    addName(node, writeTo);
+    writeTo.push("}\n\n");
+    recursiveProcessTextLatex(node.firstChild, writeTo);
+  },
+    
   SCHEMEINLINE: (node, writeTo) =>
     processTextFunctionsLatex["JAVASCRIPTINLINE"](node, writeTo),
   JAVASCRIPTINLINE: (node, writeTo) => {
@@ -253,12 +271,6 @@ const processTextFunctionsDefaultLatex = {
     processSnippetPdf(node, writeTo);
   },
 
-  SUBHEADING: (node, writeTo) => {
-    writeTo.push("\\subsubsection{");
-    addName(node, writeTo);
-    recursiveProcessTextLatex(node.firstChild, writeTo);
-  },
-
   SUBINDEX: (node, writeTo) => {
     // should occur only within INDEX
     // also should only exist after stuff in the main index
@@ -268,13 +280,6 @@ const processTextFunctionsDefaultLatex = {
       recursiveProcessTextLatex(order.firstChild, writeTo);
       writeTo.push("@");
     }
-    recursiveProcessTextLatex(node.firstChild, writeTo);
-  },
-
-  SUBSECTION: (node, writeTo) => {
-    writeTo.push("\\subsection{");
-    addName(node, writeTo);
-    writeTo.push("\\pagestyle{subsection}\n");
     recursiveProcessTextLatex(node.firstChild, writeTo);
   },
 
