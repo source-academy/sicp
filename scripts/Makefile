@@ -94,6 +94,7 @@ svgs: $(orig_path)/ch2-Z-G-65.svg.pdf \
       $(js_path)/ch3-Z-G-22.svg.pdf \
       $(js_path)/ch3-Z-G-23.svg.pdf \
       $(js_path)/preserving_table.svg.pdf \
+      $(js_path)/Fig5.7b.std.svg.pdf \
       $(js_path)/Fig5.11b.std.svg.pdf \
       $(js_path)/ch2-Z-G-63.svg.pdf \
       $(js_path)/ch2-Z-G-62.svg.pdf \

@@ -61,7 +61,7 @@ export const processFigureHtml = (node, writeTo) => {
   if (snippet) {
     processSnippetHtml(snippet, writeTo);
   }
-    
+
   const caption = node.getElementsByTagName("CAPTION")[0];
   if (caption) {
     writeTo.push(`

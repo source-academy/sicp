@@ -249,14 +249,14 @@ const processTextFunctionsDefaultLatex = {
     addName(node, writeTo);
     recursiveProcessTextLatex(node.firstChild, writeTo);
   },
-    
+
   SUBSUBHEADING: (node, writeTo) => {
     writeTo.push("{\\emph{");
     addName(node, writeTo);
     writeTo.push("}\n\n");
     recursiveProcessTextLatex(node.firstChild, writeTo);
   },
-    
+
   SCHEMEINLINE: (node, writeTo) =>
     processTextFunctionsLatex["JAVASCRIPTINLINE"](node, writeTo),
   JAVASCRIPTINLINE: (node, writeTo) => {
