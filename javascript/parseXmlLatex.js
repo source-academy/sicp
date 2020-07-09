@@ -237,7 +237,7 @@ const processTextFunctionsDefaultLatex = {
     writeTo.push("\\pagestyle{subsection}\n");
     recursiveProcessTextLatex(node.firstChild, writeTo);
   },
-    
+
   SUBSUBSECTION: (node, writeTo) => {
     writeTo.push("\\subsubsection{");
     addName(node, writeTo);
