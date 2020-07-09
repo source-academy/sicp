@@ -20,9 +20,9 @@
       ^compilation of procedure call with given target and linkage^
     </SCHEME>
     <JAVASCRIPT>
-$\langle \textit{compilation of operator, target}$ proc, $\textit{linkage}$ next$\rangle$
-$\langle \textit{evaluate operands and construct argument list in}$ argl$\rangle$
-$\langle \textit{compilation of procedure call with given target and linkage}\rangle$
+$\textit{compilation of operator, target}$ proc, $\textit{linkage}$ next
+$\textit{evaluate operands and construct argument list in}$ argl
+$\textit{compilation of procedure call with given target and linkage}$
     </JAVASCRIPT>
   </SNIPPET>
       </TEXT>
@@ -55,7 +55,7 @@ $\langle \textit{compilation of procedure call with given target and linkage}\ra
   construction of the argument list (since evaluating the operands might
   modify <SCHEMEINLINE>proc</SCHEMEINLINE>, which will be needed for the actual
   <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
-  application).  <SCHEMEINLINE>Continue</SCHEMEINLINE> must also be preserved throughout, since
+  application).  <SPLITINLINE><SCHEME><SCHEMEINLINE>Continue</SCHEMEINLINE></SCHEME><JAVASCRIPT>The value of <JAVASCRIPTINLINE>continue</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> must also be preserved throughout, since
   it is needed for the linkage in the
   <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
   call.
@@ -76,11 +76,12 @@ $\langle \textit{compilation of procedure call with given target and linkage}\ra
     </SCHEME>
     <JAVASCRIPT>
 function compile_application(exp, target, linkage) {
-    const proc_code = compile(operator(exp), "proc", "next"); 
+    const proc_code = compile(operator(exp), "fun", "next"); 
     const operand_codes = map(operand => compile(operand, "val", "next"), operands(exp));
 
-    return preserving(list("env", "continue"), 
-                      preserving(list("proc", "continue"), 
+    return preserving(list("env", "continue"),
+                      proc_code,
+                      preserving(list("fun", "continue"), 
                                  construct_arglist(operand_codes),
                                  compile_procedure_call(target, linkage)));
 }
@@ -111,19 +112,19 @@ function compile_application(exp, target, linkage) {
       (assign argl (op cons) (reg val) (reg argl))
     </SCHEME>
     <JAVASCRIPT>
-$\langle \textit{compilation of last operand, targeted to}$ val$\rangle$
+$\textit{compilation of last operand, targeted to}$ val
 assign("argl", list(op("list"), reg("val")));
-$\langle \textit{compilation of next operand, targeted to}$ val$\rangle$
+$\textit{compilation of next operand, targeted to}$ val
 assign("argl", list(op("pair"), reg("val"), reg("argl")));
 $\ldots$
-$\langle \textit{compilation of first operand, targeted to}$ val$\rangle$
+$\textit{compilation of first operand, targeted to}$ val
 assign("argl", list(op("pair"), reg("val"), reg("argl")));
     </JAVASCRIPT>
   </SNIPPET>
       </TEXT>
 
       <TEXT>
-  <SCHEMEINLINE>Argl</SCHEMEINLINE> must be preserved around each operand evaluation except
+  <SPLITINLINE><SCHEME><SCHEMEINLINE>Argl</SCHEMEINLINE></SCHEME><JAVASCRIPT>The register <JAVASCRIPTINLINE>argl</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> must be preserved around each operand evaluation except
   the first (so that arguments accumulated so far won<APOS/>t be lost), and
   <SCHEMEINLINE>env</SCHEMEINLINE> must be preserved around each operand evaluation
   except the last (for use by subsequent operand evaluations).
@@ -144,7 +145,7 @@ assign("argl", list(op("pair"), reg("val"), reg("argl")));
       (assign argl (const ()))
     </SCHEME>
     <JAVASCRIPT>
-      assign(argl, list(constant("null"))); 
+      assign(argl, list(constant("null"))); /// FIXME is this correct? 
     </JAVASCRIPT>
   </SNIPPET>
       </TEXT>
@@ -195,7 +196,7 @@ function construct_arglist(operand_codes) {
 
     if (is_null(operand_codes)) {
         return make_instruction_sequence(
-            null, 
+            list(), 
             list("argl"),
             list(assign("argl", list(constant("null")))));
     } else {
@@ -223,7 +224,7 @@ function code_to_get_rest_args(operand_codes) {
         make_instruction_sequence(
             list("val", "argl"), 
             list("argl"),
-            list(assign("argl", list(op("cons"), reg("val"), reg("argl"))))));
+            list(assign("argl", list(op("pair"), reg("val"), reg("argl"))))));
 
     return is_null(tail(operand_codes))
         ? code_for_next_arg
@@ -278,16 +279,16 @@ function code_to_get_rest_args(operand_codes) {
       after-call
     </SCHEME>
     <JAVASCRIPT>
-  test(op("primitive_procedure"), reg("proc")),
+  test(op("primitive_procedure"), reg("fun")),
   branch(label("primitive_branch")),
 "compiled_branch",
-  $\langle \textit{code to apply compiled procedure with given target and appropriate linkage} \rangle$
+  $\textit{code to apply compiled procedure with given target and appropriate linkage}$
 "primitive_branch",
-  assign($\langle\textit{target}\rangle$,
+  assign($\textit{target},
          list(op("apply_primitive_procedure"),
-         reg("proc"),
+         reg("fun"),
          reg("argl")))
-$\langle\textit{linkage}\rangle$
+$\textit{linkage}
 "after_call",
     </JAVASCRIPT>
   </SNIPPET>
@@ -340,9 +341,9 @@ function compile_procedure_call(target, linkage) {
     
     return append_instruction_sequences(
         make_instruction_sequence(
-            list("proc"),
+            list("fun"),
             list(),
-            list(test(op("primitive_procedure"), reg("proc"), branch(label(primitive_branch))))), 
+            list(test(op("primitive_procedure"), reg("fun"), branch(label(primitive_branch))))), 
         parallel_instruction_sequences(
             append_instruction_sequences(
                 compiled_branch,
@@ -351,9 +352,9 @@ function compile_procedure_call(target, linkage) {
                 primitive_branch,
                 end_with_linkage(
                     linkage,
-                    make_instruction_sequence(list("proc", "argl"),
+                    make_instruction_sequence(list("fun", "argl"),
                                               list(target),
-                                              assign(target, list(op("apply_primitive_procedure"), reg("proc"), reg("argl"))))))),
+                                              assign(target, list(op("apply_primitive_procedure"), reg("fun"), reg("argl"))))))),
         "after_call");
 }
     </JAVASCRIPT>
@@ -379,7 +380,7 @@ function compile_procedure_call(target, linkage) {
   the compiler, even though the instruction sequences it generates are
   very short.  A compiled
   <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
-  (as constructed by <SPLITINLINE><SCHEME><SCHEMEINLINE>compile-lambda</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>compile_lambda</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>) has an entry point, which is a label that designates
+  (as constructed by <SPLITINLINE><SCHEME><SCHEMEINLINE>compile-lambda</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>compile_function_expression</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>) has an entry point, which is a label that designates
   where the code for the
   <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
   starts.  The code at this entry point
@@ -391,50 +392,48 @@ function compile_procedure_call(target, linkage) {
 
   <SNIPPET EVAL="no" LATEX="yes">
     <SCHEME>
-      (assign continue (label proc-return))
-      (assign val (op compiled-procedure-entry) (reg proc))
-      (goto (reg val))
-      proc-return
-      <!--  % (assign ^target^ (reg val)) <EM>; included if target is not <SCHEMEINLINE>val</SCHEMEINLINE></EM> -->
-      \aligncomment{ (assign ^target^ (reg val))}{2in}<EM>; included if target is not <SCHEMEINLINE>val</SCHEMEINLINE></EM>
-      <!--  % (goto (label ^linkage^))   <EM>; linkage code</EM> -->
-      \aligncomment{ (goto (label ^linkage^))}{2in}<EM>; linkage code</EM>
+(assign continue (label proc-return))
+(assign val (op compiled-procedure-entry) (reg proc))
+(goto (reg val))
+proc-return
+<!--  % (assign ^target^ (reg val)) <EM>; included if target is not <SCHEMEINLINE>val</SCHEMEINLINE></EM> -->
+\aligncomment{ (assign ^target^ (reg val))}{2in}<EM>; included if target is not <SCHEMEINLINE>val</SCHEMEINLINE></EM>
+<!--  % (goto (label ^linkage^))   <EM>; linkage code</EM> -->
+\aligncomment{ (goto (label ^linkage^))}{2in}<EM>; linkage code</EM>
     </SCHEME>
     <JAVASCRIPT>
-      assign("continue", list(label("proc_return")),)
-      assign("val", list(op("compiled_procedure_entry"), reg("proc"))),
-      go_to(reg("val")),
-      "proc_return",
-      <!--  % (assign ^target^ (reg val)) <EM>; included if target is not <SCHEMEINLINE>val</SCHEMEINLINE></EM> -->
-      assign($\langle target\rangle$, list(reg("val"))), // included if target is not val
-      <!--  % (goto (label ^linkage^))   <EM>; linkage code</EM> -->
-      go_to(label($\langle linkage\rangle$)), // linkage code
+    assign("continue", list(label("proc_return")),)
+    assign("val", list(op("compiled_procedure_entry"), reg("fun"))),
+    go_to(reg("val")),
+"proc_return",
+    assign($\textit{target}$, list(reg("val"))), // included if target is not val
+    go_to(label($\texttt{linkage}$)), // linkage code
     </JAVASCRIPT>
   </SNIPPET>
 
   or like this if the linkage is <SCHEMEINLINE>return</SCHEMEINLINE>.
   <SNIPPET EVAL="no" LATEX="yes">
     <SCHEME>
-      (save continue)
-      (assign continue (label proc-return))
-      (assign val (op compiled-procedure-entry) (reg proc))
-      (goto (reg val))
-      proc-return
-      <!--  % (assign ^target^ (reg val)) <EM>; included if target is not <SCHEMEINLINE>val</SCHEMEINLINE></EM> -->
-      \aligncomment{ (assign ^target^ (reg val))}{2in}<EM>; included if target is not <SCHEMEINLINE>val</SCHEMEINLINE></EM>
-      (restore continue)
-      <!--  % (goto (reg continue))      <EM>; linkage code</EM> -->
-      \aligncomment{ (goto (reg continue))}{2in}<EM>; linkage code</EM>
+(save continue)
+(assign continue (label proc-return))
+(assign val (op compiled-procedure-entry) (reg proc))
+(goto (reg val))
+proc-return
+<!--  % (assign ^target^ (reg val)) <EM>; included if target is not <SCHEMEINLINE>val</SCHEMEINLINE></EM> -->
+\aligncomment{ (assign ^target^ (reg val))}{2in}<EM>; included if target is not <SCHEMEINLINE>val</SCHEMEINLINE></EM>
+(restore continue)
+<!--  % (goto (reg continue))      <EM>; linkage code</EM> -->
+\aligncomment{ (goto (reg continue))}{2in}<EM>; linkage code</EM>
     </SCHEME>
     <JAVASCRIPT>
-      save("continue"),
-      assign("continue", list(label("proc_return"))),
-      assign("val", list(op("compiled_procedure_entry"), reg("proc"))),
-      go_to(reg("val")),
-      "proc_return",
-      assign($\langle target\rangle$, list(reg("val"))), // included if target is not val
-      restore("continue"),
-      go_to(reg("continue")), // linkage code
+    save("continue"),
+    assign("continue", list(label("proc_return"))),
+    assign("val", list(op("compiled_procedure_entry"), reg("fun"))),
+    go_to(reg("val")),
+"proc_return",
+    assign($\textit{target}$, list(reg("val"))), // included if target is not val
+    restore("continue"),
+    go_to(reg("continue")), // linkage code
     </JAVASCRIPT>
   </SNIPPET>
       </TEXT>
@@ -480,8 +479,8 @@ function compile_procedure_call(target, linkage) {
       (goto (reg val))
     </SCHEME>
     <JAVASCRIPT>
-      $\langle \textit{set~up}\rangle$ continue $\langle\textit{for~linkage}\rangle$
-      assign("val", list(op("compiled_procedure_entry"), reg("proc"))),
+      $\textit{set\ up}$ continue $\textit{for\ linkage}$
+      assign("val", list(op("compiled_procedure_entry"), reg("fun"))),
       go_to(reg("val")),
     </JAVASCRIPT>
   </SNIPPET>
@@ -493,7 +492,7 @@ function compile_procedure_call(target, linkage) {
   will return to
   that label.  (That is, the <SPLITINLINE><SCHEME><SCHEMEINLINE>(goto (reg continue))</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>go_to(reg("continue"))</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> the
   <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
-  ends with becomes equivalent to the <SPLITINLINE><SCHEME><SCHEMEINLINE>(goto (label ^linkage^))</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>go_to(label(</JAVASCRIPTINLINE><LATEXINLINE>$\langle linkage\rangle$</LATEXINLINE><JAVASCRIPTINLINE>))</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> at
+  ends with becomes equivalent to the <SPLITINLINE><SCHEME><SCHEMEINLINE>(goto (label ^linkage^))</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>go_to(label(</JAVASCRIPTINLINE><LATEXINLINE>$linkage$</LATEXINLINE><JAVASCRIPTINLINE>))</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> at
   <SPLITINLINE><SCHEME><SCHEMEINLINE>proc-return</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>proc_return</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> above.)
   <SNIPPET EVAL="no" LATEX="yes">
     <SCHEME>
@@ -502,8 +501,8 @@ function compile_procedure_call(target, linkage) {
       (goto (reg val))
     </SCHEME>
     <JAVASCRIPT>
-      assign("continue", list(label($\langle linkage\rangle$))),
-      assign("val", list(op("compiled_procedure_entry"), reg("proc"))),
+      assign("continue", list(label($linkage$))),
+      assign("val", list(op("compiled_procedure_entry"), reg("fun"))),
       go_to(reg("val")),
     </JAVASCRIPT>
   </SNIPPET>
@@ -522,7 +521,7 @@ function compile_procedure_call(target, linkage) {
       (goto (reg val))
     </SCHEME>
     <JAVASCRIPT>
-      assign("val", list(op("compiled_procedure_entry"), reg("proc"))),
+      assign("val", list(op("compiled_procedure_entry"), reg("fun"))),
       go_to(reg("val")),
     </JAVASCRIPT>
   </SNIPPET>
@@ -590,7 +589,7 @@ function compile_procedure_call(target, linkage) {
       </TEXT>
 
       <TEXT>
-  <SPLITINLINE><SCHEME><SCHEMEINLINE>Compile-proc-appl</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>Compile_proc_appl</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> generates the above
+  <SPLITINLINE><SCHEME><SCHEMEINLINE>Compile-proc-appl</SCHEMEINLINE></SCHEME><JAVASCRIPT>The function <JAVASCRIPTINLINE>compile_proc_appl</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> generates the above
   <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>-application code by
   considering four cases, depending on whether the target for the call
   is <SCHEMEINLINE>val</SCHEMEINLINE> and whether the linkage is <SCHEMEINLINE>return</SCHEMEINLINE>.
@@ -606,7 +605,7 @@ function compile_procedure_call(target, linkage) {
         (define all-regs '(env proc val argl continue))
       </SCHEME>
     <JAVASCRIPT>
-        const all_regs = list("env", "proc", "val", "argl", "continue");
+        const all_regs = list("env", "fun", "val", "argl", "continue");
     </JAVASCRIPT>
     </SNIPPET>
   </FOOTNOTE>
@@ -651,31 +650,31 @@ function compile_procedure_call(target, linkage) {
 function compile_proc_appl(target, linkage) {
     if (target === "val" &amp;&amp; linkage !== "return") {
         return make_instruction_sequence(
-            list("proc"),
+            list("fun"),
             all_regs,
             list(
                 assign("continue", list(label(linkage))),
-                assign("val", list(op("compiled_procedure_entry"), reg("proc"))),
+                assign("val", list(op("compiled_procedure_entry"), reg("fun"))),
                 go_to(reg("val"))));
     } else if (target !== "val" &amp;&amp; linkage !== "return") {
         const proc_return = make_label("proc_return");
 
         return make_instruction_sequence(
-            list("proc"),
+            list("fun"),
             all_regs,
             list(
                 assign("continue", list(label(proc_return))),
-                assign("val", list(op("compiled_procedure_entry"), reg("proc"))),
+                assign("val", list(op("compiled_procedure_entry"), reg("fun"))),
                 go_to(reg("val")),
                 proc_return,
                 assign(target, list(reg("val"))),
                 go_to(label(linkage))));
     } else if (target === "val" &amp;&amp; linkage === "return") {
         return make_instruction_sequence(
-            list("proc", "continue"),
+            list("fun", "continue"),
             all_regs,
             list(
-                assign("val", list(op("compiled_procedure_entry"), reg("proc"))),
+                assign("val", list(op("compiled_procedure_entry"), reg("fun"))),
                 go_to(reg("val"))));
     } else if (target !== "val" &amp;&amp; linkage === "return") {
         error(target, "return linkage, target not val - - COMPILE");
