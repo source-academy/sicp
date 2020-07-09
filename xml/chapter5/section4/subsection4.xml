@@ -90,7 +90,6 @@ function get_global_environment() {
     <JAVASCRIPT>
       <INDEX>prompts<SUBINDEX>explicit-control evaluator</SUBINDEX></INDEX>
 <!--  \indcode*{read-eval-print-loop} -->
-/// FIXME: missing from PR39
 "read_eval_print_loop",
     perform(op("initialize_stack")),
     perform(op("prompt_for_input"), const("/// EC_Eval input:")),
@@ -145,7 +144,7 @@ function get_global_environment() {
     go_to(label("signal_error")),
     
 <!--  \indcode*{unknown-procedure-type} -->
-"unknown_procedure_type",
+"unknown_function_type",
     restore("continue"), /// clean up stack (from apply_dispatch)
     assign("val", list(constant("unknown_procedure_type_error"))),
     go_to(label("signal_error")),
@@ -1392,6 +1391,148 @@ function lookup_prim(symbol, operations) {
         : head(tail(val));
 }
 
+const eceval_operations = list(
+    // eval functions from meta-circular evaluator
+    list("is_self_evaluating", nary_function(is_self_evaluating)),
+    list("is_name", nary_function(is_name)),
+    list("name_of_name", nary_function(name_of_name)),
+    list(
+        "all_names_of_names",
+        nary_function((names) => map(name_of_name, names))
+    ),
+    list("is_assignment", nary_function(is_assignment)),
+    list("assignment_name", nary_function(assignment_name)),
+    list("assignment_value", nary_function(assignment_value)),
+    list("assign_name_value", nary_function(assign_name_value)),
+    list("is_constant_declaration", nary_function(is_constant_declaration)),
+    list(
+        "constant_declaration_name",
+        nary_function(constant_declaration_name)
+    ),
+    list(
+        "constant_declaration_value",
+        nary_function(constant_declaration_value)
+    ),
+    list("is_variable_declaration", nary_function(is_variable_declaration)),
+    list(
+        "variable_declaration_name",
+        nary_function(variable_declaration_name)
+    ),
+    list(
+        "variable_declaration_value",
+        nary_function(variable_declaration_value)
+    ),
+    list("declare_value", nary_function(set_name_value)),
+    list("is_function_definition", nary_function(is_function_definition)),
+    list(
+        "function_definition_parameters",
+        nary_function(function_definition_parameters)
+    ),
+    list("function_definition_body", nary_function(function_definition_body)),
+    list("is_return_statement", nary_function(is_return_statement)),
+    list(
+        "is_conditional_expression",
+        nary_function(is_conditional_expression)
+    ),
+    list("conditional_pred", nary_function(cond_expr_pred)),
+    list("conditional_cons", nary_function(cond_expr_cons)),
+    list("conditional_alt", nary_function(cond_expr_alt)),
+
+    list("is_sequence", nary_function(is_sequence)),
+    list("make_sequence", nary_function(make_sequence)),
+    list("is_block", nary_function(is_block)),
+    list("block_body", nary_function(block_body)),
+    list("local_names", nary_function(local_names)),
+    list(
+        "get_temp_block_values",
+        nary_function((locals) => map((x) => no_value_yet, locals))
+    ),
+    list("is_application", nary_function(is_application)),
+    list("is_primitive_function", nary_function(is_primitive_function)),
+    list("apply_primitive_function", nary_function(apply_primitive_function)),
+    list("is_compound_function", nary_function(is_compound_function)),
+    list("function_parameters", nary_function(function_parameters)),
+    list("function_environment", nary_function(function_environment)),
+    list("function_body", nary_function(function_body)),
+    list("insert_all", nary_function(insert_all)),
+    list("extend_environment", nary_function(extend_environment)),
+    list("make_compound_function", nary_function(make_compound_function)),
+
+    list(
+        "lookup_name_value",
+        nary_function((stmt, env) => lookup_name_value(name_of_name(stmt), env))
+    ),
+    list("get_global_environment", nary_function(get_global_environment)),
+
+    // generic helpers
+    list("is_true", nary_function(is_true)),
+    list("is_null", nary_function(is_null)),
+    list(
+        "is_pair",
+        nary_function((a) => is_pair(a))
+    ),
+    list(
+        "is_number",
+        nary_function((a) => is_number(a))
+    ),
+    list(
+        "append",
+        nary_function((xs, ys) => append(xs, ys))
+    ),
+
+    list("vector_ref", binary_function(vector_ref)),
+    list("vector_set", nary_function(vector_set)),
+    list("pair", nary_function(pair_)),
+
+    list("prompt_for_input", nary_function((s) => prompt_for_input(s))),
+    list("user_print", nary_function(user_print)),
+    list("display", nary_function(display)),
+
+    // basic functions
+    list(
+        "rem",
+        binary_function((a, b) => a % b)
+    ),
+    list(
+        "=",
+        binary_function((a, b) => a === b)
+    ),
+    list(
+        "+",
+        binary_function((a, b) => a + b)
+    ),
+    list(
+        "===",
+        binary_function((a, b) => a === b)
+    ),
+    // operands
+    list("operands", nary_function(operands)),
+    list("operator", nary_function(operator)),
+    list("has_no_operands", nary_function(no_operands)),
+    list("first_operand", nary_function(first_operand)),
+    list(
+        "is_last_operand",
+        nary_function((a) => is_null(tail(a)))
+    ),
+    list("rest_operands", nary_function(rest_operands)),
+
+    //arg
+    list(
+        "empty_arglist",
+        nary_function((_) => list())
+    ),
+    list(
+        "adjoin_arg",
+        nary_function((val, argl) => append(argl, list(val)))
+    ),
+
+    // exp (sequence)
+    list("first_statement", nary_function(first_statement)),
+    list("rest_statements", nary_function(rest_statements)),
+    list("is_last_statement", nary_function(is_last_statement)),
+    list("sequence_statements", nary_function(sequence_statements))
+);
+
 function eceval() {
     return make_machine(
         list(
@@ -1404,147 +1545,7 @@ function eceval() {
             "unev",
             "temp" // FIXME: TOBIAS -- not mentioned in 5.4
         ),
-        list(
-            // basic functions
-            list(
-                "rem",
-                binary_function((a, b) => a % b)
-            ),
-            list(
-                "=",
-                binary_function((a, b) => a === b)
-            ),
-            list(
-                "+",
-                binary_function((a, b) => a + b)
-            ),
-            list(
-                "===",
-                binary_function((a, b) => a === b)
-            ),
-            // operands
-            list("operands", nary_function(operands)),
-            list("operator", nary_function(operator)),
-            list("has_no_operands", nary_function(no_operands)),
-            list("first_operand", nary_function(first_operand)),
-            list(
-                "is_last_operand",
-                nary_function((a) => is_null(tail(a)))
-            ),
-            list("rest_operands", nary_function(rest_operands)),
-
-            //arg
-            list(
-                "empty_arglist",
-                nary_function((_) => list())
-            ),
-            list(
-                "adjoin_arg",
-                nary_function((val, argl) => append(argl, list(val)))
-            ),
-
-            // exp (sequence)
-            list("first_statement", nary_function(first_statement)),
-            list("rest_statements", nary_function(rest_statements)),
-            list("is_last_statement", nary_function(is_last_statement)),
-            list("sequence_statements", nary_function(sequence_statements)),
-
-            // eval functions from meta-circular evaluator
-            list("is_self_evaluating", nary_function(is_self_evaluating)),
-            list("is_name", nary_function(is_name)),
-            list("name_of_name", nary_function(name_of_name)),
-            list(
-                "all_names_of_names",
-                nary_function((names) => map(name_of_name, names))
-            ),
-            list("is_assignment", nary_function(is_assignment)),
-            list("assignment_name", nary_function(assignment_name)),
-            list("assignment_value", nary_function(assignment_value)),
-            list("assign_name_value", nary_function(assign_name_value)),
-            list("is_constant_declaration", nary_function(is_constant_declaration)),
-            list(
-                "constant_declaration_name",
-                nary_function(constant_declaration_name)
-            ),
-            list(
-                "constant_declaration_value",
-                nary_function(constant_declaration_value)
-            ),
-            list("is_variable_declaration", nary_function(is_variable_declaration)),
-            list(
-                "variable_declaration_name",
-                nary_function(variable_declaration_name)
-            ),
-            list(
-                "variable_declaration_value",
-                nary_function(variable_declaration_value)
-            ),
-            list("declare_value", nary_function(set_name_value)),
-            list("is_function_definition", nary_function(is_function_definition)),
-            list(
-                "function_definition_parameters",
-                nary_function(function_definition_parameters)
-            ),
-            list("function_definition_body", nary_function(function_definition_body)),
-            list("is_return_statement", nary_function(is_return_statement)),
-            list(
-                "is_conditional_expression",
-                nary_function(is_conditional_expression)
-            ),
-            list("conditional_pred", nary_function(cond_expr_pred)),
-            list("conditional_cons", nary_function(cond_expr_cons)),
-            list("conditional_alt", nary_function(cond_expr_alt)),
-
-            list("is_sequence", nary_function(is_sequence)),
-            list("make_sequence", nary_function(make_sequence)),
-            list("is_block", nary_function(is_block)),
-            list("block_body", nary_function(block_body)),
-            list("local_names", nary_function(local_names)),
-            list(
-                "get_temp_block_values",
-                nary_function((locals) => map((x) => no_value_yet, locals))
-            ),
-            list("is_application", nary_function(is_application)),
-            list("is_primitive_function", nary_function(is_primitive_function)),
-            list("apply_primitive_function", nary_function(apply_primitive_function)),
-            list("is_compound_function", nary_function(is_compound_function)),
-            list("function_parameters", nary_function(function_parameters)),
-            list("function_environment", nary_function(function_environment)),
-            list("function_body", nary_function(function_body)),
-            list("insert_all", nary_function(insert_all)),
-            list("extend_environment", nary_function(extend_environment)),
-            list("make_compound_function", nary_function(make_compound_function)),
-
-            list(
-                "lookup_name_value",
-                nary_function((stmt, env) => lookup_name_value(name_of_name(stmt), env))
-            ),
-            list("get_global_environment", nary_function(get_global_environment)),
-
-            // generic helpers
-            list("is_true", nary_function(is_true)),
-            list("is_null", nary_function(is_null)),
-            list(
-                "is_pair",
-                nary_function((a) => is_pair(a))
-            ),
-            list(
-                "is_number",
-                nary_function((a) => is_number(a))
-            ),
-            list(
-                "append",
-                nary_function((xs, ys) => append(xs, ys))
-            ),
-
-            list("vector_ref", binary_function(vector_ref)),
-            list("vector_set", nary_function(vector_set)),
-            list("pair", nary_function(pair_)),
-
-            list("prompt_for_input", nary_function((s) => prompt_for_input(s))),
-            list("user_print", nary_function(user_print)),
-            list("display", nary_function(display))
-        ),
+        eceval_operations,
         list(
             assign("continue", label("evaluator_done")),
             assign("env", list(op("get_global_environment"))),
@@ -1684,7 +1685,7 @@ function eceval() {
             branch(label("primitive_apply")),
             test(op("is_compound_function"), reg("fun")),
             branch(label("compound_apply")),
-            go_to(label("unknown_procedure_type")),
+            go_to(label("unknown_function_type")),
 
             "primitive_apply",
             assign(
@@ -1890,7 +1891,7 @@ function eceval() {
             assign("val", list(constant("unknown_expression_type_error"))),
             go_to(label("signal_error")),
 
-            "unknown_procedure_type",
+            "unknown_function_type",
             restore("continue"), /// clean up stack (from apply_dispatch)
             assign("val", list(constant("unknown_procedure_type_error"))),
             go_to(label("signal_error")),
