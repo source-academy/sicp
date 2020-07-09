@@ -1166,8 +1166,8 @@ function exp(x, y) {
     return apply_generic("exp", list(x, y));
 }
 
-const c = make_complex_from_real_imag(4, 3);
-const d = make_complex_from_real_imag(2, 5);
+const c = make_javascript_number(4);
+const d = make_javascript_number(2);
 exp(c, d);
 
     </JAVASCRIPT>
@@ -1235,22 +1235,56 @@ function apply_generic(op, args) {
     operations present in the table that will not be tried.)
     <LABEL NAME="ex:multi-coercion"/>
     <SOLUTION>
-      <SNIPPET EVAL="no">
+      <SNIPPET HIDE="yes">
+      <NAME>multi_coercion_example</NAME>
+      <REQUIRES>base_operation_table</REQUIRES>
+      <REQUIRES>javascript_number_package</REQUIRES>
+      <REQUIRES>complex_number_package</REQUIRES>
+      <REQUIRES>coercion_support</REQUIRES>
+      <JAVASCRIPT>
+function javascript_number_to_complex(n) {
+   return make_complex_from_real_imag(contents(n), 0);
+}
+
+put_coercion("javascript_number", "complex",
+             javascript_number_to_complex);
+
+put("add", list("complex", "complex", "complex"),
+  (x, y, z) => attach_tag("complex", make_complex_from_real_imag(
+    real_part(x) + real_part(y) + real_part(z),
+    imag_part(x) + imag_part(y) + imag_part(z))));
+
+function add_three(x,y,z) {
+    return apply_generic("add", list(x,y,z));
+}
+
+const c = make_complex_from_real_imag(4, 3);
+const n = make_javascript_number(7);
+add_three(c, c, n);
+// add_three(c, n, n);
+
+      </JAVASCRIPT>
+      <SCHEME></SCHEME>
+      </SNIPPET>
+      <SNIPPET CHAP="4">
         <NAME>multi_coercion</NAME>
         <EXAMPLE>multi_coercion_example</EXAMPLE>
         <JAVASCRIPT>
+
 function can_coerce_to(type_tags, target_type) {
   return accumulate((type_tag, result) =>
-    result && get_coercion(type_tag, target_type) !== null,
+    result
+      && (type_tag === target_type || get_coercion(type_tag, target_type) !== null),
     true,
     type_tags);
 }
 
 function find_coerced_type(type_tags) {
-  if(type_tags === null) return null;
-  return can_coerce_to(type_tags, head(type_tags)))
-    ? head(type_tags);
-    : find_coerced_type(tail(type_tags));
+  return type_tags === null
+    ? null
+    : can_coerce_to(type_tags, head(type_tags))
+      ? head(type_tags)
+      : find_coerced_type(tail(type_tags));
 }
 
 function coerce_all(args, target_type) {
@@ -1277,6 +1311,11 @@ function apply_generic(op, args) {
 }
         </JAVASCRIPT>
       </SNIPPET>
+    A situation where this approach is not sufficient is if you have three
+    types, A, B, C where A can be coerced to B and C can be coerced to B, and
+    there is a registered operation for (A, B, B). Evaluating the operation for
+    (A, B, C) will only try (A, B, C) and (B, B, B) while you can just coerce C
+    to B and use the registered operation for (A, B, B)
     </SOLUTION>
   </EXERCISE>
 
@@ -1295,19 +1334,96 @@ function apply_generic(op, args) {
     work for each type (except complex).
     <LABEL NAME="ex:raise"/>
     <SOLUTION>
-      <SNIPPET EVAL="no">
+      <SNIPPET HIDE="yes">
+      <NAME>rational_number_package</NAME>
+      <JAVASCRIPT>
+function gcd(a, b) {
+    return b === 0 ? a : gcd(b, a % b);
+}
+
+function install_rational_package() {
+    // internal functions
+    function numer(x) {
+        return head(x);
+    }
+    function denom(x) {
+        return tail(x);
+    }
+    function make_rat(n, d) {
+        let g = gcd(n, d);
+        return pair(n / g, d / g);
+    }
+    function add_rat(x, y) {
+        return make_rat(numer(x) * denom(y) +
+                        numer(y) * denom(x),
+                        denom(x) * denom(y));
+    }
+    function sub_rat(x, y) {
+        return make_rat(numer(x) * denom(y) -
+                        numer(y) * denom(x),
+                        denom(x) * denom(y));
+    }
+    function mul_rat(x, y) {
+        return make_rat(numer(x) * numer(y),
+                        denom(x) * denom(y));
+    }
+    function div_rat(x, y) {
+        return make_rat(numer(x) * denom(y),
+                        denom(x) * numer(y));
+    }
+    // interface to rest of the system
+    function tag(x) {
+        return attach_tag("rational", x);
+    }
+    put("add", list("rational", "rational"),
+        (x, y) => tag(add_rat(x, y)));
+    put("sub", list("rational", "rational"),
+        (x, y) => tag(sub_rat(x, y)));
+    put("mul", list("rational", "rational"),
+        (x, y) => tag(mul_rat(x, y)));
+    put("div", list("rational", "rational"),
+        (x, y) => tag(div_rat(x, y)));
+    put("make", "rational",
+        (n, d) => tag(make_rat(n, d)));
+}
+install_rational_package();
+
+function make_rational(n, d) {
+    return (get("make", "rational"))(n, d);
+}
+</JAVASCRIPT>
+<SCHEME></SCHEME>
+</SNIPPET>
+      <SNIPPET HIDE="yes">
+        <REQUIRES>javascript_number_package</REQUIRES>
+        <REQUIRES>rational_number_package</REQUIRES>
+        <REQUIRES>complex_number_package</REQUIRES>
+        <REQUIRES>coercion_support</REQUIRES>
+        <REQUIRES>apply_generic_with_coercion</REQUIRES>
+        <NAME>raise_example</NAME>
+        <JAVASCRIPT>
+const a = make_javascript_number(2);
+const b = make_rational(2, 3);
+raise(a);
+// raise(b);
+        </JAVASCRIPT>
+        <SCHEME></SCHEME>
+      </SNIPPET>
+      <SNIPPET CHAP="4">
         <NAME>raise</NAME>
+        <EXAMPLE>raise_example</EXAMPLE>
         <JAVASCRIPT>
 function raise(x) {
-  return apply_generic("raise", x);
+  return apply_generic("raise", list(x));
 }
 
 // add to Javascript-number package
 put("raise", list("javascript_number"), x => make_rational(x, 1));
 // add to rational package
-put("raise", list("rational"), x => make_real(div, numer(x), denom(x)));
+// put("raise", list("rational"), x => make_real(div, numer(x), denom(x)));
+put("raise", list("rational"), x => make_complex_from_real_imag(x, 0));
 // add to real package
-put("raise", list("real"), x => make_from_real_imag(x, 0));
+// put("raise", list("real"), x => make_complex_from_real_imag(x, 0));
         </JAVASCRIPT>
       </SNIPPET>
     </SOLUTION>
