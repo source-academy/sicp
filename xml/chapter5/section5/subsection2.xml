@@ -25,7 +25,7 @@
   If the linkage is <SCHEMEINLINE>next</SCHEMEINLINE>, then we needn<APOS/>t include any additional
   instructions.  Otherwise, the linkage is a label, and we generate a
   <SPLITINLINE><SCHEME><SCHEMEINLINE>goto</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>go_to</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> to that label, an instruction that does not need or modify
-  any registers.<FOOTNOTE>This
+  any registers.<SPLITINLINE><SCHEME><FOOTNOTE>This
     <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
     uses a feature of <SPLITINLINE><SCHEME>Lisp</SCHEME><JAVASCRIPT>JavaScript</JAVASCRIPT></SPLITINLINE> called <EM>
       <INDEX>list(s)<SUBINDEX>backquote with</SUBINDEX></INDEX>
@@ -46,7 +46,7 @@
   <SPLITINLINE><SCHEME><SCHEMEINLINE>`(1 2 ,x)</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>list(1, 2, head(x))</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>
   evaluates to the list
   <SPLITINLINE><SCHEME><SCHEMEINLINE>(1 2 a)</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>list(1, 2, "a")</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>.
-
+</FOOTNOTE></SCHEME></SPLITINLINE>
 
       </TEXT>
 
@@ -213,46 +213,66 @@ function end_with_linkage(linkage, instruction_sequence) {
             (assign ,target (const ok))))))))
     </SCHEME>
     <JAVASCRIPT>
-function compile_assignment(exp, target, linkage) {
+function compile_assignment(exp, target, linkage ) {
     const variable = assignment_variable(exp);
-    const get_value_code = compile(assignment_value(exp), "val", "next");
-
+    const get_value_code =  compile(assignment_value(exp), "val", "next");
+    const assignment_operation = perform(list(op("set_variable_value"), constant(variable), reg("val"), reg("env")));
+    const return_value = assign(target, list(constant("ok"))); 
+    
     return end_with_linkage(
         linkage,
         preserving(
-            "env",
+            list("env"),
+            get_value_code,
+            make_instruction_sequence(
+                list("env"," val"),
+                list(target),
+                list(assignment_operation, return_value)
+            )
+        )
+    );
+}
+
+    function compile_constant_definition(exp, target, linkage) {
+        const variable = constant_declaration_name(exp);
+        const get_value_code =  compile(constant_declaration_value(exp), "val", "next");
+
+        const assignment_operation = perform( list(op("define_constant"), constant(variable), reg("val"), reg("env")) );
+        const return_value = assign(target, list(constant("ok"))); 
+        
+        return end_with_linkage(
+            linkage,
+            preserving(
+                list("env"),
+                get_value_code,
+                make_instruction_sequence(
+                    list("env", "val"),
+                    list(target),
+                    list(assignment_operation, return_value)
+                )
+            )
+        );
+    }
+
+function compile_variable_definition( exp, target, linkage) {
+    const variable = variable_declaration_name(exp);
+    const get_value_code =  compile(variable_declaration_value(exp), "val", "next");
+
+    const assignment_operation = perform( list(op("define_variable"), constant(variable), reg("val"), reg("env")) );
+    const return_value = assign(target, list(constant("ok"))); 
+        
+    return end_with_linkage(
+        linkage,
+        preserving(
+            list("env"),
             get_value_code,
             make_instruction_sequence(
                 list("env", "val"),
                 list(target),
-                list(
-                    perform(
-                        op("set_variable_value"),
-                        constant(variable),
-                        reg("val"),
-                        reg("env")),
-                    assign(target, constant("ok")))))); 
-}
-
-function compile_definition(exp, target, linkage) {
-    const variable = definition_variable(exp);
-    const get_value_code = compile(definition_value(exp), "val", "next");
-
-    return end_with_linkage(
-        linkage,
-        preserving(
-            "env",
-            get_value_code,
-            make_instruction_sequence()
-                list("env", "val"),
-                list(target),
-                list(
-                    perform(
-                        op("define_variable"),
-                        constant(variable),
-                        reg("val"),
-                        reg("env")),
-                    assign(target, constant("ok")))))); 
+                list(assignment_operation, return_value)
+            )
+        )
+    );
 }
     </JAVASCRIPT>
   </SNIPPET>
@@ -381,34 +401,46 @@ function make_label(name) {
             after-if))))))
     </SCHEME>
     <JAVASCRIPT>
-function compile_if(exp, target, linkage) {
-    const t_branch = make_label("true_branch");
-    const f_branch = make_label("false_branch");
-    const after_if = make_label("after_if");
-    const consequent_linkage = linkage === "next" ? after_if : linkage;
-    const p_code = compile(if_predicate(exp), "val", "next");
-    const c_code = compile(if_consequent(exp), target, consequent_linkage);
-    const a_code = compile(if_alternative(exp), target, linkage);
+    function compile_if(exp, target, linkage) {
+        let t_branch = make_label("true_branch");
+        let f_branch = make_label("false_branch");
+        let after_if = make_label("after_if");
+        let consequent_linkage = linkage === "next" ? after_if : linkage;
 
-    return preserving(list("env", "continue"),
-                      p_code,
-                      append_instruction_sequences(
-                          make_instruction_sequence(list("val"),
-                                                    list(),
-                                                    list(
-                                                        test(op("is_false"), reg("val")),
-                                                        branch(label(f_branch)))),
-                          parallel_instruction_sequences(
-                              append_instruction_sequences(t_branch, c_code),
-                              append_instruction_sequences(f_branch, a_code)),
-                          after_if));
-}
+        let p_code = compile(cond_expr_pred(exp), "val", "next");
+        let c_code = compile(cond_expr_cons(exp), target, consequent_linkage);
+        let a_code = compile(cond_expr_alt(exp), target, linkage);
+        
+
+        const after_predicate_check =
+              make_instruction_sequence(
+                  list("val"),
+                  list(),
+                  list(test(list(op("is_false"),
+                                 reg("val"))),
+                       branch(label(f_branch))));
+
+        return preserving(
+            list("env", "continue"),
+            p_code,
+            append_instruction_sequence(
+                list(
+                    after_predicate_check,
+                    parallel_instruction_sequences(
+                        append_instruction_sequence(list(label_sequence(t_branch), c_code)),
+                        append_instruction_sequence(list(label_sequence(f_branch), a_code))),
+                    label_sequence(after_if)
+            )
+        )            
+        );
+
+    }
     </JAVASCRIPT>
   </SNIPPET>
       </TEXT>
 
       <TEXT>
-  <SCHEMEINLINE>Env</SCHEMEINLINE> is preserved around the predicate code because it could be needed by
+  <SPLITINLINE><SCHEME><SCHEMEINLINE>Env</SCHEMEINLINE></SCHEME><JAVASCRIPT>The register <JAVASCRIPTINLINE></JAVASCRIPTINLINE>env</JAVASCRIPT></SPLITINLINE> is preserved around the predicate code because it could be needed by
   the true and false branches, and <SCHEMEINLINE>continue</SCHEMEINLINE> is preserved because it could
   be needed by the linkage code in those branches.  The code for the true and
   false branches (which are not executed sequentially) is appended using a
@@ -458,13 +490,14 @@ function compile_if(exp, target, linkage) {
       (compile-sequence (rest-exps seq) target linkage))))
     </SCHEME>
     <JAVASCRIPT>
-function compile_sequence(seq, target, linkage) {
-    return is_last_exp(seq)
-        ? compile(first_exp(seq), target, linkage)
+function compile_sequences(seq, target, linkage) {
+    return is_last_statement(seq)
+        ? compile(first_statement(seq), target, linkage)
         : preserving(
             list("env", "continue"),
-            compile(first_exp("seq"), target, "next"),
-            compile_sequence(rest_exps(seq), target, linkage));
+            compile(first_statement(seq), target, "next"),
+            compile_sequences(rest_statements(seq), target, linkage)
+        );
 }
     </JAVASCRIPT>
   </SNIPPET>
@@ -601,22 +634,27 @@ $\textit{compilation of procedure body} $
       after-lambda))))
     </SCHEME>
     <JAVASCRIPT>
-      <!--  \indcode*{compile-lambda} -->
+<!--  \indcode*{compile-lambda} -->
 function compile_function_expression(exp, target, linkage) {
-    const proc_entry = make_label("entry");
-    const after_fexp = make_label("after_fexp"); /// FIXME: lambda
-    const lambda_linkage = linkage === "next" ? after_fexpr : linkage;
+    let proc_entry = make_label("entry");
+    let after_fexp = make_label("after_fexp");
+    let fexp_linkage = linkage === "next" ?  after_fexp : linkage;
 
-    return append_instruction_sequences(
-        tack_on_instruction_sequence(
-            end_with_linkage(
-                lambda_linkage,
-                make_instruction_sequence(
-                    list("env"), 
-                    list(target),
-                    list(assign(target, op("make_compiled_procedure"), label(proc_entry), reg("env")))), 
-            compile_function_expression_body(exp, proc_entry)),
-            after_fexp));
+    const function_definitiion = end_with_linkage(
+        fexp_linkage,
+        make_instruction_sequence(
+            list("env"),
+            list(target),
+            list(assign(target, list(op("make_compiled_function"), label(proc_entry), reg("env"))))
+        )
+    );
+    const function_body = compile_function_expression_body(exp ,proc_entry);
+    return append_instruction_sequence(
+        list(
+            tack_on_instruction_sequence(function_definitiion, function_body),
+            label_sequence(after_fexp)
+        )
+    );
 }
     </JAVASCRIPT>
   </SNIPPET>
@@ -672,17 +710,21 @@ function compile_function_expression(exp, target, linkage) {
       (compile-sequence (lambda-body exp) 'val 'return))))
     </SCHEME>
     <JAVASCRIPT>
-function compile_function_expression_body(exp, proc_entry) {
-    const formals = lambda_parameters(exp);
-    return append_instruction_sequences(
-        make_instruction_sequence(
+    function compile_function_expression_body(exp, proc_entry) {
+        let formals = function_definition_parameters(exp);
+        formals = map(x => name_of_name(x), formals);
+        const setup = make_instruction_sequence(
             list("env", "fun", "argl"),
             list("env"),
-            list(proc_entry,
-                 assign("env", op("compiled_procedure_env"), reg("fun")),
-                 assign("env", op("extend_environment"), constant(formals), reg("argl"), reg("env")))),
-        compiled_sequence(lambda_body(exp), "val", "return"));
-} 
+            list(
+                proc_entry,
+                assign("env", list( op("compiled_procedure_env"), reg("fun") )),
+                assign("env", list( op("extend_environment"), constant(formals), reg("argl"), reg("env")))
+            )
+        );
+        const compiled_function_body = compile(function_definition_body(exp), "val", "return");
+        return append_instruction_sequence(list(setup, compiled_function_body));
+    }
     </JAVASCRIPT>
   </SNIPPET>
       </TEXT>

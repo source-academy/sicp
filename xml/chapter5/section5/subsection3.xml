@@ -76,14 +76,21 @@ $\textit{compilation of procedure call with given target and linkage}$
     </SCHEME>
     <JAVASCRIPT>
 function compile_application(exp, target, linkage) {
-    const proc_code = compile(operator(exp), "fun", "next"); 
-    const operand_codes = map(operand => compile(operand, "val", "next"), operands(exp));
+    const fun_code = compile(operator(exp), "fun", "next");
+    const operand_codes = map(operand=> compile(operand, "val", "next"),operands(exp));
 
-    return preserving(list("env", "continue"),
-                      proc_code,
-                      preserving(list("fun", "continue"), 
-                                 construct_arglist(operand_codes),
-                                 compile_procedure_call(target, linkage)));
+    const procedure_call_code = compile_procedure_call(target, linkage);
+    const arglist_code = construct_arglist(operand_codes);
+
+    return preserving(
+        list("env", "continue"),
+        fun_code,
+        preserving(
+            list("fun", "continue"),
+            arglist_code,
+            procedure_call_code
+        )
+    );
 }
     </JAVASCRIPT>
   </SNIPPET>
@@ -191,46 +198,57 @@ assign("argl", list(op("pair"), reg("val"), reg("argl")));
             (code-to-get-rest-args (cdr operand-codes))))))
     </SCHEME>
     <JAVASCRIPT>
-function construct_arglist(operand_codes) {
-    const operand_codes = reverse(operand_codes);
-
-    if (is_null(operand_codes)) {
+function construct_arglist(operand_codes_unreversed) {
+    const operand_codes = reverse(operand_codes_unreversed);
+    if (is_null(operand_codes)){
         return make_instruction_sequence(
-            list(), 
+            null,
             list("argl"),
-            list(assign("argl", list(constant("null")))));
+            list(assign("argl", list(constant("null"))))
+        );
     } else {
-        const code_to_get_last_arg =
-              append_instruction_sequences(
-                  head(operand_codes),
-                  make_instruction_sequence(
-                      list("val"),
-                      list("argl"),
-                      list(assign("argl", list(op("list"), reg("val"))))));
+        const code_to_get_last_arg = append_instruction_sequence(
+            list(
+                head(operand_codes),
+                make_instruction_sequence(
+                    list("val"),
+                    list("argl"),
+                    list(assign("argl", list(
+                        op("list"),
+                        reg("val")
+                    )))
+                )
+            )
+        );
 
         return is_null(tail(operand_codes))
             ? code_to_get_last_arg
             : preserving(
                 list("env"),
                 code_to_get_last_arg,
-                code_to_get_rest_args(tail(operand_codes)));
+                code_to_get_rest_args(tail(operand_codes))
+            );
     }
 }
 
 function code_to_get_rest_args(operand_codes) {
     const code_for_next_arg = preserving(
-        list("argl"), 
+        list("argl"),
         head(operand_codes),
         make_instruction_sequence(
-            list("val", "argl"), 
+            list("val","argl"),
             list("argl"),
-            list(assign("argl", list(op("pair"), reg("val"), reg("argl"))))));
+            list(assign("argl", list(op("cons"), reg("val"), reg("argl"))))
+        )
+    );
 
     return is_null(tail(operand_codes))
-        ? code_for_next_arg
-        : preserving(list("env"),
-                     code_for_next_arg,
-                     code_to_get_rest_args(tail(operand_codes)));
+            ? code_for_next_arg
+            : preserving(
+                list("env"),
+                code_for_next_arg,
+                code_to_get_rest_args(tail(operand_codes))
+            );
 }
     </JAVASCRIPT>
   </SNIPPET>
@@ -479,7 +497,7 @@ proc-return
       (goto (reg val))
     </SCHEME>
     <JAVASCRIPT>
-      $\textit{set\ up}$ continue $\textit{for\ linkage}$
+      $\textit{set}$ $\textit{setup}$ continue $\textit{for}$ $\textit{linkage}$
       assign("val", list(op("compiled_procedure_entry"), reg("fun"))),
       go_to(reg("val")),
     </JAVASCRIPT>
