@@ -83,7 +83,7 @@ const processTextFunctionsDefaultLatex = {
   },
 
   BR: (node, writeTo) => {
-    writeTo.push("\n\\noindent ");
+    writeTo.push("\\newline\\noindent ");
   },
 
   BLOCKQUOTE: (node, writeTo) => {
