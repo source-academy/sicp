@@ -12,7 +12,7 @@ import {
   processFileInput,
   processSnippetPdf,
   processSnippetEpub,
-  processTable,
+  processTablePdf,
   recursiveProcessPureText,
   processList,
   addName
@@ -284,7 +284,7 @@ const processTextFunctionsDefaultLatex = {
   },
 
   TABLE: (node, writeTo) => {
-    processTable(node, writeTo);
+    processTablePdf(node, writeTo);
   },
 
   TT: (node, writeTo) => {
