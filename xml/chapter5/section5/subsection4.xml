@@ -61,13 +61,13 @@ function statements(s) {
     </SCHEME>
     <JAVASCRIPT>
 <!--  \indcode*{needs-register?} -->
-function needs_register(seq, reg) {
-    return is_null(member(reg, registers_needed(seq)));
+function needs_register(s, r) {
+	return !is_null(member(r, registers_needed(s)));
 }
 
 <!--  \indcode*{modifies-register?} -->
-function modifies_register(seq, reg) {
-    return is_null(member(reg, registers_modified(seq)));
+function modifies_register(s, r) {
+	return !is_null(member(r, registers_modified(s)));
 }
     </JAVASCRIPT>
   </SNIPPET>
@@ -124,26 +124,28 @@ function modifies_register(seq, reg) {
     </SCHEME>
     <JAVASCRIPT>
       <!--  \indcode*{append-instruction-sequences} -->
-function append_instruction_sequences(seqs) {
-    function append_2_sequences(seq1, seq2) {
-        return make_instruction_sequence(
-            list_union(registers_needed(seq1),
-                       list_difference(registers_needed(seq2)
-                                       registers_modified(seq1))),
-            list_union(registers_modified(seq1),
-                       registers_modified(seq2)),
-            append(statements(seq1), statements(seq2)));
-    }
-    
-    function append_seq_list(seqs) {
-        return is_null(seqs)
-            ? empty_instruction_sequence
-            : append_2_sequences(
-                head(seqs),
-                append_seq_list(tail(seqs)));
-    }
-    
-    return append_seq_list(seqs);
+function append_instruction_sequence(seqs) {
+	function append_2_sequences(seq1, seq2){
+		const regs_required = list_union(registers_needed(seq1),
+				list_difference(registers_needed(seq2), registers_modified(seq1)));
+		const regs_modified = list_union(registers_modified(seq1), registers_modified(seq2));
+		const appended_statements = append(statements(seq1), statements(seq2));
+		return make_instruction_sequence(
+				regs_required,
+				regs_modified,
+				appended_statements
+				);
+	}
+
+	function append_seq_list(seqs){
+		return is_null(seqs)
+			? empty_instruction_sequence()
+			: append_2_sequences(
+					head(seqs),
+					append_seq_list(tail(seqs)));
+	}
+
+	return append_seq_list(seqs);
 }
     </JAVASCRIPT>
   </SNIPPET>
@@ -173,20 +175,20 @@ function append_instruction_sequences(seqs) {
     <JAVASCRIPT>
       <!--  \indcode*{list-union} -->
 function list_union(s1, s2) {
-    return is_null(s1)
-        ? s2
-        : member(head(s1), s2)
-        ? list_union(tail(s1), s2)
-        : pair(head(s1), list_union(tail(s1), s2));
+	return is_null(s1)
+		? s2
+		: is_null(member(head(s1), s2))
+		? pair(head(s1), list_union(tail(s1), s2))
+		: list_union(tail(s1), s2);
 }
 
       <!--  \indcode*{list-difference} -->
 function list_difference(s1, s2) {
-    return is_null(s1)
-        ? list()
-        : member(head(s1), s2)
-        ? list_difference(tail(s1), s2)
-        : pair(head(s1), list_difference(tail(s1), s2));
+	return is_null(s1)
+		? s1
+		: is_null(member(head(s1), s2))
+		? pair(head(s1),list_difference(tail(s1), s2))
+		: list_difference(tail(s1), s2);
 }
     </JAVASCRIPT>
   </SNIPPET>
@@ -237,27 +239,35 @@ function list_difference(s1, s2) {
     <JAVASCRIPT>
       <!--  \indcode*{preserving} -->
 function preserving(regs, seq1, seq2) {
-    if (is_null(regs)) {
-        return append_instruction_sequences(seq1, seq2)
-    } else {
-        const first_reg = head(regs);
-
-        if (need_register(seq2, first_reg) &amp;&amp; modifies_register(seq1, first_reg)) {
-            return preserving(
-                tail(regs),
-                make_instruction_sequence(
-                    list_union(list(first_reg),
-                               registers_needed(seq1)),
-                    list_difference(registers_modified(seq1),
-                                    list(first_reg)),
-                    append(list(save(first_reg)),
-                           append(statements(seq1),
-                                  list(restore(first_reg)))))
-                seq2);
-        } else {
-            return preserving(tail(regs), seq1, seq2);
-        }
-    }
+	if (is_null(regs)) {
+		return append_instruction_sequence(list(seq1, seq2));
+	}
+	else {
+		const first_reg = head(regs);
+		if (needs_register(seq2, first_reg) && modifies_register(seq1, first_reg)) {
+			const augmented_seq1 = make_instruction_sequence(
+					list_union(
+						list(first_reg),
+						registers_needed(seq1)
+						),
+					list_difference(
+						registers_modified(seq1),
+						list(first_reg)
+						),
+					append(
+						list(save(first_reg)),
+						append(
+							statements(seq1),
+							list(restore(first_reg))
+							)
+						)
+					);
+			return preserving(tail(regs), augmented_seq1,seq2);
+		}
+		else {
+			return preserving(tail(regs), seq1, seq2);
+		}
+	}
 }
     </JAVASCRIPT>
   </SNIPPET>
