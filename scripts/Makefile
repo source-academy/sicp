@@ -98,6 +98,7 @@ svgs: $(orig_path)/ch2-Z-G-65.svg.pdf \
       $(js_path)/Fig5.11b.std.svg.pdf \
       $(js_path)/ch2-Z-G-63.svg.pdf \
       $(js_path)/ch2-Z-G-62.svg.pdf \
+      $(js_path)/ch4-Z-G-1.svg.pdf \
       $(js_path)/ch4-Z-G-3.svg.pdf \
       $(js_path)/ch3-Z-G-18.svg.pdf \
       $(js_path)/ch2-Z-G-6.svg.pdf \
