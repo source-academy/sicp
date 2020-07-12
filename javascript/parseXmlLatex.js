@@ -83,7 +83,7 @@ const processTextFunctionsDefaultLatex = {
   },
 
   BR: (node, writeTo) => {
-    writeTo.push("\n\\noindent ");
+    writeTo.push("\\newline\\noindent ");
   },
 
   BLOCKQUOTE: (node, writeTo) => {
@@ -191,7 +191,7 @@ const processTextFunctionsDefaultLatex = {
   TEXT: (node, writeTo) => {
     writeTo.push("\n\n");
     recursiveProcessTextLatex(node.firstChild, writeTo);
-    writeTo.push("\n");
+    writeTo.push("\n\n");
   },
 
   QUOTE: (node, writeTo) => {

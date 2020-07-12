@@ -1,5 +1,6 @@
 import { recursiveProcessTextLatex, processTextLatex } from "../parseXmlLatex";
 import { processSnippetPdf } from ".";
+import { processTablePdf } from ".";
 
 export const processFigurePdf = (node, writeTo) => {
   writeTo.push("\n\\begin{figure}[H]\n\\centering\n");
@@ -24,6 +25,11 @@ export const processFigurePdf = (node, writeTo) => {
   const snippet = node.getElementsByTagName("SNIPPET")[0];
   if (snippet) {
     processSnippetPdf(snippet, writeTo);
+  }
+
+  const table = node.getElementsByTagName("TABLE")[0];
+  if (table) {
+    processTablePdf(table, writeTo);
   }
 
   const caption = node.getElementsByTagName("CAPTION")[0];

@@ -1,6 +1,7 @@
 import {
   recursiveProcessTextHtml,
   processTextHtml,
+  processTextFunctionsHtml,
   toIndexFolder
 } from "../parseXmlHtml";
 import { processSnippetHtml } from ".";
@@ -60,6 +61,11 @@ export const processFigureHtml = (node, writeTo) => {
   const snippet = node.getElementsByTagName("SNIPPET")[0];
   if (snippet) {
     processSnippetHtml(snippet, writeTo);
+  }
+
+  const table = node.getElementsByTagName("TABLE")[0];
+  if (table) {
+    processTextHtml(table, writeTo);
   }
 
   const caption = node.getElementsByTagName("CAPTION")[0];

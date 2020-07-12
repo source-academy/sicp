@@ -12,7 +12,7 @@ import processFigureEpub from "./processFigureEpub";
 import processSnippetPdf from "./processSnippetPdf";
 import processSnippetEpub from "./processSnippetEpub";
 import processSnippetJs from "./processSnippetJs";
-import processTable from "./processTable";
+import processTablePdf from "./processTablePdf";
 
 import { recursiveProcessTextHtml, processTextHtml } from "../parseXmlHtml";
 import processEpigraphHtml from "./processEpigraphHtml";
@@ -58,7 +58,7 @@ export {
   processSnippetPdf,
   processSnippetEpub,
   processSnippetJs,
-  processTable,
+  processTablePdf,
   processEpigraphHtml,
   processBlockquoteHtml,
   processExerciseHtml,
