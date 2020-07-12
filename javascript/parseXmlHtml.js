@@ -180,7 +180,7 @@ const processTextFunctionsDefaultHtml = {
   },
 
   FIGURE: (node, writeTo) => {
-    processFigureHtml(node, writeTo);
+    processFigureHtml(node, writeTo, chapArrIndex, snippet_count);
   },
 
   FOOTNOTE: (node, writeTo) => {

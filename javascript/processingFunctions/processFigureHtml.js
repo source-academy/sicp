@@ -3,10 +3,16 @@ import {
   processTextHtml,
   toIndexFolder
 } from "../parseXmlHtml";
-import { processSnippetHtml } from ".";
+import { getChildrenByTagName, ancestorHasTag } from "../utilityFunctions";
+import { processSnippetHtml, processSnippetHtmlScheme } from ".";
 import { referenceStore } from "./processReferenceHtml";
 
-export const processFigureHtml = (node, writeTo) => {
+export const processFigureHtml = (
+  node,
+  writeTo,
+  chapArrIndex,
+  snippet_count
+) => {
   let src = node.getAttribute("src");
   if (!src && node.getElementsByTagName("FIGURE")[0]) {
     src = node.getElementsByTagName("FIGURE")[0].getAttribute("src");
@@ -59,7 +65,60 @@ export const processFigureHtml = (node, writeTo) => {
 
   const snippet = node.getElementsByTagName("SNIPPET")[0];
   if (snippet) {
-    processSnippetHtml(snippet, writeTo);
+    //processSnippetHtml(snippet, writeTo);
+
+    const scheme = node.getElementsByTagName("SCHEME")[0];
+    const js = node.getElementsByTagName("JAVASCRIPT")[0];
+    if (scheme && js) {
+      writeTo.push(`<table width="100%">
+          <colgroup><col width="48%"><col width="52%"></colgroup>
+          `);
+      writeTo.push(`
+          <tr>
+            <td>`);
+      //writeTo.push(`<span style="color:teal">`);
+      writeTo.push(
+        "<div class='snippet' id='javascript_" +
+          chapArrIndex +
+          "_" +
+          snippet_count +
+          "_div'>"
+      );
+      writeTo.push("<div style='text-align: left;' class='pre-prettyprint'>");
+      processSnippetHtmlScheme(node, writeTo);
+      writeTo.push("</div></div>");
+      //writeTo.push(`</span>`);
+
+      writeTo.push(`    </td>
+            <td>`);
+      //writeTo.push(`<span style="color:blue">`);
+      writeTo.push(
+        "<div class='snippet' id='javascript_" +
+          chapArrIndex +
+          "_" +
+          snippet_count +
+          "_div'>"
+      );
+      writeTo.push("<div style='text-align: left;' class='pre-prettyprint'>");
+      processSnippetHtml(node, writeTo, true);
+      writeTo.push("</div></div>");
+      //writeTo.push(`</span>`);
+
+      writeTo.push(`</td></tr>`);
+      writeTo.push(`</table>`);
+    } else {
+      writeTo.push(
+        "<div class='snippet' id='javascript_" +
+          chapArrIndex +
+          "_" +
+          snippet_count +
+          "_div'>"
+      );
+      writeTo.push("<div class='pre-prettyprint'>");
+      processSnippetHtmlScheme(node, writeTo);
+      processSnippetHtml(node, writeTo, true);
+      writeTo.push("</div></div>");
+    }
   }
 
   const caption = node.getElementsByTagName("CAPTION")[0];
