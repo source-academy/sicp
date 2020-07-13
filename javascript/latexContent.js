@@ -46,19 +46,21 @@ export const preamble = `\\documentclass[a4paper, 12pt]{book}
 \\usepackage{cprotect}
 \\usepackage{csquotes}
 \\usepackage[shortlabels]{enumitem}
-\\setlist{label={--}}
+\\setlist{noitemsep}
+\\setlist[itemize,1]{label={--}}
 \\usepackage{etoolbox}
 \\usepackage{float}
 \\usepackage[margin=2.54cm]{geometry}
 \\usepackage{imakeidx}
 \\usepackage{subcaption}
 \\usepackage{underscore}
+\\usepackage{parskip}
 
 \\usepackage{setspace}
 \\onehalfspacing
 
-\\setlength{\\parskip}{0.5em}
-\\setlength{\\parindent}{0pt}%
+% \\setlength{\\parskip}{0.5em}
+% \\setlength{\\parindent}{0pt}%
 
 \\setcounter{secnumdepth}{5}
 
@@ -159,6 +161,15 @@ export const preamble = `\\documentclass[a4paper, 12pt]{book}
 \\lstnewenvironment{JavaScriptOutput}{\\lstset{style=JavaScriptOutput}}{}
 
 \\usepackage{epigraph}
+\\makeatletter
+\\newlength\\interepigraphskip
+\\setlength\\interepigraphskip{1ex}
+\\renewcommand\\epigraph[3][\\interepigraphskip]{\\vspace{\\beforeepigraphskip}
+  {\\epigraphsize\\begin{\\epigraphflush}\\begin{minipage}{\\epigraphwidth}
+    \\@epitext{#2}\\\\[#1] \\@episource{#3}
+    \\end{minipage}\\end{\\epigraphflush}
+    \\vspace{\\afterepigraphskip}}}
+\\makeatother
 \\setlength\\epigraphwidth{11cm}
 \\setlength\\epigraphrule{0pt}
 
