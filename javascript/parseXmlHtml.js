@@ -450,7 +450,7 @@ const processTextFunctionsSplit = {
   },
 
   SCHEME: (node, writeTo) => {
-    writeTo.push(`<span style="color:teal">`);
+    writeTo.push(`<span style="color:green">`);
     recursiveProcessTextHtml(node.firstChild, writeTo);
     writeTo.push(`</span>`);
   },
@@ -474,7 +474,7 @@ const processTextFunctionsSplit = {
     writeTo.push(`
         <tr><td>`);
     if (scheme) {
-      writeTo.push(`<span style="color:teal">`);
+      writeTo.push(`<span style="color:green">`);
       recursiveProcessTextHtml(scheme.firstChild, writeTo);
       writeTo.push(`</span>`);
     }
@@ -497,7 +497,7 @@ const processTextFunctionsSplit = {
     );
 
     if (ancestorHasTag(node, "SCHEME")) {
-      writeTo.push(`style="color:teal"`);
+      writeTo.push(`style="color:green"`);
     } else if (ancestorHasTag(node, "JAVASCRIPT")) {
       writeTo.push(`style="color:blue"`);
     }
@@ -530,14 +530,14 @@ const processTextFunctionsSplit = {
     writeTo.push(`
     <div class='footnote'>`);
     if (node.getAttribute("version") == "scheme") {
-      writeTo.push(`<span style="color:teal">`);
+      writeTo.push(`<span style="color:green">`);
     } else if (node.getAttribute("version") == "js") {
       writeTo.push(`<span style="color:blue">`);
     }
     writeTo.push(`
       <a class='footnote-number' id='footnote-${display_footnote_count}' href='#footnote-link-${display_footnote_count}' `);
     if (node.getAttribute("version") == "scheme") {
-      writeTo.push(`style="color:teal"`);
+      writeTo.push(`style="color:green"`);
     } else if (node.getAttribute("version") == "js") {
       writeTo.push(`style="color:blue"`);
     }
@@ -584,7 +584,7 @@ const processTextFunctionsSplit = {
       writeTo.push(`
           <tr>
             <td>`);
-      //writeTo.push(`<span style="color:teal">`);
+      //writeTo.push(`<span style="color:green">`);
       writeTo.push(
         "<div class='snippet' id='javascript_" +
           chapArrIndex +

@@ -72,7 +72,7 @@ export const switchTitle = version => {
     </div>
     <div class="title-text-OTHEREDITIONS">
       <span class="title-text-OTHEREDITIONS">
-      <span style="color:teal">Original █</span>
+      <span style="color:green">Original █</span>
       </span>
     </div>
     <div class="title-text-OTHEREDITIONS">
@@ -87,7 +87,7 @@ export const switchTitle = version => {
     </div>
     <div class="title-text-OTHEREDITIONS">
       <span class="title-text-OTHEREDITIONS">
-      <span style="color:purple">Web-only █</span>
+      <span style="color:red">Web-only █</span>
       </span>
     </div>
     <div class="title-text-OTHEREDITIONS">

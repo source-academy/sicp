@@ -197,9 +197,9 @@ export const ending = `
 \\addcontentsline{toc}{chapter}{List Of Exercises}
 \\listofexercises
 
-\\chapter*{Solution To Exercises}
-\\addcontentsline{toc}{chapter}{Solution To Exercises}
-\\shipoutAnswer
+%\\chapter*{Solution To Exercises}
+%\\addcontentsline{toc}{chapter}{Solution To Exercises}
+%\\shipoutAnswer
 
 \\input{./others/97references97.tex}
 
@@ -207,6 +207,6 @@ export const ending = `
 \\indexprologue{\\input{./others/98indexpreface98.tex}}
 \\printindex
 
-\\input{./others/99making99.tex}
+%\\input{./others/99making99.tex}
 
 \\end{document}`;
