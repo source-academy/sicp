@@ -253,9 +253,16 @@ const processTextFunctionsDefaultLatex = {
   SCHEMEINLINE: (node, writeTo) =>
     processTextFunctionsLatex["JAVASCRIPTINLINE"](node, writeTo),
   JAVASCRIPTINLINE: (node, writeTo) => {
-    writeTo.push("{\\lstinline[mathescape=true]$");
+    if (node.getAttribute("break")) {
+      writeTo.push(
+        "{\\lstinline[breaklines=true, breakatwhitespace=true,mathescape=true]$"
+      );
+    } else {
+      writeTo.push("{\\lstinline[mathescape=true]$");
+    }
     recursiveProcessPureText(node.firstChild, writeTo, {
-      removeNewline: "all"
+      removeNewline: "all",
+      escapeCurlyBracket: true
     });
     writeTo.push("$}");
   },
@@ -317,7 +324,8 @@ const processTextFunctionsEpub = {
   JAVASCRIPTINLINE: (node, writeTo) => {
     writeTo.push("{\\lstinline[mathescape=true, language=JavaScript]$");
     recursiveProcessPureText(node.firstChild, writeTo, {
-      removeNewline: "all"
+      removeNewline: "all",
+      escapeCurlyBracket: true
     });
     writeTo.push("$}");
   },

@@ -186,7 +186,7 @@ export const processSnippetPdf = (node, writeTo) => {
 
   if (jsOutputSnippet) {
     writeTo.push("\n\\begin{JavaScriptOutput}");
-    writeTo.push(jsOutputSnippet.firstChild.nodeValue);
+    writeTo.push(jsOutputSnippet.firstChild.nodeValue.trimRight());
     writeTo.push("\\end{JavaScriptOutput}");
   }
 

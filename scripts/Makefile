@@ -152,4 +152,6 @@ js_svgs: $(js_path)/ch2-Z-G-65.svg.pdf \
       $(js_path)/Fig5.15c.std.svg.pdf \
 			$(js_path)/ch2-Z-G-ex-2-24.svg.pdf \
 			$(js_path)/ch2-Z-G-ex-2-24-tree.svg.pdf \
+      $(js_path)/ch3-Z-G-35.svg.pdf \
+      $(js_path)/ch3-Z-G-49.svg.pdf \
 			$(js_path)/Fig2.14b.std.svg.pdf 

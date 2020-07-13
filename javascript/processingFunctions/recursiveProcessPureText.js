@@ -17,6 +17,10 @@ const recursiveProcessPureText = (
     if (options.removeNewline == "all") {
       value = value.replace(/[\r\n]+/g, " ");
     }
+    if (options.escapeCurlyBracket) {
+      value = value.replace(/\{/g, "\\{");
+      value = value.replace(/\}/g, "\\}");
+    }
     writeTo.push(value);
   }
   return recursiveProcessPureText(node.nextSibling, writeTo, options);
