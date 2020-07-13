@@ -4,7 +4,9 @@ js_path=$(realpath ../static/img_javascript/)
 %.svg.pdf: %.svg
 	inkscape -D --file=$< --export-pdf=$@
 
-svgs: $(orig_path)/ch2-Z-G-65.svg.pdf \
+svgs: orig_svgs js_svgs
+
+orig_svgs: $(orig_path)/ch2-Z-G-65.svg.pdf \
       $(orig_path)/ch2-Z-G-59.svg.pdf \
       $(orig_path)/chip.std.svg.pdf \
       $(orig_path)/ch3-Z-G-21.svg.pdf \
@@ -86,7 +88,13 @@ svgs: $(orig_path)/ch2-Z-G-65.svg.pdf \
       $(orig_path)/Fig4.6a.std.svg.pdf \
       $(orig_path)/ch2-Z-G-54.svg.pdf \
       $(orig_path)/Fig5.15c.std.svg.pdf \
-      $(js_path)/ch2-Z-G-65.svg.pdf \
+			$(orig_path)/Fig2.9.std.svg.pdf \
+			$(orig_path)/Fig2.10.std.svg.pdf \
+			$(orig_path)/Fig2.11.std.svg.pdf \
+			$(orig_path)/Fig2.12.std.svg.pdf \
+			$(orig_path)/Fig2.14b.std.svg.pdf 
+
+js_svgs: $(js_path)/ch2-Z-G-65.svg.pdf \
       $(js_path)/ch2-Z-G-59.svg.pdf \
       $(js_path)/ch3-Z-G-21.svg.pdf \
       $(js_path)/ch3-Z-G-20.svg.pdf \
@@ -143,4 +151,5 @@ svgs: $(orig_path)/ch2-Z-G-65.svg.pdf \
       $(js_path)/ch2-Z-G-54.svg.pdf \
       $(js_path)/Fig5.15c.std.svg.pdf \
 			$(js_path)/ch2-Z-G-ex-2-24.svg.pdf \
-			$(js_path)/ch2-Z-G-ex-2-24-tree.svg.pdf 
+			$(js_path)/ch2-Z-G-ex-2-24-tree.svg.pdf \
+			$(js_path)/Fig2.14b.std.svg.pdf 
