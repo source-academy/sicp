@@ -124,7 +124,7 @@
       </SPLITINLINE>.
     One design choice we have available is whether or not to 
     <INDEX>memoization<SUBINDEX>thunk@of thunks</SUBINDEX></INDEX>
-    <EM>memoize</EM> thunks, as we did with delayed objects in
+    <EM>memoize</EM> thunks, similar to the optimization for streams in
     section<SPACE/><REF NAME="sec:delayed-lists"/>.  With memoization, the first
     time a thunk is forced, it stores the value that is computed.  Subsequent
     forcings simply return the stored value without repeating the computation.
@@ -380,14 +380,16 @@ function apply(fun, args, env) {
    if (is_primitive_function(fun)) {
        return apply_primitive_function(
                   fun,  // following line changed
-                  map(arg => actual_value(arg, env), args));
+                  list_of_arg_values(args, env));  // changed
    } else if (is_compound_function(fun)) {
       const body = function_body(fun);
       const symbols = function_parameters(fun);
-      const values = map(arg => delay_it(arg, env), args);
-      const result = evaluate(body,
-                       extend_environment(symbols, values,
-                         function_environment(fun)));
+      const result = evaluate(
+                         body,
+                         extend_environment(symbols, 
+                             // following line changed
+                             list_of_delayed_args(args, env),
+                             function_environment(fun)));
       return is_return_value(result)
              ? return_value_content(result)
              : undefined;
@@ -399,8 +401,6 @@ function apply(fun, args, env) {
     </SNIPPET>
   </TEXT>
 
-  <SPLIT>
-    <SCHEME>
   <TEXT>
     The
     <SPLITINLINE><SCHEME>procedures</SCHEME>
@@ -451,8 +451,8 @@ function apply(fun, args, env) {
 	<JAVASCRIPTINLINE>evaluate</JAVASCRIPTINLINE>:
       </JAVASCRIPT>
     </SPLITINLINE>
-	<!--  \indcode*{list-of-arg-values} -->
-	<!--  \indcode*{list-of-delayed-args} -->
+    <!--  \indcode*{list-of-arg-values} -->
+    <!--  \indcode*{list-of-delayed-args} -->
     <SNIPPET EVAL="no">
       <SCHEME>
 (define (list-of-arg-values exps env)
@@ -469,18 +469,53 @@ function apply(fun, args, env) {
             (list-of-delayed-args (rest-operands exps)
                                   env))))
       </SCHEME>
+      <JAVASCRIPT>
+function list_of_arg_values(exps, env) {	
+     return no_args(exps)
+         ? null
+         : pair(actual_value(first_arg(exps), env),
+                list_of_arg_values(rest_args(exps), env));
+}
+
+function list_of_delayed_args(exps, env) {	
+     return no_args(exps)
+         ? null
+         : pair(delay_it(first_arg(exps), env),
+                list_of_delayed_args(rest_args(exps), env));
+}
+      </JAVASCRIPT>
     </SNIPPET>
   </TEXT>
-    </SCHEME>
-    <JAVASCRIPT>
-    </JAVASCRIPT>
-  </SPLIT>
   
   <TEXT>
     The other place we must change the evaluator is in the handling of
-    <SCHEMEINLINE>if</SCHEMEINLINE>, where we must use
-    <SCHEMEINLINE>actual-value</SCHEMEINLINE> instead of
-    <SCHEMEINLINE>eval</SCHEMEINLINE> to get the value of the predicate
+    <SPLITINLINE>
+      <SCHEME>
+	<SCHEMEINLINE>if</SCHEMEINLINE>,
+      </SCHEME>
+      <JAVASCRIPT>
+	conditional expressions,
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    where we must use
+    <SPLITINLINE>
+      <SCHEME>
+	<SCHEMEINLINE>actual-value</SCHEMEINLINE>
+      </SCHEME>
+      <JAVASCRIPT>
+	<JAVASCRIPTINLINE>actual_value</JAVASCRIPTINLINE>
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    instead of
+    <SPLITINLINE>
+      <SCHEME>
+	<SCHEMEINLINE>eval</SCHEMEINLINE>
+      </SCHEME>
+      <JAVASCRIPT>
+	<SCHEMEINLINE>evaluate</SCHEMEINLINE>
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    to get the value of the predicate
     expression before testing whether it is true or false:
     <SNIPPET PAGE="367" HIDE="yes">
       <NAME>eval_if_lazy_example</NAME>
@@ -534,7 +569,7 @@ function eval_conditional_statement(stmt, env) {
 	<SCHEMEINLINE>driver-loop</SCHEMEINLINE>
       </SCHEME>
       <JAVASCRIPT>
-	<JAVASCRIPTINLINE>eval_toplevel</JAVASCRIPTINLINE>
+	<JAVASCRIPTINLINE>driver_loop</JAVASCRIPTINLINE>
       </JAVASCRIPT>
     </SPLITINLINE>
     <SPLITINLINE><SCHEME>procedure</SCHEME>
@@ -568,8 +603,8 @@ function eval_conditional_statement(stmt, env) {
       </JAVASCRIPT>
     </SPLITINLINE>
     it will be forced before being printed.
-    <SPLITINLINE><SCHEME>We also change the prompts to indicate that
-    this is the lazy evaluator:</SCHEME></SPLITINLINE>
+    We also change the prompts to indicate that
+    this is the lazy evaluator:
     <INDEX>prompts<SUBINDEX>lazy evaluator</SUBINDEX></INDEX>
     <!--  \indcode*{driver-loop}[for lazy evaluator] -->
     <SNIPPET>
@@ -639,7 +674,16 @@ function driver_loop(env) {
 
   <TEXT>
     With these changes made, we can start the evaluator and test it.  The
-    successful evaluation of the <SCHEMEINLINE>try</SCHEMEINLINE> expression
+    successful evaluation of the
+    <SPLITINLINE>
+      <SCHEME>
+	<SCHEMEINLINE>try</SCHEMEINLINE>
+      </SCHEME>
+      <JAVASCRIPT>
+	<JAVASCRIPTINLINE>try_me</JAVASCRIPTINLINE>
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    expression
     discussed in section<SPACE/><REF NAME="sec:evaluation-order"/> indicates
     that the interpreter is performing lazy evaluation:
     <SNIPPET>
@@ -669,27 +713,39 @@ driver_loop(the_global_environment);
       <JAVASCRIPT_RUN>
 driver_loop(the_global_environment);
 
-// lazy-evaluate input:
+// L-evaluate input:
 // function try_me(a, b) { return a === 0 ? 1 : b; }
-// lazy-evaluate value:
+// L-evaluate value:
 // undefined
 
-// lazy-evaluate input:
+// L-evaluate input:
 // try_me(0, head(null));
-// lazy-evaluate value:
+// L-evaluate value:
 // 1
       </JAVASCRIPT_RUN>
       <JAVASCRIPT_OUTPUT>
-lazy-evaluate input:
+L-evaluate input:
+      </JAVASCRIPT_OUTPUT>
+    </SNIPPET>
+    <SNIPPET EVAL="no">
+      <JAVASCRIPT>
 function try_me(a, b) {
     return a === 0 ? 1 : b;	
 }
-lazy-evaluate value:
+      </JAVASCRIPT>
+      <JAVASCRIPT_OUTPUT>
+L-evaluate value:
 undefined
 
-lazy-evaluate input:
-try_me(0, head(null));
-lazy-evaluate value:
+L-evaluate input:
+      </JAVASCRIPT_OUTPUT>
+    </SNIPPET>
+    <SNIPPET EVAL="no">
+      <JAVASCRIPT>
+      try_me(0, head(null));
+      </JAVASCRIPT>
+      <JAVASCRIPT_OUTPUT>
+L-evaluate value:
 1
       </JAVASCRIPT_OUTPUT>
     </SNIPPET>
@@ -743,8 +799,8 @@ lazy-evaluate value:
       <JAVASCRIPT>
 function force_it(obj) {	
      return is_thunk(obj)
-            ? actual_value(thunk_exp(obj), thunk_env(obj))
-            : obj;
+         ? actual_value(thunk_exp(obj), thunk_env(obj))
+         : obj;
 }
       </JAVASCRIPT>
     </SNIPPET>
@@ -836,7 +892,16 @@ function thunk_env(thunk) {
       </JAVASCRIPT>
     </SPLITINLINE>
     (which includes the environment in which the
-    <SCHEMEINLINE>delay</SCHEMEINLINE> was evaluated) after storing its
+    <SPLITINLINE>
+      <SCHEME>
+	<SCHEMEINLINE>delay</SCHEMEINLINE>
+      </SCHEME>
+      <JAVASCRIPT>
+	lambda expression
+	that makes up the tail of the stream
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    was evaluated) after storing its
     value.</FOOTNOTE>
     <!--  \indcode*{force-it}[memoized version] -->
     <SNIPPET>
@@ -874,10 +939,8 @@ function force_it(obj) {
                            thunk_exp(obj),
                            thunk_env(obj));
         set_head(obj, "evaluated_thunk");
-        // replace exp with its value
-        set_head(tail(obj), result);
-        // forget unneeded env
-        set_tail(tail(obj), null);
+        set_head(tail(obj), result);  // replace exp with its value
+        set_tail(tail(obj), null);    // forget unneeded env
         return result;	
     } else if(is_evaluated_thunk(obj)) {
         return thunk_value(obj);
@@ -961,48 +1024,76 @@ const w = id(id(10));
     <JAVASCRIPT_RUN>
 driver_loop(the_global_environment);
 
-// lazy-evaluate input:
+// L-evaluate input:
 // let count = 0; function id(x) { count = count + 1; return x; }
-// lazy-evaluate value: 
+// L-evaluate value: 
 // undefined
 
-// lazy-evaluate input:
+// L-evaluate input:
 // const w = id(id(10));
-// lazy-evaluate value: 
+// L-evaluate value: 
 // undefined
 
-// lazy-evaluate input:
+// L-evaluate input:
 // count;
-// lazy-evaluate value:
+// L-evaluate value:
 // &lt;response&gt;
 
-// lazy-evaluate input:
+// L-evaluate input:
 // w;
-// lazy-evaluate value:
+// L-evaluate value:
 // &lt;response&gt;
 
-// lazy-evaluate input:
+// L-evaluate input:
 // count;
-// lazy-evaluate value:
+// L-evaluate value:
 // &lt;response&gt;
     </JAVASCRIPT_RUN>
     <JAVASCRIPT_OUTPUT>
-// lazy-evaluate input:
-count;
-// lazy-evaluate value:
-&lt;response&gt;
-
-// lazy-evaluate input:
-w;
-// lazy-evaluate value:
-&lt;response&gt;
-
-// lazy-evaluate input:
-count;
-// lazy-evaluate value:
-&lt;response&gt;
+L-evaluate input:
     </JAVASCRIPT_OUTPUT>
   </SNIPPET>
+  <SNIPPET EVAL="no">
+    <JAVASCRIPT>
+count;
+    </JAVASCRIPT>
+    <JAVASCRIPT_OUTPUT>
+L-evaluate value:
+    </JAVASCRIPT_OUTPUT>
+  </SNIPPET>
+  <LATEXINLINE>$\langle \textit{response} \rangle$</LATEXINLINE><BR/>
+  <SNIPPET EVAL="no">
+    <JAVASCRIPT>
+    </JAVASCRIPT>
+    <JAVASCRIPT_OUTPUT>
+L-evaluate input:
+    </JAVASCRIPT_OUTPUT>
+  </SNIPPET>
+  <SNIPPET EVAL="no">
+    <JAVASCRIPT>
+w;
+    </JAVASCRIPT>
+    <JAVASCRIPT_OUTPUT>
+L-evaluate value:
+    </JAVASCRIPT_OUTPUT>
+  </SNIPPET>
+  <LATEXINLINE>$\langle \textit{response} \rangle$</LATEXINLINE><BR/>
+  <SNIPPET EVAL="no">
+    <JAVASCRIPT>
+    </JAVASCRIPT>
+    <JAVASCRIPT_OUTPUT>
+L-evaluate input:
+    </JAVASCRIPT_OUTPUT>
+  </SNIPPET>
+  <SNIPPET EVAL="no">
+    <JAVASCRIPT>
+count;
+    </JAVASCRIPT>
+    <JAVASCRIPT_OUTPUT>
+L-evaluate value:
+    </JAVASCRIPT_OUTPUT>
+  </SNIPPET>
+  <LATEXINLINE>$\langle \textit{response} \rangle$</LATEXINLINE><BR/>
   </EXERCISE>
 
   <EXERCISE>
@@ -1074,38 +1165,55 @@ function square(x) {
       <JAVASCRIPT_RUN>
 driver_loop(the_global_environment);
 
-// lazy-evaluate input:
+// L-evaluate input:
 // let count = 0; function id(x) { count = count + 1; return x; }
-// lazy-evaluate value: 
+// L-evaluate value: 
 // undefined
 
-// lazy-evaluate input:
+// L-evaluate input:
 // function square(x) { return x * x; }
-// lazy-evaluate value: 
+// L-evaluate value: 
 // undefined
 
-// lazy-evaluate input:
+// L-evaluate input:
 // square(id(10));
-// lazy-evaluate value:
+// L-evaluate value:
 // &lt;response&gt;
 
-// lazy-evaluate input:
+// L-evaluate input:
 // count;
-// lazy-evaluate value:
+// L-evaluate value:
 // &lt;response&gt;
       </JAVASCRIPT_RUN>
       <JAVASCRIPT_OUTPUT>
-// lazy-evaluate input:
-square(id(10));
-// lazy-evaluate value:
-&lt;response&gt;
-
-// lazy-evaluate input:
-count;
-// lazy-evaluate value:
-&lt;response&gt;
+L-evaluate input:
       </JAVASCRIPT_OUTPUT>
     </SNIPPET>
+    <SNIPPET EVAL="no">
+      <JAVASCRIPT>
+square(id(10));
+      </JAVASCRIPT>
+      <JAVASCRIPT_OUTPUT>
+L-evaluate value:
+      </JAVASCRIPT_OUTPUT>
+    </SNIPPET>
+    <LATEXINLINE>$\langle \textit{response} \rangle$</LATEXINLINE><BR/>
+    <SNIPPET EVAL="no">
+      <JAVASCRIPT>
+      </JAVASCRIPT>
+      <JAVASCRIPT_OUTPUT>
+L-evaluate input:
+      </JAVASCRIPT_OUTPUT>
+    </SNIPPET>
+    <SNIPPET EVAL="no">
+      <JAVASCRIPT>
+count;
+      </JAVASCRIPT>
+      <JAVASCRIPT_OUTPUT>    
+L-evaluate value:
+      </JAVASCRIPT_OUTPUT>
+    </SNIPPET>
+    <LATEXINLINE>$\langle \textit{response} \rangle$</LATEXINLINE><BR/>    
     Give the responses both when the evaluator memoizes and when it does not.
     <LABEL NAME="ex:memoize-or-not"/>
   </EXERCISE>
@@ -1161,7 +1269,7 @@ function eval_sequence(stmts, env) {
     if (is_empty_sequence(stmts)) {
         return undefined;
     } else if (is_last_statement(stmts)) {
-            return actual_value(first_statement(stmts),env);
+            return evaluate(first_statement(stmts),env);
     } else {
         const first_stmt_value = 
             actual_value(first_statement(stmts),env);
@@ -1216,17 +1324,17 @@ function for_each(fun, items) {
 	  <JAVASCRIPT_RUN>
 driver_loop(the_global_environment);
 
-// lazy-evaluate input:
+// L-evaluate input:
 // function for_each(fun, items) { if (is_null(items)){ return undefined; } else { fun(head(items)); for_each(fun, tail(items)); } }     
-// lazy-evaluate value:
+// L-evaluate value:
 // undefined
 	    
-// lazy-evaluate input:
+// L-evaluate input:
 // for_each(x => display(x), list(57, 321, 88));
 // 57
 // 321
 // 88
-// lazy-evaluate value:
+// L-evaluate value:
 // undefined
 	  </JAVASCRIPT_RUN>
 	</SNIPPET>
@@ -1249,7 +1357,7 @@ driver_loop(the_global_environment);
 	  <JAVASCRIPT>
 	  </JAVASCRIPT>
 	  <JAVASCRIPT_OUTPUT>
-// lazy-evaluate input:
+L-evaluate input:
 	  </JAVASCRIPT_OUTPUT>
 	</SNIPPET>
 	<SNIPPET EVAL="no">
@@ -1272,7 +1380,7 @@ for_each(x => display( x),
 57
 321
 88
-// lazy-evaluate value:
+L-evaluate value:
 undefined
 	  </JAVASCRIPT_OUTPUT>
 	</SNIPPET>
@@ -1286,36 +1394,34 @@ undefined
 	  </JAVASCRIPT>
 	</SPLITINLINE>
       </LI>
-      <SPLIT>
-	<SCHEME>
-	  <LI>
-	    Cy agrees that Ben is right about the
-	    <SPLITINLINE>
-	      <SCHEME>
-		<SCHEMEINLINE>for-each</SCHEMEINLINE>
-	      </SCHEME>
-	      <JAVASCRIPT>
-		<JAVASCRIPTINLINE>for_each</JAVASCRIPTINLINE>
-	      </JAVASCRIPT>
-	    </SPLITINLINE>
-	    example, but says that that<APOS/>s not the kind of program he
-	    was thinking about when he proposed his change to
-	    <SPLITINLINE>
-	      <SCHEME>
-		<SCHEMEINLINE>eval-sequence</SCHEMEINLINE>.
-	      </SCHEME>
-	      <JAVASCRIPT>
-		<JAVASCRIPTINLINE>eval_sequence</JAVASCRIPTINLINE>.
-	      </JAVASCRIPT>
-	    </SPLITINLINE>
-	    He defines the following two
-	    <SPLITINLINE><SCHEME>procedures</SCHEME>
-	    <JAVASCRIPT>functions</JAVASCRIPT></SPLITINLINE>
-	    in the lazy evaluator:
-	    <SNIPPET>
-	      <NAME>exercise_4_30_c</NAME>
-	      <REQUIRES>driver_loop_lazy</REQUIRES>
-              <SCHEME>
+      <LI>
+	Cy agrees that Ben is right about the
+	<SPLITINLINE>
+	  <SCHEME>
+	    <SCHEMEINLINE>for-each</SCHEMEINLINE>
+	  </SCHEME>
+	  <JAVASCRIPT>
+	    <JAVASCRIPTINLINE>for_each</JAVASCRIPTINLINE>
+	  </JAVASCRIPT>
+	</SPLITINLINE>
+	example, but says that that<APOS/>s not the kind of program he
+	was thinking about when he proposed his change to
+	<SPLITINLINE>
+	  <SCHEME>
+	    <SCHEMEINLINE>eval-sequence</SCHEMEINLINE>.
+	  </SCHEME>
+	  <JAVASCRIPT>
+	    <JAVASCRIPTINLINE>eval_sequence</JAVASCRIPTINLINE>.
+	  </JAVASCRIPT>
+	</SPLITINLINE>
+	He defines the following two
+	<SPLITINLINE><SCHEME>procedures</SCHEME>
+	<JAVASCRIPT>functions</JAVASCRIPT></SPLITINLINE>
+	in the lazy evaluator:
+	<SNIPPET>
+	  <NAME>exercise_4_30_c</NAME>
+	  <REQUIRES>driver_loop_lazy</REQUIRES>
+          <SCHEME>
 (define (p1 x)
   (set! x (cons x '(2)))
   x)
@@ -1325,44 +1431,56 @@ undefined
     e
     x)
   (p (set! x (cons x '(2)))))
-              </SCHEME>
-	    </SNIPPET>
-	    What are the values of
-	    <SPLITINLINE>
-	      <SCHEME><SCHEMEINLINE>(p1 1)</SCHEMEINLINE></SCHEME>
-	      <JAVASCRIPT><JAVASCRIPTINLINE>p(1)</JAVASCRIPTINLINE></JAVASCRIPT>
-	    </SPLITINLINE>
-	    and
-	    <SPLITINLINE>
-	      <SCHEME><SCHEMEINLINE>(p2 1)</SCHEMEINLINE></SCHEME>
-	      <JAVASCRIPT><JAVASCRIPTINLINE>p2(1)</JAVASCRIPTINLINE></JAVASCRIPT>
-	    </SPLITINLINE>
-	    with the original
-	    <SPLITINLINE>
-	      <SCHEME>
-		<SCHEMEINLINE>eval-sequence</SCHEMEINLINE>?
-	      </SCHEME>
-	      <JAVASCRIPT>
-		<JAVASCRIPTINLINE>eval_sequence</JAVASCRIPTINLINE>?
-	      </JAVASCRIPT>
-	    </SPLITINLINE>
-	    What would the values be with Cy<APOS/>s proposed change to
-	    <SPLITINLINE>
-	      <SCHEME>
-		<SCHEMEINLINE>eval-sequence</SCHEMEINLINE>?
-	      </SCHEME>
-	      <JAVASCRIPT>
-		<JAVASCRIPTINLINE>eval_sequence</JAVASCRIPTINLINE>?
-	      </JAVASCRIPT>
-	    </SPLITINLINE>
-	  </LI>
-	</SCHEME>
-	<JAVASCRIPT>
-	</JAVASCRIPT>
-      </SPLIT>
+          </SCHEME>
+	  <JAVASCRIPT>
+function f1(x) {
+    x = pair(x, list(2));
+    return x;
+}
+
+function f2(x) {
+    function f(e) {
+        e;
+        return x;
+    }
+    function set_x(y) {
+        x = y;
+    }
+    return f(set_x(pair(x, list(2))));
+}    
+	  </JAVASCRIPT>
+	</SNIPPET>
+	What are the values of
+	<SPLITINLINE>
+	  <SCHEME><SCHEMEINLINE>(p1 1)</SCHEMEINLINE></SCHEME>
+	  <JAVASCRIPT><JAVASCRIPTINLINE>f1(1)</JAVASCRIPTINLINE></JAVASCRIPT>
+	</SPLITINLINE>
+	and
+	<SPLITINLINE>
+	  <SCHEME><SCHEMEINLINE>(p2 1)</SCHEMEINLINE></SCHEME>
+	  <JAVASCRIPT><JAVASCRIPTINLINE>f2(1)</JAVASCRIPTINLINE></JAVASCRIPT>
+	</SPLITINLINE>
+	with the original
+	<SPLITINLINE>
+	  <SCHEME>
+	    <SCHEMEINLINE>eval-sequence</SCHEMEINLINE>?
+	  </SCHEME>
+	  <JAVASCRIPT>
+	    <JAVASCRIPTINLINE>eval_sequence</JAVASCRIPTINLINE>?
+	  </JAVASCRIPT>
+	</SPLITINLINE>
+	What would the values be with Cy<APOS/>s proposed change to
+	<SPLITINLINE>
+	  <SCHEME>
+	    <SCHEMEINLINE>eval-sequence</SCHEMEINLINE>?
+	  </SCHEME>
+	  <JAVASCRIPT>
+	    <JAVASCRIPTINLINE>eval_sequence</JAVASCRIPTINLINE>?
+	  </JAVASCRIPT>
+	</SPLITINLINE>
+      </LI>
       <LI>
-	Cy <SPLITINLINE><SCHEME>also</SCHEME></SPLITINLINE> points out that
-	changing
+	Cy also points out that changing
 	<SPLITINLINE>
 	  <SCHEME>
 	    <SCHEMEINLINE>eval-sequence</SCHEMEINLINE>
@@ -1394,24 +1512,32 @@ undefined
       <SCHEME>Scheme</SCHEME>
       <JAVASCRIPT>JavaScript</JAVASCRIPT>
     </SPLITINLINE>
-    programs will work as before.  We can do this by extending the syntax of
+    programs will work as before.  We can do this by 
     <SPLITINLINE>
-      <SCHEME>procedure</SCHEME>
-      <JAVASCRIPT>function</JAVASCRIPT>
+      <SCHEME>extending the syntax of procedure</SCHEME>
+      <JAVASCRIPT>introducing parameter declaration as a new
+      syntactic form inside function</JAVASCRIPT>
     </SPLITINLINE>
     declarations to let the user control whether or not arguments are to be
     delayed.  While we<APOS/>re at it, we may as well also give the user the
     choice between delaying with and without memoization.  For example, the
-    definition
-    <SNIPPET EVAL="no">
+    <SPLITINLINE>
+      <SCHEME>
+	definition
+      </SCHEME>
+      <JAVASCRIPT>
+	declaration
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    <SNIPPET EVAL="no" LATEX="yes">
       <SCHEME>
 (define (f a (b lazy) c (d lazy-memo))
   ^$\ldots$^)
       </SCHEME>
       <JAVASCRIPT>
 function f(a, b, c, d) {	
-    parameters("strict", "lazy", "strict", "lazy-memo");
-    ...
+    parameters("strict", "lazy", "strict", "lazy_memo");
+    $\ldots$
 }
       </JAVASCRIPT>
   </SNIPPET>
@@ -1442,7 +1568,7 @@ function f(a, b, c, d) {
 	<SCHEMEINLINE>lazy-memo</SCHEMEINLINE>
       </SCHEME>
       <JAVASCRIPT>
-	<JAVASCRIPTINLINE>"lazy-memo"</JAVASCRIPTINLINE>
+	<JAVASCRIPTINLINE>"lazy_memo"</JAVASCRIPTINLINE>
       </JAVASCRIPT>
     </SPLITINLINE>
     declaration to each parameter of every compound
@@ -1466,9 +1592,16 @@ function f(a, b, c, d) {
 	to handle the new syntax for <SCHEMEINLINE>define</SCHEMEINLINE>.
       </SCHEME>
       <JAVASCRIPT>
-	You can assume that the special <QUOTE>function call</QUOTE>
-	<JAVASCRIPTINLINE>parameters</JAVASCRIPTINLINE> is always
+	You can assume that the 
+	<JAVASCRIPTINLINE>parameters</JAVASCRIPTINLINE> declaration
+	is always
 	the first statement in the body of a function declaration.
+	The <JAVASCRIPTINLINE>parse</JAVASCRIPTINLINE> function will
+	treat 
+	<JAVASCRIPTINLINE>parameters</JAVASCRIPTINLINE> declarations as
+	function applications, so you need to modify
+	<JAVASCRIPTINLINE>apply</JAVASCRIPTINLINE> to dispatch to your
+	implementation of the new syntactic form.
       </JAVASCRIPT>
     </SPLITINLINE>
     You must also arrange for

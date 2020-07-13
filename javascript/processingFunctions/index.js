@@ -26,9 +26,9 @@ import processSnippetHtmlScheme from "./processSnippetHtml_scheme";
 export const processList = (node, writeTo) => {
   if (!node) return;
   if (node.nodeName == "LI") {
-    writeTo.push("\\item{");
+    writeTo.push("\\item ");
     recursiveProcessTextLatex(node.firstChild, writeTo);
-    writeTo.push("}\n");
+    writeTo.push("\n");
   }
   return processList(node.nextSibling, writeTo);
 };

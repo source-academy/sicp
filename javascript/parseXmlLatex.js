@@ -180,13 +180,6 @@ const processTextFunctionsDefaultLatex = {
     recursiveProcessTextLatex(node.firstChild, writeTo);
   },
 
-  OL: (node, writeTo) => {
-    writeTo.push("\n\\begin{enumerate}");
-    writeTo.push(ancestorHasTag(node, "EXERCISE") ? "[a.]\n" : "\n");
-    processList(node.firstChild, writeTo);
-    writeTo.push("\\end{enumerate}\n");
-  },
-
   P: (node, writeTo) => processTextFunctionsLatex["TEXT"](node, writeTo),
   TEXT: (node, writeTo) => {
     writeTo.push("\n\n");
@@ -293,6 +286,13 @@ const processTextFunctionsDefaultLatex = {
     writeTo.push("}");
   },
 
+  OL: (node, writeTo) => {
+    writeTo.push("\n\\begin{enumerate}");
+    writeTo.push(ancestorHasTag(node, "EXERCISE") ? "[a.]\n" : "\n");
+    processList(node.firstChild, writeTo);
+    writeTo.push("\\end{enumerate}\n");
+  },
+    
   UL: (node, writeTo) => {
     writeTo.push("\n\\begin{itemize}\n");
     processList(node.firstChild, writeTo);
