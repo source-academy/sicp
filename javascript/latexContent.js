@@ -161,15 +161,16 @@ export const preamble = `\\documentclass[a4paper, 12pt]{book}
 \\lstnewenvironment{JavaScriptOutput}{\\lstset{style=JavaScriptOutput}}{}
 
 \\usepackage{epigraph}
-\\makeatletter
-\\newlength\\interepigraphskip
-\\setlength\\interepigraphskip{1ex}
-\\renewcommand\\epigraph[3][\\interepigraphskip]{\\vspace{\\beforeepigraphskip}
-  {\\epigraphsize\\begin{\\epigraphflush}\\begin{minipage}{\\epigraphwidth}
-    \\@epitext{#2}\\\\[#1] \\@episource{#3}
-    \\end{minipage}\\end{\\epigraphflush}
-    \\vspace{\\afterepigraphskip}}}
-\\makeatother
+\\renewcommand{\\textflush}{flushepinormal}
+% \\makeatletter
+% \\newlength\\interepigraphskip
+% \\setlength\\interepigraphskip{1ex}
+% \\renewcommand\\epigraph[3][\\interepigraphskip]{\\vspace{\\beforeepigraphskip}
+%   {\\epigraphsize\\begin{\\epigraphflush}\\begin{minipage}{\\epigraphwidth}
+%     \\@epitext{#2}\\\\[#1] \\@episource{#3}
+%     \\end{minipage}\\end{\\epigraphflush}
+%     \\vspace{\\afterepigraphskip}}}
+% \\makeatother
 \\setlength\\epigraphwidth{11cm}
 \\setlength\\epigraphrule{0pt}
 
