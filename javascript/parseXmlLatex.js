@@ -288,11 +288,13 @@ const processTextFunctionsDefaultLatex = {
 
   OL: (node, writeTo) => {
     writeTo.push("\n\\begin{enumerate}");
-    writeTo.push(ancestorHasTag(node, "EXERCISE") ? "[a.]\n" : "\n");
+    writeTo.push(
+      ancestorHasTag(node, "EXERCISE") ? "[\\alph*.]\n" : "[\\arabic*.]\n"
+    );
     processList(node.firstChild, writeTo);
     writeTo.push("\\end{enumerate}\n");
   },
-    
+
   UL: (node, writeTo) => {
     writeTo.push("\n\\begin{itemize}\n");
     processList(node.firstChild, writeTo);

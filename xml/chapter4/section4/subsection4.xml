@@ -182,8 +182,10 @@ process_query('son("Adam", x)');
 	<JAVASCRIPT>
 function first_answer(input) {
     const q = query_syntax_process(parse(input + ";"));
-    const first_frame = head(evaluate_query(q, singleton_stream(null)));
-    return pretty_query(instantiate(q, first_frame, (v, f) => v));
+    const frames = evaluate_query(q, singleton_stream(null));
+    return is_null(frames)
+        ? "no matching data"
+	: pretty_query(instantiate(q, head(frames), (v, f) => v));
 }
 	</JAVASCRIPT>
       </SNIPPET>
@@ -602,7 +604,11 @@ function conjoin(conjuncts, frame_stream) {
     </TEXT>
 
     <TEXT>
-      The expression
+      The
+      <SPLITINLINE>
+	<SCHEME>expression</SCHEME>
+	<JAVASCRIPT>statement</JAVASCRIPT>
+      </SPLITINLINE>
       <SNIPPET>
 	<NAME>put_and</NAME>
 	<REQUIRES>operation_table_from_chapter_3</REQUIRES>
@@ -626,7 +632,6 @@ put("and", "evaluate_query", conjoin);
       <SCHEMEINLINE>and</SCHEMEINLINE>
       <SPLITINLINE>
 	<SCHEME>form</SCHEME>
-	<JAVASCRIPT>expression</JAVASCRIPT>
       </SPLITINLINE>
       is encountered.
     </TEXT>
@@ -713,7 +718,13 @@ put("or", "evaluate_query", disjoin);
 
     <TEXT>
       <!-- \indcodeplus{not}{(query language)}[evaluation of]-->
-      <SCHEMEINLINE>Not</SCHEMEINLINE> is handled by the method outlined in
+      <SPLITINLINE>
+	<SCHEME>
+	  <SCHEMEINLINE>Not</SCHEMEINLINE> is
+	</SCHEME>
+	<JAVASCRIPT>
+	  Queries formed with <SCHEMEINLINE>not</SCHEMEINLINE> are
+	handled by the method outlined in
       section<SPACE/><REF NAME="sec:how-query-works"/>.  We attempt to extend
       each frame in the input stream to satisfy the query being negated, and we
       include a given frame in the output stream only if it cannot be extended.
@@ -822,43 +833,37 @@ put("javascript_value", "evaluate_query", javascript_value);
     </TEXT>
 
     <TEXT>
-      <SPLITINLINE>
-	<SCHEME><SCHEMEINLINE>Execute</SCHEMEINLINE>,</SCHEME>
-	<JAVASCRIPT>The function <JAVASCRIPTINLINE>execute</JAVASCRIPTINLINE>,
-	</JAVASCRIPT>
-      </SPLITINLINE>
-      which applies the predicate to the arguments, must
-      <SPLITINLINE>
-	<SCHEME><SCHEMEINLINE>eval</SCHEMEINLINE></SCHEME>
-	<JAVASCRIPT><JAVASCRIPTINLINE>evaluate</JAVASCRIPTINLINE></JAVASCRIPT>
-      </SPLITINLINE>
-      the predicate expression to get the
-      <SPLITINLINE>
-	<SCHEME>procedure</SCHEME>
-	<JAVASCRIPT>function</JAVASCRIPT>
-      </SPLITINLINE>
-      to apply. However, it must not evaluate the arguments, since they are
-      already the actual arguments, not expressions whose evaluation 
-      <SPLITINLINE>
-	<SCHEME>(in Lisp)</SCHEME>
-	<JAVASCRIPT>(in JavaScript)</JAVASCRIPT>
-      </SPLITINLINE>
-      will produce the arguments.  Note that
-      <SCHEMEINLINE>execute</SCHEMEINLINE> is implemented using
-      <!-- \indprim{eval}[used in query interpreter]-->
-      <SPLITINLINE>
-	<SCHEME><SCHEMEINLINE>eval</SCHEMEINLINE></SCHEME>
-	<JAVASCRIPT><JAVASCRIPTINLINE>evaluate</JAVASCRIPTINLINE></JAVASCRIPT>
-      </SPLITINLINE>
-      <SPLITINLINE>
+      <SPLIT>
 	<SCHEME>
+	  <SCHEMEINLINE>Execute</SCHEMEINLINE>,
+	  which applies the predicate to the arguments, must
+	  <SCHEMEINLINE>eval</SCHEMEINLINE>
+	  the predicate expression to get the procedure
+	  to apply. However, it must not evaluate the arguments, since they are
+	  already the actual arguments, not expressions whose evaluation
+	  (in Lisp) will produce the arguments.
+	  Note that
+	  <SCHEMEINLINE>execute</SCHEMEINLINE> is implemented using
+	  <!-- \indprim{eval}[used in query interpreter]-->
+	  <SCHEMEINLINE>eval</SCHEMEINLINE>
 	  and <SCHEMEINLINE>apply</SCHEMEINLINE> from the
-	underlying Lisp system.
+	  underlying Lisp system.
 	</SCHEME>
 	<JAVASCRIPT>
-	  from section<SPACE/><REF NAME="sec:mc-eval"/>.
+	  The function <JAVASCRIPTINLINE>execute</JAVASCRIPTINLINE>
+	  uses <JAVASCRIPTINLINE>evaluate</JAVASCRIPTINLINE>
+	  from section<SPACE/><REF NAME="sec:mc-eval"/> and thus
+	  can apply primitive functions to constants and instantiated
+	  variables.
 	</JAVASCRIPT>
-      </SPLITINLINE>
+      </SPLIT>
+      <COMMENT>
+	The original is more restrictive here. We think that allowing
+	primitive functions to be applied is at the same simpler and
+	more powerful. (We could do away with the syntax functions
+	<SCHEMEINLINE>predicate</SCHEMEINLINE> and
+	<SCHEMEINLINE>args</SCHEMEINLINE>.)
+      </COMMENT>
       <SNIPPET>
 	<NAME>execute</NAME>
 	<REQUIRES>functions_4_1_1</REQUIRES>
@@ -874,8 +879,7 @@ put("javascript_value", "evaluate_query", javascript_value);
 	</SCHEME>
 	<JAVASCRIPT>
 function execute(exp) {
-    return evaluate(predicate(exp), 
-                    the_global_environment);
+    return evaluate(exp, the_global_environment);
 }
 	</JAVASCRIPT>
       </SNIPPET>
@@ -2876,12 +2880,6 @@ function rest_disjuncts(exps) {
 function negated_query(exps) {
     return head(exps);
 }
-function predicate(exps) {
-    return head(exps);
-}
-function argmnts(exps) {
-    return tail(exps);
-}
 	</JAVASCRIPT>
       </SNIPPET>
       <COMMENT>
@@ -3048,7 +3046,7 @@ function query_syntax_process(exp) {
         ? processed_args
         : function_symbol === "javascript_value"
         ? pair(function_symbol,
-               list(javascript_value_process(head(args(exp)))))
+               javascript_value_process(head(args(exp))))
         : pair(function_symbol, processed_args);
     } else if (is_name(exp)) {
       return list("?", symbol_of_name(exp));
