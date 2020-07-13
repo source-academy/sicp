@@ -70,7 +70,6 @@ const preserveTagsDefault = new Set([
   "SC",
   "UL",
   "LI",
-  "OL",
   "SECTIONCONTENT",
   "CITATION",
   "TT",
@@ -447,6 +446,13 @@ const processTextFunctionsSplit = {
     writeTo.push("<span class='comment'>");
     recursiveProcessTextHtml(node.firstChild, writeTo);
     writeTo.push("</span>");
+  },
+
+  OL: (node, writeTo) => {
+    writeTo.push(`<OL type="`);
+    writeTo.push(ancestorHasTag(node, "EXERCISE") ? `a">` : `1">`);
+    recursiveProcessTextHtml(node.firstChild, writeTo);
+    writeTo.push("</OL>");
   },
 
   SCHEME: (node, writeTo) => {
