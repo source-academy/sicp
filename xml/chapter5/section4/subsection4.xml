@@ -105,7 +105,7 @@ function get_global_environment() {
 "read_eval_print_loop",
     perform(op("initialize_stack")),
     perform(op("prompt_for_input"), const("/// EC_Eval input:")),
-    assign("exp", op("read")),
+    assign("stmt", op("read")),
     assign("env", op("get_global_environment")),
     assign("continue", label("print_result")),
     go_to(label("eval_dispatch")),
@@ -208,7 +208,7 @@ function get_global_environment() {
       </SCHEME>
       <JAVASCRIPT>
 function eceval() {
-    return make_machine(list("exp", "env", "val", "fun", "argl", "continue", "unev", "temp"), // FIXME: remove temp?
+    return make_machine(list("stmt", "env", "val", "fun", "argl", "continue", "unev", "temp"), // FIXME: remove temp?
                         eceval_operations,
                         list(read_eval_print_loop,
                              ... /* entire machine controller as given above */ 
@@ -251,6 +251,7 @@ const eceval_operations =
   <TEXT>
     Finally, we can initialize the global environment and run the evaluator:
     <SNIPPET>
+      
       <SCHEME>
       (define the-global-environment (setup-environment))
 
@@ -392,7 +393,7 @@ function is_true(x) {
 // function definitions are tagged with "function_definition"
 // have a list of "parameters" and a "body" statement
 
-function is_function_definition(stmt) {
+function is_lambda_expression(stmt) {
     return is_tagged_list(stmt, "function_definition");
 }
 function function_definition_parameters(stmt) {
@@ -1449,7 +1450,7 @@ const eceval_operations = list(
         nary_function(variable_declaration_value)
     ),
     list("declare_value", nary_function(set_name_value)),
-    list("is_function_definition", nary_function(is_function_definition)),
+    list("is_lambda_expression", nary_function(is_lambda_expression)),
     list(
         "function_definition_parameters",
         nary_function(function_definition_parameters)
@@ -1562,7 +1563,7 @@ const eceval_operations = list(
 function eceval() {
     return make_machine(
         list(
-            "exp",
+            "stmt",
             "env",
             "val",
             "continue",
@@ -1586,54 +1587,54 @@ function eceval() {
             // a current environment
             // See the source code at bottom of file for refrence
             "eval_dispatch",
-            test(op("is_self_evaluating"), reg("exp")), 
+            test(op("is_self_evaluating"), reg("stmt")), 
             branch(label("ev_self_eval")),
-            test(op("is_name"), reg("exp")),
+            test(op("is_name"), reg("stmt")),
             branch(label("ev_name")),
 
             // for simplicity, treat let/const the same
-            test(op("is_variable_declaration"), reg("exp")),
+            test(op("is_variable_declaration"), reg("stmt")),
             branch(label("ev_variable_declaration")),
-            test(op("is_constant_declaration"), reg("exp")),
+            test(op("is_constant_declaration"), reg("stmt")),
             branch(label("ev_constant_declaration")),
-            test(op("is_assignment"), reg("exp")),
+            test(op("is_assignment"), reg("stmt")),
             branch(label("ev_assignment")),
 
-            test(op("is_conditional_expression"), reg("exp")),
+            test(op("is_conditional_expression"), reg("stmt")),
             branch(label("ev_if")),
-            test(op("is_function_definition"), reg("exp")),
+            test(op("is_lambda_expression"), reg("stmt")),
             branch(label("ev_lambda")),
-            test(op("is_sequence"), reg("exp")),
+            test(op("is_sequence"), reg("stmt")),
             branch(label("ev_seq")),
-            test(op("is_block"), reg("exp")),
+            test(op("is_block"), reg("stmt")),
             branch(label("ev_block")),
-            test(op("is_application"), reg("exp")),
+            test(op("is_application"), reg("stmt")),
             branch(label("ev_application")),
             go_to(label("unknown_expression_type")),
 
             "ev_self_eval",
-            assign("val", list(reg("exp"))),
+            assign("val", list(reg("stmt"))),
             go_to(reg("continue")),
 
             "ev_name",
-            assign("val", list(op("lookup_name_value"), reg("exp"), reg("env"))),
+            assign("val", list(op("lookup_name_value"), reg("stmt"), reg("env"))),
             go_to(reg("continue")),
 
             "ev_lambda",
-            assign("unev", list(op("function_definition_parameters"), reg("exp"))),
-            assign("exp", list(op("function_definition_body"), reg("exp"))),
+            assign("unev", list(op("function_definition_parameters"), reg("stmt"))),
+            assign("stmt", list(op("function_definition_body"), reg("stmt"))),
             assign(
                 "val",
-                list(op("make_compound_function"), reg("unev"), reg("exp"), reg("env"))
+                list(op("make_compound_function"), reg("unev"), reg("stmt"), reg("env"))
             ),
             go_to(reg("continue")),
 
             "ev_application",
             save("continue"),
             save("env"),
-            assign("unev", list(op("operands"), reg("exp"))),
+            assign("unev", list(op("operands"), reg("stmt"))),
             save("unev"),
-            assign("exp", list(op("operator"), reg("exp"))),
+            assign("stmt", list(op("operator"), reg("stmt"))),
             assign("continue", label("ev_appl_did_operator")),
             go_to(label("eval_dispatch")),
 
@@ -1648,7 +1649,7 @@ function eceval() {
 
             "ev_appl_argument_loop",
             save("argl"),
-            assign("exp", list(op("first_operand"), reg("unev"))),
+            assign("stmt", list(op("first_operand"), reg("unev"))),
             test(op("is_last_operand"), reg("unev")),
             branch(label("ev_appl_last_arg")),
             save("env"),
@@ -1766,10 +1767,10 @@ function eceval() {
             // }
             "ev_seq",
             save("continue"),
-            assign("unev", list(op("sequence_statements"), reg("exp"))),
+            assign("unev", list(op("sequence_statements"), reg("stmt"))),
 
             "ev_sequence",
-            assign("exp", list(op("first_statement"), reg("unev"))),
+            assign("stmt", list(op("first_statement"), reg("unev"))),
             test(op("is_last_statement"), reg("unev")),
             branch(label("ev_sequence_last_exp")),
             save("unev"),
@@ -1800,8 +1801,8 @@ function eceval() {
             // }
             "ev_block",
             save("continue"),
-            assign("exp", list(op("block_body"), reg("exp"))),
-            assign("val", list(op("local_names"), reg("exp"))),
+            assign("stmt", list(op("block_body"), reg("stmt"))),
+            assign("val", list(op("local_names"), reg("stmt"))),
             assign("temp", list(op("get_temp_block_values"), reg("val"))),
             assign(
                 "env",
@@ -1820,26 +1821,26 @@ function eceval() {
             //     : evaluate(cond_expr_alt(stmt), env);
             // }
             "ev_if",
-            save("exp"), // save expression for later
+            save("stmt"), // save expression for later
             save("env"),
             save("continue"),
             assign("continue", label("ev_if_decide")),
-            assign("exp", list(op("conditional_pred"), reg("exp"))),
+            assign("stmt", list(op("conditional_pred"), reg("stmt"))),
             go_to(label("eval_dispatch")), // evaluate the predicate
 
             "ev_if_decide",
             restore("continue"),
             restore("env"),
-            restore("exp"),
+            restore("stmt"),
             test(op("is_true"), reg("val")),
             branch(label("ev_if_consequent")),
 
             "ev_if_alternative",
-            assign("exp", list(op("conditional_alt"), reg("exp"))),
+            assign("stmt", list(op("conditional_alt"), reg("stmt"))),
             go_to(label("eval_dispatch")),
 
             "ev_if_consequent",
-            assign("exp", list(op("conditional_cons"), reg("exp"))),
+            assign("stmt", list(op("conditional_cons"), reg("stmt"))),
             go_to(label("eval_dispatch")),
 
             // function eval_assignment(stmt, env) {
@@ -1848,9 +1849,9 @@ function eceval() {
             //   return value;
             // }
             "ev_assignment",
-            assign("unev", list(op("assignment_name"), reg("exp"))),
+            assign("unev", list(op("assignment_name"), reg("stmt"))),
             save("unev"), // save variable for later
-            assign("exp", list(op("assignment_value"), reg("exp"))),
+            assign("stmt", list(op("assignment_value"), reg("stmt"))),
             save("env"),
             save("continue"),
             assign("continue", label("ev_assignment_1")),
@@ -1879,9 +1880,9 @@ function eceval() {
             //   );
             // }
             "ev_variable_declaration",
-            assign("unev", list(op("variable_declaration_name"), reg("exp"))),
+            assign("unev", list(op("variable_declaration_name"), reg("stmt"))),
             save("unev"), // save variable for later
-            assign("exp", list(op("variable_declaration_value"), reg("exp"))),
+            assign("stmt", list(op("variable_declaration_value"), reg("stmt"))),
             save("env"),
             save("continue"),
             assign("continue", label("ev_variable_declaration_1")),
@@ -1896,9 +1897,9 @@ function eceval() {
             go_to(reg("continue")),
 
             "ev_constant_declaration",
-            assign("unev", list(op("constant_declaration_name"), reg("exp"))),
+            assign("unev", list(op("constant_declaration_name"), reg("stmt"))),
             save("unev"), // save constant for later
-            assign("exp", list(op("constant_declaration_value"), reg("exp"))),
+            assign("stmt", list(op("constant_declaration_value"), reg("stmt"))),
             save("env"),
             save("continue"),
             assign("continue", label("ev_constant_declaration_1")),
@@ -1948,7 +1949,7 @@ const m = eceval();
 /// FIXME: Handle differently
 function prompt_for_input(p) {
     const program_block = make_block(parse("function plus(a,b) { return a + b; } plus(2,3);"));//prompt(p)));
-    set_register_contents(m, "exp", program_block);
+    set_register_contents(m, "stmt", program_block);
 }
 
 const the_global_environment = setup_environment();
