@@ -1,129 +1,227 @@
-  <SECTION WIP="no">
-    <NAME>The Explicit-Control Evaluator</NAME>
+<SECTION>
+  <NAME>The Explicit-Control Evaluator</NAME>
 
-    <SECTIONCONTENT/>
+  <SECTIONCONTENT/>
 
-    <LABEL NAME="sec:eceval"/>
-    <INDEX>explicit-control evaluator for Scheme|(</INDEX>
-    <TEXT>
-      In section<SPACE/><REF NAME="sec:designing-register-machines"/> we saw how to
-      transform simple <SPLITINLINE><SCHEME>Scheme</SCHEME><JAVASCRIPT>Source</JAVASCRIPT></SPLITINLINE> programs into descriptions of register
-      machines.  We will now perform this transformation on a more complex
-      program, the metacircular evaluator of
-      sections <REF NAME="sec:core-of-evaluator"/><ENDASH/><REF NAME="sec:running-eval"/>,
-      which shows how
-      the behavior of a <SPLITINLINE><SCHEME>Scheme</SCHEME><JAVASCRIPT>Source</JAVASCRIPT></SPLITINLINE> interpreter can be described in terms of the
-      <SPLITINLINE><SCHEME>procedures</SCHEME><JAVASCRIPT>functions</JAVASCRIPT></SPLITINLINE>
-      <SCHEMEINLINE>eval</SCHEMEINLINE> and <SCHEMEINLINE>apply</SCHEMEINLINE>.
-      The <EM>explicit-control
-  evaluator</EM> that we develop in this section shows how the underlying
-      <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>-calling and argument-passing mechanisms used in the
-      evaluation process can be described in terms of operations on
-      registers and stacks.  In addition, the explicit-control evaluator can
-      serve as an implementation of a <SPLITINLINE><SCHEME>Scheme</SCHEME><JAVASCRIPT>Source</JAVASCRIPT></SPLITINLINE> interpreter, written in a
-      language that is very similar to the native machine language of
-      conventional computers.  The evaluator can be executed by the
-      register-machine simulator of section<SPACE/><REF NAME="sec:simulator"/>.
-      Alternatively, it can be used as a starting point for building a
-      machine-language implementation of a <SPLITINLINE><SCHEME>Scheme</SCHEME><JAVASCRIPT>Source</JAVASCRIPT></SPLITINLINE> evaluator, or even a
-      <INDEX>Scheme chip</INDEX>
-      <INDEX>integrated-circuit implementation of Scheme</INDEX>
-      <INDEX>chip implementation of Scheme</INDEX>
-      special-purpose machine for evaluating <SPLITINLINE><SCHEME>Scheme</SCHEME><JAVASCRIPT>Source</JAVASCRIPT></SPLITINLINE> expressions.
-      Figure<SPACE/><REF NAME="fig:Scheme-chip"/> shows such a hardware implementation: a
-      silicon chip that acts as an evaluator for <SPLITINLINE><SCHEME>Scheme</SCHEME><JAVASCRIPT>Scheme, the language for which this book was originally written.</JAVASCRIPT></SPLITINLINE>.  The chip designers
-      started with the data-path and controller specifications for a
-      register machine similar to the evaluator described in this section
-      and used design automation programs to construct the
-      integrated-circuit layout.<FOOTNOTE>See 
-  <CITATION>Batali et al.<SPACE/>1982</CITATION> for more
-  <INDEX>Batali, John Dean</INDEX>
-  information on the chip and the method by which it was designed.</FOOTNOTE>
-    </TEXT>
-    
-    <SUBHEADING>
-      <NAME>Registers and operations</NAME>
-    </SUBHEADING>
+  <LABEL NAME="sec:eceval"/>
+  <INDEX>explicit-control evaluator for Scheme|(</INDEX>
+  <TEXT>
+    In section<SPACE/><REF NAME="sec:designing-register-machines"/> we saw how to
+    transform simple
+    <SPLITINLINE>
+      <SCHEME>Scheme</SCHEME>
+      <JAVASCRIPT>JavaScript</JAVASCRIPT>
+    </SPLITINLINE>
+    programs into descriptions of register
+    machines.  We will now perform this transformation on a more complex
+    program, the metacircular evaluator of
+    sections<SPACE/><REF NAME="sec:core-of-evaluator"/><ENDASH/><REF NAME="sec:running-eval"/>,
+    which shows how the behavior of a
+    <SPLITINLINE>
+      <SCHEME>Scheme</SCHEME>
+      <JAVASCRIPT>JavaScript</JAVASCRIPT>
+    </SPLITINLINE>
+    interpreter can be described in terms of the
+    <SPLITINLINE>
+      <SCHEME>
+	procedures
+	<SCHEMEINLINE>eval</SCHEMEINLINE>
+      </SCHEME>
+      <JAVASCRIPT>
+	functions
+	<SCHEMEINLINE>evaluate</SCHEMEINLINE>
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    and <SCHEMEINLINE>apply</SCHEMEINLINE>.
+    The <EM>explicit-control
+    evaluator</EM> that we develop in this section shows how the underlying
+    <SPLITINLINE>
+      <SCHEME>procedure-calling</SCHEME>
+      <JAVASCRIPT>function-calling</JAVASCRIPT>
+    </SPLITINLINE>
+    and argument-passing mechanisms used in the
+    evaluation process can be described in terms of operations on
+    registers and stacks.  In addition, the explicit-control evaluator can
+    serve as an implementation of a
+    <SPLITINLINE>
+      <SCHEME>Scheme</SCHEME>
+      <JAVASCRIPT>JavaScript</JAVASCRIPT>
+    </SPLITINLINE>
+    interpreter, written in a language that is very similar to the native machine
+    language of conventional computers.  The evaluator can be executed by the
+    register-machine simulator of section<SPACE/><REF NAME="sec:simulator"/>.
+    Alternatively, it can be used as a starting point for building a
+    machine-language implementation of a
+    <SPLITINLINE>
+      <SCHEME>Scheme</SCHEME>
+      <JAVASCRIPT>JavaScript</JAVASCRIPT>
+    </SPLITINLINE>
+    evaluator, or even a
+    <INDEX>Scheme chip</INDEX>
+    <INDEX>integrated-circuit implementation of Scheme</INDEX>
+    <INDEX>chip implementation of Scheme</INDEX>
+    special-purpose machine for evaluating
+    <SPLITINLINE>
+      <SCHEME>Scheme</SCHEME>
+      <JAVASCRIPT>JavaScript</JAVASCRIPT>
+    </SPLITINLINE>
+    expressions.
+    Figure<SPACE/><REF NAME="fig:Scheme-chip"/> shows such a hardware
+    implementation: a silicon chip that acts as an evaluator for
+    <SPLITINLINE>
+      <SCHEME>Scheme.</SCHEME>
+      <JAVASCRIPT>Scheme, the language for which this book was originally
+      written.</JAVASCRIPT>
+    </SPLITINLINE>
+    The chip designers started with the data-path and controller specifications
+    for a register machine similar to the evaluator described in this section
+    and used design automation programs to construct the
+    integrated-circuit layout.<FOOTNOTE>See 
+    <CITATION>Batali et al.<SPACE/>1982</CITATION> for more
+    <INDEX>Batali, John Dean</INDEX>
+    information on the chip and the method by which it was designed.</FOOTNOTE>
+  </TEXT>
+  
+  <SUBHEADING>
+    <NAME>Registers and operations</NAME>
+  </SUBHEADING>
 
-    <INDEX>explicit-control evaluator for Scheme<SUBINDEX>data paths|(</SUBINDEX></INDEX>
-    <INDEX>explicit-control evaluator for Scheme<SUBINDEX>operations</SUBINDEX></INDEX>
-    <TEXT>
-      In designing the explicit-control evaluator, we must specify the
-      operations to be used in our register machine.  We described the
-      metacircular evaluator in terms of abstract syntax, using
-      <SPLITINLINE><SCHEME>procedures</SCHEME><JAVASCRIPT>functions</JAVASCRIPT></SPLITINLINE>
-      such as <SPLITINLINE><SCHEME><SCHEMEINLINE>quoted?</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>is_self_evaluating</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> and <SPLITINLINE><SCHEME><SCHEMEINLINE>make-procedure</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>make_compound_function</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>.  In implementing the
-      register machine, we could expand these
-      <SPLITINLINE><SCHEME>procedures</SCHEME><JAVASCRIPT>functions</JAVASCRIPT></SPLITINLINE>
-      into sequences of
-      elementary list-structure memory operations, and implement these
-      operations on our register machine.  However, this would make our
-      evaluator very long, obscuring the basic structure with
-      details.  To clarify the presentation, we will include as primitive
-      operations of the register machine the syntax
-      <SPLITINLINE><SCHEME>procedures</SCHEME><JAVASCRIPT>functions</JAVASCRIPT></SPLITINLINE>
-      given in
-      section<SPACE/><REF NAME="sec:representing-expressions"/> and the
-      <SPLITINLINE><SCHEME>procedures</SCHEME><JAVASCRIPT>functions</JAVASCRIPT></SPLITINLINE>
-      for
-      representing environments and other run-time data given in
-      sections<SPACE/><REF NAME="sec:eval-data-structures"/> and<SPACE/><REF NAME="sec:running-eval"/>.
-      In order to completely specify an evaluator that could be programmed
-      in a low-level machine language or implemented in hardware, we would
-      replace these operations by more elementary operations, using the
-      list-structure implementation we described in
-      section<SPACE/><REF NAME="sec:storage-allocation"/>.
-    </TEXT>
+  <INDEX>explicit-control evaluator for Scheme
+  <SUBINDEX>data paths|(</SUBINDEX></INDEX>
+  <INDEX>explicit-control evaluator for Scheme
+  <SUBINDEX>operations</SUBINDEX></INDEX>
+  <TEXT>
+    In designing the explicit-control evaluator, we must specify the
+    operations to be used in our register machine.  We described the
+    metacircular evaluator in terms of abstract syntax, using
+    <SPLITINLINE>
+      <SCHEME>procedures</SCHEME>
+      <JAVASCRIPT>functions</JAVASCRIPT>
+    </SPLITINLINE>
+    such as
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>quoted?</SCHEMEINLINE></SCHEME>
+      <JAVASCRIPT><JAVASCRIPTINLINE>is_self_evaluating</JAVASCRIPTINLINE>
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    and
+    <SPLITINLINE><SCHEME><SCHEMEINLINE>make-procedure</SCHEMEINLINE>.</SCHEME>
+    <JAVASCRIPT>
+      <JAVASCRIPTINLINE>make_function</JAVASCRIPTINLINE>.
+    </JAVASCRIPT>
+    </SPLITINLINE>
+    In implementing the
+    register machine, we could expand these
+    <SPLITINLINE>
+      <SCHEME>procedures</SCHEME>
+      <JAVASCRIPT>functions</JAVASCRIPT>
+    </SPLITINLINE>
+    into sequences of
+    elementary list-structure memory operations, and implement these
+    operations on our register machine.  However, this would make our
+    evaluator very long, obscuring the basic structure with
+    details.  To clarify the presentation, we will include as primitive
+    operations of the register machine the syntax
+    <SPLITINLINE>
+      <SCHEME>procedures</SCHEME>
+      <JAVASCRIPT>functions</JAVASCRIPT>
+    </SPLITINLINE>
+    given in
+    section<SPACE/><REF NAME="sec:representing-expressions"/> and the
+    <SPLITINLINE>
+      <SCHEME>procedures</SCHEME>
+      <JAVASCRIPT>functions</JAVASCRIPT>
+    </SPLITINLINE>
+    for representing environments and other run-time data given in
+    sections<SPACE/><REF NAME="sec:eval-data-structures"/>
+    and<SPACE/><REF NAME="sec:running-eval"/>.
+    In order to completely specify an evaluator that could be programmed
+    in a low-level machine language or implemented in hardware, we would
+    replace these operations by more elementary operations, using the
+    list-structure implementation we described in
+    section<SPACE/><REF NAME="sec:storage-allocation"/>.
+  </TEXT>
 
-    <FIGURE>
+  <FIGURE>
     <FIGURE src="img_original/chip.jpg"/> <!-- FIXME: JS-ify imaga? -->
-      <INDEX>Scheme chip</INDEX>
-      <INDEX>integrated-circuit implementation of Scheme</INDEX>
-      <INDEX>chip implementation of Scheme</INDEX>
-      <CAPTION>A silicon-chip implementation of an evaluator for Scheme.</CAPTION>
-      <LABEL NAME="fig:Scheme-chip"/>
-    </FIGURE>
+    <INDEX>Scheme chip</INDEX>
+    <INDEX>integrated-circuit implementation of Scheme</INDEX>
+    <INDEX>chip implementation of Scheme</INDEX>
+    <CAPTION>A silicon-chip implementation of an evaluator for Scheme.</CAPTION>
+    <LABEL NAME="fig:Scheme-chip"/>
+  </FIGURE>
 
-    <TEXT>
-      <INDEX>explicit-control evaluator for Scheme<SUBINDEX>registers</SUBINDEX></INDEX>
-      <!-- \indcodeplus{exp}{register}-->
-      <!-- \indcodeplus{env}{register}-->
-      <!-- \indcodeplus{val}{register}-->
-      <!-- \indcodeplus{continue}{register}[explicit@in explicit-control evaluator]-->
-      <!-- \indcodeplus{proc}{register}-->
-      <!-- \indcodeplus{argl}{register}-->
-      <!-- \indcodeplus{unev}{register}-->
-      Our <SPLITINLINE><SCHEME>Scheme</SCHEME><JAVASCRIPT>Source</JAVASCRIPT></SPLITINLINE> evaluator register machine includes a stack and seven
-      registers: <SCHEMEINLINE>exp</SCHEMEINLINE>, <SCHEMEINLINE>env</SCHEMEINLINE>, <SCHEMEINLINE>val</SCHEMEINLINE>, <SCHEMEINLINE>continue</SCHEMEINLINE>, <SCHEMEINLINE>proc</SCHEMEINLINE>,
-      <SCHEMEINLINE>argl</SCHEMEINLINE>, and <SCHEMEINLINE>unev</SCHEMEINLINE>.  <SCHEMEINLINE>Exp</SCHEMEINLINE> is used to hold the expression
-      to be evaluated, and <SCHEMEINLINE>env</SCHEMEINLINE> contains the environment in which the
-      evaluation is to be performed.  At the end of an evaluation, <SCHEMEINLINE>val</SCHEMEINLINE>
-      contains the value obtained by evaluating the expression in the
-      designated environment.  The <SCHEMEINLINE>continue</SCHEMEINLINE> register is used to
-      implement recursion, as explained in
-      section<SPACE/><REF NAME="sec:stack-recursion"/>.  (The evaluator needs to call
-      itself recursively, since evaluating an expression requires evaluating
-      its subexpressions.)  The registers <SCHEMEINLINE>proc</SCHEMEINLINE>, <SCHEMEINLINE>argl</SCHEMEINLINE>, and <SCHEMEINLINE>unev</SCHEMEINLINE> are used in evaluating combinations.
-    </TEXT>
+  <TEXT>
+    <INDEX>explicit-control evaluator for Scheme
+    <SUBINDEX>registers</SUBINDEX></INDEX>
+    <!-- \indcodeplus{exp}{register}-->
+    <!-- \indcodeplus{env}{register}-->
+    <!-- \indcodeplus{val}{register}-->
+    <!-- \indcodeplus{continue}{register}[explicit@in explicit-control evaluator]
+    -->
+    <!-- \indcodeplus{proc}{register}-->
+    <!-- \indcodeplus{argl}{register}-->
+    <!-- \indcodeplus{unev}{register}-->
+    Our
+    <SPLITINLINE>
+      <SCHEME>Scheme</SCHEME>
+      <JAVASCRIPT>JavaScript</JAVASCRIPT>
+    </SPLITINLINE>
+    evaluator register machine includes a stack and seven
+    registers: <SCHEMEINLINE>exp</SCHEMEINLINE>,
+    <SCHEMEINLINE>env</SCHEMEINLINE>,
+    <SCHEMEINLINE>val</SCHEMEINLINE>, <SCHEMEINLINE>continue</SCHEMEINLINE>,
+    <SPLITINLINE>
+      <SCHEME>
+	<SCHEMEINLINE>proc</SCHEMEINLINE>,
+      </SCHEME>
+      <JAVASCRIPT>
+	<SCHEMEINLINE>fun</SCHEMEINLINE>,
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    <SCHEMEINLINE>argl</SCHEMEINLINE>, and <SCHEMEINLINE>unev</SCHEMEINLINE>.
+    <SCHEMEINLINE>Exp</SCHEMEINLINE> is used to hold the expression
+    to be evaluated, and <SCHEMEINLINE>env</SCHEMEINLINE> contains the
+    environment
+    in which the evaluation is to be performed.  At the end of an evaluation,
+    <SCHEMEINLINE>val</SCHEMEINLINE>
+    contains the value obtained by evaluating the expression in the
+    designated environment.  The <SCHEMEINLINE>continue</SCHEMEINLINE> register
+    is used to implement recursion, as explained in
+    section<SPACE/><REF NAME="sec:stack-recursion"/>.  (The evaluator needs to
+    call itself recursively, since evaluating an expression requires evaluating
+    its subexpressions.)  The registers
+    <SPLITINLINE>
+      <SCHEME>
+	<SCHEMEINLINE>proc</SCHEMEINLINE>,
+      </SCHEME>
+      <JAVASCRIPT>
+	<SCHEMEINLINE>fun</SCHEMEINLINE>,
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    <SCHEMEINLINE>argl</SCHEMEINLINE>, and <SCHEMEINLINE>unev</SCHEMEINLINE> are
+    used in evaluating combinations.
+  </TEXT>
 
-    <TEXT>
-      We will not provide a data-path diagram to show how the registers and
-      operations of the evaluator are connected, nor will we give the
-      complete list of machine operations.  These are implicit in the
-      evaluator<APOS/>s controller, which will be presented in detail.
-      <INDEX>explicit-control evaluator for Scheme<SUBINDEX>data paths|)</SUBINDEX></INDEX>
-    </TEXT>
+  <TEXT>
+    We will not provide a data-path diagram to show how the registers and
+    operations of the evaluator are connected, nor will we give the
+    complete list of machine operations.  These are implicit in the
+    evaluator<APOS/>s controller, which will be presented in detail.
+    <INDEX>explicit-control evaluator for Scheme
+    <SUBINDEX>data paths|)</SUBINDEX></INDEX>
+  </TEXT>
 
-    <!-- Subsection 1 : The Core of the Explicit-Control Evaluator -->
-    &subsection5.4.1;
-    
-    <!-- Subsection 2 : Sequence Evaluation and Tail Recursion -->
-    &subsection5.4.2;
+  <!-- Subsection 1 : The Core of the Explicit-Control Evaluator -->
+  &subsection5.4.1;
+  
+  <!-- Subsection 2 : Sequence Evaluation and Tail Recursion -->
+  &subsection5.4.2;
 
-    <!-- Subsection 3 : Conditionals, Assignments, and Definitions -->
-    &subsection5.4.3;
+  <!-- Subsection 3 : Conditionals, Assignments, and Definitions -->
+  &subsection5.4.3;
 
-    <!-- Subsection 4 : Running the Evaluator -->
-    &subsection5.4.4;
+  <!-- Subsection 4 : Running the Evaluator -->
+  &subsection5.4.4;
 
-  </SECTION>
+</SECTION>
