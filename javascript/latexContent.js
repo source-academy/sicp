@@ -42,6 +42,7 @@ export const preamble = `\\documentclass[a4paper, 12pt]{book}
 
 \\usepackage{adjustbox}
 \\usepackage{amsmath}
+\\usepackage{needspace}
 \\usepackage{amssymb}
 \\usepackage{cprotect}
 \\usepackage{csquotes}
@@ -92,8 +93,11 @@ export const preamble = `\\documentclass[a4paper, 12pt]{book}
 
 \\usepackage[answerdelayed]{exercise}
 \\newcounter{ExerciseDisplayNumber}[chapter]
-\\renewcommand{\\theExercise}{\\thechapter.\\arabic{ExerciseDisplayNumber}}
+\\renewcommand{\\theExercise}{~\\thechapter.\\arabic{ExerciseDisplayNumber}}
 \\addtolength{\\ExerciseSkipBefore}{1em}
+\\renewcommand{\\ExerciseHeader}{\\par\\needspace{2\\baselineskip}\\centerline{\\textbf{\\large
+             \\ExerciseName\\ExerciseHeaderNB\\ExerciseHeaderTitle
+             \\ExerciseHeaderOrigin\\medskip}}}
 
 \\usepackage{listings}
 \\expandafter\\patchcmd\\csname \\string\\lstinline\\endcsname{%

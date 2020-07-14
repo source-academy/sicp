@@ -155,30 +155,42 @@ export const processSnippetPdf = (node, writeTo) => {
       }
       const url =
         sourceAcademyURL +
-        "/playground#chap=" +
+        "/playground\\#chap=" +
         chap +
         variant +
-        "prgrm=" +
+        "&prgrm=" +
         compressed;
 
       const chunks = (codeStr + "\n").match(
-        /^((?:.*?[\r\n]+){1,6})((?:.|\n|\r)*)$/
+        /^((?:.*?[\r\n]+){1,36})((?:.|\n|\r)*)$/
       );
-      // 6 lines plus rest
-      writeTo.push(
-        "\n\\begin{lrbox}{\\lstbox}\n\\begin{JavaScriptClickable}\n"
-      );
-      writeTo.push(chunks[1]);
-      writeTo.push("\\end{JavaScriptClickable}\n\\end{lrbox}");
 
-      if (chunks[2]) {
-        writeTo.push("\n\\begin{JavaScriptClickable}\n");
-        writeTo.push("/*!\\href{" + url + "}{\\usebox\\lstbox}!*/\n");
-        writeTo.push(chunks[2]);
-        writeTo.push("\n\\end{JavaScriptClickable}");
-      } else {
-        writeTo.push("\n\n\\href{" + url + "}{\\usebox\\lstbox}");
-      }
+      const lines = codeStr.split("\n");
+      lines[0] =
+        "/*!\\makebox[0pt][l]{\\makebox[1.03\\textwidth][r]{\\href{" +
+        url +
+        "}{\\ensuremath{\\blacktriangleright}}}}!*/ " +
+        lines[0];
+
+      writeTo.push("\\begin{JavaScriptClickable}\n");
+      writeTo.push(lines.join("\n"));
+      writeTo.push("\\end{JavaScriptClickable}\n");
+
+      // // 6 lines plus rest
+      // writeTo.push(
+      //   "\n\\begin{lrbox}{\\lstbox}\n\\begin{JavaScriptClickable}\n"
+      // );
+      // writeTo.push(chunks[1]);
+      // writeTo.push("\\end{JavaScriptClickable}\n\\end{lrbox}");
+
+      // if (chunks[2]) {
+      //   writeTo.push("\n\\begin{JavaScriptClickable}\n");
+      //   writeTo.push("/*!\\href{" + url + "}{\\usebox\\lstbox}!*/\n");
+      //   writeTo.push(chunks[2]);
+      //   writeTo.push("\n\\end{JavaScriptClickable}");
+      // } else {
+      //   writeTo.push("\n\n\\href{" + url + "}{\\usebox\\lstbox}");
+      // }
     }
   }
 
