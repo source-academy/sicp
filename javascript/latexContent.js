@@ -2,6 +2,7 @@ import { adapters, adapters_with, authors, authors_with } from "constants";
 
 const title = `\\begin{titlepage}
   \\centering
+\\textbf{Generated: \\DTMnow}\\\\[1em]
   \\includegraphics[width=0.6\\textwidth]{./sicp.png}\\par
   {\\LARGE\\bfseries Structure and Interpretation of Computer\\\\
   Programs — JavaScript Adaptation\\par}
@@ -17,15 +18,16 @@ const title = `\\begin{titlepage}
   \\end{flushright}
 
   \\vspace{0.2cm}
-  {This work is licensed under a \\href{https://creativecommons.org/licenses/by-nc-sa/4.0/}{Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International License}.}
+  {\\small This work is licensed under a \\href{https://creativecommons.org/licenses/by-nc-sa/4.0/}{Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International License}.}
 
   \\vspace{0.1cm}
-{All JavaScript programs in this work are licensed under the \\href{https://www.gnu.org/licenses/gpl-3.0.en.html}{GNU General Public License Version 3}.}
+{\\small All JavaScript programs in this work are licensed under the \\href{https://www.gnu.org/licenses/gpl-3.0.en.html}{GNU General Public License Version 3}.}
 
   \\vspace{0.1cm}
-  {The final version of this work will be published by The MIT Press under a \\href{https://creativecommons.org/licenses/by-nc-sa/4.0/}{Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International License}.}
+  {\\small The final version of this work will be published by The MIT Press under a \\href{https://creativecommons.org/licenses/by-nc-sa/4.0/}{Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International License}.}
 
 \\end{titlepage}
+\\pagestyle{main}
 `;
 
 export const preamble = `\\documentclass[a4paper, 12pt]{book}
@@ -56,6 +58,7 @@ export const preamble = `\\documentclass[a4paper, 12pt]{book}
 \\usepackage{subcaption}
 \\usepackage{underscore}
 \\usepackage{parskip}
+\\usepackage{datetime2}
 
 \\usepackage{setspace}
 \\onehalfspacing
@@ -71,21 +74,21 @@ export const preamble = `\\documentclass[a4paper, 12pt]{book}
   \\sethead{\\chaptertitle}
     {} 
     {\\thechapter}
-  \\setfoot{}{\\thepage}{}
+  \\setfoot{}{\\thepage}{\\footnotesize Generated \\DTMnow}
 }
 \\newpagestyle{section}{
   \\setheadrule{0pt}
   \\sethead{\\chaptertitle}
     {} 
     {\\thesection}
-  \\setfoot{}{\\thepage}{}
+  \\setfoot{}{\\thepage}{\\footnotesize Generated \\DTMnow}
 }
 \\newpagestyle{subsection}{
   \\setheadrule{0pt}
   \\sethead{\\chaptertitle}
     {} 
     {\\thesubsection}
-  \\setfoot{}{\\thepage}{}
+  \\setfoot{}{\\thepage}{\\footnotesize Generated \\DTMnow}
 }
 
 \\usepackage{graphicx}
