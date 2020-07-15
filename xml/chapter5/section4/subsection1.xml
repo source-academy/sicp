@@ -107,29 +107,27 @@ eval-dispatch
       <JAVASCRIPT>
       <!--  \indcode*{eval-dispatch} -->
 "eval_dispatch",
-    test(list(op("is_self_evaluating"), reg("stmt"))),
-    branch(label("ev_self_eval")),
-    test(list(op("is_name"), reg("stmt"))),
-    branch(label("ev_name")),
-    
-    test(list(op("is_variable_declaration"), reg("stmt"))),
-    branch(label("ev_variable_declaration")),
-    test(list(op("is_constant_declaration"), reg("stmt"))),
-    branch(label("ev_constant_declaration")),
-    test(list(op("is_assignment"), reg("stmt"))),
-    branch(label("ev_assignment")),
-    
-    test(list(op("is_conditional_expression"), reg("stmt"))),
-    branch(label("ev_if")),
-    test(list(op("is_lambda_expression"), reg("stmt"))),
-    branch(label("ev_lambda")),
-    test(list(op("is_sequence"), reg("stmt"))),
-    branch(label("ev_seq")),
-    test(list(op("is_block"), reg("stmt"))),
-    branch(label("ev_block")),
-    test(list(op("is_application"), reg("stmt"))),
-    branch(label("ev_application")),
-    go_to(label("unknown_expression_type")),
+      test(list(op("is_self_evaluating"), reg("exp"), constant(true))),
+      branch(label("ev_self_eval")),
+      test(list(op("is_name"), reg("exp"), constant(true))),
+      branch(label("ev_name")),
+      test(list(op("is_variable_declaration"), reg("exp"), constant(true))),
+      branch(label("ev_variable_declaration")),
+      test(list(op("is_constant_declaration"), reg("exp"), constant(true))),
+      branch(label("ev_constant_declaration")),
+      test(list(op("is_assignment"), reg("exp"), constant(true))),
+      branch(label("ev_assignment")),
+      test(list(op("is_conditional_expression"), reg("exp"), constant(true))),
+      branch(label("ev_if")),
+      test(list(op("is_lambda_expression"), reg("exp"), constant(true))),
+      branch(label("ev_lambda")),
+      test(list(op("is_sequence"), reg("exp"), constant(true))),
+      branch(label("ev_seq")),
+      test(list(op("is_block"), reg("exp"), constant(true))),
+      branch(label("ev_block")),
+      test(list(op("is_application"), reg("exp"), constant(true))),
+      branch(label("ev_application")),
+      go_to(label("unknown_expression_type")),
       </JAVASCRIPT>
     </SNIPPET>
   </TEXT>
@@ -178,20 +176,21 @@ ev-lambda
       </SCHEME>
       <JAVASCRIPT>
 "ev_self_eval",
-    assign("val", list(reg("stmt"))),
-    go_to(reg("continue")),
-    
+      assign("val", reg("exp")),
+      go_to(reg("continue")),
+      
 "ev_name",
-    assign("val", list(op("lookup_name_value"), reg("stmt"), reg("env"))),
-    go_to(reg("continue")),
-    
+      assign("val", list(op("lookup_symbol_value"), reg("exp"), reg("env"))),
+      go_to(reg("continue")),
+      
 "ev_lambda",
-    assign("unev", list(op("function_definition_parameters"), reg("stmt"))),
-    assign("stmt", list(op("function_definition_body"), reg("stmt"))),
-    assign("val",
-           list(op("make_compound_function"), 
-                reg("unev"), reg("stmt"), reg("env"))),
-    go_to(reg("continue")),
+      assign("unev", list(op("lambda_parameters"), reg("exp"))),
+      assign("exp", list(op("lambda_body"), reg("exp"))),
+      assign("val", list(op("make_compound_function"),
+                         reg("unev"),
+                         reg("exp"),
+                         reg("env"))),
+      go_to(reg("continue")),
       </JAVASCRIPT>
     </SNIPPET>
   </TEXT>
@@ -213,7 +212,7 @@ ev-lambda
     that they can be passed to the
     <SPLITINLINE>
       <SCHEME><SCHEMEINLINE>make-procedure</SCHEMEINLINE></SCHEME>
-      <JAVASCRIPT><JAVASCRIPTINLINE>make_function</JAVASCRIPTINLINE>
+      <JAVASCRIPT><JAVASCRIPTINLINE>make_compound_function</JAVASCRIPTINLINE>
     </JAVASCRIPT></SPLITINLINE>
     operation, along with the environment in <SCHEMEINLINE>env</SCHEMEINLINE>.
     <INDEX>explicit-control evaluator for Scheme
@@ -409,13 +408,13 @@ ev-application
       </SCHEME>
       <JAVASCRIPT>
 "ev_application",
-    save("continue"),
-    save("env"),
-    assign("unev", list(op("operands"), reg("stmt"))),
-    save("unev"),
-    assign("stmt", list(op("operator"), reg("stmt"))),
-    assign("continue", label("ev_appl_did_operator")),
-    go_to(label("eval_dispatch")),
+      save("continue"),
+      save("env"),
+      assign("unev", list(op("args"), reg("exp"))),
+      save("unev"),
+      assign("exp", list(op("function_expression"), reg("exp"))),
+      assign("continue", label("ev_appl_did_operator")),
+      go_to(label("eval_dispatch")),
       </JAVASCRIPT>
     </SNIPPET>
   </TEXT>
@@ -567,13 +566,13 @@ ev-appl-did-operator
     </SCHEME>
     <JAVASCRIPT>
 "ev_appl_did_operator",
-    restore("unev"), // the operands
-    restore("env"),
-    assign("argl", list(op("empty_arglist"))),
-    assign("fun", list(reg("val"))), // the operator
-    test(list(op("has_no_operands"), reg("unev"))),
-    branch(label("apply_dispatch")),
-    save("fun"),
+      restore("unev"), // the args
+      restore("env"),
+      assign("argl", list(op("empty_arglist"))),
+      assign("fun", reg("val")), // the function_expression
+      test(list(op("has_no_operands"), reg("unev"), constant(true))),
+      branch(label("apply_dispatch")),
+      save("fun"),
     </JAVASCRIPT>
   </SNIPPET>
   </TEXT>
@@ -623,15 +622,15 @@ ev-appl-operand-loop
 (goto (label eval-dispatch))
       </SCHEME>
       <JAVASCRIPT>
-"ev_appl_argument_loop",
-    save("argl"),
-    assign("stmt", list(op("first_operand"), reg("unev"))),
-    test(list(op("is_last_operand"), reg("unev"))),
-    branch(label("ev_appl_last_arg")),
-    save("env"),
-    save("unev"),
-    assign("continue", label("ev_appl_accumulate_arg")),
-    go_to(label("eval_dispatch")),
+"ev_appl_operand_loop",
+      save("argl"),
+      assign("exp", list(op("first_arg"), reg("unev"))),
+      test(list(op("is_last_operand"), reg("unev"), constant(true))),
+      branch(label("ev_appl_last_arg")),
+      save("env"),
+      save("unev"),
+      assign("continue", label("ev_appl_accumulate_arg")),
+      go_to(label("eval_dispatch")),
       </JAVASCRIPT>
     </SNIPPET>
   </TEXT>
@@ -653,12 +652,12 @@ ev-appl-accumulate-arg
       </SCHEME>
       <JAVASCRIPT>
 "ev_appl_accumulate_arg",
-    restore("unev"),
-    restore("env"),
-    restore("argl"),
-    assign("argl", list(op("adjoin_arg"), reg("val"), reg("argl"))),
-    assign("unev", list(op("rest_operands"), reg("unev"))),
-    go_to(label("ev_appl_argument_loop")),
+      restore("unev"),
+      restore("env"),
+      restore("argl"),
+      assign("argl", list(op("adjoin_arg"), reg("val"), reg("argl"))),
+      assign("unev", list(op("rest_args"), reg("unev"))),
+      go_to(label("ev_appl_operand_loop")),
       </JAVASCRIPT>
     </SNIPPET>
   </TEXT>
@@ -730,14 +729,14 @@ ev-appl-accum-last-arg
       </SCHEME>
       <JAVASCRIPT>
 "ev_appl_last_arg",
-    assign("continue", label("ev_appl_accum_last_arg")),
-    go_to(label("eval_dispatch")),
-    
+      assign("continue", label("ev_appl_accum_last_arg")),
+      go_to(label("eval_dispatch")),
+      
 "ev_appl_accum_last_arg",
-    restore("argl"),
-    assign("argl", list(op("adjoin_arg"), reg("val"), reg("argl"))),
-    restore("fun"),
-    go_to(label("apply_dispatch")),
+      restore("argl"),
+      assign("argl", list(op("adjoin_arg"), reg("val"), reg("argl"))),
+      restore("fun"),
+      go_to(label("apply_dispatch")),
       </JAVASCRIPT>
     </SNIPPET>
   </TEXT>
@@ -897,11 +896,11 @@ apply-dispatch
       </SCHEME>
       <JAVASCRIPT>
 "apply_dispatch",
-    test(list(op("is_primitive_function"), reg("fun"))),
-    branch(label("primitive_apply")),
-    test(list(op("is_compound_function"), reg("fun"))),
-    branch(label("compound_apply")),
-    go_to(label("unknown_function_type")),
+      test(list(op("is_primitive_function"), reg("fun"), constant(true))),
+      branch(label("primitive_apply")),
+      test(list(op("is_compound_function"), reg("fun"), constant(true))),
+      branch(label("compound_apply")),
+      go_to(label("unknown_procedure_type")),
       </JAVASCRIPT>
     </SNIPPET>
   </TEXT>
@@ -966,12 +965,11 @@ primitive-apply
       </SCHEME>
       <JAVASCRIPT>
 "primitive_apply",
-    assign(
-    "val",
-    list(op("apply_primitive_function"), reg("fun"), reg("argl"))
-    ),
-    restore("continue"),
-    go_to(reg("continue")),
+      assign("val", list(op("apply_primitive_function"), 
+                         reg("fun"), 
+                         reg("argl"))),
+      restore("continue"),
+      go_to(reg("continue")),
       </JAVASCRIPT>
     </SNIPPET>
   </TEXT>
@@ -1025,25 +1023,14 @@ compound-apply
       </SCHEME>
       <JAVASCRIPT>
 "compound_apply",
-    assign("unev", list(op("function_parameters"), reg("fun"))), // params
-    // FIXME: A QUICK HACK HERE, UNSURE WHY IT'S NEEDED
-    assign("unev", list(op("all_names_of_names"), reg("unev"))), // params destructured
-    
-    assign("temp", list(op("function_body"), reg("fun"))), // body
-    assign("temp", list(op("local_names"), reg("unev"))), // locals
-    
-    assign("unev", list(op("insert_all"), reg("unev"), reg("temp"))), //names
-    assign("temp", list(op("get_temp_block_values"), reg("temp"))), // temp_values
-    
-    assign("temp", list(op("append"), reg("argl"), reg("temp"))), // values
-    assign("env", list(op("function_environment"), reg("fun"))),
-    
-    assign(
-    "env",
-    list(op("extend_environment"), reg("unev"), reg("temp"), reg("env"))
-    ),
-    assign("unev", list(op("function_body"), reg("fun"))),
-    go_to(label("ev_sequence")),
+      assign("unev", list(op("function_parameters"), reg("fun"))), // params
+      assign("env", list(op("function_environment"), reg("fun"))),
+      assign("env", list(op("extend_environment"), 
+                    reg("unev"), 
+                    reg("argl"), 
+                    reg("env"))),
+      assign("unev", list(op("function_body"), reg("fun"))),
+      go_to(label("ev_sequence")),
       </JAVASCRIPT>
     </SNIPPET>
   </TEXT>

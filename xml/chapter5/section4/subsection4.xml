@@ -102,16 +102,17 @@ function get_global_environment() {
       </SCHEME>
       <JAVASCRIPT>
 "read_eval_print_loop",
-    perform(op("initialize_stack")),
-    perform(op("prompt_for_input"), const("/// EC_Eval input:")),
-    assign("stmt", op("read")),
-    assign("env", op("get_global_environment")),
-    assign("continue", label("print_result")),
-    go_to(label("eval_dispatch")),
+      assign("exp", list(op("prompt_for_input"), 
+                         constant("/// EC_Eval input:"))),
+      assign("env", list(op("get_global_environment"))),
+      assign("continue", label("print_result")),
+      go_to(label("eval_dispatch")),
+
 "print_result",
-    perform(op("user_print"), 
-            constant("EC-evaluate result:"), reg("val")),
-    go_to(label("read_eval_print_loop")),
+      perform(list(op("user_print"), 
+                   constant("EC_Eval value:"), 
+                   reg("val"))),
+      go_to(label("read_eval_print_loop")), 
       </JAVASCRIPT>
     </SNIPPET>
   </TEXT>
@@ -160,17 +161,18 @@ function get_global_environment() {
       </SCHEME>
       <JAVASCRIPT>
 "unknown_expression_type",
-    assign("val", list(constant("unknown_expression_type_error"))),
-    go_to(label("signal_error")),
-    
-"unknown_function_type",
-    restore("continue"), /// clean up stack (from apply_dispatch)
-    assign("val", list(constant("unknown_function_type_error"))),
-    go_to(label("signal_error")),
-    
+      assign("val", constant("unknown_expression_type_error")),
+      assign("val", reg("exp")),
+      go_to(label("signal_error")),
+      
+"unknown_procedure_type",
+      restore("continue"), 
+      assign("val", constant("unknown_procedure_type_error")),
+      go_to(label("signal_error")),
+      
 "signal_error",
-    perform(list(op("user_print"), reg("val"))),
-    go_to(label("evaluator_done")),
+      perform(list(op("user_print"), constant("EC_eval error:"), reg("val"))),
+      go_to(label("evaluator_done")),
       </JAVASCRIPT>
     </SNIPPET>
   </TEXT>
@@ -241,7 +243,7 @@ function eceval() {
       <JAVASCRIPT>
 const eceval_operations = 
     list(list("is_self_evaluating", is_self_evaluating),
-         $\langle complet$e $list$ $of$ $operation$s $for$ eceval $machine \rangle$
+         $\textit{complete list of operations for eceval machine}$
         );
       </JAVASCRIPT>
     </SNIPPET>
@@ -280,28 +282,11 @@ ok
 (a b c d e f)
       </SCHEMEOUTPUT>
       <JAVASCRIPT_RUN>
+const no_value_yet = () => null;
+
 function make_compound_function(parameters, body, env) {
   return list("compound_function", parameters, body, env);
 }
-
-function eval_function_definition(stmt, env) {
-  return make_compound_function(
-    map(symbol_of_name, lambda_parameters(stmt)),
-    lambda_body(stmt),
-    env
-  );
-}
-
-function make_primitive_function(impl) {
-  return list("primitive", impl);
-}
-
-// We use a nullary function as temporary value for names whose
-// declaration has not yet been evaluated. The purpose of the
-// function definition is purely to create a unique identity;
-// the function will never be applied and its return value
-// (null) is irrelevant.
-const no_value_yet = () => null;
 
 // The function local_names collects all names declared in the
 // body statements. For a name to be included in the list of
@@ -381,7 +366,6 @@ function vector_ref(xs, index) {
 
 function vector_set(xs, index, value) {
   xs[index] = value;
-  display(xs);
   return undefined;
 }
 
@@ -399,15 +383,10 @@ function pair_(a, b) {
   return ret;
 }
 
-function nary_function(f) {
-  // f is n-ary
-  return (arg_list) => apply_in_underlying_javascript(f, arg_list);
-}
-
 function binary_function(f) {
   // f is binary
   return (arg_list) =>
-    length(arg_list) === 2
+    is_list(arg_list) && length(arg_list) === 2
       ? apply_in_underlying_javascript(f, arg_list)
       : error(
           arg_list,
@@ -415,26 +394,7 @@ function binary_function(f) {
         );
 }
 
-/// Fixme! With this make_assign, the code works
-function make_assign(inst, machine, labels, operations, pc) {
-  const target = get_register(machine, assign_reg_name(inst));
-  const value_exp = assign_value_exp(inst);
-
-  const value_proc = is_operation_exp(value_exp)
-    ? make_operation_exp(value_exp, machine, labels, operations)
-    : is_label_exp(value_exp)
-    ? make_primitive_exp(value_exp, machine, labels)
-    : make_primitive_exp(head(value_exp), machine, labels);
-
-  function perform_make_assign() {
-    set_contents(target, value_proc());
-    advance_pc(pc);
-  }
-
-  return perform_make_assign;
-}
-
-function evaluator_machine() {
+function eceval() {
   return make_machine(
     list(
       "exp",
@@ -444,8 +404,7 @@ function evaluator_machine() {
       "proc",
       "argl",
       "unev",
-      "fun",
-      "temp"
+      "fun"
     ),
     list(
       // basic functions
@@ -466,127 +425,128 @@ function evaluator_machine() {
         binary_function((a, b) => a === b)
       ),
       // args
-      list("args", nary_function(args)),
-      list("function_expression", nary_function(function_expression)),
-      list("has_no_operands", nary_function(no_args)),
-      list("first_arg", nary_function(first_arg)),
+      list("args"                , args),
+      list("function_expression" , function_expression),
+      list("has_no_operands"     , no_args),
+      list("first_arg"           , first_arg),
       list(
         "is_last_operand",
-        nary_function((a) => is_null(tail(a)))
+        (a) => is_null(tail(a))
       ),
-      list("rest_args", nary_function(rest_args)),
+      list("rest_args", rest_args),
 
       //arg
       list(
         "empty_arglist",
-        nary_function((_) => list())
+        (_) => list()
       ),
       list(
         "adjoin_arg",
-        nary_function((val, argl) => append(argl, list(val)))
+        (val, argl) => append(argl, list(val))
       ),
 
       // exp (sequence)
-      list("first_statement", nary_function(first_statement)),
-      list("rest_statements", nary_function(rest_statements)),
-      list("is_last_statement", nary_function(is_last_statement)),
-      list("sequence_statements", nary_function(sequence_statements)),
+      list("first_statement"     , first_statement),
+      list("rest_statements"     , rest_statements),
+      list("is_last_statement"   , is_last_statement),
+      list("sequence_statements" , sequence_statements),
 
       // eval functions from meta-circular evaluator
-      list("is_self_evaluating", nary_function(is_self_evaluating)),
-      list("is_name", nary_function(is_name)),
-      list("symbol_of_name", nary_function(symbol_of_name)),
+      list("is_self_evaluating"  , is_self_evaluating),
+      list("is_name"             , is_name),
+      list("symbol_of_name"      , symbol_of_name),
       list(
         "all_names_of_names",
-        nary_function((names) => map(symbol_of_name, names))
+        (names) => map(symbol_of_name, names)
       ),
-      list("is_assignment", nary_function(is_assignment)),
-      list("assignment_symbol", nary_function(assignment_symbol)),
-      list("assignment_value", nary_function(assignment_value)),
-      list("assign_symbol_value", nary_function(assign_symbol_value)),
-      list("is_constant_declaration", nary_function(is_constant_declaration)),
+      list("is_assignment"           , is_assignment),
+      list("assignment_symbol"       , assignment_symbol),
+      list("assignment_value"        , assignment_value),
+      list("assign_symbol_value"     , assign_symbol_value),
+      list("is_constant_declaration" , is_constant_declaration),
       list(
         "constant_declaration_symbol",
-        nary_function(constant_declaration_symbol)
+        constant_declaration_symbol
       ),
       list(
         "constant_declaration_value",
-        nary_function(constant_declaration_value)
+        constant_declaration_value
       ),
-      list("is_variable_declaration", nary_function(is_variable_declaration)),
+      list("is_variable_declaration", is_variable_declaration),
       list(
         "variable_declaration_symbol",
-        nary_function(variable_declaration_symbol)
+        variable_declaration_symbol
       ),
       list(
         "variable_declaration_value",
-        nary_function(variable_declaration_value)
+        variable_declaration_value
       ),
-      list("declare_value", nary_function(assign_symbol_value)),
-      list("is_lambda_expression", nary_function(is_lambda_expression)),
+      list("declare_value"        , assign_symbol_value),
+      list("is_lambda_expression" , is_lambda_expression),
       list(
         "lambda_parameters",
-        nary_function(lambda_parameters)
+        lambda_parameters
       ),
-      list("lambda_body", nary_function(lambda_body)),
-      list("is_return_statement", nary_function(is_return_statement)),
+      list("lambda_body"         , lambda_body),
+      list("is_return_statement" , is_return_statement),
+      list("return_expression"   , return_expression),
       list(
         "is_conditional_expression",
-        nary_function(is_conditional_expression)
+        is_conditional_expression
       ),
-      list("conditional_pred", nary_function(cond_expr_pred)),
-      list("conditional_cons", nary_function(cond_expr_cons)),
-      list("conditional_alt", nary_function(cond_expr_alt)),
+      list("conditional_pred" , cond_expr_pred),
+      list("conditional_cons" , cond_expr_cons),
+      list("conditional_alt"  , cond_expr_alt),
 
-      list("is_sequence", nary_function(is_sequence)),
-      list("make_sequence", nary_function(make_sequence)),
-      list("is_block", nary_function(is_block)),
-      list("block_body", nary_function(block_body)),
-      list("local_names", nary_function(local_names)),
+      list("is_sequence"      , is_sequence),
+      list("make_sequence"    , make_sequence),
+      list("is_block"         , is_block),
+      list("block_body"       , block_body),
+      list("local_names"      , local_names),
       list(
         "get_temp_block_values",
-        nary_function((locals) => map((x) => no_value_yet, locals))
+        (locals) => map((x) => no_value_yet, locals)
       ),
-      list("is_application", nary_function(is_application)),
-      list("is_primitive_function", nary_function(is_primitive_function)),
-      list("apply_primitive_function", nary_function(apply_primitive_function)),
-      list("is_compound_function", nary_function(is_compound_function)),
-      list("function_parameters", nary_function(function_parameters)),
-      list("function_environment", nary_function(function_environment)),
-      list("function_body", nary_function(function_body)),
-      list("insert_all", nary_function(insert_all)),
-      list("extend_environment", nary_function(extend_environment)),
-      list("make_compound_function", nary_function(make_compound_function)),
+      list("is_application"           , is_application),
+      list("is_primitive_function"    , is_primitive_function),
+      list("apply_primitive_function" , apply_primitive_function),
+      list("is_compound_function"     , is_compound_function),
+      list("function_parameters"      , function_parameters),
+      list("function_environment"     , function_environment),
+      list("function_body"            , function_body),
+      list("insert_all"               , insert_all),
+      list("extend_environment"       , extend_environment),
+      list("make_compound_function"   , make_compound_function),
 
       list(
         "lookup_symbol_value",
-        nary_function((stmt, env) => lookup_symbol_value(symbol_of_name(stmt), env))
+        (stmt, env) => lookup_symbol_value(symbol_of_name(stmt), env)
       ),
-      list("get_global_environment", nary_function(get_global_environment)),
+      list("get_global_environment", get_global_environment),
 
       // generic helpers
-      list("is_true", nary_function(is_true)),
-      list("is_null", nary_function(is_null)),
+      list("is_true", is_true),
+      list("is_null", is_null),
       list(
         "is_pair",
-        nary_function((a) => is_pair(a))
+        (a) => is_pair(a)
       ),
       list(
         "is_number",
-        nary_function((a) => is_number(a))
+        (a) => is_number(a)
       ),
       list(
         "append",
-        nary_function((xs, ys) => append(xs, ys))
+        (xs, ys) => append(xs, ys)
       ),
 
-      list("vector_ref", binary_function(vector_ref)),
-      list("vector_set", nary_function(vector_set)),
-      list("pair", nary_function(pair_)),
+      list("vector_ref", vector_ref),
+      list("vector_set", vector_set),
+      list("pair", pair_),
 
-      list("prompt_for_input", nary_function((s) => prompt_for_input(s))),
-      list("user_print", nary_function(user_print)),
-      list("display", nary_function(display))
+      list("prompt_for_input", (s) => prompt_for_input(s)),
+      list("user_print", user_print),
+      list("display", display)
     ),
     list(
       assign("continue", label("evaluator_done")),
@@ -598,9 +558,10 @@ function evaluator_machine() {
       "eval_dispatch",
       test(list(op("is_self_evaluating"), reg("exp"), constant(true))),
       branch(label("ev_self_eval")),
+
       test(list(op("is_name"), reg("exp"), constant(true))),
       branch(label("ev_name")),
-      
+
       // Treat let/const the same
       test(list(op("is_variable_declaration"), reg("exp"), constant(true))),
       branch(label("ev_variable_declaration")),
@@ -608,7 +569,10 @@ function evaluator_machine() {
       branch(label("ev_constant_declaration")),
       test(list(op("is_assignment"), reg("exp"), constant(true))),
       branch(label("ev_assignment")),
-      
+
+      test(list(op("is_return_statement"), reg("exp"), constant(true))),
+      branch(label("ev_return")),
+
       test(list(op("is_conditional_expression"), reg("exp"), constant(true))),
       branch(label("ev_if")),
       test(list(op("is_lambda_expression"), reg("exp"), constant(true))),
@@ -620,9 +584,13 @@ function evaluator_machine() {
       test(list(op("is_application"), reg("exp"), constant(true))),
       branch(label("ev_application")),
       go_to(label("unknown_expression_type")),
+
+      "ev_return",
+      assign("exp", list(op("return_expression"), reg("exp"))),
+      go_to(label("eval_dispatch")),
       
       "ev_self_eval",
-      assign("val", list(reg("exp"))),
+      assign("val", reg("exp")),
       go_to(reg("continue")),
       
       "ev_name",
@@ -651,7 +619,7 @@ function evaluator_machine() {
       restore("unev"), // the args
       restore("env"),
       assign("argl", list(op("empty_arglist"))),
-      assign("fun", list(reg("val"))), // the function_expression
+      assign("fun", reg("val")), // the function_expression
       test(list(op("has_no_operands"), reg("unev"), constant(true))),
       branch(label("apply_dispatch")),
       save("fun"),
@@ -731,23 +699,14 @@ function evaluator_machine() {
       restore("continue"),
       go_to(reg("continue")),
       
+
       "compound_apply",
       assign("unev", list(op("function_parameters"), reg("fun"))), // params
-      // A QUICK HACK HERE, UNSURE WHY IT`S NEEDED
-      assign("unev", list(op("all_names_of_names"), reg("unev"))), // params destructured
-      
-      assign("temp", list(op("function_body"), reg("fun"))), // body
-      assign("temp", list(op("local_names"), reg("unev"))), // locals
-      
-      assign("unev", list(op("insert_all"), reg("unev"), reg("temp"))), //names
-      assign("temp", list(op("get_temp_block_values"), reg("temp"))), // temp_values
-      
-      assign("temp", list(op("append"), reg("argl"), reg("temp"))), // values
       assign("env", list(op("function_environment"), reg("fun"))),
       
       assign(
       "env",
-      list(op("extend_environment"), reg("unev"), reg("temp"), reg("env"))
+      list(op("extend_environment"), reg("unev"), reg("argl"), reg("env"))
       ),
       assign("unev", list(op("function_body"), reg("fun"))),
       go_to(label("ev_sequence")),
@@ -812,11 +771,14 @@ function evaluator_machine() {
       save("continue"),
       assign("exp", list(op("block_body"), reg("exp"))),
       assign("val", list(op("local_names"), reg("exp"))),
-      assign("temp", list(op("get_temp_block_values"), reg("val"))),
-      assign(
-      "env",
-      list(op("extend_environment"), reg("val"), reg("temp"), reg("env"))
-      ),
+
+      save("exp"), // Temporarily store to exp
+      assign("exp", list(op("get_temp_block_values"), reg("val"))),
+      assign("env", list(op("extend_environment"), 
+                         reg("val"), 
+                         reg("exp"), 
+                         reg("env"))),
+      restore("exp"),
       go_to(label("eval_dispatch")),
       
       // the meta-circular evaluation of conditional expressions
@@ -873,7 +835,7 @@ function evaluator_machine() {
       perform(
       list(op("assign_symbol_value"), reg("unev"), reg("val"), reg("env"))
       ),
-      assign("val", list(constant("ok"))),
+      assign("val", constant("ok")),
       go_to(reg("continue")),
       
       // evaluation of a constant declaration evaluates
@@ -902,7 +864,7 @@ function evaluator_machine() {
       restore("env"),
       restore("unev"),
       perform(list(op("declare_value"), reg("unev"), reg("val"), reg("env"))),
-      assign("val", list(constant("ok"))),
+      assign("val", constant("ok")),
       go_to(reg("continue")),
       
       "ev_constant_declaration",
@@ -919,33 +881,31 @@ function evaluator_machine() {
       restore("env"),
       restore("unev"),
       perform(list(op("declare_value"), reg("unev"), reg("val"), reg("env"))),
-      assign("val", list(constant("ok"))),
+      assign("val", constant("ok")),
       go_to(reg("continue")),
       
       // Error handling
       "unknown_expression_type",
-      assign("val", list(constant("unknown_expression_type_error"))),
-      assign("val", list(reg("exp"))),
+      assign("val", constant("unknown_expression_type_error")),
+      assign("val", reg("exp")),
       go_to(label("signal_error")),
       
       "unknown_procedure_type",
       restore("continue"), /// clean up stack (from apply_dispatch)
-      assign("val", list(constant("unknown_procedure_type_error"))),
+      assign("val", constant("unknown_procedure_type_error")),
       go_to(label("signal_error")),
       
       "signal_error",
-      perform(list(op("user_print"), reg("val"))),
+      perform(list(op("user_print"), constant("EC_eval error:"), reg("val"))),
       go_to(label("evaluator_done")),
       
       "read_eval_print_loop",
-      // perform(list(op("initialize_stack"))), /// Removed as it is already performed 
-      perform(list(op("prompt_for_input"), constant("/// EC_Eval input:"))),
-      assign("continue", list(label("print_result"))),
+      assign("exp", list(op("prompt_for_input"), constant("/// EC_Eval input:"))),
+      assign("continue", label("print_result")),
       go_to(label("eval_dispatch")),
-      
       "print_result",
-      perform(list(op("user_print"),
-      constant("EC-evaluate value:"), reg("val"))),
+      
+      perform(list(op("user_print"), constant("EC-evaluate value:"), reg("val"))),
       //go_to(label("read_eval_print_loop")), /// Comment out to avoid infinite loop
       
       "evaluator_done"
@@ -953,17 +913,19 @@ function evaluator_machine() {
   );
 }
 
-const m = evaluator_machine();
-set_register_contents(m, "exp", "1;");
-
 function prompt_for_input(p) {
     const program_block = make_block(parse("function plus(a,b) { return a > 0 ? plus(a-1,b+1) : a + b; } plus(2,3);"));//prompt(p)));
-    set_register_contents(m, "exp", program_block);
+    const program_block2 = make_block(parse("2+3;"));//prompt(p)));
+    return program_block;
 }
+
+const m = eceval();
+set_register_contents(m, "exp", "1;");
 
 start(m);
 get_register_contents(m, "val");
-      </JAVASCRIPT_RUN>
+
+</JAVASCRIPT_RUN>
       <JAVASCRIPT>
 const the_global_environment = setup_environment();
 
