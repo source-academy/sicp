@@ -141,16 +141,16 @@ ok
       </SCHEME>
       <JAVASCRIPT>
 "apply_dispatch",
-    test(op("primitive_procedure"), reg("proc")),
+    test(op("primitive_function"), reg("fun")),
     branch(label("primitive_apply")),
-    test(op("compound_procedure"), reg("proc")),
+    test(op("compound_function"), reg("fun")),
     branch(label("compound_apply")),
-    test(op("compiled_procedure"), reg("proc")),
+    test(op("compiled_function"), reg("fun")),
     branch(label("compiled_apply")),
-    go_to(label("unknown_procedure_type")),
+    go_to(label("unknown_function_type")),
 "compiled_apply",
     restore("continue"),
-    assign("val", list(op("compiled_procedure_entry"), reg("proc"))),
+    assign("val", list(op("compiled_function_entry"), reg("fun"))),
     go_to(reg("val")),
       </JAVASCRIPT>
     </SNIPPET>
@@ -190,6 +190,7 @@ ok
     could use
     <!--  \indcode*{start-eceval} -->
     <SNIPPET>
+      <NAME>start_eceval</NAME>
       <SCHEME>
         (define (start-eceval)
         (set! the-global-environment (setup-environment))
@@ -203,6 +204,12 @@ function start_eceval() {
     return start(eceval);
 }
       </JAVASCRIPT>
+      <JAVASCRIPT_RUN>
+function start_eceval() {
+    set_register_contents(eceval, "flag", false);
+    return start(eceval);
+}
+      </JAVASCRIPT_RUN>
     </SNIPPET></FOOTNOTE>
     <SNIPPET LATEX="yes">
       <SCHEME>
@@ -261,7 +268,9 @@ $\langle\ldots\rangle$
       <SCHEME>procedure:</SCHEME>
       <JAVASCRIPT>function:</JAVASCRIPT>
       </SPLITINLINE>
-    <SNIPPET>
+      <!--  \indcode*{user-print}[modified for compiled code] -->
+      <SNIPPET>
+	<NAME>user_print_2</NAME>
       <SCHEME>
         <!--  \indcode*{user-print}[modified for compiled code] -->
         (define (user-print object)
@@ -275,16 +284,15 @@ $\langle\ldots\rangle$
               (else (display object))))
       </SCHEME>
       <JAVASCRIPT>
-<!--  \indcode*{user-print}[modified for compiled code] -->
 function user_print(object) {
-    if (compound_procedure(object)) {
+    if (is_compound_function(object)) {
         display(list(
-            "compound_procedure",
-            procedure_parameters(object),
-            procedure_body(object),
+            "compound_function",
+            function_parameters(object),
+            function_body(object),
             "&lt;compiler-env&gt;"));
-    } else if (compiled_procedure(object)) {
-        display("&lt;compiler-procedure&gt;");
+    } else if (is_compiled_function(object)) {
+        display("&lt;compiled-function&gt;");
     } else {
         display(object);
     }
@@ -303,10 +311,10 @@ function user_print(object) {
       <JAVASCRIPT>
 <!--  \indcode*{external-entry} -->
 "external_entry",
-    perform(op("initialize_stack")),
-    assign("env", op("get_global_environment")),
-    assign("continue", label("print_result")),
-    go_to(reg("val")),
+  perform(op("initialize_stack")),
+  assign("env", op("get_global_environment")),
+  assign("continue", label("print_result")),
+  go_to(reg("val")),
       </JAVASCRIPT>
     </SNIPPET>
     <INDEX>explicit-control evaluator for Scheme
@@ -362,7 +370,8 @@ function user_print(object) {
     </SPLITINLINE>
     and start the evaluator.
     <!--  \indcode*{compile-and-go} -->
-    <SNIPPET>
+    <SNIPPET EVAL="no">
+      <NAME>compile_and_go</NAME>
       <SCHEME>
       (define (compile-and-go expression)
       (let ((instructions
@@ -376,22 +385,72 @@ function user_print(object) {
       </SCHEME>
       <JAVASCRIPT>
 function compile_and_go(expression) {
-    const instructions = assemble(statements(compile(expression, "val", "return")), "eceval");
+    const instructions =
+              assemble(statements(
+                           compile(expression, "val", "return")),
+              eceval);
     the_global_environment = setup_environment();
-    set_register_contents("eceval", "val", instructions);
-    set_register_contents("eceval", "flag", true);
-    return start("eceval");
+    set_register_contents(eceval, "val", instructions);
+    set_register_contents(eceval, "flag", true);
+    return start(eceval);
 }
       </JAVASCRIPT>
+      <JAVASCRIPT_RUN>
+function compile_and_go(expression) {
+    const instructions =
+              assemble(statements(
+                           compile(expression, "val", "return")),
+              eceval);
+    set_register_contents(eceval, "val", instructions);
+    set_register_contents(eceval, "flag", true);
+    return start(eceval);
+}
+      </JAVASCRIPT_RUN>
     </SNIPPET>
   </TEXT>
 
   <TEXT>
-    <INDEX>compiler for Scheme<SUBINDEX>monitoring performance (stack use) of compiled code</SUBINDEX></INDEX>
+    <INDEX>compiler for Scheme
+    <SUBINDEX>monitoring performance (stack use) of compiled code</SUBINDEX>
+    </INDEX>
     If we have set up stack monitoring, as at the end of
     section<SPACE/><REF NAME="sec:running-evaluator"/>, we can examine the
     stack usage of compiled code:
     <SNIPPET>
+      <NAME>compile_and_go_example</NAME>
+      <REQUIRES>functions_4_1_2</REQUIRES>
+      <REQUIRES>functions_4_1_3</REQUIRES>
+      <REQUIRES>functions_4_1_4</REQUIRES>
+      <REQUIRES>make_machine</REQUIRES>
+      <REQUIRES>start</REQUIRES>
+      <REQUIRES>compile</REQUIRES>
+      <REQUIRES>make_instruction_sequence</REQUIRES>
+      <REQUIRES>empty_instruction_sequence</REQUIRES>
+      <REQUIRES>compile_linkage</REQUIRES>
+      <REQUIRES>end_with_linkage</REQUIRES>
+      <REQUIRES>compile_self_evaluating</REQUIRES>
+      <REQUIRES>compile_assignment</REQUIRES>
+      <REQUIRES>make_label</REQUIRES>
+      <REQUIRES>compile_conditional_expression</REQUIRES>
+      <REQUIRES>compile_sequence</REQUIRES>
+      <REQUIRES>make_compiled_function</REQUIRES>
+      <REQUIRES>compile_lambda</REQUIRES>
+      <REQUIRES>compile_lambda_body</REQUIRES>
+      <REQUIRES>compile_application</REQUIRES>
+      <REQUIRES>construct_arglist</REQUIRES>
+      <REQUIRES>compile_function_call</REQUIRES>
+      <REQUIRES>all_regs</REQUIRES>
+      <REQUIRES>compile_fun_appl</REQUIRES>
+      <REQUIRES>registers_needed</REQUIRES>
+      <REQUIRES>needs_register</REQUIRES>
+      <REQUIRES>append_instruction_sequences</REQUIRES>
+      <REQUIRES>list_union</REQUIRES>
+      <REQUIRES>preserving</REQUIRES>
+      <REQUIRES>tack_on_instruction_sequence</REQUIRES>
+      <REQUIRES>parallel_instruction_sequences</REQUIRES>
+      <REQUIRES>start_eceval</REQUIRES>
+      <REQUIRES>user_print_2</REQUIRES>
+      <REQUIRES>compile_and_go</REQUIRES>
       <SCHEME>
       (compile-and-go
       '(define (factorial n)
@@ -409,26 +468,43 @@ function compile_and_go(expression) {
       (total-pushes = 31 maximum-depth = 14)
       ;;; EC-Eval value:
       120
+
+      ;;; EC-Eval input:
       </SCHEMEOUTPUT>
       <JAVASCRIPT>
 compile_and_go(
     parse(
-        "function factorial(n) {
-             return n === 1 
-                 ? 1
-                 : n * factorial(n - 1);
-         }"));
-
+        "function factorial(n) {           \
+             return n === 1                \
+                 ? 1                       \
+                 : n * factorial(n - 1);   \
+                                          }"));
+      </JAVASCRIPT>
+      <JAVASCRIPT_OUTPUT>
 (total-pushes = 0 maximum-depth = 0)
-;;; EC-Eval value:
-ok
+EC-evaluate value:
+"ok"
 
-;;; EC-Eval input:
+EC-evaluate input:
+      </JAVASCRIPT_OUTPUT>
+    </SNIPPET>
+    <SNIPPET>
+      <SCHEME>
 (factorial 5)
+      </SCHEME>
+      <SCHEMEOUTPUT>
 (total-pushes = 31 maximum-depth = 14)
 ;;; EC-Eval value:
 120
+      </SCHEMEOUTPUT>
+      <JAVASCRIPT>
+factorial(5);	
       </JAVASCRIPT>
+      <JAVASCRIPT_OUTPUT>
+(total-pushes = 31 maximum-depth = 14)
+EC-evaluate value:
+120
+      </JAVASCRIPT_OUTPUT>
     </SNIPPET>
   </TEXT>
 
@@ -690,7 +766,7 @@ function fib(n) {
     as well.  This requires modifying
     <SPLITINLINE>
       <SCHEME><SCHEMEINLINE>compile-procedure-call</SCHEMEINLINE></SCHEME>
-      <JAVASCRIPT><JAVASCRIPTINLINE>compile_procedure_call</JAVASCRIPTINLINE>
+      <JAVASCRIPT><JAVASCRIPTINLINE>compile_function_call</JAVASCRIPTINLINE>
       </JAVASCRIPT>
     </SPLITINLINE>
     to handle the case of compound (interpreted)
@@ -705,7 +781,7 @@ function fib(n) {
       <SCHEME>
 	<SCHEMEINLINE>compile-proc-appl</SCHEMEINLINE>.
       </SCHEME>
-      <JAVASCRIPT><JAVASCRIPTINLINE>compile_proc_appl</JAVASCRIPTINLINE>.
+      <JAVASCRIPT><JAVASCRIPTINLINE>compile_fun_appl</JAVASCRIPTINLINE>.
       </JAVASCRIPT>
     </SPLITINLINE>
     To do the actual
@@ -734,10 +810,10 @@ function fib(n) {
       ^$\ldots$^
       </SCHEME>
       <JAVASCRIPT>
-assign("compapp", label("compound_apply")),
-branch(label("external_entry")),      <EM>; branches if <SCHEMEINLINE>flag</SCHEMEINLINE> is set</EM>
+  assign("compapp", label("compound_apply")),
+  branch(label("external_entry")),     // branches if flag is set
 "read_eval_print_loop"
-$\ldots$
+  $\ldots$
       </JAVASCRIPT>
     </SNIPPET>
     To test your code, start by defining a
@@ -781,39 +857,59 @@ $\ldots$
     </SPLITINLINE>
     primitive that can be called from within the explicit-control evaluator
     as follows:
-    <SNIPPET>
+    <SNIPPET EVAL="no">
       <SCHEMEOUTPUT>
-      ;;; EC-Eval input:
+;;; EC-Eval input:
+      </SCHEMEOUTPUT>
+      <JAVASCRIPT_OUTPUT>
+EC-evaluate input:
+     </JAVASCRIPT_OUTPUT>
+    </SNIPPET>
+    <SNIPPET EVAL="no">
+      <SCHEME>
       (compile-and-run
       '(define (factorial n)
       (if (= n 1)
             1
             (* (factorial (- n 1)) n))))
-      ;;; EC-Eval value:
-      ok
-
-      ;;; EC-Eval input:
-      (factorial 5)
-      ;;; EC-Eval value:
-      120
-      </SCHEMEOUTPUT>
-      <JAVASCRIPT>
-compile_and_run(
-    parse(
-        "function factorial(n) {
-             return n === 1 
-                 ? 1
-                 : n * factorial(n - 1);
-         }"));
-
+      </SCHEME>
+      <SCHEMEOUTPUT>
 ;;; EC-Eval value:
 ok
 
 ;;; EC-Eval input:
-(factorial 5)
-;;; EC-Eval value:
-120
+      </SCHEMEOUTPUT>
+      <JAVASCRIPT>
+compile_and_run(
+    parse(
+        "function factorial(n) {          \
+             return n === 1               \
+                 ? 1                      \
+                 : n * factorial(n - 1);  \
+         }                                "));
       </JAVASCRIPT>
+      <JAVASCRIPT_OUTPUT>
+EC-evaluate value:
+ok
+
+EC-evaluate input:
+      </JAVASCRIPT_OUTPUT>
+    </SNIPPET>
+    <SNIPPET>
+      <SCHEME>
+(factorial 5)
+      </SCHEME>
+      <SCHEMEOUTPUT>
+      ;;; EC-Eval value:
+      120
+      </SCHEMEOUTPUT>
+      <JAVASCRIPT>
+factorial(5)
+      </JAVASCRIPT>
+      <JAVASCRIPT_OUTPUT>
+EC-Eval value:
+120
+      </JAVASCRIPT_OUTPUT>
     </SNIPPET>
   </EXERCISE>
 

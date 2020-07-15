@@ -89,28 +89,29 @@
     generator</EM>:
     <!--  \indcode*{compile} -->
     <SNIPPET EVAL="no">
+      <NAME>compile</NAME>
       <SCHEME>
-      (define (compile exp target linkage)
-      (cond ((self-evaluating? exp)
-            (compile-self-evaluating exp target linkage))
-            ((quoted? exp) (compile-quoted exp target linkage))
-            ((variable? exp)
-            (compile-variable exp target linkage))
-            ((assignment? exp)
-            (compile-assignment exp target linkage))
-            ((definition? exp)
-            (compile-definition exp target linkage))
-            ((if? exp) (compile-if exp target linkage))
-            ((lambda? exp) (compile-lambda exp target linkage))
-            ((begin? exp)
-            (compile-sequence (begin-actions exp)
-            target
-            linkage))
-            ((cond? exp) (compile (cond-&gt;if exp) target linkage))
-            ((application? exp)
-            (compile-application exp target linkage))
-            (else
-            (error "Unknown expression type - - COMPILE" exp))))
+(define (compile exp target linkage)
+  (cond ((self-evaluating? exp)
+         (compile-self-evaluating exp target linkage))
+        ((quoted? exp) (compile-quoted exp target linkage))
+        ((variable? exp)
+         (compile-variable exp target linkage))
+        ((assignment? exp)
+         (compile-assignment exp target linkage))
+        ((definition? exp)
+         (compile-definition exp target linkage))
+        ((if? exp) (compile-if exp target linkage))
+        ((lambda? exp) (compile-lambda exp target linkage))
+        ((begin? exp)
+         (compile-sequence (begin-actions exp)
+                           target
+                           linkage))
+        ((cond? exp) (compile (cond-&gt;if exp) target linkage))
+                               ((application? exp)
+                                (compile-application exp target linkage))
+                               (else
+                                (error "Unknown expression type - - COMPILE" exp))))
       </SCHEME>
       <JAVASCRIPT>
 function compile(stmt, target, linkage) {
@@ -125,13 +126,15 @@ function compile(stmt, target, linkage) {
         : is_assignment(stmt)
         ? compile_assignment(stmt, target, linkage)
         : is_conditional_expression(stmt)
-        ? compile_conditional_expression(stmt), target, linkage)
+        ? compile_conditional_expression(stmt, target, linkage)
         : is_lambda_expression(stmt)
         ? compile_lambda_expression(stmt, target, linkage)
         : is_sequence(stmt)
         ? compile_sequence(sequence_statements(stmt), target, linkage)
-        : is_block(stmt)
+/*        : is_block(stmt)
         ? compile_block(stmt, target, linkage)
+        : is_return_statement(stmt)
+        ? compile_return_statement(stmt, target, linkage) */
         : is_application(stmt)
         ? compile_application(stmt, target, linkage)
         : error(stmt, "Unknown statement type -- compile");
@@ -313,7 +316,7 @@ go_to(reg("continue"));
       (append-instruction-sequences ^$seq_1$^ ^$seq_2$^)
       </SCHEME>
       <JAVASCRIPT>
-      append_instruction_sequences(list($seq_1$, $seq_2$));
+      append_instruction_sequences($seq_1$, $seq_2$)
       </JAVASCRIPT>
     </SNIPPET>
     produces the sequence
@@ -323,8 +326,8 @@ go_to(reg("continue"));
       ^$seq_2$^
       </SCHEME>
       <JAVASCRIPT>
-$\textit{seq}_1$
-$\textit{seq}_2$
+$seq_1$
+$seq_2$
       </JAVASCRIPT>
     </SNIPPET>
   </TEXT>
@@ -360,7 +363,7 @@ $\textit{seq}_2$
       (preserving (list ^$reg_1$^ ^$reg_2$^) ^$seq_1$^ ^$seq_2$^)
       </SCHEME>
       <JAVASCRIPT>
-      preserving(list($\textit{reg}_1$, $\textit{reg}_2$), $\textit{seq}_1$, $\textit{seq}_2$);
+      preserving(list($reg_1$, $reg_2$), $seq_1$, $seq_2$);
       </JAVASCRIPT>
     </SNIPPET>
     produces one of the following four sequences of instructions, depending on
@@ -483,13 +486,14 @@ $\textit{seq}_2$
     parts.  The constructor for instruction sequences is thus
     <!--  \indcode*{make-instruction-sequence} -->
     <SNIPPET EVAL="no">
+      <NAME>make_instruction_sequence</NAME>
       <SCHEME>
       (define (make-instruction-sequence needs modifies statements)
       (list needs modifies statements))
       </SCHEME>
       <JAVASCRIPT>
 function make_instruction_sequence(needs, modifies, statements) {
-    return list(needs, modifies,statements);
+    return list(needs, modifies, statements);
 }
       </JAVASCRIPT>
     </SNIPPET>
@@ -511,10 +515,12 @@ function make_instruction_sequence(needs, modifies, statements) {
       (goto (reg continue))))
       </SCHEME>
       <JAVASCRIPT>
-make_instruction_sequence(list("env", "continue"),
-                          list("val"),
-                          list(assign("val", op("lookup_variable_value"), constant("x"), reg("env")),
-                               go_to(reg("continue"))));
+make_instruction_sequence(
+    list("env", "continue"),
+    list("val"),
+    list(assign("val", list(op("lookup_variable_value"),
+                            constant("x"), reg("env"))),
+         go_to(reg("continue"))));
       </JAVASCRIPT>
     </SNIPPET>
   </TEXT>
@@ -523,6 +529,7 @@ make_instruction_sequence(list("env", "continue"),
     We sometimes need to construct an instruction sequence with no statements:
     <!--  \indcode*{empty-instruction-sequence} -->
     <SNIPPET EVAL="no">
+      <NAME>empty_instruction_sequence</NAME>
       <SCHEME>
       (define (empty-instruction-sequence)
       (make-instruction-sequence '() '() '()))
@@ -577,16 +584,15 @@ function empty_instruction_sequence() {
 
       (f (g 'x) 'y)
       </SCHEME>
-      <SCHEME>
-      /// FIXME
-      (f 'x 'y)
+      <JAVASCRIPT>
+f("x", "y")
 
-      ((f) 'x 'y)
+f()("x", "y")
 
-      (f (g 'x) y)
+f(g("x"), y)
 
-      (f (g 'x) 'y)
-      </SCHEME>
+f(g("x"), "y")
+      </JAVASCRIPT>
     </SNIPPET>
   </EXERCISE>
 

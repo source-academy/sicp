@@ -179,7 +179,7 @@ const processTextFunctionsDefaultHtml = {
   },
 
   FIGURE: (node, writeTo) => {
-    processFigureHtml(node, writeTo, chapArrIndex, snippet_count);
+    processFigureHtml(node, writeTo, chapArrIndex, snippet_count, false);
   },
 
   FOOTNOTE: (node, writeTo) => {
@@ -465,6 +465,10 @@ const processTextFunctionsSplit = {
     writeTo.push(`<span style="color:blue">`);
     recursiveProcessTextHtml(node.firstChild, writeTo);
     writeTo.push(`</span>`);
+  },
+
+  FIGURE: (node, writeTo) => {
+    processFigureHtml(node, writeTo, chapArrIndex, snippet_count, true);
   },
 
   SPLIT: (node, writeTo) => {
