@@ -285,7 +285,7 @@ ok
 const no_value_yet = () => null;
 
 function make_compound_function(parameters, body, env) {
-  return list("compound_function", parameters, body, env);
+  return list("compound_function", parameters, make_block(body), env);
 }
 
 // The function local_names collects all names declared in the
@@ -404,7 +404,8 @@ function eceval() {
       "proc",
       "argl",
       "unev",
-      "fun"
+      "fun",
+      "retval"
     ),
     list(
       // basic functions
@@ -489,6 +490,8 @@ function eceval() {
       ),
       list("lambda_body"         , lambda_body),
       list("is_return_statement" , is_return_statement),
+      list("should_return"       , v => v !== undefined &amp;&amp; v !== no_value_yet),
+      list("returned_value" , v => v !== no_value_yet),
       list("return_expression"   , return_expression),
       list(
         "is_conditional_expression",
@@ -549,6 +552,7 @@ function eceval() {
       list("display", display)
     ),
     list(
+      assign("retval", constant(no_value_yet)),
       assign("continue", label("evaluator_done")),
       assign("env", list(op("get_global_environment"))),
       "ev_begin",
@@ -556,6 +560,9 @@ function eceval() {
       go_to(label("read_eval_print_loop")),
       
       "eval_dispatch",
+        test(list(op("should_return"), reg("retval"), constant(true))),
+        branch(label("install_return_value")),
+
       test(list(op("is_self_evaluating"), reg("exp"), constant(true))),
       branch(label("ev_self_eval")),
 
@@ -585,9 +592,16 @@ function eceval() {
       branch(label("ev_application")),
       go_to(label("unknown_expression_type")),
 
-      "ev_return",
-      assign("exp", list(op("return_expression"), reg("exp"))),
-      go_to(label("eval_dispatch")),
+        "ev_return",
+          assign("exp", list(op("return_expression"), reg("exp"))),
+          save("continue"),
+          assign("continue", label("ev_return_2")),
+          go_to(label("eval_dispatch")),
+  
+        "ev_return_2",
+          assign("retval", reg("val")),
+          restore("continue"),
+          go_to(reg("continue")),
       
       "ev_self_eval",
       assign("val", reg("exp")),
@@ -690,27 +704,45 @@ function eceval() {
       test(list(op("is_compound_function"), reg("fun"), constant(true))),
       branch(label("compound_apply")),
       go_to(label("unknown_procedure_type")),
-      
+
       "primitive_apply",
-      assign(
-      "val",
-      list(op("apply_primitive_function"), reg("fun"), reg("argl"))
-      ),
+      assign("val", list(op("apply_primitive_function"), 
+                         reg("fun"), 
+                         reg("argl"))),
+      // go_to(label("return_from_apply")),
       restore("continue"),
       go_to(reg("continue")),
       
-
-      "compound_apply",
-      assign("unev", list(op("function_parameters"), reg("fun"))), // params
-      assign("env", list(op("function_environment"), reg("fun"))),
-      
-      assign(
-      "env",
-      list(op("extend_environment"), reg("unev"), reg("argl"), reg("env"))
-      ),
-      assign("unev", list(op("function_body"), reg("fun"))),
-      go_to(label("ev_sequence")),
-      
+        "compound_apply",
+          assign("unev", list(op("function_parameters"), reg("fun"))), // params
+          assign("env", list(op("function_environment"), reg("fun"))),
+          assign("env", list(op("extend_environment"), 
+                             reg("unev"), 
+                             reg("argl"), 
+                             reg("env"))),
+          assign("unev", list(op("function_body"), reg("fun"))),
+          assign("continue", label("after_apply")),
+          save("continue"),
+          assign("retval", constant(no_value_yet)),
+          go_to(label("ev_sequence")),
+    
+        "install_return_value",
+          assign("val", reg("retval")),
+          assign("retval", constant(undefined)),
+          restore("continue"),
+          go_to(reg("continue")),
+            
+        "after_apply",
+          test(list(op("returned_value"), reg("retval"), constant(true))),
+          branch(label("defined_return_value")),
+  
+          assign("val", constant(undefined)),
+  
+        "defined_return_value",
+          assign("retval", constant(undefined)),
+          restore("continue"),
+          go_to(reg("continue")),
+            
       // to evaluate a sequence, we need to evaluate
       // its statements one after the other, and return
       // the value of the last statement.
@@ -913,11 +945,37 @@ function eceval() {
   );
 }
 
+const program = "           \
+function test1() {          \
+    display('A', 1);        \
+    const result = test2(); \
+    return display(result, 3);     \
+    display('X', 7);        \
+}                           \
+function test2() {          \
+    display('B', 2);        \
+    return 'C';             \
+    display('X', 4);        \
+}                           \
+function test3() {          \
+    display('hej!');        \
+}                           \
+function test4() {          \
+    return display('hej!');        \
+}                           \
+display(test1(), 5);        \
+display(test3(), 6);        \
+display(test4(), 8);";
+
 function prompt_for_input(p) {
-    const program_block = make_block(parse("function plus(a,b) { return a > 0 ? plus(a-1,b+1) : a + b; } plus(2,3);"));//prompt(p)));
-    const program_block2 = make_block(parse("2+3;"));//prompt(p)));
-    return program_block;
+    const x = make_block(parse(program));
+    return x;
 }
+// function prompt_for_input(p) {
+//     const program_block = make_block(parse("function plus(a,b) { return a > 0 ? plus(a-1,b+1) : a + b; } plus(2,3);"));//prompt(p)));
+//     const program_block2 = make_block(parse("2+3;"));//prompt(p)));
+//     return program_block;
+// }
 
 const m = eceval();
 set_register_contents(m, "exp", "1;");
