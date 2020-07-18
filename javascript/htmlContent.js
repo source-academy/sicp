@@ -211,8 +211,16 @@ export const html_links_part2 = (writeTo, toIndexFolder, version) => {
 	           window.onload = function()
 	           { 
 	               var searchBox =  document.getElementById("gsc-i-id1");
-	               searchBox.placeholder="search web edition";
-	               searchBox.title="search web edition"; 
+	               searchBox.placeholder= ${
+                   version == "js"
+                     ? '"search web edition"'
+                     : '"search comparison edition"'
+                 };
+	               searchBox.title= ${
+                   version == "js"
+                     ? '"search web edition"'
+                     : '"search comparison edition"'
+                 };
 	           }
 	         </script>
 	         <gcse:search></gcse:search>
