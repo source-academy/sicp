@@ -198,9 +198,9 @@ export const html_links_part2 = (writeTo, toIndexFolder, version) => {
 	           (function() {
 	               var cx = ${
                    version == "js"
-                     ? "015760785273492757659:nc_tznrzlsg"
-                     : "015760785273492757659:fazfpeg5s9m"
-                 }
+                     ? '"015760785273492757659:nc_tznrzlsg"'
+                     : '"015760785273492757659:fazfpeg5s9m"'
+                 };
 	               var gcse = document.createElement("script");
 	               gcse.type = "text/javascript";
 	               gcse.async = true;
