@@ -217,12 +217,12 @@ export const html_links_part2 = (writeTo, toIndexFolder) => {
        <span class="navbar-brand-short">
          &nbsp;
          &nbsp;
-         <a href="https://sicp.comp.nus.edu.sg/source/" title="Go to the Source language(s) definition(s)" class="gray">S</a>
+         <a href="https://source-academy.github.io/source/" title="Go to the Source language(s) definition(s)" class="gray">S</a>
        </span>
        <span class="navbar-brand-long">
          &nbsp;
          &nbsp;
-         <a href="https://sicp.comp.nus.edu.sg/source/" title="Go to the Source language(s) definition(s)" class="gray">Source</a>
+         <a href="https://source-academy.github.io/source/" title="Go to the Source language(s) definition(s)" class="gray">Source</a>
        </span>
      </nav>
      
