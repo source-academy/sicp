@@ -113,7 +113,7 @@ export const html_links_part1 = `<!DOCTYPE html>
     <meta http-equiv="X-UA-Compatible" content="IE=Edge,chrome=1">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
   `;
-export const html_links_part2 = (writeTo, toIndexFolder) => {
+export const html_links_part2 = (writeTo, toIndexFolder, version) => {
   writeTo.push(`
   <meta name="csrf-param" content="authenticity_token" />
   <meta name="csrf-token" content="EMTEijVc2kiiKUH4nYH0lQG3pLPfMowQ/Stg//t6DCo0e5pWMQwamnTvIdmVZqY/MqSx2IYYE+2bpNV6UNSMwQ==" />

@@ -432,7 +432,7 @@ const beforeContent = writeTo => {
       ${displayTitle}
     </title>
     `);
-  html_links_part2(writeTo, toIndexFolder);
+  html_links_part2(writeTo, toIndexFolder, "split");
   recursiveProcessTOC(0, writeTo, "sidebar", "");
   writeTo.push("</div>\n");
   writeTo.push(beforeContentWrapper);
