@@ -252,7 +252,7 @@ export const indexHtml = writeToIndex => {
         Structure and Interpretation of Computer Programs, JavaScript Adaptation
         </title>
     `);
-  html_links_part2(writeToIndex, "");
+  html_links_part2(writeToIndex, "", "js");
 
   // TOC at the sidebar
   recursiveProcessTOC(0, writeToIndex, "sidebar", "./chapters/");

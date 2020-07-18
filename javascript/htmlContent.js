@@ -197,7 +197,7 @@ export const html_links_part2 = (writeTo, toIndexFolder, version) => {
 	         <script>
 	           (function() {
 	               var cx = ${
-                   version == "js"
+                   version == "js" || version == undefined
                      ? '"015760785273492757659:nc_tznrzlsg"'
                      : '"015760785273492757659:fazfpeg5s9m"'
                  };
@@ -212,12 +212,12 @@ export const html_links_part2 = (writeTo, toIndexFolder, version) => {
 	           { 
 	               var searchBox =  document.getElementById("gsc-i-id1");
 	               searchBox.placeholder= ${
-                   version == "js"
+                   version == "js" || version == undefined
                      ? '"search web edition"'
                      : '"search comparison edition"'
                  };
 	               searchBox.title= ${
-                   version == "js"
+                   version == "js" || version == undefined
                      ? '"search web edition"'
                      : '"search comparison edition"'
                  };
