@@ -110,6 +110,15 @@ export const html_links_part1 = `<!DOCTYPE html>
 <html lang="en">
   <head>
     <meta charset="utf-8">
+    <!-- Global site tag (gtag.js) - Google Analytics - START -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=UA-156801664-1"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'UA-156801664-1');
+    </script>
+    <!-- Global site tag (gtag.js) - Google Analytics - END -->
     <meta http-equiv="X-UA-Compatible" content="IE=Edge,chrome=1">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
   `;
