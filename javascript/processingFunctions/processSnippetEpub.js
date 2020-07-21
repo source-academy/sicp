@@ -161,9 +161,7 @@ export const processSnippetEpub = (node, writeTo) => {
       const compressed = lzString.compressToEncodedURIComponent(
         reqStr + codeStr_run + exampleStr
       );
-      const current_chap = chapterIndex.substring(0, 1);
-      const explicit_chap = node.getAttribute("CHAP");
-      const chap = explicit_chap ? explicit_chap : current_chap;
+      const chap = node.getAttribute("CHAP");
       let variant = node.getAttribute("VARIANT");
       if (variant) {
         variant = "&variant=" + variant;
