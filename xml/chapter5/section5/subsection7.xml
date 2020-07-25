@@ -312,7 +312,7 @@ function user_print(object) {
 <!--  \indcode*{external-entry} -->
 "external_entry",
   perform(op("initialize_stack")),
-  assign("env", op("get_global_environment")),
+  assign("env", list(op("get_global_environment"))),
   assign("continue", label("print_result")),
   go_to(reg("val")),
       </JAVASCRIPT>
@@ -370,8 +370,34 @@ function user_print(object) {
     </SPLITINLINE>
     and start the evaluator.
     <!--  \indcode*{compile-and-go} -->
+    <SNIPPET HIDE="yes">
+      <NAME>display_instructions</NAME>
+      <JAVASCRIPT>
+function stringify_list(xs) {
+    return is_null(member(head(xs),
+                   list("assign", "perform", "op", "label", "branch",
+                        "go_to", "save", "restore", "reg", "constant")))
+           ? "list(" + comma_separated(xs) + ")"
+           : head(xs) + "(" + comma_separated(tail(xs)) + ")";
+}
+function comma_separated(elements) {
+    return accumulate((s, acc) => stringify_instruction(s) + (acc === "" ? "" : ", " + acc),
+                      "", elements);
+}
+function stringify_instruction(x) {
+    return is_string(x) || is_number(x) || is_undefined(x) || is_null(x)
+           ? stringify(x)
+           : stringify_list(x);
+}	   
+function display_instructions(instructions) {
+    return for_each(i => {display("", stringify_instruction(i) + ","); },
+                    instructions);
+}	
+      </JAVASCRIPT>
+    </SNIPPET>
     <SNIPPET EVAL="no">
       <NAME>compile_and_go</NAME>
+      <REQUIRES>display_instructions</REQUIRES>
       <SCHEME>
       (define (compile-and-go expression)
       (let ((instructions
@@ -384,11 +410,11 @@ function user_print(object) {
       (start eceval)))
       </SCHEME>
       <JAVASCRIPT>
-function compile_and_go(expression) {
+function compile_and_go(stmt) {
     const instructions =
-              assemble(statements(
-                           compile(expression, "val", "return")),
-              eceval);
+              assemble(instructions(
+                           compile(stmt, "val", "return")),
+                       eceval);
     the_global_environment = setup_environment();
     set_register_contents(eceval, "val", instructions);
     set_register_contents(eceval, "flag", true);
@@ -396,14 +422,17 @@ function compile_and_go(expression) {
 }
       </JAVASCRIPT>
       <JAVASCRIPT_RUN>
-function compile_and_go(expression) {
+function compile_and_go(stmt) {
+    display_instructions(instructions(compile(stmt, "val", "return")));
+    /*
     const instructions =
-              assemble(statements(
-                           compile(expression, "val", "return")),
-              eceval);
+              assemble(instructions(
+                           compile(stmt, "val", "return")),
+                       eceval);
     set_register_contents(eceval, "val", instructions);
     set_register_contents(eceval, "flag", true);
     return start(eceval);
+    */
 }
       </JAVASCRIPT_RUN>
     </SNIPPET>
@@ -418,6 +447,10 @@ function compile_and_go(expression) {
     stack usage of compiled code:
     <SNIPPET>
       <NAME>compile_and_go_example</NAME>
+      <REQUIRES>headline_4_1_1</REQUIRES>
+      <REQUIRES>scan_out_declarations</REQUIRES>
+      <REQUIRES>list_of_unassigned</REQUIRES>
+      <REQUIRES>functions_4_1_2</REQUIRES>
       <REQUIRES>functions_4_1_2</REQUIRES>
       <REQUIRES>functions_4_1_3</REQUIRES>
       <REQUIRES>functions_4_1_4</REQUIRES>
@@ -436,6 +469,8 @@ function compile_and_go(expression) {
       <REQUIRES>make_compiled_function</REQUIRES>
       <REQUIRES>compile_lambda</REQUIRES>
       <REQUIRES>compile_lambda_body</REQUIRES>
+      <REQUIRES>compile_return</REQUIRES>
+      <REQUIRES>compile_block</REQUIRES>
       <REQUIRES>compile_application</REQUIRES>
       <REQUIRES>construct_arglist</REQUIRES>
       <REQUIRES>compile_function_call</REQUIRES>
@@ -448,7 +483,7 @@ function compile_and_go(expression) {
       <REQUIRES>preserving</REQUIRES>
       <REQUIRES>tack_on_instruction_sequence</REQUIRES>
       <REQUIRES>parallel_instruction_sequences</REQUIRES>
-      <REQUIRES>start_eceval</REQUIRES>
+      <!-- <REQUIRES>start_eceval</REQUIRES> -->
       <REQUIRES>user_print_2</REQUIRES>
       <REQUIRES>compile_and_go</REQUIRES>
       <SCHEME>
@@ -477,7 +512,7 @@ compile_and_go(
         "function factorial(n) {           \
              return n === 1                \
                  ? 1                       \
-                 : n * factorial(n - 1);   \
+                 : factorial(n - 1) * n;   \
                                           }"));
       </JAVASCRIPT>
       <JAVASCRIPT_OUTPUT>

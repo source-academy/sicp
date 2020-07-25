@@ -1,6 +1,10 @@
 <SUBSECTION>
   <NAME>
-    Compiling Expressions
+    Compiling
+    <SPLITINLINE>
+      <JAVASCRIPT>Statements and</JAVASCRIPT>
+    </SPLITINLINE>
+    Expressions
   </NAME>
 
   <TEXT>
@@ -48,7 +52,18 @@
       </JAVASCRIPT>
     </SPLITINLINE>
     This needs the <LATEXINLINE>$\texttt{continue}$</LATEXINLINE> register and does not
-    modify any registers. If the linkage is
+    modify any registers.
+    <SPLIT>
+      <JAVASCRIPT>
+	If the linkage is <JAVASCRIPTINLINE>"return_undefined"</JAVASCRIPTINLINE>,
+	we insert an assignment instruction before the
+	<JAVASCRIPTINLINE>go_to</JAVASCRIPTINLINE>, which assigns the
+	current target register to the constant
+	<JAVASCRIPTINLINE>undefined</JAVASCRIPTINLINE>. The target register
+	must be treated as modified in this case.
+      </JAVASCRIPT>
+    </SPLIT>
+    If the linkage is
     <SPLITINLINE>
       <SCHEME>
 	<SCHEMEINLINE>next</SCHEMEINLINE>,
@@ -64,16 +79,8 @@
       <JAVASCRIPT><JAVASCRIPTINLINE>go_to</JAVASCRIPTINLINE></JAVASCRIPT>
     </SPLITINLINE>
     to that label, an instruction that does not need or modify
-    any registers.<SPLITINLINE><FOOTNOTE>This
-    <SPLITINLINE>
-      <SCHEME>procedure</SCHEME>
-      <JAVASCRIPT>function</JAVASCRIPT>
-    </SPLITINLINE>
-    uses a feature of
-    <SPLITINLINE>
-      <SCHEME>Lisp</SCHEME>
-      <JAVASCRIPT>JavaScript</JAVASCRIPT>
-    </SPLITINLINE>
+    any registers.<SPLITINLINE><SCHEME><FOOTNOTE>This procedure
+    uses a feature of Lisp
     called
     <INDEX>list(s)<SUBINDEX>backquote with</SUBINDEX></INDEX>
     <INDEX>backquote</INDEX><INDEX>quasiquote</INDEX>
@@ -83,51 +90,20 @@
     <EM>backquote</EM> (or <EM>quasiquote</EM>) that is handy for constructing
     lists. Preceding a list with a backquote symbol is much like quoting it,
     except that anything in the list that is flagged with a comma is
-    evaluated.</FOOTNOTE></SPLITINLINE>
-  </TEXT>
-
-  <TEXT>
+    evaluated.
+    <P/>
     For example, if the value of <SCHEMEINLINE>linkage</SCHEMEINLINE> is the
-    <SPLITINLINE>
-      <SCHEME>symbol</SCHEME>
-      <JAVASCRIPT>string</JAVASCRIPT>
-    </SPLITINLINE>
-    <SPLITINLINE>
-      <SCHEME><SCHEMEINLINE>branch25</SCHEMEINLINE>,</SCHEME>
-      <JAVASCRIPT><JAVASCRIPTINLINE>"branch25"</JAVASCRIPTINLINE>,</JAVASCRIPT>
-    </SPLITINLINE>
+    symbol <SCHEMEINLINE>branch25</SCHEMEINLINE>,
     then the expression
-    <SPLITINLINE>
-      <SCHEME><SCHEMEINLINE>`((goto (label ,linkage)))</SCHEMEINLINE>
-      </SCHEME>
-      <JAVASCRIPT><JAVASCRIPTINLINE>go_to(label(linkage))</JAVASCRIPTINLINE>
-      </JAVASCRIPT>
-    </SPLITINLINE>
+    <SCHEMEINLINE>`((goto (label ,linkage)))</SCHEMEINLINE>
     evaluates to the list
-    <SPLITINLINE>
-      <SCHEME><SCHEMEINLINE>((goto (label branch25)))</SCHEMEINLINE>.</SCHEME>
-      <JAVASCRIPT><JAVASCRIPTINLINE>go_to(label("branch25"))</JAVASCRIPTINLINE>.
-      </JAVASCRIPT>
-    </SPLITINLINE>
+    <SCHEMEINLINE>((goto (label branch25)))</SCHEMEINLINE>.
     Similarly, if the value of <SCHEMEINLINE>x</SCHEMEINLINE> is the list
-    <SPLITINLINE>
-      <SCHEME><SCHEMEINLINE>(a b c)</SCHEMEINLINE>,</SCHEME>
-      <JAVASCRIPT><JAVASCRIPTINLINE>list("a", "b", "c")</JAVASCRIPTINLINE>,
-      </JAVASCRIPT>
-    </SPLITINLINE>
+    <SCHEMEINLINE>(a b c)</SCHEMEINLINE>,
     then
-    <SPLITINLINE>
-      <SCHEME>
-      <SCHEMEINLINE>`(1 2 ,x)</SCHEMEINLINE></SCHEME>
-      <JAVASCRIPT><JAVASCRIPTINLINE>list(1, 2, head(x))</JAVASCRIPTINLINE>
-      </JAVASCRIPT>
-    </SPLITINLINE>
+    <SCHEMEINLINE>`(1 2 ,x)</SCHEMEINLINE>
     evaluates to the list
-    <SPLITINLINE>
-      <SCHEME><SCHEMEINLINE>(1 2 a)</SCHEMEINLINE>.</SCHEME>
-      <JAVASCRIPT><JAVASCRIPTINLINE>list(1, 2, "a")</JAVASCRIPTINLINE>.
-      </JAVASCRIPT>
-    </SPLITINLINE>
+    <SCHEMEINLINE>(1 2 a)</SCHEMEINLINE>.</FOOTNOTE></SCHEME></SPLITINLINE>
     <!--  \indcode*{compile-linkage} -->
     <SNIPPET EVAL="no">
       <NAME>compile_linkage</NAME>
@@ -143,17 +119,21 @@
             ` ((goto (label ,linkage)))))))
       </SCHEME>
       <JAVASCRIPT>
-function compile_linkage(linkage) {
+function compile_linkage(target, linkage) {
     return linkage === "return"
         ? make_instruction_sequence(
               list("continue"), 
               null,
               list(go_to(reg("continue"))))
+        : linkage === "return_undefined"
+        ? make_instruction_sequence(
+              list("continue"), 
+              list(target),
+              list(assign(target, constant(undefined)),
+                   go_to(reg("continue"))))
         : linkage === "next"
           ? empty_instruction_sequence()
-          : make_instruction_sequence(
-                null, 
-                null, 
+          : make_instruction_sequence(null, null, 
                 list(go_to(label(linkage))));
 }
       </JAVASCRIPT>
@@ -187,10 +167,10 @@ function compile_linkage(linkage) {
       (compile-linkage linkage)))
       </SCHEME>
       <JAVASCRIPT>
-function end_with_linkage(linkage, instruction_sequence) {
-return preserving(list("continue"),
-                  instruction_sequence,
-                  compile_linkage(linkage));
+function end_with_linkage(target, linkage, instruction_sequence) {
+    return preserving(list("continue"),
+                      instruction_sequence,
+                      compile_linkage(target, linkage));
 }
       </JAVASCRIPT>
     </SNIPPET>
@@ -235,8 +215,7 @@ return preserving(list("continue"),
     </SCHEME>
     <JAVASCRIPT>
 function compile_self_evaluating(exp, target, linkage) {
-    return end_with_linkage(
-               linkage,
+    return end_with_linkage(target, linkage,
                make_instruction_sequence(
                    null,
                    list(target),
@@ -244,23 +223,28 @@ function compile_self_evaluating(exp, target, linkage) {
 }
 
 function compile_name(exp, target, linkage) {
-    return end_with_linkage(
-               linkage,
-               make_instruction_sequence(
-                   list("env"),
-                   list(target),
+    return end_with_linkage(target, linkage,
+               make_instruction_sequence(list("env"), list(target),
                    list(assign(target, 
                                list(op("lookup_symbol_value"),
                                     constant(exp), reg("env"))))));
-    }
+}
     </JAVASCRIPT>
     </SNIPPET>
   </TEXT>
 
   <TEXT>
     All these assignment instructions modify the target register,
-    and the one that looks up a variable needs the
-    <SCHEMEINLINE>env</SCHEMEINLINE> register.
+    and the one that looks up a
+    <SPLITINLINE>
+      <SCHEME>
+	variable
+      </SCHEME>
+      <JAVASCRIPT>
+	name
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    needs the <SCHEMEINLINE>env</SCHEMEINLINE> register.
   </TEXT>
 
   <TEXT>
@@ -333,14 +317,13 @@ function compile_assignment(stmt, target, linkage) {
     const symbol = assignment_symbol(stmt);
     const value_code =
               compile(assignment_value(stmt), "val", "next");
-    return compile_assignment_preserving(symbol,
+    return compile_assignment_returning(symbol,
                value_code, target, linkage, reg("val"));
 }
 
-function compile_assignment_preserving(
+function compile_assignment_returning(
              symbol, value_code, target, linkage, return_val) {
-    return end_with_linkage(
-               linkage,
+    return end_with_linkage(target, linkage,
                preserving(
                    list("env"),
                    value_code,
@@ -348,10 +331,10 @@ function compile_assignment_preserving(
                        list("env", "val"),
                        list(target),
                        list(perform(
-                                op("assign_symbol_value"),
-                                constant(symbol),
-                                reg("val"),
-                                reg("env")),
+                                list(op("assign_symbol_value"),
+                                     constant(symbol),
+                                     reg("val"),
+                                     reg("env"))),
                             assign(target, return_val)))));
 }
 
@@ -359,7 +342,7 @@ function compile_constant_declaration(stmt, target, linkage) {
     const symbol = constant_declaration_symbol(stmt);
     const value_code =
               compile(constant_declaration_value(stmt), "val", "next");
-    return compile_assignment_preserving(symbol,
+    return compile_assignment_returning(symbol,
                value_code, target, linkage, constant(undefined));
 }
 
@@ -367,7 +350,7 @@ function compile_variable_declaration(stmt, target, linkage) {
     const variable = variable_declaration_symbol(stmt);
     const value_code =
               compile(variable_declaration_value(stmt), "val", "next");
-    return compile_assignment_preserving(variable,
+    return compile_assignment_returning(variable,
                value_code, target, linkage, constant(undefined));
 }
 
@@ -405,17 +388,16 @@ function compile_variable_declaration(stmt, target, linkage) {
 
   <TEXT>
     <INDEX>compiler for Scheme<SUBINDEX>conditionals</SUBINDEX></INDEX>
-    The code for an
+    The code for 
     <SPLITINLINE>
       <SCHEME>
-	<SCHEMEINLINE>if</SCHEMEINLINE>
+	an <SCHEMEINLINE>if</SCHEMEINLINE>
       </SCHEME>
       <JAVASCRIPT>
-	conditional
+	a conditional
       </JAVASCRIPT>
     </SPLITINLINE>
-    expression
-    compiled with a given target and linkage has the form
+    expression compiled with a given target and linkage has the form
     <SNIPPET EVAL="no" LATEX="yes">
       <SCHEME>
       ^compilation of predicate, target^ val^, linkage^ next
@@ -432,10 +414,10 @@ function compile_variable_declaration(stmt, target, linkage) {
   test(list(op("is_false"), reg("val"))),
   branch(label("false_branch")),
 "true_branch",
-  $\langle compilation$ $of$ $consequent$ $with$ $given$ $target$ $and$ $given$ $linkage$ $or$ after_if$\rangle$
+  $\langle compilation$ $of$ $consequent$ $with$ $given$ $target$ $and$ $given$ $linkage$ $or$ after_cond$\rangle$
 "false_branch",
   $\langle compilation$ $of$ $alternative$ $with$ $given$ $target$ $and$ $linkage\rangle$
-"after_if"
+"after_cond"
       </JAVASCRIPT>
     </SNIPPET>
   </TEXT>
@@ -458,7 +440,7 @@ function compile_variable_declaration(stmt, target, linkage) {
     and
     <SPLITINLINE>
       <SCHEME><SCHEMEINLINE>after-if</SCHEMEINLINE></SCHEME>
-      <JAVASCRIPT><JAVASCRIPTINLINE>after_if</JAVASCRIPTINLINE></JAVASCRIPT>
+      <JAVASCRIPT><JAVASCRIPTINLINE>after_cond</JAVASCRIPTINLINE></JAVASCRIPT>
     </SPLITINLINE>
     as shown above, because there might be more than one
     <SCHEMEINLINE>if</SCHEMEINLINE> in the program.
@@ -590,7 +572,6 @@ function compile_conditional_expression(stmt, target, linkage) {
                          target, consequent_linkage);
     let a_code = compile(cond_expr_alt(stmt),
                          target, linkage);
-
     return preserving(
              list("env", "continue"),
                p_code,
@@ -598,12 +579,13 @@ function compile_conditional_expression(stmt, target, linkage) {
                  make_instruction_sequence(
                    list("val"),
                      list(),
-                     list(test(op("is_false"), reg("val")),
+                     list(test(list(op("is_false"), reg("val"))),
                           branch(label(f_branch)))),
-               parallel_instruction_sequences(
-                 append_instruction_sequences(t_branch, c_code),
-                 append_instruction_sequences(f_branch, a_code)),
-               after_cond));
+                 append_instruction_sequences(
+                   parallel_instruction_sequences(
+                     append_instruction_sequences(t_branch, c_code),
+                     append_instruction_sequences(f_branch, a_code)),
+                   after_cond)));
 }
       </JAVASCRIPT>
     </SNIPPET>
@@ -639,7 +621,6 @@ function compile_conditional_expression(stmt, target, linkage) {
   <SPLIT>
     <SCHEME>
       <TEXT>
-	<SPLIT><SCHEME></SCHEME><JAVASCRIPT>FIXME:</JAVASCRIPT></SPLIT>
 	Note that <SCHEMEINLINE>cond</SCHEMEINLINE> is a derived expression,
 	so all that the compiler needs to do handle it is to apply the
 	<SCHEMEINLINE>cond-&gt;if</SCHEMEINLINE> transformer
@@ -904,11 +885,8 @@ function compile_lambda_expression(exp, target, linkage) {
             linkage === "next" ? after_lambda : linkage;
     return append_instruction_sequences(
         tack_on_instruction_sequence(
-          end_with_linkage(
-            lambda_linkage,
-            make_instruction_sequence(
-              list("env"), 
-              list(target),
+          end_with_linkage(target, lambda_linkage,
+            make_instruction_sequence(list("env"), list(target),
               list(assign(target, 
                           list(op("make_compiled_function"),
                                label(fun_entry), reg("env")))))),
@@ -991,28 +969,30 @@ function compile_lambda_expression(exp, target, linkage) {
       <SCHEME>procedure</SCHEME>
       <JAVASCRIPT>function</JAVASCRIPT>
     </SPLITINLINE>
-    body. The sequence is compiled with linkage
-    <SPLITINLINE>
+    body.
+    <SPLIT>
       <SCHEME>
+	The sequence is compiled with linkage
 	<SCHEMEINLINE>return</SCHEMEINLINE>
+	and target <SCHEMEINLINE>val</SCHEMEINLINE>
+	so that it will end by returning from the
+	procedure with the
+	procedure 
+	result in <SCHEMEINLINE>val</SCHEMEINLINE>.
       </SCHEME>
       <JAVASCRIPT>
-	<JAVASCRIPTINLINE>"return"</JAVASCRIPTINLINE>
+	The body is compiled with linkage
+	<JAVASCRIPTINLINE>"return_undefined"</JAVASCRIPTINLINE>
+	so that it will end by returning from the function
+	with the return value <JAVASCRIPTINLINE>undefined</JAVASCRIPTINLINE>
+	unless the compiled code runs code that stems from compiling
+	a <JAVASCRIPTINLINE>return</JAVASCRIPTINLINE> statement.
+	The target is <SCHEMEINLINE>val</SCHEMEINLINE>
+	so that the return value (or
+	<JAVASCRIPTINLINE>undefined</JAVASCRIPTINLINE>)
+	it will be in <SCHEMEINLINE>val</SCHEMEINLINE>.
       </JAVASCRIPT>
-    </SPLITINLINE>
-    and target
-    <SCHEMEINLINE>val</SCHEMEINLINE>
-    so that it will end by returning from the
-    <SPLITINLINE>
-      <SCHEME>procedure</SCHEME>
-      <JAVASCRIPT>function</JAVASCRIPT>
-    </SPLITINLINE>
-    with the
-    <SPLITINLINE>
-      <SCHEME>procedure</SCHEME>
-      <JAVASCRIPT>function</JAVASCRIPT>
-    </SPLITINLINE>
-    result in <SCHEMEINLINE>val</SCHEMEINLINE>.
+    </SPLIT>
     <SNIPPET EVAL="no">
       <NAME>compile_lambda_body</NAME>
       <SCHEME>
@@ -1032,23 +1012,92 @@ function compile_lambda_expression(exp, target, linkage) {
       (compile-sequence (lambda-body exp) 'val 'return))))
       </SCHEME>
       <JAVASCRIPT>
-function compile_lambda_body(exp, proc_entry) {
+function compile_lambda_body(exp, fun_entry) {
     let formals  = lambda_parameters(exp);
     return append_instruction_sequences(
         make_instruction_sequence(
-            list("env", "proc", "argl"),
+            list("env", "fun", "argl"),
             list("env"),
-            list(proc_entry,
+            list(fun_entry,
                  assign("env", list(op("compiled_function_env"), 
                                     reg("fun"))),
                  assign("env", list(op("extend_environment"), 
                                     constant(formals),
                                     reg("argl"), 
-                                    reg("env")))),
-        compile_sequence(lambda_body(exp), "val", "return")));
-} 
+                                    reg("env"))))),
+        compile(lambda_body(exp), "val", "return_undefined"));
+}
       </JAVASCRIPT>
     </SNIPPET>
   </TEXT>
 
+  <SPLIT>
+    <JAVASCRIPT>
+      <SUBHEADING>
+	<NAME>
+	  Compiling 
+	  <JAVASCRIPTINLINE>return</JAVASCRIPTINLINE>
+	  statements
+	</NAME>
+      </SUBHEADING>
+
+      <TEXT>
+	<INDEX>compiler for JavaScript
+	<SUBINDEX>return@<JAVASCRIPTINLINE>return</JAVASCRIPTINLINE> statements</SUBINDEX>
+	</INDEX>
+
+	JavaScript's <JAVASCRIPTINLINE>return</JAVASCRIPTINLINE> statements are compiled
+	such that the compiled code returns the result of running the code of the
+	<JAVASCRIPTINLINE>return</JAVASCRIPTINLINE> expression to the caller of the
+	current function, ignoring the current linkage. 
+	<SNIPPET EVAL="no">
+	  <NAME>compile_return</NAME>
+	  <JAVASCRIPT>
+function compile_return_statement(stmt, target, linkage) {
+    return compile(return_expression(stmt), target, "return");
+}
+	  </JAVASCRIPT>
+	</SNIPPET>
+      </TEXT>
+
+      <SUBHEADING>
+	<NAME>
+	  Compiling blocks
+	</NAME>
+      </SUBHEADING>
+
+      <TEXT>
+	<INDEX>compiler for JavaScript
+	<SUBINDEX>return@<JAVASCRIPTINLINE>return</JAVASCRIPTINLINE> statements</SUBINDEX>
+	</INDEX>
+
+	A block is compiled by prepending an assignment instruction to the compiled
+	body of the block. The assignment expends the current environment with bindings
+	of the declared names of the block to the value 
+	<JAVASCRIPTINLINE>"*unassigned*"</JAVASCRIPTINLINE>. This affects neither
+	target nor linkage.
+	<SNIPPET EVAL="no">
+	  <NAME>compile_block</NAME>
+	  <JAVASCRIPT>
+function compile_block(stmt, target, linkage) {
+    const body = block_body(stmt);
+    const locals = scan_out_declarations(body);
+    const unassigneds = list_of_unassigned(locals);
+    return append_instruction_sequences(
+               make_instruction_sequence(
+                   list("env", "fun", "argl"),
+                   list("env"),
+                   list(assign("env", list(op("extend_environment"), 
+                                           constant(locals),
+                                           constant(unassigneds),
+                                           reg("env"))))),
+               compile(body(stmt), target, linkage));
+}
+	  </JAVASCRIPT>
+	</SNIPPET>
+      </TEXT>
+
+
+    </JAVASCRIPT>
+  </SPLIT>
 </SUBSECTION>

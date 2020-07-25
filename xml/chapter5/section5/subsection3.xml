@@ -1,6 +1,14 @@
 <SUBSECTION>
   <NAME>
-    Compiling Combinations
+    Compiling
+    <SPLITINLINE>
+      <SCHEME>
+	Combinations
+      </SCHEME>
+      <JAVASCRIPT>
+	Applications
+      </JAVASCRIPT>
+    </SPLITINLINE>
   </NAME>
 
   <LABEL NAME="sec:compiling-combinations"/>
@@ -15,7 +23,12 @@
       <SCHEME>procedure</SCHEME>
       <JAVASCRIPT>function</JAVASCRIPT>
     </SPLITINLINE>
-    applications. The code for a combination compiled with a given target and
+    applications. The code for
+    <SPLITINLINE>
+      <SCHEME>a combination</SCHEME>
+      <JAVASCRIPT>an application</JAVASCRIPT>
+    </SPLITINLINE>
+    compiled with a given target and
     linkage has the form
     <SNIPPET EVAL="no" LATEX="yes">
       <SCHEME>
@@ -24,8 +37,8 @@
       ^compilation of procedure call with given target and linkage^
       </SCHEME>
       <JAVASCRIPT>
-$\langle compilation$ $of$ $operator,$ $target$ fun, $linkage$ next$\rangle$
-$\langle evaluate$ $arg$ $exps$ $and$ $construct$ $arg$ $list$ $in$ argl$\rangle$
+$\langle compilation$ $of$ $function$ $expression,$ $target$ fun, $linkage$ next$\rangle$
+$\langle evaluate$ $arg$ $expressions$ $and$ $construct$ $arg$ $list$ $in$ argl$\rangle$
 $\langle compilation$ $of$ $function$ $call$ $with$ $given$ $target$ $and$ $linkage\rangle$
       </JAVASCRIPT>
     </SNIPPET>
@@ -158,9 +171,10 @@ function compile_application(exp, target, linkage) {
               map(arg => compile(arg, "val", "next"),
                   args(exp));
     return preserving(list("env", "continue"), 
-              preserving(list("fun", "continue"), 
-                  construct_arglist(arguments_codes),
-                      compile_function_call(target, linkage)));
+               fun_code,
+               preserving(list("fun", "continue"), 
+                   construct_arglist(arguments_codes),
+                       compile_function_call(target, linkage)));
 }
       </JAVASCRIPT>
     </SNIPPET>
@@ -265,7 +279,7 @@ assign("argl", list(op("pair"), reg("val"), reg("argl")));
       (assign argl (const ()))
       </SCHEME>
       <JAVASCRIPT>
-      assign(argl, list(constant("null"))); 
+assign(argl, constant(null)); 
       </JAVASCRIPT>
     </SNIPPET>
   </TEXT>
@@ -329,7 +343,7 @@ function construct_arglist(arg_codes) {
         return make_instruction_sequence(
             null, 
             list("argl"),
-            list(assign("argl", list(constant("null")))));
+            list(assign("argl", constant(null))));
     } else {
         const code_to_get_last_arg =
               append_instruction_sequences(
@@ -531,30 +545,28 @@ function compile_function_call(target, linkage) {
     const primitive_branch = make_label("primitive_branch");
     const compiled_branch = make_label("compiled_branch");
     const after_call = make_label("after_call");
-
     const compiled_linkage = linkage === "next" ? after_call : linkage;
-    
     return append_instruction_sequences(
         make_instruction_sequence(
             list("fun"),
             list(),
             list(test(list(op("primitive_function"), reg("fun"))),
                  branch(label(primitive_branch)))), 
-        parallel_instruction_sequences(
-            append_instruction_sequences(
-                compiled_branch,
-                compile_fun_appl(target, compiled_linkage)),
-            append_instruction_sequences(
-                primitive_branch,
-                end_with_linkage(
-                    linkage,
-                    make_instruction_sequence(
-                        list("fun", "argl"),
-                        list(target),
-                        list(assign(target,
-                                list(op("apply_primitive_function"),
-                                     reg("fun"), reg("argl"))),
-                             after_call))))));
+        append_instruction_sequences(
+            parallel_instruction_sequences(
+                append_instruction_sequences(
+                    compiled_branch,
+                    compile_fun_appl(target, compiled_linkage)),
+                append_instruction_sequences(
+                    primitive_branch,
+                    end_with_linkage(target, linkage,
+                        make_instruction_sequence(
+                            list("fun", "argl"),
+                            list(target),
+                            list(assign(target,
+                                    list(op("apply_primitive_function"),
+                                         reg("fun"), reg("argl")))))))),
+            after_call));
 }
       </JAVASCRIPT>
     </SNIPPET>
@@ -687,7 +699,7 @@ function compile_function_call(target, linkage) {
   assign("val", list(op("compiled_function_entry"), reg("fun"))),
   go_to(reg("val")),
 "fun_return",
-  assign($target$, list(reg("val"))), // included if target is not val
+  assign($target$, reg("val")),       // included if target is not val
   restore("continue"),
   go_to(reg("continue")),             // linkage code
       </JAVASCRIPT>
@@ -1153,7 +1165,7 @@ function compile_fun_appl(target, linkage) {
             list("fun"),
             all_regs,
             list(
-                assign("continue", list(label(linkage))),
+                assign("continue", label(linkage)),
                 assign("val", list(op("compiled_function_entry"), 
                                    reg("fun"))),
                 go_to(reg("val"))));
@@ -1164,12 +1176,12 @@ function compile_fun_appl(target, linkage) {
             list("fun"),
             all_regs,
             list(
-                assign("continue", list(label(fun_return))),
+                assign("continue", label(fun_return)),
                 assign("val", list(op("compiled_function_entry"), 
                                    reg("fun"))),
                 go_to(reg("val")),
                 fun_return,
-                assign(target, list(reg("val"))),
+                assign(target, reg("val")),
                 go_to(label(linkage))));
     } else if (target === "val" &amp;&amp; linkage === "return") {
         return make_instruction_sequence(
