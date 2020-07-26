@@ -15,7 +15,8 @@
     We started with the relatively informal substitution model, then
     extended this in chapter<SPACE/>3 to the environment model, which enabled us
     to deal with state and change.  In the metacircular evaluator of
-    chapter<SPACE/>4, we used Scheme itself as a language for making more
+    chapter<SPACE/>4, we used <SPLITINLINE><SCHEME>Scheme</SCHEME><JAVASCRIPT>JavaScript</JAVASCRIPT></SPLITINLINE>
+    itself as a language for making more
     explicit the environment structure constructed during evaluation of an
     expression.  Now, with register machines, we have taken a close look
     at the evaluator<APOS/>s mechanisms for storage management,
@@ -162,7 +163,6 @@ function get_global_environment() {
       <JAVASCRIPT>
 "unknown_expression_type",
       assign("val", constant("unknown_expression_type_error")),
-      assign("val", reg("exp")),
       go_to(label("signal_error")),
       
 "unknown_procedure_type",
@@ -220,10 +220,10 @@ function eceval() {
   </TEXT>
 
   <TEXT>
-    We must define Scheme
+    We must define 
     <SPLITINLINE>
-      <SCHEME>procedures</SCHEME>
-      <JAVASCRIPT>functions</JAVASCRIPT>
+      <SCHEME>Scheme procedures</SCHEME>
+      <JAVASCRIPT>JavaScript functions</JAVASCRIPT>
     </SPLITINLINE>
     to simulate the operations used as primitives by the evaluator.  These are
     the same
@@ -285,14 +285,8 @@ ok
 const no_value_yet = () => null;
 
 function make_compound_function(parameters, body, env) {
-  return list("compound_function", parameters, make_block(body), env);
+    return list("compound_function", parameters, body, env);
 }
-
-// The function local_names collects all names declared in the
-// body statements. For a name to be included in the list of
-// local_names, it needs to be declared outside of any other
-// block or function.
-
 function insert_all(xs, ys) {
   return is_null(xs)
     ? ys
@@ -404,8 +398,7 @@ function eceval() {
       "proc",
       "argl",
       "unev",
-      "fun",
-      "retval"
+      "fun"
     ),
     list(
       // basic functions
@@ -490,8 +483,6 @@ function eceval() {
       ),
       list("lambda_body"         , lambda_body),
       list("is_return_statement" , is_return_statement),
-      list("should_return"       , v => v !== undefined &amp;&amp; v !== no_value_yet),
-      list("returned_value" , v => v !== no_value_yet),
       list("return_expression"   , return_expression),
       list(
         "is_conditional_expression",
@@ -506,6 +497,7 @@ function eceval() {
       list("is_block"         , is_block),
       list("block_body"       , block_body),
       list("local_names"      , local_names),
+        list("needs_sequence_wrapping"           , s => !(is_block(s) || is_sequence(s) || is_return_statement(s))),
       list(
         "get_temp_block_values",
         (locals) => map((x) => no_value_yet, locals)
@@ -552,7 +544,6 @@ function eceval() {
       list("display", display)
     ),
     list(
-      assign("retval", constant(no_value_yet)),
       assign("continue", label("evaluator_done")),
       assign("env", list(op("get_global_environment"))),
       "ev_begin",
@@ -560,9 +551,6 @@ function eceval() {
       go_to(label("read_eval_print_loop")),
       
       "eval_dispatch",
-        test(list(op("should_return"), reg("retval"), constant(true))),
-        branch(label("install_return_value")),
-
       test(list(op("is_self_evaluating"), reg("exp"), constant(true))),
       branch(label("ev_self_eval")),
 
@@ -592,17 +580,13 @@ function eceval() {
       branch(label("ev_application")),
       go_to(label("unknown_expression_type")),
 
-        "ev_return",
-          assign("exp", list(op("return_expression"), reg("exp"))),
-          save("continue"),
-          assign("continue", label("ev_return_2")),
-          go_to(label("eval_dispatch")),
-  
-        "ev_return_2",
-          assign("retval", reg("val")),
-          restore("continue"),
-          go_to(reg("continue")),
-      
+      "ev_return_from_seq",
+      restore("continue"),
+
+      "ev_return",
+      assign("exp", list(op("return_expression"), reg("exp"))),
+      go_to(label("eval_dispatch")),
+        
       "ev_self_eval",
       assign("val", reg("exp")),
       go_to(reg("continue")),
@@ -709,40 +693,27 @@ function eceval() {
       assign("val", list(op("apply_primitive_function"), 
                          reg("fun"), 
                          reg("argl"))),
-      // go_to(label("return_from_apply")),
       restore("continue"),
       go_to(reg("continue")),
       
-        "compound_apply",
-          assign("unev", list(op("function_parameters"), reg("fun"))), // params
-          assign("env", list(op("function_environment"), reg("fun"))),
-          assign("env", list(op("extend_environment"), 
-                             reg("unev"), 
-                             reg("argl"), 
-                             reg("env"))),
-          assign("unev", list(op("function_body"), reg("fun"))),
-          assign("continue", label("after_apply")),
-          save("continue"),
-          assign("retval", constant(no_value_yet)),
-          go_to(label("ev_sequence")),
-    
-        "install_return_value",
-          assign("val", reg("retval")),
-          assign("retval", constant(undefined)),
-          restore("continue"),
-          go_to(reg("continue")),
-            
-        "after_apply",
-          test(list(op("returned_value"), reg("retval"), constant(true))),
-          branch(label("defined_return_value")),
-  
-          assign("val", constant(undefined)),
-  
-        "defined_return_value",
-          assign("retval", constant(undefined)),
-          restore("continue"),
-          go_to(reg("continue")),
-            
+      "compound_apply",
+      assign("unev", list(op("function_parameters"), reg("fun"))), // params
+      assign("env", list(op("function_environment"), reg("fun"))),
+      assign("env", list(op("extend_environment"), 
+                         reg("unev"), 
+                         reg("argl"), 
+                         reg("env"))),
+      assign("exp", list(op("function_body"), reg("fun"))),
+
+      test(list(op("needs_sequence_wrapping"), reg("exp"), constant(false))),
+      branch(label("sequence_wrapping")),
+      restore("continue"),
+      go_to(label("eval_dispatch")),
+
+      "sequence_wrapping",
+      assign("continue", label("end_sequence_without_return")),
+      go_to(label("eval_dispatch")),        
+   
       // to evaluate a sequence, we need to evaluate
       // its statements one after the other, and return
       // the value of the last statement.
@@ -768,9 +739,11 @@ function eceval() {
       "ev_seq",
       save("continue"),
       assign("unev", list(op("sequence_statements"), reg("exp"))),
-      
+
       "ev_sequence",
       assign("exp", list(op("first_statement"), reg("unev"))),
+      test(list(op("is_return_statement"), reg("exp"), constant(true))),
+      branch(label("ev_return_from_seq")),
       test(list(op("is_last_statement"), reg("unev"), constant(true))),
       branch(label("ev_sequence_last_exp")),
       save("unev"),
@@ -785,9 +758,15 @@ function eceval() {
       go_to(label("ev_sequence")),
       
       "ev_sequence_last_exp",
-      restore("continue"),
+      assign("continue", label("end_sequence_without_return")),
       go_to(label("eval_dispatch")),
-      
+
+      "end_sequence_without_return",
+      assign("val", constant(undefined)),
+      restore("continue"),
+      go_to(reg("continue")),
+        
+
       // evaluation of blocks evaluates the body of the block
       // with respect to the current environment extended by
       // a binding of all local names to the special value
@@ -800,7 +779,6 @@ function eceval() {
       //   return evaluate(body, extend_environment(locals, temp_values, env));
       // }
       "ev_block",
-      save("continue"),
       assign("exp", list(op("block_body"), reg("exp"))),
       assign("val", list(op("local_names"), reg("exp"))),
 
@@ -919,7 +897,6 @@ function eceval() {
       // Error handling
       "unknown_expression_type",
       assign("val", constant("unknown_expression_type_error")),
-      assign("val", reg("exp")),
       go_to(label("signal_error")),
       
       "unknown_procedure_type",
@@ -945,6 +922,14 @@ function eceval() {
   );
 }
 
+const program2 = "\
+function count(n) { \
+   display(n); \
+   return count(n + 1); \
+} \
+count(0); \
+";
+
 const program = "           \
 function test1() {          \
     display('A', 1);        \
@@ -958,17 +943,59 @@ function test2() {          \
     display('X', 4);        \
 }                           \
 function test3() {          \
-    display('hej!');        \
+    display('hej1!');       \
 }                           \
 function test4() {          \
-    return display('hej!');        \
+    return display('hej2!');\
 }                           \
 display(test1(), 5);        \
 display(test3(), 6);        \
-display(test4(), 8);";
+display(test4(), 8);        \
+";
+
+const program4 ="\
+function adder(a, b) { \
+    return \
+        a > 6 \
+      ? adder(6, b) \
+      : a > 5 \
+      ? adder(5, b) \
+      : a > 4 \
+      ? adder(4, b) \
+      : a > 3 \
+      ? adder(3, b) \
+      : a > 2 \
+      ? adder(2, b) \
+      : a > 1 \
+      ? adder(1, b) \
+      : b; \
+} \
+display(adder(22, 2)); \
+";
+
+const program3 ="\
+function adder(a, b) { \
+    return \
+        a === 0 \
+      ? b \
+      : adder(a - 1, b + 1); \
+ 42; \
+} \
+display(adder(7, 5), \"Result\"); \
+";
+
+const program1 = "1+2+3+4;";
+const program_ = "\
+const a = 1 + 2; \
+const b = a + 3; \
+b + 4; \
+";
+const programx ="((((((1+2)+3)+4)+5)+6)+7)+8;";
+const programy ="1+(2+(3+(4+(5+(6+(7+8))))));";
+
 
 function prompt_for_input(p) {
-    const x = make_block(parse(program));
+    const x = make_block(parse(program3));
     return x;
 }
 // function prompt_for_input(p) {
@@ -982,7 +1009,6 @@ set_register_contents(m, "exp", "1;");
 
 start(m);
 get_register_contents(m, "val");
-
 </JAVASCRIPT_RUN>
       <JAVASCRIPT>
 const the_global_environment = setup_environment();
@@ -992,13 +1018,13 @@ start(eceval);
       <JAVASCRIPT_OUTPUT>
 ;;; EC-Eval input:
 function plus(a, b) {
-    return a + b;
+    return a === 0 ? b : plus(a - 1, b + 1);
 }
 ;;; EC-Eval value:
 ok
 
 ;;; EC-Eval input:
-plus(40, 2);
+plus(2, 40);
 ;;; EC-Eval value:
 42
       </JAVASCRIPT_OUTPUT>
@@ -1007,10 +1033,11 @@ plus(40, 2);
 
   <TEXT>
     Of course, evaluating expressions in this way will take much longer
-    than if we had directly typed them into Scheme, because of the
+    than if we had directly typed them into <SPLITINLINE><SCHEME>Scheme</SCHEME><JAVASCRIPT>JavaScript</JAVASCRIPT></SPLITINLINE>, because of the
     multiple levels of simulation involved.  Our expressions are evaluated
     by the explicit-control-evaluator machine, which is being simulated by
-    a Scheme program, which is itself being evaluated by the Scheme
+    a <SPLITINLINE><SCHEME>Scheme</SCHEME><JAVASCRIPT>JavaScript</JAVASCRIPT></SPLITINLINE> program, which is itself being evaluated by the
+    <SPLITINLINE><SCHEME>Scheme</SCHEME><JAVASCRIPT>JavaScript</JAVASCRIPT></SPLITINLINE>
     interpreter.
     <INDEX>explicit-control evaluator for Scheme
     <SUBINDEX>running|)</SUBINDEX></INDEX>
@@ -1297,7 +1324,7 @@ function fib(n) {
     </SPLITINLINE>
     types.  Other errors will take us out of the evaluator read-eval-print loop.
     When we run the evaluator using the register-machine simulator, these
-    errors are caught by the underlying Scheme system.  This is analogous
+    errors are caught by the underlying <SPLITINLINE><SCHEME>Scheme</SCHEME><JAVASCRIPT>JavaScript</JAVASCRIPT></SPLITINLINE> system.  This is analogous
     to the computer crashing when a user program makes an
     error.<FOOTNOTE>Regrettably, this is the normal state of affairs in
     <INDEX>C<SUBINDEX>error handling</SUBINDEX></INDEX>

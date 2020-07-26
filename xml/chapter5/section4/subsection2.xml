@@ -122,6 +122,20 @@ ev-begin
       <JAVASCRIPT><JAVASCRIPTINLINE>ev_sequence_continue</JAVASCRIPTINLINE>.
       </JAVASCRIPT>
     </SPLITINLINE>
+
+    <SPLIT>
+      <JAVASCRIPT>
+        As returns immediately end the function, skipping any trailing
+        statements, we inspect each statement to see whether it is a return or
+        not. If it is, we jump to the entry point
+        <JAVASCRIPTINLINE>ev_return_from_seq</JAVASCRIPTINLINE> and abort the
+        loop. Sequences that do not contain an explicit return will eventually
+        dispatch to the aforementioned entry point
+        <JAVASCRIPTINLINE>end_without_return</JAVASCRIPTINLINE>, which will
+        ensure that the sequence ends with <JAVASCRIPTINLINE>val</JAVASCRIPTINLINE>
+        holding the value <JAVASCRIPTINLINE>undefined</JAVASCRIPTINLINE>. 
+      </JAVASCRIPT>
+    </SPLIT>
   </TEXT>
 
   <TEXT>
@@ -198,6 +212,8 @@ ev-sequence-last-exp
       <JAVASCRIPT>
 "ev_sequence",
       assign("exp", list(op("first_statement"), reg("unev"))),
+      test(list(op("is_return_statement"), reg("exp"), constant(true))),
+      branch(label("ev_return_from_seq")),
       test(list(op("is_last_statement"), reg("unev"), constant(true))),
       branch(label("ev_sequence_last_exp")),
       save("unev"),
@@ -212,8 +228,13 @@ ev-sequence-last-exp
       go_to(label("ev_sequence")),
       
 "ev_sequence_last_exp",
-      restore("continue"),
+      assign("continue", label("end_without_return")),
       go_to(label("eval_dispatch")),
+
+"end_without_return",
+      assign("val", constant(undefined)),
+      restore("continue"),
+      go_to(reg("continue")),
       </JAVASCRIPT>
     </SNIPPET>
   </TEXT>
@@ -298,8 +319,10 @@ function sqrt_iter(guess, x) {
   </TEXT>
 
   <TEXT>
-    Our evaluator is tail-recursive, because in order to evaluate the final
-    expression of a sequence we transfer directly to
+    <SPLITINLINE><SCHEME>Our</SCHEME><JAVASCRIPT>With one exception, discussed
+    at the end of this section,</JAVASCRIPT></SPLITINLINE> evaluator is
+    tail-recursive, because in order to evaluate the final expression of a
+    sequence we transfer directly to
     <SPLITINLINE>
       <SCHEME><SCHEMEINLINE>eval-dispatch</SCHEMEINLINE></SCHEME>
       <JAVASCRIPT><JAVASCRIPTINLINE>eval_dispatch</JAVASCRIPTINLINE>
@@ -357,8 +380,7 @@ function sqrt_iter(guess, x) {
     </SPLITINLINE>
     entry point. Building this strategy into the interpreter, as we have done in
     this section, provides the optimization uniformly throughout the
-    language.</FOOTNOTE>
-  </TEXT>
+    language.</FOOTNOTE> 
 
   <TEXT>
     If we did not think to take advantage of the fact that it was unnecessary to
@@ -371,7 +393,7 @@ function sqrt_iter(guess, x) {
     by treating all the expressions in a sequence in the same way<EMDASH/>saving
     the registers, evaluating the expression, returning to restore the registers,
     and repeating this until all the expressions have been
-    evaluated:<FOOTNOTE>We can define
+    evaluated <SPLITINLINE><JAVASCRIPT>(for simplicity, ignoring the handling of returns which are not needed to illustrate this point)</JAVASCRIPT></SPLITINLINE>:<FOOTNOTE>We can define
     <SPLITINLINE>
       <SCHEME><SCHEMEINLINE>no-more-exps?</SCHEMEINLINE></SCHEME>
       <JAVASCRIPT><JAVASCRIPTINLINE>has_no_more_exps</JAVASCRIPTINLINE>
@@ -470,7 +492,7 @@ function has_no_more_exps(seq) {
       <JAVASCRIPT>
 function count(n) {
     display(n, "\n");
-    count(n + 1);
+    return count(n + 1); // Note: return necessary for tail recursion, see below
 }
       </JAVASCRIPT>
     </SNIPPET>
@@ -486,6 +508,24 @@ function count(n) {
       <JAVASCRIPT>function</JAVASCRIPT>
     </SPLITINLINE>
     call.
+  </TEXT>
+
+  <TEXT>
+    <SPLIT>
+      <JAVASCRIPT>The exception to tail recursion in our evaluator is due to the
+      implicit returning of <JAVASCRIPTINLINE>undefined</JAVASCRIPTINLINE>.
+      Function bodies that do not end in an explicit return dispatch to the
+      <JAVASCRIPTINLINE>end_without_return</JAVASCRIPTINLINE> entry point which
+      destroys tail-recursion as every function call must have its return value
+      changed to <JAVASCRIPTINLINE>undefined</JAVASCRIPTINLINE>. Removing the
+      <JAVASCRIPTINLINE>return</JAVASCRIPTINLINE> from the
+      <JAVASCRIPTINLINE>count</JAVASCRIPTINLINE> function above will thus lead to
+      exhausting the stack space. (Note that it is only when a function actually
+      reaches the end of its body that this extra stack space is consumed.) 
+      </JAVASCRIPT>
+    </SPLIT>
+  </TEXT>
+
     <INDEX>explicit-control evaluator for Scheme
     <SUBINDEX>tail recursion|)</SUBINDEX></INDEX>
     <INDEX>tail recursion

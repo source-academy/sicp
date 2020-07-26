@@ -117,6 +117,8 @@ eval-dispatch
       branch(label("ev_constant_declaration")),
       test(list(op("is_assignment"), reg("exp"), constant(true))),
       branch(label("ev_assignment")),
+      test(list(op("is_return_statement"), reg("exp"), constant(true))),
+      branch(label("ev_return")),
       test(list(op("is_conditional_expression"), reg("exp"), constant(true))),
       branch(label("ev_if")),
       test(list(op("is_lambda_expression"), reg("exp"), constant(true))),
@@ -1001,15 +1003,29 @@ primitive-apply
       <SCHEME>procedure.</SCHEME>
       <JAVASCRIPT>function.</JAVASCRIPT>
     </SPLITINLINE>
-    <SPLITINLINE>
-      <SCHEME><SCHEMEINLINE>Ev-sequence</SCHEMEINLINE>,</SCHEME>
+    <SPLIT>
+      <SCHEME>
+        <SCHEMEINLINE>Ev-sequence</SCHEMEINLINE>, described below
+        in section<SPACE/><REF NAME="sec:sequence-evaluation"/>,
+        handles the evaluation of the sequence.
+      </SCHEME>
       <JAVASCRIPT>
-	The function
-	<JAVASCRIPTINLINE>ev_sequence</JAVASCRIPTINLINE>,
+        A little extra work is needed to handle function bodies
+        with a single non-return statement as these should return
+        <JAVASCRIPTINLINE>undefined</JAVASCRIPTINLINE>. In this
+        case, we set as continuation the label
+        <JAVASCRIPTINLINE>end_without_return</JAVASCRIPTINLINE>,
+        which will overwrite the contents of
+        <JAVASCRIPTINLINE>val</JAVASCRIPTINLINE> by
+        <JAVASCRIPTINLINE>undefined</JAVASCRIPTINLINE> before
+        jumping back into the dispatch loop. This has implications
+        for tail-recursion, which is discussed in
+        section<SPACE/><REF NAME="sec:sequence-evaluation"/>.
+        
+        All other cases handle returns by themselves as part of
+        the normal dispatch loop.
       </JAVASCRIPT>
-    </SPLITINLINE>
-    described below in section<SPACE/><REF NAME="sec:sequence-evaluation"/>,
-    handles the evaluation of the sequence.
+    </SPLIT>
     <SNIPPET EVAL="no">
       <SCHEME>
 <!--  \indcode*{compound-apply} -->
@@ -1023,14 +1039,22 @@ compound-apply
       </SCHEME>
       <JAVASCRIPT>
 "compound_apply",
+      "compound_apply",
       assign("unev", list(op("function_parameters"), reg("fun"))), // params
       assign("env", list(op("function_environment"), reg("fun"))),
       assign("env", list(op("extend_environment"), 
-                    reg("unev"), 
-                    reg("argl"), 
-                    reg("env"))),
-      assign("unev", list(op("function_body"), reg("fun"))),
-      go_to(label("ev_sequence")),
+                         reg("unev"), 
+                         reg("argl"), 
+                         reg("env"))),
+      assign("exp", list(op("function_body"), reg("fun"))),
+      test(list(op("handles_return_by_itself"), reg("exp"), constant(false))),
+      branch(label("handle_missing_return")),
+      restore("continue"),
+      go_to(label("eval_dispatch")),
+
+"handle_missing_return",
+      assign("continue", label("end_without_return")),
+      go_to(label("eval_dispatch")),        
       </JAVASCRIPT>
     </SNIPPET>
   </TEXT>
