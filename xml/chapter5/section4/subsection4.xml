@@ -295,87 +295,15 @@ function insert_all(xs, ys) {
     : error(head(xs), "multiple declarations of: ");
 }
 
-function local_names(stmt) {
-  if (is_sequence(stmt)) {
-    const stmts = sequence_statements(stmt);
-    return is_empty_sequence(stmts)
-      ? null
-      : insert_all(
-          local_names(first_statement(stmts)),
-          local_names(make_sequence(rest_statements(stmts)))
-        );
-  } else {
-    return is_constant_declaration(stmt)
-      ? list(constant_declaration_symbol(stmt))
-      : is_variable_declaration(stmt)
-      ? list(variable_declaration_symbol(stmt))
-      : null;
-  }
-}
-
-function is_empty_environment(env) {
-  return is_null(env);
-}
-
 /* THE GLOBAL ENVIRONMENT */
 
 // the minus operation is overloaded to
 // support both binary minus and unary minus
 
-function minus(x, y) {
-  if (is_number(x) && is_number(y)) {
-    return x - y;
-  } else {
-    return -x;
-  }
-}
-
 // the global environment has bindings for all
 // primitive functions, including the operators
 
-
-// Global registers
-let the_heads = [];
-let the_tails = [];
-let free = 0;
-
-const POINTER_TAG = 800;
-const NUMBER_TAG = 801;
-const STRING_TAG = 802;
-const NULL_TAG = -1;
-
 /// Pairs implemented using vectors of heads and tails as in 5.3
-
-function head_(n) {
-  return vector_ref(the_heads, n);
-}
-
-function tail_(n) {
-  return vector_ref(the_tails, n);
-}
-
-function vector_ref(xs, index) {
-  return xs[index];
-}
-
-function vector_set(xs, index, value) {
-  xs[index] = value;
-  return undefined;
-}
-
-function pair_(a, b) {
-  // perform(list(op("vector_set"), reg("the_heads"), reg("free"), a));
-  // perform(list(op("vector_set"), reg("the_tails"), reg("free"), b));
-  // assign("free", list(op("+"), reg("free"), constant(1)));
-  // display(is_number(a), "is_number");
-
-  const ret = free;
-  vector_set(the_heads, free, a);
-  vector_set(the_tails, free, b);
-
-  free = free + 1;
-  return ret;
-}
 
 function binary_function(f) {
   // f is binary
@@ -407,12 +335,16 @@ function eceval() {
         binary_function((a, b) => a % b)
       ),
       list(
-        "=",
-        binary_function((a, b) => a === b)
-      ),
-      list(
         "+",
         binary_function((a, b) => a + b)
+      ),
+      list(
+        "-",
+        binary_function((a, b) => a - b)
+      ),
+      list(
+        "*",
+        binary_function((a, b) => a * b)
       ),
       list(
         "===",
@@ -496,10 +428,10 @@ function eceval() {
       list("make_sequence"    , make_sequence),
       list("is_block"         , is_block),
       list("block_body"       , block_body),
-      list("local_names"      , local_names),
+      list("scan_out_declarations"      , scan_out_declarations),
         list("needs_sequence_wrapping"           , s => !(is_block(s) || is_sequence(s) || is_return_statement(s))),
       list(
-        "get_temp_block_values",
+        "list_of_unassigned",
         (locals) => map((x) => no_value_yet, locals)
       ),
       list("is_application"           , is_application),
@@ -509,7 +441,6 @@ function eceval() {
       list("function_parameters"      , function_parameters),
       list("function_environment"     , function_environment),
       list("function_body"            , function_body),
-      list("insert_all"               , insert_all),
       list("extend_environment"       , extend_environment),
       list("make_compound_function"   , make_compound_function),
 
@@ -522,26 +453,17 @@ function eceval() {
       // generic helpers
       list("is_true", is_true),
       list("is_null", is_null),
-      list(
-        "is_pair",
-        (a) => is_pair(a)
-      ),
-      list(
-        "is_number",
-        (a) => is_number(a)
-      ),
-      list(
-        "append",
-        (xs, ys) => append(xs, ys)
-      ),
-
-      list("vector_ref", vector_ref),
-      list("vector_set", vector_set),
-      list("pair", pair_),
+      list("is_pair", is_pair),
+      list("is_number", is_number),
+      list("append", append),
+      list("pair", pair),
 
       list("prompt_for_input", (s) => prompt_for_input(s)),
       list("user_print", user_print),
-      list("display", display)
+      list("display", display),
+      // list("make_compiled_function", make_compiled_function),
+      // list("compiled_function_env", compiled_function_env),
+      list("list", list)
     ),
     list(
       assign("continue", label("evaluator_done")),
@@ -665,7 +587,7 @@ function eceval() {
       //     return apply_primitive_function(fun, args);
       //   } else if (is_compound_function(fun)) {
       //     const body = function_body(fun);
-      //     const locals = local_names(body);
+      //     const locals = scan_out_declarations(body);
       //     const names = insert_all(function_parameters(fun), locals);
       //     const temp_values = map((x) => no_value_yet, locals);
       //     const values = append(args, temp_values);
@@ -774,16 +696,16 @@ function eceval() {
       
       // function eval_block(stmt, env) {
       //   const body = block_body(stmt);
-      //   const locals = local_names(body);
+      //   const locals = scan_out_declarations(body);
       //   const temp_values = map((x) => no_value_yet, locals);
       //   return evaluate(body, extend_environment(locals, temp_values, env));
       // }
       "ev_block",
       assign("exp", list(op("block_body"), reg("exp"))),
-      assign("val", list(op("local_names"), reg("exp"))),
+      assign("val", list(op("scan_out_declarations"), reg("exp"))),
 
       save("exp"), // Temporarily store to exp
-      assign("exp", list(op("get_temp_block_values"), reg("val"))),
+      assign("exp", list(op("list_of_unassigned"), reg("val"))),
       assign("env", list(op("extend_environment"), 
                          reg("val"), 
                          reg("exp"), 
@@ -922,14 +844,6 @@ function eceval() {
   );
 }
 
-const program2 = "\
-function count(n) { \
-   display(n); \
-   return count(n + 1); \
-} \
-count(0); \
-";
-
 const program = "           \
 function test1() {          \
     display('A', 1);        \
@@ -953,27 +867,7 @@ display(test3(), 6);        \
 display(test4(), 8);        \
 ";
 
-const program4 ="\
-function adder(a, b) { \
-    return \
-        a > 6 \
-      ? adder(6, b) \
-      : a > 5 \
-      ? adder(5, b) \
-      : a > 4 \
-      ? adder(4, b) \
-      : a > 3 \
-      ? adder(3, b) \
-      : a > 2 \
-      ? adder(2, b) \
-      : a > 1 \
-      ? adder(1, b) \
-      : b; \
-} \
-display(adder(22, 2)); \
-";
-
-const program3 ="\
+const test_program ="\
 function adder(a, b) { \
     return \
         a === 0 \
@@ -981,28 +875,13 @@ function adder(a, b) { \
       : adder(a - 1, b + 1); \
  42; \
 } \
-display(adder(7, 5), \"Result\"); \
+display(adder(7, 5), \"7 + 5 =\"); \
 ";
-
-const program1 = "1+2+3+4;";
-const program_ = "\
-const a = 1 + 2; \
-const b = a + 3; \
-b + 4; \
-";
-const programx ="((((((1+2)+3)+4)+5)+6)+7)+8;";
-const programy ="1+(2+(3+(4+(5+(6+(7+8))))));";
-
 
 function prompt_for_input(p) {
-    const x = make_block(parse(program3));
+    const x = make_block(parse(test_program)); //prompt(p)
     return x;
 }
-// function prompt_for_input(p) {
-//     const program_block = make_block(parse("function plus(a,b) { return a > 0 ? plus(a-1,b+1) : a + b; } plus(2,3);"));//prompt(p)));
-//     const program_block2 = make_block(parse("2+3;"));//prompt(p)));
-//     return program_block;
-// }
 
 const m = eceval();
 set_register_contents(m, "exp", "1;");
