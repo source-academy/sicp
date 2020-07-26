@@ -145,7 +145,7 @@ ok
     branch(label("primitive_apply")),
     test(op("compound_function"), reg("fun")),
     branch(label("compound_apply")),
-    test(op("compiled_function"), reg("fun")),
+    test(op("is_compiled_function"), reg("fun")),
     branch(label("compiled_apply")),
     go_to(label("unknown_function_type")),
 "compiled_apply",
@@ -199,7 +199,6 @@ ok
       </SCHEME>
       <JAVASCRIPT>
 function start_eceval() {
-    the_global_environment = setup_environment();
     set_register_contents(eceval, "flag", false);
     return start(eceval);
 }
@@ -411,30 +410,29 @@ function display_instructions(instructions) {
       </SCHEME>
       <JAVASCRIPT>
 function compile_and_go(stmt) {
-    const instructions =
-              assemble(instructions(
-                           compile(stmt, "val", "return")),
+    // display_instructions(instructions(compile(stmt, "val", "return")));
+    const globals = scan_out_declarations(stmt);
+    const unassigneds = list_of_unassigned(globals);
+    const prelude =
+        make_instruction_sequence(null, null,
+            list(assign("env", list(op("get_global_environment"))),
+                 assign("env", list(op("extend_environment"), 
+                                    constant(globals),
+                                    constant(unassigneds),
+                                    reg("env"))),
+                 perform(list(op("set_global_environment"), reg("env")))));
+    const sequence_from_compile = compile(stmt, "val", "return");
+    const sequence_with_prelude =
+        append_instruction_sequences(prelude, sequence_from_compile);
+    const instrs =
+              assemble(instructions(sequence_with_prelude),
                        eceval);
-    the_global_environment = setup_environment();
-    set_register_contents(eceval, "val", instructions);
+    set_register_contents(eceval, "val", instrs);
     set_register_contents(eceval, "flag", true);
     return start(eceval);
 }
       </JAVASCRIPT>
-      <JAVASCRIPT_RUN>
-function compile_and_go(stmt) {
-    display_instructions(instructions(compile(stmt, "val", "return")));
-    /*
-    const instructions =
-              assemble(instructions(
-                           compile(stmt, "val", "return")),
-                       eceval);
-    set_register_contents(eceval, "val", instructions);
-    set_register_contents(eceval, "flag", true);
-    return start(eceval);
-    */
-}
-      </JAVASCRIPT_RUN>
+
     </SNIPPET>
   </TEXT>
 
@@ -445,6 +443,584 @@ function compile_and_go(stmt) {
     If we have set up stack monitoring, as at the end of
     section<SPACE/><REF NAME="sec:running-evaluator"/>, we can examine the
     stack usage of compiled code:
+    <SNIPPET HIDE="yes">
+      <NAME>eceval</NAME>
+      <JAVASCRIPT>
+function prompt_for_input(p) {
+    const x = parse(prompt("enter program"));
+    return x;
+}
+
+function get_global_environment() {
+    return the_global_environment;
+}
+    
+function set_global_environment(env) {
+    the_global_environment = env;
+}
+    
+function binary_function(f) {
+  // f is binary
+  return (arg_list) =>
+    is_list(arg_list) &amp;&amp; length(arg_list) === 2
+      ? apply_in_underlying_javascript(f, arg_list)
+      : error(
+          arg_list,
+          "Incorrect number of arguments passed to binary function "
+        );
+}
+
+const eceval =
+  make_machine(
+    list(
+      "exp",
+      "env",
+      "val",
+      "continue",
+      "proc",
+      "argl",
+      "unev",
+        "returned",
+      "fun"
+    ),
+    list(
+      // basic functions
+      list(
+        "rem",
+        binary_function((a, b) => a % b)
+      ),
+	// CHANGE: not used
+      // list(
+      //   "=",
+      //   binary_function((a, b) => a === b)
+      // ),
+      list(
+        "is_returned",
+        a => a === true
+      ),
+      list(
+        "+",
+        binary_function((a, b) => a + b)
+      ),
+	// CHANGE: - and * added
+      list(
+        "-",
+        binary_function((a, b) => a - b)
+      ),
+      list(
+        "*",
+        binary_function((a, b) => a * b)
+      ),
+      list(
+        "===",
+        binary_function((a, b) => a === b)
+      ),
+      // args
+      list("args"                , args),
+      list("function_expression" , function_expression),
+      list("has_no_operands"     , no_args),
+      list("first_arg"           , first_arg),
+      list(
+        "is_last_operand",
+        (a) => is_null(tail(a))
+      ),
+      list("rest_args", rest_args),
+
+      //arg
+      list(
+        "empty_arglist",
+        (_) => list()
+      ),
+      list(
+        "adjoin_arg",
+        (val, argl) => append(argl, list(val))
+      ),
+
+      // exp (sequence)
+      list("first_statement"     , first_statement),
+      list("rest_statements"     , rest_statements),
+      list("is_last_statement"   , is_last_statement),
+      list("sequence_statements" , sequence_statements),
+
+      // eval functions from meta-circular evaluator
+      list("is_self_evaluating"  , is_self_evaluating),
+      list("is_name"             , is_name),
+      list("symbol_of_name"      , symbol_of_name),
+      list(
+        "all_names_of_names",
+        (names) => map(symbol_of_name, names)
+      ),
+      list("is_assignment"           , is_assignment),
+      list("assignment_symbol"       , assignment_symbol),
+      list("assignment_value"        , assignment_value),
+      list("assign_symbol_value"     , assign_symbol_value),
+      list("is_constant_declaration" , is_constant_declaration),
+      list(
+        "constant_declaration_symbol",
+        constant_declaration_symbol
+      ),
+      list(
+        "constant_declaration_value",
+        constant_declaration_value
+      ),
+      list("is_variable_declaration", is_variable_declaration),
+      list(
+        "variable_declaration_symbol",
+        variable_declaration_symbol
+      ),
+      list(
+        "variable_declaration_value",
+        variable_declaration_value
+      ),
+      list("declare_value"        , assign_symbol_value),
+      list("is_lambda_expression" , is_lambda_expression),
+      list(
+        "lambda_parameters",
+        lambda_parameters
+      ),
+      list("lambda_body"         , lambda_body),
+	list("is_return_statement" , is_return_statement),
+	// CHANGE: not used
+	//      list("should_return"       , v => v !== undefined &amp;&amp; v !== "*unassigned*"),
+	//      list("returned_value" , v => v !== no_value_yet),
+      list("return_expression"   , return_expression),
+      list(
+        "is_conditional_expression",
+        is_conditional_expression
+      ),
+      list("conditional_pred" , cond_expr_pred),
+      list("conditional_cons" , cond_expr_cons),
+      list("conditional_alt"  , cond_expr_alt),
+
+      list("is_sequence"      , is_sequence),
+      list("make_sequence"    , make_sequence),
+      list("is_block"         , is_block),
+      list("block_body"       , block_body),
+	list("scan_out_declarations"      , scan_out_declarations),
+	// CHANGED: get_temp_block_values renamed to:
+      list("list_of_unassigned", list_of_unassigned),
+      list("is_application"           , is_application),
+      list("is_primitive_function"    , is_primitive_function),
+      list("apply_primitive_function" , apply_primitive_function),
+      list("is_compound_function"     , is_compound_function),
+      list("function_parameters"      , function_parameters),
+      list("function_environment"     , function_environment),
+	list("function_body"            , function_body),
+	// CHANGED: not used
+	//      list("insert_all"               , insert_all),
+      list("extend_environment"       , extend_environment),
+      list("make_function"            , make_function),
+
+      list(
+        "lookup_symbol_value",
+        (stmt, env) => lookup_symbol_value(symbol_of_name(stmt), env)
+      ),
+      list("get_global_environment", get_global_environment),
+      list("set_global_environment", set_global_environment),
+
+      // generic helpers
+      list("is_true", is_true),
+	list("is_null", is_null),
+	// CHANGED: use host language
+	list("is_pair", is_pair),
+	// CHANGED: simplified
+	list( "is_number", is_number),
+	list("append", append),
+
+	// CHANGED: not used
+	//      list("vector_ref", vector_ref),
+	//      list("vector_set", vector_set),
+      list("pair", pair),
+
+      list("prompt_for_input", prompt_for_input),
+      list("user_print", user_print),
+      list("display", display),
+      // CHANGED: added
+      list("make_compiled_function", make_compiled_function),
+      list("compiled_function_env", compiled_function_env),
+      list("compiled_function_entry", compiled_function_entry),
+      list("list", list),
+      list("is_false", x => ! is_true(x))
+    ),
+    list(
+      assign("returned", constant(false)),
+      assign("continue", label("evaluator_done")),
+      assign("env", list(op("get_global_environment"))),
+      "ev_begin",
+      
+      go_to(label("read_eval_print_loop")),
+      
+      "eval_dispatch",
+      test(list(op("is_self_evaluating"), reg("exp"), constant(true))),
+      branch(label("ev_self_eval")),
+
+      test(list(op("is_name"), reg("exp"), constant(true))),
+      branch(label("ev_name")),
+
+      // Treat let/const the same
+      test(list(op("is_variable_declaration"), reg("exp"), constant(true))),
+      branch(label("ev_variable_declaration")),
+      test(list(op("is_constant_declaration"), reg("exp"), constant(true))),
+      branch(label("ev_constant_declaration")),
+      test(list(op("is_assignment"), reg("exp"), constant(true))),
+      branch(label("ev_assignment")),
+
+      test(list(op("is_return_statement"), reg("exp"), constant(true))),
+      branch(label("ev_return")),
+
+      test(list(op("is_conditional_expression"), reg("exp"), constant(true))),
+      branch(label("ev_if")),
+      test(list(op("is_lambda_expression"), reg("exp"), constant(true))),
+      branch(label("ev_lambda")),
+      test(list(op("is_sequence"), reg("exp"), constant(true))),
+      branch(label("ev_seq")),
+      test(list(op("is_block"), reg("exp"), constant(true))),
+      branch(label("ev_block")),
+      test(list(op("is_application"), reg("exp"), constant(true))),
+      branch(label("ev_application")),
+      go_to(label("unknown_expression_type")),
+
+      "ev_return",
+        assign("returned", constant(true)),
+        assign("exp", list(op("return_expression"), reg("exp"))),
+        restore("continue"),
+        go_to(label("eval_dispatch")),
+
+      "ev_self_eval",
+      assign("val", reg("exp")),
+      go_to(reg("continue")),
+      
+      "ev_name",
+      assign("val", list(op("lookup_symbol_value"), reg("exp"), reg("env"))),
+      go_to(reg("continue")),
+      
+      "ev_lambda",
+      assign("unev", list(op("lambda_parameters"), reg("exp"))),
+      assign("exp", list(op("lambda_body"), reg("exp"))),
+      assign(
+      "val",
+      list(op("make_function"), reg("unev"), reg("exp"), reg("env"))
+      ),
+      go_to(reg("continue")),
+      
+      "ev_application",
+      save("continue"),
+      save("env"),
+      assign("unev", list(op("args"), reg("exp"))),
+      save("unev"),
+      assign("exp", list(op("function_expression"), reg("exp"))),
+      assign("continue", label("ev_appl_did_operator")),
+      go_to(label("eval_dispatch")),
+      
+      "ev_appl_did_operator",
+      restore("unev"), // the args
+      restore("env"),
+      assign("argl", list(op("empty_arglist"))),
+      assign("fun", reg("val")), // the function_expression
+      test(list(op("has_no_operands"), reg("unev"), constant(true))),
+      branch(label("apply_dispatch")),
+      save("fun"),
+      
+      "ev_appl_operand_loop",
+      save("argl"),
+      assign("exp", list(op("first_arg"), reg("unev"))),
+      test(list(op("is_last_operand"), reg("unev"), constant(true))),
+      branch(label("ev_appl_last_arg")),
+      save("env"),
+      save("unev"),
+      assign("continue", label("ev_appl_accumulate_arg")),
+      go_to(label("eval_dispatch")),
+      
+      "ev_appl_accumulate_arg",
+      restore("unev"),
+      restore("env"),
+      restore("argl"),
+      assign("argl", list(op("adjoin_arg"), reg("val"), reg("argl"))),
+      assign("unev", list(op("rest_args"), reg("unev"))),
+      go_to(label("ev_appl_operand_loop")),
+      
+      "ev_appl_last_arg",
+      assign("continue", label("ev_appl_accum_last_arg")),
+      go_to(label("eval_dispatch")),
+      
+      "ev_appl_accum_last_arg",
+      restore("argl"),
+      assign("argl", list(op("adjoin_arg"), reg("val"), reg("argl"))),
+      restore("fun"),
+      go_to(label("apply_dispatch")),
+      
+      // function application needs to distinguish between
+      // primitive functions (which are evaluated using the
+      // underlying JavaScript), and compound functions.
+      // An application of the latter needs to evaluate the
+      // body of the function value with respect to an
+      // environment that results from extending the function
+      // object`s environment by a binding of the function
+      // parameters to the arguments and of local names to
+      // the special value no_value_yet
+      
+      // function apply(fun, args) {
+      //   if (is_primitive_function(fun)) {
+      //     return apply_primitive_function(fun, args);
+      //   } else if (is_compound_function(fun)) {
+      //     const body = function_body(fun);
+      //     const locals = scan_out_declarations(body);
+      //     const names = insert_all(function_parameters(fun), locals);
+      //     const temp_values = map((x) => no_value_yet, locals);
+      //     const values = append(args, temp_values);
+      //     const result = evaluate(
+      //       body,
+      //       extend_environment(names, values, function_environment(fun))
+      //     );
+      //     if (is_return_value(result)) {
+      //       return return_value_content(result);
+      //     } else {
+      //       return undefined;
+      //     }
+      //   } else {
+      //     error(fun, "Unknown function type in apply");
+      //   }
+      // }
+      "apply_dispatch",
+      test(list(op("is_primitive_function"), reg("fun"), constant(true))),
+      branch(label("primitive_apply")),
+      test(list(op("is_compound_function"), reg("fun"), constant(true))),
+      branch(label("compound_apply")),
+      go_to(label("unknown_procedure_type")),
+
+      "primitive_apply",
+      assign("val", list(op("apply_primitive_function"), 
+                         reg("fun"), 
+                         reg("argl"))),
+      // go_to(label("return_from_apply")),
+      restore("continue"),
+      go_to(reg("continue")),
+      
+        "compound_apply",
+          assign("unev", list(op("function_parameters"), reg("fun"))), // params
+          assign("env", list(op("function_environment"), reg("fun"))),
+          assign("env", list(op("extend_environment"), 
+                             reg("unev"), 
+                             reg("argl"), 
+                             reg("env"))),
+          assign("unev", list(op("function_body"), reg("fun"))),
+        assign("returned", constant(false)),
+          go_to(label("ev_sequence")),
+    
+      // to evaluate a sequence, we need to evaluate
+      // its statements one after the other, and return
+      // the value of the last statement.
+      // An exception to this rule is when a return
+      // statement is encountered. In that case, the
+      // remaining statements are ignored and the
+      // return value is the value of the sequence.
+      
+      // function eval_sequence(stmts, env) {
+      //   if (is_empty_sequence(stmts)) {
+      //     return undefined;
+      //   } else if (is_last_statement(stmts)) {
+      //     return evaluate(first_statement(stmts), env);
+      //   } else {
+      //     const first_stmt_value = evaluate(first_statement(stmts), env);
+      //     if (is_return_value(first_stmt_value)) {
+      //       return first_stmt_value;
+      //     } else {
+      //       return eval_sequence(rest_statements(stmts), env);
+      //     }
+      //   }
+      // }
+      "ev_seq",
+      save("continue"),
+      assign("unev", list(op("sequence_statements"), reg("exp"))),
+      
+      "ev_sequence",
+      assign("exp", list(op("first_statement"), reg("unev"))),
+      test(list(op("is_return_statement"), reg("exp"), constant(true))),
+      branch(label("ev_return")),
+      test(list(op("is_last_statement"), reg("unev"), constant(true))),
+      branch(label("ev_sequence_last_exp")),
+      save("unev"),
+      save("env"),
+      assign("continue", label("ev_sequence_continue")),
+      go_to(label("eval_dispatch")),
+      
+      "ev_sequence_continue",
+      restore("env"),
+      restore("unev"),
+      assign("unev", list(op("rest_statements"), reg("unev"))),
+      go_to(label("ev_sequence")),
+      
+      "ev_sequence_last_exp",
+      assign("continue", label("check_return")),
+      go_to(label("eval_dispatch")),
+
+        "check_return",
+        test(list(op("is_returned"), reg("returned"), constant(true))), /// FIXME: ugly
+        branch(label("explicit_return")),
+      assign("val", constant(undefined)),
+
+      "explicit_return",
+      restore("continue"),
+      go_to(reg("continue")),
+        
+
+
+      // evaluation of blocks evaluates the body of the block
+      // with respect to the current environment extended by
+      // a binding of all local names to the special value
+      // no_value_yet
+      
+      // function eval_block(stmt, env) {
+      //   const body = block_body(stmt);
+      //   const locals = scan_out_declarations(body);
+      //   const temp_values = map((x) => no_value_yet, locals);
+      //   return evaluate(body, extend_environment(locals, temp_values, env));
+      // }
+      "ev_block",
+      assign("exp", list(op("block_body"), reg("exp"))),
+      assign("val", list(op("scan_out_declarations"), reg("exp"))),
+
+      save("exp"), // Temporarily store to exp
+      assign("exp", list(op("list_of_unassigned"), reg("val"))),
+      assign("env", list(op("extend_environment"), 
+                         reg("val"), 
+                         reg("exp"), 
+                         reg("env"))),
+      restore("exp"),
+      go_to(label("eval_dispatch")),
+      
+      // the meta-circular evaluation of conditional expressions
+      // evaluates the predicate and then the appropriate
+      // branch, depending on whether the predicate evaluates to
+      // true or not
+      
+      // function eval_conditional_expression(stmt, env) {
+      //   return is_true(evaluate(cond_expr_pred(stmt), env))
+      //     ? evaluate(cond_expr_cons(stmt), env)
+      //     : evaluate(cond_expr_alt(stmt), env);
+      // }
+      "ev_if",
+      save("exp"), // save expression for later
+      save("env"),
+      save("continue"),
+      assign("continue", label("ev_if_decide")),
+      assign("exp", list(op("conditional_pred"), reg("exp"))),
+      go_to(label("eval_dispatch")), // evaluate the predicate
+      
+      "ev_if_decide",
+      restore("continue"),
+      restore("env"),
+      restore("exp"),
+      test(list(op("is_true"), reg("val"), constant(true))),
+      branch(label("ev_if_consequent")),
+      
+      "ev_if_alternative",
+      assign("exp", list(op("conditional_alt"), reg("exp"))),
+      go_to(label("eval_dispatch")),
+      
+      "ev_if_consequent",
+      assign("exp", list(op("conditional_cons"), reg("exp"))),
+      go_to(label("eval_dispatch")),
+      
+      // function eval_assignment(stmt, env) {
+      //   const value = evaluate(assignment_value(stmt), env);
+      //   assign_symbol_value(assignment_symbol(stmt), value, env);
+      //   return value;
+      // }
+      "ev_assignment",
+      assign("unev", list(op("assignment_symbol"), reg("exp"))),
+      save("unev"), // save variable for later
+      assign("exp", list(op("assignment_value"), reg("exp"))),
+      save("env"),
+      save("continue"),
+      assign("continue", label("ev_assignment_1")),
+      go_to(label("eval_dispatch")), // evaluate the assignment value
+      
+      "ev_assignment_1",
+      restore("continue"),
+      restore("env"),
+      restore("unev"),
+      perform(
+      list(op("assign_symbol_value"), reg("unev"), reg("val"), reg("env"))
+      ),
+      assign("val", constant("ok")),
+      go_to(reg("continue")),
+      
+      // evaluation of a constant declaration evaluates
+      // the right-hand expression and binds the
+      // name to the resulting value in the
+      // first (innermost) frame
+      
+      // function eval_constant_declaration(stmt, env) {
+      //   assign_symbol_value(
+      //     constant_declaration_symbol(stmt),
+      //     evaluate(constant_declaration_value(stmt), env),
+      //     env
+      //   );
+      // }
+      "ev_variable_declaration",
+      assign("unev", list(op("variable_declaration_symbol"), reg("exp"))),
+      save("unev"), // save variable for later
+      assign("exp", list(op("variable_declaration_value"), reg("exp"))),
+      save("env"),
+      save("continue"),
+      assign("continue", label("ev_variable_declaration_1")),
+      go_to(label("eval_dispatch")), // evaluate the declaration value
+      
+      "ev_variable_declaration_1",
+      restore("continue"),
+      restore("env"),
+      restore("unev"),
+      perform(list(op("declare_value"), reg("unev"), reg("val"), reg("env"))),
+      assign("val", constant("ok")),
+      go_to(reg("continue")),
+      
+      "ev_constant_declaration",
+      assign("unev", list(op("constant_declaration_symbol"), reg("exp"))),
+      save("unev"), // save constant for later
+      assign("exp", list(op("constant_declaration_value"), reg("exp"))),
+      save("env"),
+      save("continue"),
+      assign("continue", label("ev_constant_declaration_1")),
+      go_to(label("eval_dispatch")), // evaluate the declaration value
+      
+      "ev_constant_declaration_1",
+      restore("continue"),
+      restore("env"),
+      restore("unev"),
+      perform(list(op("declare_value"), reg("unev"), reg("val"), reg("env"))),
+      assign("val", constant("ok")),
+      go_to(reg("continue")),
+      
+      // Error handling
+      "unknown_expression_type",
+      assign("val", constant("unknown_expression_type_error")),
+      assign("val", reg("exp")),
+      go_to(label("signal_error")),
+      
+      "unknown_procedure_type",
+      restore("continue"), /// clean up stack (from apply_dispatch)
+      assign("val", constant("unknown_procedure_type_error")),
+      go_to(label("signal_error")),
+      
+      "signal_error",
+      perform(list(op("user_print"), constant("EC_eval error:"), reg("val"))),
+      go_to(label("evaluator_done")),
+      
+      "read_eval_print_loop",
+      assign("exp", list(op("prompt_for_input"), constant("/// EC_Eval input:"))),
+      assign("continue", label("print_result")),
+      go_to(label("eval_dispatch")),
+      "print_result",
+      
+      perform(list(op("user_print"), constant("EC-evaluate value:"), reg("val"))),
+      //go_to(label("read_eval_print_loop")), /// Comment out to avoid infinite loop
+      
+      "evaluator_done"
+      )
+  );
+      </JAVASCRIPT>
+    </SNIPPET>
     <SNIPPET>
       <NAME>compile_and_go_example</NAME>
       <REQUIRES>headline_4_1_1</REQUIRES>
@@ -483,8 +1059,8 @@ function compile_and_go(stmt) {
       <REQUIRES>preserving</REQUIRES>
       <REQUIRES>tack_on_instruction_sequence</REQUIRES>
       <REQUIRES>parallel_instruction_sequences</REQUIRES>
-      <!-- <REQUIRES>start_eceval</REQUIRES> -->
       <REQUIRES>user_print_2</REQUIRES>
+      <REQUIRES>eceval</REQUIRES>
       <REQUIRES>compile_and_go</REQUIRES>
       <SCHEME>
       (compile-and-go

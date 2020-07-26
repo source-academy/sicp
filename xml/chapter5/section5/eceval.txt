@@ -1,0 +1,1949 @@
+
+function prompt_for_input(p) {
+    const x = make_block(parse(prompt("enter program")));
+    return x;
+}
+// function prompt_for_input(p) {
+//     const program_block = make_block(parse("function plus(a,b) { return a > 0 ? plus(a-1,b+1) : a + b; } plus(2,3);"));//prompt(p)));
+//     const program_block2 = make_block(parse("2+3;"));//prompt(p)));
+//     return program_block;
+// }
+
+function get_global_environment() {
+    return the_global_environment;
+}
+
+// CHANGE: replaced no_value_yet by "*unassigned*"
+// const no_value_yet = () => null;
+
+// now called make_function
+// function make_compound_function(parameters, body, env) {
+//   return list("compound_function", parameters, make_block(body), env);
+// }
+
+// CHANGE: local_names is now called scan_out_declarations
+
+// The function local_names collects all names declared in the
+// body statements. For a name to be included in the list of
+// local_names, it needs to be declared outside of any other
+// block or function.
+
+// function insert_all(xs, ys) {
+//   return is_null(xs)
+//     ? ys
+//     : is_null(member(head(xs), ys))
+//     ? pair(head(xs), insert_all(tail(xs), ys))
+//     : error(head(xs), "multiple declarations of: ");
+// }
+
+// function local_names(stmt) {
+//   if (is_sequence(stmt)) {
+//     const stmts = sequence_statements(stmt);
+//     return is_empty_sequence(stmts)
+//       ? null
+//       : insert_all(
+//           local_names(first_statement(stmts)),
+//           local_names(make_sequence(rest_statements(stmts)))
+//         );
+//   } else {
+//     return is_constant_declaration(stmt)
+//       ? list(constant_declaration_symbol(stmt))
+//       : is_variable_declaration(stmt)
+//       ? list(variable_declaration_symbol(stmt))
+//       : null;
+//   }
+// }
+
+// CHANGE: not used
+// function is_empty_environment(env) {
+//   return is_null(env);
+// }
+
+/* THE GLOBAL ENVIRONMENT */
+
+// the minus operation is overloaded to
+// support both binary minus and unary minus
+
+// CHANGE: not used
+// function minus(x, y) {
+//   if (is_number(x) && is_number(y)) {
+//     return x - y;
+//   } else {
+//     return -x;
+//   }
+// }
+
+// the global environment has bindings for all
+// primitive functions, including the operators
+
+
+// CHANGE: let's use pairs from the host language in 5.4
+
+// // Global registers
+// let the_heads = [];
+// let the_tails = [];
+// let free = 0;
+
+// const POINTER_TAG = 800;
+// const NUMBER_TAG = 801;
+// const STRING_TAG = 802;
+// const NULL_TAG = -1;
+
+// /// Pairs implemented using vectors of heads and tails as in 5.3
+
+// function head_(n) {
+//   return vector_ref(the_heads, n);
+// }
+
+// function tail_(n) {
+//   return vector_ref(the_tails, n);
+// }
+
+// function vector_ref(xs, index) {
+//   return xs[index];
+// }
+
+// function vector_set(xs, index, value) {
+//   xs[index] = value;
+//   return undefined;
+// }
+
+// function pair_(a, b) {
+//   // perform(list(op("vector_set"), reg("the_heads"), reg("free"), a));
+//   // perform(list(op("vector_set"), reg("the_tails"), reg("free"), b));
+//   // assign("free", list(op("+"), reg("free"), constant(1)));
+//   // display(is_number(a), "is_number");
+
+//   const ret = free;
+//   vector_set(the_heads, free, a);
+//   vector_set(the_tails, free, b);
+
+//   free = free + 1;
+//   return ret;
+// }
+
+function binary_function(f) {
+  // f is binary
+  return (arg_list) =>
+    is_list(arg_list) && length(arg_list) === 2
+      ? apply_in_underlying_javascript(f, arg_list)
+      : error(
+          arg_list,
+          "Incorrect number of arguments passed to binary function "
+        );
+}
+
+
+
+// SICP JS 5.5.7
+
+// functions from SICP JS 4.1.1
+
+function scan_out_declarations(stmt) {
+    if (is_sequence(stmt)) {
+        const stmts = sequence_statements(stmt);
+        return is_empty_sequence(stmts)
+            ? null
+            : append(scan_out_declarations(first_statement(stmts)),
+                     scan_out_declarations(make_sequence(
+                                   rest_statements(stmts))));
+    } else {
+        return is_constant_declaration(stmt)
+            ? list(constant_declaration_symbol(stmt))
+            : is_variable_declaration(stmt)
+              ? list(variable_declaration_symbol(stmt))
+              : null;
+    }
+}
+
+function list_of_unassigned(names) {
+    return is_null(names)
+        ? null
+        : pair("*unassigned*", list_of_unassigned(tail(names)));	    
+}
+
+// functions from SICP JS 4.1.2
+
+function is_self_evaluating(stmt) {
+    return is_number(stmt)  ||
+           is_string(stmt)  ||
+           is_boolean(stmt) ||
+           is_null(stmt)    ||
+           is_undefined(stmt);
+}
+
+function is_tagged_list(stmt, the_tag) {
+    return is_pair(stmt) && head(stmt) === the_tag;
+}
+
+function is_name(stmt) {
+    return is_tagged_list(stmt, "name");
+}
+function symbol_of_name(stmt) {
+    return head(tail(stmt));
+}
+
+function is_assignment(stmt) {
+   return is_tagged_list(stmt, "assignment");
+}
+function assignment_symbol(stmt) {
+   return head(tail(head(tail(stmt))));
+}
+function assignment_value(stmt) {
+   return head(tail(tail(stmt)));
+}
+
+function is_constant_declaration(stmt) {
+   return is_tagged_list(stmt, "constant_declaration");
+}
+function constant_declaration_symbol(stmt) {
+   return head(tail(head(tail(stmt))));
+}
+function constant_declaration_value(stmt) {
+   return head(tail(tail(stmt)));
+}
+function is_variable_declaration(stmt) {
+   return is_tagged_list(stmt, "variable_declaration");
+}
+function variable_declaration_symbol(stmt) {
+   return head(tail(head(tail(stmt))));
+}
+function variable_declaration_value(stmt) {
+   return head(tail(tail(stmt)));
+}
+
+function is_lambda_expression(stmt) {
+   return is_tagged_list(stmt, "lambda_expression");
+}
+function lambda_parameters(stmt) {
+   return map(symbol_of_name, head(tail(stmt)));
+}
+function lambda_body(stmt) {
+   return head(tail(tail(stmt)));
+}
+
+function is_return_statement(stmt) {
+   return is_tagged_list(stmt, "return_statement");
+}
+function return_expression(stmt) {
+   return head(tail(stmt));
+}
+
+function is_conditional_expression(stmt) {
+   return is_tagged_list(stmt, 
+                "conditional_expression");
+}
+function cond_expr_pred(stmt) {
+   return list_ref(stmt, 1);
+}
+function cond_expr_cons(stmt) {
+   return list_ref(stmt, 2);
+}
+function cond_expr_alt(stmt) {
+   return list_ref(stmt, 3);
+}
+
+function is_sequence(stmt) {
+   return is_tagged_list(stmt, "sequence");
+}
+function make_sequence(stmts) {
+   return list("sequence", stmts);
+}
+function sequence_statements(stmt) {   
+   return head(tail(stmt));
+}
+function first_statement(stmts) {
+   return head(stmts);
+}
+function rest_statements(stmts) {
+   return tail(stmts);
+}
+function is_empty_sequence(stmts) {
+   return is_null(stmts);
+}
+function is_last_statement(stmts) {
+   return is_null(tail(stmts));
+}
+
+function is_block(stmt) {
+    return is_tagged_list(stmt, "block");
+}
+function make_block(stmt) {
+   return list("block", stmt);
+}
+function block_body(stmt) {
+    return head(tail(stmt));
+}
+
+function is_application(stmt) {
+   return is_tagged_list(stmt, "application");
+}
+function function_expression(stmt) {
+   return head(tail(stmt));
+}
+function args(stmt) {
+   return head(tail(tail(stmt)));
+}
+function no_args(ops) {
+   return is_null(ops);
+}
+function first_arg(ops) {
+   return head(ops);
+}
+function rest_args(ops) {
+   return tail(ops);
+}
+
+// functions from SICP JS 4.1.3
+
+function is_true(x) {
+    return x === true;
+}
+
+function make_function(parameters, body, env) {
+    return list("compound_function",
+                parameters, body, env);
+}
+function is_compound_function(f) {
+    return is_tagged_list(f, "compound_function");
+}
+function function_parameters(f) {
+    return list_ref(f, 1);
+}
+function function_body(f) {
+    return list_ref(f, 2);
+}
+function function_environment(f) {
+    return list_ref(f, 3);
+}
+
+function make_return_value(content) {
+    return list("return_value", content);
+}
+function is_return_value(value) {
+    return is_tagged_list(value, "return_value");
+}
+function return_value_content(value) {
+    return head(tail(value));
+}
+
+function enclosing_environment(env) {
+    return tail(env);
+}
+function first_frame(env) {
+    return head(env);
+}
+function enclose_by(frame, env) {    
+    return pair(frame, env);
+}
+const the_empty_environment = null;
+
+function make_frame(symbols, values) {
+    return pair(symbols, values);
+}
+function frame_symbols(frame) {    
+    return head(frame);
+}
+function frame_values(frame) {    
+    return tail(frame);
+}
+
+function extend_environment(symbols, vals, base_env) {
+    return length(symbols) === length(vals)
+           ? pair(make_frame(symbols, vals), base_env)
+           : length(symbols) < length(vals)
+             ? error("Too many arguments supplied: " + 
+                     stringify(symbols) + ", " + 
+                     stringify(vals))
+             : error("Too few arguments supplied: " + 
+                     stringify(symbols) + ", " + 
+                     stringify(vals));
+}
+
+function lookup_symbol_value(symbol, env) {
+    function env_loop(env) {
+        function scan(symbols, vals) {
+            return is_null(symbols)
+                   ? env_loop(
+                       enclosing_environment(env))
+                   : symbol === head(symbols)
+                     ? head(vals)
+                     : scan(tail(symbols), tail(vals));
+        }
+        if (env === the_empty_environment) {
+            error(symbol, "Unbound name");
+        } else {
+            const frame = first_frame(env);
+            return scan(frame_symbols(frame),
+                        frame_values(frame));
+        }
+    }
+    return env_loop(env);
+}
+
+function assign_symbol_value(symbol, val, env) {
+    function env_loop(env) {
+        function scan(symbols, vals) {
+            return is_null(symbols)
+                ? env_loop(
+                    enclosing_environment(env))
+                : symbol === head(symbols)
+                  ? set_head(vals, val)
+                  : scan(tail(symbols), tail(vals));
+        } 
+        if (env === the_empty_environment) {
+            error(symbol, "Unbound name -- assignment");
+        } else {
+            const frame = first_frame(env);
+            return scan(frame_symbols(frame),
+                        frame_values(frame));
+        }
+    }
+    return env_loop(env);
+}
+
+// functions from SICP JS 4.1.4
+
+function is_primitive_function(fun) {
+   return is_tagged_list(fun, "primitive");
+}
+function primitive_implementation(fun) {
+   return head(tail(fun));
+}
+
+const primitive_functions = list(
+       list("head",    head             ),
+       list("tail",    tail             ),
+       list("pair",    pair             ),
+       list("list",    list             ),
+       list("is_null", is_null          ),
+       list("display", display          ),
+       list("error",   error            ),
+       list("math_abs",math_abs         ),
+       list("+",       (x, y) => x + y  ),
+       list("-",       (x, y) => x - y  ),
+       list("*",       (x, y) => x * y  ),
+       list("/",       (x, y) => x / y  ),
+       list("%",       (x, y) => x % y  ),
+       list("===",     (x, y) => x === y),
+       list("!==",     (x, y) => x !== y),
+       list("<",       (x, y) => x <   y),
+       list("<=",      (x, y) => x <=  y),
+       list(">",       (x, y) => x >   y),
+       list(">=",      (x, y) => x >=  y),
+       list("!",        x     =>   !   x)
+       );
+const primitive_function_symbols =
+        map(head, primitive_functions);
+const primitive_function_objects =
+        map(fun => list("primitive", head(tail(fun))),
+            primitive_functions);
+
+const primitive_constants = list(list("undefined", undefined),
+                                 list("Infinity",  Infinity),
+                                 list("math_PI",   math_PI),
+                                 list("math_E",    math_E),
+                                 list("NaN",       NaN)
+                                );
+const primitive_constant_symbols =
+        map(f => head(f), primitive_constants);
+const primitive_constant_values =
+        map(f => head(tail(f)), primitive_constants);
+
+function apply_primitive_function(fun, arg_list) {
+    return apply_in_underlying_javascript(
+                primitive_implementation(fun),
+                arg_list);     
+}
+
+function setup_environment() {
+    return extend_environment(
+               append(primitive_function_symbols, 
+                      primitive_constant_symbols),
+               append(primitive_function_objects, 
+                      primitive_constant_values),
+               the_empty_environment);
+}
+
+const the_global_environment = setup_environment();
+
+function get_register(machine, reg_name) {
+    return machine("get_register")(reg_name);
+}
+
+function assign_reg_name(assign_instruction) {
+    return head(tail(assign_instruction));
+}
+function assign_value_exp(assign_instruction) { 
+    return head(tail(tail(assign_instruction)));
+}
+
+function lookup_prim(symbol, operations) {
+    const val = assoc(symbol, operations);
+    return val === undefined
+        ? error(symbol, "Unknown operation in assemble:")
+        : head(tail(val));
+}
+
+function lookup_label(labels, label_name) {
+    const val = assoc(label_name, labels);
+    return val === undefined
+        ? error(label_name, "Undefined label in assemble:")
+        : tail(val);
+}
+
+function make_primitive_exp(exp, machine, labels) {
+    if (is_constant_exp(exp)) {
+        const c = constant_exp_value(exp);
+        return () => c;
+    } else if (is_label_exp(exp)) {
+        const insts = lookup_label(labels, label_exp_label(exp));
+        return () => insts;
+    } else if (is_register_exp(exp)) {
+        const r = get_register(machine, register_exp_reg(exp));
+        return () => get_contents(r); 
+    } else {
+        error(exp, "Unknown expression type in assemble:");
+    }
+}
+
+function make_operation_exp(exp, machine, labels, operations) {
+    const op = lookup_prim(operation_exp_op(exp), operations);
+    const aprocs = map(e => make_primitive_exp(e, machine, labels),
+                       operation_exp_operands(exp));
+    return () => apply_in_underlying_javascript(
+                     op, map(p => p(), aprocs));
+}
+
+function assign(register_name, source) {
+    return list("assign", register_name, source);
+}
+
+function make_assign(inst, machine, labels, operations, pc) {
+    const target = get_register(machine, assign_reg_name(inst));
+    const value_exp = assign_value_exp(inst);
+    const value_fun =
+        is_operation_exp(value_exp)
+        ? make_operation_exp(value_exp, machine, labels, operations)
+        : make_primitive_exp(value_exp, machine, labels);
+    return () => {
+        set_contents(target, value_fun());
+        advance_pc(pc); 
+    };
+}
+
+function advance_pc(pc) {
+    set_contents(pc, tail(get_contents(pc))); 
+}
+
+function make_test(inst, machine, labels, operations, flag, pc) {
+    const condition = test_condition(inst);
+    if (is_operation_exp(condition)) {
+        const condition_fun = make_operation_exp(condition,
+                                  machine, labels, operations);
+        return () => {
+                       set_contents(flag, condition_fun());
+                       advance_pc(pc); 
+                     };
+    } else {
+        error(inst, "Bad test instruction in assemble:");
+    }
+}
+function test(sequence) {
+    return list("test", sequence);
+}
+function test_condition(test_instruction) {
+    return head(tail(test_instruction));
+}
+
+function make_branch(inst, machine, labels, flag, pc) {
+    const dest = branch_dest(inst);
+    if (is_label_exp(dest)) {
+        const insts = lookup_label(labels, label_exp_label(dest));
+        return () => {
+                       if (get_contents(flag)) {
+                           set_contents(pc, insts);
+                       } else {
+                           advance_pc(pc);
+                       }
+                     };
+    } else {
+        error(inst, "Bad branch instruction in assemble:");
+    }
+}
+function branch(label) {
+    return list("branch", label);
+}
+function branch_dest(branch_instruction) {
+    return head(tail(branch_instruction));
+}
+
+function reg(name) {
+    return list("reg", name);
+}
+function is_register_exp(exp) {
+    return is_tagged_list(exp, "reg");
+}
+function register_exp_reg(exp) {
+    return head(tail(exp));
+}
+function constant(value) {
+    return list("constant", value);
+}
+function is_constant_exp(exp) {
+    return is_tagged_list(exp, "constant");
+}
+function constant_exp_value(exp) {
+    return head(tail(exp));
+}
+function label(name) {
+    return list("label", name);
+}
+function is_label_exp(exp) {
+    return is_tagged_list(exp, "label");
+}
+function label_exp_label(exp) {
+    return head(tail(exp));
+}
+
+function make_go_to(inst, machine, labels, pc) {
+    const dest = go_to_dest(inst);
+    if (is_label_exp(dest)) {
+        const insts = lookup_label(labels, label_exp_label(dest));
+        return () => set_contents(pc, insts);
+    } else if (is_register_exp(dest)) {
+        const reg = get_register(machine, register_exp_reg(dest));
+        return () => set_contents(pc, get_contents(reg));
+    } else {
+        error(inst, "Bad go_to instruction in assemble:");
+    }
+}
+
+function go_to(label) {
+    return list("go_to", label);
+}
+function go_to_dest(go_to_instruction) {
+    return head(tail(go_to_instruction));
+}
+
+function pop(stack) {
+    return stack("pop");
+}
+function push(stack, value) {
+    return stack("push")(value);
+}
+
+function make_save(inst, machine, stack, pc) {
+    const reg = get_register(machine, stack_inst_reg_name(inst));
+    return () => {
+                   push(stack, get_contents(reg));
+                   advance_pc(pc);
+                 };
+}
+function make_restore(inst, machine, stack, pc) {
+    const reg = get_register(machine, stack_inst_reg_name(inst));
+    return () => {
+                   set_contents(reg, pop(stack));
+                   advance_pc(pc); 
+                 };
+}
+
+function save(reg) {
+    return list("save", reg);
+}
+function restore(reg) {
+    return list("restore", reg);
+}
+function stack_inst_reg_name(stack_instruction) {
+    return head(tail(stack_instruction));
+}
+
+function op(name) {
+    return list("op", name);
+}
+function is_operation_exp(exp) {
+    return is_pair(exp) && is_tagged_list(head(exp), "op");
+}
+function operation_exp_op(operation_exp) {
+    return head(tail(head(operation_exp)));
+}
+function operation_exp_operands(operation_exp) {
+    return tail(operation_exp);
+}
+
+function make_perform(inst, machine, labels, operations, pc) {
+    const action = perform_action(inst);
+    if (is_operation_exp(action)) {
+        const action_fun = make_operation_exp(action, machine,
+                                            labels, operations);
+        return () => { 
+                       action_fun(); advance_pc(pc); 
+                     };
+    } else {
+        error(inst, "Bad perform instruction in assemble");
+    }
+}
+function perform(action) {
+    return list("perform", action);
+}
+function perform_action(inst) {
+    return head(tail(inst)); 
+}
+
+function make_execution_function(inst, labels, machine, 
+                                 pc, flag, stack, ops) {
+    return head(inst) === "assign"
+        ? make_assign(inst, machine, labels, ops, pc)
+        : head(inst) === "test"
+        ? make_test(inst, machine, labels, ops, flag, pc)
+        : head(inst) === "branch"
+        ? make_branch(inst, machine, labels, flag, pc)
+        : head(inst) === "go_to"
+        ? make_go_to(inst, machine, labels, pc)
+        : head(inst) === "save"
+        ? make_save(inst, machine, stack, pc)
+        : head(inst) === "restore"
+        ? make_restore(inst, machine, stack, pc)
+        : head(inst) === "perform"
+        ? make_perform(inst, machine, labels, ops, pc)
+        : error(inst, "Unknown instruction type in assemble:");
+}
+
+function make_instruction(text) {
+    return pair(text, null);
+}
+function instruction_text(inst) {
+    return head(inst);
+}
+function instruction_execution_proc(inst) {
+    return tail(inst);
+}
+function set_instruction_execution_proc(inst, proc) {
+    set_tail(inst, proc); 
+}
+
+function update_insts(insts, labels, machine) {
+    const pc = get_register(machine, "pc");
+    const flag = get_register(machine, "flag");
+    const stack = machine("stack");
+    const ops = machine("operations");
+    const set_iep = set_instruction_execution_proc;
+    const make_ep = make_execution_function;
+    return map(i => set_iep(i,
+                            make_ep(instruction_text(i),
+                                    labels,
+                                    machine,
+                                    pc,
+                                    flag,
+                                    stack,
+                                    ops)),
+               insts);
+}
+
+function make_label_entry(label_name, insts) {
+    return pair(label_name, insts);
+}
+
+function extract_labels(text, receive) {
+    function helper(insts, labels) { 
+        const next_inst = head(text);
+        return is_string(next_inst)
+            ? receive(insts, pair(make_label_entry(next_inst, insts), labels))
+            : receive(pair(make_instruction(next_inst), insts), labels);
+    }
+    return text === undefined || is_null(text)
+        ? receive(null, null)
+        : extract_labels(tail(text), helper);
+}
+
+function assemble(controller_text, machine) {
+return extract_labels(controller_text,
+                      (insts, labels) => {
+                         update_insts(insts, labels, machine);
+                         return insts;
+                      });
+}
+
+function make_stack() {
+    let stack = null;
+    function push(x) { 
+        stack = pair(x, stack); 
+        return "done";
+    }
+    function pop() {
+        if (is_null(stack)) {
+            error("Empty stack: POP");
+        } else {
+            const top = head(stack);
+            stack = tail(stack);
+            return top;
+        }
+    }
+    function initialize() {
+        stack = null;
+        return "done";
+    }
+    function dispatch(message) {
+        return message === "push"
+            ? push
+            : message === "pop"
+            ? pop()
+            : message === "initialize"
+            ? initialize()
+            : error("Unknown request in stack:", message);
+    }
+    return dispatch;
+}
+
+function make_register(name) {
+    let contents = "*unassigned*";
+    function dispatch(message) {
+        return message === "get"
+            ? contents
+            : message === "set"
+              ? value => { contents = value; }
+              : error(message, 
+                      "Unknown request in make_register:");
+    }
+    return dispatch;
+}
+
+function assoc(key, records) {
+    return is_null(records)
+           ? undefined
+           : equal(key, head(head(records)))
+             ? head(records)
+             : assoc(key, tail(records));
+}
+
+function get_contents(register) {
+    return register("get");
+}
+function set_contents(register, value) {
+    return register("set")(value);
+}
+
+function make_new_machine() {
+    const pc = make_register("pc");
+    const flag = make_register("flag");
+    const stack = make_stack();
+    let the_instruction_sequence = null;
+    let the_ops = list(list("initialize_stack", 
+                            () => stack("initialize")));
+    let register_table = list(list("pc", pc), list("flag", flag));
+
+    function allocate_register(name) {
+        if (assoc(name, register_table) === undefined) {
+            register_table = pair(list(name, make_register(name)),
+                                  register_table);
+        } else {
+            error(name, "Multiply defined register: ");
+        }
+        return "register_allocated";
+    }
+    function lookup_register(name) {
+        const val = assoc(name, register_table);
+        return val === undefined
+            ? error(name, "Unknown register:")
+            : head(tail(val));
+    }
+    function execute() {
+        const insts = get_contents(pc);
+        if (is_null(insts)) {
+            return "done";
+        } else {
+            const proc = instruction_execution_proc(head(insts)); 
+            proc(); 
+            return execute();
+        }
+    }
+    function dispatch(message) {
+        return message === "start"
+            ? () => { set_contents(pc, the_instruction_sequence);
+                      return execute(); }
+            : message === "install_instruction_sequence"
+            ? seq => { the_instruction_sequence = seq; }
+            : message === "allocate_register"
+            ? allocate_register
+            : message === "get_register"
+            ? lookup_register
+            : message === "install_operations"
+            ? ops => { the_ops = append(the_ops, ops); }
+            : message === "stack"
+            ? stack
+            : message === "operations"
+            ? the_ops
+            : error(message, "Unknown request in machine:");
+    }
+    return dispatch;
+}
+
+function make_machine(register_names, ops, controller_text) {
+    const machine = make_new_machine();
+    for_each(register_name => 
+               machine("allocate_register")(register_name), 
+             register_names);
+    machine("install_operations")(ops);
+    machine("install_instruction_sequence")
+           (assemble(controller_text, machine));
+    return machine;
+}
+
+function start(machine) {
+    return machine("start")();
+}
+function get_register_contents(machine, register_name) {
+    return get_contents(get_register(machine, register_name));
+}
+function set_register_contents(machine, register_name, value) {
+    set_contents(get_register(machine, register_name), value);
+    return "done";
+}
+
+function compile(stmt, target, linkage) {
+    return is_self_evaluating(stmt)
+        ? compile_self_evaluating(stmt, target, linkage)
+        : is_name(stmt)
+        ? compile_name(stmt, target, linkage)
+        : is_constant_declaration(stmt)
+        ? compile_constant_declaration(stmt, target, linkage)
+        : is_variable_declaration(stmt)
+        ? compile_variable_declaration(stmt, target, linkage)
+        : is_assignment(stmt)
+        ? compile_assignment(stmt, target, linkage)
+        : is_conditional_expression(stmt)
+        ? compile_conditional_expression(stmt, target, linkage)
+        : is_lambda_expression(stmt)
+        ? compile_lambda_expression(stmt, target, linkage)
+        : is_sequence(stmt)
+        ? compile_sequence(sequence_statements(stmt), target, linkage)
+        : is_block(stmt)
+        ? compile_block(stmt, target, linkage)
+        : is_return_statement(stmt)
+        ? compile_return_statement(stmt, target, linkage) 
+        : is_application(stmt)
+        ? compile_application(stmt, target, linkage)
+        : error(stmt, "Unknown statement type -- compile");
+}
+
+function make_instruction_sequence(needs, modifies, instructions) {
+    return list(needs, modifies, instructions);
+}
+
+function empty_instruction_sequence() {
+    return make_instruction_sequence(null, null, null);
+}
+
+function compile_linkage(target, linkage) {
+    return linkage === "return"
+        ? make_instruction_sequence(
+              list("continue"), 
+              null,
+              list(go_to(reg("continue"))))
+        : linkage === "return_undefined"
+        ? make_instruction_sequence(
+              list("continue"), 
+              list(target),
+              list(assign(target, constant(undefined)),
+                   go_to(reg("continue"))))
+        : linkage === "next"
+          ? empty_instruction_sequence()
+          : make_instruction_sequence(null, null, 
+                list(go_to(label(linkage))));
+}
+
+function end_with_linkage(target, linkage, instruction_sequence) {
+    return preserving(list("continue"),
+                      instruction_sequence,
+                      compile_linkage(target, linkage));
+}
+
+function compile_self_evaluating(exp, target, linkage) {
+    return end_with_linkage(target, linkage,
+               make_instruction_sequence(
+                   null,
+                   list(target),
+                   list(assign(target, constant(exp)))));
+}
+
+function compile_name(exp, target, linkage) {
+    return end_with_linkage(target, linkage,
+               make_instruction_sequence(list("env"), list(target),
+                   list(assign(target, 
+                               list(op("lookup_symbol_value"),
+                                    constant(exp), reg("env"))))));
+}
+
+function compile_assignment(stmt, target, linkage) {
+    const symbol = assignment_symbol(stmt);
+    const value_code =
+              compile(assignment_value(stmt), "val", "next");
+    return compile_assignment_returning(symbol,
+               value_code, target, linkage, reg("val"));
+}
+
+function compile_assignment_returning(
+             symbol, value_code, target, linkage, return_val) {
+    return end_with_linkage(target, linkage,
+               preserving(
+                   list("env"),
+                   value_code,
+                   make_instruction_sequence(
+                       list("env", "val"),
+                       list(target),
+                       list(perform(
+                                list(op("assign_symbol_value"),
+                                     constant(symbol),
+                                     reg("val"),
+                                     reg("env"))),
+                            assign(target, return_val)))));
+}
+
+function compile_constant_declaration(stmt, target, linkage) {
+    const symbol = constant_declaration_symbol(stmt);
+    const value_code =
+              compile(constant_declaration_value(stmt), "val", "next");
+    return compile_assignment_returning(symbol,
+               value_code, target, linkage, constant(undefined));
+}
+
+function compile_variable_declaration(stmt, target, linkage) {
+    const variable = variable_declaration_symbol(stmt);
+    const value_code =
+              compile(variable_declaration_value(stmt), "val", "next");
+    return compile_assignment_returning(variable,
+               value_code, target, linkage, constant(undefined));
+}
+
+let label_counter = 0;
+
+function new_label_number() {
+    label_counter = label_counter + 1;
+    return label_counter;
+}
+
+function make_label(name) {
+    return name + stringify(new_label_number());
+}
+
+function compile_conditional_expression(stmt, target, linkage) {
+    let t_branch = make_label("true_branch");
+    let f_branch = make_label("false_branch");
+    let after_cond = make_label("after_cond");
+    let consequent_linkage =
+            linkage === "next" ? after_cond : linkage;
+    let p_code = compile(cond_expr_pred(stmt), "val", "next");
+    let c_code = compile(cond_expr_cons(stmt),
+                         target, consequent_linkage);
+    let a_code = compile(cond_expr_alt(stmt),
+                         target, linkage);
+    return preserving(
+             list("env", "continue"),
+               p_code,
+               append_instruction_sequences(
+                 make_instruction_sequence(
+                   list("val"),
+                     list(),
+                     list(test(list(op("is_false"), reg("val"))),
+                          branch(label(f_branch)))),
+                 append_instruction_sequences(
+                   parallel_instruction_sequences(
+                     append_instruction_sequences(t_branch, c_code),
+                     append_instruction_sequences(f_branch, a_code)),
+                   after_cond)));
+}
+
+function compile_sequence(seq, target, linkage) {
+    return is_last_statement(seq)
+        ? compile(first_statement(seq), target, linkage)
+        : preserving(
+            list("env", "continue"),
+            compile(first_statement(seq), target, "next"),
+            compile_sequence(rest_statements(seq), target, linkage));
+}
+
+function make_compiled_function(entry, env) {
+    return list("compiled_function", entry, env);
+}
+
+function is_compiled_function(proc) {
+    return is_tagged_list(proc, "compiled_function");
+} 
+
+function compiled_function_entry(c_proc) {
+    return head(tail(c_proc));
+}
+
+function compiled_function_env(c_proc) {
+    return head(tail(tail(c_proc)));
+}
+
+function compile_lambda_expression(exp, target, linkage) {
+    let fun_entry = make_label("entry");
+    let after_lambda = make_label("after_lambda"); 
+    let lambda_linkage =
+            linkage === "next" ? after_lambda : linkage;
+    return append_instruction_sequences(
+        tack_on_instruction_sequence(
+          end_with_linkage(target, lambda_linkage,
+            make_instruction_sequence(list("env"), list(target),
+              list(assign(target, 
+                          list(op("make_compiled_function"),
+                               label(fun_entry), reg("env")))))),
+          compile_lambda_body(exp, fun_entry)),
+         after_lambda);
+}
+
+function compile_lambda_body(exp, fun_entry) {
+    let formals  = lambda_parameters(exp);
+    return append_instruction_sequences(
+        make_instruction_sequence(
+            list("env", "fun", "argl"),
+            list("env"),
+            list(fun_entry,
+                 assign("env", list(op("compiled_function_env"), 
+                                    reg("fun"))),
+                 assign("env", list(op("extend_environment"), 
+                                    constant(formals),
+                                    reg("argl"), 
+                                    reg("env"))))),
+        compile(lambda_body(exp), "val", "return_undefined"));
+}
+
+function compile_return_statement(stmt, target, linkage) {
+    return compile(return_expression(stmt), target, "return");
+}
+
+function compile_block(stmt, target, linkage) {
+    const body = block_body(stmt);
+    const locals = scan_out_declarations(body);
+    const unassigneds = list_of_unassigned(locals);
+    return append_instruction_sequences(
+               make_instruction_sequence(
+                   list("env", "fun", "argl"),
+                   list("env"),
+                   list(assign("env", list(op("extend_environment"), 
+                                           constant(locals),
+                                           constant(unassigneds),
+                                           reg("env"))))),
+               compile(body(stmt), target, linkage));
+}
+
+function compile_application(exp, target, linkage) {
+    const fun_code = compile(function_expression(exp), "fun", "next"); 
+    const arguments_codes =
+              map(arg => compile(arg, "val", "next"),
+                  args(exp));
+    return preserving(list("env", "continue"), 
+               fun_code,
+               preserving(list("fun", "continue"), 
+                   construct_arglist(arguments_codes),
+                       compile_function_call(target, linkage)));
+}
+
+function construct_arglist(arg_codes) {
+    const rev_arg_codes = reverse(arg_codes);
+
+    if (is_null(arg_codes)) {
+        return make_instruction_sequence(
+            null, 
+            list("argl"),
+            list(assign("argl", constant(null))));
+    } else {
+        const code_to_get_last_arg =
+              append_instruction_sequences(
+                  head(rev_arg_codes),
+                  make_instruction_sequence(
+                      list("val"),
+                      list("argl"),
+                      list(assign("argl", list(op("list"), 
+                                               reg("val"))))));
+        return is_null(tail(rev_arg_codes))
+            ? code_to_get_last_arg
+            : preserving(
+                list("env"),
+                code_to_get_last_arg,
+                code_to_get_rest_args(tail(rev_arg_codes)));
+    }
+}
+
+function code_to_get_rest_args(arg_codes) {
+    const code_for_next_arg = preserving(
+        list("argl"), 
+        head(arg_codes),
+        make_instruction_sequence(
+            list("val", "argl"), 
+            list("argl"),
+            list(assign("argl", list(op("pair"), 
+                                     reg("val"), reg("argl"))))));
+    return is_null(tail(arg_codes))
+        ? code_for_next_arg
+        : preserving(list("env"),
+                     code_for_next_arg,
+                     code_to_get_rest_args(tail(arg_codes)));
+}
+
+function compile_function_call(target, linkage) {
+    const primitive_branch = make_label("primitive_branch");
+    const compiled_branch = make_label("compiled_branch");
+    const after_call = make_label("after_call");
+    const compiled_linkage = linkage === "next" ? after_call : linkage;
+    return append_instruction_sequences(
+        make_instruction_sequence(
+            list("fun"),
+            list(),
+            list(test(list(op("primitive_function"), reg("fun"))),
+                 branch(label(primitive_branch)))), 
+        append_instruction_sequences(
+            parallel_instruction_sequences(
+                append_instruction_sequences(
+                    compiled_branch,
+                    compile_fun_appl(target, compiled_linkage)),
+                append_instruction_sequences(
+                    primitive_branch,
+                    end_with_linkage(target, linkage,
+                        make_instruction_sequence(
+                            list("fun", "argl"),
+                            list(target),
+                            list(assign(target,
+                                    list(op("apply_primitive_function"),
+                                         reg("fun"), reg("argl")))))))),
+            after_call));
+}
+
+const all_regs = list("env", "fun", "val", "argl", "continue");
+
+function compile_fun_appl(target, linkage) {
+    if (target === "val" && linkage !== "return") {
+        return make_instruction_sequence(
+            list("fun"),
+            all_regs,
+            list(
+                assign("continue", label(linkage)),
+                assign("val", list(op("compiled_function_entry"), 
+                                   reg("fun"))),
+                go_to(reg("val"))));
+    } else if (target !== "val" && linkage !== "return") {
+        const fun_return = make_label("fun_return");
+
+        return make_instruction_sequence(
+            list("fun"),
+            all_regs,
+            list(
+                assign("continue", label(fun_return)),
+                assign("val", list(op("compiled_function_entry"), 
+                                   reg("fun"))),
+                go_to(reg("val")),
+                fun_return,
+                assign(target, reg("val")),
+                go_to(label(linkage))));
+    } else if (target === "val" && linkage === "return") {
+        return make_instruction_sequence(
+            list("fun", "continue"),
+            all_regs,
+            list(
+                assign("val", list(op("compiled_function_entry"), 
+                                   reg("fun"))),
+                go_to(reg("val"))));
+    } else if (target !== "val" && linkage === "return") {
+        error(target, "return linkage, target not val -- compile");
+    } else {}
+}
+
+function registers_needed(s) {
+     return is_string(s) ? null : head(s);
+}
+
+function registers_modified(s) {
+     return is_string(s) ? null : head(tail(s));
+}
+
+function instructions(s) {
+     return is_string(s) ? list(s) : head(tail(tail(s)));
+}
+
+function needs_register(seq, reg) {
+    return ! is_null(member(reg, registers_needed(seq)));
+}
+
+function modifies_register(seq, reg) {
+    return ! is_null(member(reg, registers_modified(seq)));
+}
+
+function append_instruction_sequences(seq1, seq2) {
+    return make_instruction_sequence(
+              list_union(registers_needed(seq1),
+                  list_difference(registers_needed(seq2),
+                      registers_modified(seq1))),
+              list_union(registers_modified(seq1),
+                      registers_modified(seq2)),
+              append(instructions(seq1), instructions(seq2)));
+}
+
+function list_union(s1, s2) {
+    return is_null(s1)
+        ? s2
+        : is_null(member(head(s1), s2))
+          ? pair(head(s1), list_union(tail(s1), s2))
+          : list_union(tail(s1), s2);
+}
+
+function list_difference(s1, s2) {
+    return is_null(s1)
+        ? null
+        : is_null(member(head(s1), s2))
+          ? pair(head(s1), list_difference(tail(s1), s2))
+          : list_difference(tail(s1), s2);
+}
+
+function preserving(regs, seq1, seq2) {
+    if (is_null(regs)) {
+        return append_instruction_sequences(seq1, seq2);
+    } else {
+        const first_reg = head(regs);
+        if (needs_register(seq2, first_reg) &&
+            modifies_register(seq1, first_reg)) {
+            return preserving(
+                tail(regs),
+                make_instruction_sequence(
+                    list_union(list(first_reg),
+                               registers_needed(seq1)),
+                    list_difference(registers_modified(seq1),
+                                    list(first_reg)),
+                    append(list(save(first_reg)),
+                           append(instructions(seq1),
+                                  list(restore(first_reg))))),
+                seq2);
+        } else {
+            return preserving(tail(regs), seq1, seq2);
+        }
+    }
+}
+
+function tack_on_instruction_sequence(seq, body_seq) {
+    return make_instruction_sequence(
+        registers_needed(seq),
+        registers_modified(seq),
+        append(instructions(seq), instructions(body_seq)));
+}
+
+function parallel_instruction_sequences(seq1, seq2) {
+    return make_instruction_sequence(
+        list_union(
+            registers_needed(seq1),
+            registers_needed(seq2)),
+        list_union(
+            registers_modified(seq1),
+            registers_modified(seq2)),
+        append(
+            instructions(seq1),
+            instructions(seq2)));
+}
+
+function user_print(object) {
+    if (is_compound_function(object)) {
+        display(list(
+            "compound_function",
+            function_parameters(object),
+            function_body(object),
+            "<compiler-env>"));
+    } else if (is_compiled_function(object)) {
+        display("<compiled-function>");
+    } else {
+        display(object);
+    }
+}
+
+function stringify_list(xs) {
+    return is_null(member(head(xs),
+                   list("assign", "perform", "op", "label", "branch",
+                        "go_to", "save", "restore", "reg", "constant")))
+           ? "list(" + comma_separated(xs) + ")"
+           : head(xs) + "(" + comma_separated(tail(xs)) + ")";
+}
+function comma_separated(elements) {
+    return accumulate((s, acc) => stringify_instruction(s) + (acc === "" ? "" : ", " + acc),
+                      "", elements);
+}
+function stringify_instruction(x) {
+    return is_string(x) || is_number(x) || is_undefined(x) || is_null(x)
+           ? stringify(x)
+           : stringify_list(x);
+}	   
+function display_instructions(instructions) {
+    return for_each(i => {display("", stringify_instruction(i) + ","); },
+                    instructions);
+}
+
+
+const eceval =
+  make_machine(
+    list(
+      "exp",
+      "env",
+      "val",
+      "continue",
+      "proc",
+      "argl",
+      "unev",
+        "returned",
+      "fun"
+    ),
+    list(
+      // basic functions
+      list(
+        "rem",
+        binary_function((a, b) => a % b)
+      ),
+	// CHANGE: not used
+      // list(
+      //   "=",
+      //   binary_function((a, b) => a === b)
+      // ),
+      list(
+        "is_returned",
+        a => a === true
+      ),
+      list(
+        "+",
+        binary_function((a, b) => a + b)
+      ),
+	// CHANGE: - and * added
+      list(
+        "-",
+        binary_function((a, b) => a - b)
+      ),
+      list(
+        "*",
+        binary_function((a, b) => a * b)
+      ),
+      list(
+        "===",
+        binary_function((a, b) => a === b)
+      ),
+      // args
+      list("args"                , args),
+      list("function_expression" , function_expression),
+      list("has_no_operands"     , no_args),
+      list("first_arg"           , first_arg),
+      list(
+        "is_last_operand",
+        (a) => is_null(tail(a))
+      ),
+      list("rest_args", rest_args),
+
+      //arg
+      list(
+        "empty_arglist",
+        (_) => list()
+      ),
+      list(
+        "adjoin_arg",
+        (val, argl) => append(argl, list(val))
+      ),
+
+      // exp (sequence)
+      list("first_statement"     , first_statement),
+      list("rest_statements"     , rest_statements),
+      list("is_last_statement"   , is_last_statement),
+      list("sequence_statements" , sequence_statements),
+
+      // eval functions from meta-circular evaluator
+      list("is_self_evaluating"  , is_self_evaluating),
+      list("is_name"             , is_name),
+      list("symbol_of_name"      , symbol_of_name),
+      list(
+        "all_names_of_names",
+        (names) => map(symbol_of_name, names)
+      ),
+      list("is_assignment"           , is_assignment),
+      list("assignment_symbol"       , assignment_symbol),
+      list("assignment_value"        , assignment_value),
+      list("assign_symbol_value"     , assign_symbol_value),
+      list("is_constant_declaration" , is_constant_declaration),
+      list(
+        "constant_declaration_symbol",
+        constant_declaration_symbol
+      ),
+      list(
+        "constant_declaration_value",
+        constant_declaration_value
+      ),
+      list("is_variable_declaration", is_variable_declaration),
+      list(
+        "variable_declaration_symbol",
+        variable_declaration_symbol
+      ),
+      list(
+        "variable_declaration_value",
+        variable_declaration_value
+      ),
+      list("declare_value"        , assign_symbol_value),
+      list("is_lambda_expression" , is_lambda_expression),
+      list(
+        "lambda_parameters",
+        lambda_parameters
+      ),
+      list("lambda_body"         , lambda_body),
+	list("is_return_statement" , is_return_statement),
+	// CHANGE: not used
+	//      list("should_return"       , v => v !== undefined && v !== "*unassigned*"),
+	//      list("returned_value" , v => v !== no_value_yet),
+      list("return_expression"   , return_expression),
+      list(
+        "is_conditional_expression",
+        is_conditional_expression
+      ),
+      list("conditional_pred" , cond_expr_pred),
+      list("conditional_cons" , cond_expr_cons),
+      list("conditional_alt"  , cond_expr_alt),
+
+      list("is_sequence"      , is_sequence),
+      list("make_sequence"    , make_sequence),
+      list("is_block"         , is_block),
+      list("block_body"       , block_body),
+	list("scan_out_declarations"      , scan_out_declarations),
+	// CHANGED: get_temp_block_values renamed to:
+      list("list_of_unassigned", list_of_unassigned),
+      list("is_application"           , is_application),
+      list("is_primitive_function"    , is_primitive_function),
+      list("apply_primitive_function" , apply_primitive_function),
+      list("is_compound_function"     , is_compound_function),
+      list("function_parameters"      , function_parameters),
+      list("function_environment"     , function_environment),
+	list("function_body"            , function_body),
+	// CHANGED: not used
+	//      list("insert_all"               , insert_all),
+      list("extend_environment"       , extend_environment),
+      list("make_function"            , make_function),
+
+      list(
+        "lookup_symbol_value",
+        (stmt, env) => lookup_symbol_value(symbol_of_name(stmt), env)
+      ),
+      list("get_global_environment", get_global_environment),
+
+      // generic helpers
+      list("is_true", is_true),
+	list("is_null", is_null),
+	// CHANGED: use host language
+	list("is_pair", is_pair),
+	// CHANGED: simplified
+	list( "is_number", is_number),
+	list("append", append),
+
+	// CHANGED: not used
+	//      list("vector_ref", vector_ref),
+	//      list("vector_set", vector_set),
+      list("pair", pair),
+
+      list("prompt_for_input", prompt_for_input),
+      list("user_print", user_print),
+      list("display", display),
+      // CHANGED: added
+      list("make_compiled_function", make_compiled_function),
+      list("compiled_function_env", compiled_function_env),
+      list("list", list)
+    ),
+    list(
+      assign("returned", constant(false)),
+      assign("continue", label("evaluator_done")),
+      assign("env", list(op("get_global_environment"))),
+      "ev_begin",
+      
+      go_to(label("read_eval_print_loop")),
+      
+      "eval_dispatch",
+      test(list(op("is_self_evaluating"), reg("exp"), constant(true))),
+      branch(label("ev_self_eval")),
+
+      test(list(op("is_name"), reg("exp"), constant(true))),
+      branch(label("ev_name")),
+
+      // Treat let/const the same
+      test(list(op("is_variable_declaration"), reg("exp"), constant(true))),
+      branch(label("ev_variable_declaration")),
+      test(list(op("is_constant_declaration"), reg("exp"), constant(true))),
+      branch(label("ev_constant_declaration")),
+      test(list(op("is_assignment"), reg("exp"), constant(true))),
+      branch(label("ev_assignment")),
+
+      test(list(op("is_return_statement"), reg("exp"), constant(true))),
+      branch(label("ev_return")),
+
+      test(list(op("is_conditional_expression"), reg("exp"), constant(true))),
+      branch(label("ev_if")),
+      test(list(op("is_lambda_expression"), reg("exp"), constant(true))),
+      branch(label("ev_lambda")),
+      test(list(op("is_sequence"), reg("exp"), constant(true))),
+      branch(label("ev_seq")),
+      test(list(op("is_block"), reg("exp"), constant(true))),
+      branch(label("ev_block")),
+      test(list(op("is_application"), reg("exp"), constant(true))),
+      branch(label("ev_application")),
+      go_to(label("unknown_expression_type")),
+
+      "ev_return",
+        assign("returned", constant(true)),
+        assign("exp", list(op("return_expression"), reg("exp"))),
+        restore("continue"),
+        go_to(label("eval_dispatch")),
+
+      "ev_self_eval",
+      assign("val", reg("exp")),
+      go_to(reg("continue")),
+      
+      "ev_name",
+      assign("val", list(op("lookup_symbol_value"), reg("exp"), reg("env"))),
+      go_to(reg("continue")),
+      
+      "ev_lambda",
+      assign("unev", list(op("lambda_parameters"), reg("exp"))),
+      assign("exp", list(op("lambda_body"), reg("exp"))),
+      assign(
+      "val",
+      list(op("make_function"), reg("unev"), reg("exp"), reg("env"))
+      ),
+      go_to(reg("continue")),
+      
+      "ev_application",
+      save("continue"),
+      save("env"),
+      assign("unev", list(op("args"), reg("exp"))),
+      save("unev"),
+      assign("exp", list(op("function_expression"), reg("exp"))),
+      assign("continue", label("ev_appl_did_operator")),
+      go_to(label("eval_dispatch")),
+      
+      "ev_appl_did_operator",
+      restore("unev"), // the args
+      restore("env"),
+      assign("argl", list(op("empty_arglist"))),
+      assign("fun", reg("val")), // the function_expression
+      test(list(op("has_no_operands"), reg("unev"), constant(true))),
+      branch(label("apply_dispatch")),
+      save("fun"),
+      
+      "ev_appl_operand_loop",
+      save("argl"),
+      assign("exp", list(op("first_arg"), reg("unev"))),
+      test(list(op("is_last_operand"), reg("unev"), constant(true))),
+      branch(label("ev_appl_last_arg")),
+      save("env"),
+      save("unev"),
+      assign("continue", label("ev_appl_accumulate_arg")),
+      go_to(label("eval_dispatch")),
+      
+      "ev_appl_accumulate_arg",
+      restore("unev"),
+      restore("env"),
+      restore("argl"),
+      assign("argl", list(op("adjoin_arg"), reg("val"), reg("argl"))),
+      assign("unev", list(op("rest_args"), reg("unev"))),
+      go_to(label("ev_appl_operand_loop")),
+      
+      "ev_appl_last_arg",
+      assign("continue", label("ev_appl_accum_last_arg")),
+      go_to(label("eval_dispatch")),
+      
+      "ev_appl_accum_last_arg",
+      restore("argl"),
+      assign("argl", list(op("adjoin_arg"), reg("val"), reg("argl"))),
+      restore("fun"),
+      go_to(label("apply_dispatch")),
+      
+      // function application needs to distinguish between
+      // primitive functions (which are evaluated using the
+      // underlying JavaScript), and compound functions.
+      // An application of the latter needs to evaluate the
+      // body of the function value with respect to an
+      // environment that results from extending the function
+      // object`s environment by a binding of the function
+      // parameters to the arguments and of local names to
+      // the special value no_value_yet
+      
+      // function apply(fun, args) {
+      //   if (is_primitive_function(fun)) {
+      //     return apply_primitive_function(fun, args);
+      //   } else if (is_compound_function(fun)) {
+      //     const body = function_body(fun);
+      //     const locals = scan_out_declarations(body);
+      //     const names = insert_all(function_parameters(fun), locals);
+      //     const temp_values = map((x) => no_value_yet, locals);
+      //     const values = append(args, temp_values);
+      //     const result = evaluate(
+      //       body,
+      //       extend_environment(names, values, function_environment(fun))
+      //     );
+      //     if (is_return_value(result)) {
+      //       return return_value_content(result);
+      //     } else {
+      //       return undefined;
+      //     }
+      //   } else {
+      //     error(fun, "Unknown function type in apply");
+      //   }
+      // }
+      "apply_dispatch",
+      test(list(op("is_primitive_function"), reg("fun"), constant(true))),
+      branch(label("primitive_apply")),
+      test(list(op("is_compound_function"), reg("fun"), constant(true))),
+      branch(label("compound_apply")),
+      go_to(label("unknown_procedure_type")),
+
+      "primitive_apply",
+      assign("val", list(op("apply_primitive_function"), 
+                         reg("fun"), 
+                         reg("argl"))),
+      // go_to(label("return_from_apply")),
+      restore("continue"),
+      go_to(reg("continue")),
+      
+        "compound_apply",
+          assign("unev", list(op("function_parameters"), reg("fun"))), // params
+          assign("env", list(op("function_environment"), reg("fun"))),
+          assign("env", list(op("extend_environment"), 
+                             reg("unev"), 
+                             reg("argl"), 
+                             reg("env"))),
+          assign("unev", list(op("function_body"), reg("fun"))),
+        assign("returned", constant(false)),
+          go_to(label("ev_sequence")),
+    
+      // to evaluate a sequence, we need to evaluate
+      // its statements one after the other, and return
+      // the value of the last statement.
+      // An exception to this rule is when a return
+      // statement is encountered. In that case, the
+      // remaining statements are ignored and the
+      // return value is the value of the sequence.
+      
+      // function eval_sequence(stmts, env) {
+      //   if (is_empty_sequence(stmts)) {
+      //     return undefined;
+      //   } else if (is_last_statement(stmts)) {
+      //     return evaluate(first_statement(stmts), env);
+      //   } else {
+      //     const first_stmt_value = evaluate(first_statement(stmts), env);
+      //     if (is_return_value(first_stmt_value)) {
+      //       return first_stmt_value;
+      //     } else {
+      //       return eval_sequence(rest_statements(stmts), env);
+      //     }
+      //   }
+      // }
+      "ev_seq",
+      save("continue"),
+      assign("unev", list(op("sequence_statements"), reg("exp"))),
+      
+      "ev_sequence",
+      assign("exp", list(op("first_statement"), reg("unev"))),
+      test(list(op("is_return_statement"), reg("exp"), constant(true))),
+      branch(label("ev_return")),
+      test(list(op("is_last_statement"), reg("unev"), constant(true))),
+      branch(label("ev_sequence_last_exp")),
+      save("unev"),
+      save("env"),
+      assign("continue", label("ev_sequence_continue")),
+      go_to(label("eval_dispatch")),
+      
+      "ev_sequence_continue",
+      restore("env"),
+      restore("unev"),
+      assign("unev", list(op("rest_statements"), reg("unev"))),
+      go_to(label("ev_sequence")),
+      
+      "ev_sequence_last_exp",
+      assign("continue", label("check_return")),
+      go_to(label("eval_dispatch")),
+
+        "check_return",
+        test(list(op("is_returned"), reg("returned"), constant(true))), /// FIXME: ugly
+        branch(label("explicit_return")),
+      assign("val", constant(undefined)),
+
+      "explicit_return",
+      restore("continue"),
+      go_to(reg("continue")),
+        
+
+
+      // evaluation of blocks evaluates the body of the block
+      // with respect to the current environment extended by
+      // a binding of all local names to the special value
+      // no_value_yet
+      
+      // function eval_block(stmt, env) {
+      //   const body = block_body(stmt);
+      //   const locals = scan_out_declarations(body);
+      //   const temp_values = map((x) => no_value_yet, locals);
+      //   return evaluate(body, extend_environment(locals, temp_values, env));
+      // }
+      "ev_block",
+      assign("exp", list(op("block_body"), reg("exp"))),
+      assign("val", list(op("scan_out_declarations"), reg("exp"))),
+
+      save("exp"), // Temporarily store to exp
+      assign("exp", list(op("list_of_unassigned"), reg("val"))),
+      assign("env", list(op("extend_environment"), 
+                         reg("val"), 
+                         reg("exp"), 
+                         reg("env"))),
+      restore("exp"),
+      go_to(label("eval_dispatch")),
+      
+      // the meta-circular evaluation of conditional expressions
+      // evaluates the predicate and then the appropriate
+      // branch, depending on whether the predicate evaluates to
+      // true or not
+      
+      // function eval_conditional_expression(stmt, env) {
+      //   return is_true(evaluate(cond_expr_pred(stmt), env))
+      //     ? evaluate(cond_expr_cons(stmt), env)
+      //     : evaluate(cond_expr_alt(stmt), env);
+      // }
+      "ev_if",
+      save("exp"), // save expression for later
+      save("env"),
+      save("continue"),
+      assign("continue", label("ev_if_decide")),
+      assign("exp", list(op("conditional_pred"), reg("exp"))),
+      go_to(label("eval_dispatch")), // evaluate the predicate
+      
+      "ev_if_decide",
+      restore("continue"),
+      restore("env"),
+      restore("exp"),
+      test(list(op("is_true"), reg("val"), constant(true))),
+      branch(label("ev_if_consequent")),
+      
+      "ev_if_alternative",
+      assign("exp", list(op("conditional_alt"), reg("exp"))),
+      go_to(label("eval_dispatch")),
+      
+      "ev_if_consequent",
+      assign("exp", list(op("conditional_cons"), reg("exp"))),
+      go_to(label("eval_dispatch")),
+      
+      // function eval_assignment(stmt, env) {
+      //   const value = evaluate(assignment_value(stmt), env);
+      //   assign_symbol_value(assignment_symbol(stmt), value, env);
+      //   return value;
+      // }
+      "ev_assignment",
+      assign("unev", list(op("assignment_symbol"), reg("exp"))),
+      save("unev"), // save variable for later
+      assign("exp", list(op("assignment_value"), reg("exp"))),
+      save("env"),
+      save("continue"),
+      assign("continue", label("ev_assignment_1")),
+      go_to(label("eval_dispatch")), // evaluate the assignment value
+      
+      "ev_assignment_1",
+      restore("continue"),
+      restore("env"),
+      restore("unev"),
+      perform(
+      list(op("assign_symbol_value"), reg("unev"), reg("val"), reg("env"))
+      ),
+      assign("val", constant("ok")),
+      go_to(reg("continue")),
+      
+      // evaluation of a constant declaration evaluates
+      // the right-hand expression and binds the
+      // name to the resulting value in the
+      // first (innermost) frame
+      
+      // function eval_constant_declaration(stmt, env) {
+      //   assign_symbol_value(
+      //     constant_declaration_symbol(stmt),
+      //     evaluate(constant_declaration_value(stmt), env),
+      //     env
+      //   );
+      // }
+      "ev_variable_declaration",
+      assign("unev", list(op("variable_declaration_symbol"), reg("exp"))),
+      save("unev"), // save variable for later
+      assign("exp", list(op("variable_declaration_value"), reg("exp"))),
+      save("env"),
+      save("continue"),
+      assign("continue", label("ev_variable_declaration_1")),
+      go_to(label("eval_dispatch")), // evaluate the declaration value
+      
+      "ev_variable_declaration_1",
+      restore("continue"),
+      restore("env"),
+      restore("unev"),
+      perform(list(op("declare_value"), reg("unev"), reg("val"), reg("env"))),
+      assign("val", constant("ok")),
+      go_to(reg("continue")),
+      
+      "ev_constant_declaration",
+      assign("unev", list(op("constant_declaration_symbol"), reg("exp"))),
+      save("unev"), // save constant for later
+      assign("exp", list(op("constant_declaration_value"), reg("exp"))),
+      save("env"),
+      save("continue"),
+      assign("continue", label("ev_constant_declaration_1")),
+      go_to(label("eval_dispatch")), // evaluate the declaration value
+      
+      "ev_constant_declaration_1",
+      restore("continue"),
+      restore("env"),
+      restore("unev"),
+      perform(list(op("declare_value"), reg("unev"), reg("val"), reg("env"))),
+      assign("val", constant("ok")),
+      go_to(reg("continue")),
+      
+      // Error handling
+      "unknown_expression_type",
+      assign("val", constant("unknown_expression_type_error")),
+      assign("val", reg("exp")),
+      go_to(label("signal_error")),
+      
+      "unknown_procedure_type",
+      restore("continue"), /// clean up stack (from apply_dispatch)
+      assign("val", constant("unknown_procedure_type_error")),
+      go_to(label("signal_error")),
+      
+      "signal_error",
+      perform(list(op("user_print"), constant("EC_eval error:"), reg("val"))),
+      go_to(label("evaluator_done")),
+      
+      "read_eval_print_loop",
+      assign("exp", list(op("prompt_for_input"), constant("/// EC_Eval input:"))),
+      assign("continue", label("print_result")),
+      go_to(label("eval_dispatch")),
+      "print_result",
+      
+      perform(list(op("user_print"), constant("EC-evaluate value:"), reg("val"))),
+      //go_to(label("read_eval_print_loop")), /// Comment out to avoid infinite loop
+      
+      "evaluator_done"
+      )
+  );
+
+
+
+function compile_and_go(stmt) {
+    //display_instructions(instructions(compile(stmt, "val", "return")));
+    
+    const instrs =
+              assemble(instructions(
+                           compile(stmt, "val", "return")),
+                       eceval);
+    set_register_contents(eceval, "val", instrs);
+    set_register_contents(eceval, "flag", true);
+    return start(eceval);
+    
+}
+
+compile_and_go(
+    parse(
+        "function factorial(n) {           \
+             return n === 1                \
+                 ? 1                       \
+                 : factorial(n - 1) * n;   \
+                                          }"));
+
+
