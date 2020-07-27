@@ -298,9 +298,9 @@ function user_print(object) {
 }
       </JAVASCRIPT>
     </SNIPPET></FOOTNOTE>
+    <!--  \indcode*{external-entry} -->
     <SNIPPET>
       <SCHEME>
-      <!--  \indcode*{external-entry} -->
       external-entry
       (perform (op initialize-stack))
       (assign env (op get-global-environment))
@@ -308,7 +308,6 @@ function user_print(object) {
       (goto (reg val))
       </SCHEME>
       <JAVASCRIPT>
-<!--  \indcode*{external-entry} -->
 "external_entry",
   perform(op("initialize_stack")),
   assign("env", list(op("get_global_environment"))),
@@ -412,6 +411,7 @@ function display_instructions(instructions) {
 function compile_and_go(stmt) {
     // display_instructions(instructions(compile(stmt, "val", "return")));
     const globals = scan_out_declarations(stmt);
+    display(globals, "compile_and_go globals");
     const unassigneds = list_of_unassigned(globals);
     const prelude =
         make_instruction_sequence(null, null,
@@ -444,7 +444,7 @@ function compile_and_go(stmt) {
     section<SPACE/><REF NAME="sec:running-evaluator"/>, we can examine the
     stack usage of compiled code:
     <SNIPPET HIDE="yes">
-      <NAME>eceval</NAME>
+      <NAME>eceval_2</NAME>
       <JAVASCRIPT>
 function prompt_for_input(p) {
     const x = parse(prompt("enter program"));
@@ -643,8 +643,12 @@ const eceval =
       list("is_false", x => ! is_true(x))
     ),
     list(
+
       assign("returned", constant(false)),
-      assign("continue", label("evaluator_done")),
+    
+      branch(label("external_entry")), // branches if flag is set
+    
+      assign("continue", label("print_result")),
       assign("env", list(op("get_global_environment"))),
       "ev_begin",
       
@@ -786,6 +790,8 @@ const eceval =
       branch(label("primitive_apply")),
       test(list(op("is_compound_function"), reg("fun"), constant(true))),
       branch(label("compound_apply")),
+      test(list(op("is_compiled_function"), reg("fun"), constant(true))),
+      branch(label("compiled_apply")),
       go_to(label("unknown_procedure_type")),
 
       "primitive_apply",
@@ -806,7 +812,12 @@ const eceval =
           assign("unev", list(op("function_body"), reg("fun"))),
         assign("returned", constant(false)),
           go_to(label("ev_sequence")),
-    
+
+    "compiled_apply",
+      restore("continue"),
+      assign("val", list(op("compiled_function_entry"), reg("fun"))),
+      go_to(reg("val")),
+      
       // to evaluate a sequence, we need to evaluate
       // its statements one after the other, and return
       // the value of the last statement.
@@ -1011,8 +1022,12 @@ const eceval =
       assign("exp", list(op("prompt_for_input"), constant("/// EC_Eval input:"))),
       assign("continue", label("print_result")),
       go_to(label("eval_dispatch")),
-      "print_result",
+
+      "external_entry",
+      assign("continue", label("print_result")),
+      go_to(reg("val")),
       
+      "print_result",
       perform(list(op("user_print"), constant("EC-evaluate value:"), reg("val"))),
       //go_to(label("read_eval_print_loop")), /// Comment out to avoid infinite loop
       
@@ -1060,7 +1075,7 @@ const eceval =
       <REQUIRES>tack_on_instruction_sequence</REQUIRES>
       <REQUIRES>parallel_instruction_sequences</REQUIRES>
       <REQUIRES>user_print_2</REQUIRES>
-      <REQUIRES>eceval</REQUIRES>
+      <REQUIRES>eceval_2</REQUIRES>
       <REQUIRES>compile_and_go</REQUIRES>
       <SCHEME>
       (compile-and-go
