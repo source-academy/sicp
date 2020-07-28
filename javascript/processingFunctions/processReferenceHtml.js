@@ -38,6 +38,14 @@ export const setupReferences = (node, filename) => {
     fig_count = 0;
     ex_count = 0;
   }
+
+  //Enumerate all footnotes in the subsection
+  const footnotes = node.getElementsByTagName("FOOTNOTE");
+  for (let i = 0; footnotes[i]; ++i) {
+    const footnote = footnotes[i];
+    footnote.footnote_count = i + 1;
+  }
+
   //console.log("setting up " + chapterIndex);
   const labels = node.getElementsByTagName("LABEL");
 
@@ -74,7 +82,8 @@ export const setupReferences = (node, filename) => {
       displayName = `${chapter_number}.${fig_count}`;
       href = `${chapterIndex}.html#fig_${displayName}`;
     } else if (ref_type == "foot") {
-      foot_count++;
+      // Retrieve count from the parent node, setup before this loop
+      foot_count = label.parentNode.footnote_count;
       displayName = foot_count;
       href = `${chapterIndex}.html#footnote-${foot_count}`;
     } else {
