@@ -283,17 +283,16 @@ $\langle\ldots\rangle$
               (else (display object))))
       </SCHEME>
       <JAVASCRIPT>
-function user_print(object) {
+function user_print(prompt_string, object) {
     if (is_compound_function(object)) {
-        display(list(
-            "compound_function",
-            function_parameters(object),
-            function_body(object),
-            "&lt;compiler-env&gt;"));
+        display("&lt;compound_function&gt;",
+                prompt_string);    
     } else if (is_compiled_function(object)) {
-        display("&lt;compiled-function&gt;");
+        display("&lt;compiled-function&gt;",
+                prompt_string);
     } else {
-        display(object);
+        display(object,
+                prompt_string);
     }
 }
       </JAVASCRIPT>
@@ -411,7 +410,6 @@ function display_instructions(instructions) {
 function compile_and_go(stmt) {
     // display_instructions(instructions(compile(stmt, "val", "return")));
     const globals = scan_out_declarations(stmt);
-    display(globals, "compile_and_go globals");
     const unassigneds = list_of_unassigned(globals);
     const prelude =
         make_instruction_sequence(null, null,
@@ -447,8 +445,8 @@ function compile_and_go(stmt) {
       <NAME>eceval_2</NAME>
       <JAVASCRIPT>
 function prompt_for_input(p) {
-    const x = parse(prompt("EC-evaluate input:"));
-    return x;
+    const string = prompt("EC-evaluate input:");
+    return is_null(string) ? null : parse(string);
 }
     
 function get_global_environment() {
@@ -567,7 +565,7 @@ const eceval_operations =
       list("append", append),
       list("pair", pair),
 
-      list("prompt_for_input", (s) => prompt_for_input(s)),
+      list("prompt_for_input", prompt_for_input),
       list("user_print", user_print),
       list("display", display),
       list("make_compiled_function", make_compiled_function),
@@ -586,6 +584,8 @@ list(
       perform(list(op("initialize_stack"))),	
       assign("stmt", list(op("prompt_for_input"),
                           constant("/// EC_Eval input:"))),
+      test(list(op("is_null"), reg("stmt"), constant(true))),
+      branch(label("evaluator_done")),
       assign("env", list(op("get_global_environment"))),
       assign("continue", label("print_result")),
       go_to(label("eval_dispatch")),
@@ -600,8 +600,7 @@ list(
       perform(list(op("user_print"),
                    constant("EC-evaluate value:"), reg("val"))),
       // to avoid infinite REPL
-      go_to(label("evaluator_done")),
-      //go_to(label("read_eval_print_loop")), 
+      go_to(label("read_eval_print_loop")), 
 
       "eval_dispatch",
       test(list(op("is_self_evaluating"),
