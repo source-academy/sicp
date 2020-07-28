@@ -103,6 +103,7 @@ function get_global_environment() {
       </SCHEME>
       <JAVASCRIPT>
 "read_eval_print_loop",
+      perform(list(op("initialize_stack"))),	
       assign("stmt", list(op("prompt_for_input"), 
                          constant("/// EC_Eval input:"))),
       assign("env", list(op("get_global_environment"))),
@@ -208,13 +209,13 @@ function get_global_environment() {
       )))
       </SCHEME>
       <JAVASCRIPT>
-function eceval() {
-    return make_machine(list("stmt", "env", "val", "fun", "argl", "continue", "unev"),
-                        eceval_operations,
-                        list("read_eval_print_loop",
-                             $\langle entire$ $machine$ $controller$ $as$ $given$ $above \rangle$
-                             ));
-}                       
+const eceval = 
+    make_machine(list("stmt", "env", "val", "fun",
+                      "argl", "continue", "unev"),
+                 eceval_operations,
+                 list("read_eval_print_loop",
+                      $\langle entire$ $machine$ $controller$ $as$ $given$ $above \rangle$
+                     ));
       </JAVASCRIPT>
     </SNIPPET>
     <SNIPPET HIDE="yes">
@@ -230,11 +231,11 @@ function eceval() {
       <REQUIRES>eceval_operations</REQUIRES>
       <REQUIRES>eceval_controller</REQUIRES>
       <JAVASCRIPT>
-function eceval() {
-    return make_machine(list("stmt", "env", "val", "fun", "argl", "continue", "unev"),
-                        eceval_operations,
-                        eceval_controller);
-}                       
+const eceval =
+    make_machine(list("stmt", "env", "val", "fun",
+                      "argl", "continue", "unev"),
+                 eceval_operations,
+                 eceval_controller);
       </JAVASCRIPT>
     </SNIPPET>
     <SNIPPET HIDE="yes">
@@ -242,33 +243,44 @@ function eceval() {
       <JAVASCRIPT>
 const eceval_controller =	
     list(
-      assign("continue", label("evaluator_done")),
+      "read_eval_print_loop",
+      perform(list(op("initialize_stack"))),	
+      assign("stmt", list(op("prompt_for_input"),
+                          constant("EC-evaluate input:"))),
       assign("env", list(op("get_global_environment"))),
-      "ev_begin",
-      
-      go_to(label("read_eval_print_loop")),
-      
-      "eval_dispatch",
-      test(list(op("is_self_evaluating"), reg("stmt"), constant(true))),
-      branch(label("ev_self_eval")),
+      assign("continue", label("print_result")),
+      go_to(label("eval_dispatch")),
 
+      "print_result",
+      perform(list(op("user_print"),
+                   constant("EC-evaluate value:"), reg("val"))),
+      // to avoid infinite REPL
+      go_to(label("evaluator_done")),
+      //go_to(label("read_eval_print_loop")), 
+
+      "eval_dispatch",
+      test(list(op("is_self_evaluating"),
+                reg("stmt"), constant(true))),
+      branch(label("ev_self_eval")),
       test(list(op("is_name"), reg("stmt"), constant(true))),
       branch(label("ev_name")),
-
       // Treat let/const the same
-      test(list(op("is_variable_declaration"), reg("stmt"), constant(true))),
+      test(list(op("is_variable_declaration"),
+                reg("stmt"), constant(true))),
       branch(label("ev_variable_declaration")),
-      test(list(op("is_constant_declaration"), reg("stmt"), constant(true))),
+      test(list(op("is_constant_declaration"),
+                reg("stmt"), constant(true))),
       branch(label("ev_constant_declaration")),
       test(list(op("is_assignment"), reg("stmt"), constant(true))),
       branch(label("ev_assignment")),
-
-      test(list(op("is_return_statement"), reg("stmt"), constant(true))),
+      test(list(op("is_return_statement"),
+                reg("stmt"), constant(true))),
       branch(label("ev_return")),
-
-      test(list(op("is_conditional_expression"), reg("stmt"), constant(true))),
+      test(list(op("is_conditional_expression"),
+                reg("stmt"), constant(true))),
       branch(label("ev_if")),
-      test(list(op("is_lambda_expression"), reg("stmt"), constant(true))),
+      test(list(op("is_lambda_expression"),
+                reg("stmt"), constant(true))),
       branch(label("ev_lambda")),
       test(list(op("is_sequence"), reg("stmt"), constant(true))),
       branch(label("ev_seq")),
@@ -297,9 +309,8 @@ const eceval_controller =
       "ev_lambda",
       assign("unev", list(op("lambda_parameters"), reg("stmt"))),
       assign("stmt", list(op("lambda_body"), reg("stmt"))),
-      assign("val",
-        list(op("make_function"),
-             reg("unev"), reg("stmt"), reg("env"))),
+      assign("val", list(op("make_function"),
+                         reg("unev"), reg("stmt"), reg("env"))),
       go_to(reg("continue")),
       
       "ev_application",
@@ -316,14 +327,16 @@ const eceval_controller =
       restore("env"),
       assign("argl", list(op("empty_arglist"))),
       assign("fun", reg("val")), // the function_expression
-      test(list(op("has_no_operands"), reg("unev"), constant(true))),
+      test(list(op("has_no_operands"),
+                reg("unev"), constant(true))),
       branch(label("apply_dispatch")),
       save("fun"),
       
       "ev_appl_operand_loop",
       save("argl"),
       assign("stmt", list(op("first_arg"), reg("unev"))),
-      test(list(op("is_last_operand"), reg("unev"), constant(true))),
+      test(list(op("is_last_operand"),
+                reg("unev"), constant(true))),
       branch(label("ev_appl_last_arg")),
       save("env"),
       save("unev"),
@@ -334,7 +347,8 @@ const eceval_controller =
       restore("unev"),
       restore("env"),
       restore("argl"),
-      assign("argl", list(op("adjoin_arg"), reg("val"), reg("argl"))),
+      assign("argl", list(op("adjoin_arg"),
+                          reg("val"), reg("argl"))),
       assign("unev", list(op("rest_args"), reg("unev"))),
       go_to(label("ev_appl_operand_loop")),
       
@@ -344,7 +358,8 @@ const eceval_controller =
       
       "ev_appl_accum_last_arg",
       restore("argl"),
-      assign("argl", list(op("adjoin_arg"), reg("val"), reg("argl"))),
+      assign("argl", list(op("adjoin_arg"),
+                          reg("val"), reg("argl"))),
       restore("fun"),
       go_to(label("apply_dispatch")),
       
@@ -456,25 +471,26 @@ const eceval_controller =
       save("env"),
       save("continue"),
       assign("continue", label("ev_assignment_1")),
-      go_to(label("eval_dispatch")), // evaluate the assignment value
+      go_to(label("eval_dispatch")), // evaluate assignment value
       
       "ev_assignment_1",
       restore("continue"),
       restore("env"),
       restore("unev"),
-      perform(
-      list(op("assign_symbol_value"), reg("unev"), reg("val"), reg("env"))
-      ),
+      perform(list(op("assign_symbol_value"),
+                   reg("unev"), reg("val"), reg("env"))),
       go_to(reg("continue")),
       
       "ev_variable_declaration",
-      assign("unev", list(op("variable_declaration_symbol"), reg("stmt"))),
+      assign("unev", list(op("variable_declaration_symbol"),
+                          reg("stmt"))),
       save("unev"), // save variable for later
-      assign("stmt", list(op("variable_declaration_value"), reg("stmt"))),
+      assign("stmt", list(op("variable_declaration_value"),
+                          reg("stmt"))),
       save("env"),
       save("continue"),
       assign("continue", label("ev_declaration")),
-      go_to(label("eval_dispatch")), // evaluate the declaration value
+      go_to(label("eval_dispatch")), // evaluate declaration value
       
       "ev_declaration",
       restore("continue"),
@@ -486,13 +502,15 @@ const eceval_controller =
       go_to(reg("continue")),
       
       "ev_constant_declaration",
-      assign("unev", list(op("constant_declaration_symbol"), reg("stmt"))),
+      assign("unev", list(op("constant_declaration_symbol"),
+                          reg("stmt"))),
       save("unev"), // save constant for later
-      assign("stmt", list(op("constant_declaration_value"), reg("stmt"))),
+      assign("stmt", list(op("constant_declaration_value"),
+                          reg("stmt"))),
       save("env"),
       save("continue"),
       assign("continue", label("ev_declaration")),
-      go_to(label("eval_dispatch")), // evaluate the declaration value
+      go_to(label("eval_dispatch")), // evaluate declaration value
       
       // Error handling
       "unknown_expression_type",
@@ -507,18 +525,7 @@ const eceval_controller =
       "signal_error",
       perform(list(op("user_print"),
                    constant("EC_eval error:"), reg("val"))),
-      go_to(label("evaluator_done")),
-      
-      "read_eval_print_loop",
-      assign("stmt", list(op("prompt_for_input"),
-                          constant("/// EC_Eval input:"))),
-      assign("continue", label("print_result")),
-      go_to(label("eval_dispatch")),
-      "print_result",
-      
-      perform(list(op("user_print"),
-                   constant("EC-evaluate value:"), reg("val"))),
-      //go_to(label("read_eval_print_loop")), /// Comment out to avoid infinite loop
+      go_to(label("read_eval_print_loop")),
       
       "evaluator_done"
      );
@@ -557,14 +564,6 @@ const eceval_operations =
     <SNIPPET HIDE="yes">
       <NAME>eceval_operations</NAME>
       <JAVASCRIPT>
-/* THE GLOBAL ENVIRONMENT */
-
-// the minus operation is overloaded to
-// support both binary minus and unary minus
-
-// the global environment has bindings for all
-// primitive functions, including the operators
-
 const eceval_operations = 
     list(
       // args
@@ -745,15 +744,12 @@ display(adder(7, 5), \"7 + 5 =\"); \
 ";
 
 function prompt_for_input(p) {
-    const x = make_block(parse(test_program)); //prompt(p)
-    return x;
+    return make_block(parse(prompt(p)));
+//  return make_block(parse(test_program));
 }
 
-const m = eceval();
-set_register_contents(m, "stmt", "1;");
-
-start(m);
-get_register_contents(m, "val");
+start(eceval);
+get_register_contents(eceval, "val");
 </JAVASCRIPT_RUN>
       <JAVASCRIPT>
 const the_global_environment = setup_environment();
