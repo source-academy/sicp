@@ -326,19 +326,35 @@ function user_print(prompt_string, object) {
     </SPLITINLINE>
     to compile a
     <SPLITINLINE>
-      <SCHEME>procedure</SCHEME>
-      <JAVASCRIPT>function</JAVASCRIPT>
+      <SCHEME>procedure definition,</SCHEME>
+      <JAVASCRIPT>function declaration,</JAVASCRIPT>
     </SPLITINLINE>
-    definition, execute the compiled code, and run the read-eval-print loop so
+    execute the compiled code, and run the read-eval-print loop so
     we can try the
     <SPLITINLINE>
       <SCHEME>procedure.</SCHEME>
       <JAVASCRIPT>function.</JAVASCRIPT>
     </SPLITINLINE>
+    <SPLIT>
+      <JAVASCRIPT>
+	For the interpreted program to refer to the names that
+	are declared at toplevel in the compiled program, we
+	scan out the toplevel names and 
+	extend the global environment by binding these names to
+	<JAVASCRIPTINLINE>"*unassigned*"</JAVASCRIPTINLINE>,
+	knowing that the compiled code will assign them to
+	the correct values.
+      </JAVASCRIPT>
+    </SPLIT>
     Because we want the compiled code to return to the location in
     <SCHEMEINLINE>continue</SCHEMEINLINE> with its result in
-    <SCHEMEINLINE>val</SCHEMEINLINE>, we compile the expression with a
-    target of <SCHEMEINLINE>val</SCHEMEINLINE> and a linkage of
+    <SCHEMEINLINE>val</SCHEMEINLINE>, we compile the
+    <SPLITINLINE>
+      <SCHEME>expression</SCHEME>
+      <JAVASCRIPT>statement</JAVASCRIPT>
+    </SPLITINLINE>
+    with a target of <SCHEMEINLINE>val</SCHEMEINLINE> and a
+    linkage of
     <SPLITINLINE>
       <SCHEME>
 	<SCHEMEINLINE>return</SCHEMEINLINE>.
@@ -348,8 +364,8 @@ function user_print(prompt_string, object) {
       </JAVASCRIPT>
     </SPLITINLINE>
     In order to transform the
-    object code produced by the compiler into executable instructions for the
-    evaluator register machine, we use the
+    object code produced by the compiler into executable instructions
+    for the evaluator register machine, we use the
     <SPLITINLINE>
       <SCHEME>procedure</SCHEME>
       <JAVASCRIPT>function</JAVASCRIPT>
@@ -357,8 +373,8 @@ function user_print(prompt_string, object) {
     <SCHEMEINLINE>assemble</SCHEMEINLINE> from the
     register-machine simulator
     (section<SPACE/><REF NAME="sec:assembler"/>).  We then initialize
-    the <SCHEMEINLINE>val</SCHEMEINLINE> register to point to the list of
-    instructions, set the
+    the <SCHEMEINLINE>val</SCHEMEINLINE> register to point to the list
+    of instructions, set the
     <SCHEMEINLINE>flag</SCHEMEINLINE> so that the evaluator will go to
     <SPLITINLINE>
       <SCHEME><SCHEMEINLINE>external-entry</SCHEMEINLINE>,</SCHEME>
@@ -378,7 +394,8 @@ function stringify_list(xs) {
            : head(xs) + "(" + comma_separated(tail(xs)) + ")";
 }
 function comma_separated(elements) {
-    return accumulate((s, acc) => stringify_instruction(s) + (acc === "" ? "" : ", " + acc),
+    return accumulate((s, acc) => stringify_instruction(s) +
+                                  (acc === "" ? "" : ", " + acc),
                       "", elements);
 }
 function stringify_instruction(x) {
@@ -406,25 +423,19 @@ function display_instructions(instructions) {
       (set-register-contents! eceval 'flag true)
       (start eceval)))
       </SCHEME>
+      <!-- // display_instructions(
+           //      instructions(compile(stmt, "val", "return")));
+	   -->
       <JAVASCRIPT>
 function compile_and_go(stmt) {
-    // display_instructions(instructions(compile(stmt, "val", "return")));
-    const globals = scan_out_declarations(stmt);
-    const unassigneds = list_of_unassigned(globals);
-    const prelude =
-        make_instruction_sequence(null, null,
-            list(assign("env", list(op("get_global_environment"))),
-                 assign("env", list(op("extend_environment"), 
-                                    constant(globals),
-                                    constant(unassigneds),
-                                    reg("env"))),
-                 perform(list(op("set_global_environment"), reg("env")))));
-    const sequence_from_compile = compile(stmt, "val", "return");
-    const sequence_with_prelude =
-        append_instruction_sequences(prelude, sequence_from_compile);
-    const instrs =
-              assemble(instructions(sequence_with_prelude),
-                       eceval);
+    const toplevel_names = scan_out_declarations(stmt);
+    const unassigneds = list_of_unassigned(toplevel_names);
+    the_global_environment = 
+        extend_environment(toplevel_names, unassigneds, 
+            the_global_environment);
+    const instr_sequence = compile(stmt, "val", "return");
+    const instrs = assemble(instructions(instr_sequence),
+                            eceval);
     set_register_contents(eceval, "val", instrs);
     set_register_contents(eceval, "flag", true);
     return start(eceval);
@@ -1293,25 +1304,28 @@ function fib(n) {
   $\ldots$
       </JAVASCRIPT>
     </SNIPPET>
-    To test your code, start by defining a
-    <SPLITINLINE>
-      <SCHEME>procedure</SCHEME>
-      <JAVASCRIPT>function</JAVASCRIPT>
-    </SPLITINLINE>
-    <SCHEMEINLINE>f</SCHEMEINLINE> that calls a
-    <SPLITINLINE>
-      <SCHEME>procedure</SCHEME>
-    <JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
-    <SCHEMEINLINE>g</SCHEMEINLINE>.  Use
-    <SPLITINLINE>
-      <SCHEME><SCHEMEINLINE>compile-and-go</SCHEMEINLINE></SCHEME>
-      <JAVASCRIPT><JAVASCRIPTINLINE>compile_and_go</JAVASCRIPTINLINE>
+    <SPLIT>
+      <SCHEME>
+	To test your code, start by defining a procedure
+	<SCHEMEINLINE>f</SCHEMEINLINE> that calls a procedure
+	<SCHEMEINLINE>g</SCHEMEINLINE>.  Use
+	<SCHEMEINLINE>compile-and-go</SCHEMEINLINE>
+	to compile the definition of <SCHEMEINLINE>f</SCHEMEINLINE>
+	and start the evaluator.  Now, typing at the evaluator, define
+	<SCHEMEINLINE>g</SCHEMEINLINE> and try to call
+	<SCHEMEINLINE>f</SCHEMEINLINE>.
+      </SCHEME>
+      <JAVASCRIPT>
+	To test your code, start by declaring a function
+	<SCHEMEINLINE>f</SCHEMEINLINE> that takes a function
+	as parameter and applies it in its body. Use
+	<JAVASCRIPTINLINE>compile_and_go</JAVASCRIPTINLINE>
+	to compile the declaration of <SCHEMEINLINE>f</SCHEMEINLINE>
+	and start the evaluator. Now, typing at the evaluator,
+	pass a lambda expression as argument to
+	<SCHEMEINLINE>f</SCHEMEINLINE>.
       </JAVASCRIPT>
-    </SPLITINLINE>
-    to compile the definition of <SCHEMEINLINE>f</SCHEMEINLINE> and start the
-    evaluator.  Now, typing at the evaluator, define
-    <SCHEMEINLINE>g</SCHEMEINLINE> and try to call
-    <SCHEMEINLINE>f</SCHEMEINLINE>.
+    </SPLIT>
     <LABEL NAME="ex:compiled-call-interpreted"/>
   </EXERCISE>
 
@@ -1412,12 +1426,14 @@ EC-Eval value:
     <SUBINDEX>compilation of</SUBINDEX></INDEX>
     Use the compiler to compile the metacircular evaluator of
     section<SPACE/><REF NAME="sec:mc-eval"/> and run this program using the
-    register-machine simulator.  (To compile more than one definition at a time,
-    you can package the definitions in a
-    <SPLITINLINE>
-      <SCHEME><SCHEMEINLINE>begin</SCHEMEINLINE>.)</SCHEME>
-      <JAVASCRIPT>sequence.)</JAVASCRIPT>
-    </SPLITINLINE>
+    register-machine simulator.
+    <SPLIT>
+      <SCHEME>
+	(To compile more than one definition at a time,
+	you can package the definitions in a
+	<SCHEMEINLINE>begin</SCHEMEINLINE>.)
+      </SCHEME>
+    </SPLIT>
     The resulting interpreter will run very slowly because of the multiple
     levels of interpretation, but getting all the details to work is an
     instructive exercise.
