@@ -42,12 +42,8 @@
     </SPLITINLINE>
     it evaluates the expression specified by
     <SPLITINLINE>
-      <SCHEME>
-	<SCHEMEINLINE>exp</SCHEMEINLINE>
-      </SCHEME>
-      <JAVASCRIPT>
-	<SCHEMEINLINE>stmt</SCHEMEINLINE>
-      </JAVASCRIPT>
+      <SCHEME><SCHEMEINLINE>exp</SCHEMEINLINE></SCHEME>
+      <JAVASCRIPT><SCHEMEINLINE>stmt</SCHEMEINLINE></JAVASCRIPT>
     </SPLITINLINE>
     in the environment specified by <SCHEMEINLINE>env</SCHEMEINLINE>.  When
     evaluation is complete, the controller will go to the entry point stored in
@@ -115,29 +111,35 @@ eval-dispatch
       </SCHEME>
       <JAVASCRIPT>
 "eval_dispatch",
-  test(list(op("is_self_evaluating"), reg("exp"))),
-  branch(label("ev_self_eval")),
-  test(list(op("is_name"), reg("exp"))),
-  branch(label("ev_name")),
-  test(list(op("is_variable_declaration"), reg("exp"))),
-  branch(label("ev_variable_declaration")),
-  test(list(op("is_constant_declaration"), reg("exp"))),
-  branch(label("ev_constant_declaration")),
-  test(list(op("is_assignment"), reg("exp"))),
-  branch(label("ev_assignment")),
-  test(list(op("is_return_statement"), reg("exp"))),
-  branch(label("ev_return")),
-  test(list(op("is_conditional_expression"), reg("exp"))),
-  branch(label("ev_if")),
-  test(list(op("is_lambda_expression"), reg("exp"))),
-  branch(label("ev_lambda")),
-  test(list(op("is_sequence"), reg("exp"))),
-  branch(label("ev_seq")),
-  test(list(op("is_block"), reg("exp"))),
-  branch(label("ev_block")),
-  test(list(op("is_application"), reg("exp"))),
-  branch(label("ev_application")),
-  go_to(label("unknown_expression_type")),
+      test(list(op("is_self_evaluating"),
+                reg("stmt"))),
+      branch(label("ev_self_eval")),
+      test(list(op("is_name"), reg("stmt"))),
+      branch(label("ev_name")),
+      test(list(op("is_variable_declaration"),
+                reg("stmt"))),
+      branch(label("ev_variable_declaration")),
+      test(list(op("is_constant_declaration"),
+                reg("stmt"))),
+      branch(label("ev_constant_declaration")),
+      test(list(op("is_assignment"), reg("stmt"))),
+      branch(label("ev_assignment")),
+      test(list(op("is_return_statement"),
+                reg("stmt"))),
+      branch(label("ev_return")),
+      test(list(op("is_conditional_expression"),
+                reg("stmt"))),
+      branch(label("ev_cond")),
+      test(list(op("is_lambda_expression"),
+                reg("stmt"))),
+      branch(label("ev_lambda")),
+      test(list(op("is_sequence"), reg("stmt"))),
+      branch(label("ev_seq")),
+      test(list(op("is_block"), reg("stmt"))),
+      branch(label("ev_block")),
+      test(list(op("is_application"), reg("stmt"))),
+      branch(label("ev_application")),
+      go_to(label("unknown_expression_type")),
       </JAVASCRIPT>
     </SNIPPET>
   </TEXT>
@@ -204,20 +206,20 @@ ev-lambda
       </SCHEME>
       <JAVASCRIPT>
 "ev_self_eval",
-  assign("val", reg("exp")),
-  go_to(reg("continue")),
+      assign("val", reg("stmt")),
+      go_to(reg("continue")),
       
 "ev_name",
-  assign("val", list(op("lookup_symbol_value"),
-  reg("exp"), reg("env"))),
-  go_to(reg("continue")),
+      assign("val",
+        list(op("lookup_symbol_value"), reg("stmt"), reg("env"))),
+      go_to(reg("continue")),
       
 "ev_lambda",
-  assign("unev", list(op("lambda_parameters"), reg("exp"))),
-  assign("exp", list(op("lambda_body"), reg("exp"))),
-  assign("val", list(op("make_compound_function"),
-                     reg("unev"), reg("exp"), reg("env"))),
-  go_to(reg("continue"))
+      assign("unev", list(op("lambda_parameters"), reg("stmt"))),
+      assign("stmt", list(op("lambda_body"), reg("stmt"))),
+      assign("val", list(op("make_function"),
+                         reg("unev"), reg("stmt"), reg("env"))),
+      go_to(reg("continue")),
       </JAVASCRIPT>
     </SNIPPET>
   </TEXT>
@@ -234,7 +236,10 @@ ev-lambda
       <JAVASCRIPT><JAVASCRIPTINLINE>unev</JAVASCRIPTINLINE></JAVASCRIPT>
     </SPLITINLINE>
     and
-    <SCHEMEINLINE>exp</SCHEMEINLINE>
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>exp</SCHEMEINLINE></SCHEME>
+      <JAVASCRIPT><JAVASCRIPTINLINE>stmt</JAVASCRIPTINLINE></JAVASCRIPT>
+    </SPLITINLINE>
     registers to hold the parameters and body of the lambda expression so
     that they can be passed to the
     <SPLITINLINE>
@@ -282,8 +287,27 @@ ev-lambda
     <SPLIT>
       <SCHEME>
 	A procedure application is specified by a combination containing an
-	operator and operands. The operator is a subexpression whose value is a
-	procedure, and the operands are subexpressions whose values are the
+  <SPLITINLINE>
+    <SCHEME>operator</SCHEME>
+    <JAVASCRIPT>function expression</JAVASCRIPT>
+  </SPLITINLINE>
+  and
+  <SPLITINLINE>
+    <SCHEME>operands</SCHEME>
+    <JAVASCRIPT>argument expressions</JAVASCRIPT>
+  </SPLITINLINE>.
+	The
+  <SPLITINLINE>
+    <SCHEME>operator</SCHEME>
+    <JAVASCRIPT>function expression</JAVASCRIPT>
+  </SPLITINLINE>
+  is a subexpression whose value is a
+	procedure, and the 
+  <SPLITINLINE>
+    <SCHEME>operands</SCHEME>
+    <JAVASCRIPT>argument expressions</JAVASCRIPT>
+  </SPLITINLINE>
+  are subexpressions whose values are the
 	arguments to which the procedure
 	should be applied.
       </SCHEME>
@@ -378,7 +402,11 @@ ev-lambda
 	function expression,
       </JAVASCRIPT>
     </SPLITINLINE>
-    we move it to the <SCHEMEINLINE>exp</SCHEMEINLINE>
+    we move it to the 
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>exp</SCHEMEINLINE></SCHEME>
+      <JAVASCRIPT><JAVASCRIPTINLINE>stmt</JAVASCRIPTINLINE></JAVASCRIPT>
+    </SPLITINLINE>
     register and go to
     <SPLITINLINE>
       <SCHEME><SCHEMEINLINE>eval-dispatch</SCHEMEINLINE>.</SCHEME>
@@ -422,7 +450,7 @@ ev-lambda
     <SPLITINLINE>
       <SCHEME><SCHEMEINLINE>ev-appl-did-operator</SCHEMEINLINE></SCHEME>
       <JAVASCRIPT>
-	<JAVASCRIPTINLINE>ev_appl_did_operator</JAVASCRIPTINLINE>
+	<JAVASCRIPTINLINE>ev_appl_did_function_expression</JAVASCRIPTINLINE>
       </JAVASCRIPT>
     </SPLITINLINE>
     after the
@@ -451,13 +479,13 @@ ev-application
       </SCHEME>
       <JAVASCRIPT>
 "ev_application",
-  save("continue"),
-  save("env"),
-  assign("unev", list(op("args"), reg("exp"))),
-  save("unev"),
-  assign("exp", list(op("function_expression"), reg("exp"))),
-  assign("continue", label("ev_appl_did_operator")),
-  go_to(label("eval_dispatch"))
+      save("continue"),
+      save("env"),
+      assign("unev", list(op("args"), reg("stmt"))),
+      save("unev"),
+      assign("stmt", list(op("function_expression"), reg("stmt"))),
+      assign("continue", label("ev_appl_did_function_expression")),
+      go_to(label("eval_dispatch")),
       </JAVASCRIPT>
     </SNIPPET>
   </TEXT>
@@ -589,7 +617,12 @@ function adjoin_arg(arg, arglist) {
       <SCHEME>procedure</SCHEME>
       <JAVASCRIPT>function</JAVASCRIPT>
     </SPLITINLINE>
-    to test for the last operand in a combination:
+    to test for the last
+  <SPLITINLINE>
+    <SCHEME>operand</SCHEME>
+    <JAVASCRIPT>argument expression</JAVASCRIPT>
+  </SPLITINLINE>
+    in a combination:
     <SNIPPET EVAL="no">
       <SCHEME>
 <!--  \indcode*{last-operand?} -->
@@ -598,7 +631,7 @@ function adjoin_arg(arg, arglist) {
       </SCHEME>
       <JAVASCRIPT>
 <!--  \indcode*{last-operand?} -->
-function is_last_operand(ops) {
+function is_last_argument_expression(ops) {
     return is_null(tail(ops));
 }
       </JAVASCRIPT>
@@ -616,23 +649,37 @@ ev-appl-did-operator
 (save proc)
     </SCHEME>
     <JAVASCRIPT>
-"ev_appl_did_operator",
-  restore("unev"), // the args
-  restore("env"),
-  assign("argl", list(op("empty_arglist"))),
-  assign("fun", reg("val")), // the function_expression
-  test(list(op("has_no_operands"), reg("unev"))),
-  branch(label("apply_dispatch")),
-  save("fun"),
+"ev_appl_did_function_expression",
+      restore("unev"), // the args
+      restore("env"),
+      assign("argl", list(op("empty_arglist"))),
+      assign("fun", reg("val")), // the function_expression
+      test(list(op("has_no_argument_expressions"),
+                reg("unev"))),
+      branch(label("apply_dispatch")),
+      save("fun"),
     </JAVASCRIPT>
   </SNIPPET>
   </TEXT>
 
   <TEXT>
-    Each cycle of the argument-evaluation loop evaluates an operand
+    Each cycle of the argument-evaluation loop evaluates an 
+  <SPLITINLINE>
+    <SCHEME>operand</SCHEME>
+    <JAVASCRIPT>argument expression</JAVASCRIPT>
+  </SPLITINLINE>
     from the list in <SCHEMEINLINE>unev</SCHEMEINLINE> and accumulates the
-    result into <SCHEMEINLINE>argl</SCHEMEINLINE>. To evaluate an operand, we
-    place it in the <SCHEMEINLINE>exp</SCHEMEINLINE> register and go to
+    result into <SCHEMEINLINE>argl</SCHEMEINLINE>. To evaluate an
+  <SPLITINLINE>
+    <SCHEME>operand</SCHEME>
+    <JAVASCRIPT>argument expression</JAVASCRIPT>
+  </SPLITINLINE>, we
+    place it in the 
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>exp</SCHEMEINLINE></SCHEME>
+      <JAVASCRIPT><JAVASCRIPTINLINE>stmt</JAVASCRIPTINLINE></JAVASCRIPT>
+    </SPLITINLINE>
+    register and go to
     <SPLITINLINE>
       <SCHEME><SCHEMEINLINE>eval-dispatch</SCHEMEINLINE>,</SCHEME>
       <JAVASCRIPT><JAVASCRIPTINLINE>eval_dispatch</JAVASCRIPTINLINE>,
@@ -673,23 +720,39 @@ ev-appl-operand-loop
 (goto (label eval-dispatch))
       </SCHEME>
       <JAVASCRIPT>
-"ev_appl_operand_loop",
-  save("argl"),
-  assign("exp", list(op("first_arg"), reg("unev"))),
-  test(list(op("is_last_operand"), reg("unev"))),
-  branch(label("ev_appl_last_arg")),
-  save("env"),
-  save("unev"),
-  assign("continue", label("ev_appl_accumulate_arg")),
-  go_to(label("eval_dispatch")),
+"ev_appl_argument_expression_loop",
+      save("argl"),
+      assign("stmt", list(op("first_arg"), reg("unev"))),
+      test(list(op("is_last_argument_expression"),
+                reg("unev"))),
+      branch(label("ev_appl_last_arg")),
+      save("env"),
+      save("unev"),
+      assign("continue", label("ev_appl_accumulate_arg")),
+      go_to(label("eval_dispatch")),
       </JAVASCRIPT>
     </SNIPPET>
   </TEXT>
 
   <TEXT>
-    When an operand has been evaluated, the value is accumulated into the list
-    held in <SCHEMEINLINE>argl</SCHEMEINLINE>.  The operand is then removed from
-    the list of unevaluated operands in <SCHEMEINLINE>unev</SCHEMEINLINE>, and
+    When an
+  <SPLITINLINE>
+    <SCHEME>operand</SCHEME>
+    <JAVASCRIPT>argument expression</JAVASCRIPT>
+  </SPLITINLINE>
+    has been evaluated, the value is accumulated into the list
+    held in <SCHEMEINLINE>argl</SCHEMEINLINE>.  The
+  <SPLITINLINE>
+    <SCHEME>operand</SCHEME>
+    <JAVASCRIPT>argument expression</JAVASCRIPT>
+  </SPLITINLINE>
+    is then removed from
+    the list of unevaluated
+  <SPLITINLINE>
+    <SCHEME>operands</SCHEME>
+    <JAVASCRIPT>argument expressions</JAVASCRIPT>
+  </SPLITINLINE>
+    in <SCHEMEINLINE>unev</SCHEMEINLINE>, and
     the argument-evaluation continues.
     <SNIPPET EVAL="no">
       <SCHEME>
@@ -703,26 +766,36 @@ ev-appl-accumulate-arg
       </SCHEME>
       <JAVASCRIPT>
 "ev_appl_accumulate_arg",
-  restore("unev"),
-  restore("env"),
-  restore("argl"),
-  assign("argl", list(op("adjoin_arg"), reg("val"), reg("argl"))),
-  assign("unev", list(op("rest_args"), reg("unev"))),
-  go_to(label("ev_appl_operand_loop")),
+      restore("unev"),
+      restore("env"),
+      restore("argl"),
+      assign("argl", list(op("adjoin_arg"),
+                          reg("val"), reg("argl"))),
+      assign("unev", list(op("rest_args"), reg("unev"))),
+      go_to(label("ev_appl_argument_expression_loop")),
       </JAVASCRIPT>
     </SNIPPET>
   </TEXT>
 
   <TEXT>
     Evaluation of the last argument is handled differently.  There is no
-    need to save the environment or the list of unevaluated operands
+    need to save the environment or the list of unevaluated 
+  <SPLITINLINE>
+    <SCHEME>operands</SCHEME>
+    <JAVASCRIPT>argument expressions</JAVASCRIPT>
+  </SPLITINLINE>
     before going to
     <SPLITINLINE>
       <SCHEME><SCHEMEINLINE>eval-dispatch</SCHEMEINLINE>,</SCHEME>
       <JAVASCRIPT><JAVASCRIPTINLINE>eval_dispatch</JAVASCRIPTINLINE>,
       </JAVASCRIPT>
     </SPLITINLINE>
-    since they will not be required after the last operand is evaluated.
+    since they will not be required after the last
+  <SPLITINLINE>
+    <SCHEME>operand</SCHEME>
+    <JAVASCRIPT>argument expression</JAVASCRIPT>
+  </SPLITINLINE>
+    is evaluated.
     Thus, we return from the evaluation to a special entry point
     <SPLITINLINE>
       <SCHEME><SCHEMEINLINE>ev-appl-accum-last-arg</SCHEMEINLINE>,</SCHEME>
@@ -736,13 +809,21 @@ ev-appl-accumulate-arg
       <JAVASCRIPT>function,</JAVASCRIPT>
     </SPLITINLINE>
     and goes off to perform the application.<FOOTNOTE>The optimization of
-    treating the last operand
+    treating the last 
+  <SPLITINLINE>
+    <SCHEME>operand</SCHEME>
+    <JAVASCRIPT>argument expression</JAVASCRIPT>
+  </SPLITINLINE>
     <INDEX>evlis tail recursion</INDEX>
     specially is known as <EM>evlis tail recursion</EM> (see 
     <INDEX>Wand, Mitchell</INDEX>
     <CITATION>Wand 1980</CITATION>). We could be somewhat more efficient
     in the argument evaluation loop if we made evaluation of the first
-    operand a special case too.  This would permit us to postpone
+  <SPLITINLINE>
+    <SCHEME>operand</SCHEME>
+    <JAVASCRIPT>argument expression</JAVASCRIPT>
+  </SPLITINLINE>
+    a special case too.  This would permit us to postpone
     initializing <SCHEMEINLINE>argl</SCHEMEINLINE> until after evaluating the
     first
     <SPLITINLINE>
@@ -780,14 +861,15 @@ ev-appl-accum-last-arg
       </SCHEME>
       <JAVASCRIPT>
 "ev_appl_last_arg",
-  assign("continue", label("ev_appl_accum_last_arg")),
-  go_to(label("eval_dispatch")),
-  
+      assign("continue", label("ev_appl_accum_last_arg")),
+      go_to(label("eval_dispatch")),
+      
 "ev_appl_accum_last_arg",
-  restore("argl"),
-  assign("argl", list(op("adjoin_arg"), reg("val"), reg("argl"))),
-  restore("fun"),
-  go_to(label("apply_dispatch")),
+      restore("argl"),
+      assign("argl", list(op("adjoin_arg"),
+                          reg("val"), reg("argl"))),
+      restore("fun"),
+      go_to(label("apply_dispatch")),
       </JAVASCRIPT>
     </SNIPPET>
   </TEXT>
@@ -796,12 +878,22 @@ ev-appl-accum-last-arg
     <INDEX>order of evaluation
     <SUBINDEX>in explicit-control evaluator</SUBINDEX></INDEX>
     The details of the argument-evaluation loop determine the order in
-    which the interpreter evaluates the operands of a combination (e.g.,
+    which the interpreter evaluates the
+  <SPLITINLINE>
+    <SCHEME>operands</SCHEME>
+    <JAVASCRIPT>argument expressions</JAVASCRIPT>
+  </SPLITINLINE>
+    of a combination (e.g.,
     left to right or right to left<EMDASH/>see
     exercise<SPACE/><REF NAME="ex:order-of-evaluation"/>).  This order is not
     determined by the metacircular evaluator, which inherits its control
     structure from the underlying Scheme in which it is implemented.<FOOTNOTE>The
-    order of operand evaluation in the metacircular evaluator is determined by
+    order of
+    <SPLITINLINE>
+    <SCHEME>operand</SCHEME>
+    <JAVASCRIPT>argument expression</JAVASCRIPT>
+  </SPLITINLINE>
+  evaluation in the metacircular evaluator is determined by
     the order of evaluation of the arguments to
     <SPLITINLINE>
       <SCHEME><SCHEMEINLINE>cons</SCHEMEINLINE></SCHEME>
@@ -833,7 +925,10 @@ ev-appl-accum-last-arg
       </JAVASCRIPT>
     </SPLITINLINE>
     to extract successive
-    operands
+  <SPLITINLINE>
+    <SCHEME>operands</SCHEME>
+    <JAVASCRIPT>argument expressions</JAVASCRIPT>
+  </SPLITINLINE>
     from <SCHEMEINLINE>unev</SCHEMEINLINE>) is implemented as
     <SPLITINLINE>
       <SCHEME><SCHEMEINLINE>car</SCHEMEINLINE></SCHEME>
@@ -853,8 +948,12 @@ ev-appl-accum-last-arg
       <SCHEME><SCHEMEINLINE>cdr</SCHEMEINLINE>,</SCHEME>
       <JAVASCRIPT><JAVASCRIPTINLINE>tail</JAVASCRIPTINLINE>,</JAVASCRIPT>
     </SPLITINLINE>
-    the explicit-control evaluator will evaluate the operands of a combination
-    in left-to-right order.
+    the explicit-control evaluator will evaluate the
+  <SPLITINLINE>
+    <SCHEME>operands</SCHEME>
+    <JAVASCRIPT>argument expressions</JAVASCRIPT>
+  </SPLITINLINE>
+    of a combination in left-to-right order.
     <SPLITINLINE>
       <SCHEME>
 	<INDEX>explicit-control evaluator for Scheme
@@ -956,11 +1055,13 @@ apply-dispatch
       </SCHEME>
       <JAVASCRIPT>
 "apply_dispatch",
-  test(list(op("is_primitive_function"), reg("fun"))),
-  branch(label("primitive_apply")),
-  test(list(op("is_compound_function"), reg("fun"))),
-  branch(label("compound_apply")),
-  go_to(label("unknown_function_type")),
+      test(list(op("is_primitive_function"),
+                reg("fun"))),
+      branch(label("primitive_apply")),
+      test(list(op("is_compound_function"),
+                reg("fun"))),
+      branch(label("compound_apply")),
+      go_to(label("unknown_function_type")),
       </JAVASCRIPT>
     </SNIPPET>
   </TEXT>
@@ -1025,10 +1126,11 @@ primitive-apply
       </SCHEME>
       <JAVASCRIPT>
 "primitive_apply",
-  assign("val", list(op("apply_primitive_function"), 
-                     reg("fun"), reg("argl"))),
-  restore("continue"),
-  go_to(reg("continue")),
+      assign("val", list(op("apply_primitive_function"), 
+                         reg("fun"), 
+                         reg("argl"))),
+      restore("continue"),
+      go_to(reg("continue")),
       </JAVASCRIPT>
     </SNIPPET>
   </TEXT>
@@ -1101,33 +1203,40 @@ compound-apply
       </SCHEME>
       <JAVASCRIPT>
 "compound_apply",
-  assign("unev", list(op("function_parameters"), reg("fun"))),
-  assign("env", list(op("function_environment"), reg("fun"))),
-  assign("env", list(op("extend_environment"), 
-                     reg("unev"), reg("argl"), reg("env"))),
-  assign("exp", list(op("function_body"), reg("fun"))),
-  test(list(op("handles_return_by_itself"), reg("exp"), constant(false))),
-  branch(label("handle_missing_return")),
-  restore("continue"),
-  go_to(label("eval_dispatch")),
+      assign("unev", list(op("function_parameters"), reg("fun"))),
+      assign("env", list(op("function_environment"), reg("fun"))),
+      assign("env", list(op("extend_environment"), 
+                         reg("unev"), reg("argl"), reg("env"))),
+      assign("stmt", list(op("function_body"), reg("fun"))),
+
+      test(list(op("does_not_handle_return"), reg("stmt"))),
+      branch(label("no_return_wrapping")),
+      restore("continue"),
+      go_to(label("eval_dispatch")),
 
 "handle_missing_return",
-  assign("continue", label("end_without_return")),
-  go_to(label("eval_dispatch")),        
+      assign("continue", label("end_without_return")),
+      go_to(label("eval_dispatch")),
       </JAVASCRIPT>
     </SNIPPET>
   </TEXT>
 
   <TEXT>
     <SPLITINLINE>
-      <SCHEME><SCHEMEINLINE>Compound-apply</SCHEMEINLINE></SCHEME>
+      <SCHEME>
+        <SCHEMEINLINE>Compound-apply</SCHEMEINLINE> is the only
+        place in the interpreter where the
+        <SCHEMEINLINE>env</SCHEMEINLINE> register is ever assigned a
+      new value.</SCHEME>
       <JAVASCRIPT>
-	The function
-	<JAVASCRIPTINLINE>compound_apply</JAVASCRIPTINLINE>
+	      The only places in the interpreter where the
+	      <SCHEMEINLINE>env</SCHEMEINLINE> register is assigned a
+	      new value are
+	      <JAVASCRIPTINLINE>compound_apply</JAVASCRIPTINLINE> and
+	      <JAVASCRIPTINLINE>ev_block</JAVASCRIPTINLINE>.
       </JAVASCRIPT>
     </SPLITINLINE>
-    is the only place in the interpreter where the
-    <SCHEMEINLINE>env</SCHEMEINLINE> register is ever assigned a new value.
+    
     Just as in the metacircular evaluator, the new environment is constructed
     from the environment carried by the
     <SPLITINLINE>

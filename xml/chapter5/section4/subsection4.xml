@@ -44,8 +44,17 @@
       <JAVASCRIPT>function</JAVASCRIPT>
     </SPLITINLINE>
     of section<SPACE/><REF NAME="sec:running-eval"/>.  The evaluator will
-    repeatedly print a prompt, read an expression, evaluate the expression by
-    going to
+    repeatedly print a prompt, read 
+    <SPLITINLINE>
+      <SCHEME>an expression, </SCHEME>
+      <JAVASCRIPT>a program, scan its declarations and appropriately extend the environment before proceeding to </JAVASCRIPT>
+    </SPLITINLINE>
+    evaluate
+    <SPLITINLINE>
+      <SCHEME>the expression</SCHEME>
+      <JAVASCRIPT>the program</JAVASCRIPT>
+    </SPLITINLINE>
+    by going to
     <SPLITINLINE>
       <SCHEME><SCHEMEINLINE>eval-dispatch</SCHEMEINLINE>,</SCHEME>
       <JAVASCRIPT><JAVASCRIPTINLINE>eval_dispatch</JAVASCRIPTINLINE>,
@@ -103,17 +112,23 @@ function get_global_environment() {
       </SCHEME>
       <JAVASCRIPT>
 "read_eval_print_loop",
-      perform(list(op("initialize_stack"))),	
-      assign("stmt", list(op("prompt_for_input"), 
-                         constant("/// EC_Eval input:"))),
+      perform(list(op("initialize_stack"))),
+      assign("stmt", list(op("prompt_for_input"), constant("/// EC_Eval input:"))),
       assign("env", list(op("get_global_environment"))),
+      assign("val", list(op("scan_out_declarations"), reg("stmt"))),
+      save("stmt"), // temporarily store to stmt
+      assign("stmt", list(op("list_of_unassigned"), reg("val"))),
+      assign("env", list(op("extend_environment"), 
+                         reg("val"), 
+                         reg("stmt"), 
+                         reg("env"))),
+      restore("stmt"),
       assign("continue", label("print_result")),
       go_to(label("eval_dispatch")),
 
 "print_result",
-      perform(list(op("user_print"), 
-                   constant("EC_Eval value:"), 
-                   reg("val"))),
+      perform(list(op("user_print"),
+                   constant("EC-evaluate value:"), reg("val"))),
       go_to(label("read_eval_print_loop")), 
       </JAVASCRIPT>
     </SNIPPET>
@@ -167,13 +182,14 @@ function get_global_environment() {
       go_to(label("signal_error")),
       
 "unknown_function_type",
-      restore("continue"), 
+      restore("continue"), /// clean up stack (from apply_dispatch)
       assign("val", constant("unknown_function_type_error")),
       go_to(label("signal_error")),
       
 "signal_error",
-      perform(list(op("user_print"), constant("EC_eval error:"), reg("val"))),
-      go_to(label("evaluator_done")),
+      perform(list(op("user_print"),
+                   constant("EC_eval error:"), reg("val"))),
+      go_to(label("read_eval_print_loop")),
       </JAVASCRIPT>
     </SNIPPET>
   </TEXT>
@@ -252,10 +268,17 @@ const eceval =
 const eceval_controller =	
     list(
       "read_eval_print_loop",
-      perform(list(op("initialize_stack"))),	
-      assign("stmt", list(op("prompt_for_input"),
-                          constant("EC-evaluate input:"))),
+      perform(list(op("initialize_stack"))),
+      assign("stmt", list(op("prompt_for_input"), constant("/// EC_Eval input:"))),
       assign("env", list(op("get_global_environment"))),
+      assign("val", list(op("scan_out_declarations"), reg("stmt"))),
+      save("stmt"), // temporarily store to stmt
+      assign("stmt", list(op("list_of_unassigned"), reg("val"))),
+      assign("env", list(op("extend_environment"), 
+                         reg("val"), 
+                         reg("stmt"), 
+                         reg("env"))),
+      restore("stmt"),
       assign("continue", label("print_result")),
       go_to(label("eval_dispatch")),
 
@@ -327,23 +350,23 @@ const eceval_controller =
       assign("unev", list(op("args"), reg("stmt"))),
       save("unev"),
       assign("stmt", list(op("function_expression"), reg("stmt"))),
-      assign("continue", label("ev_appl_did_operator")),
+      assign("continue", label("ev_appl_did_function_expression")),
       go_to(label("eval_dispatch")),
       
-      "ev_appl_did_operator",
+      "ev_appl_did_function_expression",
       restore("unev"), // the args
       restore("env"),
       assign("argl", list(op("empty_arglist"))),
       assign("fun", reg("val")), // the function_expression
-      test(list(op("has_no_operands"),
+      test(list(op("has_no_argument_expressions"),
                 reg("unev"))),
       branch(label("apply_dispatch")),
       save("fun"),
       
-      "ev_appl_operand_loop",
+      "ev_appl_argument_expression_loop",
       save("argl"),
       assign("stmt", list(op("first_arg"), reg("unev"))),
-      test(list(op("is_last_operand"),
+      test(list(op("is_last_argument_expression"),
                 reg("unev"))),
       branch(label("ev_appl_last_arg")),
       save("env"),
@@ -358,7 +381,7 @@ const eceval_controller =
       assign("argl", list(op("adjoin_arg"),
                           reg("val"), reg("argl"))),
       assign("unev", list(op("rest_args"), reg("unev"))),
-      go_to(label("ev_appl_operand_loop")),
+      go_to(label("ev_appl_argument_expression_loop")),
       
       "ev_appl_last_arg",
       assign("continue", label("ev_appl_accum_last_arg")),
@@ -394,10 +417,7 @@ const eceval_controller =
                          reg("unev"), reg("argl"), reg("env"))),
       assign("stmt", list(op("function_body"), reg("fun"))),
 
-      // FIXME: this test probably doesn't work:
-      //   the argument constant(false) is ignored
-      test(list(op("does_not_return"),
-                reg("stmt"), constant(false))),
+      test(list(op("does_not_handle_return"), reg("stmt"))),
       branch(label("no_return_wrapping")),
       restore("continue"),
       go_to(label("eval_dispatch")),
@@ -453,22 +473,22 @@ const eceval_controller =
       save("stmt"), // save expression for later
       save("env"),
       save("continue"),
-      assign("continue", label("ev_if_decide")),
+      assign("continue", label("ev_cond_decide")),
       assign("stmt", list(op("conditional_pred"), reg("stmt"))),
       go_to(label("eval_dispatch")), // evaluate the predicate
       
-      "ev_if_decide",
+      "ev_cond_decide",
       restore("continue"),
       restore("env"),
       restore("stmt"),
       test(list(op("is_true"), reg("val"))),
-      branch(label("ev_if_consequent")),
+      branch(label("ev_cond_consequent")),
       
-      "ev_if_alternative",
+      "ev_cond_alternative",
       assign("stmt", list(op("conditional_alt"), reg("stmt"))),
       go_to(label("eval_dispatch")),
       
-      "ev_if_consequent",
+      "ev_cond_consequent",
       assign("stmt", list(op("conditional_cons"), reg("stmt"))),
       go_to(label("eval_dispatch")),
       
@@ -577,10 +597,10 @@ const eceval_operations =
       // args
       list("args"                , args),
       list("function_expression" , function_expression),
-      list("has_no_operands"     , no_args),
+      list("has_no_argument_expressions"     , no_args),
       list("first_arg"           , first_arg),
       list(
-        "is_last_operand",
+        "is_last_argument_expression",
         (a) => is_null(tail(a))
       ),
       list("rest_args", rest_args),
@@ -595,7 +615,7 @@ const eceval_operations =
         (val, argl) => append(argl, list(val))
       ),
 
-      // exp (sequence)
+      // stmt (sequence)
       list("first_statement"     , first_statement),
       list("rest_statements"     , rest_statements),
       list("is_last_statement"   , is_last_statement),
@@ -653,7 +673,7 @@ const eceval_operations =
       list("is_block"         , is_block),
       list("block_body"       , block_body),
       list("scan_out_declarations"    , scan_out_declarations),
-        list("does_not_return", s => !(is_block(s) || is_sequence(s) || is_return_statement(s))),
+      list("does_not_handle_return", s => !(is_block(s) || is_sequence(s) || is_return_statement(s))),
       list("list_of_unassigned"       , list_of_unassigned),
       list("is_application"           , is_application),
       list("is_primitive_function"    , is_primitive_function),
@@ -717,43 +737,45 @@ ok
 (a b c d e f)
       </SCHEMEOUTPUT>
       <JAVASCRIPT_RUN>
-const program = "           \
-function test1() {          \
-    display('A', 1);        \
-    const result = test2(); \
-    return display(result, 3);     \
-    display('X', 7);        \
-}                           \
-function test2() {          \
-    display('B', 2);        \
-    return 'C';             \
-    display('X', 4);        \
-}                           \
-function test3() {          \
-    display('hej1!');       \
-}                           \
-function test4() {          \
-    return display('hej2!');\
-}                           \
-display(test1(), 5);        \
-display(test3(), 6);        \
-display(test4(), 8);        \
+const test_program_1 = "                       \
+function test1() {                             \
+    display('A', 1);                           \
+    const result = test2();                    \
+    return display(result, 3);                 \
+    display('I should not be printed', 7);     \
+}                                              \
+function test2() {                             \
+    display('B', 2);                           \
+    return 'C';                                \
+    display('I should not be printed', 4);     \
+}                                              \
+function test3() {                             \
+    display('Hello from test3');               \
+}                                              \
+function test4() {                             \
+    return display('Hello from test4');        \
+}                                              \
+display(test1(), 5);                           \
+display(test3(), 6); // Should print undefined \
+display(test4(), 8);                           \
 ";
 
-const test_program ="\
-function adder(a, b) { \
-    return \
-        a === 0 \
-      ? b \
-      : adder(a - 1, b + 1); \
- 42; \
-} \
+const test_program_2 = "           \
+function adder(a, b) {             \
+    return                         \
+        a === 0                    \
+      ? b                          \
+      : adder(a - 1, b + 1);       \
+ 42;                               \
+}                                  \
 display(adder(7, 5), \"7 + 5 =\"); \
 ";
 
 function prompt_for_input(p) {
     return make_block(parse(prompt(p)));
-//  return make_block(parse(test_program));
+    // To avoid having to paste programs:
+    //  return make_block(parse(test_program_1));
+    //  return make_block(parse(test_program_2));
 }
 
 start(eceval);
@@ -761,7 +783,6 @@ get_register_contents(eceval, "val");
 </JAVASCRIPT_RUN>
       <JAVASCRIPT>
 const the_global_environment = setup_environment();
-
 start(eceval);
       </JAVASCRIPT>
       <JAVASCRIPT_OUTPUT>
@@ -1075,7 +1096,9 @@ function fib(n) {
     When we run the evaluator using the register-machine simulator, these
     errors are caught by the underlying <SPLITINLINE><SCHEME>Scheme</SCHEME><JAVASCRIPT>JavaScript</JAVASCRIPT></SPLITINLINE> system.  This is analogous
     to the computer crashing when a user program makes an
-    error.<FOOTNOTE>Regrettably, this is the normal state of affairs in
+    <SPLITINLINE>
+      <SCHEME>
+        <FOOTNOTE>Regrettably, this is the normal state of affairs in
     <INDEX>C<SUBINDEX>error handling</SUBINDEX></INDEX>
     conventional compiler-based language systems such as C.  
     <INDEX>UNIX</INDEX>
@@ -1086,7 +1109,18 @@ function fib(n) {
     it becomes catatonic. The
     Macintosh<LATEXINLINE>$^{\textrm{TM}}$</LATEXINLINE> displays a picture of
     an exploding bomb and offers you the opportunity to reboot the
-    computer<EMDASH/>if you<APOS/>re lucky.</FOOTNOTE>  It is a large project to
+    computer<EMDASH/>if you<APOS/>re lucky.</FOOTNOTE>
+      </SCHEME>
+      <JAVASCRIPT>
+        <FOOTNOTE>This manifests itself as, for example, a
+        <QUOTE>kernel panic</QUOTE> or a <QUOTE>blue screen of
+        death</QUOTE> or a spurious reboot, typically on phones
+        and tablets. Most modern operating systems do a decent job
+        of preventing user programs from causing an entire machine
+        to crash.</FOOTNOTE>
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    error.  It is a large project to
     make a real error system work, but it is well worth the effort to understand
     what is involved here.
     <OL>
