@@ -45,6 +45,8 @@
     into the machine and use the
     evaluator to call it:
     <SNIPPET>
+      <NAME>compile_and_go_example</NAME>
+      <REQUIRES>compile_and_go</REQUIRES>
       <SCHEME>
       (compile-and-go
       '(define (factorial n)
@@ -64,11 +66,11 @@
       <JAVASCRIPT>
 compile_and_go(
     parse(
-        "function factorial(n) {
-             return n === 1 
-                 ? 1
-                 : n * factorial(n - 1);
-         }"));
+        "function factorial(n) {          \
+             return n === 1               \
+                 ? 1                      \
+                 : n * factorial(n - 1);  \
+         }"));    
       </JAVASCRIPT>
       <JAVASCRIPT_OUTPUT>
 EC-evaluate value:
@@ -290,22 +292,40 @@ $\langle\ldots\rangle$
               (else (display object))))
       </SCHEME>
       <JAVASCRIPT>
-function user_print(prompt_string, object) {
-    function to_string(object) {
+function user_print(string, object) {
+    function prepare(object) {
         return is_compound_function(object)
             ? "&lt;compound-function&gt;"
             : is_primitive_function(object)
             ? "&lt;primitive-function&gt;"
             : is_compiled_function(object)
-            ?  "&lt;compiled-function&gt;"
+            ? "&lt;compiled-function&gt;"
             : is_pair(object)
-            ? "[" + to_string(head(object)) + ", "
-                  + to_string(tail(object)) + "]" 
-            : stringify(object);
+            ? pair(prepare(head(object)),
+                   prepare(tail(object)))
+            : object;
     }
-    display(prompt_string + to_string(object));
+    display(prepare(object), string);
 }
       </JAVASCRIPT>
+      <JAVASCRIPT_RUN>
+function user_print(prompt_string, object) {
+   function to_string(object) {	
+       return is_compound_function(object)
+              ? "&lt;compound-function&gt;"
+              : is_compiled_function(object)
+              ? "&lt;compiled-function&gt;"
+              : is_primitive_function(object)
+	      ? "&lt;primitive-function&gt;"
+	      : is_pair(object)
+	      ? "[" + to_string(head(object)) + ", "
+	            + to_string(tail(object)) + "]"
+	      : stringify(object);
+    }
+    display("----------------------------",
+            prompt_string + "\n" + to_string(object) + "\n");
+}
+      </JAVASCRIPT_RUN>
     </SNIPPET></FOOTNOTE>
     <!--  \indcode*{external-entry} -->
     <SNIPPET>
@@ -419,49 +439,7 @@ function display_instructions(instructions) {
 }	
       </JAVASCRIPT>
     </SNIPPET>
-    <SNIPPET EVAL="no">
-      <NAME>compile_and_go</NAME>
-      <REQUIRES>display_instructions</REQUIRES>
-      <SCHEME>
-      (define (compile-and-go expression)
-      (let ((instructions
-            (assemble (statements
-            (compile expression 'val 'return))
-            eceval)))
-      (set! the-global-environment (setup-environment))
-      (set-register-contents! eceval 'val instructions)
-      (set-register-contents! eceval 'flag true)
-      (start eceval)))
-      </SCHEME>
-      <!-- // display_instructions(
-           //      instructions(compile(stmt, "val", "return")));
-	   -->
-      <JAVASCRIPT>
-function compile_and_go(stmt) {
-    const toplevel_names = scan_out_declarations(stmt);
-    const unassigneds = list_of_unassigned(toplevel_names);
-    the_global_environment = 
-        extend_environment(toplevel_names, unassigneds, 
-            the_global_environment);
-    const instr_sequence = compile(stmt, "val", "return");
-    const instrs = assemble(instructions(instr_sequence),
-                            eceval);
-    set_register_contents(eceval, "val", instrs);
-    set_register_contents(eceval, "flag", true);
-    return start(eceval);
-}
-      </JAVASCRIPT>
 
-    </SNIPPET>
-  </TEXT>
-
-  <TEXT>
-    <INDEX>compiler for Scheme
-    <SUBINDEX>monitoring performance (stack use) of compiled code</SUBINDEX>
-    </INDEX>
-    If we have set up stack monitoring, as at the end of
-    section<SPACE/><REF NAME="sec:running-evaluator"/>, we can examine the
-    stack usage of compiled code:
     <SNIPPET HIDE="yes">
       <NAME>eceval_2</NAME>
       <REQUIRES>prompt_for_input</REQUIRES>
@@ -597,6 +575,13 @@ list(
       test(list(op("is_null"), reg("stmt"))),
       branch(label("evaluator_done")),
       assign("env", list(op("get_program_environment"))),
+      assign("val", list(op("scan_out_declarations"), reg("stmt"))),
+      save("stmt"), // temporarily store to stmt
+      assign("stmt", list(op("list_of_unassigned"), reg("val"))),
+      assign("env", list(op("extend_environment"), 
+                         reg("val"), reg("stmt"), reg("env"))),
+      perform(list(op("set_program_environment"), reg("env"))),
+      restore("stmt"),
       assign("continue", label("print_result")),
       go_to(label("eval_dispatch")),
 
@@ -897,8 +882,9 @@ const eceval =
                  eceval_controller);
       </JAVASCRIPT>
     </SNIPPET>
-    <SNIPPET>
-      <NAME>compile_and_go_example</NAME>
+    
+    <SNIPPET EVAL="no">
+      <NAME>compile_and_go</NAME>
       <REQUIRES>headline_4_1_1</REQUIRES>
       <REQUIRES>scan_out_declarations</REQUIRES>
       <REQUIRES>list_of_unassigned</REQUIRES>
@@ -937,6 +923,49 @@ const eceval =
       <REQUIRES>parallel_instruction_sequences</REQUIRES>
       <REQUIRES>user_print_2</REQUIRES>
       <REQUIRES>eceval_2</REQUIRES>
+      <REQUIRES>display_instructions</REQUIRES>
+      <SCHEME>
+      (define (compile-and-go expression)
+      (let ((instructions
+            (assemble (statements
+            (compile expression 'val 'return))
+            eceval)))
+      (set! the-global-environment (setup-environment))
+      (set-register-contents! eceval 'val instructions)
+      (set-register-contents! eceval 'flag true)
+      (start eceval)))
+      </SCHEME>
+      <!-- // display_instructions(
+           //      instructions(compile(stmt, "val", "return")));
+	   -->
+      <JAVASCRIPT>
+function compile_and_go(stmt) {
+    const toplevel_names = scan_out_declarations(stmt);
+    const unassigneds = list_of_unassigned(toplevel_names);
+    the_global_environment = 
+        extend_environment(toplevel_names, unassigneds, 
+            the_global_environment);
+    const instr_sequence = compile(stmt, "val", "return");
+    const instrs = assemble(instructions(instr_sequence),
+                            eceval);
+    set_register_contents(eceval, "val", instrs);
+    set_register_contents(eceval, "flag", true);
+    return start(eceval);
+}
+      </JAVASCRIPT>
+
+    </SNIPPET>
+  </TEXT>
+
+  <TEXT>
+    <INDEX>compiler for Scheme
+    <SUBINDEX>monitoring performance (stack use) of compiled code</SUBINDEX>
+    </INDEX>
+    If we have set up stack monitoring, as at the end of
+    section<SPACE/><REF NAME="sec:running-evaluator"/>, we can examine the
+    stack usage of compiled code:
+    <SNIPPET EVAL="no">
+      <NAME>compile_and_go_example_2</NAME>
       <REQUIRES>compile_and_go</REQUIRES>
       <SCHEME>
       (compile-and-go
@@ -975,7 +1004,7 @@ undefined
 EC-evaluate input:
       </JAVASCRIPT_OUTPUT>
     </SNIPPET>
-    <SNIPPET>
+    <SNIPPET EVAL="no">
       <SCHEME>
 (factorial 5)
       </SCHEME>
