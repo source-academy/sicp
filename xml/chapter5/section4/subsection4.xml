@@ -43,11 +43,13 @@
       <SCHEME>procedure</SCHEME>
       <JAVASCRIPT>function</JAVASCRIPT>
     </SPLITINLINE>
-    of section<SPACE/><REF NAME="sec:running-eval"/>.  The evaluator will
-    repeatedly print a prompt, read 
+    of section<SPACE/><REF NAME="sec:running-eval"/> and similarly extends
+    the current program environment in each iteration of the loop.  The evaluator
+    will repeatedly print a prompt, read 
     <SPLITINLINE>
       <SCHEME>an expression, </SCHEME>
-      <JAVASCRIPT>a program, scan its declarations and appropriately extend the environment before proceeding to </JAVASCRIPT>
+      <JAVASCRIPT>a program, scan its declarations and appropriately extend the environment
+      before proceeding to </JAVASCRIPT>
     </SPLITINLINE>
     evaluate
     <SPLITINLINE>
@@ -59,9 +61,19 @@
       <SCHEME><SCHEMEINLINE>eval-dispatch</SCHEMEINLINE>,</SCHEME>
       <JAVASCRIPT><JAVASCRIPTINLINE>eval_dispatch</JAVASCRIPTINLINE>,
     </JAVASCRIPT></SPLITINLINE>
-    and print the result.  The following instructions form the beginning of the
+    and print the result.
+    The following instructions form the beginning of the
     explicit-control evaluator<APOS/>s controller sequence:<FOOTNOTE>We assume
-    here that <SCHEMEINLINE>read</SCHEMEINLINE> and the various printing
+    here that
+    <SPLITINLINE>
+      <SCHEME>
+	<SCHEMEINLINE>read</SCHEMEINLINE>
+      </SCHEME>
+      <JAVASCRIPT>
+	<JAVASCRIPTINLINE>prompt_for_input</JAVASCRIPTINLINE>
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    and the various printing
     operations are available as primitive machine operations, which is useful
     for our simulation, but completely unrealistic in practice.  These are
     actually extremely complex operations.  In practice, they would be
@@ -70,11 +82,14 @@
     <P/>
     To support the
     <SPLITINLINE>
-      <SCHEME><SCHEMEINLINE>get-global-environment</SCHEMEINLINE></SCHEME>
-      <JAVASCRIPT><JAVASCRIPTINLINE>get_global_environment</JAVASCRIPTINLINE>
+      <SCHEME><SCHEMEINLINE>get-global-environment</SCHEMEINLINE> operation
+      </SCHEME>
+      <JAVASCRIPT>
+	<JAVASCRIPTINLINE>get_program_environment</JAVASCRIPTINLINE> and
+	<JAVASCRIPTINLINE>set_program_environment</JAVASCRIPTINLINE> operations
       </JAVASCRIPT>
     </SPLITINLINE>
-    operation we define
+    we define
     <!--  \indcode*{the-global-environment} -->
     <!--  \indcode*{get-global-environment} -->
     <SNIPPET EVAL="no">
@@ -86,8 +101,11 @@
     the-global-environment)
       </SCHEME>
       <JAVASCRIPT>
-function get_global_environment() {
+function get_program_environment() {
     return the_global_environment;
+}
+function set_program_environment(env) {
+    the_global_environment = env;
 }
       </JAVASCRIPT>
     </SNIPPET></FOOTNOTE>
@@ -114,14 +132,13 @@ function get_global_environment() {
 "read_eval_print_loop",
       perform(list(op("initialize_stack"))),
       assign("stmt", list(op("prompt_for_input"), constant("/// EC_Eval input:"))),
-      assign("env", list(op("get_global_environment"))),
+      assign("env", list(op("get_program_environment"))),
       assign("val", list(op("scan_out_declarations"), reg("stmt"))),
       save("stmt"), // temporarily store to stmt
       assign("stmt", list(op("list_of_unassigned"), reg("val"))),
       assign("env", list(op("extend_environment"), 
-                         reg("val"), 
-                         reg("stmt"), 
-                         reg("env"))),
+                         reg("val"), reg("stmt"), reg("env"))),
+      perform(list(op("set_program_environment"), reg("env"))),
       restore("stmt"),
       assign("continue", label("print_result")),
       go_to(label("eval_dispatch")),
@@ -270,14 +287,13 @@ const eceval_controller =
       "read_eval_print_loop",
       perform(list(op("initialize_stack"))),
       assign("stmt", list(op("prompt_for_input"), constant("/// EC_Eval input:"))),
-      assign("env", list(op("get_global_environment"))),
+      assign("env", list(op("get_program_environment"))),
       assign("val", list(op("scan_out_declarations"), reg("stmt"))),
       save("stmt"), // temporarily store to stmt
       assign("stmt", list(op("list_of_unassigned"), reg("val"))),
       assign("env", list(op("extend_environment"), 
-                         reg("val"), 
-                         reg("stmt"), 
-                         reg("env"))),
+                         reg("val"), reg("stmt"), reg("env"))),
+      perform(list(op("set_program_environment"), reg("env"))),
       restore("stmt"),
       assign("continue", label("print_result")),
       go_to(label("eval_dispatch")),
@@ -690,6 +706,7 @@ const eceval_operations =
         (stmt, env) => lookup_symbol_value(symbol_of_name(stmt), env)
       ),
       list("get_global_environment", get_global_environment),
+      list("set_global_environment", set_global_environment),
 
       // generic helpers
       list("is_true", is_true),
