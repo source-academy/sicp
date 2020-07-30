@@ -15,7 +15,11 @@
     We started with the relatively informal substitution model, then
     extended this in chapter<SPACE/>3 to the environment model, which enabled us
     to deal with state and change.  In the metacircular evaluator of
-    chapter<SPACE/>4, we used <SPLITINLINE><SCHEME>Scheme</SCHEME><JAVASCRIPT>JavaScript</JAVASCRIPT></SPLITINLINE>
+    chapter<SPACE/>4, we used
+    <SPLITINLINE>
+      <SCHEME>Scheme</SCHEME>
+      <JAVASCRIPT>JavaScript</JAVASCRIPT>
+    </SPLITINLINE>
     itself as a language for making more
     explicit the environment structure constructed during evaluation of an
     expression.  Now, with register machines, we have taken a close look
@@ -289,6 +293,8 @@ const eceval_controller =
       perform(list(op("initialize_stack"))),
       assign("stmt", list(op("prompt_for_input"),
                           constant("EC-evaluate input:"))),
+      test(list(op("is_null"), reg("stmt"))),
+      branch(label("evaluator_done")),
       assign("env", list(op("get_program_environment"))),
       assign("val", list(op("scan_out_declarations"), reg("stmt"))),
       save("stmt"), // temporarily store to stmt
@@ -303,9 +309,7 @@ const eceval_controller =
       "print_result",
       perform(list(op("user_print"),
                    constant("EC-evaluate value:"), reg("val"))),
-      // to avoid infinite REPL
-      go_to(label("evaluator_done")),
-      //go_to(label("read_eval_print_loop")), 
+      go_to(label("read_eval_print_loop")), 
 
       "eval_dispatch",
       test(list(op("is_self_evaluating"),
@@ -352,7 +356,7 @@ const eceval_controller =
       
       "ev_name",
       assign("val",
-        list(op("lookup_symbol_value"), reg("stmt"), reg("env"))),
+        list(op("lookup_name_value"), reg("stmt"), reg("env"))),
       go_to(reg("continue")),
       
       "ev_lambda",
@@ -607,30 +611,34 @@ const eceval_operations =
       </JAVASCRIPT>
     </SNIPPET>
     <SNIPPET HIDE="yes">
+      <NAME>prompt_for_input</NAME>
+      <JAVASCRIPT>
+function prompt_for_input(p) {
+    const string = prompt(p);
+    return is_null(string) ? null : parse(string);
+}
+      </JAVASCRIPT>
+    </SNIPPET>
+    <SNIPPET HIDE="yes">
       <NAME>eceval_operations</NAME>
+      <REQUIRES>prompt_for_input</REQUIRES>
       <JAVASCRIPT>
 const eceval_operations = 
     list(
       // args
-      list("args"                , args),
-      list("function_expression" , function_expression),
-      list("has_no_argument_expressions"     , no_args),
-      list("first_arg"           , first_arg),
-      list(
-        "is_last_argument_expression",
-        (a) => is_null(tail(a))
-      ),
-      list("rest_args", rest_args),
+      list("args"                 , args),
+      list("function_expression"  , function_expression),
+      list("has_no_argument_expressions"
+                                  , no_args),
+      list("first_arg"            , first_arg),
+      list("is_last_argument_expression"
+                                  , a => is_null(tail(a))),
+      list("rest_args"            , rest_args),
 
       //arg
-      list(
-        "empty_arglist",
-        (_) => list()
-      ),
-      list(
-        "adjoin_arg",
-        (val, argl) => append(argl, list(val))
-      ),
+      list("empty_arglist"        , () => null),
+      list("adjoin_arg"           , (val, argl) => append(argl,
+                                                      list(val))),
 
       // stmt (sequence)
       list("first_statement"     , first_statement),
@@ -642,86 +650,74 @@ const eceval_operations =
       list("is_self_evaluating"  , is_self_evaluating),
       list("is_name"             , is_name),
       list("symbol_of_name"      , symbol_of_name),
-      list(
-        "all_names_of_names",
-        (names) => map(symbol_of_name, names)
-      ),
-      list("is_assignment"           , is_assignment),
-      list("assignment_symbol"       , assignment_symbol),
-      list("assignment_value"        , assignment_value),
-      list("assign_symbol_value"     , assign_symbol_value),
-      list("is_constant_declaration" , is_constant_declaration),
-      list(
-        "constant_declaration_symbol",
-        constant_declaration_symbol
-      ),
-      list(
-        "constant_declaration_value",
-        constant_declaration_value
-      ),
-      list("is_variable_declaration", is_variable_declaration),
-      list(
-        "variable_declaration_symbol",
-        variable_declaration_symbol
-      ),
-      list(
-        "variable_declaration_value",
-        variable_declaration_value
-      ),
-      list("assign_symbol_value"  , assign_symbol_value),
-      list("is_lambda_expression" , is_lambda_expression),
-      list(
-        "lambda_parameters",
-        lambda_parameters
-      ),
+      list("is_assignment"       , is_assignment),
+      list("assignment_symbol"   , assignment_symbol),
+      list("assignment_value"    , assignment_value),
+      list("assign_symbol_value" , assign_symbol_value),
+      list("is_constant_declaration"
+                                 , is_constant_declaration),
+      list("constant_declaration_symbol"
+                                 , constant_declaration_symbol),
+      list("constant_declaration_value"
+				 , constant_declaration_value),
+      list("is_variable_declaration"
+				 , is_variable_declaration),
+      list("variable_declaration_symbol"
+                                 , variable_declaration_symbol),
+      list("variable_declaration_value"
+                                 , variable_declaration_value),
+      list("assign_symbol_value" , assign_symbol_value),
+      list("is_lambda_expression", is_lambda_expression),
+      list("lambda_parameters"   , lambda_parameters),
       list("lambda_body"         , lambda_body),
       list("is_return_statement" , is_return_statement),
       list("return_expression"   , return_expression),
-      list(
-        "is_conditional_expression",
-        is_conditional_expression
-      ),
-      list("conditional_pred" , cond_expr_pred),
-      list("conditional_cons" , cond_expr_cons),
-      list("conditional_alt"  , cond_expr_alt),
+      list("is_conditional_expression"
+                                 , is_conditional_expression),
+      list("conditional_pred"    , cond_expr_pred),
+      list("conditional_cons"    , cond_expr_cons),
+      list("conditional_alt"     , cond_expr_alt),
 
-      list("is_sequence"      , is_sequence),
-      list("make_sequence"    , make_sequence),
-      list("is_block"         , is_block),
-      list("block_body"       , block_body),
-      list("scan_out_declarations"    , scan_out_declarations),
-      list("does_not_handle_return", s => !(is_block(s) || is_sequence(s) || is_return_statement(s))),
-      list("list_of_unassigned"       , list_of_unassigned),
-      list("is_application"           , is_application),
-      list("is_primitive_function"    , is_primitive_function),
-      list("apply_primitive_function" , apply_primitive_function),
-      list("is_compound_function"     , is_compound_function),
-      list("function_parameters"      , function_parameters),
-      list("function_environment"     , function_environment),
-      list("function_body"            , function_body),
-      list("extend_environment"       , extend_environment),
-      list("make_function"            , make_function),
+      list("is_sequence"         , is_sequence),
+      list("make_sequence"       , make_sequence),
+      list("is_block"            , is_block),
+      list("block_body"          , block_body),
+      list("scan_out_declarations"
+                                 , scan_out_declarations),
+      list("does_not_handle_return"
+                                 , s => !(is_block(s) ||
+                                          is_sequence(s) ||
+                                          is_return_statement(s))),
+      list("list_of_unassigned"  , list_of_unassigned),
+      list("is_application"      , is_application),
+      list("is_primitive_function"
+                                 , is_primitive_function),
+      list("apply_primitive_function"
+                                 , apply_primitive_function),
+      list("is_compound_function", is_compound_function),
+      list("function_parameters" , function_parameters),
+      list("function_environment", function_environment),
+      list("function_body"       , function_body),
+      list("extend_environment"  , extend_environment),
+      list("make_function"       , make_function),
 
-      list(
-        "lookup_symbol_value",
-        (stmt, env) => lookup_symbol_value(symbol_of_name(stmt), env)
-      ),
-      list("get_global_environment", get_global_environment),
-      list("set_global_environment", set_global_environment),
+      list("lookup_name_value"   , (stmt, env) =>
+                                   lookup_symbol_value(
+				       symbol_of_name(stmt),
+				       env)),
+
+      list("get_program_environment"
+                                 , get_program_environment),
+      list("set_program_environment"
+                                 , set_program_environment),
 
       // generic helpers
       list("is_true", is_true),
       list("is_null", is_null),
-      list("is_pair", is_pair),
-      list("is_number", is_number),
-      list("append", append),
-      list("pair", pair),
 
-      list("prompt_for_input", (s) => prompt_for_input(s)),
+      list("prompt_for_input", prompt_for_input),
       list("user_print", user_print),
       list("display", display),
-      // list("make_compiled_function", make_compiled_function),
-      // list("compiled_function_env", compiled_function_env),
       list("list", list)
     );
     </JAVASCRIPT>
@@ -789,13 +785,6 @@ function adder(a, b) {             \
 display(adder(7, 5), \"7 + 5 =\"); \
 ";
 
-function prompt_for_input(p) {
-    return make_block(parse(prompt(p)));
-    // To avoid having to paste programs:
-    //  return make_block(parse(test_program_1));
-    //  return make_block(parse(test_program_2));
-}
-
 start(eceval);
 get_register_contents(eceval, "val");
 </JAVASCRIPT_RUN>
@@ -805,16 +794,30 @@ start(eceval);
       </JAVASCRIPT>
       <JAVASCRIPT_OUTPUT>
 EC-evaluate input:
-function plus(a, b) {
-    return a === 0 ? b : plus(a - 1, b + 1);
+      </JAVASCRIPT_OUTPUT>
+    </SNIPPET>
+    <SNIPPET EVAL="no">
+      <JAVASCRIPT>
+function append(x, y) {
+    return is_null(x)	
+        ? y
+        : pair(head(x), append(tail(x), y));
 }
+      </JAVASCRIPT>
+      <JAVASCRIPT_OUTPUT>
 EC-evaluate value:
-ok
+undefined
 
 EC-evaluate input:
-plus(2, 40);
+      </JAVASCRIPT_OUTPUT>
+    </SNIPPET>
+    <SNIPPET EVAL="no">
+      <JAVASCRIPT>
+append(list("a", "b", "c"), list("d", "e", "f"));
+      </JAVASCRIPT>
+      <JAVASCRIPT_OUTPUT>
 EC-evaluate value:
-42
+["a", ["b", ["c", ["d", ["e", ["f", null]]]]]]
       </JAVASCRIPT_OUTPUT>
     </SNIPPET>
   </TEXT>
@@ -1125,33 +1128,35 @@ function fib(n) {
     </SPLITINLINE>
     types.  Other errors will take us out of the evaluator read-eval-print loop.
     When we run the evaluator using the register-machine simulator, these
-    errors are caught by the underlying <SPLITINLINE><SCHEME>Scheme</SCHEME><JAVASCRIPT>JavaScript</JAVASCRIPT></SPLITINLINE> system.  This is analogous
-    to the computer crashing when a user program makes an
+    errors are caught by the underlying
+    <SPLITINLINE><SCHEME>Scheme</SCHEME><JAVASCRIPT>JavaScript</JAVASCRIPT></SPLITINLINE>
+    system.  This is analogous
+    to the computer crashing when a user program makes an error.<FOOTNOTE>
     <SPLITINLINE>
       <SCHEME>
-        <FOOTNOTE>Regrettably, this is the normal state of affairs in
-    <INDEX>C<SUBINDEX>error handling</SUBINDEX></INDEX>
-    conventional compiler-based language systems such as C.  
-    <INDEX>UNIX</INDEX>
-    <INDEX>DOS/Windows</INDEX>
-    <INDEX>Macintosh</INDEX>
-    In UNIX<LATEXINLINE>$^{\textrm{TM}}$</LATEXINLINE> the system <QUOTE>dumps
-    core,</QUOTE> and in DOS/Windows<LATEXINLINE>$^{\textrm{TM}}$</LATEXINLINE>
-    it becomes catatonic. The
-    Macintosh<LATEXINLINE>$^{\textrm{TM}}$</LATEXINLINE> displays a picture of
-    an exploding bomb and offers you the opportunity to reboot the
-    computer<EMDASH/>if you<APOS/>re lucky.</FOOTNOTE>
+	Regrettably, this is the normal state of affairs in
+	<INDEX>C<SUBINDEX>error handling</SUBINDEX></INDEX>
+	conventional compiler-based language systems such as C.  
+	<INDEX>UNIX</INDEX>
+	<INDEX>DOS/Windows</INDEX>
+	<INDEX>Macintosh</INDEX>
+	In UNIX<LATEXINLINE>$^{\textrm{TM}}$</LATEXINLINE> the system <QUOTE>dumps
+	core,</QUOTE> and in DOS/Windows<LATEXINLINE>$^{\textrm{TM}}$</LATEXINLINE>
+	it becomes catatonic. The
+	Macintosh<LATEXINLINE>$^{\textrm{TM}}$</LATEXINLINE> displays a picture of
+	an exploding bomb and offers you the opportunity to reboot the
+	computer<EMDASH/>if you<APOS/>re lucky.
       </SCHEME>
       <JAVASCRIPT>
-        <FOOTNOTE>This manifests itself as, for example, a
+        This manifests itself as, for example, a
         <QUOTE>kernel panic</QUOTE> or a <QUOTE>blue screen of
         death</QUOTE> or a spurious reboot, typically on phones
         and tablets. Most modern operating systems do a decent job
         of preventing user programs from causing an entire machine
-        to crash.</FOOTNOTE>
+        to crash.
       </JAVASCRIPT>
-    </SPLITINLINE>
-    error.  It is a large project to
+    </SPLITINLINE></FOOTNOTE>
+    It is a large project to
     make a real error system work, but it is well worth the effort to understand
     what is involved here.
     <OL>
@@ -1223,6 +1228,6 @@ function fib(n) {
 	This is a major project.
       </LI>
     </OL>
+    <INDEX>explicit-control evaluator for Scheme|)</INDEX>
   </EXERCISE>
-  <INDEX>explicit-control evaluator for Scheme|)</INDEX>
 </SUBSECTION>

@@ -319,7 +319,7 @@ function user_print(prompt_string, object) {
       <JAVASCRIPT>
 "external_entry",
   perform(op("initialize_stack")),
-  assign("env", list(op("get_global_environment"))),
+  assign("env", list(op("get_program_environment"))),
   assign("continue", label("print_result")),
   go_to(reg("val")),
       </JAVASCRIPT>
@@ -464,20 +464,9 @@ function compile_and_go(stmt) {
     stack usage of compiled code:
     <SNIPPET HIDE="yes">
       <NAME>eceval_2</NAME>
+      <REQUIRES>prompt_for_input</REQUIRES>
+      <REQUIRES>the_global</REQUIRES>
       <JAVASCRIPT>
-function prompt_for_input(p) {
-    const string = prompt("EC-evaluate input:");
-    return is_null(string) ? null : parse(string);
-}
-    
-function get_global_environment() {
-    return the_global_environment;
-}
-    
-function set_global_environment(env) {
-    the_global_environment = env;
-}
-
 const eceval_operations = 
     list(
       // args
@@ -575,8 +564,8 @@ const eceval_operations =
         "lookup_symbol_value",
         (stmt, env) => lookup_symbol_value(symbol_of_name(stmt), env)
       ),
-      list("get_global_environment", get_global_environment),
-      list("set_global_environment", set_global_environment),
+      list("get_program_environment", get_program_environment),
+      list("set_program_environment", set_program_environment),
 
       // generic helpers
       list("is_true", is_true),
@@ -604,16 +593,16 @@ list(
       "read_eval_print_loop",
       perform(list(op("initialize_stack"))),	
       assign("stmt", list(op("prompt_for_input"),
-                          constant("/// EC_Eval input:"))),
+                          constant("EC-evaluate input:"))),
       test(list(op("is_null"), reg("stmt"))),
       branch(label("evaluator_done")),
-      assign("env", list(op("get_global_environment"))),
+      assign("env", list(op("get_program_environment"))),
       assign("continue", label("print_result")),
       go_to(label("eval_dispatch")),
 
       "external_entry",
       perform(list(op("initialize_stack"))),
-      assign("env", list(op("get_global_environment"))),
+      assign("env", list(op("get_program_environment"))),
       assign("continue", label("print_result")),
       go_to(reg("val")),
       
@@ -643,7 +632,7 @@ list(
       branch(label("ev_return")),
       test(list(op("is_conditional_expression"),
                 reg("stmt"))),
-      branch(label("ev_if")),
+      branch(label("ev_cond")),
       test(list(op("is_lambda_expression"),
                 reg("stmt"))),
       branch(label("ev_lambda")),
@@ -812,26 +801,26 @@ list(
       restore("stmt"),
       go_to(label("eval_dispatch")),
       
-      "ev_if",
+      "ev_cond",
       save("stmt"), // save expression for later
       save("env"),
       save("continue"),
-      assign("continue", label("ev_if_decide")),
+      assign("continue", label("ev_cond_decide")),
       assign("stmt", list(op("conditional_pred"), reg("stmt"))),
       go_to(label("eval_dispatch")), // evaluate the predicate
       
-      "ev_if_decide",
+      "ev_cond_decide",
       restore("continue"),
       restore("env"),
       restore("stmt"),
       test(list(op("is_true"), reg("val"))),
-      branch(label("ev_if_consequent")),
+      branch(label("ev_cond_consequent")),
       
-      "ev_if_alternative",
+      "ev_cond_alternative",
       assign("stmt", list(op("conditional_alt"), reg("stmt"))),
       go_to(label("eval_dispatch")),
       
-      "ev_if_consequent",
+      "ev_cond_consequent",
       assign("stmt", list(op("conditional_cons"), reg("stmt"))),
       go_to(label("eval_dispatch")),
       
@@ -981,7 +970,7 @@ compile_and_go(
       <JAVASCRIPT_OUTPUT>
 (total-pushes = 0 maximum-depth = 0)
 EC-evaluate value:
-"ok"
+undefined
 
 EC-evaluate input:
       </JAVASCRIPT_OUTPUT>
