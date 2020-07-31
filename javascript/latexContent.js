@@ -70,10 +70,7 @@ export const preamble = `\\documentclass[a4paper, 12pt]{book}
 
 \\usepackage{titleps}
 \\newpagestyle{main}{
-  \\setheadrule{0pt}
-  \\sethead{\\chaptertitle}
-    {} 
-    {\\thechapter}
+  \\sethead{}{}{}
   \\setfoot{}{\\thepage}{\\footnotesize Generated \\DTMnow}
 }
 \\newpagestyle{section}{
@@ -150,8 +147,8 @@ export const preamble = `\\documentclass[a4paper, 12pt]{book}
    rulecolor=\\color{LeftBarClickable},
    escapechar=^
 }
-\\lstnewenvironment{JavaScript}{\\lstset{style=JavaScript}}{}
-\\lstnewenvironment{JavaScriptClickable}{\\lstset{style=JavaScript,frame=leftline,escapeinside={/*!}{!*/}}}{}
+\\lstnewenvironment{JavaScript}{\\lstset{style=JavaScript,aboveskip=1ex}}{}
+\\lstnewenvironment{JavaScriptClickable}{\\lstset{style=JavaScript,frame=leftline,aboveskip=1ex,escapeinside={/*!}{!*/}}}{}
 \\lstdefinestyle{JavaScriptOutput}{
    language=JavaScript,
    basicstyle=\\linespread{1.0}\\slshape,
@@ -166,7 +163,7 @@ export const preamble = `\\documentclass[a4paper, 12pt]{book}
    rulecolor=\\color{LeftBarClickable},
    escapechar=^
 }
-\\lstnewenvironment{JavaScriptOutput}{\\lstset{style=JavaScriptOutput}}{}
+\\lstnewenvironment{JavaScriptOutput}{\\lstset{style=JavaScriptOutput,aboveskip=1ex}}{}
 
 \\usepackage{epigraph}
 \\renewcommand{\\textflush}{flushepinormal}

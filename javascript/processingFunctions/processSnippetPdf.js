@@ -166,12 +166,14 @@ export const processSnippetPdf = (node, writeTo) => {
       );
 
       const lines = codeStr.split("\n");
+
       lines[0] =
         "/*!\\makebox[0pt][l]{\\makebox[1.03\\textwidth][r]{\\href{" +
         url +
-        "}{\\ensuremath{\\blacktriangleright}}}}!*/ " +
+        "}{\\ensuremath{\\blacktriangleright}}}}!*/" +
         lines[0];
 
+      // writeTo.push("\n\\marginnote{\\href{" + url + "}{\\ensuremath{\\blacktriangleright}}}[2ex]" + "\\begin{JavaScriptClickable}\n");
       writeTo.push("\\begin{JavaScriptClickable}\n");
       writeTo.push(lines.join("\n"));
       writeTo.push("\\end{JavaScriptClickable}\n");
