@@ -49,8 +49,7 @@ main() {
 doublespace() {
 	yarn process pdf; yarn process pdf; \
 	cd ${LATEX_PDF}; \
-	cp -f sicpjs.tex sicpjs_doublespace.tex; \
-	sed -i 's/onehalfspacing/doublespacing/' ../latex_pdf/sicpjs_doublespace.tex; \
+	cat sicpjs.tex | sed 's/onehalfspacing/doublespacing/' > sicpjs_doublespace.tex; 
 	latexmk -silent -pdf -pdflatex="pdflatex --synctex=1" -f ${OUTPUT_FILE}_doublespace
 }
 
