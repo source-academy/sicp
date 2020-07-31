@@ -6,6 +6,9 @@ js_path=$(realpath ../static/img_javascript/)
 
 svgs: orig_svgs js_svgs
 
+doublespace:
+	cd .. && ./scripts/do.sh doublespace
+
 orig_svgs: $(orig_path)/ch2-Z-G-65.svg.pdf \
       $(orig_path)/ch2-Z-G-59.svg.pdf \
       $(orig_path)/chip.std.svg.pdf \

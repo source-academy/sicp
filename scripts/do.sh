@@ -26,6 +26,8 @@ main() {
 
     if [ "$1" == "pdf" ]; then
 	pdf
+    elif [ "$1" == "doublespace" ]; then
+	doublespace
     elif [ "$1" == "clean" ]; then
 	clean
     elif [ "$1" == "epub" ]; then
@@ -42,6 +44,14 @@ main() {
         echo "Please run this command from the git root directory."
         false  # exit 1
     fi
+}
+
+doublespace() {
+	yarn process pdf; yarn process pdf; \
+	cd ${LATEX_PDF}; \
+	cp -f sicpjs.tex sicpjs_doublespace.tex; \
+	sed -i 's/onehalfspacing/doublespacing/' ../latex_pdf/sicpjs_doublespace.tex; \
+	latexmk -silent -pdf -pdflatex="pdflatex --synctex=1" -f ${OUTPUT_FILE}_doublespace
 }
 
 pdf() {
