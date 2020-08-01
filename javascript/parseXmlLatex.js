@@ -174,6 +174,14 @@ const processTextFunctionsDefaultLatex = {
     recursiveProcessPureText(node.firstChild, writeTo);
   },
 
+  LaTeX: (node, writeTo) => {
+    writeTo.push("\\LaTeX");
+  },
+
+  TeX: (node, writeTo) => {
+    writeTo.push("\\TeX");
+  },
+
   MATTERSECTION: (node, writeTo) => {
     writeTo.push("\\section*{");
     addName(node, writeTo);

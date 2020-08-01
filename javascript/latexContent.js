@@ -4,17 +4,16 @@ const title = `\\begin{titlepage}
   \\centering
 \\textbf{Generated: \\DTMnow}\\\\[1em]
   \\includegraphics[width=0.6\\textwidth]{./sicp.png}\\par
-  {\\LARGE\\bfseries Structure and Interpretation of Computer\\\\
-  Programs — JavaScript Adaptation\\par}
+  {\\LARGE\\bfseries Structure and Interpretation of Computer
+  Programs, Second Edition\\\\}
+  {\\LARGE\\bfseries JavaScript Adaptation\\par}
   \\vspace{0.5cm}
   \\begin{flushright}
-  {\\Large Martin Henz and Tobias Wrigstad \\\\}
-  {\\large with Chan Ger Hean, He Xinyue, Liu Hang, \\\\ Feng Piaopiao, Jolyn Tan and Wang Qian \\\\
-   — \\textit{adapters to JavaScript}\\par}
-  \\vspace{0.5cm}
-  {\\large \\textit{original textbook by} \\\\}
   {\\Large Harold Abelson and Gerald Jay Sussman \\\\}
   {\\large with Julie Sussman \\par}
+  \\vspace{0.5cm}
+  {\\textit{adapted to JavaScript by}\\par}
+  {\\Large Martin Henz and Tobias Wrigstad \\\\}
   \\end{flushright}
 
   \\vspace{0.2cm}

@@ -245,6 +245,18 @@ const processTextFunctionsDefaultHtml = {
     recursiveProcessPureText(node.firstChild, writeTo);
   },
 
+  LaTeX: (node, writeTo) => {
+    writeTo.push(
+      `<span class="texhtml" style="font-family: 'CMU Serif', cmr10, LMRoman10-Regular, 'Latin Modern Math', 'Nimbus Roman No9 L', 'Times New Roman', Times, serif;">L<span style="text-transform: uppercase; font-size: 0.75em; vertical-align: 0.25em; margin-left: -0.36em; margin-right: -0.15em; line-height: 1ex;">a</span>T<span style="text-transform: uppercase; vertical-align: -0.5ex; margin-left: -0.1667em; margin-right: -0.125em; line-height: 1ex;">e</span>X</span>`
+    );
+  },
+
+  TeX: (node, writeTo) => {
+    writeTo.push(
+      `<span class="texhtml" style="font-family: 'CMU Serif', cmr10, LMRoman10-Regular, 'Latin Modern Math', 'Nimbus Roman No9 L', 'Times New Roman', Times, serif;">T<span style="text-transform: uppercase; vertical-align: -0.5ex; margin-left: -0.1667em; margin-right: -0.125em; line-height: 1ex;">e</span>X</span>`
+    );
+  },
+
   MATTERSECTION: (node, writeTo) => {
     heading_count += 1;
     writeTo.push(`
