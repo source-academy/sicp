@@ -302,7 +302,7 @@ const processTextFunctionsDefaultHtml = {
         </div>
       </div>
       <div class='chapter-text'>
-        <div class='SECTION'><SECTION>
+        <div class='SECTION'>
     `);
 
     if (node.getAttribute("WIP") === "yes") {
@@ -312,7 +312,7 @@ const processTextFunctionsDefaultHtml = {
     }
     const name = getChildrenByTagName(node, "NAME")[0];
     recursiveProcessTextHtml(name.nextSibling, writeTo);
-    writeTo.push("\n</SECTION></div></div>\n");
+    writeTo.push("\n</div></div>\n");
   },
 
   SCHEMEINLINE: (node, writeTo) =>
@@ -397,7 +397,7 @@ const processTextFunctionsDefaultHtml = {
         </div>
       </div>
       <div class='chapter-text'>
-        <div class='SECTION'><SECTION>
+        <div class='SECTION'>
     `);
 
     if (node.getAttribute("WIP") === "yes") {
@@ -407,7 +407,7 @@ const processTextFunctionsDefaultHtml = {
     }
     const name = getChildrenByTagName(node, "NAME")[0];
     recursiveProcessTextHtml(name.nextSibling, writeTo);
-    writeTo.push("\n</SUBSECTION></div></div>\n");
+    writeTo.push("\n</div></div>\n");
   },
 
   // e.g. section 4.4.4.4
