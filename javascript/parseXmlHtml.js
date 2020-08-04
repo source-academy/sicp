@@ -420,7 +420,7 @@ const processTextFunctionsDefaultHtml = {
         <a name='sec${chapterIndex}.${subsubsection_count}' class='permalink'></a><h1>
     `);
     if (chapterIndex !== "prefaces") {
-      writeTo.push(`${chapterIndex}.${subsubsection_count} `);
+      writeTo.push(`${chapterIndex}.${subsubsection_count}&nbsp;&nbsp;&nbsp;`);
     }
     recursiveProcessTextHtml(name.firstChild, writeTo);
     writeTo.push("</h1></div>");
@@ -764,7 +764,7 @@ export const parseXmlHtml = (doc, writeTo, filename) => {
   if (chapterIndex.match(/[a-z]+/)) {
     displayTitle = chapterTitle;
   } else {
-    displayTitle = chapterIndex + " " + chapterTitle;
+    displayTitle = chapterIndex + "&nbsp;&nbsp;" + chapterTitle;
   }
 
   //toIndexFolder = tableOfContent[filename].relativePathToMain;
