@@ -35,9 +35,7 @@ const generateChapterIndex = filename => {
 
 const truncateTitle = chapterTitle => {
   let truncatedTitle = "";
-  chapterTitle.forEach(item =>
-    item.match(".*[a-zA-Z]+.*") ? (truncatedTitle += " " + item.trim()) : null
-  );
+  chapterTitle.forEach(item => (truncatedTitle += item));
   return truncatedTitle;
 };
 
