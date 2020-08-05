@@ -172,7 +172,8 @@ export const processSnippetHtml = (node, writeTo, split) => {
       );
       const current_chap = chapterIndex.substring(0, 1);
       const explicit_chap = node.getAttribute("CHAP");
-      const chap = explicit_chap ? explicit_chap : current_chap;
+      const implicit_chap = explicit_chap ? explicit_chap : current_chap;
+      const chap = implicit_chap === "5" ? "4" : implicit_chap;
       let variant = node.getAttribute("VARIANT");
       let ext = node.getAttribute("EXT");
       if (variant) {
