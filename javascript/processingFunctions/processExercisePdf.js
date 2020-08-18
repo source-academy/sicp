@@ -19,7 +19,7 @@ const processExercisePdf = (node, writeTo) => {
   if (solution && !label) {
     writeTo.push("\n\\label{" + labelName + "}");
   }
-  writeTo.push("\n");
+  writeTo.push("\n\\noindent");
 
   recursiveProcessTextLatex(node.firstChild, writeTo);
   if (solution) {

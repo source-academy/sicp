@@ -63,7 +63,7 @@ export const preamble = `\\documentclass[a4paper, 12pt]{book}
 \\onehalfspacing
 
 % \\setlength{\\parskip}{0.5em}
-% \\setlength{\\parindent}{0pt}%
+\\setlength{\\parindent}{10pt}%
 
 \\setcounter{secnumdepth}{5}
 
@@ -146,8 +146,8 @@ export const preamble = `\\documentclass[a4paper, 12pt]{book}
    rulecolor=\\color{LeftBarClickable},
    escapechar=^
 }
-\\lstnewenvironment{JavaScript}{\\lstset{style=JavaScript,aboveskip=1ex}}{}
-\\lstnewenvironment{JavaScriptClickable}{\\lstset{style=JavaScript,frame=leftline,aboveskip=1ex,escapeinside={/*!}{!*/}}}{}
+\\lstnewenvironment{JavaScript}{\\lstset{style=JavaScript,aboveskip=2ex,belowskip=0ex}}{}
+\\lstnewenvironment{JavaScriptClickable}{\\lstset{style=JavaScript,frame=leftline,aboveskip=2ex,belowskip=0ex,escapeinside={/*!}{!*/}}}{}
 \\lstdefinestyle{JavaScriptOutput}{
    language=JavaScript,
    basicstyle=\\linespread{1.0}\\slshape,
@@ -162,7 +162,7 @@ export const preamble = `\\documentclass[a4paper, 12pt]{book}
    rulecolor=\\color{LeftBarClickable},
    escapechar=^
 }
-\\lstnewenvironment{JavaScriptOutput}{\\lstset{style=JavaScriptOutput,aboveskip=1ex}}{}
+\\lstnewenvironment{JavaScriptOutput}{\\lstset{style=JavaScriptOutput,aboveskip=2ex,belowskip=0ex}}{}
 
 \\usepackage{epigraph}
 \\renewcommand{\\textflush}{flushepinormal}
@@ -188,6 +188,10 @@ export const preamble = `\\documentclass[a4paper, 12pt]{book}
 \\newsavebox\\lstbox
 
 \\makeindex
+
+% to avoid spurious white space around index entries
+\\let\\oldindex\\index
+\\renewcommand*{\\index}[1]{\\oldindex{#1}\\ignorespaces}
 
 \\begin{document}
 

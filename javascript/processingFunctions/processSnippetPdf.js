@@ -204,7 +204,7 @@ export const processSnippetPdf = (node, writeTo) => {
     writeTo.push("\\end{JavaScriptOutput}");
   }
 
-  writeTo.push("\n\n");
+//  writeTo.push("\n\n");
 };
 
 export default processSnippetPdf;
