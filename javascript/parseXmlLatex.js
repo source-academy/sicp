@@ -196,9 +196,9 @@ const processTextFunctionsDefaultLatex = {
   },
 
   QUOTE: (node, writeTo) => {
-    writeTo.push("\\enquote{");
+    writeTo.push("``");
     recursiveProcessTextLatex(node.firstChild, writeTo);
-    writeTo.push("}");
+    writeTo.push("''");
   },
 
   REF: (node, writeTo) => {
