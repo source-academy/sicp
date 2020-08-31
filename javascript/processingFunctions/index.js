@@ -28,7 +28,6 @@ export const processList = (node, writeTo) => {
   if (node.nodeName == "LI") {
     writeTo.push("\\item ");
     recursiveProcessTextLatex(node.firstChild, writeTo);
-    writeTo.push("\n");
   }
   return processList(node.nextSibling, writeTo);
 };
