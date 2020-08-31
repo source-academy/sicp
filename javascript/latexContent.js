@@ -96,7 +96,7 @@ export const preamble = `\\documentclass[a4paper, 12pt]{book}
 %\\addtolength{\\ExerciseSkipBefore}{1em}
 \\addtolength{\\Exelabelsep}{12pt}
 \\renewcommand{\\ExerciseHeader}{\\par\\needspace{2\\baselineskip}\\centerline{\\textbf{\\large
-             \\ExerciseName~\\ExerciseHeaderNB\\ExerciseHeaderTitle
+             \\ExerciseName\\hspace{3pt}\\ExerciseHeaderNB\\ExerciseHeaderTitle
              \\ExerciseHeaderOrigin\\medskip}}}
 
 \\usepackage{listings}
