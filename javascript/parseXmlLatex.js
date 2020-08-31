@@ -66,8 +66,8 @@ const processTextFunctionsDefaultLatex = {
   ABOUT: (node, writeTo) => {
     writeTo.push("\\chapter*{");
     const name = addName(node, writeTo);
-    writeTo.push("\n\\addcontentsline{toc}{chapter}{");
-    writeTo.push(name + "}\n\n");
+    writeTo.push("\\addcontentsline{toc}{chapter}{");
+    writeTo.push(name + "}");
     recursiveProcessTextLatex(node.firstChild, writeTo);
   },
   REFERENCES: (node, writeTo) =>
@@ -83,13 +83,13 @@ const processTextFunctionsDefaultLatex = {
   },
 
   BR: (node, writeTo) => {
-    writeTo.push("\\newline\\noindent ");
+    writeTo.push("\\newline\\noindent%\n");
   },
 
   BLOCKQUOTE: (node, writeTo) => {
-    writeTo.push("\n\\begin{quote}");
+    writeTo.push("\\begin{quote}");
     recursiveProcessTextLatex(node.firstChild, writeTo);
-    writeTo.push("\\end{quote}\n");
+    writeTo.push("\\end{quote}");
   },
 
   CITATION: (node, writeTo) => {
@@ -124,13 +124,13 @@ const processTextFunctionsDefaultLatex = {
   FOOTNOTE: (node, writeTo) => {
     writeTo.push("\\cprotect\\footnote{");
     recursiveProcessTextLatex(node.firstChild, writeTo);
-    writeTo.push("}\n");
+    writeTo.push("}");
   },
 
   H2: (node, writeTo) => {
-    writeTo.push("\n\\subsection*{");
+    writeTo.push("\\subsection*{");
     recursiveProcessTextLatex(node.firstChild, writeTo);
-    writeTo.push("}\n");
+    writeTo.push("}");
   },
 
   INDEX: (node, writeTo) => {
@@ -142,12 +142,12 @@ const processTextFunctionsDefaultLatex = {
       indexArr.push("@");
     }
     recursiveProcessTextLatex(node.firstChild, indexArr);
-    const indexStr = indexArr.join("").trim();
+    const indexStr = indexArr.join("");
 
     // Do error checking
     checkIndexBadEndWarning(indexStr);
     writeTo.push(indexStr);
-    writeTo.push("}");
+    writeTo.push("}%\n");
   },
 
   IMAGE: (node, writeTo) => {
@@ -159,7 +159,7 @@ const processTextFunctionsDefaultLatex = {
   },
 
   LABEL: (node, writeTo) => {
-    writeTo.push("\\label{" + node.getAttribute("NAME") + "}\n");
+    writeTo.push("\\label{" + node.getAttribute("NAME") + "}%\n");
   },
 
   LINK: (node, writeTo) => {
@@ -175,11 +175,11 @@ const processTextFunctionsDefaultLatex = {
   },
 
   LaTeX: (node, writeTo) => {
-    writeTo.push("\\LaTeX");
+    writeTo.push("\\LaTeX\\");
   },
 
   TeX: (node, writeTo) => {
-    writeTo.push("\\TeX");
+    writeTo.push("\\TeX\\");
   },
 
   MATTERSECTION: (node, writeTo) => {
@@ -207,35 +207,35 @@ const processTextFunctionsDefaultLatex = {
 
   REFERENCE: (node, writeTo) => {
     // Doesn't do anything special
-    writeTo.push("\n");
+    writeTo.push("");
     recursiveProcessTextLatex(node.firstChild, writeTo);
-    writeTo.push("\n");
+    writeTo.push("");
   },
 
   SC: (node, writeTo) => {
     writeTo.push("{\\scshape ");
     recursiveProcessTextLatex(node.firstChild, writeTo);
-    writeTo.push("}");
+    writeTo.push("}%\n");
   },
 
   CHAPTER: (node, writeTo) => {
     writeTo.push("\\chapter{");
     addName(node, writeTo);
-    writeTo.push("\\pagestyle{main}\n");
+    writeTo.push("\\pagestyle{main}%\n");
     recursiveProcessTextLatex(node.firstChild, writeTo);
   },
 
   SECTION: (node, writeTo) => {
     writeTo.push("\\section{");
     addName(node, writeTo);
-    writeTo.push("\\pagestyle{section}\n");
+    writeTo.push("\\pagestyle{section}%\n");
     recursiveProcessTextLatex(node.firstChild, writeTo);
   },
 
   SUBSECTION: (node, writeTo) => {
     writeTo.push("\\subsection{");
     addName(node, writeTo);
-    writeTo.push("\\pagestyle{subsection}\n");
+    writeTo.push("\\pagestyle{subsection}%\n");
     recursiveProcessTextLatex(node.firstChild, writeTo);
   },
 
@@ -298,22 +298,22 @@ const processTextFunctionsDefaultLatex = {
   TT: (node, writeTo) => {
     writeTo.push("\\texttt{");
     recursiveProcessTextLatex(node.firstChild, writeTo, true);
-    writeTo.push("}");
+    writeTo.push("}%\n");
   },
 
   OL: (node, writeTo) => {
-    writeTo.push("\n\\begin{enumerate}");
+    writeTo.push("\\begin{enumerate}");
     writeTo.push(
       ancestorHasTag(node, "EXERCISE") ? "[\\alph*.]\n" : "[\\arabic*.]\n"
     );
     processList(node.firstChild, writeTo);
-    writeTo.push("\\end{enumerate}\n");
+    writeTo.push("\\end{enumerate}%\n");
   },
 
   UL: (node, writeTo) => {
-    writeTo.push("\n\\begin{itemize}\n");
+    writeTo.push("\\begin{itemize}");
     processList(node.firstChild, writeTo);
-    writeTo.push("\\end{itemize}\n");
+    writeTo.push("\\end{itemize}%\n");
   }
 };
 
@@ -335,7 +335,7 @@ const processTextFunctionsEpub = {
       removeNewline: "all",
       escapeCurlyBracket: true
     });
-    writeTo.push("$}");
+    writeTo.push("$}%\n");
   },
   SNIPPET: (node, writeTo) => {
     processSnippetEpub(node, writeTo);

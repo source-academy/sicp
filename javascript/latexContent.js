@@ -56,14 +56,14 @@ export const preamble = `\\documentclass[a4paper, 12pt]{book}
 \\usepackage{imakeidx}
 \\usepackage{subcaption}
 \\usepackage{underscore}
-\\usepackage{parskip}
+%\\usepackage{parskip}
 \\usepackage{datetime2}
 
 \\usepackage{setspace}
 \\onehalfspacing
 
-% \\setlength{\\parskip}{0.5em}
-\\setlength{\\parindent}{10pt}%
+\\setlength{\\parskip}{0pt}
+\\setlength{\\parindent}{15pt}%
 
 \\setcounter{secnumdepth}{5}
 
@@ -92,10 +92,11 @@ export const preamble = `\\documentclass[a4paper, 12pt]{book}
 
 \\usepackage[answerdelayed]{exercise}
 \\newcounter{ExerciseDisplayNumber}[chapter]
-\\renewcommand{\\theExercise}{~\\thechapter.\\arabic{ExerciseDisplayNumber}}
-\\addtolength{\\ExerciseSkipBefore}{1em}
+\\renewcommand{\\theExercise}{\\thechapter.\\arabic{ExerciseDisplayNumber}}
+%\\addtolength{\\ExerciseSkipBefore}{1em}
+\\addtolength{\\Exelabelsep}{12pt}
 \\renewcommand{\\ExerciseHeader}{\\par\\needspace{2\\baselineskip}\\centerline{\\textbf{\\large
-             \\ExerciseName\\ExerciseHeaderNB\\ExerciseHeaderTitle
+             \\ExerciseName~\\ExerciseHeaderNB\\ExerciseHeaderTitle
              \\ExerciseHeaderOrigin\\medskip}}}
 
 \\usepackage{listings}
@@ -111,7 +112,7 @@ export const preamble = `\\documentclass[a4paper, 12pt]{book}
 }
 
 \\lstdefinelanguage{JavaScript}{
-  keywords={function,if,else,return,const,let},
+  keywords={function,if,else,return,const,let,break,continue,for,while,true,false},
   %% keywords={const, let, break, case, catch, continue, debugger, default, delete, do, else, finally, for, function, if, in, instanceof, new, return, switch, this, throw, try, typeof, var, void, while, with},
   morecomment=[l]{//},
   morecomment=[s]{/*}{*/},
@@ -146,8 +147,8 @@ export const preamble = `\\documentclass[a4paper, 12pt]{book}
    rulecolor=\\color{LeftBarClickable},
    escapechar=^
 }
-\\lstnewenvironment{JavaScript}{\\lstset{style=JavaScript,aboveskip=2ex,belowskip=0ex}}{}
-\\lstnewenvironment{JavaScriptClickable}{\\lstset{style=JavaScript,frame=leftline,aboveskip=2ex,belowskip=0ex,escapeinside={/*!}{!*/}}}{}
+\\lstnewenvironment{JavaScript}{\\lstset{style=JavaScript,aboveskip=2.5ex,belowskip=1.8ex}}{}
+\\lstnewenvironment{JavaScriptClickable}{\\lstset{style=JavaScript,frame=leftline,aboveskip=2.5ex,belowskip=1.8ex,escapeinside={/*!}{!*/}}}{}
 \\lstdefinestyle{JavaScriptOutput}{
    language=JavaScript,
    basicstyle=\\linespread{1.0}\\slshape,
@@ -162,7 +163,7 @@ export const preamble = `\\documentclass[a4paper, 12pt]{book}
    rulecolor=\\color{LeftBarClickable},
    escapechar=^
 }
-\\lstnewenvironment{JavaScriptOutput}{\\lstset{style=JavaScriptOutput,aboveskip=2ex,belowskip=0ex}}{}
+\\lstnewenvironment{JavaScriptOutput}{\\lstset{style=JavaScriptOutput,aboveskip=-0.5ex,belowskip=1.8ex}}{}
 
 \\usepackage{epigraph}
 \\renewcommand{\\textflush}{flushepinormal}
@@ -191,7 +192,7 @@ export const preamble = `\\documentclass[a4paper, 12pt]{book}
 
 % to avoid spurious white space around index entries
 \\let\\oldindex\\index
-\\renewcommand*{\\index}[1]{\\oldindex{#1}\\ignorespaces}
+\\renewcommand*{\\index}[1]{\\oldindex{#1}\\ignorespaces\\ignorespacesafterend}
 
 \\begin{document}
 
@@ -202,6 +203,7 @@ ${title}
 \\tableofcontents{}
 }
 \\end{singlespace}
+
 
 \\input{./others/02foreword02.tex}
 
