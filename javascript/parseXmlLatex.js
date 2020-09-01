@@ -206,10 +206,9 @@ const processTextFunctionsDefaultLatex = {
   },
 
   REFERENCE: (node, writeTo) => {
-    // Doesn't do anything special
     writeTo.push("");
     recursiveProcessTextLatex(node.firstChild, writeTo);
-    writeTo.push("");
+    writeTo.push("\\\\[3mm]\n");
   },
 
   SC: (node, writeTo) => {
