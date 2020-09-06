@@ -92,6 +92,14 @@ const processTextFunctionsDefaultLatex = {
     writeTo.push("\\end{quote}");
   },
 
+  EXERCISE_STARTING_WITH_ITEMS: (node, writeTo) => {
+    writeTo.push("\\vspace{-7mm}");
+  },
+
+  EXERCISE_FOLLOWED_BY_TEXT: (node, writeTo) => {
+    writeTo.push("\\vspace{5mm}");
+  },
+
   CITATION: (node, writeTo) => {
     // Currently just text. Not linked to biblography.
     const text = node.getElementsByTagName("TEXT")[0];

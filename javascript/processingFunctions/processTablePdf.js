@@ -4,7 +4,7 @@ export const processTable = (node, writeTo) => {
   const firstRow = node.getElementsByTagName("TR")[0];
   if (firstRow) {
     const colNum = firstRow.getElementsByTagName("TD").length;
-    writeTo.push("\n\n\\noindent\\begin{tabular}{  ");
+    writeTo.push("\n\\begin{quote}\n\\noindent\n\\begin{tabular}{");
     for (let i = 0; i < colNum; i++) {
       writeTo.push("l  ");
     }
@@ -23,7 +23,7 @@ export const processTable = (node, writeTo) => {
       }
       writeTo.push(" \\\\ \n");
     }
-    writeTo.push("\\end{tabular}\n\n");
+    writeTo.push("\\end{tabular}\n\\end{quote}\n");
   } else {
     recursiveProcessTextLatex(node.firstChild, writeTo);
   }

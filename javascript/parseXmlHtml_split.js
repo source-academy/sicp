@@ -60,6 +60,8 @@ export const ignoreTags = new Set([
 export const preserveTags = new Set([
   "B",
   "BLOCKQUOTE",
+  "EXERCISE_STARTING_WITH_ITEMS",
+  "EXERCISE_FOLLOWED_BY_TEXT",
   "EM",
   "QUOTE",
   "SC",

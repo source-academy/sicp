@@ -173,6 +173,10 @@ const processTextFunctionsDefaultHtml = {
     processBlockquoteHtml(node, writeTo);
   },
 
+  EXERCISE_STARTING_WITH_ITEMS: (node, writeTo) => {},
+
+  EXERCISE_FOLLOWED_BY_TEXT: (node, writeTo) => {},
+
   EXERCISE: (node, writeTo) => {
     exercise_count += 1;
     processExerciseHtml(node, writeTo, chapArrIndex, exercise_count);
