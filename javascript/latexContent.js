@@ -29,7 +29,7 @@ const title = `\\begin{titlepage}
 \\pagestyle{main}
 `;
 
-export const preamble = `\\documentclass[a4paper, 12pt]{book}
+export const preamble = `\\documentclass[a4paper, 14pt]{book}
 \\usepackage[T1]{fontenc}
 \\usepackage[utf8]{inputenc}
 \\DeclareUnicodeCharacter{1F00}{-}
@@ -52,6 +52,7 @@ export const preamble = `\\documentclass[a4paper, 12pt]{book}
 \\setlist[itemize,1]{label={--}}
 \\usepackage{etoolbox}
 \\usepackage{float}
+\\renewcommand{\\topfraction}{0.9}
 \\usepackage[margin=2.54cm]{geometry}
 \\usepackage{imakeidx}
 \\usepackage{subcaption}

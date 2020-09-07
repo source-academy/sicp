@@ -1,9 +1,14 @@
 import { recursiveProcessTextLatex, processTextLatex } from "../parseXmlLatex";
+import { ancestorHasTag } from "../utilityFunctions";
 import { processSnippetPdf } from ".";
 import { processTablePdf } from ".";
 
 export const processFigurePdf = (node, writeTo) => {
-  writeTo.push("\n\\begin{figure}[H]\n\\centering\n");
+  writeTo.push(
+    "\\begin{figure}" +
+      (ancestorHasTag(node, "EXERCISE") ? "[H]" : "[tp]") +
+      "\n\\centering "
+  );
   let src = node.getAttribute("src");
   if (!src && node.getElementsByTagName("FIGURE")[0]) {
     src = node.getElementsByTagName("FIGURE")[0].getAttribute("src");
@@ -47,7 +52,7 @@ export const processFigurePdf = (node, writeTo) => {
     writeTo.push("\\addtocounter{figure}{-1}\n");
   }
 
-  writeTo.push("\\end{figure}\n");
+  writeTo.push("\\end{figure}");
 };
 
 export const generateImage = imagePath => {
