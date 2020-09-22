@@ -300,13 +300,13 @@
 (define (amb-choices exp) (cdr exp))
       </SCHEME>
       <JAVASCRIPT>
-function is_amb(stmt) {      
-    return is_tagged_list(stmt, "application") &amp;&amp; 
-           is_name(function_expression(stmt)) &amp;&amp; 
-           symbol_of_name(function_expression(stmt)) === "amb";
+function is_amb(component) {      
+    return is_tagged_list(component, "application") &amp;&amp; 
+           is_name(function_expression(component)) &amp;&amp; 
+           symbol_of_name(function_expression(component)) === "amb";
 }
-function amb_choices(stmt) {
-    return args(stmt);
+function amb_choices(component) {
+    return args(component);
 }
       </JAVASCRIPT>
     </SNIPPET>
@@ -341,8 +341,8 @@ function amb_choices(stmt) {
 ((amb? exp) (analyze-amb exp))
       </SCHEME>
       <JAVASCRIPT>
-: is_amb(stmt)
-? analyze_amb(stmt)
+: is_amb(component)
+? analyze_amb(component)
       </JAVASCRIPT>
       <JAVASCRIPT_RUN>
       </JAVASCRIPT_RUN>
@@ -380,11 +380,11 @@ function amb_choices(stmt) {
       <REQUIRES>functions_4_1_4</REQUIRES>
       <REQUIRES>analyze_amb_headline</REQUIRES>
       <REQUIRES>is_amb_amb</REQUIRES>
-      <REQUIRES>analyze_self_evaluating_amb</REQUIRES>
+      <REQUIRES>analyze_literal_amb</REQUIRES>
       <REQUIRES>analyze_variable_amb</REQUIRES>
       <REQUIRES>analyze_lambda_amb</REQUIRES>
       <REQUIRES>analyze_sequence_amb</REQUIRES>
-      <REQUIRES>analyze_variable_declaration_amb</REQUIRES>
+      <REQUIRES>analyze_declaration_amb</REQUIRES>
       <REQUIRES>analyze_assignment_amb</REQUIRES>
       <REQUIRES>analyze_if_amb</REQUIRES>
       <REQUIRES>scan_out_declarations</REQUIRES>
@@ -410,32 +410,30 @@ function amb_choices(stmt) {
             (error "Unknown expression type - - ANALYZE" exp))))
       </SCHEME>
       <JAVASCRIPT>
-function analyze(stmt) {
-    return is_self_evaluating(stmt)
-           ? analyze_self_evaluating(stmt)
-         : is_name(stmt)
-           ? analyze_name(stmt)
-         : is_constant_declaration(stmt)
-           ? analyze_constant_declaration(stmt)
-         : is_variable_declaration(stmt)
-           ? analyze_variable_declaration(stmt)
-         : is_assignment(stmt)
-           ? analyze_assignment(stmt)
-         : is_conditional_expression(stmt)
-           ? analyze_conditional_expression(stmt)
-         : is_lambda_expression(stmt)
-           ? analyze_lambda_expression(stmt)
-         : is_sequence(stmt)
-           ? analyze_sequence(sequence_statements(stmt))
-         : is_block(stmt)
-           ? analyze_block(stmt)
-         : is_return_statement(stmt)
-           ? analyze_return_statement(stmt)
-         : is_amb(stmt)
-           ? analyze_amb(stmt)
-         : is_application(stmt)
-           ? analyze_application(stmt)
-         : error(stmt, "Unknown syntax -- analyze");
+function analyze(component) {
+    return is_literal(component)
+           ? analyze_literal(component)
+         : is_name(component)
+           ? analyze_name(component)
+         : is_declaration(component)
+           ? analyze_declaration(component)
+         : is_assignment(component)
+           ? analyze_assignment(component)
+         : is_conditional(component)
+           ? analyze_conditional(component)
+         : is_lambda_expression(component)
+           ? analyze_lambda_expression(component)
+         : is_sequence(component)
+           ? analyze_sequence(sequence_statements(component))
+         : is_block(component)
+           ? analyze_block(component)
+         : is_return_statement(component)
+           ? analyze_return_statement(component)
+         : is_amb(component)
+           ? analyze_amb(component)
+         : is_application(component)
+           ? analyze_application(component)
+         : error(component, "Unknown syntax -- analyze");
 }
       </JAVASCRIPT>
     </SNIPPET>
@@ -595,7 +593,7 @@ ambeval($\textit{exp}$,
     continuation that was passed to them.
     <!--  \indcode{analyze-...}[nondeterministic|(] -->
     <SNIPPET>
-      <NAME>analyze_self_evaluating_amb</NAME>
+      <NAME>analyze_literal_amb</NAME>
       <EXAMPLE>all_solutions_test_4</EXAMPLE>
       <SCHEME>
 (define (analyze-self-evaluating exp)
@@ -603,8 +601,8 @@ ambeval($\textit{exp}$,
     (succeed exp fail)))
       </SCHEME>
       <JAVASCRIPT>
-function analyze_self_evaluating(stmt) {
-    return (env, succeed, fail) => succeed(stmt, fail);
+function analyze_literal(component) {
+    return (env, succeed, fail) => succeed(literal_value(component), fail);
 }
       </JAVASCRIPT>
     </SNIPPET>
@@ -618,9 +616,9 @@ function analyze_self_evaluating(stmt) {
              fail)))
       </SCHEME>
       <JAVASCRIPT>
-function analyze_name(stmt) {
+function analyze_name(component) {
     return (env, succeed, fail) =>
-           succeed(lookup_symbol_value(symbol_of_name(stmt), env),
+           succeed(lookup_symbol_value(symbol_of_name(component), env),
                    fail);
 }
       </JAVASCRIPT>
@@ -637,9 +635,9 @@ function analyze_name(stmt) {
                fail))))
       </SCHEME>
       <JAVASCRIPT>
-function analyze_lambda_expression(stmt) {
-    const parameters = lambda_parameters(stmt);
-    const body = lambda_body(stmt);
+function analyze_lambda_expression(component) {
+    const parameters = lambda_parameters(component);
+    const body = lambda_body(component);
     const bfun = analyze(body);
     return (env, succeed, fail) =>
            succeed(make_function(parameters, bfun, env),
@@ -700,7 +698,7 @@ function analyze_lambda_expression(stmt) {
 	<SCHEMEINLINE>analyze-if</SCHEMEINLINE>
       </SCHEME>
       <JAVASCRIPT>
-	<JAVASCRIPTINLINE>analyze_conditional_expression</JAVASCRIPTINLINE>
+	<JAVASCRIPTINLINE>analyze_conditional</JAVASCRIPTINLINE>
       </JAVASCRIPT>
     </SPLITINLINE>
     invokes the predicate execution
@@ -754,10 +752,10 @@ function analyze_lambda_expression(stmt) {
                   fail))))
       </SCHEME>
       <JAVASCRIPT>
-function analyze_conditional_expression(stmt) {      
-    const pfun = analyze(cond_expr_pred(stmt));
-    const cfun = analyze(cond_expr_cons(stmt));
-    const afun = analyze(cond_expr_alt(stmt));
+function analyze_conditional(component) {      
+    const pfun = analyze(conditional_predicate(component));
+    const cfun = analyze(conditional_consequent(component));
+    const afun = analyze(conditional_alternative(component));
     return (env, succeed, fail) =>
            pfun(env,
                 // success continuation for evaluating 
@@ -895,7 +893,7 @@ function analyze_sequence(stmts) {
       </JAVASCRIPT>
     </SPLITINLINE>
     <SNIPPET>
-      <NAME>analyze_variable_declaration_amb</NAME>
+      <NAME>analyze_declaration_amb</NAME>
       <EXAMPLE>all_solutions_test_4</EXAMPLE>
       <SCHEME>
 (define (analyze-definition exp)
@@ -909,21 +907,9 @@ function analyze_sequence(stmts) {
              fail))))
       </SCHEME>
       <JAVASCRIPT>
-function analyze_variable_declaration(stmt) {
-    const symbol = variable_declaration_symbol(stmt);
-    const vfun = analyze(variable_declaration_value(stmt));
-    return (env, succeed, fail) => 
-              vfun(env,
-                   (val, fail2) => {
-                       assign_symbol_value(symbol, val, env);
-                       return succeed(undefined, fail2);
-                   },
-                   fail);
-}
-function analyze_constant_declaration(stmt) {
-    const symbol = 
-        constant_declaration_symbol(stmt);
-    const vfun = analyze(constant_declaration_value(stmt));
+function analyze_declaration(component) {
+    const symbol = declaration_symbol(component);
+    const vfun = analyze(declaration_value_expression(component));
     return (env, succeed, fail) => 
               vfun(env,
                    (val, fail2) => {
@@ -1054,9 +1040,9 @@ function analyze_constant_declaration(stmt) {
              fail))))
       </SCHEME>
       <JAVASCRIPT>
-function analyze_assignment(stmt) {
-    const symbol = assignment_symbol(stmt);
-    const vfun = analyze(assignment_value(stmt));
+function analyze_assignment(component) {
+    const symbol = assignment_symbol(component);
+    const vfun = analyze(assignment_value_expression(component));
     return (env, succeed, fail) =>
         vfun(env,
              (val, fail2) => {              // *1*
@@ -1094,8 +1080,8 @@ function analyze_assignment(stmt) {
 	  <NAME>analyze_return_statement_amb</NAME>
 	  <EXAMPLE>all_solutions_test_4</EXAMPLE>
 	  <JAVASCRIPT>
-function analyze_return_statement(stmt) {
-    const rfun = analyze(return_expression(stmt));
+function analyze_return_statement(component) {
+    const rfun = analyze(return_expression(component));
     return (env, succeed, fail) =>
            rfun(env,
                 (val, fail2) => succeed(make_return_value(val), fail2),
@@ -1111,8 +1097,8 @@ function analyze_return_statement(stmt) {
 	  <REQUIRES>list_of_unassigned</REQUIRES>
 	  <EXAMPLE>all_solutions_test_4</EXAMPLE>
 	  <JAVASCRIPT>
-function analyze_block(stmt) {
-    const body = block_body(stmt);
+function analyze_block(component) {
+    const body = block_body(component);
     const locals = scan_out_declarations(body);
     const unassigneds = list_of_unassigned(locals);
     const bfun = analyze(body);
@@ -1179,9 +1165,9 @@ function analyze_block(stmt) {
              fail))))
       </SCHEME>
       <JAVASCRIPT>
-function analyze_application(stmt) {
-    const ffun = analyze(function_expression(stmt));
-    const afuns = map(analyze, args(stmt));
+function analyze_application(component) {
+    const ffun = analyze(function_expression(component));
+    const afuns = map(analyze, args(component));
     return (env, succeed, fail) =>
                ffun(env,
                     (fun, fail2) =>
@@ -1951,11 +1937,11 @@ if (evaluation_succeeds_take) {
 (define (require-predicate exp) (cadr exp))
       </SCHEME>
       <JAVASCRIPT>
-function is_require(stmt) {
-    return is_tagged_list(stmt, "require");
+function is_require(component) {
+    return is_tagged_list(component, "require");
 }
-function require_predicate(stmt) {
-    return head(tail(stmt));
+function require_predicate(component) {
+    return head(tail(component));
 }
       </JAVASCRIPT>
     </SNIPPET>
@@ -1965,8 +1951,8 @@ function require_predicate(stmt) {
       ((require? exp) (analyze-require exp))
       </SCHEME>
       <JAVASCRIPT>
-: is_require(stmt)
-? analyze_require(stmt)
+: is_require(component)
+? analyze_require(component)
       </JAVASCRIPT>
     </SNIPPET>
     as well the
@@ -2005,8 +1991,8 @@ function require_predicate(stmt) {
              fail))))
       </SCHEME>
       <JAVASCRIPT>
-function analyze_require(stmt) {
-    const pfun = analyze(require_predicate(stmt));
+function analyze_require(component) {
+    const pfun = analyze(require_predicate(component));
     return (env, succeed, fail) =>
         pfun(env,
              (pred_value, fail2) =>

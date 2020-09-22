@@ -92,6 +92,10 @@ const processTextFunctionsDefaultLatex = {
     writeTo.push("\\end{quote}");
   },
 
+  NOINDENT: (node, writeTo) => {
+    writeTo.push("\\noindent ");
+  },
+
   EXERCISE_STARTING_WITH_ITEMS: (node, writeTo) => {
     writeTo.push("\\vspace{-7mm}");
   },
@@ -259,7 +263,7 @@ const processTextFunctionsDefaultLatex = {
   },
 
   SUBSUBHEADING: (node, writeTo) => {
-    writeTo.push("{\\emph{");
+    writeTo.push("{\\noindent\\emph{");
     addName(node, writeTo);
     writeTo.push("}\n\n");
     recursiveProcessTextLatex(node.firstChild, writeTo);

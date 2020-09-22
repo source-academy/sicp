@@ -204,7 +204,7 @@ analyze(parse("{ const x = 1; x + 1; }"))
       <REQUIRES>functions_4_1_3</REQUIRES>
       <REQUIRES>functions_4_1_4</REQUIRES>
       <REQUIRES>analyze_headline</REQUIRES>
-      <REQUIRES>analyze_self_evaluating</REQUIRES>
+      <REQUIRES>analyze_literal</REQUIRES>
       <REQUIRES>analyze_variable</REQUIRES>
       <REQUIRES>analyze_assignment</REQUIRES>
       <REQUIRES>analyze_if</REQUIRES>
@@ -234,30 +234,28 @@ analyze(parse("{ const x = 1; x + 1; }"))
             (error "Unknown expression type - - ANALYZE" exp))))
       </SCHEME>
       <JAVASCRIPT>
-function analyze(stmt) {
-    return is_self_evaluating(stmt)
-        ? analyze_self_evaluating(stmt)
-        : is_name(stmt)
-        ? analyze_name(stmt)
-        : is_constant_declaration(stmt)
-        ? analyze_constant_declaration(stmt)
-        : is_variable_declaration(stmt)
-        ? analyze_variable_declaration(stmt)
-        : is_assignment(stmt)
-        ? analyze_assignment(stmt)
-        : is_conditional_expression(stmt)
-        ? analyze_conditional_expression(stmt)
-        : is_lambda_expression(stmt)
-        ? analyze_lambda_expression(stmt)
-        : is_sequence(stmt)
-        ? analyze_sequence(sequence_statements(stmt))
-        : is_block(stmt)
-        ? analyze_block(stmt)
-        : is_return_statement(stmt)
-        ? analyze_return_statement(stmt)
-        : is_application(stmt)
-        ? analyze_application(stmt)
-        : error(stmt, "Unknown syntax -- analyze");
+function analyze(component) {
+    return is_literal(component)
+        ? analyze_literal(component)
+        : is_name(component)
+        ? analyze_name(component)
+        : is_declaration(component)
+        ? analyze_declaration(component)
+        : is_assignment(component)
+        ? analyze_assignment(component)
+        : is_conditional(component)
+        ? analyze_conditional(component)
+        : is_lambda_expression(component)
+        ? analyze_lambda_expression(component)
+        : is_sequence(component)
+        ? analyze_sequence(sequence_statements(component))
+        : is_block(component)
+        ? analyze_block(component)
+        : is_return_statement(component)
+        ? analyze_return_statement(component)
+        : is_application(component)
+        ? analyze_application(component)
+        : error(component, "Unknown syntax -- analyze");
 }
       </JAVASCRIPT>
     </SNIPPET>
@@ -275,23 +273,23 @@ function analyze(stmt) {
     that ignores its environment argument and just returns the expression:
     <!--  \indcode{analyze-...}[metacircular|(] -->
     <SNIPPET HIDE="yes">
-      <NAME>analyze_self_evaluating_example</NAME>
+      <NAME>analyze_literal_example</NAME>
       <JAVASCRIPT>
 // null is the empty environment (not used here)	
-analyze_self_evaluating(parse("true;"))(null);	
+analyze_literal(parse("true;"))(null);	
       </JAVASCRIPT>
     </SNIPPET>
     <SNIPPET>
-      <NAME>analyze_self_evaluating</NAME>
-      <EXAMPLE>analyze_self_evaluating_example</EXAMPLE>
+      <NAME>analyze_literal</NAME>
+      <EXAMPLE>analyze_literal_example</EXAMPLE>
       <EXPECTED>true</EXPECTED>
       <SCHEME>
 (define (analyze-self-evaluating exp)
   (lambda (env) exp))
       </SCHEME>
       <JAVASCRIPT>
-function analyze_self_evaluating(stmt) {      
-    return env => stmt;
+function analyze_literal(component) {      
+    return env => literal_value(component);
 }
       </JAVASCRIPT>
     </SNIPPET>
@@ -364,9 +362,9 @@ analyze_name(parse("myname;"))
   (lambda (env) (lookup-variable-value exp env)))
       </SCHEME>
       <JAVASCRIPT>
-function analyze_name(stmt) {      
+function analyze_name(component) {      
     return env => lookup_symbol_value(
-                      symbol_of_name(stmt), env);
+                      symbol_of_name(component), env);
 }
       </JAVASCRIPT>
     </SNIPPET>
@@ -388,20 +386,20 @@ function analyze_name(stmt) {
 	<SCHEMEINLINE>assignment-value</SCHEMEINLINE>
       </SCHEME>
       <JAVASCRIPT>
-      <JAVASCRIPTINLINE>assignment_value</JAVASCRIPTINLINE>
+      <JAVASCRIPTINLINE>assignment_value_expression</JAVASCRIPTINLINE>
       </JAVASCRIPT>
     </SPLITINLINE>
     expression can be analyzed (recursively) during analysis is a major gain in
     efficiency, because the
     <SPLITINLINE>
       <SCHEME>
-	<SCHEMEINLINE>assignment-value</SCHEMEINLINE>
+	<SCHEMEINLINE>assignment-value</SCHEMEINLINE> expression
       </SCHEME>
       <JAVASCRIPT>
-      <JAVASCRIPTINLINE>assignment_value</JAVASCRIPTINLINE>
+      <JAVASCRIPTINLINE>assignment_value_expression</JAVASCRIPTINLINE>
       </JAVASCRIPT>
     </SPLITINLINE>
-    expression will now be analyzed only once.  The same holds true for
+    will now be analyzed only once.  The same holds true for
     <SPLITINLINE>
       <SCHEME>definitions.</SCHEME>
       <JAVASCRIPT>constant and variable declarations.</JAVASCRIPT>
@@ -434,24 +432,18 @@ analyze_assignment(parse("x = x + 1;"))
       'ok)))
       </SCHEME>
       <JAVASCRIPT>
-function analyze_assignment(stmt) {
-    const symbol = assignment_symbol(stmt);
-    const vfun = analyze(assignment_value(stmt));
+function analyze_assignment(component) {
+    const symbol = assignment_symbol(component);
+    const vfun = analyze(assignment_value_expression(component));
     return env => {
                const value = vfun(env);
                assign_symbol_value(symbol, value, env);
                return value;
            };
 }
-function analyze_variable_declaration(stmt) {	   
-    const symbol = variable_declaration_symbol(stmt);
-    const vfun = analyze(variable_declaration_value(stmt));
-    return env => 
-           assign_symbol_value(symbol, vfun(env), env);
-}
-function analyze_constant_declaration(stmt) {	   
-    const symbol = constant_declaration_symbol(stmt);
-    const vfun = analyze(constant_declaration_value(stmt));
+function analyze_declaration(component) {	   
+    const symbol = declaration_symbol(component);
+    const vfun = analyze(declaration_value_expression(component));
     return env => 
            assign_symbol_value(symbol, vfun(env), env);
 }
@@ -475,7 +467,7 @@ function analyze_constant_declaration(stmt) {
       <NAME>analyze_if_example</NAME>
       <REQUIRES>analyze</REQUIRES>
       <JAVASCRIPT>
-analyze_conditional_expression(parse("true ? 3 : 7;"))
+analyze_conditional(parse("true ? 3 : 7;"))
    (the_global_environment);	
       </JAVASCRIPT>
     </SNIPPET>
@@ -494,10 +486,10 @@ analyze_conditional_expression(parse("true ? 3 : 7;"))
           (aproc env)))))
       </SCHEME>
       <JAVASCRIPT>
-function analyze_conditional_expression(stmt) {	
-    const pfun = analyze(cond_expr_pred(stmt));
-    const cfun = analyze(cond_expr_cons(stmt));
-    const afun = analyze(cond_expr_alt(stmt));
+function analyze_conditional(component) {	
+    const pfun = analyze(conditional_predicate(component));
+    const cfun = analyze(conditional_consequent(component));
+    const afun = analyze(conditional_alternative(component));
     return env =>
            is_true(pfun(env)) ? cfun(env) : afun(env);
 }
@@ -559,9 +551,9 @@ list_ref(analyze_lambda_expression(parse("x => x;"))
   (lambda (env) (make-procedure vars bproc env))))
       </SCHEME>
       <JAVASCRIPT>
-function analyze_lambda_expression(stmt) {
-    const parameters = lambda_parameters(stmt);
-    const body = lambda_body(stmt);
+function analyze_lambda_expression(component) {
+    const parameters = lambda_parameters(component);
+    const body = lambda_body(component);
     const bfun = analyze(body);
     return env =>
            make_function(parameters, bfun, env);
@@ -688,8 +680,8 @@ analyze_return_statement(list_ref(parse("() => x + 1;"), 2))
 	  <EXAMPLE>analyze_return_statement_example</EXAMPLE>
 	  <EXPECTED>[ 'return_value', [ 7, null ] ]</EXPECTED>
 	  <JAVASCRIPT>
-function analyze_return_statement(stmt) {
-    const rfun = analyze(return_expression(stmt));
+function analyze_return_statement(component) {
+    const rfun = analyze(return_expression(component));
     return env => make_return_value(rfun(env));
 }
 	  </JAVASCRIPT>
@@ -715,8 +707,8 @@ analyze_block(parse("{ const x = 4; x; }"))
 	  <EXAMPLE>analyze_block_example</EXAMPLE>
 	  <EXPECTED>4</EXPECTED>
 	  <JAVASCRIPT>
-function analyze_block(stmt) {
-    const body = block_body(stmt);
+function analyze_block(component) {
+    const body = block_body(component);
     const locals = scan_out_declarations(body);	    
     const unassigneds = list_of_unassigned(locals);
     const bfun = analyze(body);
@@ -831,9 +823,9 @@ analyze_application(parse("x + 1;"))
           proc))))
       </SCHEME>
       <JAVASCRIPT>
-function analyze_application(stmt) {	
-    const ffun = analyze(function_expression(stmt));
-    const afuns = map(analyze, args(stmt));
+function analyze_application(component) {	
+    const ffun = analyze(function_expression(component));
+    const afuns = map(analyze, args(component));
     return env =>
            execute_application(ffun(env),
                map(afun => afun(env), afuns));

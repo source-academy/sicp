@@ -3,7 +3,7 @@
     Representing
     <SPLITINLINE>
       <SCHEME>Expressions</SCHEME>
-      <JAVASCRIPT>Statements and Expressions</JAVASCRIPT>
+      <JAVASCRIPT>Components</JAVASCRIPT>
     </SPLITINLINE>
   </NAME>
 
@@ -18,23 +18,53 @@
     <SUBINDEX>symbolic differentiation and</SUBINDEX></INDEX>
     The evaluator is reminiscent of the symbolic differentiation program
     discussed in section<SPACE/><REF NAME="sec:symbolic-differentiation"/>.
-    Both programs operate on symbolic expressions.  In both programs, the
-    result of operating on a compound expression is determined by
-    operating recursively on the pieces of the expression and combining
-    the results in a way that depends on the type of the expression.  In
-    both programs we used 
+    Both programs operate on symbolic
+    <SPLITINLINE>
+      <SCHEME>expressions.</SCHEME>
+      <JAVASCRIPT>data.</JAVASCRIPT>
+    </SPLITINLINE>
+    In both programs, the
+    result of operating on 
+    <SPLITINLINE>
+      <SCHEME>a compound expression</SCHEME>
+      <JAVASCRIPT>an object</JAVASCRIPT>
+    </SPLITINLINE>
+    is determined by
+    operating recursively on the pieces of the
+    <SPLITINLINE>
+      <SCHEME>expression</SCHEME>
+      <JAVASCRIPT>object</JAVASCRIPT>
+    </SPLITINLINE>
+    and combining
+    the results in a way that depends on the type of the
+    <SPLITINLINE>
+      <SCHEME>expression.</SCHEME>
+      <JAVASCRIPT>object.</JAVASCRIPT>
+    </SPLITINLINE>
+    In both programs we used 
     <INDEX>data abstraction</INDEX>
     data abstraction to decouple the general rules
-    of operation from the details of how expressions are represented.  In
+    of operation from the details of how
+    <SPLITINLINE>
+      <SCHEME>expressions</SCHEME>
+      <JAVASCRIPT>the objects</JAVASCRIPT>
+    </SPLITINLINE>
+    are represented.  In
     the differentiation program this meant that the same differentiation
     <SPLITINLINE><SCHEME>procedure</SCHEME>
     <JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
     could deal with algebraic expressions in prefix form, in
     infix form, or in some other form.  For the evaluator, this means that
-    the syntax of the language being evaluated is determined solely by the
-    <SPLITINLINE><SCHEME>procedures</SCHEME>
-    <JAVASCRIPT>functions</JAVASCRIPT></SPLITINLINE>
-    that classify and extract pieces of expressions.
+    <SPLITINLINE>
+      <SCHEME>
+	the syntax of the language being evaluated is determined solely by the
+      procedures that classify and extract pieces of expressions.
+      </SCHEME>
+      <JAVASCRIPT>
+	the data structure representation of the language being evaluated is determined
+	solely by the functions	that classify and extract pieces of components.
+      </JAVASCRIPT>
+    </SPLITINLINE>
   </TEXT>
 
   <SPLIT>
@@ -46,7 +76,7 @@
 	    The only self-evaluating items are numbers and
 	    strings:
 	    <SNIPPET PAGE="369">
-	      <NAME>is_self_evaluating</NAME>
+	      <NAME>is_literal</NAME>
 	      <SCHEME>
 (define (self-evaluating? exp)
   (cond ((number? exp) true)
@@ -309,60 +339,132 @@
     </SCHEME>
     <JAVASCRIPT>
       <TEXT>
-	Here is the specification of the syntax of our language:
-	<UL>
-          <LI>
-	    The self-evaluating items are numbers, strings, boolean values, and
-	    <JAVASCRIPTINLINE>null</JAVASCRIPTINLINE>.
-	    <SNIPPET PAGE="365" HIDE="yes" EVAL="no">
-	      <NAME>headline_4_1_2</NAME>
-	      <JAVASCRIPT>
-// functions from SICP JS 4.1.2
-	      </JAVASCRIPT>
-	    </SNIPPET>
-	    <SNIPPET PAGE="369">
-	      <NAME>is_self_evaluating</NAME>
-	      <EXAMPLE>is_self_evaluating_example</EXAMPLE>
-	      <EXPECTED>true</EXPECTED>
-	      <JAVASCRIPT>
-function is_self_evaluating(stmt) {
-    return is_number(stmt)  ||
-           is_string(stmt)  ||
-           is_boolean(stmt) ||
-           is_null(stmt)    ||
-           is_undefined(stmt);
+	As data structure representation for components, we shall employ a tagged list
+	notation reminiscent of
+	the tagged data of section<SPACE/><REF NAME="sec:manifest-types"/>.
+	For example, an assignment statement is represented by a list whose first
+	element is the string <JAVASCRIPTINLINE>"assignment"</JAVASCRIPTINLINE>.
+	The function <JAVASCRIPTINLINE>make_assignment</JAVASCRIPTINLINE> is the
+	constructor for assignments,
+	<JAVASCRIPTINLINE>is_assignment</JAVASCRIPTINLINE> is the
+	<EM>syntax predicate</EM> and
+	<JAVASCRIPTINLINE>assignment_symbol</JAVASCRIPTINLINE> and
+	<JAVASCRIPTINLINE>assignment_value_expression</JAVASCRIPTINLINE>
+	are the selectors.
+	<SNIPPET PAGE="372">
+	  <NAME>assignment</NAME>
+	  <JAVASCRIPT>
+function make_assignment(string, expression) {
+    return list("assignment", string, expression);
 }
-	      </JAVASCRIPT>
-	    </SNIPPET>
-	    <SNIPPET HIDE="yes">
-	      <NAME>is_self_evaluating_example</NAME>
-	      <JAVASCRIPT>
-const my_program = parse("true; 1;");
-const my_true_statement = list_ref(my_program, 0);
-is_self_evaluating(my_true_statement);
-	      </JAVASCRIPT>
-	    </SNIPPET>
-          </LI>
+function is_assignment(component) {
+    return is_tagged_list(component, "assignment");
+}
+function assignment_symbol(component) {
+    return head(tail(head(tail(component))));
+}
+function assignment_value_expression(component) {
+    return head(tail(tail(component)));
+}
+	  </JAVASCRIPT>
+	</SNIPPET>
+	The syntax predicate 
+	is defined in terms of the function
+	<JAVASCRIPTINLINE>is_tagged_list</JAVASCRIPTINLINE>,
+	which identifies the kind of component using a designated
+	string as first element:
+	<SNIPPET PAGE="369">
+	  <NAME>tagged_list</NAME>
+	  <EXAMPLE>tagged_list_example</EXAMPLE>
+	  <EXPECTED>true</EXPECTED>
+	  <JAVASCRIPT>
+function is_tagged_list(stmt, the_tag) {
+    return is_pair(stmt) &amp;&amp; head(stmt) === the_tag;
+}
+	  </JAVASCRIPT>
+	</SNIPPET>
+	<SNIPPET HIDE="yes">
+	  <NAME>tagged_list_example</NAME>
+	  <JAVASCRIPT>
+is_tagged_list(list("name", "x"), "name");
+	  </JAVASCRIPT>
+	</SNIPPET>
+	The second element of the list
+	is the symbol, i.e., the string that represents the name to which a new value
+	is being assigned, and the third element is the value
+	expression, which is itself represented by a tagged list.
+	With the constructor,
+	we can construct a statement consisting of an assignment of the name
+	<JAVASCRIPTINLINE>x</JAVASCRIPTINLINE> to the number 1,
+	and <JAVASCRIPTINLINE>evaluate</JAVASCRIPTINLINE> it, provided we
+	have an environment, here <JAVASCRIPTINLINE>my_environment</JAVASCRIPTINLINE>, in
+	which <JAVASCRIPTINLINE>x</JAVASCRIPTINLINE> is declared:
+	<SNIPPET EVAL="no">
+	  <NAME>assignment_example_2</NAME>
+	  <JAVASCRIPT>
+evaluate(make_assignment("x", 1), my_environment);
+	  </JAVASCRIPT>
+	</SNIPPET>
+	Constructing programs this way is possible in principle but in practice 
+	intolerably tedious when the programs become more complex.
+	We prefer to write programs in text form, using keywords, braces and operators
+	following the JavaScript syntax introduced throughout this book.
+	For this purpose we assume that the JavaScript environment
+	provides a function <JAVASCRIPTINLINE>parse</JAVASCRIPTINLINE> that
+	translates a given string in JavaScript syntax into the corresponding
+	tagged list notation. For example, the program above can be represented as
+	a string, parsed and evaluated as follows:
+	<SNIPPET EVAL="no">
+	  <NAME>assignment_example_3</NAME>
+	  <JAVASCRIPT>
+evaluate(parse("x = 1;"), my_environment);
+	  </JAVASCRIPT>
+	</SNIPPET>
+        <FIGURE>
+          <FIGURE src="img_javascript/ch4-parse-abstraction.svg"></FIGURE>
+          <CAPTION>Data abstraction in the evaluator.</CAPTION>
+          <LABEL NAME="fig:parse-abstraction"/>
+        </FIGURE>
+	Figure<SPACE/><REF NAME="fig:parse-abstraction"/> depicts the abstraction barrier
+	formed by the syntax predicates and selectors,
+	which separates the evaluator from the tagged list representation of programs,
+	which in turn is separated from the string representation by the
+	<JAVASCRIPTINLINE>parse</JAVASCRIPTINLINE> function. The following
+	subsections describe the parsing of components and list the
+	corresponding syntax predicates and selectors.
+      </TEXT>
 
-          <LI>
-	    The function <JAVASCRIPTINLINE>is_name</JAVASCRIPTINLINE> tests
-	    whether the given statement is a name
-	    expression, and the function
-	    <JAVASCRIPTINLINE>symbol_of_name</JAVASCRIPTINLINE> accesses
-	    the JavaScript string that represents the name.
+  <SUBHEADING>
+    <NAME>Names</NAME>
+  </SUBHEADING>
+
+  <TEXT>
+    The tagged list representation for names
+    includes the tag <JAVASCRIPTINLINE>"name"</JAVASCRIPTINLINE> as first
+    element and the string representing the name as second element.
+	<LATEX>
+	  \begin{eqnarray*}
+	  \ll \textit{name} \gg &amp; = &amp;
+	  \texttt{list("name", }\textit{name}\texttt{)}
+	  \end{eqnarray*}
+	</LATEX>
+	Here <LATEXINLINE>$\ll \textit{name} \gg$</LATEXINLINE> denotes the
+	result of parsing the string <LATEXINLINE>$\textit{name}$</LATEXINLINE>.
 	    <SNIPPET PAGE="369">
 	      <NAME>variable</NAME>
 	      <EXAMPLE>variable_example</EXAMPLE>
 	      <REQUIRES>tagged_list</REQUIRES>
 	      <JAVASCRIPT>
-function is_name(stmt) {
-    return is_tagged_list(stmt, "name");
+function is_name(component) {
+    return is_tagged_list(component, "name");
 }
-function symbol_of_name(stmt) {
-    return head(tail(stmt));
+function symbol_of_name(component) {
+    return head(tail(component));
 }
 	      </JAVASCRIPT>
 	    </SNIPPET>
+	    In the following, we just list the syntax predicates and and selectors,
+	    and omit their declarations if they just access the obvious list elements.
 	    <SNIPPET HIDE="yes">
 	      <NAME>variable_example</NAME>
 	      <JAVASCRIPT>
@@ -371,126 +473,212 @@ display(is_name(my_name_statement));
 display(symbol_of_name(my_name_statement));
 	      </JAVASCRIPT>
 	    </SNIPPET>
-	    The function <JAVASCRIPTINLINE>is_name</JAVASCRIPTINLINE> 
-	    is defined in terms of the function
-	    <JAVASCRIPTINLINE>is_tagged_list</JAVASCRIPTINLINE>,
-	    which identifies lists beginning with a designated string that
-	    we call <EM>tag</EM>:
-	    <SNIPPET PAGE="369">
-	      <NAME>tagged_list</NAME>
-	      <EXAMPLE>tagged_list_example</EXAMPLE>
-	      <EXPECTED>true</EXPECTED>
-	      <JAVASCRIPT>
-function is_tagged_list(stmt, the_tag) {
-    return is_pair(stmt) &amp;&amp; head(stmt) === the_tag;
-}
-	      </JAVASCRIPT>
-	    </SNIPPET>
-	    <SNIPPET HIDE="yes">
-	      <NAME>tagged_list_example</NAME>
-	      <JAVASCRIPT>
-is_tagged_list(list("name", "x"), "name");
-	      </JAVASCRIPT>
-	    </SNIPPET>
-          </LI>
+  </TEXT>
+      
 
-          <LI>
-	    Assignments have the form
-	    <LATEXINLINE>$\textit{name}$</LATEXINLINE>
-	    <JAVASCRIPTINLINE>=</JAVASCRIPTINLINE>
-	    <LATEXINLINE>$\textit{value}$</LATEXINLINE>:
-	    <SNIPPET PAGE="369">
-	      <NAME>assignment</NAME>
-	      <REQUIRES>tagged_list</REQUIRES>
-	      <EXAMPLE>assignment_example</EXAMPLE>
-	      <EXPECTED>1</EXPECTED>
-	      <JAVASCRIPT>
-function is_assignment(stmt) {
-   return is_tagged_list(stmt, "assignment");
+  <SUBHEADING>
+    <NAME>Expression statements</NAME>
+  </SUBHEADING>
+
+  <TEXT>
+    We do not need to distinguish between expressions and expression statements.
+    Consequently, the
+    <JAVASCRIPTINLINE>parse</JAVASCRIPTINLINE> function can ignore the difference
+    between the two kinds of components:
+	<LATEX>
+	  \begin{eqnarray*}
+	  \ll \textit{expression}\texttt{;} \gg &amp; = &amp;
+	  \ll \textit{expression} \gg
+	  \end{eqnarray*}
+	</LATEX>
+  </TEXT>
+
+  <SUBHEADING>
+    <NAME>Literal values</NAME>
+  </SUBHEADING>
+      
+  <TEXT>
+	<SNIPPET PAGE="365" HIDE="yes" EVAL="no">
+	  <NAME>headline_4_1_2</NAME>
+	  <JAVASCRIPT>
+// functions from SICP JS 4.1.2
+	  </JAVASCRIPT>
+	</SNIPPET>
+	Literal values are parsed into tagged lists with
+	tag <JAVASCRIPTINLINE>"literal"</JAVASCRIPTINLINE> and
+	the actual value.
+	<LATEX>
+	  \begin{eqnarray*}
+	  \ll \textit{literal-value} \gg &amp; = &amp;
+	  \texttt{list("literal", }\textit{value}\texttt{)}
+	  \end{eqnarray*}
+	</LATEX>
+	where <LATEXINLINE>$\textit{value}$</LATEXINLINE> is
+	the JavaScript value represented by the
+	<LATEXINLINE>$\textit{literal-value}$</LATEXINLINE> string.
+	<SNIPPET>
+	  <NAME>parse_literal_example</NAME>
+	  <JAVASCRIPT>
+parse("1;");
+	  </JAVASCRIPT>
+	  <JAVASCRIPT_OUTPUT>
+list("literal", 1)
+	  </JAVASCRIPT_OUTPUT>
+	</SNIPPET>
+	<SNIPPET>
+	  <NAME>parse_literal_example_2</NAME>
+	  <JAVASCRIPT>
+parse("'hello world';");
+	  </JAVASCRIPT>
+	  <JAVASCRIPT_OUTPUT>
+list("literal", "hello world")
+	  </JAVASCRIPT_OUTPUT>
+	</SNIPPET>
+	<SNIPPET>
+	  <NAME>parse_literal_example_3</NAME>
+	  <JAVASCRIPT>
+parse("null;");
+	  </JAVASCRIPT>
+	  <JAVASCRIPT_OUTPUT>
+list("literal", null)
+	  </JAVASCRIPT_OUTPUT>
+	</SNIPPET>
+	The syntax predicate is 
+	<JAVASCRIPTINLINE>is_literal</JAVASCRIPTINLINE>.
+	<SNIPPET PAGE="369" HIDE="yes">
+	  <NAME>is_literal</NAME>
+	  <EXAMPLE>is_literal_example</EXAMPLE>
+	  <EXPECTED>true</EXPECTED>
+	  <JAVASCRIPT>
+function is_literal(component) {
+    is_tagged_list(component, "literal");
 }
-function assignment_symbol(stmt) {
-   return head(tail(head(tail(stmt))));
+	  </JAVASCRIPT>
+	  <JAVASCRIPT_RUN>
+function is_literal(component) {
+    return is_number(component)  ||
+           is_string(component)  ||
+           is_boolean(component) ||
+           is_null(component)    ||
+           is_undefined(component);
 }
-function assignment_value(stmt) {
-   return head(tail(tail(stmt)));
+function literal_value(component) {    
+    return component;
 }
-	      </JAVASCRIPT>
-	    </SNIPPET>
-	    <SNIPPET HIDE="yes">
-	      <NAME>assignment_example</NAME>
-	      <JAVASCRIPT>
+	  </JAVASCRIPT_RUN>
+	</SNIPPET>
+	<SNIPPET HIDE="yes">
+	  <NAME>is_literal_example</NAME>
+	  <JAVASCRIPT>
+const my_program = parse("true; 1;");
+const my_true_statement = list_ref(my_program, 0);
+is_literal(my_true_statement);
+	  </JAVASCRIPT>
+	</SNIPPET>
+	<JAVASCRIPTINLINE>literal_value</JAVASCRIPTINLINE>.
+	<SNIPPET PAGE="369">
+	  <NAME>literal_value_example</NAME>
+	  <EXPECTED>true</EXPECTED>
+	  <JAVASCRIPT>
+literal_value(parse("null;"));
+	  </JAVASCRIPT>
+	  <JAVASCRIPT_OUTPUT>
+null
+	  </JAVASCRIPT_OUTPUT>
+	</SNIPPET>
+	The selector for retrieving the value is
+	<JAVASCRIPTINLINE>literal_value</JAVASCRIPTINLINE>.
+      </TEXT>
+  
+  <SUBHEADING>
+    <NAME>Assignments</NAME>
+  </SUBHEADING>
+
+  <TEXT>
+    The parsing of assignments described above is denoted by the rule:
+	<LATEX>
+	  \begin{eqnarray*}
+	  \ll \textit{name}\ \ \texttt{=}\ \ \textit{expression}\texttt{;} \gg &amp; = &amp;
+	  \texttt{list("assignment", }\textit{name}\texttt{, }\ll \textit{expression} \gg \texttt{)}
+	  \end{eqnarray*}
+	</LATEX>
+	The syntax predicate is <JAVASCRIPTINLINE>is_assignment</JAVASCRIPTINLINE>
+	and the selectors are <JAVASCRIPTINLINE>assignment_symbol</JAVASCRIPTINLINE>
+	and <JAVASCRIPTINLINE>assignment_value_expression</JAVASCRIPTINLINE>.
+    <SNIPPET PAGE="369" HIDE="yes">
+      <NAME>assignment_2</NAME>
+      <REQUIRES>tagged_list</REQUIRES>
+      <EXAMPLE>assignment_example</EXAMPLE>
+      <EXPECTED>1</EXPECTED>
+      <JAVASCRIPT>
+function make_assignment(string, expression) {
+    return list("assignment", string, expression);
+}
+function is_assignment(component) {
+    return is_tagged_list(component, "assignment");
+}
+function assignment_symbol(component) {
+    return head(tail(head(tail(component))));
+}
+function assignment_value_expression(component) {
+    return head(tail(tail(component)));
+}
+      </JAVASCRIPT>
+    </SNIPPET>
+    <SNIPPET HIDE="yes">
+      <NAME>assignment_example</NAME>
+      <JAVASCRIPT>
 const my_assignment_statement = parse("x = 1;");
 display(assignment_symbol(my_assignment_statement));
-display(assignment_value(my_assignment_statement));
-	      </JAVASCRIPT>
-	      <JAVASCRIPT_TEST>
+display(assignment_value_expression(my_assignment_statement));
+      </JAVASCRIPT>
+      <JAVASCRIPT_TEST>
 const my_assignment_statement = parse("x = 1;");
 assignment_symbol(my_assignment_statement);
-assignment_value(my_assignment_statement);
-	      </JAVASCRIPT_TEST>
-	    </SNIPPET>
-          </LI>
+assignment_value_expression(my_assignment_statement);
+      </JAVASCRIPT_TEST>
+    </SNIPPET>
+    <SNIPPET EVAL="no" HIDE="yes">
+      <NAME>assignment_example_4</NAME>
+      <JAVASCRIPT>
+evaluate(make_assignment("x", 1), my_environment);
+      </JAVASCRIPT>
+    </SNIPPET>
+  </TEXT>
 
-          <LI>
-	    Declarations have the form
-	    <SNIPPET EVAL="no" LATEX="yes">
-	      <JAVASCRIPT>
-const $name$ = $value$;
-	      </JAVASCRIPT>
-	    </SNIPPET>
-	    or
-	    <SNIPPET EVAL="no" LATEX="yes">
-	      <JAVASCRIPT>
-let $name$ = $value$;
-	      </JAVASCRIPT>
-	    </SNIPPET>
-	    or
-	    <SNIPPET EVAL="no" LATEX="yes">
-	      <JAVASCRIPT>
-function $name$($parameter_{1}$, $\ldots$, $parameter_{n}$) {
-    $statements$
-}
-	      </JAVASCRIPT>
-	    </SNIPPET>
+  <SUBHEADING>
+    <NAME>Declarations</NAME>
+  </SUBHEADING>
 
-	    <INDEX>syntactic sugar
-	    <SUBINDEX>define@<SCHEMEINLINE>define</SCHEMEINLINE></SUBINDEX>
-	    </INDEX>
-	    <!-- \indsf{define}[syntactic sugar]-->
-	    Here, we treat the latter form (function
-	    declarations) as syntactic sugar<FOOTNOTE>In 
-	    JavaScript, there is a subtle difference between the two
-	    forms, see footnote<SPACE/><REF NAME="foot:function-decl-vs-lambda"/>
-	    in chapter 1.
-            </FOOTNOTE>
-	    for
-	    <SNIPPET EVAL="no" LATEX="yes">
-	      <JAVASCRIPT>
-const $name$ = ($parameter_{1}$, $\ldots$, $parameter_{n}$) =&gt; { $statements$; };
-	      </JAVASCRIPT>
-	    </SNIPPET>
-	    The corresponding syntax functions are the following:
-	    <SNIPPET PAGE="370">
+    <TEXT>
+  Constant and variable declarations are parsed as follows.
+	<LATEX>
+	  \begin{eqnarray*}
+	  \ll \textbf{\texttt{const}}\ \textit{name}\ \texttt{=}\ \ \textit{expression}\texttt{;} \gg &amp; = &amp;
+	  \texttt{list("constant_declaration", }\textit{value}\texttt{, }\ll \textit{expression} \gg \texttt{)}\\
+	  \ll \textbf{\texttt{let}}\ \textit{name} \ \texttt{=}\ \textit{expression}\texttt{;} \gg &amp; = &amp;
+	  \texttt{list("variable_declaration", }\textit{value}\texttt{, }\ll \textit{expression} \gg \texttt{)}
+	  \end{eqnarray*}
+	</LATEX>
+	The selectors 
+	<JAVASCRIPTINLINE>declaration_symbol</JAVASCRIPTINLINE> and
+	<JAVASCRIPTINLINE>declaration_value_expression</JAVASCRIPTINLINE> apply to both kinds
+	of declarations, and the syntax predicate
+	<JAVASCRIPTINLINE>is_declaration</JAVASCRIPTINLINE>
+	returns true for both kinds.
+	<SNIPPET PAGE="370" HIDE="yes">
 	      <NAME>definition</NAME>
 	      <REQUIRES>tagged_list</REQUIRES>
 	      <EXAMPLE>definition_example</EXAMPLE>
 	      <JAVASCRIPT>
-function is_constant_declaration(stmt) {
-   return is_tagged_list(stmt, "constant_declaration");
+function is_declaration(stmt) {
+    return is_tagged_list(stmt, "constant_declaration") ||
+           is_tagged_list(stmt, "variable_declaration") ||
 }
-function constant_declaration_symbol(stmt) {
+function declaration_symbol(stmt) {
    return head(tail(head(tail(stmt))));
 }
-function constant_declaration_value(stmt) {
-   return head(tail(tail(stmt)));
-}
-function is_variable_declaration(stmt) {
-   return is_tagged_list(stmt, "variable_declaration");
-}
-function variable_declaration_symbol(stmt) {
-   return head(tail(head(tail(stmt))));
-}
-function variable_declaration_value(stmt) {
+function declaration_value_expression(stmt) {
    return head(tail(tail(stmt)));
 }
 	      </JAVASCRIPT>
@@ -499,22 +687,69 @@ function variable_declaration_value(stmt) {
 	      <NAME>definition_example</NAME>
 	      <JAVASCRIPT>
 const my_declaration_statement = parse("let x = 1;");
-display(is_variable_declaration(my_declaration_statement));
-display(variable_declaration_symbol(my_declaration_statement));
-display(variable_declaration_value(my_declaration_statement));
+display(is_declaration(my_declaration_statement));
+display(declaration_symbol(my_declaration_statement));
+display(declaration_value_expression(my_declaration_statement));
 	      </JAVASCRIPT>
 	    </SNIPPET>
-          </LI>
+    </TEXT>
+    <TEXT>
+	    <INDEX>syntactic sugar
+	    <SUBINDEX>define@<SCHEMEINLINE>define</SCHEMEINLINE></SUBINDEX>
+	    </INDEX>
+	    <!-- \indsf{define}[syntactic sugar]-->
+	    We treat function declarations as syntactic sugar<FOOTNOTE>In 
+	    actual JavaScript, there is a subtle difference between the two
+	    forms, see footnote<SPACE/><REF NAME="foot:function-decl-vs-lambda"/>
+	    in chapter 1.
+            </FOOTNOTE>
+	    for the corresponding constant declarations:
+	<LATEX>
+	  \begin{eqnarray*}
+&amp;	  \ll \textbf{\texttt{function}}\ \textit{name} \texttt{(}\textit{parameter}_1\texttt{, }\ldots\texttt{, } \textit{parameter}_n \texttt{) \{}\ \textit{statements} \ \texttt{\}} \gg \\
+&amp;	  = \\
+&amp;	  \ll \textbf{\texttt{const}}\ \textit{name}\ \texttt{=}\ \texttt{(}\textit{parameter}_1\texttt{, }\ldots\texttt{, } \textit{parameter}_n \texttt{)\ =\ \{}\ \textit{statements} \ \texttt{\};} \gg
+	  \end{eqnarray*}
+	</LATEX>
+    </TEXT>
 
-          <LI>
-	    Lambda expressions are lists that begin with the 
-	    string <JAVASCRIPTINLINE>"lambda_expression"</JAVASCRIPTINLINE>:
+
+  <SUBHEADING>
+    <NAME>Lambda expressions</NAME>
+  </SUBHEADING>
+
+	    <TEXT>	    
+	      Lambda expressions are parsed as follows:
+	      <P/>
+	      <LATEX>
+$\ll \texttt{(}\textit{parameter}_1\texttt{, }\ldots\texttt{, } \textit{parameter}_n \texttt{) =&gt; \{}\ \textit{statements} \ \texttt{\}} \gg\ \ =$ \newline
+\vspace{-8mm}
+	</LATEX>
+	<SNIPPET LATEX="yes" EVAL="no">
+	  <JAVASCRIPT>
+list("lambda_expression",
+     list(list("name", $parameter_1$), ..., list("name", $parameter_n$)), )}, 
+     $\ll$ { $statements$ } $\gg$)
+	  </JAVASCRIPT>
+	</SNIPPET>
+	The syntax predicate is
+	<JAVASCRIPTINLINE>is_lambda_expression</JAVASCRIPTINLINE>
+	and the selector for the body of the lambda expression is
+	<JAVASCRIPTINLINE>lambda_body</JAVASCRIPTINLINE>.
+	The selector for the parameters is called
+	<JAVASCRIPTINLINE>lambda_parameters</JAVASCRIPTINLINE> and
+	additionally extracts the symbols from the names.
 	    <SNIPPET PAGE="370">
 	      <NAME>lambda</NAME>
 	      <REQUIRES>variable</REQUIRES>
 	      <REQUIRES>tagged_list</REQUIRES>
 	      <EXAMPLE>lambda_example</EXAMPLE>
 	      <JAVASCRIPT>
+function lambda_parameters(stmt) {
+   return map(symbol_of_name, head(tail(stmt)));
+}
+	      </JAVASCRIPT>
+	      <JAVASCRIPT_RUN>
 function is_lambda_expression(stmt) {
    return is_tagged_list(stmt, "lambda_expression");
 }
@@ -524,24 +759,35 @@ function lambda_parameters(stmt) {
 function lambda_body(stmt) {
    return head(tail(tail(stmt)));
 }
-	      </JAVASCRIPT>
+	      </JAVASCRIPT_RUN>
 	    </SNIPPET>
 	    <SNIPPET PAGE="370" HIDE="yes">
 	      <NAME>lambda_example</NAME>
 	      <JAVASCRIPT>
-const my_lambda = parse("x => x;");
+const my_lambda = parse("x =&amp; x");
 display(is_lambda_expression(my_lambda));
 display(lambda_parameters(my_lambda));
 display(lambda_body(my_lambda));
 	      </JAVASCRIPT>
 	    </SNIPPET>
-          </LI>
+	    </TEXT>
 
-	  <LI>
-	    <JAVASCRIPTINLINE>return</JAVASCRIPTINLINE> statements are objects
-	    tagged with the string 
-	    <JAVASCRIPTINLINE>"return"</JAVASCRIPTINLINE>:
-	    <SNIPPET PAGE="366">
+  <SUBHEADING>
+    <NAME>Return statements</NAME>
+  </SUBHEADING>
+
+  <TEXT>
+    Return statements are parsed as follows:    
+	<LATEX>
+	  \begin{eqnarray*}
+	  \ll \textbf{\texttt{return}}\ \textit{expression} \texttt{;} \gg
+	  &amp; = &amp;
+	  \texttt{list("return_statement",}\ \ll \textit{expression} \gg \texttt{)}
+	  \end{eqnarray*}
+	</LATEX>
+	The predicate is <JAVASCRIPTINLINE>is_return_statement</JAVASCRIPTINLINE>
+	and the selector is <JAVASCRIPTINLINE>return_expression</JAVASCRIPTINLINE>.
+	    <SNIPPET PAGE="366" HIDE="yes">
 	      <NAME>return</NAME>
 	      <REQUIRES>tagged_list</REQUIRES>
 	      <EXAMPLE>return_example</EXAMPLE>
@@ -572,48 +818,66 @@ is_return_statement(my_return);
 return_expression(my_return);
 	      </JAVASCRIPT_RUN>
 	    </SNIPPET>
-          </LI>
+	    </TEXT>
+	    
+  <SUBHEADING>
+    <NAME>Conditionals</NAME>
+  </SUBHEADING>
 
-          <LI>
-	    Conditional expressions are tagged with 
-	    <JAVASCRIPTINLINE>"conditional_expression"</JAVASCRIPTINLINE>
-	    and have a predicate, a consequent, and an alternative. 
-	    <SNIPPET PAGE="371">
+  <TEXT>
+    Conditional expressions are parsed as follows:
+    <P/>
+	<LATEX>
+$\ll \textit{predicate}\ \texttt{?}\ \textit{consequent-expression} \texttt{:}\ \textit{alternate-expression}   \gg\ \ = $\newline
+\vspace{-8mm}
+	</LATEX>
+	<SNIPPET LATEX="yes" EVAL="no">
+	  <JAVASCRIPT>
+list("conditional_expression", 
+     $\ll predicate \gg$,
+     $\ll consequent$-$expression \gg$,
+     $\ll alternate$-$expression \gg$)
+	  </JAVASCRIPT>
+	</SNIPPET>
+	Similarly, conditional statements are parsed as follows:
+	<P/>
+	<LATEX>
+$\ll \textbf{\texttt{if}}\ \texttt{(} \textit{predicate} \texttt{)}\ \textit{consequent-block}\ \textbf{\texttt{else}}\ \textit{alternate-block} \gg\ \ =$\newline
+\vspace{-8mm}
+	</LATEX>
+	<SNIPPET LATEX="yes" EVAL="no">
+	  <JAVASCRIPT>
+list("conditional_statement", 
+     $\ll predicate \gg$,
+     $\ll consequent$-$block \gg$,
+     $\ll alternate$-$block \gg$)
+	  </JAVASCRIPT>
+	</SNIPPET>
+	The selectors 
+	<JAVASCRIPTINLINE>conditional_predicate</JAVASCRIPTINLINE>,
+	<JAVASCRIPTINLINE>conditional_consequent</JAVASCRIPTINLINE> and
+	<JAVASCRIPTINLINE>conditional_alternative</JAVASCRIPTINLINE>
+	can be applied to both kinds
+	of conditionals, and the syntax predicate
+	<JAVASCRIPTINLINE>is_conditional</JAVASCRIPTINLINE>
+	returns true for both.
+	    <SNIPPET PAGE="371" HIDE="yes">
 	      <NAME>if</NAME>
 	      <REQUIRES>tagged_list</REQUIRES>
 	      <EXAMPLE>if_example</EXAMPLE>
 	      <EXPECTED>2</EXPECTED>
 	      <JAVASCRIPT>
-function is_conditional_expression(stmt) {
-   return is_tagged_list(stmt, 
-                "conditional_expression");
+function is_conditional(stmt) {
+    return is_tagged_list(stmt, "conditional_expression") ||
+           is_tagged_list(stmt, "conditional_statement");
 }
-function cond_expr_pred(stmt) {
+function conditional_predicate(stmt) {
    return list_ref(stmt, 1);
 }
-function cond_expr_cons(stmt) {
+function conditional_consequent(stmt) {
    return list_ref(stmt, 2);
 }
-function cond_expr_alt(stmt) {
-   return list_ref(stmt, 3);
-}
-	      </JAVASCRIPT>
-	    </SNIPPET>
-	    <SNIPPET HIDE="yes">
-	      <NAME>conditional_statement_support</NAME>
-	      <REQUIRES>tagged_list</REQUIRES>
-	      <JAVASCRIPT>
-function is_conditional_statement(stmt) {
-   return is_tagged_list(stmt, 
-                "conditional_statement");
-}
-function cond_stmt_pred(stmt) {
-   return list_ref(stmt, 1);
-}
-function cond_stmt_cons(stmt) {
-   return list_ref(stmt, 2);
-}
-function cond_stmt_alt(stmt) {
+function conditional_alternative(stmt) {
    return list_ref(stmt, 3);
 }
 	      </JAVASCRIPT>
@@ -623,31 +887,52 @@ function cond_stmt_alt(stmt) {
 	      <JAVASCRIPT>
 const my_cond_expr = 
     parse("true ? 1 : 2;");
-display(is_conditional_expression(my_cond_expr));
-display(cond_expr_pred(my_cond_expr));
-display(cond_expr_cons(my_cond_expr));
-display(cond_expr_alt(my_cond_expr));
+display(is_conditional(my_cond_expr));
+display(conditional_predicate(my_cond_expr));
+display(conditional_consequent(my_cond_expr));
+display(conditional_alternative(my_cond_expr));
 	      </JAVASCRIPT>
 	      <JAVASCRIPT_TEST>
 const my_cond_expr = 
     parse("true ? 1 : 2;");
-is_conditional_expression(my_cond_expr);
-cond_expr_pred(my_cond_expr);
-cond_expr_cons(my_cond_expr);
-cond_expr_alt(my_cond_expr);
+is_conditional(my_cond_expr);
+conditional_predicate(my_cond_expr);
+conditional_consequent(my_cond_expr);
+conditional_alternative(my_cond_expr);
 	      </JAVASCRIPT_TEST>
 	    </SNIPPET>
-          </LI>
+  </TEXT>
 
-          <LI>
+  <SUBHEADING>
+    <NAME>Sequences</NAME>
+  </SUBHEADING>
+
+<TEXT>
 	    A sequence statement packages a sequence of statements into a
-	    single statement.  We include syntax operations on sequences 
-	    to extract the actual sequence from the sequence statement, 
-	    selectors that return the first statement and the rest of the
-	    statements in the sequence, and predicates that test whether a
-	    sequence is empty or has only one statement.<FOOTNOTE>These
-	    selectors for a list of statements<EMDASH/>and the corresponding
-	    ones for a list of operands<EMDASH/>are not intended
+	    single statement and is parsed as follows:
+	<LATEX>
+	  \begin{eqnarray*}
+&amp;	  \ll \textit{statement}_1 \cdots \textit{statement}_n   \gg \\
+&amp;	  = \\
+&amp;	  \texttt{list("sequence", list(}
+\ll \textit{statement}_1 \gg \texttt{, } \ldots \texttt{, }
+\ll \textit{statement}_n \gg \texttt{))}
+	  \end{eqnarray*}
+	</LATEX>
+	The predicate is <JAVASCRIPTINLINE>is_sequence</JAVASCRIPTINLINE>
+	and the selector is <JAVASCRIPTINLINE>sequence_statements</JAVASCRIPTINLINE>.
+	We include a constructor
+	<JAVASCRIPTINLINE>make_sequence</JAVASCRIPTINLINE>.
+	We retrieve the first of a list of statements using
+	<JAVASCRIPTINLINE>first_statement</JAVASCRIPTINLINE> and
+	the remaining statements using
+	<JAVASCRIPTINLINE>rest_statements</JAVASCRIPTINLINE>, and test
+	whether the list is empty or contains only one element using
+	the predicates 
+	<JAVASCRIPTINLINE>is_empty_sequence</JAVASCRIPTINLINE> and 
+	<JAVASCRIPTINLINE>is_last_statement</JAVASCRIPTINLINE>,
+	respectively.<FOOTNOTE>These
+	    selectors for a list of statements are not intended
 	    as a data abstraction.
 	    They are introduced as mnemonic names for the
 	    basic list operations in order to make it easier to understand the
@@ -661,6 +946,23 @@ cond_expr_alt(my_cond_expr);
 	      <EXAMPLE>begin_example</EXAMPLE>
 	      <EXPECTED>[ true, [ 45, null ] ]</EXPECTED>
 	      <JAVASCRIPT>
+function make_sequence(stmts) {
+   return list("sequence", stmts);
+}
+function first_statement(stmts) {
+   return head(stmts);
+}
+function rest_statements(stmts) {
+   return tail(stmts);
+}
+function is_empty_sequence(stmts) {
+   return is_null(stmts);
+}
+function is_last_statement(stmts) {
+   return is_null(tail(stmts));
+}
+	      </JAVASCRIPT>
+	      <JAVASCRIPT_RUN>
 function is_sequence(stmt) {
    return is_tagged_list(stmt, "sequence");
 }
@@ -682,7 +984,7 @@ function is_empty_sequence(stmts) {
 function is_last_statement(stmts) {
    return is_null(tail(stmts));
 }
-	      </JAVASCRIPT>
+	      </JAVASCRIPT_RUN>
 	    </SNIPPET>
 	    <SNIPPET PAGE="366" HIDE="yes">
 	      <NAME>begin_example</NAME>
@@ -705,20 +1007,31 @@ first_statement(my_actions);
 rest_statements(my_actions);
 	      </JAVASCRIPT_TEST>
 	    </SNIPPET>
-          </LI>
+</TEXT>
 
-          <LI>
-	    A block contains its body statement.
-	    <SNIPPET PAGE="371">
+  <SUBHEADING>
+    <NAME>Blocks</NAME>
+  </SUBHEADING>
+
+
+<TEXT>
+    Blocks are parsed as follows:    
+	<LATEX>
+	  \begin{eqnarray*}
+	  \ll \texttt{\{}\ \textit{statement}\ \texttt{\}} \gg
+	  &amp; = &amp;
+	  \texttt{list("block",}\ \ll \textit{statement} \gg \texttt{)}
+	  \end{eqnarray*}
+	</LATEX>
+	The syntax predicate is <JAVASCRIPTINLINE>is_block</JAVASCRIPTINLINE>
+	and the selector is <JAVASCRIPTINLINE>block_body</JAVASCRIPTINLINE>.
+	    <SNIPPET PAGE="371" HIDE="yes">
 	      <NAME>block</NAME>
 	      <REQUIRES>tagged_list</REQUIRES>
 	      <EXAMPLE>block_example</EXAMPLE>
 	      <JAVASCRIPT>
 function is_block(stmt) {
     return is_tagged_list(stmt, "block");
-}
-function make_block(stmt) {
-   return list("block", stmt);
 }
 function block_body(stmt) {
     return head(tail(stmt));
@@ -733,16 +1046,27 @@ display(is_block(my_block));
 display(block_body(my_block));
 	      </JAVASCRIPT>
 	    </SNIPPET>
-          </LI>
-	  
-          <LI>
-	    A function application is an object tagged with
-	    the string <JAVASCRIPTINLINE>"application"</JAVASCRIPTINLINE>.
-	    We provide access functions for the 
-	    <JAVASCRIPTINLINE>operator</JAVASCRIPTINLINE>, the
-	    <JAVASCRIPTINLINE>operands</JAVASCRIPTINLINE>, and three
-	    functions for iterating  through the operand list:
-	    <SNIPPET PAGE="372">
+</TEXT>
+
+  <SUBHEADING>
+    <NAME>Function applications and operator combinations</NAME>
+  </SUBHEADING>
+
+  <TEXT>
+	Function applications are parsed as follows:
+	<LATEX>
+	  \begin{eqnarray*}
+&amp;	  \ll \textit{fun-expr}\texttt{(}\textit{arg-expr}_1\texttt{, }\ldots\texttt{, } \textit{arg-expr}_n \texttt{)} \gg \\
+&amp;	  = \\
+&amp;	  \texttt{list("application",}\ \ll \textit{fun-expr} \gg \texttt{, list(} \ll \textit{arg-expr}_1 \gg \texttt{, }\ldots \ll \textit{arg-expr}_n \gg \texttt{))}
+	  \end{eqnarray*}
+	</LATEX>
+	The syntax predicate is
+	<JAVASCRIPTINLINE>is_application</JAVASCRIPTINLINE>
+	and the selectors are
+	<JAVASCRIPTINLINE>function_expression</JAVASCRIPTINLINE> and
+	<JAVASCRIPTINLINE>arg_expressions</JAVASCRIPTINLINE>.
+	    <SNIPPET PAGE="372" HIDE="yes">
 	      <NAME>application</NAME>
 	      <REQUIRES>tagged_list</REQUIRES>
 	      <EXAMPLE>application_example</EXAMPLE>
@@ -753,17 +1077,8 @@ function is_application(stmt) {
 function function_expression(stmt) {
    return head(tail(stmt));
 }
-function args(stmt) {
+function arg_expressions(stmt) {
    return head(tail(tail(stmt)));
-}
-function no_args(ops) {
-   return is_null(ops);
-}
-function first_arg(ops) {
-   return head(ops);
-}
-function rest_args(ops) {
-   return tail(ops);
 }
 	      </JAVASCRIPT>
 	    </SNIPPET>
@@ -773,15 +1088,26 @@ function rest_args(ops) {
 const my_application = parse("math_pow(3, 4);");
 display(is_application(my_application));
 display(function_expression(my_application));
-const my_args = args(my_application);
-display(no_args(my_args));
-display(first_arg(my_args));
-display(rest_args(my_args));
+const my_expressions = arg_expressions(my_application);
+display(no_arg_expressions(my_expressions));
+display(first_arg_expression(my_expressions));
+display(rest_arg_expressions(my_expressions));
 	      </JAVASCRIPT>
 	    </SNIPPET>
-	  </LI>
-	</UL>
-      </TEXT>
+  </TEXT>
+  <TEXT>
+	Operator combinations are treated as function applications:
+	<LATEX>
+	  \begin{eqnarray*}
+&amp;	  \ll \textit{operand}_1 \ \textit{infix-operator}\ \textit{operand}_2 \gg \\
+&amp; = \\
+&amp;	  \texttt{list("application",}\ \texttt{list("name",}\ \textit{infix-operator} \texttt{), list(} \ll \textit{operand}_1 \gg \texttt{, } \ll \textit{operand}_2 \gg \texttt{)}\\[3mm]
+&amp;	  \ll \textit{prefix-operator}\ \textit{operand} \gg \\
+&amp; = \\
+&amp;	  \texttt{list("application",}\ \texttt{list("name",}\ \textit{prefix-operator} \texttt{), list(} \ll \textit{operand} \gg \texttt{)}
+	  \end{eqnarray*}
+	</LATEX>
+  </TEXT>
     </JAVASCRIPT>
   </SPLIT>
 
@@ -917,7 +1243,7 @@ display(rest_args(my_args));
   <SNIPPET PAGE="383" HIDE="yes">
     <NAME>functions_4_1_2</NAME>
     <REQUIRES>headline_4_1_2</REQUIRES>
-    <REQUIRES>is_self_evaluating</REQUIRES>
+    <REQUIRES>is_literal</REQUIRES>
     <REQUIRES>variable</REQUIRES>
     <REQUIRES>tagged_list</REQUIRES>
     <REQUIRES>assignment</REQUIRES>
@@ -973,29 +1299,12 @@ display(rest_args(my_args));
     </SCHEME>
     <JAVASCRIPT>
       <EXERCISE>
-      In this section, we assume that the given program is represented using
-      tagged list notation. Of course, for actually writing our programs we
-      prefer the JavaScript syntax. The JavaScript environment for this book
-      provides a function <JAVASCRIPTINLINE>parse</JAVASCRIPTINLINE> that
-      translates a given string in JavaScript syntax into the corresponding
-      tagged list  notation.
-      <SNIPPET>
-	<JAVASCRIPT>
-parse("const x = 1;");
-	</JAVASCRIPT>
-	<JAVASCRIPT_OUTPUT>
-list("constant_declaration", list("name", "x"), 1)
-	</JAVASCRIPT_OUTPUT>
-      </SNIPPET>
       <OL>
 	<LI>
 	  Verify experimentally that the 
 	  <JAVASCRIPTINLINE>parse</JAVASCRIPTINLINE> function in your
-	  JavaScript environment treats function declarations
-	  as constant declarations, ignoring the subtle difference
-	  between the two mentioned in
-	  footnote<SPACE/><REF NAME="foot:function-decl-vs-lambda"/>
-	  of chapter 1.
+	  JavaScript environment treats function declarations as syntactic
+	  sugar for constant declarations.
 	</LI>
 	<LI>
 	  Explore how <JAVASCRIPTINLINE>parse</JAVASCRIPTINLINE> treats the
@@ -1019,15 +1328,6 @@ parse("x => { return 1; };");
 	  <JAVASCRIPTINLINE>parse</JAVASCRIPTINLINE> treats operator combinations
 	  as applications of primitive functions. Why does this not lead to
 	  any confusion in the interpreter?
-	</LI>
-	<LI>
-	  Explore how <JAVASCRIPTINLINE>parse</JAVASCRIPTINLINE> treats
-	  conditional statements
-	  <JAVASCRIPTINLINE>if (...) {...} else {...}</JAVASCRIPTINLINE>
-	  introduced in section<SPACE/><REF NAME="sec:lambda"/>.
-	  Install conditional statements for the evaluator by defining 
-	  appropriate syntax functions and the evaluation function
-	  <JAVASCRIPTINLINE>eval_conditional_statement</JAVASCRIPTINLINE>.
 	</LI>
 	<LI>
 	  The inverse of the function <JAVASCRIPTINLINE>parse</JAVASCRIPTINLINE>
@@ -1100,9 +1400,7 @@ parse("x => { return 1; };");
 	dispatch is done in data-directed style.  Compare this with the
 	data-directed differentiation function of
 	exercise<SPACE/><REF NAME="ex:data-directed-differentiation"/>. (You may
-	use the <JAVASCRIPTINLINE>head</JAVASCRIPTINLINE> of a compound
-	expression as the type of the expression, as is appropriate for the
-	syntax implemented in this section.)
+	use the tag of the tagged list notation as the type of the components.)
 	<LABEL NAME="ex:data-directed-eval"/>
       </EXERCISE>
     </JAVASCRIPT>
@@ -1184,8 +1482,8 @@ parse("x => { return 1; };");
 	combinations. Install 
 	<JAVASCRIPTINLINE>&amp;&amp;</JAVASCRIPTINLINE> and
 	<JAVASCRIPTINLINE>||</JAVASCRIPTINLINE> operations for the
-	evaluator by defining 
-	appropriate syntax functions and evaluation functions
+	evaluator by defining suitable syntax predicates and
+	selectors, as well as appropriate evaluation functions
 	<JAVASCRIPTINLINE>eval_and</JAVASCRIPTINLINE> and 
 	<JAVASCRIPTINLINE>eval_or</JAVASCRIPTINLINE>.
 	<LABEL NAME="ex:eval-and-or"/>
@@ -1367,7 +1665,7 @@ display(1);
 	    with <JAVASCRIPTINLINE>let*</JAVASCRIPTINLINE>.
 	  </LI>
 	  <LI>
-	    Define appropriate syntax functions for this 
+	    Define a suitable syntax predicate and selectors for this 
 	    <JAVASCRIPTINLINE>let*</JAVASCRIPTINLINE> variant.
 	  </LI>
 	  <LI>
@@ -1532,8 +1830,8 @@ function gcd(a, b) {
 	  </LI>
 	  <LI>
 	    Install <JAVASCRIPTINLINE>while</JAVASCRIPTINLINE> loops for the
-	    evaluator by defining appropriate syntax functions and a
-	    transformation function
+	    evaluator by defining a suitable syntax predicate and
+	    and selectors, as well as a transformation function
 	    <JAVASCRIPTINLINE>while_to_function_call</JAVASCRIPTINLINE> 
 	    that makes use of your function
 	    <JAVASCRIPTINLINE>while_loop</JAVASCRIPTINLINE>.
@@ -1625,8 +1923,8 @@ function reverse(xs) {
 	    as arguments four functions of no arguments, and simulates the
 	    behavior of the <JAVASCRIPTINLINE>for</JAVASCRIPTINLINE> loop. Then
 	    install <JAVASCRIPTINLINE>for</JAVASCRIPTINLINE> loops for the
-	    evaluator by defining appropriate syntax functions and a
-	    transformation function
+	    evaluator by defining a suitable syntax predicate and selectors, as
+	    well as a transformation function
 	    <JAVASCRIPTINLINE>for_to_function_call</JAVASCRIPTINLINE> 
 	    that makes use of your function
 	    <JAVASCRIPTINLINE>for_loop</JAVASCRIPTINLINE>. Finally,
