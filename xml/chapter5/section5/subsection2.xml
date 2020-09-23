@@ -197,7 +197,7 @@ function end_with_linkage(target, linkage, instruction_sequence) {
     <!--  \indcode*{compile-quoted} -->
     <!--  \indcode*{compile-variable} -->
     <SNIPPET EVAL="no">
-      <NAME>compile_self_evaluating</NAME>
+      <NAME>compile_literal</NAME>
       <SCHEME>
       (define (compile-self-evaluating exp target linkage)
       (end-with-linkage linkage
@@ -218,12 +218,12 @@ function end_with_linkage(target, linkage, instruction_sequence) {
             (reg env))))))
     </SCHEME>
     <JAVASCRIPT>
-function compile_self_evaluating(exp, target, linkage) {
+function compile_literal(exp, target, linkage) {
     return end_with_linkage(target, linkage,
                make_instruction_sequence(
                    null,
                    list(target),
-                   list(assign(target, constant(exp)))));
+                   list(assign(target, constant(literal_value(exp))))));
 }
 
 function compile_name(exp, target, linkage) {
@@ -348,24 +348,15 @@ function compile_name(exp, target, linkage) {
 function compile_assignment(stmt, target, linkage) {
     const symbol = assignment_symbol(stmt);
     const value_code =
-              compile(assignment_value(stmt), "val", "next");
+              compile(assignment_value_expression(stmt), "val", "next");
     return compile_assignment_returning(symbol,
                value_code, target, linkage, reg("val"));
 }
 
-function compile_constant_declaration(stmt, target, linkage) {
-    const symbol = constant_declaration_symbol(stmt);
-    const value_code =
-              compile(constant_declaration_value(stmt), "val", "next");
+function compile_declaration(stmt, target, linkage) {
+    const symbol = declaration_symbol(stmt);
+    const value_code = compile(declaration_value_expression(stmt), "val", "next");
     return compile_assignment_returning(symbol,
-               value_code, target, linkage, constant(undefined));
-}
-
-function compile_variable_declaration(stmt, target, linkage) {
-    const variable = variable_declaration_symbol(stmt);
-    const value_code =
-              compile(variable_declaration_value(stmt), "val", "next");
-    return compile_assignment_returning(variable,
                value_code, target, linkage, constant(undefined));
 }
 
@@ -570,7 +561,7 @@ function make_label(name) {
     the code for the false branch to the label at the end of the conditional.
     <!--  \indcode*{compile-if} -->
     <SNIPPET EVAL="no">
-      <NAME>compile_conditional_expression</NAME>
+      <NAME>compile_conditional</NAME>
       <SCHEME>
       (define (compile-if exp target linkage)
       (let ((t-branch (make-label 'true-branch))
@@ -596,16 +587,16 @@ function make_label(name) {
             after-if))))))
       </SCHEME>
       <JAVASCRIPT>
-function compile_conditional_expression(stmt, target, linkage) {
+function compile_conditional(stmt, target, linkage) {
     let t_branch = make_label("true_branch");
     let f_branch = make_label("false_branch");
     let after_cond = make_label("after_cond");
     let consequent_linkage =
             linkage === "next" ? after_cond : linkage;
-    let p_code = compile(cond_expr_pred(stmt), "val", "next");
-    let c_code = compile(cond_expr_cons(stmt),
+    let p_code = compile(conditional_predicate(stmt), "val", "next");
+    let c_code = compile(conditional_consequent(stmt),
                          target, consequent_linkage);
-    let a_code = compile(cond_expr_alt(stmt),
+    let a_code = compile(conditional_alternative(stmt),
                          target, linkage);
     return preserving(
              list("env", "continue"),
@@ -1022,7 +1013,7 @@ function compile_lambda_expression(exp, target, linkage) {
 	so that it will end by returning from the function
 	with the return value <JAVASCRIPTINLINE>undefined</JAVASCRIPTINLINE>
 	unless the compiled code runs code that stems from compiling
-	a <JAVASCRIPTINLINE>return</JAVASCRIPTINLINE> statement.
+	a return statement.
 	The target is <SCHEMEINLINE>val</SCHEMEINLINE>
 	so that the return value (or
 	<JAVASCRIPTINLINE>undefined</JAVASCRIPTINLINE>)
@@ -1071,21 +1062,18 @@ function compile_lambda_body(exp, fun_entry) {
     <JAVASCRIPT>
       <SUBHEADING>
 	<NAME>
-	  Compiling 
-	  <JAVASCRIPTINLINE>return</JAVASCRIPTINLINE>
-	  statements
+	  Compiling return statements
 	</NAME>
       </SUBHEADING>
 
       <TEXT>
 	<INDEX>compiler for JavaScript
-	<SUBINDEX>return@<JAVASCRIPTINLINE>return</JAVASCRIPTINLINE> statements</SUBINDEX>
+	<SUBINDEX>return statements</SUBINDEX>
 	</INDEX>
 
-	JavaScript's <JAVASCRIPTINLINE>return</JAVASCRIPTINLINE> statements are compiled
-	such that the compiled code returns  to the caller of the current function the result
-	of running the code of the
-	<JAVASCRIPTINLINE>return</JAVASCRIPTINLINE> expression, ignoring the current linkage. 
+	JavaScript's return statements are compiled such that the compiled code
+	returns  to the caller of the current function the result of running the
+	code of the return expression, ignoring the current linkage. 
 	<SNIPPET EVAL="no">
 	  <NAME>compile_return</NAME>
 	  <JAVASCRIPT>
@@ -1104,7 +1092,7 @@ function compile_return_statement(stmt, target, linkage) {
 
       <TEXT>
 	<INDEX>compiler for JavaScript
-	<SUBINDEX>return@<JAVASCRIPTINLINE>return</JAVASCRIPTINLINE> statements</SUBINDEX>
+	<SUBINDEX>return statements</SUBINDEX>
 	</INDEX>
 
 	A block is compiled by prepending an assignment instruction to the compiled
