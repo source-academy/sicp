@@ -60,7 +60,7 @@ const n = make_javascript_number(7);
 add(c, n);
       </JAVASCRIPT>
     </SNIPPET>
-    <SNIPPET CHAP="4">
+    <SNIPPET CHAP="4" EVAL="no">
       <NAME>add_complex_to_javascript_number</NAME>
       <REQUIRES>install_javascript_number_package_usage</REQUIRES>
       <REQUIRES>install_complex_package_usage</REQUIRES>
@@ -79,11 +79,10 @@ add(c, n);
       <JAVASCRIPT>
 // to be included in the complex package
 function add_complex_to_javascript_num(z, x) {
-   return make_complex_from_real_imag(real_part(z) + x,
-                              imag_part(z));
+   return make_complex_from_real_imag(real_part(z) + x, imag_part(z));
 }
 put("add", list("complex", "javascript_number"),
-    (z, x) => add_complex_to_javascript_num(z, x));
+    (z, x) => tag(add_complex_to_javascript_num(z, x)));
       </JAVASCRIPT>
     </SNIPPET>
   </TEXT>
@@ -228,7 +227,7 @@ function get_coercion(type1, type2) {
     }
     function get_coercion_iter(items) {
         if (is_null(items)) {
-            return null;
+            return undefined;
         } else {
             const top = head(items);
             return equal(type1, get_type1(top)) &amp;&amp;
@@ -607,7 +606,7 @@ function clear_coercion_list() {
 }
 
 function put_coercion(type1, type2, item) {
-    if (is_null(get_coercion(type1, type2))) {
+    if (is_undefined(get_coercion(type1, type2))) {
         coercion_list = pair(list(type1, type2, item),
                              coercion_list);
     } else {
@@ -627,7 +626,7 @@ function get_coercion(type1, type2) {
     }
     function get_coercion_iter(items) {
         if (is_null(items)) {
-            return null;
+            return undefined;
         } else {
             const top = head(items);
             return equal(type1, get_type1(top)) &amp;&amp;
@@ -701,10 +700,10 @@ function apply_generic(op, args) {
             const a2 = head(tail(args));
             const t1_to_t2 = get_coercion(type1, type2);
             const t2_to_t1 = get_coercion(type2, type1);
-            if (t1_to_t2 !== null) {
+            if (! is_undefined(t1_to_t2)) {
                 return apply_generic(op,list(t1_to_t2(a1),
                                              a2));
-            } else if (t2_to_t1 !== null) {
+            } else if (! is_undefined(t2_to_t1)) {
                 return apply_generic(op, list(a1,
                                               t2_to_t1(a2)));
 		} else {
@@ -1196,10 +1195,10 @@ function apply_generic(op, args) {
             if (type1 === type2) {
               return error(list(op, type_tags),
                              "No method for these types");
-            } else if (t1_to_t2 !== null) {
+            } else if (! is_undefined(t1_to_t2)) {
                 return apply_generic(op,list(t1_to_t2(a1),
                                              a2));
-            } else if (t2_to_t1 !== null) {
+            } else if (! is_undefined(t2_to_t1)) {
                 return apply_generic(op, list(a1,
                                               t2_to_t1(a2)));
 		} else {
@@ -1273,16 +1272,16 @@ add_three(c, c, n);
         <JAVASCRIPT>
 function can_coerce_to(type_tags, target_type) {
   return accumulate((type_tag, result) =>
-    result &amp;&amp; 
-    (type_tag === target_type ||
-     get_coercion(type_tag, target_type) !== null),
-    true,
-    type_tags);
+                       result &amp;&amp; 
+                       (type_tag === target_type ||
+                        ! is_undefined(get_coercion(type_tag, target_type)),
+                    true,
+                    type_tags);
 }
 
 function find_coerced_type(type_tags) {
   return is_null(type_tags)
-         ? null
+         ? undefined
          : can_coerce_to(type_tags, head(type_tags))
            ? head(type_tags)
            : find_coerced_type(tail(type_tags));
@@ -1290,9 +1289,9 @@ function find_coerced_type(type_tags) {
 
 function coerce_all(args, target_type) {
   return map(arg => type_tag(arg) === target_type
-      ? arg
-      : get_coercion(type_tag(arg), target_type)(arg)
-  , args);
+                    ? arg
+                    : get_coercion(type_tag(arg), target_type)(arg),
+             args);
 }
 
 function apply_generic(op, args) {
@@ -1302,7 +1301,7 @@ function apply_generic(op, args) {
         return apply(fun, map(contents, args));
     } else {
         const target_type = find_coerced_type(type_tags);
-        if(target_type !== null) {
+        if (! is_undefined(target_type)) {
           return apply_generic(op, coerce_all(args, target_type));
         } else {
             return error(list(op, type_tags),
