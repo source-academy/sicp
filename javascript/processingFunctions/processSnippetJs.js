@@ -47,6 +47,7 @@ export const setupSnippetsJs = node => {
 };
 
 const recursiveGetRequires = (name, seen) => {
+  //  console.log("in recursiveGetRequires: " + name);
   if (seen.has(name)) return;
   const snippetEntry = snippetStore[name];
   if (!snippetEntry) {
