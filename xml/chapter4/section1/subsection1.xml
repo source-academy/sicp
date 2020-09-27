@@ -87,7 +87,7 @@
 	restriction that statements
 	cannot appear inside of expressions except in function bodies.
 	As a result, 
-	it happily evaluates programs in which a return statement appears inside
+	it happily evaluates a program in which a return statement appears inside
 	an expression, although such a
 	construct is not supported by the JavaScript syntax.</FOOTNOTE><EMDASH/>and an
 	environment.
@@ -129,8 +129,12 @@
     Each type of 
     <SPLITINLINE><SCHEME>expression</SCHEME>
     <JAVASCRIPT>component</JAVASCRIPT></SPLITINLINE>
-    has a predicate that tests for
-    it and an abstract means for selecting its parts.  This 
+    has a
+    <SPLITINLINE>
+      <SCHEME>predicate</SCHEME>
+      <JAVASCRIPT><EM>syntax predicate</EM></JAVASCRIPT>
+    </SPLITINLINE>
+    that tests for it and an abstract means for selecting its parts.  This 
     <INDEX>metacircular evaluator for Scheme
     <SUBINDEX>data abstraction in</SUBINDEX></INDEX>
     <INDEX>abstract syntax<SUBINDEX>in metacircular evaluator</SUBINDEX></INDEX>
@@ -599,14 +603,15 @@ apply(plus, list(1, 2));
     
     <SPLIT>
       <JAVASCRIPT>
-	In order to return a value, JavaScript functions need to evaluate a
-	return statement. If a function terminates without return, the value 
+	In order to return a value, a JavaScript function need to evaluate a
+	return statement. If a function terminates without evaluating a return
+	statement, the value 
 	<JAVASCRIPTINLINE>undefined</JAVASCRIPTINLINE> is returned.
-	To distinguish the two cases, the evaluation of return statements
-	will wrap the result of evaluating their return expression into a
+	To distinguish the two cases, the evaluation of a return statement
+	will wrap the result of evaluating its return expression into a
 	<EM>return value</EM>. If
 	the evaluation of the function body yields such a return value, the content
-	of the return value is retrieved, and otherwise the value
+	of the return value is retrieved; otherwise the value
 	<JAVASCRIPTINLINE>undefined</JAVASCRIPTINLINE> is returned.
       </JAVASCRIPT>
     </SPLIT>
@@ -715,7 +720,31 @@ apply(plus, list(1, 2));
       <SCHEME>procedures.</SCHEME>
       <JAVASCRIPT>functions.</JAVASCRIPT>
     </SPLITINLINE>
-    <LABEL NAME="foot:mceval-higher-order"/></FOOTNOTE></SCHEME></SPLITINLINE>
+    <LABEL NAME="foot:mceval-higher-order-scheme"/></FOOTNOTE></SCHEME><JAVASCRIPT><FOOTNOTE>The meta-circular evaluator can evaluate higher-order functions, and therefore
+    it is entirely legitimate to use higher-order functions in its implementation.
+    We chose to implement <JAVASCRIPTINLINE>list_of_values</JAVASCRIPTINLINE>
+    using the higher-order function
+    <JAVASCRIPTINLINE>map</JAVASCRIPTINLINE>, and will use
+    <JAVASCRIPTINLINE>map</JAVASCRIPTINLINE> in other places as well.
+    However, all uses of <JAVASCRIPTINLINE>map</JAVASCRIPTINLINE> in the evaluator
+    can be replaced by ordinary functions; higher-order functions are not needed
+    to implement an evaluator that can evaluate programs containing higher-order
+    functions. For example, <JAVASCRIPTINLINE>list_of_values</JAVASCRIPTINLINE>
+    can be written without 
+    <JAVASCRIPTINLINE>map</JAVASCRIPTINLINE> as follows:
+    <SNIPPET PAGE="367">
+      <NAME>list_of_values_without_map</NAME>
+      <EXAMPLE>list_of_values_example</EXAMPLE>
+      <JAVASCRIPT>
+function list_of_values(exps, env) {
+    return is_null(exps)	
+           ? null
+           : pair(evaluate(head(exps), env), 
+                  list_of_values(tail(exps), env));
+}
+      </JAVASCRIPT>
+    </SNIPPET>
+    <LABEL NAME="foot:mceval-higher-order"/></FOOTNOTE></JAVASCRIPT></SPLITINLINE>
     <SNIPPET PAGE="367">
       <NAME>list_of_values</NAME>
       <EXAMPLE>list_of_values_example</EXAMPLE>
@@ -834,7 +863,7 @@ eval_conditional(my_cond_expr, the_empty_environment);
     an implementation language.  The 
     <SPLITINLINE>
       <SCHEME><SCHEMEINLINE>if-predicate</SCHEMEINLINE></SCHEME>
-      <JAVASCRIPT>predicate</JAVASCRIPT>
+      <JAVASCRIPT><JAVASCRIPTINLINE>conditional_predicate</JAVASCRIPTINLINE></JAVASCRIPT>
     </SPLITINLINE>
     is evaluated in the language being implemented and thus yields a value in
     that language.  The interpreter predicate 
@@ -982,15 +1011,12 @@ function eval_block(component, env) {
           <NAME>list_of_unassigned</NAME>
           <JAVASCRIPT>
 function list_of_unassigned(names) {
-    return map(ignore => "*unassigned*", names);
+    return map(name => "*unassigned*", names);
 }
 	  </JAVASCRIPT>
 	</SNIPPET>
 	The function <JAVASCRIPTINLINE>scan_out_declarations</JAVASCRIPTINLINE>
-	collects the list of all names declared in the body. For a
-	name to be included in the list, it needs to be declared outside of any
-	other block, which means its declaration makes up the body or the body
-	contains the declaration in a (possibly nested) sequence.
+	collects a list of all names declared in the body. 
 	<SNIPPET>
           <NAME>scan_out_declarations</NAME>
 	  <EXAMPLE>scan_out_declarations_example</EXAMPLE>
@@ -1033,6 +1059,10 @@ const my_block = parse("{ const x = 1; 3; 42; }");
 eval_block(my_block, the_empty_environment);
 	  </JAVASCRIPT>
 	</SNIPPET>
+	For a
+	name to be included in the list, it needs to be declared outside of any
+	other block, which means its declaration makes up the body or the body
+	contains the declaration in a (possibly nested) sequence.	
       </TEXT>
 
       <SUBHEADING>
@@ -1044,9 +1074,9 @@ eval_block(my_block, the_empty_environment);
 	is used to evaluate return statements. As seen in
 	<JAVASCRIPTINLINE>apply</JAVASCRIPTINLINE> and
 	the evaluation
-	of sequences, the result of evaluation of return statements
-	needs to be identifiable so that the evaluation of function
-	bodies can return immediately, even if there are statements
+	of sequences, the result of evaluation of a return statement
+	needs to be identifiable so that the evaluation of a function
+	body can return immediately, even if there are statements
 	after the return statement. For this purpose,
 	the evaluation of a return statement wraps the result of
 	evaluating the return expression in a return value object.
@@ -1096,13 +1126,14 @@ evaluate(my_program, the_global_environment);
     <SPLITINLINE>
       <SCHEME>variables.</SCHEME>
       <JAVASCRIPT>
-	names. As it is presented in this section, our evaluator
-	allows assignment not just to variables but
-	also<EMDASH/>erroneously<EMDASH/>to constants, to simplify the
-	presentation. Exercise<SPACE/><REF NAME="ex:mutable"/>
+	names.
+	(To simplify the	presentation of our evaluator,
+	we allow assignment not just to variables but
+	also<EMDASH/>erroneously<EMDASH/>to constants.
+	Exercise<SPACE/><REF NAME="ex:mutable"/>
 	explains how we could
 	distinguish constants from variables and prevent
-	assignment to constants.
+	assignment to constants.)
       </JAVASCRIPT>
     </SPLITINLINE>
     <SPLITINLINE>
@@ -1121,12 +1152,10 @@ evaluate(my_program, the_global_environment);
 	<SCHEMEINLINE>evaluate</SCHEMEINLINE>
 	on the value expression
 	to find the value to be assigned.
-	We call a JavaScript string that represents
-	a name in the evaluator a <EM>symbol</EM>.	
 	The function
 	<JAVASCRIPTINLINE>assignment_symbol</JAVASCRIPTINLINE>
-	retrieves the symbol from the assignment statement.
-	The function
+	retrieves the symbol that represents the name
+	from the assignment statement. The function
 	<JAVASCRIPTINLINE>eval_assignment</JAVASCRIPTINLINE>	
 	transmits the symbol and the value to
 	<JAVASCRIPTINLINE>assign_symbol_value</JAVASCRIPTINLINE>
