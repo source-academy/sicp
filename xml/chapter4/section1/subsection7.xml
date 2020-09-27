@@ -239,10 +239,10 @@ function analyze(component) {
         ? analyze_literal(component)
         : is_name(component)
         ? analyze_name(component)
-        : is_declaration(component)
-        ? analyze_declaration(component)
-        : is_assignment(component)
-        ? analyze_assignment(component)
+        : is_application(component)
+        ? analyze_application(component)
+	: is_operator_combination(component)
+        ? analyze(operator_combination_to_application(component))
         : is_conditional(component)
         ? analyze_conditional(component)
         : is_lambda_expression(component)
@@ -253,8 +253,10 @@ function analyze(component) {
         ? analyze_block(component)
         : is_return_statement(component)
         ? analyze_return_statement(component)
-        : is_application(component)
-        ? analyze_application(component)
+        : is_assignment(component)
+        ? analyze_assignment(component)
+        : is_declaration(component)
+        ? analyze_declaration(component)
         : error(component, "Unknown syntax -- analyze");
 }
       </JAVASCRIPT>
@@ -441,13 +443,17 @@ function analyze_assignment(component) {
                return value;
            };
 }
-function analyze_declaration(component) {	   
-    const symbol = declaration_symbol(component);
-    const vfun = analyze(declaration_value_expression(component));
-    return env => 
-           assign_symbol_value(symbol, vfun(env), env);
+function analyze_declaration(component) {
+    if (is_function_declaration(component)) {
+        return analyze(function_declaration_to_constant_declaration(component));
+    } else {
+        const symbol = declaration_symbol(component);
+        const vfun = analyze(declaration_value_expression(component));
+        return env => 
+                   assign_symbol_value(symbol, vfun(env), env);
+    }
 }
-       </JAVASCRIPT>
+      </JAVASCRIPT>
     </SNIPPET>
   </TEXT>
 
@@ -552,7 +558,7 @@ list_ref(analyze_lambda_expression(parse("x => x;"))
       </SCHEME>
       <JAVASCRIPT>
 function analyze_lambda_expression(component) {
-    const parameters = lambda_parameters(component);
+    const parameters = lambda_parameter_symbols(component);
     const body = lambda_body(component);
     const bfun = analyze(body);
     return env =>
