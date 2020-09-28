@@ -50,7 +50,7 @@
 	<REQUIRES>functions_4_1_4</REQUIRES>
 	<REQUIRES>lp_header</REQUIRES>
 	<REQUIRES>contract_question_mark</REQUIRES>
-	<REQUIRES>query_syntax_process</REQUIRES>
+	<REQUIRES>query_process</REQUIRES>
 	<REQUIRES>assertion_to_be_added</REQUIRES>
 	<REQUIRES>instantiate</REQUIRES>
 	<REQUIRES>evaluate_query</REQUIRES>
@@ -97,12 +97,12 @@
   (query-driver-loop)))))
 	</SCHEME>
 	<JAVASCRIPT>
-const input_prompt = "query input:";
-const output_prompt = "query results:";
+const input_prompt = "Query input:";
+const output_prompt = "Query results:";
 
 function query_driver_loop() {
-    const input = prompt(input_prompt);
-    const q = query_syntax_process(parse(input + ";"));
+    const input = user_read(input_prompt);
+    const q = query_process(parse(input + ";"));
     if (assertion_to_be_added(q)) {
         add_rule_or_assertion(add_assertion_body(q));
         display("Assertion added to data base.");
@@ -112,21 +112,21 @@ function query_driver_loop() {
           stream_map(
             frame =>
               unparse_query(
-                instantiate(q, frame, (v, _) => v)),
+                instantiate(q, frame, (v, ignore) => v)),
             evaluate_query(q, singleton_stream(null))));
     }
     query_driver_loop();
 }
 	</JAVASCRIPT>
 	<JAVASCRIPT_RUN>
-const input_prompt = "query input:";
+const input_prompt = "Query input:";
 
 function query_driver_loop() {
     const input = prompt(input_prompt);
     if (is_null(input)) {
         display("--- evaluator terminated ---");
     } else {
-        const q = query_syntax_process(parse(input + ";"));
+        const q = query_process(parse(input + ";"));
         display("---- driver loop input -----");
         display(unparse_query(q));
         if (assertion_to_be_added(q)) {
@@ -152,7 +152,7 @@ function query_driver_loop() {
 	<EXAMPLE>process_query_example_1</EXAMPLE>
 	<JAVASCRIPT>
 function process_query(input, verbosity) {
-    const q = query_syntax_process(parse(input + ";"));
+    const q = query_process(parse(input + ";"));
     if (verbosity !== "silent") {
         display("--- process query input  ---"); 
         display(unparse_query(q)); } else {}
@@ -185,7 +185,7 @@ process_query('son("Adam", x)');
 	<EXAMPLE>process_query_example_1</EXAMPLE>
 	<JAVASCRIPT>
 function first_answer(input) {
-    const q = query_syntax_process(parse(input + ";"));
+    const q = query_process(parse(input + ";"));
     const frames = evaluate_query(q, singleton_stream(null));
     return is_null(frames)
         ? "no matching data"
@@ -193,13 +193,25 @@ function first_answer(input) {
 }
 	</JAVASCRIPT>
       </SNIPPET>
-    </TEXT>
-
-    <TEXT>
       <INDEX>abstract syntax<SUBINDEX>in query interpreter</SUBINDEX></INDEX>
-      Here, as in the other evaluators in this chapter, we use an abstract
-      syntax for the expressions of the query language.
-      The implementation of the expression syntax, including the predicate
+      Here, as in the other evaluators in this chapter, we use strings as
+      syntax of queries. We reuse the
+      <JAVASCRIPTINLINE>parse</JAVASCRIPTINLINE> function 
+      from section<SPACE/><REF NAME="sec:representing-expressions"/> to
+      transform the
+      <JAVASCRIPTINLINE>input</JAVASCRIPTINLINE>
+      strings into a tagged list representation. 
+      The implementation of the
+      <SPLITINLINE>
+	<SCHEME>
+	  expression
+	  syntax, 	  
+	</SCHEME>
+	<JAVASCRIPT>
+	  query syntax processing,
+	</JAVASCRIPT>
+      </SPLITINLINE>
+      including the predicate
       <SPLITINLINE>
 	<SCHEME>
 	  <SCHEMEINLINE>assertion-to-be-added?</SCHEMEINLINE>
@@ -212,12 +224,13 @@ function first_answer(input) {
       <SPLITINLINE>
 	<SCHEME>
 	  <SCHEMEINLINE>add-assertion-body</SCHEMEINLINE>,
+	  is given in section<SPACE/><REF NAME="sec:query-syntax"/>.
 	</SCHEME>
 	<JAVASCRIPT>
-	  <JAVASCRIPTINLINE>add_assertion_body</JAVASCRIPTINLINE>,
+	  <JAVASCRIPTINLINE>add_assertion_body</JAVASCRIPTINLINE>
+	  is given in section<SPACE/><REF NAME="sec:query-syntax"/>.
 	</JAVASCRIPT>
       </SPLITINLINE>
-      is given in section<SPACE/><REF NAME="sec:query-syntax"/>.
       <SPLITINLINE>
 	<SCHEME>
 	  <SCHEMEINLINE>Add\?rule\?or-assertion!</SCHEMEINLINE>
@@ -230,7 +243,16 @@ function first_answer(input) {
     </TEXT>
 
     <TEXT>
-      Before doing any processing on an input expression, the driver loop
+      Before doing any processing on
+      <SPLITINLINE>
+	<SCHEME>
+	  an input expression,
+	</SCHEME>
+	<JAVASCRIPT>
+	  an input query,
+	</JAVASCRIPT>
+      </SPLITINLINE>
+      the driver loop
       transforms it syntactically into a form that makes the processing more
       <SPLITINLINE>
 	<SCHEME>efficient.</SCHEME>
@@ -263,7 +285,7 @@ function first_answer(input) {
 	  <SCHEMEINLINE>query-syntax\?process</SCHEMEINLINE>
 	</SCHEME>
 	<JAVASCRIPT>
-	  <JAVASCRIPTINLINE>query_syntax_process</JAVASCRIPTINLINE>
+	  <JAVASCRIPTINLINE>query_process</JAVASCRIPTINLINE>
 	</JAVASCRIPT>
       </SPLITINLINE>
       and
@@ -358,9 +380,6 @@ function instantiate(exp, frame, unbound_var_handler) {
 }
 	</JAVASCRIPT>
       </SNIPPET>
-    </TEXT>
-
-    <TEXT>
       The
       <SPLITINLINE>
 	<SCHEME>procedures</SCHEME>
@@ -388,7 +407,7 @@ function instantiate(exp, frame, unbound_var_handler) {
       <SPLITINLINE>
 	<SCHEME>procedure,</SCHEME>
 	<JAVASCRIPT>function,</JAVASCRIPT>
-	</SPLITINLINE>
+      </SPLITINLINE>
       called by the
       <SPLITINLINE>
 	<SCHEME>
@@ -400,13 +419,22 @@ function instantiate(exp, frame, unbound_var_handler) {
       </SPLITINLINE>
       is the basic evaluator of the query system.  It takes as inputs a query
       and a stream of frames, and it returns a stream of extended frames.
-      It identifies special forms by a 
+      It identifies
+      <SPLITINLINE>
+	<SCHEME>special</SCHEME>
+	<JAVASCRIPT>syntactic</JAVASCRIPT>
+      </SPLITINLINE>
+      forms by a 
       <INDEX>data-directed programming
       <SUBINDEX>in query interpreter</SUBINDEX></INDEX>
       data-directed dispatch using <SCHEMEINLINE>get</SCHEMEINLINE> and
       <SCHEMEINLINE>put</SCHEMEINLINE>, just as we did in implementing generic
       operations in chapter<SPACE/>2.  Any query that is not identified as a
-      special form is assumed to be a simple query, to be processed by
+      <SPLITINLINE>
+	<SCHEME>special</SCHEME>
+	<JAVASCRIPT>syntactic</JAVASCRIPT>
+      </SPLITINLINE>
+      form is assumed to be a simple query, to be processed by
       <SPLITINLINE>
 	<SCHEME>
 	  <SCHEMEINLINE>simple-query</SCHEMEINLINE>.
@@ -449,8 +477,8 @@ function evaluate_query(query, frame_stream) {
       syntax of the
       <SPLITINLINE>
 	<SCHEME>special forms.</SCHEME>
-	<JAVASCRIPT>expressions.</JAVASCRIPT>
-	</SPLITINLINE>
+	<JAVASCRIPT>syntactic forms.</JAVASCRIPT>
+      </SPLITINLINE>
     </TEXT>
 
     <SUBHEADING>
@@ -605,9 +633,6 @@ function conjoin(conjuncts, frame_stream) {
 }
 	</JAVASCRIPT>
       </SNIPPET>
-    </TEXT>
-
-    <TEXT>
       The
       <SPLITINLINE>
 	<SCHEME>expression</SCHEME>
@@ -712,7 +737,12 @@ put("or", "evaluate_query", disjoin);
     </TEXT>
 
     <TEXT>
-      The predicates and selectors for the syntax of conjuncts and disjuncts
+      The predicates and selectors for the
+      <SPLITINLINE>
+	<SCHEME>syntax</SCHEME>
+	<JAVASCRIPT>representation</JAVASCRIPT>
+      </SPLITINLINE>
+      of conjuncts and disjuncts
       are given in section<SPACE/><REF NAME="sec:query-syntax"/>.
     </TEXT>
 
@@ -760,7 +790,7 @@ function negate(args, frame_stream) {
     return stream_flatmap(
               frame =>
 	         is_null(evaluate_query(negated_query(args),
-                               singleton_stream(frame)))
+                                        singleton_stream(frame)))
 	         ? singleton_stream(frame)
 		 : null,
 	      frame_stream);
@@ -824,7 +854,7 @@ function javascript_value(args, frame_stream) {
   return stream_flatmap(
            frame =>
            execute(instantiate(
-                     head(args), frame,
+                     javascript_component(args), frame,
                      (v, f) =>
                        error(v, 
                              "Unknown pat var -- " +
@@ -896,7 +926,7 @@ function execute(exp) {
       <SPLITINLINE>
 	<SCHEME><SCHEMEINLINE>always-true</SCHEMEINLINE> special form</SCHEME>
 	<JAVASCRIPT>
-	  <JAVASCRIPTINLINE>"always_true"</JAVASCRIPTINLINE> expression
+	  <JAVASCRIPTINLINE>"always_true"</JAVASCRIPTINLINE> syntactic form
 	</JAVASCRIPT>
       </SPLITINLINE>
       provides for a query that is always satisfied.  It ignores its contents
@@ -938,7 +968,12 @@ put("always_true", "evaluate_query", always_true);
     </TEXT>
 
     <TEXT>
-      The selectors that define the syntax of <SCHEMEINLINE>not</SCHEMEINLINE>
+      The selectors that define the
+      <SPLITINLINE>
+	<SCHEME>syntax</SCHEME>
+	<JAVASCRIPT>structure</JAVASCRIPT>
+      </SPLITINLINE>
+      of <SCHEMEINLINE>not</SCHEMEINLINE>
       and
       <SPLITINLINE>
 	<SCHEME><SCHEMEINLINE>lisp-value</SCHEMEINLINE></SCHEME>
@@ -1067,9 +1102,6 @@ function check_an_assertion(assertion, query_pat, query_frame) {
 }
 	</JAVASCRIPT>
       </SNIPPET>
-    </TEXT>
-
-    <TEXT>
       The basic pattern matcher returns either the
       <SPLITINLINE>
 	<SCHEME>symbol <SCHEMEINLINE>failed</SCHEMEINLINE></SCHEME>
@@ -1180,9 +1212,6 @@ function extend_if_consistent(variable, dat, frame) {
 }
 	</JAVASCRIPT>
       </SNIPPET>
-    </TEXT>
-
-    <TEXT>
       If there is no binding for the variable in the frame, we simply add
       the binding of the variable to the data.  Otherwise we match, in the
       frame, the data against the value of the variable in the frame.  If
@@ -1444,10 +1473,10 @@ function apply_rules(pattern, frame) {
       Before any of this happens, however, the program renames all the variables
       in the rule with unique new names.  The reason for this is to prevent the
       variables for different rule applications from becoming confused with each
-      other.  For instance, if two rules both use a variable named
+      other.  For instance, if two rules both use a variable 
       <SPLITINLINE>
-	<SCHEME><SCHEMEINLINE>?x</SCHEMEINLINE>,</SCHEME>
-	<JAVASCRIPT><JAVASCRIPTINLINE>x</JAVASCRIPTINLINE>,</JAVASCRIPT>
+	<SCHEME>named<SPACE/><SCHEMEINLINE>?x</SCHEMEINLINE>,</SCHEME>
+	<JAVASCRIPT>named<SPACE/><JAVASCRIPTINLINE>x</JAVASCRIPTINLINE>,</JAVASCRIPT>
       </SPLITINLINE>
       then each one may add a binding for
       <SPLITINLINE>
@@ -1507,9 +1536,6 @@ function apply_a_rule(rule, query_pattern, query_frame) {
 }
 	</JAVASCRIPT>
       </SNIPPET>
-    </TEXT>
-
-    <TEXT>
       The selectors
       <SPLITINLINE>
 	<SCHEME><SCHEMEINLINE>rule-body</SCHEMEINLINE></SCHEME>
@@ -2737,7 +2763,7 @@ function singleton_stream(x) {
       (section<SPACE/><REF NAME="sec:query-eval"/>), specify that a
       <SPLITINLINE>
 	<SCHEME>special form</SCHEME>
-	<JAVASCRIPT>query expression</JAVASCRIPT>
+	<JAVASCRIPT>syntactic form</JAVASCRIPT>
       </SPLITINLINE>
       is identified by
       <SPLITINLINE>
@@ -2843,7 +2869,7 @@ function add_assertion_body(exp) {
 	</SCHEME>
 	<JAVASCRIPT>
 	  <JAVASCRIPTINLINE>javascript_value</JAVASCRIPTINLINE>
-	  query expressions
+	  syntactic form
 	</JAVASCRIPT>
       </SPLITINLINE>
       (section<SPACE/><REF NAME="sec:query-eval"/>):
@@ -2886,17 +2912,11 @@ function rest_disjuncts(exps) {
 function negated_query(exps) {
     return head(exps);
 }
+function javascript_component(exps) {    
+    return head(exps);
+}
 	</JAVASCRIPT>
       </SNIPPET>
-      <COMMENT>
-	We use 
-	<JAVASCRIPTINLINE>argmnts</JAVASCRIPTINLINE>
-	because 
-	<JAVASCRIPTINLINE>args</JAVASCRIPTINLINE> is already
-	taken, see section 4.1.2, and 
-	<JAVASCRIPTINLINE>arguments</JAVASCRIPTINLINE> is reserved
-	in JavaScript.
-      </COMMENT>
     </TEXT>
 
     <TEXT>
@@ -2922,8 +2942,8 @@ function negated_query(exps) {
       (caddr rule)))
 	</SCHEME>
 	<JAVASCRIPT>
-function is_rule(statement) {
-    return is_tagged_list(statement, "rule");
+function is_rule(assertion) {
+    return is_tagged_list(assertion, "rule");
 }
 function conclusion(rule) {
     return head(tail(rule));
@@ -2936,7 +2956,6 @@ function rule_body(rule) {
 	</JAVASCRIPT>
       </SNIPPET>
     </TEXT>
-
     <SPLIT>
       <SCHEME>
 	<TEXT>
@@ -2985,7 +3004,7 @@ function rule_body(rule) {
 	  These are Scheme primitives.</FOOTNOTE>
           <!--  \indcode*{map-over-symbols} -->
 	  <SNIPPET>
-	    <NAME>query_syntax_process_scheme</NAME>
+	    <NAME>query_process_scheme</NAME>
 	    <SCHEME>
 (define (query-syntax-process exp)
   (map-over-symbols expand-question-mark exp))
@@ -3016,8 +3035,11 @@ function rule_body(rule) {
 	  <SUBINDEX>representation of|(</SUBINDEX></INDEX>
 	  The function <JAVASCRIPTINLINE>query_driver_loop</JAVASCRIPTINLINE>
 	  (section<SPACE/><REF NAME="sec:query-driver"/>) calls
-	  <JAVASCRIPTINLINE>query_syntax_process</JAVASCRIPTINLINE>
-	  to transform the syntax of the query to a tagged list
+	  <JAVASCRIPTINLINE>query_process</JAVASCRIPTINLINE>
+	  to transform the tagged list representation of the query
+	  formed by
+	  <JAVASCRIPTINLINE>parse</JAVASCRIPTINLINE>
+	  to a more concise tagged list
 	  representation, where the tags represent the kinds
 	  of queries described in
 	  section<SPACE/><REF NAME="sec:deductive-info-retrieval"/>.
@@ -3036,16 +3058,16 @@ function rule_body(rule) {
 	  The syntax transformation is accomplished
 	  by the following function:
 	  <SNIPPET>
-	    <NAME>query_syntax_process</NAME>
+	    <NAME>query_process</NAME>
 	    <REQUIRES>functions_4_1_2</REQUIRES>
 	    <REQUIRES>javascript_value_process</REQUIRES>
 	    <EXAMPLE>append_to_form_example_5</EXAMPLE>
 	    <JAVASCRIPT>
-function query_syntax_process(exp) {
+function query_process(exp) {
     if (is_application(exp)) {
       const function_symbol = 
         symbol_of_name(function_expression(exp));
-      const processed_args = map(query_syntax_process, args(exp));
+      const processed_args = map(query_process, args(exp));
       return function_symbol === "pair"
         ? pair(head(processed_args), head(tail(processed_args)))
         : function_symbol === "list"
@@ -3064,8 +3086,8 @@ function query_syntax_process(exp) {
 	  </SNIPPET>
 	  Exceptions to this processing are
 	  <JAVASCRIPTINLINE>javascript_value</JAVASCRIPTINLINE>
-	  queries. Since the instantiated syntax of the argument of
-	  such a query is passed to the
+	  syntactic forms. Since the instantiated syntax of the argument of
+	  such a special form is passed to the
 	  <JAVASCRIPTINLINE>evaluate</JAVASCRIPTINLINE>
 	  function of section<SPACE/><REF NAME="sec:core-of-evaluator"/>,
 	  its applications and self-evaluating expressions remain intact,
@@ -3198,8 +3220,8 @@ function make_new_variable(variable, rule_application_id) {
 	</SCHEME>
 	<JAVASCRIPT>
 	  After <JAVASCRIPTINLINE>query_driver_loop</JAVASCRIPTINLINE>
-	  instantiates the query, it converts it to a string
-	  using <JAVASCRIPTINLINE>unparse_query</JAVASCRIPTINLINE>, following
+	  instantiates the query in order to print the answer, it converts it to a
+	  string using <JAVASCRIPTINLINE>unparse_query</JAVASCRIPTINLINE>, following
 	  the syntax described in
 	  section<SPACE/><REF NAME="sec:deductive-info-retrieval"/>.
 	  The function <JAVASCRIPTINLINE>unparse_term</JAVASCRIPTINLINE>
@@ -3216,16 +3238,18 @@ function unparse_query(query) {
     return unparse(head(query), 
                   tail(query), 
                   is_null(member(head(query),
-                          list("and", "or", "not", "assert", "rule")))
+                                 list("and", "or", "not", 
+                                      "assert", "rule")))
                   ? unparse_term
                   : unparse_query);
 }
+function is_list(xs) { return is_null(xs) || is_list(tail(xs)); }		  
 function unparse_term(arg) {
     return is_null(arg)
         ? "null"
         : is_list(arg) &amp;&amp; head(arg) === "?"
 	? contract_question_mark(arg)
-	: is_list(arg) &amp;&amp; 
+	: is_list(arg) &amp;&amp; // exclude pair(.., pair("?", null))
           (is_null(tail(arg)) || head(tail(arg)) !== "?")
         ? unparse("list", arg, unparse_term))
         : is_pair(arg)
@@ -3358,12 +3382,14 @@ function extend(variable, value, frame) {
 	<JAVASCRIPT>functions</JAVASCRIPT>
       </SPLITINLINE>
       (section<SPACE/><REF NAME="sec:query-eval"/>) are implemented using
-      explicit
       <SPLITINLINE>
-	<SCHEME><SCHEMEINLINE>delay</SCHEMEINLINE>
-	</SCHEME><JAVASCRIPT>delay</JAVASCRIPT>
+	<SCHEME>
+	  explicit <SCHEMEINLINE>delay</SCHEMEINLINE>
+	  operations, 
+	</SCHEME>
+	<JAVASCRIPT>delayed expressions</JAVASCRIPT>
       </SPLITINLINE>
-      operations, rather than being defined as follows:
+      rather than being defined as follows:
       <!-- mutual recursion -->
       <SNIPPET EVAL="no">
 	<NAME>simple_query_pattern</NAME>
@@ -3432,7 +3458,7 @@ function disjoin(disjuncts, frame_stream) {
     use
     <SPLITINLINE>
       <SCHEME><SCHEMEINLINE>delay</SCHEMEINLINE> explicitly?</SCHEME>
-      <JAVASCRIPT>a lambda expression in its body?</JAVASCRIPT>
+      <JAVASCRIPT>a delayed expression in its body?</JAVASCRIPT>
     </SPLITINLINE>
     What would be wrong with defining it as follows:
     <SNIPPET EVAL="no">
@@ -3523,7 +3549,7 @@ function simple_flatten(stream) {
       <SPLITINLINE>
 	<SCHEME>new special form called
 	<SCHEMEINLINE>unique</SCHEMEINLINE>.</SCHEME>
-	<JAVASCRIPT>query expression called
+	<JAVASCRIPT>syntactic form called
 	<JAVASCRIPTINLINE>unique</JAVASCRIPTINLINE>.</JAVASCRIPT>
       </SPLITINLINE>
       <SPLITINLINE>
@@ -3585,7 +3611,12 @@ and(job(x, j), unique(job(anyone, j)))
 	<SCHEME>procedure</SCHEME>
 	<JAVASCRIPT>function</JAVASCRIPT>
       </SPLITINLINE>
-      that handles this special form, and the second is to make
+      that handles this
+      <SPLITINLINE>
+	<SCHEME>special</SCHEME>
+	<JAVASCRIPT>syntactic</JAVASCRIPT>
+      </SPLITINLINE>
+      form, and the second is to make
       <SPLITINLINE>
 	<SCHEME><SCHEMEINLINE>qeval</SCHEMEINLINE></SCHEME>
 	<JAVASCRIPT><JAVASCRIPTINLINE>evaluate_query</JAVASCRIPTINLINE>
@@ -3679,7 +3710,12 @@ put("unique", "evaluate_query", uniquely_asserted);
       eliminated.  The remaining streams should be passed back to be accumulated
       into one big stream that is the result of the
       <SCHEMEINLINE>unique</SCHEMEINLINE> query.  This is similar to the
-      implementation of the <SCHEMEINLINE>not</SCHEMEINLINE> special form.
+      implementation of the <SCHEMEINLINE>not</SCHEMEINLINE>
+      <SPLITINLINE>
+	<SCHEME>special</SCHEME>
+	<JAVASCRIPT>syntactic</JAVASCRIPT>
+      </SPLITINLINE>
+      form.
       <P/>
       Test your implementation by forming a query that lists all people who
       supervise precisely one person.
@@ -3766,7 +3802,7 @@ put("unique", "evaluate_query", uniquely_asserted);
       (rather than the stream of all answers) and the user can type
       <SPLITINLINE>
 	<SCHEME><SCHEMEINLINE>try-again</SCHEMEINLINE></SCHEME>
-	<JAVASCRIPT><JAVASCRIPTINLINE>try again</JAVASCRIPTINLINE>
+	<JAVASCRIPT><JAVASCRIPTINLINE>try_again</JAVASCRIPTINLINE>
 	</JAVASCRIPT>
       </SPLITINLINE>
       to see more answers.  You should find that much of the mechanism we built
