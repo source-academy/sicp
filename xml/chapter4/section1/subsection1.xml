@@ -350,12 +350,16 @@
 	    evaluation of the return statement.
 	  </LI>
 	  <LI>
+	    A function declaration is transformed into a
+	    constant declaration and then evaluated.
+	  </LI>
+	  <LI>
 	    A constant or variable declaration or an assignment must
 	    recursively call
 	    <JAVASCRIPTINLINE>evaluate</JAVASCRIPTINLINE> to compute the new
 	    value to be associated with the name being declared or assigned.
 	    The environment must be
-	    modified to change the binding of the name.
+	    modified to reflect the new value of the name.
 	  </LI>
         </UL>
 	<!-- \indcodeplus*{eval}{(metacircular)}-->
@@ -398,6 +402,9 @@ function evaluate(component, env) {
           ? eval_return_statement(component, env)
           : is_assignment(component)
           ? eval_assignment(component, env)
+	  : is_function_declaration(component)	    
+	  ? evaluate(function_decl_to_constant_decl(component),
+                     env)
           : is_declaration(component)
           ? eval_declaration(component, env)
           : error(component, "Unknown syntax -- evaluate");
@@ -603,7 +610,7 @@ apply(plus, list(1, 2));
     
     <SPLIT>
       <JAVASCRIPT>
-	In order to return a value, a JavaScript function need to evaluate a
+	In order to return a value, a JavaScript function needs to evaluate a
 	return statement. If a function terminates without evaluating a return
 	statement, the value 
 	<JAVASCRIPTINLINE>undefined</JAVASCRIPTINLINE> is returned.
@@ -720,20 +727,16 @@ apply(plus, list(1, 2));
       <SCHEME>procedures.</SCHEME>
       <JAVASCRIPT>functions.</JAVASCRIPT>
     </SPLITINLINE>
-    <LABEL NAME="foot:mceval-higher-order-scheme"/></FOOTNOTE></SCHEME><JAVASCRIPT><FOOTNOTE>The meta-circular evaluator can evaluate higher-order functions, and therefore
-    it is entirely legitimate to use higher-order functions in its implementation.
-    We chose to implement <JAVASCRIPTINLINE>list_of_values</JAVASCRIPTINLINE>
-    using the higher-order function
-    <JAVASCRIPTINLINE>map</JAVASCRIPTINLINE>, and will use
+    <LABEL NAME="foot:mceval-higher-order-scheme"/></FOOTNOTE></SCHEME><JAVASCRIPT><FOOTNOTE>We chose to implement <JAVASCRIPTINLINE>list_of_values</JAVASCRIPTINLINE>
+    using the higher-order
+    function <JAVASCRIPTINLINE>map</JAVASCRIPTINLINE>, and will use
     <JAVASCRIPTINLINE>map</JAVASCRIPTINLINE> in other places as well.
-    However, all uses of <JAVASCRIPTINLINE>map</JAVASCRIPTINLINE> in the evaluator
-    can be replaced with ordinary functions.
-    The evaluator can be implemented without any use of 
-    higher-order functions (and thus could be written in a language that
-    doesn<APOS/>t have higher-order functions).
-    For example, <JAVASCRIPTINLINE>list_of_values</JAVASCRIPTINLINE>
-    can be written without 
-    <JAVASCRIPTINLINE>map</JAVASCRIPTINLINE> as follows:
+    However, the evaluator can be implemented without any use of higher-order
+    functions (and thus could be written in a language that doesn t have
+    higher-order functions), even though the language that it supports
+    will include higher-order functions.  For example,
+    <JAVASCRIPTINLINE>list_of_values</JAVASCRIPTINLINE> can be
+    written without map as follows:
     <SNIPPET PAGE="367">
       <NAME>list_of_values_without_map</NAME>
       <EXAMPLE>list_of_values_example</EXAMPLE>
@@ -1062,9 +1065,10 @@ eval_block(my_block, the_empty_environment);
 	  </JAVASCRIPT>
 	</SNIPPET>
 	For a
-	name to be included in the list, it needs to be declared outside of any
-	other block, which means its declaration makes up the body or the body
-	contains the declaration in a (possibly nested) sequence.	
+	name to be included in the list, it must not be nested in another block,
+	and therefore
+	<JAVASCRIPTINLINE>scan_out_declarations</JAVASCRIPTINLINE>	
+	needs to look for declarations only in statement sequences.
       </TEXT>
 
       <SUBHEADING>
@@ -1236,8 +1240,7 @@ evaluate(my_program, the_global_environment);
     </SCHEME>
     <JAVASCRIPT>
       <TEXT>
-	Function declarations are transformed into equivalent constant
-	declarations, and constant and variable declarations are treated
+	Constant and variable declarations are treated
 	in a manner similar to
 	assignments; they replace the current value of the name in the
 	environment with the result of evaluating the value expression.
@@ -1247,24 +1250,19 @@ evaluate(my_program, the_global_environment);
 	  <EXPECTED>3</EXPECTED>
 	  <JAVASCRIPT>
 function eval_declaration(component, env) {
-    is_function_declaration(component)	    
-    ? evaluate(function_declaration_to_constant_declaration(component),
-               env)
-    : assign_symbol_value(declaration_symbol(component), 
-                          evaluate(declaration_value_expression(component),
-                                   env));
+    assign_symbol_value(declaration_symbol(component), 
+                        evaluate(declaration_value_expression(component),
+                                 env));
+    return undefined;
 }
 	  </JAVASCRIPT>
 	</SNIPPET>
 	The function
 	<JAVASCRIPTINLINE>eval_declaration</JAVASCRIPTINLINE>
 	must produce <JAVASCRIPTINLINE>undefined</JAVASCRIPTINLINE> to realize
-	the behavior of JavaScript's declarations, and therefore the
-	keyword <JAVASCRIPTINLINE>return</JAVASCRIPTINLINE> is omitted in the body
-	of <JAVASCRIPTINLINE>eval_declaration</JAVASCRIPTINLINE>. On the other hand,
+	the behavior of JavaScript's declarations. On the other hand,
 	JavaScript's assignments must produce the result of evaluating the
-	value expression, which explains the return statement in
-	<JAVASCRIPTINLINE>eval_assignment</JAVASCRIPTINLINE>.<FOOTNOTE>
+	value expression.<FOOTNOTE>
 	<LABEL NAME="foot:value_producing_2"/>	
 	Exercise<SPACE/><REF NAME="ex:value_producing"/> describes in more detail 
 	which values the evaluation of JavaScript statements produce.</FOOTNOTE>
