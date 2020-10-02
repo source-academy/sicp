@@ -156,6 +156,7 @@ export const preamble = `\\documentclass[a4paper, 12pt]{book}
    showstringspaces=false,
    showspaces=false,
    keepspaces=true,
+   columns=fullflexible,
    fontadjust=true,
    basewidth=0.55em,
    mathescape=true,
