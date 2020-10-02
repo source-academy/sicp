@@ -35,7 +35,7 @@ export const preamble = `\\documentclass[a4paper, 12pt]{book}
 \\DeclareUnicodeCharacter{1F00}{-}
 \\usepackage{libertine}
 \\usepackage[libertine]{newtxmath}
-\\usepackage[mono,extrasp=0em,scale=0.95]{inconsolata}
+\\usepackage[mono,extrasp=0em,scale=0.88]{inconsolata}
 \\usepackage[sf,bf,big,raggedright,nobottomtitles]{titlesec}
 \\usepackage[british]{babel}
 \\usepackage[multidot]{grffile}
@@ -136,7 +136,7 @@ export const preamble = `\\documentclass[a4paper, 12pt]{book}
 
 \\lstdefinestyle{JavaScript}{
    language=JavaScript,
-   basicstyle=\\linespread{1.0}\\ttfamily,
+   basicstyle=\\linespread{1.0}\\fontsize{10}{11}\\selectfont\\ttfamily,
    showstringspaces=false,
    showspaces=false,
    keepspaces=true,
