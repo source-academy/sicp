@@ -267,14 +267,18 @@ function analyze(component) {
         ? analyze_conditional(component)
         : is_lambda_expression(component)
         ? analyze_lambda_expression(component)
-        : is_sequence(component)
-        ? analyze_sequence(sequence_statements(component))
+        : is_sequential_composition(component)
+        ? analyze_sequential_composition(component)
+        : is_empty_statement(component)
+        ? env => undefined
         : is_block(component)
         ? analyze_block(component)
         : is_return_statement(component)
         ? analyze_return_statement(component)
         : is_assignment(component)
         ? analyze_assignment(component)
+        : is_function_declaration(component)	    
+        ? analyze(function_decl_to_constant_decl(component))
         : is_declaration(component)
         ? analyze_declaration(component)
         : error(component, "Unknown syntax -- analyze");
@@ -530,22 +534,17 @@ function analyze_lambda_expression(component) {
 
 
       <TEXT>
-	Analysis of a sequence of
-	statements is more 
-	involved.<FOOTNOTE>See exercise<SPACE/><REF NAME="ex:analyze-sequence"/> for
-	some insight into the processing of sequences.</FOOTNOTE> Each
-	    statement
-	in the sequence is analyzed, yielding an execution
-	function. These execution functions
+	The two statements in a sequential composition
+	are analyzed, yielding execution
+	functions which 
 	are combined to produce an execution
-	function that takes an environment as argument and sequentially
-	calls each individual execution
-	function with the environment as argument.
+	function for the composition. The second function
+	is not called when the first one yields a return value.
 	<SNIPPET HIDE="yes">
 	  <NAME>analyze_sequence_example</NAME>
 	  <REQUIRES>analyze</REQUIRES>
 	  <JAVASCRIPT>
-analyze_sequence(sequence_statements(parse("10; 20; 30;")))
+analyze_sequential_composition(parse("10; 20; 30;"))
    (the_global_environment);	
 	  </JAVASCRIPT>
 	</SNIPPET>
@@ -554,26 +553,15 @@ analyze_sequence(sequence_statements(parse("10; 20; 30;")))
 	  <EXAMPLE>analyze_sequence_example</EXAMPLE>
 	  <EXPECTED>30</EXPECTED>
 	  <JAVASCRIPT>
-function analyze_sequence(stmts) {
-    function sequentially(fun1, fun2) {
-        return env => {
-            const fun1_val = fun1(env);
-            return is_return_value(fun1_val)
-                   ? fun1_val
-                   : fun2(env);
-        };
-    }
-    function loop(first_fun, rest_funs) {
-        return is_null(rest_funs)
-               ? first_fun
-               : loop(sequentially(first_fun,
-                          head(rest_funs)),
-                      tail(rest_funs));
-    }
-    const funs = map(analyze, stmts);
-    return is_null(funs) 
-           ? env => undefined
-           : loop(head(funs), tail(funs));
+function analyze_sequential_composition(component) {
+    const fun1 = analyze(first_statement(component);
+    const fun2 = analyze(second_statement(component);
+    return env => {
+               const fun1_val = fun1(env);
+               return is_return_value(fun1_val)
+                      ? fun1_val
+                      : fun2(env);
+           };
 }
 	  </JAVASCRIPT>
 	</SNIPPET>
@@ -601,9 +589,9 @@ analyze_block(parse("{ const x = 4; x; }"))
 	  <JAVASCRIPT>
 function analyze_block(component) {
     const body = block_body(component);
+    const bfun = analyze(body);
     const locals = scan_out_declarations(body);	    
     const unassigneds = list_of_unassigned(locals);
-    const bfun = analyze(body);
     return env => bfun(extend_environment(locals, unassigneds, env));
 }
 	  </JAVASCRIPT>
@@ -728,28 +716,11 @@ function analyze_declaration(component) {
   <SPLIT>
     <SCHEME>
       <TEXT>
-	For
-	<SPLITINLINE>
-	  <SCHEME>
-	    <SCHEMEINLINE>if</SCHEMEINLINE>expressions,
-	  </SCHEME>
-	  <JAVASCRIPT>
-	    conditional expressions,
-	  </JAVASCRIPT>
-	</SPLITINLINE>
+	For <SCHEMEINLINE>if</SCHEMEINLINE>expressions,
 	we extract and analyze the predicate, consequent, and alternative at
 	analysis time.
-	<SNIPPET HIDE="yes">
-	  <NAME>analyze_if_example</NAME>
-	  <REQUIRES>analyze</REQUIRES>
-	  <JAVASCRIPT>
-analyze_conditional(parse("true ? 3 : 7;"))
-   (the_global_environment);	
-	  </JAVASCRIPT>
-	</SNIPPET>
-	<SNIPPET>
+	<SNIPPET EVAL="no">
 	  <NAME>analyze_if</NAME>
-	  <EXAMPLE>analyze_if_example</EXAMPLE>
 	  <EXPECTED>3</EXPECTED>
 	  <SCHEME>
 (define (analyze-if exp)
@@ -761,15 +732,6 @@ analyze_conditional(parse("true ? 3 : 7;"))
           (cproc env)
           (aproc env)))))
 	  </SCHEME>
-	  <JAVASCRIPT>
-function analyze_conditional(component) {	
-    const pfun = analyze(conditional_predicate(component));
-    const cfun = analyze(conditional_consequent(component));
-    const afun = analyze(conditional_alternative(component));
-    return env =>
-           is_truthy(pfun(env)) ? cfun(env) : afun(env);
-}
-	  </JAVASCRIPT>
 	</SNIPPET>
       </TEXT>
 
@@ -805,96 +767,35 @@ function analyze_conditional(component) {
 	  </JAVASCRIPT>
 	</SPLITINLINE>
 	may be applied many times.
-	<SNIPPET HIDE="yes">
-	  <NAME>analyze_lambda_example</NAME>
-	  <REQUIRES>analyze</REQUIRES>
-	  <JAVASCRIPT>
-list_ref(analyze_lambda_expression(parse("x => x;"))
-         (the_global_environment),
-         2)
-        (extend_environment(list("x"), list(7), 
-                            the_global_environment));
-	  </JAVASCRIPT>
-	</SNIPPET>
-	<SNIPPET>
+	<SNIPPET EVAL="no">
 	  <NAME>analyze_lambda</NAME>
-	  <EXAMPLE>analyze_lambda_example</EXAMPLE>
-	  <EXPECTED>[ 'return_value', [ 7, null ] ]</EXPECTED>
 	  <SCHEME>
 (define (analyze-lambda exp)
   (let ((vars (lambda-parameters exp))
         (bproc (analyze-sequence (lambda-body exp))))
   (lambda (env) (make-procedure vars bproc env))))
 	  </SCHEME>
-	  <JAVASCRIPT>
-function analyze_lambda_expression(component) {
-    const parameters = lambda_parameter_symbols(component);
-    const body = lambda_body(component);
-    const bfun = analyze(body);
-    return env =>
-           make_function(parameters, bfun, env);
-}
-	  </JAVASCRIPT>
 	</SNIPPET>
       </TEXT>
 
       <TEXT>
 	Analysis of a sequence of
-	<SPLITINLINE>
-	  <SCHEME>
-	    expressions (as in a
-	    <SCHEMEINLINE>begin</SCHEMEINLINE> or the body
-	    of a <SCHEMEINLINE>lambda</SCHEMEINLINE> expression)
-	  </SCHEME>
-	  <JAVASCRIPT>
-	    statements
-	  </JAVASCRIPT>
-	</SPLITINLINE>
+	expressions (as in a
+	<SCHEMEINLINE>begin</SCHEMEINLINE> or the body
+	of a <SCHEMEINLINE>lambda</SCHEMEINLINE> expression)
 	is more 
 	involved.<FOOTNOTE>See exercise<SPACE/><REF NAME="ex:analyze-sequence"/> for
 	some insight into the processing of sequences.</FOOTNOTE> Each
-	<SPLITINLINE>
-	  <SCHEME>
 	    expression
-	  </SCHEME>
-	  <JAVASCRIPT>
-	    statement
-	  </JAVASCRIPT>
-	</SPLITINLINE>
 	in the sequence is analyzed, yielding an execution
-	<SPLITINLINE>
-	  <SCHEME>procedure.</SCHEME>
-	  <JAVASCRIPT>function.</JAVASCRIPT>
-	</SPLITINLINE>
-	These execution
-	<SPLITINLINE>
-	  <SCHEME>procedures</SCHEME>
-	  <JAVASCRIPT>functions</JAVASCRIPT>
-	</SPLITINLINE>
-	are combined to produce an execution
-	<SPLITINLINE>
-	  <SCHEME>procedure</SCHEME>
-	  <JAVASCRIPT>function</JAVASCRIPT>
-	</SPLITINLINE>
+	procedure. These execution
+	procedures are combined to produce an execution
+	procedure
 	that takes an environment as argument and sequentially
 	calls each individual execution
-	<SPLITINLINE>
-	  <SCHEME>procedure</SCHEME>
-	  <JAVASCRIPT>function</JAVASCRIPT>
-	</SPLITINLINE>
-	with the environment as argument.
-	<SNIPPET HIDE="yes">
-	  <NAME>analyze_sequence_example</NAME>
-	  <REQUIRES>analyze</REQUIRES>
-	  <JAVASCRIPT>
-analyze_sequence(sequence_statements(parse("10; 20; 30;")))
-   (the_global_environment);	
-	  </JAVASCRIPT>
-	</SNIPPET>
-	<SNIPPET>
+	procedure with the environment as argument.
+	<SNIPPET EVAL="no">
 	  <NAME>analyze_sequence</NAME>
-	  <EXAMPLE>analyze_sequence_example</EXAMPLE>
-	  <EXPECTED>30</EXPECTED>
 	  <SCHEME>
 (define (analyze-sequence exps)
   (define (sequentially proc1 proc2)
@@ -909,113 +810,39 @@ analyze_sequence(sequence_statements(parse("10; 20; 30;")))
         (error "Empty sequence - - ANALYZE"))
         (loop (car procs) (cdr procs))))
 	  </SCHEME>
-	  <JAVASCRIPT>
-function analyze_sequence(stmts) {
-    function sequentially(fun1, fun2) {
-        return env => {
-            const fun1_val = fun1(env);
-            return is_return_value(fun1_val)
-                   ? fun1_val
-                   : fun2(env);
-        };
-    }
-    function loop(first_fun, rest_funs) {
-        return is_null(rest_funs)
-               ? first_fun
-               : loop(sequentially(first_fun,
-                          head(rest_funs)),
-                      tail(rest_funs));
-    }
-    const funs = map(analyze, stmts);
-    return is_null(funs) 
-           ? env => undefined
-           : loop(head(funs), tail(funs));
-}
-	  </JAVASCRIPT>
 	</SNIPPET>
       </TEXT>
 
       <TEXT>
 	To analyze an application, we analyze the
-	<SPLITINLINE>
-	  <SCHEME>operator and operands</SCHEME>
-	  <JAVASCRIPT>function expression and argument expressions</JAVASCRIPT>
-	</SPLITINLINE>
+	operator and operands
 	and construct an execution
-	<SPLITINLINE>
-	  <SCHEME>procedure</SCHEME>
-	  <JAVASCRIPT>function</JAVASCRIPT>
-	</SPLITINLINE>
+	procedure
 	that calls the
-	<SPLITINLINE>
-	  <SCHEME>operator execution function</SCHEME>
-	  <JAVASCRIPT>execution function of the function expression</JAVASCRIPT>
-	</SPLITINLINE>
+	operator execution function
 	(to obtain the actual
-	<SPLITINLINE>
-	  <SCHEME>procedure</SCHEME>
-	  <JAVASCRIPT>function</JAVASCRIPT>
-	</SPLITINLINE>
+	procedure
 	to be applied) and the
-	<SPLITINLINE>
-	  <SCHEME>operand</SCHEME>
-	  <JAVASCRIPT>argument-expression</JAVASCRIPT>
-	</SPLITINLINE>
+	operand
 	execution
-	<SPLITINLINE>
-	  <SCHEME>procedures</SCHEME>
-	  <JAVASCRIPT>functions</JAVASCRIPT>
-	</SPLITINLINE>
+	procedures
 	(to obtain the actual arguments).  We then pass these to
-	<SPLITINLINE>
-	  <SCHEME>
-	    <SCHEMEINLINE>execute-application</SCHEMEINLINE>,
-	  </SCHEME>
-	  <JAVASCRIPT>
-	    <JAVASCRIPTINLINE>execute_application</JAVASCRIPTINLINE>,
-	  </JAVASCRIPT>
-	</SPLITINLINE>
+	<SCHEMEINLINE>execute-application</SCHEMEINLINE>,
 	which is the analog of <SCHEMEINLINE>apply</SCHEMEINLINE> in
 	section<SPACE/><REF NAME="sec:core-of-evaluator"/>.
-	<SPLITINLINE>
-	  <SCHEME>
-	    <SCHEMEINLINE>Execute-application</SCHEMEINLINE>
-	  </SCHEME>
-	  <JAVASCRIPT>
-	    The function <JAVASCRIPTINLINE>execute_application</JAVASCRIPTINLINE>
-	  </JAVASCRIPT>
-	</SPLITINLINE>
+	<SCHEMEINLINE>Execute-application</SCHEMEINLINE>
 	differs from <SCHEMEINLINE>apply</SCHEMEINLINE> in that the
-	<SPLITINLINE>
-	  <SCHEME>procedure</SCHEME>
-	  <JAVASCRIPT>function</JAVASCRIPT>
-	</SPLITINLINE>
+	procedure
 	body for a compound
-	<SPLITINLINE>
-	  <SCHEME>procedure</SCHEME>
-	  <JAVASCRIPT>function</JAVASCRIPT>
-	</SPLITINLINE>
+	procedure
 	has already been analyzed, so there is no need to do further analysis.
 	Instead, we just call the execution
-	<SPLITINLINE>
-	  <SCHEME>procedure</SCHEME>
-	  <JAVASCRIPT>function</JAVASCRIPT>
-	</SPLITINLINE>
+	procedure
 	for the body on the extended environment.
-	<SNIPPET HIDE="yes">
-	  <NAME>analyze_application_example</NAME>
-	  <REQUIRES>analyze</REQUIRES>
-	  <JAVASCRIPT>
-analyze_application(parse("x + 1;"))
-   (extend_environment(list("x"), list(5), the_global_environment));
-	  </JAVASCRIPT>
-	</SNIPPET>
       <!--  \indcode{analyze-...}[metacircular|)] -->
       <!--  \indcode*{execute-application}[metacircular] -->
-      <SNIPPET>
+      <SNIPPET EVAL="no">
 	<NAME>analyze_application</NAME>
-	<EXAMPLE>analyze_application_example</EXAMPLE>
-	<EXPECTED>6</EXPECTED>
 	<SCHEME>
 (define (analyze-application exp)
   (let ((fproc (analyze (operator exp)))
@@ -1076,7 +903,9 @@ analyze_application(parse("x + 1;"))
     </JAVASCRIPT>
     </SPLIT>
   </EXERCISE>
-  
+
+  <SPLIT>
+    <SCHEME>
   <EXERCISE>
     <!--  \indcode{analyze-...}[metacircular] -->
     Alyssa P. Hacker doesn<APOS/>t understand why
@@ -1203,7 +1032,9 @@ function analyze_sequence(stmts) {
     for a sequence with two expressions?
     <LABEL NAME="ex:analyze-sequence"/>
   </EXERCISE>
-
+    </SCHEME>
+  </SPLIT>
+  
   <EXERCISE>
     <LABEL NAME="ex:meta_speed"/>
     Design and carry out some experiments to compare the speed of the original

@@ -85,10 +85,10 @@
 	<JAVASCRIPTINLINE>evaluate</JAVASCRIPTINLINE>
 	function. Similarly, our evaluator does not enforce JavaScript's syntactic
 	restriction that statements
-	cannot appear inside of expressions except in function bodies.
+	cannot appear inside expressions except in function bodies.
 	As a result, 
-	it happily evaluates a program in which a return statement appears inside
-	an expression, although such a
+	it would happily evaluates a program in which a return statement
+	appears as argument of an application, although such a
 	construct is not supported by the JavaScript syntax.</FOOTNOTE><EMDASH/>and an
 	environment.
       </JAVASCRIPT>
@@ -337,12 +337,20 @@
 	    by the lambda expression with the environment of the evaluation.
 	  </LI>
 	  <LI>
-	    A sequence of statements requires evaluating its component
-	    statements in the order in which they appear.
+	    A sequential composition of statements requires evaluating its
+	    components in the order in which they appear.
+	  </LI>
+	  <LI>
+	    For the empty statement
+	    (which occasionally appears as the
+	    content of a block that does nothing, e.g.
+	    footnote<SPACE/><REF NAME="foot:one-armed"/> in chapter 3)
+	    <JAVASCRIPTINLINE>evaluate</JAVASCRIPTINLINE> returns the
+	    value <JAVASCRIPTINLINE>undefined</JAVASCRIPTINLINE>.
 	  </LI>
 	  <LI>
 	    A block requires evaluating its body in a new environment
-	    that contains all names declared within the block.
+	    that reflects all names declared within the block.
 	  </LI>
 	  <LI>
 	    A return statement must produce a value that becomes the
@@ -394,8 +402,10 @@ function evaluate(component, env) {
           : is_lambda_expression(component)
           ? make_function(lambda_parameter_symbols(component),
                           lambda_body(component), env)
-          : is_sequence(component)
-          ? eval_sequence(sequence_statements(component), env)
+          : is_sequential_composition(component)
+          ? eval_sequential_composition(component), env)
+          : is_empty_statement(component)
+          ? undefined
           : is_block(component)
           ? eval_block(component, env)
           : is_return_statement(component)
@@ -403,8 +413,7 @@ function evaluate(component, env) {
           : is_assignment(component)
           ? eval_assignment(component, env)
 	  : is_function_declaration(component)	    
-	  ? evaluate(function_decl_to_constant_decl(component),
-                     env)
+	  ? evaluate(function_decl_to_constant_decl(component), env)
           : is_declaration(component)
           ? eval_declaration(component, env)
           : error(component, "Unknown syntax -- evaluate");
@@ -450,10 +459,15 @@ evaluate(my_program, the_empty_environment);
       <JAVASCRIPT>statements and</JAVASCRIPT>
     </SPLITINLINE>
     expressions, and no new ones can be defined without editing the
-    definition of 
     <SPLITINLINE>
-      <SCHEME><SCHEMEINLINE>eval</SCHEMEINLINE>.</SCHEME>
-      <JAVASCRIPT><JAVASCRIPTINLINE>evaluate</JAVASCRIPTINLINE>.</JAVASCRIPT>
+      <SCHEME>
+	definition of 
+	<SCHEMEINLINE>eval</SCHEMEINLINE>.
+      </SCHEME>
+      <JAVASCRIPT>
+	declaration of
+	<JAVASCRIPTINLINE>evaluate</JAVASCRIPTINLINE>.
+      </JAVASCRIPT>
     </SPLITINLINE>
     In most
     <SPLITINLINE>
@@ -463,19 +477,24 @@ evaluate(my_program, the_empty_environment);
     implementations, dispatching on the type of
     <SPLITINLINE>
       <SCHEME>an expression</SCHEME>
-      <JAVASCRIPT>a statement or expression</JAVASCRIPT>
+      <JAVASCRIPT>a component</JAVASCRIPT>
     </SPLITINLINE>
     is done in a data-directed style.  This allows a user to add new types of    
     <SPLITINLINE>
       <SCHEME>expressions that <SCHEMEINLINE>eval</SCHEMEINLINE></SCHEME>
-      <JAVASCRIPT>statements and expressions that
+      <JAVASCRIPT>components that
       <JAVASCRIPTINLINE>evaluate</JAVASCRIPTINLINE>
       </JAVASCRIPT>
     </SPLITINLINE>
-    can distinguish, without modifying the definition of 
+    can distinguish, without modifying the 
     <SPLITINLINE>
-      <SCHEME><SCHEMEINLINE>eval</SCHEMEINLINE></SCHEME>
-      <JAVASCRIPT><JAVASCRIPTINLINE>evaluate</JAVASCRIPTINLINE></JAVASCRIPT>
+      <SCHEME>
+	definition of <SCHEMEINLINE>eval</SCHEMEINLINE>
+      </SCHEME>
+      <JAVASCRIPT>
+	declaration of
+	<JAVASCRIPTINLINE>evaluate</JAVASCRIPTINLINE>
+      </JAVASCRIPT>
     </SPLITINLINE>
     itself. (See exercise<SPACE/><REF NAME="ex:data-directed-eval"/>.)
   </TEXT>
@@ -526,10 +545,15 @@ evaluate(my_program, the_empty_environment);
       <SCHEME>procedures</SCHEME>
       <JAVASCRIPT>functions</JAVASCRIPT>
     </SPLITINLINE>
-    by sequentially evaluating the 
     <SPLITINLINE>
-      <SCHEME>expressions that make up the body of the procedure.</SCHEME>
-      <JAVASCRIPT>statements that make up the body of the function.</JAVASCRIPT>
+      <SCHEME>
+	by sequentially evaluating the 	
+	expressions that make up the body of the procedure.
+      </SCHEME>
+      <JAVASCRIPT>
+	by evaluating the statement that makes up the body
+	of the function.
+      </JAVASCRIPT>
     </SPLITINLINE>
     The environment for the evaluation of the body of a compound
     <SPLITINLINE>
@@ -892,7 +916,12 @@ eval_conditional(my_cond_expr, the_empty_environment);
   </TEXT>
 
   <SUBHEADING>
-    <NAME>Sequences</NAME>
+    <NAME>    
+      <SPLITINLINE>
+	<SCHEME>Sequences</SCHEME>
+	<JAVASCRIPT>Sequential composition</JAVASCRIPT>
+      </SPLITINLINE>
+    </NAME>
   </SUBHEADING>
 
   <SPLIT>
@@ -919,20 +948,18 @@ eval_conditional(my_cond_expr, the_empty_environment);
     </SCHEME>
     <JAVASCRIPT>
       <TEXT>
-	The function <JAVASCRIPTINLINE>eval_sequence</JAVASCRIPTINLINE>
-	is used by <JAVASCRIPTINLINE>evaluate</JAVASCRIPTINLINE>
-	to evaluate a sequence of statements at the top level, or in a block.
-	It takes as arguments a sequence of statements and an
-	environment, and evaluates the statements in the order in which they
-	occur. The value returned is the value of the final statement, except
-	that if the result of evaluating any statement in the sequence yields
-	a return value, that value is returned and the subsequent statements are
+	The function
+	<JAVASCRIPTINLINE>eval_sequential_composition</JAVASCRIPTINLINE>
+	evaluates the first statements of a sequential composition. If the
+	result is 
+	a return value, that value is returned and the second statement is
 	ignored.<FOOTNOTE>The treatment of return statements in
-	<JAVASCRIPTINLINE>eval_sequence</JAVASCRIPTINLINE> reflects the proper
+	<JAVASCRIPTINLINE>eval_sequential_composition</JAVASCRIPTINLINE>
+	reflects the proper
 	result of evaluating function applications in JavaScript, but the
 	evaluator presented here does not comply with the ECMAScript
-	specification for the value of programs that consist
-	of sequences of statements outside of any function body. 
+	specification for the value of programs in which
+	sequential composition occurs outside of any function body. 
 	Exercise<SPACE/><REF NAME="ex:value_producing"/> addresses this issue.
 	<LABEL NAME="foot:value_producing"/>
       </FOOTNOTE>
@@ -941,20 +968,13 @@ eval_conditional(my_cond_expr, the_empty_environment);
 	  <EXAMPLE>eval_sequence_example</EXAMPLE>
 	  <EXPECTED>3</EXPECTED>
           <JAVASCRIPT>
-function eval_sequence(stmts, env) {
-    if (is_empty_sequence(stmts)) {
-        return undefined;
-    } else if (is_last_statement(stmts)) {
-            return evaluate(first_statement(stmts),env);
+function eval_sequential_composition(component, env) {
+    const first_stmt_value = 
+              evaluate(first_statement(component),env);
+    if (is_return_value(first_stmt_value)) {
+        return first_stmt_value;
     } else {
-        const first_stmt_value = 
-            evaluate(first_statement(stmts),env);
-        if (is_return_value(first_stmt_value)) {
-            return first_stmt_value;
-        } else {
-            return eval_sequence(
-                rest_statements(stmts),env);
-        }
+        return evaluate(second_statement(component),env);
     }
 }
           </JAVASCRIPT>
@@ -967,7 +987,7 @@ function eval_sequence(stmts, env) {
 	  <REQUIRES>functions_4_1_4</REQUIRES>
 	  <JAVASCRIPT>
 const my_sequence = head(tail(parse("1; true; 3;")));
-eval_sequence(my_sequence, the_empty_environment);
+eval_sequential_composition(my_sequence, the_empty_environment);
 	  </JAVASCRIPT>
 	</SNIPPET>
       </TEXT>
@@ -983,10 +1003,10 @@ eval_sequence(my_sequence, the_empty_environment);
       </SUBHEADING>
       <TEXT>
 	The function <JAVASCRIPTINLINE>eval_block</JAVASCRIPTINLINE> handles
-	blocks. The constants and variables
-	declared in the block need to be local to the block and thus
-	are scanned out using
-	<JAVASCRIPTINLINE>scan_out_declarations</JAVASCRIPTINLINE>.
+	blocks. The variables and constants (including functions)
+	declared in the block have the whole block as their scope and thus
+	are <QUOTE>scanned out</QUOTE> before the body of the block is
+	evaluated.
 	The body of the	block is evaluated with respect to an environment
 	that extends the current
 	environment with a binding of these local names
@@ -1028,18 +1048,12 @@ function list_of_unassigned(names) {
 	  <EXPECTED>[ 'x', [ 'y', null ] ]</EXPECTED>
           <JAVASCRIPT>
 function scan_out_declarations(component) {
-    if (is_sequence(component)) {
-        const stmts = sequence_statements(component);
-        return is_empty_sequence(stmts)
-               ? null
-               : append(scan_out_declarations(first_statement(stmts)),
-                        scan_out_declarations(
-                            make_sequence(rest_statements(stmts))));
-    } else {
-        return is_declaration(component)
-            ? list(declaration_symbol(component))
-            : null;
-    }
+    return is_sequential_composition(component)
+           ? append(scan_out_declarations(first_statement(component)),
+                    scan_out_declarations(second_statement(component)))
+           : is_declaration(component)
+           ? list(declaration_symbol(component))
+           : null;
 }
           </JAVASCRIPT>
 	</SNIPPET>
@@ -1064,11 +1078,12 @@ const my_block = parse("{ const x = 1; 3; 42; }");
 eval_block(my_block, the_empty_environment);
 	  </JAVASCRIPT>
 	</SNIPPET>
-	For a
-	name to be included in the list, it must not be nested in another block,
-	and therefore
-	<JAVASCRIPTINLINE>scan_out_declarations</JAVASCRIPTINLINE>	
-	needs to look for declarations only in statement sequences.
+	We can safely ignore declarations that are nested in another block,
+	because the evaluation of that block will take care of them.
+	The function <JAVASCRIPTINLINE>scan_out_declarations</JAVASCRIPTINLINE>	
+	needs to look for declarations only in sequential compositions because 
+	declarations in conditional statements, function declarations, or
+	lambda expressions are always nested in another block.
       </TEXT>
 
       <SUBHEADING>
@@ -1080,7 +1095,8 @@ eval_block(my_block, the_empty_environment);
 	is used to evaluate return statements. As seen in
 	<JAVASCRIPTINLINE>apply</JAVASCRIPTINLINE> and
 	the evaluation
-	of sequences, the result of evaluation of a return statement
+	of sequential composition,
+	the result of evaluation of a return statement
 	needs to be identifiable so that the evaluation of a function
 	body can return immediately, even if there are statements
 	after the return statement. For this purpose,
@@ -1157,10 +1173,9 @@ evaluate(my_program, the_global_environment);
 	calls
 	<SCHEMEINLINE>evaluate</SCHEMEINLINE>
 	on the value expression
-	to find the value to be assigned.
-	The function
+	to find the value to be assigned and calls
 	<JAVASCRIPTINLINE>assignment_symbol</JAVASCRIPTINLINE>
-	retrieves the symbol that represents the name
+	to retrieve the symbol that represents the name
 	from the assignment statement. The function
 	<JAVASCRIPTINLINE>eval_assignment</JAVASCRIPTINLINE>	
 	transmits the symbol and the value to
@@ -1257,15 +1272,22 @@ function eval_declaration(component, env) {
 }
 	  </JAVASCRIPT>
 	</SNIPPET>
-	The function
+	The result of evaluating the body of functions is determined by
+	return statements. The result of evaluating programs is determined
+	by its top level components, outside of any function body.
+	Exercise<SPACE/><REF NAME="ex:value_producing"/> describes in 
+	detail what is considered the value of top level components. To
+	simplify the presentation, we state in
 	<JAVASCRIPTINLINE>eval_declaration</JAVASCRIPTINLINE>
-	must produce <JAVASCRIPTINLINE>undefined</JAVASCRIPTINLINE> to realize
-	the behavior of JavaScript's declarations. On the other hand,
-	JavaScript's assignments must produce the result of evaluating the
-	value expression.<FOOTNOTE>
+	that declarations produce
+	<JAVASCRIPTINLINE>undefined</JAVASCRIPTINLINE>, while we
+	stated in
+	<JAVASCRIPTINLINE>eval_assignment</JAVASCRIPTINLINE> that
+	assignments produce the result of evaluating the
+	value expression.
+
 	<LABEL NAME="foot:value_producing_2"/>	
-	Exercise<SPACE/><REF NAME="ex:value_producing"/> describes in more detail 
-	which values the evaluation of JavaScript statements produce.</FOOTNOTE>
+
 	<SNIPPET PAGE="368" HIDE="yes">
 	  <NAME>eval_definition_example</NAME>
 	  <REQUIRES>functions_4_1_1</REQUIRES>
@@ -1417,5 +1439,4 @@ tail(map(x => x + 1, list(1, 2, 3, 4)));          ");
     </JAVASCRIPT>
   </SNIPPET>
 </SUBSECTION>
-
 

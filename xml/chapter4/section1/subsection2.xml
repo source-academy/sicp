@@ -36,21 +36,27 @@
 	introduce a function 
 	<JAVASCRIPTINLINE>parse</JAVASCRIPTINLINE> that translates program text
 	to a <EM>tagged list representation</EM>, reminiscent of
-	the tagged data of section<SPACE/><REF NAME="sec:manifest-types"/>. We will see
-	that the application of the 
+	the tagged data of section<SPACE/><REF NAME="sec:manifest-types"/>.
+	For example, the application of the 
 	<JAVASCRIPTINLINE>parse</JAVASCRIPTINLINE> function to the program string
 	above produces a data structure that properly
-	reflects the structure of the program.
+	reflects the structure of the program: a sequential composition
+	of a constant declaration associating the name
+	<JAVASCRIPTINLINE>size</JAVASCRIPTINLINE>  with the value 2
+	and a multiplication.
 	<SNIPPET PAGE="372">
 	  <NAME>parse_declaration</NAME>
 	  <JAVASCRIPT>
 parse("const size = 2; 5 * size;");
 	  </JAVASCRIPT>
 	  <JAVASCRIPT_OUTPUT>
-list("sequence",
-     list(list("constant_declaration", list("name", "size"), 2),
-          list("application", list("name", "*"), 
-               list(5, list("name", "size")))))
+list("sequential_composition",
+     list("constant_declaration", 
+          list("name", "size"), 
+          list("literal", 2)),
+     list("application", 
+          list("name", "*"), 
+          list(list("literal", 5), list("name", "size"))))
 	  </JAVASCRIPT_OUTPUT>
 	</SNIPPET>
 	The syntax functions used by the evaluator access the tagged list
@@ -128,8 +134,9 @@ list("sequence",
 	which interface the evaluator to the tagged list representation of programs,
 	which in turn is separated from the string representation by the
 	<JAVASCRIPTINLINE>parse</JAVASCRIPTINLINE> function. Below we
-	describe the parsing of components and list the
-	corresponding syntax predicates and selectors.
+	describe the parsing of program components and list the
+	corresponding syntax predicates and selectors, as well as
+	constructors if they are needed.
       </TEXT>
     </JAVASCRIPT>
   </SPLIT>
@@ -689,7 +696,7 @@ function make_application(function_expression, argument_expressions) {
     Conditional expressions are parsed as follows:
     <BLOCKQUOTE>
 	<LATEX>
-$\ll \textit{predicate}\ \texttt{?}\ \textit{consequent-expression} \texttt{:}\ \textit{alternative-expression}   \gg\ \ = $\newline
+$\ll \textit{predicate}\ \texttt{?}\ \textit{consequent-expression}\ \texttt{:}\ \textit{alternative-expression}   \gg\ \ = $\newline
 \vspace{-8mm}
 	</LATEX>
 	<SNIPPET LATEX="yes" EVAL="no">
@@ -771,7 +778,7 @@ conditional_alternative(my_cond_expr);
   </SUBHEADING>
 
   <TEXT>
-    Lambda expressions whose body forms an expression are parsed as if their
+    A lambda expression whose body is an expression is parsed as if the
     body consisted of a block containing a single return statement whose
     return expression is the body of the lambda expression.
     <LATEX>
@@ -781,7 +788,7 @@ conditional_alternative(my_cond_expr);
 &amp; \ll \texttt{(}\textit{parameter}_1\texttt{, }\ldots\texttt{, } \textit{parameter}_n \texttt{) =&gt; \{}\ \textbf{\texttt{return}} \ \textit{expression}\texttt{;}\ \texttt{\}} \gg
 \end{eqnarray*}
 	</LATEX>
-	      Lambda expressions whose body forms a block are parsed as follows:
+	      A lambda expression whose body is a block is parsed as follows:
 	      <BLOCKQUOTE>
 	      <LATEX>
 $\ll \texttt{(}\textit{parameter}_1\texttt{, }\ldots\texttt{, } \textit{parameter}_n \texttt{) =&gt;}\ \textit{block} \gg\ \ =$ \newline
@@ -845,117 +852,84 @@ function make_lambda_expression(parameters, body) {
 }
 	      </JAVASCRIPT>
 	    </SNIPPET>
-
-
 	    
 	    </TEXT>
 
   <SUBHEADING>
-    <NAME>Sequences</NAME>
+    <NAME>Sequential composition</NAME>
   </SUBHEADING>
 
-<TEXT>
-	    A sequence statement packages a sequence of statements into a
-	    single statement and is parsed as follows:
-	<LATEX>
-	  \begin{eqnarray*}
-&amp;	  \ll \textit{statement}_1 \cdots \textit{statement}_n   \gg \\
-&amp;	  = \\
-&amp;	  \texttt{list("sequence", list(}
-\ll \textit{statement}_1 \gg \texttt{, } \ldots \texttt{, }
-\ll \textit{statement}_n \gg \texttt{))}
-	  \end{eqnarray*}
-	</LATEX>
-	The predicate is <JAVASCRIPTINLINE>is_sequence</JAVASCRIPTINLINE>
-	the selector is <JAVASCRIPTINLINE>sequence_statements</JAVASCRIPTINLINE>,
-	and we include a constructor
-	<JAVASCRIPTINLINE>make_sequence</JAVASCRIPTINLINE>.
-	We retrieve the first of a list of statements using
-	<JAVASCRIPTINLINE>first_statement</JAVASCRIPTINLINE> and
-	the remaining statements using
-	<JAVASCRIPTINLINE>rest_statements</JAVASCRIPTINLINE>, and test
-	whether the list is empty or contains only one element using
-	the predicates 
-	<JAVASCRIPTINLINE>is_empty_sequence</JAVASCRIPTINLINE> and 
-	<JAVASCRIPTINLINE>is_last_statement</JAVASCRIPTINLINE>,
-	respectively.<FOOTNOTE>These
-	    selectors for a list of statements are not intended
-	    as a data abstraction.
-	    They are introduced as mnemonic names for the
-	    basic list operations in order to make it easier to understand the
-	    explicit-control evaluator in
-	    section<SPACE/><REF NAME="sec:eceval"/>.
-	    <LABEL NAME="foot:mceval-abstraction"/>
-            </FOOTNOTE>
-	    <SNIPPET PAGE="371">
+  <TEXT>
+    The sequential composition of two statements is
+    parsed as follows:
+    <LATEX>
+      \begin{eqnarray*}
+      &amp;	  \ll \textit{statement}_1 \ \textit{statement}_2   \gg \\
+      &amp;	  = \\
+      &amp;	  \texttt{list("sequential_composition", }
+      \ll \textit{statement}_1 \gg \texttt{, } 
+      \ll \textit{statement}_2 \gg \texttt{)}
+      \end{eqnarray*}
+    </LATEX>
+    The syntax predicate is
+    <JAVASCRIPTINLINE>is_sequential_composition</JAVASCRIPTINLINE>
+    and the selectors are
+    <JAVASCRIPTINLINE>first_statement</JAVASCRIPTINLINE> and
+    <JAVASCRIPTINLINE>second_statement</JAVASCRIPTINLINE>.
+	    <SNIPPET PAGE="371" HIDE="yes">
 	      <NAME>begin</NAME>
 	      <REQUIRES>tagged_list</REQUIRES>
 	      <EXAMPLE>begin_example</EXAMPLE>
 	      <EXPECTED>[ true, [ 45, null ] ]</EXPECTED>
 	      <JAVASCRIPT>
-function make_sequence(stmts) {
-   return list("sequence", stmts);
+function is_sequential_composition(component) {		
+    return is_tagged_list(component, "sequential_composition");
 }
-function first_statement(stmts) {
-   return head(stmts);
+function first_statement(component) {
+   return head(tail(component));
 }
-function rest_statements(stmts) {
-   return tail(stmts);
-}
-function is_empty_sequence(stmts) {
-   return is_null(stmts);
-}
-function is_last_statement(stmts) {
-   return is_null(tail(stmts));
+function second_statement(component) {
+   return head(tail(tail(component)));
 }
 	      </JAVASCRIPT>
-	      <JAVASCRIPT_RUN>
-function is_sequence(stmt) {
-   return is_tagged_list(stmt, "sequence");
-}
-function make_sequence(stmts) {
-   return list("sequence", stmts);
-}
-function sequence_statements(stmt) {   
-   return head(tail(stmt));
-}
-function first_statement(stmts) {
-   return head(stmts);
-}
-function rest_statements(stmts) {
-   return tail(stmts);
-}
-function is_empty_sequence(stmts) {
-   return is_null(stmts);
-}
-function is_last_statement(stmts) {
-   return is_null(tail(stmts));
-}
-	      </JAVASCRIPT_RUN>
 	    </SNIPPET>
-	    <SNIPPET PAGE="366" HIDE="yes">
-	      <NAME>begin_example</NAME>
+	    Two statements are combined into a sequential composition
+	    by simply juxtaposing them, similar to infix
+	    notation for expressions except that there is no operator!
+	    The function <JAVASCRIPTINLINE>parse</JAVASCRIPTINLINE>
+	    treats sequential composition to be right-associative:
+	    <SNIPPET PAGE="372">
+	      <NAME>parse_sequential_composition</NAME>
 	      <JAVASCRIPT>
-const my_sequence = parse("1; true; 45;");
-display(is_sequence(my_sequence));
-const my_actions = sequence_statements(my_sequence);
-display(is_empty_sequence(my_actions));
-display(is_last_statement(my_actions));
-display(first_statement(my_actions));
-display(rest_statements(my_actions));
-	      </JAVASCRIPT>
-	      <JAVASCRIPT_TEST>
-const my_sequence = parse("1; true; 45;");
-is_sequence(my_sequence);
-const my_actions = sequence_statements(my_sequence);
-is_empty_sequence(my_actions);
-is_last_statement(my_actions);
-first_statement(my_actions);
-rest_statements(my_actions);
-	      </JAVASCRIPT_TEST>
-	    </SNIPPET>
-</TEXT>
+parse("1; 2; 3;");
+	  </JAVASCRIPT>
+	  <JAVASCRIPT_OUTPUT>
+list("sequential_composition",
+     list("literal_value", 1),
+     list("sequential_composition",
+          list("literal_value", 2),
+          list("literal_value", 2)))
+	  </JAVASCRIPT_OUTPUT>
+	</SNIPPET>
+  </TEXT>
 
+  <SUBHEADING>
+    <NAME>Empty statement</NAME>
+  </SUBHEADING>
+
+  <TEXT>
+    The empty statement is
+    parsed as follows:
+    <LATEX>
+      \begin{eqnarray*}
+\ll \ \   \gg  &amp; = &amp; \texttt{list("empty_statement")}
+      \end{eqnarray*}
+    </LATEX>
+    The syntax predicate is
+    <JAVASCRIPTINLINE>is_empty_statement</JAVASCRIPTINLINE>.
+  </TEXT>
+
+  
   <SUBHEADING>
     <NAME>Blocks</NAME>
   </SUBHEADING>
@@ -1008,7 +982,7 @@ display(block_body(my_block));
 	  \texttt{list("return_statement",}\ \ll \textit{expression} \gg \texttt{)}
 	  \end{eqnarray*}
 	</LATEX>
-	The predicate is <JAVASCRIPTINLINE>is_return_statement</JAVASCRIPTINLINE>
+	The syntax predicate is <JAVASCRIPTINLINE>is_return_statement</JAVASCRIPTINLINE>
 	and the selector is <JAVASCRIPTINLINE>return_expression</JAVASCRIPTINLINE>.
 	    <SNIPPET PAGE="366" HIDE="yes">
 	      <NAME>return</NAME>
@@ -1061,7 +1035,6 @@ return_expression(my_return);
 	The symbol is wrapped in a tagged list representing the name and thus
 	<JAVASCRIPTINLINE>assignment_symbol</JAVASCRIPTINLINE> needs to
 	unwrap it.
-	<LATEXINLINE>$\textit{name}$</LATEXINLINE>
     <SNIPPET PAGE="369">
       <NAME>assignment</NAME>
       <REQUIRES>tagged_list</REQUIRES>
@@ -1318,7 +1291,7 @@ $\ll \textbf{\texttt{function}}\ \textit{name} \texttt{(}\textit{parameter}_1\te
 	<SNIPPET LATEX="yes" EVAL="no">
 	  <JAVASCRIPT>
 list("function_declaration",
-     $\ll \textit{name} \gg$)
+     $\ll \textit{name} \gg$,
      list($\ll \textit{parameter}_1 \gg $, ..., $\ll \textit{parameter}_n \gg$),
      $\ll \textit{block} \gg$)
 	  </JAVASCRIPT>
@@ -1329,35 +1302,16 @@ list("function_declaration",
      <JAVASCRIPTINLINE>function_declaration_name</JAVASCRIPTINLINE>,
      <JAVASCRIPTINLINE>function_declaration_parameters</JAVASCRIPTINLINE> and
      <JAVASCRIPTINLINE>function_declaration_body</JAVASCRIPTINLINE>.
-	We implement function declaration as a constant declaration whose
+	We implement a function declaration as a constant declaration whose
 	value expression is a lambda expression.<FOOTNOTE>In 
 	    actual JavaScript, there are two differences between the two
 	    forms; see footnote<SPACE/><REF NAME="foot:function-decl-vs-lambda"/>
 	    in chapter 1.
 	    Exercise<SPACE/><REF NAME="ex:hoisting"/> addresses these differences.
             </FOOTNOTE>
-	For example, we can reduce the problem of evaluating the
-	function declaration
-	<SNIPPET>
-	  <JAVASCRIPT>
-function g(x, y) {
-    const a = 1 + x * y;
-    return x * a * a + a * (1 - y);
-}
-	  </JAVASCRIPT>
-	</SNIPPET>
-	to the problem of evaluating the following constant declaration:
-	<SNIPPET>
-	  <JAVASCRIPT>
-const square = x => {
-                   const a = 1 + x * y;
-                   return x * a * a + a * (1 - y);
-               };
-	  </JAVASCRIPT>
-	</SNIPPET>
      The evaluator uses 
 	<JAVASCRIPTINLINE>function_decl_to_constant_decl</JAVASCRIPTINLINE>
-	to transform function declarations into constant declarations.
+	to transform a function declaration into a constant declaration.
 	<SNIPPET PAGE="373">
 	  <NAME>function_declaration</NAME>
 	  <JAVASCRIPT>
@@ -1465,7 +1419,7 @@ function operator_combination_second_operand(component) {
 	</SNIPPET>
 	The evaluator uses 
 	<JAVASCRIPTINLINE>operator_combination_to_application</JAVASCRIPTINLINE>
-	to transform operator combinations into function applications whose
+	to transform an operator combination into a function application whose
 	function expression is the name of the operator.
 	<SNIPPET PAGE="373">
 	  <NAME>operator_combination_to_application</NAME>
@@ -1576,7 +1530,7 @@ function operator_combination_to_application(component) {
 	  following the structure of <JAVASCRIPTINLINE>evaluate</JAVASCRIPTINLINE>
 	  (without the environment parameter), but producing a string that represents
 	  the given component, rather than evaluating it. Recall
-	  from section<SPACE/><REF NAME="sec:circuit-simulator"/> that the
+	  from section<SPACE/><REF NAME="sec:circuit-simulator"/> that 
 	  the operator <JAVASCRIPTINLINE>+</JAVASCRIPTINLINE> can be applied
 	  to two strings to concatenate them and that the primitive function
 	  <JAVASCRIPTINLINE>stringify</JAVASCRIPTINLINE> turns values such
@@ -1595,8 +1549,9 @@ function operator_combination_to_application(component) {
 	  blank <JAVASCRIPTINLINE>" "</JAVASCRIPTINLINE> 
 	  and newline <JAVASCRIPTINLINE>"\n"</JAVASCRIPTINLINE>  characters
 	  to the result string, to follow the indentation style used in the JavaScript
-	  programs of this book. The activity of adding/removing such characters
-	  to and from a program text is called <EM>pretty-printing</EM>.
+	  programs of this book. Adding whitespace characters to (or removing
+	  them from) a program text in order to make the text easier to read
+	  is called <EM>pretty-printing</EM>.
 	</LI>
        </OL>
       <LABEL NAME="ex:parse"/>
@@ -1772,12 +1727,14 @@ list("logical_composition",
 	<LABEL NAME="ex:extended-cond"/>
       </SCHEME>
       <JAVASCRIPT>
+	<OL>
+	  <LI>
 	In JavaScript, lambda expressions must not have duplicate parameters. The
 	<JAVASCRIPTINLINE>evaluate</JAVASCRIPTINLINE> function in
 	section<SPACE/><REF NAME="sec:core-of-evaluator"/> does not check for this.
 	<UL>
 	  <LI>
-	    Modify the <JAVASCRIPTINLINE>evaluate</JAVASCRIPTINLINE> function such
+	    Modify <JAVASCRIPTINLINE>evaluate</JAVASCRIPTINLINE> so
 	    that any attempt to apply a function with duplicate parameters
 	    raises an error.
 	  </LI>
@@ -1791,11 +1748,14 @@ list("logical_composition",
 	</UL>
 	In order to implement this check in an evaluator for JavaScript, which one
 	of these two approaches would you prefer? Why?
-	<P/>
-	The names declared in the body of a lambda expression outside of a block
-	must be distinct from each other, and also distinct from the names of
+	</LI>
+	<LI>
+	The names declared in the body of a lambda expression must be
+	distinct from the names of
 	the parameters of the lambda expression. Use your preferred approach
 	above to check for this as well.
+        </LI>
+        </OL>
       </JAVASCRIPT>
     </SPLIT>
   </EXERCISE>
@@ -1882,11 +1842,10 @@ list("logical_composition",
 	<JAVASCRIPTINLINE>let*</JAVASCRIPTINLINE>. We could approximate
 	the semantics of
 	<JAVASCRIPTINLINE>let*</JAVASCRIPTINLINE> in JavaScript by stipulating
-	that a
+	that a sequential composition whose first statement is a 
 	<JAVASCRIPTINLINE>let*</JAVASCRIPTINLINE> declaration implicitly
-	introduces a new block whose body includes the declaration and all
-	subsequent statements of the statement sequence in which the
-	declaration occurs. For example, the program
+	introduces a new block around the sequential composition.
+	For example, the program
 	<SNIPPET EVAL="no">
 	  <JAVASCRIPT>
 display(1);
@@ -1991,9 +1950,9 @@ display(1);
 	<LABEL NAME="ex:named-let"/>
       </SCHEME>
       <JAVASCRIPT>
-	The language JavaScript supports
+	JavaScript supports
 	<JAVASCRIPTINLINE>while</JAVASCRIPTINLINE> loops that execute a given
-	statement repeatedly. More specifically,
+	statement repeatedly.
 	<SNIPPET LATEX="yes">
 	  <JAVASCRIPT>
 while ($predicate$) { $body$ }
@@ -2001,7 +1960,7 @@ while ($predicate$) { $body$ }
 	</SNIPPET>
 	evaluates the <LATEXINLINE>$\textit{predicate}$</LATEXINLINE>, and
 	if the result is true, evaluates the
-	<LATEXINLINE>$\textit{body}$</LATEXINLINE>,
+	<LATEXINLINE>$\textit{body}$</LATEXINLINE>
 	and then evaluates
 	the whole <JAVASCRIPTINLINE>while</JAVASCRIPTINLINE> loop again.
 	Once the <LATEXINLINE>$\textit{predicate}$</LATEXINLINE> evaluates
@@ -2046,14 +2005,14 @@ list("while_loop", $\ll \textit{predicate} \gg$, $\ll \textit{block} \gg$)
     </BLOCKQUOTE>
     <OL>
 	  <LI>
-	    Declare a suitable syntax predicate and selectors to handle
+	    Declare a syntax predicate and selectors to handle
 	    <JAVASCRIPTINLINE>while</JAVASCRIPTINLINE> loops.
 	  </LI>
 	  <LI>
 	    Declare a function <JAVASCRIPTINLINE>while_loop</JAVASCRIPTINLINE>
 	    that takes as arguments a predicate and a
-	    body<EMDASH/>both represented by 
-	    functions of no arguments<EMDASH/>and simulates the behavior of the
+	    body<EMDASH/>each represented by a
+	    function of no arguments<EMDASH/>and simulates the behavior of the
 	    <JAVASCRIPTINLINE>while</JAVASCRIPTINLINE> loop. The
 	    <JAVASCRIPTINLINE>gcd</JAVASCRIPTINLINE> function would then
 	    look as follows:
@@ -2149,7 +2108,7 @@ function gcd(a, b) {
 	Another kind of loop available in JavaScript is the
 	<JAVASCRIPTINLINE>for</JAVASCRIPTINLINE> loop, which combines
 	an initialization, a predicate, an update statement, and a body in a single
-	construct. Similar to the <JAVASCRIPTINLINE>while</JAVASCRIPTINLINE>
+	construct. As for the <JAVASCRIPTINLINE>while</JAVASCRIPTINLINE>
 	loop, the body is repeatedly executed as long as the predicate holds. After
 	every execution, the update statement is evaluated. Here is a function
 	that reverses a list, using a <JAVASCRIPTINLINE>for</JAVASCRIPTINLINE>
@@ -2194,14 +2153,14 @@ list("for_loop",
     variable declaration and $\textit{update-statement}$ is an assignment.
 	<OL>
 	  <LI>
-	    Declare a suitable syntax predicate and selectors to handle
+	    Declare a syntax predicate and selectors to handle
 	    <JAVASCRIPTINLINE>for</JAVASCRIPTINLINE> loops.
 	  </LI>
 	  <LI>
 	    Following the approach for <JAVASCRIPTINLINE>while</JAVASCRIPTINLINE>
 	    loops in exercise<SPACE/><REF NAME="ex:while_loop"/>, first implement
 	    a function <JAVASCRIPTINLINE>for_loop</JAVASCRIPTINLINE> that takes
-	    as arguments four functions of no arguments, and simulates the
+	    as arguments four functions of no arguments and simulates the
 	    behavior of the <JAVASCRIPTINLINE>for</JAVASCRIPTINLINE> loop. Then
 	    install <JAVASCRIPTINLINE>for</JAVASCRIPTINLINE> loops as a
 	    derived component by defining a suitable transformation function
@@ -2278,24 +2237,29 @@ function reverse_functions(xs) {
 	<SCHEMEINLINE>apply</SCHEMEINLINE>.
       </SCHEME>
       <JAVASCRIPT>
+	The result of evaluating the body of a function is determined by
+	its return statements. 
 	Following up on footnotes<SPACE/><REF NAME="foot:value_producing"/>
-	and<SPACE/><REF NAME="foot:value_producing_2"/>,
+	and the evaluation of declaration and assignment in
+	section<SPACE/><REF NAME="sec:core-of-evaluator"/>,
 	this exercise addresses the question what should be the result of
-	evaluating a JavaScript program that consists of a sequence containing
+	evaluating a JavaScript program containing sequential compositions,
 	declarations, blocks, expression statements, conditional
 	statements and assignments <EM>outside of</EM> any function
-	body. For this, JavaScript
-	statically<FOOTNOTE>Here <QUOTE>statically</QUOTE> means that
+	body. For such a program, JavaScript
+	statically
+        distinguishes between <EM>value-producing</EM> and
+	<EM>non-value-producing statements</EM>.<FOOTNOTE>Here 
+	<QUOTE>statically</QUOTE> means that
 	we can make the distinction by <EM>inspecting</EM> the program
 	rather than by running it.</FOOTNOTE>
-        distinguishes between <EM>value-producing</EM> and
-	<EM>non-value-producing statements</EM>. All declarations are
+	All declarations are
 	non-value-producing, and all 
 	expression statements, conditional statements and assignments are
 	value-producing.
 	A block is value-producing if its body statement
 	is value-producing, and then its value is the value of its body
-	statement. A sequence is value-producing if any of
+	statement. A sequential composition is value-producing if any of
 	its component statements is value-producing, and then its value is
 	the value of its <EM>last</EM> value-producing component statement.
 	The value of an expression statement is the value of the expression.
@@ -2360,9 +2324,9 @@ function reverse_functions(xs) {
 	Eva Lu Ator is writing programs with blocks in which
 	function declarations and other statements appear interspersed.
 	She needs to take care that the declarations are evaluated before
-	the functions are being applied. She complains: <QUOTE>Why can't
+	the functions are applied. She complains: <QUOTE>Why can't
 	the evaluator take care of this chore, and move all function
-	declarations to beginning of the block in which they appear?</QUOTE>
+	declarations to the beginning of the block in which they appear?</QUOTE>
 	<OL>
 	  <LI>
 	    Modify the evaluator following Eva's suggestion.
