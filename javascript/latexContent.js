@@ -150,9 +150,27 @@ export const preamble = `\\documentclass[a4paper, 12pt]{book}
 }
 \\lstnewenvironment{JavaScript}{\\lstset{style=JavaScript,aboveskip=2.5ex,belowskip=1.8ex}}{}
 \\lstnewenvironment{JavaScriptClickable}{\\lstset{style=JavaScript,frame=leftline,aboveskip=2.5ex,belowskip=1.8ex,escapeinside={/*!}{!*/}}}{}
+
+\\lstdefinestyle{JavaScriptSmall}{
+   language=JavaScript,
+   basicstyle=\\linespread{1.0}\\fontsize{10}{11}\\selectfont\\ttfamily,
+   showstringspaces=false,
+   showspaces=false,
+   keepspaces=true,
+   fontadjust=true,
+   basewidth=0.55em,
+   mathescape=true,
+   framerule=0.5ex,
+   framesep=1em,
+   rulecolor=\\color{LeftBarClickable},
+   escapechar=^
+}
+\\lstnewenvironment{JavaScriptSmall}{\\lstset{style=JavaScriptSmall,aboveskip=2.5ex,belowskip=1.8ex}}{}
+\\lstnewenvironment{JavaScriptClickableSmall}{\\lstset{style=JavaScriptSmall,frame=leftline,aboveskip=2.5ex,belowskip=1.8ex,escapeinside={/*!}{!*/}}}{}
+
 \\lstdefinestyle{JavaScriptOutput}{
    language=JavaScript,
-   basicstyle=\\linespread{1.0}\\slshape,
+   basicstyle=\\linespread{1.0}\\fontsize{11}{12}\\slshape,
    showstringspaces=false,
    showspaces=false,
    keepspaces=true,
@@ -166,6 +184,23 @@ export const preamble = `\\documentclass[a4paper, 12pt]{book}
    escapechar=^
 }
 \\lstnewenvironment{JavaScriptOutput}{\\lstset{style=JavaScriptOutput,aboveskip=-0.5ex,belowskip=1.8ex}}{}
+
+\\lstdefinestyle{JavaScriptOutputSmall}{
+   language=JavaScript,
+   basicstyle=\\linespread{1.0}\\fontsize{10}{11}\\slshape,
+   showstringspaces=false,
+   showspaces=false,
+   keepspaces=true,
+   columns=fullflexible,
+   fontadjust=true,
+   basewidth=0.55em,
+   mathescape=true,
+   framerule=0.5ex,
+   framesep=1em,
+   rulecolor=\\color{LeftBarClickable},
+   escapechar=^
+}
+\\lstnewenvironment{JavaScriptOutputSmall}{\\lstset{style=JavaScriptOutputSmall,aboveskip=-0.5ex,belowskip=1.8ex}}{}
 
 \\usepackage{epigraph}
 \\renewcommand{\\textflush}{flushepinormal}

@@ -1,4 +1,5 @@
 import { sourceAcademyURL } from "../constants";
+import { ancestorHasTag } from "../utilityFunctions";
 import lzString from "lz-string";
 import {
   checkLongLineWarning,
@@ -82,9 +83,19 @@ export const processSnippetPdf = (node, writeTo) => {
     }
 
     if (node.getAttribute("EVAL") === "no") {
-      writeTo.push("\n\\begin{JavaScript}\n");
+      if (ancestorHasTag(node, "EXERCISE")) {
+        writeTo.push("\n\\begin{JavaScriptSmall}\n");
+      } else {
+        writeTo.push("\n\\begin{JavaScript}\n");
+      }
+
       writeTo.push(codeStr);
-      writeTo.push("\n\\end{JavaScript}\n");
+
+      if (ancestorHasTag(node, "EXERCISE")) {
+        writeTo.push("\\end{JavaScriptSmall}\n");
+      } else {
+        writeTo.push("\\end{JavaScript}\n");
+      }
     } else {
       let reqStr = "";
       let reqArr = [];
@@ -174,9 +185,20 @@ export const processSnippetPdf = (node, writeTo) => {
         lines[0];
 
       // writeTo.push("\n\\marginnote{\\href{" + url + "}{\\ensuremath{\\blacktriangleright}}}[2ex]" + "\\begin{JavaScriptClickable}\n");
-      writeTo.push("\\begin{JavaScriptClickable}\n");
+
+      if (ancestorHasTag(node, "EXERCISE")) {
+        writeTo.push("\n\\begin{JavaScriptClickableSmall}\n");
+      } else {
+        writeTo.push("\n\\begin{JavaScriptClickable}\n");
+      }
+
       writeTo.push(lines.join("\n"));
-      writeTo.push("\\end{JavaScriptClickable}\n");
+
+      if (ancestorHasTag(node, "EXERCISE")) {
+        writeTo.push("\\end{JavaScriptClickableSmall}\n");
+      } else {
+        writeTo.push("\\end{JavaScriptClickable}\n");
+      }
 
       // // 6 lines plus rest
       // writeTo.push(
@@ -199,9 +221,19 @@ export const processSnippetPdf = (node, writeTo) => {
   const jsOutputSnippet = node.getElementsByTagName("JAVASCRIPT_OUTPUT")[0];
 
   if (jsOutputSnippet) {
-    writeTo.push("\n\\begin{JavaScriptOutput}");
+    if (ancestorHasTag(node, "EXERCISE")) {
+      writeTo.push("\n\\begin{JavaScriptOutputSmall}\n");
+    } else {
+      writeTo.push("\n\\begin{JavaScriptOutput}\n");
+    }
+
     writeTo.push(jsOutputSnippet.firstChild.nodeValue.trimRight());
-    writeTo.push("\\end{JavaScriptOutput}");
+
+    if (ancestorHasTag(node, "EXERCISE")) {
+      writeTo.push("\\end{JavaScriptOutputSmall}\n");
+    } else {
+      writeTo.push("\\end{JavaScriptOutput}\n");
+    }
   }
 
   //  writeTo.push("\n\n");
