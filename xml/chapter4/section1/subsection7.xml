@@ -267,10 +267,8 @@ function analyze(component) {
         ? analyze_conditional(component)
         : is_lambda_expression(component)
         ? analyze_lambda_expression(component)
-        : is_sequential_composition(component)
-        ? analyze_sequential_composition(component)
-        : is_empty_statement(component)
-        ? env => undefined
+        : is_sequence(component)
+        ? analyze_sequence(sequence_statements(component))
         : is_block(component)
         ? analyze_block(component)
         : is_return_statement(component)
@@ -534,17 +532,22 @@ function analyze_lambda_expression(component) {
 
 
       <TEXT>
-	The two statements in a sequential composition
-	are analyzed, yielding execution
-	functions which 
+	Analysis of a sequence of
+	statements is more 
+	involved.<FOOTNOTE>See exercise<SPACE/><REF NAME="ex:analyze-sequence"/> for
+	some insight into the processing of sequences.</FOOTNOTE> Each
+	    statement
+	in the sequence is analyzed, yielding an execution
+	function. These execution functions
 	are combined to produce an execution
-	function for the composition. The second function
-	is not called when the first one yields a return value.
+	function that takes an environment as argument and sequentially
+	calls each individual execution
+	function with the environment as argument.
 	<SNIPPET HIDE="yes">
 	  <NAME>analyze_sequence_example</NAME>
 	  <REQUIRES>analyze</REQUIRES>
 	  <JAVASCRIPT>
-analyze_sequential_composition(parse("10; 20; 30;"))
+analyze_sequence(sequence_statements(parse("10; 20; 30;")))
    (the_global_environment);	
 	  </JAVASCRIPT>
 	</SNIPPET>
@@ -553,15 +556,26 @@ analyze_sequential_composition(parse("10; 20; 30;"))
 	  <EXAMPLE>analyze_sequence_example</EXAMPLE>
 	  <EXPECTED>30</EXPECTED>
 	  <JAVASCRIPT>
-function analyze_sequential_composition(component) {
-    const fun1 = analyze(first_statement(component);
-    const fun2 = analyze(second_statement(component);
-    return env => {
-               const fun1_val = fun1(env);
-               return is_return_value(fun1_val)
-                      ? fun1_val
-                      : fun2(env);
-           };
+function analyze_sequence(stmts) {
+    function sequentially(fun1, fun2) {
+        return env => {
+            const fun1_val = fun1(env);
+            return is_return_value(fun1_val)
+                   ? fun1_val
+                   : fun2(env);
+        };
+    }
+    function loop(first_fun, rest_funs) {
+        return is_null(rest_funs)
+               ? first_fun
+               : loop(sequentially(first_fun,
+                          head(rest_funs)),
+                      tail(rest_funs));
+    }
+    const funs = map(analyze, stmts);
+    return is_null(funs) 
+           ? env => undefined
+           : loop(head(funs), tail(funs));
 }
 	  </JAVASCRIPT>
 	</SNIPPET>
@@ -713,7 +727,7 @@ function analyze_declaration(component) {
   <SPLIT>
     <SCHEME>
       <TEXT>
-	For <SCHEMEINLINE>if</SCHEMEINLINE>expressions,
+	For <SCHEMEINLINE>if</SCHEMEINLINE> expressions,
 	we extract and analyze the predicate, consequent, and alternative at
 	analysis time.
 	<SNIPPET EVAL="no">
@@ -901,8 +915,6 @@ function analyze_declaration(component) {
     </SPLIT>
   </EXERCISE>
 
-  <SPLIT>
-    <SCHEME>
   <EXERCISE>
     <!--  \indcode{analyze-...}[metacircular] -->
     Alyssa P. Hacker doesn<APOS/>t understand why
@@ -1029,8 +1041,6 @@ function analyze_sequence(stmts) {
     for a sequence with two expressions?
     <LABEL NAME="ex:analyze-sequence"/>
   </EXERCISE>
-    </SCHEME>
-  </SPLIT>
   
   <EXERCISE>
     <LABEL NAME="ex:meta_speed"/>
