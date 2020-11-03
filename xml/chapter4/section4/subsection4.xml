@@ -3081,14 +3081,14 @@ function query_process(exp) {
     if (is_application(exp)) {
       const function_symbol = 
         symbol_of_name(function_expression(exp));
-      const processed_args = map(query_process, args(exp));
+      const processed_args = map(query_process, arg_expressions(exp));
       return function_symbol === "pair"
         ? pair(head(processed_args), head(tail(processed_args)))
         : function_symbol === "list"
         ? processed_args
         : function_symbol === "javascript_value"
         ? pair(function_symbol,
-               map(javascript_value_process, args(exp)))
+               map(javascript_value_process, arg_expressions(exp)))
         : pair(function_symbol, processed_args);
     } else if (is_name(exp)) {
       return list("?", symbol_of_name(exp));
@@ -3119,7 +3119,7 @@ function query_process(exp) {
 function javascript_value_process(exp) {
     return is_application(exp)
         ? list("application", function_expression(exp),
-               map(javascript_value_process, args(exp)))
+               map(javascript_value_process, arg_expressions(exp)))
         : is_name(exp)
         ? list("?", symbol_of_name(exp))
         : exp;
@@ -3253,45 +3253,6 @@ function make_new_variable(variable, rule_application_id) {
 	    <REQUIRES>functions_4_1_2</REQUIRES>
 	    <EXAMPLE>append_to_form_example_5</EXAMPLE>
 	    <JAVASCRIPT>
-function unparse_query(query) {
-    return unparse(head(query), 
-                  tail(query), 
-                  is_null(member(head(query),
-                                 list("and", "or", "not", 
-                                      "assert", "rule")))
-                  ? unparse_term
-                  : unparse_query);
-}
-function is_list(xs) { return is_null(xs) || is_list(tail(xs)); }		  
-function unparse_term(arg) {
-    return is_null(arg)
-        ? "null"
-        : is_list(arg) &amp;&amp; head(arg) === "?"
-	? contract_question_mark(arg)
-	: is_list(arg) &amp;&amp;        // exclude pair(.., pair("?", null))
-          (is_null(tail(arg)) || head(tail(arg)) !== "?")
-        ? unparse("list", arg, unparse_term))
-        : is_pair(arg)
-        ? unparse("pair", list(head(arg), tail(arg)), unparse_term)
-	: is_string(arg)
-        ? "'" + arg + "'"
-	: stringify(arg);
-}
-function unparse(string, args, unparse_arg) {	
-    return string + "(" + comma_separated(map(unparse_arg, args)) + ")";
-}
-function comma_separated(strings) {
-    return accumulate((s, acc) => s + (acc === "" ? "" : ", " + acc),
-                      "", strings);
-}
-function contract_question_mark(variable) {
-    return is_number(head(tail(variable)))
-        ? head(tail(tail(variable))) + 
-          "_" + stringify(head(tail(variable)))
-        : head(tail(variable));
-}
-	    </JAVASCRIPT>
-	    <JAVASCRIPT_RUN>
 function contract_question_mark(variable) {
     return is_number(head(tail(variable)))
         ? head(tail(tail(variable))) + "_" + stringify(head(tail(variable)))
@@ -3311,11 +3272,11 @@ function unparse_term(arg) {
           (is_null(tail(arg)) || head(tail(arg)) !== "?")
         ? (head(arg) === "?"
            ? contract_question_mark(arg)
-           : (is_application(arg) &amp;&amp;
-             is_name(function_expression(arg)))
-           ? "(" + unparse_term(head(args(arg))) + 
+           : is_application(arg)
+             // can assume function_expression(arg) is name
+           ? "(" + unparse_term(head(arg_expressions(arg))) + 
              " " + symbol_of_name(function_expression(arg)) + 
-             " " + unparse_term(head(tail(args(arg)))) +
+             " " + unparse_term(head(tail(arg_expressions(arg)))) +
              ")"
            : unparse("list", arg, unparse_term))
         : is_pair(arg)
@@ -3330,7 +3291,7 @@ function unparse_query(query) {
         ? unparse(head(query), tail(query), unparse_term)
         : unparse(head(query), tail(query), unparse_query);
 }
-	    </JAVASCRIPT_RUN>
+	    </JAVASCRIPT>
 	  </SNIPPET>
 	</JAVASCRIPT>
       </SPLIT>
