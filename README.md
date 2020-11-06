@@ -1,4 +1,4 @@
-# SICP JavaScript Adaptation
+# SICP JavaScript Adaptation 
 
 This repository contains the sources for the textbook SICP JS: Structure and Interpretation of Computer Programs, Second Edition, JavaScript Adaptation. See Preface of JavaScript adaptation for background:
 https://source-academy.github.io/sicp
