@@ -61,6 +61,7 @@ export const generateImage = imagePath => {
     "\\includegraphics[scale=0.8]{{" +
     imagePath
       .replace(/\.gif$/, ".png")
+      .replace(/\.svg$/, ".svg.pdf")
       .replace(/\.(?=[^.]*$)/, "}.")
       .replace(/_/g, "\\string_") +
     "}}"
