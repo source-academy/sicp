@@ -41,6 +41,7 @@ const tagsToRemoveDefault = new Set([
   "COMMENT",
   "WEB_ONLY",
   "PDF_ONLY",
+  "MITPRESS_ONLY",
   "EDIT",
   "EXCLUDE",
   "HISTORY",
@@ -60,6 +61,7 @@ const ignoreTagsDefault = new Set([
   "NOBR",
   "SPLIT",
   "SPLITINLINE",
+  "MITPRESS_IGNORE",
   "JAVASCRIPT"
 ]);
 
@@ -463,6 +465,12 @@ const processTextFunctionsSplit = {
 
   PDF_ONLY: (node, writeTo) => {
     writeTo.push("<div class='pdfonly'>");
+    recursiveProcessTextHtml(node.firstChild, writeTo);
+    writeTo.push("</div>");
+  },
+
+  MITPRESS_ONLY: (node, writeTo) => {
+    writeTo.push("<div class='mitpress'>");
     recursiveProcessTextHtml(node.firstChild, writeTo);
     writeTo.push("</div>");
   },

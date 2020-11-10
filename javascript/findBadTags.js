@@ -47,6 +47,8 @@ const validTags = new Set([
   "COMMENT",
   "WEB_ONLY",
   "PDF_ONLY",
+  "MITPRESS_ONLY",
+  "MITPRESS_IGNORE",
   "EDIT",
   "EXCLUDE",
   "HISTORY",

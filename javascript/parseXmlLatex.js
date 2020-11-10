@@ -48,6 +48,14 @@ const processTextFunctionsDefaultLatex = {
     recursiveProcessTextLatex(node.firstChild, writeTo);
   },
 
+  MITPRESS: (node, writeTo) => {
+    recursiveProcessTextLatex(node.firstChild, writeTo);
+  },
+
+  MITPRESS_IGNORE: (node, writeTo) => {
+    /// TODO: TAG SHOULD BE IGNORED ONLY WHEN BUILDING WITH YARN MIT
+  },
+
   "#text": (node, writeTo) => {
     const trimedValue = node.nodeValue
       .replace(/[\r\n]+/, " ")
