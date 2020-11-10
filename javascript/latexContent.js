@@ -49,6 +49,7 @@ export const preamble = `\\documentclass[a4paper, 12pt]{book}
 \\usepackage{csquotes}
 \\usepackage[shortlabels]{enumitem}
 \\setlist{noitemsep}
+\\setlist[itemize]{leftmargin=1em}
 \\setlist[itemize,1]{label={--}}
 \\usepackage{etoolbox}
 \\usepackage{float}
