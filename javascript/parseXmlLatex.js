@@ -232,21 +232,21 @@ const processTextFunctionsDefaultLatex = {
   CHAPTER: (node, writeTo) => {
     writeTo.push("\\chapter{");
     addName(node, writeTo);
-    writeTo.push("\\pagestyle{main}%\n");
+    writeTo.push("\\pagestyle{plain}%\n");
     recursiveProcessTextLatex(node.firstChild, writeTo);
   },
 
   SECTION: (node, writeTo) => {
     writeTo.push("\\section{");
     addName(node, writeTo);
-    writeTo.push("\\pagestyle{section}%\n");
+    writeTo.push("\\pagestyle{fancy}%\n");
     recursiveProcessTextLatex(node.firstChild, writeTo);
   },
 
   SUBSECTION: (node, writeTo) => {
     writeTo.push("\\subsection{");
     addName(node, writeTo);
-    writeTo.push("\\pagestyle{subsection}%\n");
+    writeTo.push("\\pagestyle{fancy}%\n");
     recursiveProcessTextLatex(node.firstChild, writeTo);
   },
 

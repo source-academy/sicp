@@ -2,7 +2,7 @@ import { adapters, adapters_with, authors, authors_with } from "constants";
 
 const title = `\\begin{titlepage}
   \\centering
-\\textbf{Generated: \\DTMnow}\\\\[1em]
+\\textbf{Generated: \DTMnow}\\\\[1em]
   \\includegraphics[width=0.6\\textwidth]{./sicp.png}\\par
   {\\LARGE\\bfseries Structure and Interpretation of Computer
   Programs, Second Edition\\\\}
@@ -29,22 +29,18 @@ const title = `\\begin{titlepage}
 \\pagestyle{main}
 `;
 
-export const preamble = `\\documentclass[a4paper, 12pt]{book}
+export const preamble = `\\documentclass[7x9wide]{../mitpress/times}
+
 \\usepackage[T1]{fontenc}
 \\usepackage[utf8]{inputenc}
 \\DeclareUnicodeCharacter{1F00}{-}
-\\usepackage{libertine}
-\\usepackage[libertine]{newtxmath}
-\\usepackage[mono,extrasp=0em,scale=0.92]{inconsolata}
-\\usepackage[sf,bf,big,raggedright,nobottomtitles]{titlesec}
+\\usepackage[bf,big,raggedright,nobottomtitles]{titlesec}
 \\usepackage[british]{babel}
 \\usepackage[multidot]{grffile}
-\\usepackage[activate={true,nocompatibility},final,tracking=true,kerning=true,spacing=true,factor=1100,stretch=10,shrink=10]{microtype}
 
-\\usepackage{adjustbox}
+\\newcommand{\\maxsizebox}[3]{#3}
 \\usepackage{amsmath}
-\\usepackage{needspace}
-%\\usepackage{amssymb}
+\\usepackage{amssymb}
 \\usepackage{cprotect}
 \\usepackage{csquotes}
 \\usepackage[shortlabels]{enumitem}
@@ -52,43 +48,69 @@ export const preamble = `\\documentclass[a4paper, 12pt]{book}
 \\setlist[itemize,1]{label={--}}
 \\usepackage{etoolbox}
 \\usepackage{float}
-\\renewcommand{\\topfraction}{0.9}
-\\usepackage[margin=2.54cm]{geometry}
 \\usepackage{imakeidx}
 \\usepackage{subcaption}
 \\usepackage{underscore}
-%\\usepackage{parskip}
+\\usepackage{parskip}
+\\usepackage{needspace}
+\\usepackage{fancyhdr}
 \\usepackage{datetime2}
 
-\\usepackage{setspace}
-\\onehalfspacing
+\\renewcommand{\\chaptermark}[1]{ \\markboth{#1}{} }
+\\renewcommand{\\sectionmark}[1]{ \\markright{#1} }
 
-\\setlength{\\parskip}{0pt}
-\\setlength{\\parindent}{15pt}%
+\\fancyhf{}
+\\fancyhead[LE,RO]{\\thepage}
+\\fancyhead[RE]{\\textit{ \\nouppercase{\\upshape{\\leftmark}} }}
+\\fancyhead[LO]{\\textit{ \\nouppercase{\\upshape{\\rightmark}} }}
+
+\\fancypagestyle{plain}{ %
+  \\fancyhf{} % remove everything
+  \\renewcommand{\\headrulewidth}{0pt} % remove lines as well
+  \\renewcommand{\\footrulewidth}{0pt}
+}
+
+\\renewcommand{\\headrulewidth}{0pt}
+\\renewcommand{\\footrulewidth}{0pt}
+
+\\newcommand{\\thetitle}{Structure and Interpretation of Computer Programs -- JavaScript Adaptation}
+\\newcommand{\\theauthor}{
+  \\begin{minipage}{1.0\\linewidth}
+  {Martin Henz and Tobias Wrigstad \\\\}
+  {with Chan Ger Hean, He Xinyue, Liu Hang, \\\\ Feng Piaopiao, Jolyn Tan and Wang Qian \\\\
+   — \\textit{adapters to JavaScript}\\par}
+  \\vspace{0.5cm}
+  {\\textit{original textbook by} \\\\}
+  {Harold Abelson and Gerald Jay Sussman \\\\}
+  {with Julie Sussman \\par}
+  \\end{minipage}
+}
 
 \\setcounter{secnumdepth}{5}
 
-\\usepackage{titleps}
-\\newpagestyle{main}{
-  \\sethead{}{}{}
-  \\setfoot{}{\\thepage}{\\footnotesize Generated \\DTMnow}
-}
-\\newpagestyle{section}{
-  \\setheadrule{0pt}
-  \\sethead{\\chaptertitle}
-    {} 
-    {\\thesection}
-  \\setfoot{}{\\thepage}{\\footnotesize Generated \\DTMnow}
-}
-\\newpagestyle{subsection}{
-  \\setheadrule{0pt}
-  \\sethead{\\chaptertitle}
-    {} 
-    {\\thesubsection}
-  \\setfoot{}{\\thepage}{\\footnotesize Generated \\DTMnow}
-}
+\\newenvironment{singlespace}{}{}
 
-\\usepackage{graphicx}
+    \\makeatletter
+    \\def\\ps@main{%
+       \\let\\@oddhead\\@empty%
+       \\let\\@evenhead\\@empty%
+       \\def\\@oddfoot{\\reset@font\\hfil\\thepage}%
+       \\def\\@evenfoot{\\reset@font\\thepage\\hfil}%
+    }
+    \\def\\ps@section{%
+       \\let\\@oddhead\\@empty%
+       \\let\\@evenhead\\@empty%
+       \\def\\@oddfoot{\\reset@font\\hfil\\thepage}%
+       \\def\\@evenfoot{\\reset@font\\thepage\\hfil}%
+    }
+    \\def\\ps@subsection{%
+       \\let\\@oddhead\\@empty%
+       \\let\\@evenhead\\@empty%
+       \\def\\@oddfoot{\\reset@font\\hfil\\thepage}%
+       \\def\\@evenfoot{\\reset@font\\thepage\\hfil}%
+    }
+    \\makeatother
+
 \\graphicspath{ {../static/} }
 
 \\usepackage[answerdelayed]{exercise}
@@ -131,12 +153,11 @@ export const preamble = `\\documentclass[a4paper, 12pt]{book}
    escapechar=^
 }
 
-\\usepackage[svgnames]{xcolor}
 \\definecolor{LeftBarClickable}{RGB}{187, 187, 187}
 
 \\lstdefinestyle{JavaScript}{
    language=JavaScript,
-   basicstyle=\\linespread{1.0}\\fontsize{11}{12}\\selectfont\\ttfamily,
+   basicstyle=\\linespread{1.0}\\ttfamily,
    showstringspaces=false,
    showspaces=false,
    keepspaces=true,
@@ -153,7 +174,7 @@ export const preamble = `\\documentclass[a4paper, 12pt]{book}
 
 \\lstdefinestyle{JavaScriptSmall}{
    language=JavaScript,
-   basicstyle=\\linespread{1.0}\\fontsize{10}{11}\\selectfont\\ttfamily,
+   basicstyle=\\linespread{1.0}\\ttfamily,
    showstringspaces=false,
    showspaces=false,
    keepspaces=true,
@@ -170,7 +191,7 @@ export const preamble = `\\documentclass[a4paper, 12pt]{book}
 
 \\lstdefinestyle{JavaScriptOutput}{
    language=JavaScript,
-   basicstyle=\\linespread{1.0}\\fontsize{11}{12}\\slshape,
+   basicstyle=\\linespread{1.0}\\slshape,
    showstringspaces=false,
    showspaces=false,
    keepspaces=true,
@@ -187,7 +208,7 @@ export const preamble = `\\documentclass[a4paper, 12pt]{book}
 
 \\lstdefinestyle{JavaScriptOutputSmall}{
    language=JavaScript,
-   basicstyle=\\linespread{1.0}\\fontsize{10}{11}\\slshape,
+   basicstyle=\\linespread{1.0}\\slshape,
    showstringspaces=false,
    showspaces=false,
    keepspaces=true,
@@ -202,8 +223,8 @@ export const preamble = `\\documentclass[a4paper, 12pt]{book}
 }
 \\lstnewenvironment{JavaScriptOutputSmall}{\\lstset{style=JavaScriptOutputSmall,aboveskip=-2.5ex,belowskip=1.8ex}}{}
 
-\\usepackage{epigraph}
-\\renewcommand{\\textflush}{flushepinormal}
+% \\usepackage{epigraph}
+% \\renewcommand{\\textflush}{flushepinormal}
 % \\makeatletter
 % \\newlength\\interepigraphskip
 % \\setlength\\interepigraphskip{1ex}
@@ -213,8 +234,8 @@ export const preamble = `\\documentclass[a4paper, 12pt]{book}
 %     \\end{minipage}\\end{\\epigraphflush}
 %     \\vspace{\\afterepigraphskip}}}
 % \\makeatother
-\\setlength\\epigraphwidth{11cm}
-\\setlength\\epigraphrule{0pt}
+% \\setlength\\epigraphwidth{11cm}
+% \\setlength\\epigraphrule{0pt}
 
 \\usepackage[colorlinks=true, urlcolor=blue, linkcolor=blue, citecolor=blue]{hyperref}
 
