@@ -39,7 +39,7 @@ export const preamble = `\\documentclass[a4paper, 12pt]{book}
 \\usepackage[sf,bf,big,raggedright,nobottomtitles]{titlesec}
 \\usepackage[british]{babel}
 \\usepackage[multidot]{grffile}
-\\usepackage[activate={true,nocompatibility},final,tracking=true,kerning=true,spacing=true,factor=1100,stretch=10,shrink=10]{microtype}
+\\usepackage[activate={true,nocompatibility},final,tracking=true,kerning=true,spacing=false,factor=1100,stretch=10,shrink=10]{microtype}
 
 \\usepackage{adjustbox}
 \\usepackage{amsmath}
