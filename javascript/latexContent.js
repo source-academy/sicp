@@ -56,13 +56,13 @@ export const preamble = `\\documentclass[7x9wide]{../mitpress/times}
 \\usepackage{fancyhdr}
 \\usepackage{datetime2}
 
-\\renewcommand{\\chaptermark}[1]{ \\markboth{#1}{} }
-\\renewcommand{\\sectionmark}[1]{ \\markright{#1} }
+\\renewcommand{\\chaptermark}[1]{\\markboth{#1}{}}
+\\renewcommand{\\sectionmark}[1]{\\markright{#1}}
 
 \\fancyhf{}
 \\fancyhead[LE,RO]{\\thepage}
-\\fancyhead[RE]{\\textit{ \\nouppercase{\\upshape{\\leftmark}} }}
-\\fancyhead[LO]{\\textit{ \\nouppercase{\\upshape{\\rightmark}} }}
+\\fancyhead[RE]{\\textit{\\nouppercase{\\upshape{\\leftmark}}}}
+\\fancyhead[LO]{\\textit{\\nouppercase{\\upshape{\\rightmark}}}}
 
 \\fancypagestyle{plain}{ %
   \\fancyhf{} % remove everything

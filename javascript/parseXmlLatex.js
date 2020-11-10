@@ -232,7 +232,7 @@ const processTextFunctionsDefaultLatex = {
   CHAPTER: (node, writeTo) => {
     writeTo.push("\\chapter{");
     addName(node, writeTo);
-    writeTo.push("\\pagestyle{plain}%\n");
+    writeTo.push("\\thispagestyle{plain}%\n");
     recursiveProcessTextLatex(node.firstChild, writeTo);
   },
 
