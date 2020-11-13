@@ -61,6 +61,11 @@ export const preamble = `\\documentclass[a4paper, 12pt]{book}
 %\\usepackage{parskip}
 \\usepackage{datetime2}
 
+\\def\\normalcodesize{\\fontsize{9.8}{11pt}\\selectfont}
+\\def\\exercisecodesize{\\fontsize{9}{10pt}\\selectfont}
+\\def\\figurecodesize{\\fontsize{8.7}{10pt}\\selectfont}
+\\def\\footnotecodesize{\\fontsize{8}{9pt}\\selectfont}
+
 \\usepackage{setspace}
 \\onehalfspacing
 
