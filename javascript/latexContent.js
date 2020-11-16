@@ -2,7 +2,7 @@ import { adapters, adapters_with, authors, authors_with } from "constants";
 
 const title = `\\begin{titlepage}
   \\centering
-\\textbf{Generated: \DTMnow}\\\\[1em]
+\\textbf{Generated: \\DTMnow}\\\\[1em]
   \\includegraphics[width=0.6\\textwidth]{./sicp.png}\\par
   {\\LARGE\\bfseries Structure and Interpretation of Computer
   Programs, Second Edition\\\\}
@@ -29,12 +29,12 @@ const title = `\\begin{titlepage}
 \\pagestyle{main}
 `;
 
-export const preamble = `\\documentclass[7x9wide]{../mitpress/times}
+export const preamble = `\\documentclass[6x9]{../mitpress/times}
 
 \\usepackage[T1]{fontenc}
 \\usepackage[utf8]{inputenc}
 \\DeclareUnicodeCharacter{1F00}{-}
-\\usepackage[bf,big,raggedright,nobottomtitles]{titlesec}
+\\usepackage[big,raggedright,nobottomtitles]{titlesec}
 \\usepackage[british]{babel}
 \\usepackage[multidot]{grffile}
 
@@ -85,6 +85,36 @@ export const preamble = `\\documentclass[7x9wide]{../mitpress/times}
   {with Julie Sussman \\par}
   \\end{minipage}
 }
+
+
+\\usepackage{lmodern}
+\\SetMathAlphabet{\\mathbf}{normal}{OT1}{cmr}{b}{n}
+
+\\titleformat*{\\section}{\\fontseries{b}\\selectfont}
+\\titlespacing*{\\section}{0pt}{1em}{1em}
+
+\\titleformat{\\subsection}{\\fontseries{b}\\selectfont}{\\thesubsection}{1em}{}
+\\titlespacing*{\\subsection}{0pt}{1em}{1ex}
+
+\\titleformat*{\\subsubsection}{\\fontseries{b}\\selectfont}
+
+\\renewcommand{\\chaptermark}[1]{\\markboth{#1}{}}
+\\renewcommand{\\sectionmark}[1]{\\markright{#1}}
+
+
+\\newcommand{\\normalprose}{}
+\\newcommand{\\normalcode}{}
+\\newcommand{\\footntoeprose}{}
+\\newcommand{\\footntoecode}{}
+\\newcommand{\\exerciseprose}{}
+\\newcommand{\\exercisecode}{}
+
+% \\def\\normalcodesize{\\fontsize{9.8}{11pt}\\selectfont}
+% \\def\\exercisecodesize{\\fontsize{9}{10pt}\\selectfont}
+% \\def\\figurecodesize{\\fontsize{8.7}{10pt}\\selectfont}
+% \\def\\footnotecodesize{\\fontsize{8}{9pt}\\selectfont}
+
+\\newenvironment{exercise}{\\begin{small}}{\\end{small}}
 
 \\setcounter{secnumdepth}{5}
 
@@ -251,6 +281,8 @@ export const preamble = `\\documentclass[7x9wide]{../mitpress/times}
 % to avoid spurious white space around index entries
 \\let\\oldindex\\index
 \\renewcommand*{\\index}[1]{\\oldindex{#1}\\ignorespaces\\ignorespacesafterend}
+
+\\renewcommand{\\bfdefault}{b}
 
 \\begin{document}
 

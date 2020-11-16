@@ -85,7 +85,7 @@ const processTextFunctionsDefaultLatex = {
   MATTER: (node, writeTo) => processTextFunctionsLatex["ABOUT"](node, writeTo),
 
   B: (node, writeTo) => {
-    writeTo.push("\\textbf{");
+    writeTo.push("{\\fontseries{b}\\selectfont ");
     recursiveProcessTextLatex(node.firstChild, writeTo);
     writeTo.push("}");
   },
