@@ -164,23 +164,22 @@
       <SUBINDEX>internal <SCHEMEINLINE>define</SCHEMEINLINE></SUBINDEX></INDEX>
 
       <TEXT>
-	Our environment model of evaluation
-	(section<SPACE/><REF NAME="sec:env-internal-def"/>)
-	and our metacircular evaluator
-	(section<SPACE/><REF NAME="sec:core-of-evaluator"/>) evaluate 
-	blocks by extending an environment with bindings for the
-	local names that occur in the body of the block. Initially,
-	the names refer to the special value
-	<JAVASCRIPTINLINE>"*unassigned*"</JAVASCRIPTINLINE>, but evaluation of
-	their declaration statement assigns them to their proper values. Correct
-	JavaScript programs never attempt to access the value of a name before
-	its declaration has been evaluated. In this section, we explore
-	alternative solutions to the problem of local declarations in programming
-	languages.
+	Our metacircular evaluator
+	of section<SPACE/><REF NAME="sec:core-of-evaluator"/> evaluates
+	blocks by scanning out the declarations in the block and by
+	extending the current environment with bindings for the scanned-out names.
+	Initially, these names refer to the value
+	<JAVASCRIPTINLINE>"*unassigned*"</JAVASCRIPTINLINE>, but the evaluation of
+	their respective declaration statements assigns them to their proper values.
+	This section takes a closer look at this design and discusses alternatives
+	in exercises.
       </TEXT>
-
       <TEXT>
-	Consider a function with internal declarations, such as
+	Consider a pair of functions
+	<JAVASCRIPTINLINE>is_even</JAVASCRIPTINLINE> and
+	<JAVASCRIPTINLINE>is_odd</JAVASCRIPTINLINE>
+	declared locally
+	in the body of a function<SPACE/><JAVASCRIPTINLINE>f</JAVASCRIPTINLINE>.
 	<SNIPPET LATEX="yes">
 	  <JAVASCRIPT>
 function f(x) {
@@ -204,7 +203,7 @@ function f(x) {
 	should refer to the function <JAVASCRIPTINLINE>is_odd</JAVASCRIPTINLINE>
 	that is declared after <JAVASCRIPTINLINE>is_even</JAVASCRIPTINLINE>.
 	The scope of the name <JAVASCRIPTINLINE>is_odd</JAVASCRIPTINLINE> is the
-	body block of <SCHEMEINLINE>f</SCHEMEINLINE>, not just the portion of
+	entire body block of <SCHEMEINLINE>f</SCHEMEINLINE>, not just the portion of
 	the body of <SCHEMEINLINE>f</SCHEMEINLINE> starting at the point where
 	the declaration of <JAVASCRIPTINLINE>is_odd</JAVASCRIPTINLINE>
 	occurs. Indeed, when we consider that
@@ -221,56 +220,30 @@ function f(x) {
 	in which the declaration is evaluated.
       </TEXT>
       <TEXT>
-	The evaluator in section<SPACE/><REF NAME="sec:core-of-evaluator"/>
-	finds all locally declared names of a block using
-	<JAVASCRIPTINLINE>scan_out_declarations</JAVASCRIPTINLINE>,
-	and binds them to the value
-	<JAVASCRIPTINLINE>"*unassigned*"</JAVASCRIPTINLINE>,
-	whenever the block is
-	evaluated. For lambda expressions with local declarations, we can achieve
-	the same effect by transforming their bodies into
-	immediately invoked lambda expressions
-	(see section<SPACE/><REF NAME="sec:env-local-state"/>). For example,
-	the lambda expression
-	<SNIPPET EVAL="no" LATEX="yes">
-	  <JAVASCRIPT>
-( $params$ ) => {
-    let u = $e_1$;
-    let v = $e_2$;
-    $statements$
-}
-	  </JAVASCRIPT>
-	</SNIPPET>
-	would be transformed into
-	<SNIPPET EVAL="no" LATEX="yes">
-	  <JAVASCRIPT>
-( $params$ ) => {
-    return ( (u, v) => {
-               u = $e_1$;
-               v = $e_2$;
-               $statements$
-           })("*unassigned*", "*unassigned*");
-}
-	  </JAVASCRIPT>
-	</SNIPPET>
-      </TEXT>
-
-      <TEXT>
-	An alternative strategy for scanning out internal
-	declarations is shown in
-	exercise<SPACE/><REF NAME="ex:alternative-scanout"/>. Unlike the
-	transformation shown above, this enforces the restriction that the
-	declared names<APOS/> values can be evaluated without using any of the
-	names<APOS/> values.
-	<INDEX>internal definition<SUBINDEX>scope of name|)</SUBINDEX></INDEX>
+	We can see the evaluation of blocks in
+	section<SPACE/><REF NAME="sec:core-of-evaluator"/> as a technique to achieve a
+	truly simultaneous scope for local names. The local names
+	<JAVASCRIPTINLINE>is_even</JAVASCRIPTINLINE> and
+	<JAVASCRIPTINLINE>is_odd</JAVASCRIPTINLINE>
+	initially refer to
+	<JAVASCRIPTINLINE>"*unassigned*"</JAVASCRIPTINLINE> and get bound to
+	their proper function values one by one as the evaluation of the sequence of
+	statements in the body of
+	<JAVASCRIPTINLINE>f</JAVASCRIPTINLINE> proceeds. This does not pose a problem,
+	even in the presence of (mutual) recursion, because the evaluation of the function
+	declarations does not evaluate their bodies. By the time any of the locally
+	declared functions get applied (later in the body of
+	<JAVASCRIPTINLINE>f</JAVASCRIPTINLINE>)
+	and as a result their bodies get evaluated,
+	all declarations have been evaluated.
       </TEXT>
     </JAVASCRIPT>
   </SPLIT>
 
-  <EXERCISE>
-    <LABEL NAME="ex:internal-defs"/>
     <SPLIT>
       <SCHEME>
+  <EXERCISE>
+    <LABEL NAME="ex:internal-defs"/>
 	In this exercise we implement the method just described for interpreting
 	internal definitions.
 	We assume that the evaluator supports <SCHEMEINLINE>let</SCHEMEINLINE>
@@ -297,31 +270,9 @@ function f(x) {
 	    Which place is better? Why?
 	  </LI>
 	</OL>
-      </SCHEME>
-      <JAVASCRIPT>
-	In this exercise we implement the method just described for interpreting
-	internal declarations of lambda expressions
-	as syntactic sugar for immediately invoked
-	functions that carry out assignments.
-	<OL>
-	  <LI>
-	    <!--  \indcode{scan-out-defines} -->
-	    Write a function
-	    <JAVASCRIPTINLINE>transform_lambda</JAVASCRIPTINLINE>
-	    that transforms any lambda expression as shown above.
-	  </LI>
-	  <LI>
-	    Install <JAVASCRIPTINLINE>transform_lambda</JAVASCRIPTINLINE>
-	    in the evaluator.
-	  </LI>
-	</OL>
-      </JAVASCRIPT>
-    </SPLIT>
   </EXERCISE>
 
   <EXERCISE>
-    <SPLIT>
-      <SCHEME>
 	Draw diagrams of the environment in effect when evaluating the
 	expression <LATEXINLINE>e3</LATEXINLINE> in the procedure in the text,
 	comparing how this will be structured when definitions are interpreted
@@ -331,47 +282,9 @@ function f(x) {
 	difference in the behavior of a correct program.  Design a way to make
 	the interpreter implement the <QUOTE>simultaneous</QUOTE> scope rule for
 	internal definitions without constructing the extra frame.
-      </SCHEME>
-      <JAVASCRIPT>
-	Consider an alternative strategy for scanning out declarations
-	that translates the example in the text to
-	<SNIPPET EVAL="no" LATEX="yes">
-	  <JAVASCRIPT>
-( $params$ ) => {
-    return ( (u, v) => {
-               return ( (a, b) => {
-                          u = a;
-                          v = b;
-                          $statements$
-		      })($e_1$, $e_2$);
-           })("*unassigned*", "*unassigned*");
-}
-	  </JAVASCRIPT>
-	</SNIPPET>
-	Here <SCHEMEINLINE>a</SCHEMEINLINE> and <SCHEMEINLINE>b</SCHEMEINLINE> are
-	meant to represent new names, created by the interpreter, that do
-	not appear in the user<APOS/>s program. Consider the
-	<SCHEMEINLINE>solve</SCHEMEINLINE> function
-	from section<SPACE/><REF NAME="sec:streams-and-delayed-evaluation"/>:
-	<SNIPPET>
-          <REQUIRES>integral_definition</REQUIRES>
-          <REQUIRES>sum_definition</REQUIRES>
-	  <JAVASCRIPT>
-function solve(f, y0, dt) {
-    const y = integral( () => dy, y0, dt);
-    const dy = stream_map(f, y);
-    return y;
-}
-	  </JAVASCRIPT>
-	</SNIPPET>
-	Will this function
-	work if internal definitions are scanned out as shown in this exercise?
-	What if they are scanned out as shown in the text?  Explain.
-	<LABEL NAME="ex:alternative-scanout"/>
-      </JAVASCRIPT>
-    </SPLIT>
   </EXERCISE>
-
+      </SCHEME>
+    </SPLIT>
   <SPLIT>
     <SCHEME>
       <EXERCISE>
