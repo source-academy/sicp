@@ -189,7 +189,9 @@ export const preamble = `\\documentclass[a4paper, 12pt]{book}
    rulecolor=\\color{LeftBarClickable},
    escapechar=^
 }
-\\lstnewenvironment{JavaScriptOutput}{\\lstset{style=JavaScriptOutput,aboveskip=-2.5ex,belowskip=1.8ex}}{}
+\\lstnewenvironment{JavaScriptOutput}{\\lstset{style=JavaScriptOutput,aboveskip=-0.5ex,belowskip=1.8ex}}{}
+\\lstnewenvironment{JavaScriptPrompt}{\\lstset{style=JavaScriptOutput,aboveskip=2.5ex,belowskip=-0.5ex}}{}
+\\lstnewenvironment{JavaScriptLonely}{\\lstset{style=JavaScriptOutput,aboveskip=2.5ex,belowskip=2.5ex}}{}
 
 \\lstdefinestyle{JavaScriptOutputSmall}{
    language=JavaScript,
@@ -206,7 +208,9 @@ export const preamble = `\\documentclass[a4paper, 12pt]{book}
    rulecolor=\\color{LeftBarClickable},
    escapechar=^
 }
-\\lstnewenvironment{JavaScriptOutputSmall}{\\lstset{style=JavaScriptOutputSmall,aboveskip=-2.5ex,belowskip=1.8ex}}{}
+\\lstnewenvironment{JavaScriptOutputSmall}{\\lstset{style=JavaScriptOutputSmall,aboveskip=-0.5ex,belowskip=1.8ex}}{}
+\\lstnewenvironment{JavaScriptPromptSmall}{\\lstset{style=JavaScriptOutput,aboveskip=2.5ex,belowskip=-0.5ex}}{}
+\\lstnewenvironment{JavaScriptLonelySmall}{\\lstset{style=JavaScriptOutput,aboveskip=2.5ex,belowskip=2.5ex}}{}
 
 \\usepackage{epigraph}
 \\renewcommand{\\textflush}{flushepinormal}

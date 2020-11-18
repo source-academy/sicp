@@ -61,6 +61,42 @@ export const processSnippetPdf = (node, writeTo) => {
     return;
   }
 
+  const jsPromptSnippet = node.getElementsByTagName("JAVASCRIPT_PROMPT")[0];
+
+  if (jsPromptSnippet) {
+    if (ancestorHasTag(node, "EXERCISE")) {
+      writeTo.push("\n\\begin{JavaScriptPromptSmall}");
+    } else {
+      writeTo.push("\n\\begin{JavaScriptPrompt}");
+    }
+
+    writeTo.push(jsPromptSnippet.firstChild.nodeValue.trimRight());
+
+    if (ancestorHasTag(node, "EXERCISE")) {
+      writeTo.push("\n\\end{JavaScriptPromptSmall}\n");
+    } else {
+      writeTo.push("\n\\end{JavaScriptPrompt}\n");
+    }
+  }
+
+  const jsLonelySnippet = node.getElementsByTagName("JAVASCRIPT_LONELY")[0];
+
+  if (jsLonelySnippet) {
+    if (ancestorHasTag(node, "EXERCISE")) {
+      writeTo.push("\n\\begin{JavaScriptLonelySmall}");
+    } else {
+      writeTo.push("\n\\begin{JavaScriptLonely}");
+    }
+
+    writeTo.push(jsLonelySnippet.firstChild.nodeValue.trimRight());
+
+    if (ancestorHasTag(node, "EXERCISE")) {
+      writeTo.push("\n\\end{JavaScriptLonelySmall}\n");
+    } else {
+      writeTo.push("\n\\end{JavaScriptLonely}\n");
+    }
+  }
+
   const jsSnippet = node.getElementsByTagName("JAVASCRIPT")[0];
   if (jsSnippet) {
     // JavaScript source for running. Overrides JAVASCRIPT if present.
@@ -92,9 +128,9 @@ export const processSnippetPdf = (node, writeTo) => {
       writeTo.push(codeStr);
 
       if (ancestorHasTag(node, "EXERCISE")) {
-        writeTo.push("\\end{JavaScriptSmall}\n");
+        writeTo.push("\n\\end{JavaScriptSmall}\n");
       } else {
-        writeTo.push("\\end{JavaScript}\n");
+        writeTo.push("\n\\end{JavaScript}\n");
       }
     } else {
       let reqStr = "";
@@ -195,9 +231,9 @@ export const processSnippetPdf = (node, writeTo) => {
       writeTo.push(lines.join("\n"));
 
       if (ancestorHasTag(node, "EXERCISE")) {
-        writeTo.push("\\end{JavaScriptClickableSmall}\n");
+        writeTo.push("\n\\end{JavaScriptClickableSmall}\n");
       } else {
-        writeTo.push("\\end{JavaScriptClickable}\n");
+        writeTo.push("\n\\end{JavaScriptClickable}\n");
       }
 
       // // 6 lines plus rest
@@ -222,17 +258,17 @@ export const processSnippetPdf = (node, writeTo) => {
 
   if (jsOutputSnippet) {
     if (ancestorHasTag(node, "EXERCISE")) {
-      writeTo.push("\n\\begin{JavaScriptOutputSmall}\n");
+      writeTo.push("\n\\begin{JavaScriptOutputSmall}");
     } else {
-      writeTo.push("\n\\begin{JavaScriptOutput}\n");
+      writeTo.push("\n\\begin{JavaScriptOutput}");
     }
 
     writeTo.push(jsOutputSnippet.firstChild.nodeValue.trimRight());
 
     if (ancestorHasTag(node, "EXERCISE")) {
-      writeTo.push("\\end{JavaScriptOutputSmall}\n");
+      writeTo.push("\n\\end{JavaScriptOutputSmall}\n");
     } else {
-      writeTo.push("\\end{JavaScriptOutput}\n");
+      writeTo.push("\n\\end{JavaScriptOutput}\n");
     }
   }
 

@@ -54,7 +54,7 @@ export const processFigureHtml = (
 
   // get href and displayed name from "referenceStore"
   const referenceName = label.getAttribute("NAME");
-  // console.log("reference name is " + referenceName);
+  console.log("reference name is " + referenceName);
   const href = referenceStore[referenceName].href;
   // console.log("lookup successful");
   const displayName = referenceStore[referenceName].displayName;
