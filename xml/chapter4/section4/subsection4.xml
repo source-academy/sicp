@@ -10,6 +10,82 @@
     implementation of the system.
   </TEXT>
 
+  <SPLIT>
+    <JAVASCRIPT>
+      <SUBSUBSECTION>
+	<NAME>Syntactic Abstractions</NAME>
+	<LABEL NAME="sec:query-driver"/>
+	<TEXT>
+	  As in the other evaluators of this chapter, the input is
+	  given by the user as a string, here representing an assertion,
+	  rule or query. These are designed to look like
+	  JavaScript expressions, in order to reuse the
+	  <JAVASCRIPTINLINE>parse</JAVASCRIPTINLINE> function 
+	  from section<SPACE/><REF NAME="sec:representing-expressions"/> to
+	  transform the input strings into a tagged-list representation and
+	  in order to use JavaScript notation in the
+	  <JAVASCRIPTINLINE>javascript_value</JAVASCRIPTINLINE> syntactic form.
+	  For example, the assertion
+	  <SNIPPET EVAL="no">
+	    <JAVASCRIPT>
+assert(salary(list("Bitdiddle", "Ben"), 60000))
+	    </JAVASCRIPT>
+	  </SNIPPET>
+	  is transformed by
+	  <JAVASCRIPTINLINE>parse</JAVASCRIPTINLINE> 
+	  into the following tagged list:
+	  <SNIPPET EVAL="no">
+	    <JAVASCRIPT_LONELY>
+list("application",
+     list("name", "assert"),
+     list(list("application",
+               list("name", "salary"),
+               list(list("application",
+                         list("name", "list"),
+                         list(list("literal", "Bitdiddle"), 
+                              list("literal", "Ben"))),
+                    list("literal", 60000)))))	      
+	    </JAVASCRIPT_LONELY>
+	  </SNIPPET>
+	</TEXT>
+	<TEXT>
+	  The tag
+	  <JAVASCRIPTINLINE>"application"</JAVASCRIPTINLINE> indicates that
+	  syntactically,
+	  the asssertion would be treated as a function application in JavaScipt.
+	  To properly identify assertions, rules, and queries, to access
+	  their commponents, and to identify the syntactic forms of the query
+	  system, we will use a second tagged-list representation.
+	  Section<SPACE/><REF NAME="sec:query-syntax"/> introduces
+	  the function <JAVASCRIPTINLINE>process_query</JAVASCRIPTINLINE>
+	  that translates from the first to the second, along with 
+	  predicates and selectors for the second. The example assertion
+	  above is processed in two steps as follows.
+	  <SNIPPET EVAL="no">
+	    <JAVASCRIPT>
+process_query(parse('assert(salary(list("Bitdiddle", "Ben"), 60000));'));
+	    </JAVASCRIPT>
+	    <JAVASCRIPT_OUTPUT>
+list("assert",
+     list("salary",
+          list(list("literal", "Bitdiddle"), 
+               list("literal", "Ben")),
+          list("literal", 60000)))
+	    </JAVASCRIPT_OUTPUT>
+	  </SNIPPET>
+	  Figure<SPACE/><REF NAME="fig:syntax-abstraction-lp"/> depicts the three
+	  abstraction barriers used in this section.
+          <FIGURE>
+            <FIGURE src="img_javascript/ch4-syntax-abstraction-logic-programming.svg"></FIGURE>
+            <CAPTION>Syntax abstraction in the query system.</CAPTION>
+            <LABEL NAME="fig:syntax-abstraction-lp"/>
+          </FIGURE>
+	</TEXT>
+      </SUBSUBSECTION>
+    </JAVASCRIPT>
+  </SPLIT>
+
+  
   <SUBSUBSECTION>
     <NAME>The Driver Loop and Instantiation</NAME>
     <LABEL NAME="sec:query-driver"/>
@@ -18,9 +94,26 @@
       <INDEX>driver loop<SUBINDEX>query@in query interpreter</SUBINDEX></INDEX>
       <INDEX>query interpreter<SUBINDEX>driver loop|(</SUBINDEX></INDEX>
       The driver loop for the query system repeatedly reads input
-      expressions.  If the expression is a rule or assertion to be added to
+      <SPLITINLINE>
+	<SCHEME>
+	  expressions.
+	</SCHEME>
+	<JAVASCRIPT>
+	  strings.
+	</JAVASCRIPT>
+      </SPLITINLINE>
+      If the
+      <SPLITINLINE>
+	<SCHEME>
+	  expression is
+	</SCHEME>
+	<JAVASCRIPT>
+	  input is
+	</JAVASCRIPT>
+      </SPLITINLINE>
+      a rule or assertion to be added to
       the data base, then the information is added.  Otherwise the
-      expression is assumed to be a query.  The driver passes this query to
+      input is assumed to be a query.  The driver passes this query to
       the evaluator
       <SPLITINLINE><SCHEME><SCHEMEINLINE>qeval</SCHEMEINLINE></SCHEME>
       <JAVASCRIPT><JAVASCRIPTINLINE>evaluate_query</JAVASCRIPTINLINE>
@@ -50,8 +143,8 @@
 	<REQUIRES>functions_4_1_4</REQUIRES>
 	<REQUIRES>lp_header</REQUIRES>
 	<REQUIRES>contract_question_mark</REQUIRES>
-	<REQUIRES>query_process</REQUIRES>
-	<REQUIRES>assertion_to_be_added</REQUIRES>
+	<REQUIRES>process_query</REQUIRES>
+	<REQUIRES>is_assertion</REQUIRES>
 	<REQUIRES>instantiate</REQUIRES>
 	<REQUIRES>evaluate_query</REQUIRES>
 	<REQUIRES>singleton_stream</REQUIRES>
@@ -102,9 +195,9 @@ const output_prompt = "Query results:";
 
 function query_driver_loop() {
     const input = user_read(input_prompt);
-    const q = query_process(parse(input + ";"));
-    if (assertion_to_be_added(q)) {
-        add_rule_or_assertion(add_assertion_body(q));
+    const q = process_query(parse(input + ";"));
+    if (is_assertion(q)) {
+        add_rule_or_assertion(assertion_body(q));
         display("Assertion added to data base.");
     } else {
         display(output_prompt);
@@ -126,11 +219,11 @@ function query_driver_loop() {
     if (is_null(input)) {
         display("--- evaluator terminated ---");
     } else {
-        const q = query_process(parse(input + ";"));
+        const q = process_query(parse(input + ";"));
         display("---- driver loop input -----");
         display(unparse_query(q));
-        if (assertion_to_be_added(q)) {
-            add_rule_or_assertion(add_assertion_body(q));
+        if (is_assertion(q)) {
+            add_rule_or_assertion(assertion_body(q));
             display("Assertion added to data base.");
         } else {
             display("------ query results -------", "");
@@ -147,17 +240,17 @@ function query_driver_loop() {
 	</JAVASCRIPT_RUN>
       </SNIPPET>
       <SNIPPET HIDE="yes">
-	<NAME>process_query</NAME>
+	<NAME>parse_and_process_query</NAME>
 	<REQUIRES>functions_4_4_4</REQUIRES>
 	<EXAMPLE>process_query_example_1</EXAMPLE>
 	<JAVASCRIPT>
-function process_query(input, verbosity) {
-    const q = query_process(parse(input + ";"));
+function parse_and_process_query(input, verbosity) {
+    const q = process_query(parse(input + ";"));
     if (verbosity !== "silent") {
         display("--- process query input  ---"); 
         display(unparse_query(q)); } else {}
-    if (assertion_to_be_added(q)) {
-        add_rule_or_assertion(add_assertion_body(q));
+    if (is_assertion(q)) {
+        add_rule_or_assertion(assertion_body(q));
         if (verbosity !== "silent") {
             display("----- assertion added ------"); } else {}
     } else {
@@ -175,8 +268,8 @@ function process_query(input, verbosity) {
       <SNIPPET HIDE="yes">
 	<NAME>process_query_example_1</NAME>
 	<JAVASCRIPT>
-process_query('assert(son("Adam", "Cain"))');
-process_query('son("Adam", x)');	  
+parse_and_process_query('assert(son("Adam", "Cain"))');
+parse_and_process_query('son("Adam", x)');	  
 	</JAVASCRIPT>
       </SNIPPET>
       <SNIPPET HIDE="yes">
@@ -185,7 +278,7 @@ process_query('son("Adam", x)');
 	<EXAMPLE>process_query_example_1</EXAMPLE>
 	<JAVASCRIPT>
 function first_answer(input) {
-    const q = query_process(parse(input + ";"));
+    const q = process_query(parse(input + ";"));
     const frames = evaluate_query(q, singleton_stream(null));
     return is_null(frames)
         ? "no matching data"
@@ -194,115 +287,77 @@ function first_answer(input) {
 	</JAVASCRIPT>
       </SNIPPET>
       <INDEX>abstract syntax<SUBINDEX>in query interpreter</SUBINDEX></INDEX>
-      Here, as in the other evaluators in this chapter, queries are read from
-      the user as strings. We reuse the
-      <JAVASCRIPTINLINE>parse</JAVASCRIPTINLINE> function 
-      from section<SPACE/><REF NAME="sec:representing-expressions"/> to
-      transform such
-      <JAVASCRIPTINLINE>input</JAVASCRIPTINLINE>
-      strings into a tagged list representation. We append
-      <JAVASCRIPTINLINE>";"</JAVASCRIPTINLINE> to the string
-      so that the parser treats it as an expression statement.
-      The implementation of the
-      <SPLITINLINE>
+      <SPLIT>
 	<SCHEME>
-	  expression
-	  syntax, 	  
-	</SCHEME>
-	<JAVASCRIPT>
-	  query processing,
-	</JAVASCRIPT>
-      </SPLITINLINE>
-      including the predicate
-      <SPLITINLINE>
-	<SCHEME>
+	  Here, as in the other evaluators in this chapter,
+	  we use an abstract syntax for expressions of the query language.
+	  The implementation of the
+	  expression syntax, including the predicate
 	  <SCHEMEINLINE>assertion-to-be-added?</SCHEMEINLINE>
-	</SCHEME>
-	<JAVASCRIPT>
-	  <JAVASCRIPTINLINE>assertion_to_be_added</JAVASCRIPTINLINE>
-	</JAVASCRIPT>
-      </SPLITINLINE>
-      and the selector
-      <SPLITINLINE>
-	<SCHEME>
+	  and the selector
 	  <SCHEMEINLINE>add-assertion-body</SCHEMEINLINE>,
 	  is given in section<SPACE/><REF NAME="sec:query-syntax"/>.
-	</SCHEME>
-	<JAVASCRIPT>
-	  <JAVASCRIPTINLINE>add_assertion_body</JAVASCRIPTINLINE>
-	  is given in section<SPACE/><REF NAME="sec:query-syntax"/>.
-	</JAVASCRIPT>
-      </SPLITINLINE>
-      <SPLITINLINE>
-	<SCHEME>
 	  <SCHEMEINLINE>Add\?rule\?or-assertion!</SCHEMEINLINE>
+	  is defined in section<SPACE/><REF NAME="sec:query-db"/>.
 	</SCHEME>
 	<JAVASCRIPT>
+	  We append
+	  <JAVASCRIPTINLINE>";"</JAVASCRIPTINLINE> to the input string
+	  so that
+	  <JAVASCRIPTINLINE>parse</JAVASCRIPTINLINE>
+	  treats it as an expression statement.
+	  The application of
+	  <JAVASCRIPTINLINE>process_query</JAVASCRIPTINLINE>
+	  in section<SPACE/><REF NAME="sec:query-syntax"/>
+	  ensures that the rest of the query system operates
+	  above the highest abstraction barrier
+	  in figure<SPACE/><REF NAME="fig:syntax-abstraction-lp"/>.
+	  Section<SPACE/><REF NAME="sec:query-syntax"/> also 
+	  includes the predicate
+	  <JAVASCRIPTINLINE>is_assertion</JAVASCRIPTINLINE>
+	  and the selector
+	  <JAVASCRIPTINLINE>assertion_body</JAVASCRIPTINLINE>.
 	  The function <JAVASCRIPTINLINE>add_rule_or_assertion</JAVASCRIPTINLINE>
+	  is defined in section<SPACE/><REF NAME="sec:query-db"/>.
 	</JAVASCRIPT>
-      </SPLITINLINE>
-      is defined in section<SPACE/><REF NAME="sec:query-db"/>.
-    </TEXT>
+      </SPLIT>
+      <TEXT>
 
-    <TEXT>
-      Before doing any processing on
-      <SPLITINLINE>
-	<SCHEME>
-	  an input expression,
-	</SCHEME>
-	<JAVASCRIPT>
-	  an input query,
-	</JAVASCRIPT>
-      </SPLITINLINE>
-      the driver loop
-      transforms it syntactically into a form that makes the processing more
-      <SPLITINLINE>
-	<SCHEME>efficient.</SCHEME>
-	<JAVASCRIPT>convenient.</JAVASCRIPT>
-      </SPLITINLINE>
-      <COMMENT>
-	In the JavaScript adaptation, there is no need to precede variable
-	names with <QUOTE>?</QUOTE>, see comment in section 4.4.1. We are
-	using the same internal representation as in the Scheme version, because
-	this way, we can distinguish the name
-	<JAVASCRIPTINLINE>my_name</JAVASCRIPTINLINE> from the data log list
-	<JAVASCRIPTINLINE>list("name", "my_name")</JAVASCRIPTINLINE>.
-	The original authors were saying <QUOTE>efficient</QUOTE> because
-	of the string manipulations that would be required at runtime.
-      </COMMENT>
-      This involves changing the 
-      <INDEX>pattern variable<SUBINDEX>representation of</SUBINDEX></INDEX>
-      <INDEX>query interpreter
-      <SUBINDEX>pattern-variable representation</SUBINDEX></INDEX>
-      representation of pattern variables.  When the query is instantiated, any
-      variables that remain unbound are transformed back to the input
-      representation before being printed.  These transformations are performed
-      by the two
-      <SPLITINLINE>
-	<SCHEME>procedures</SCHEME>
-	<JAVASCRIPT>functions</JAVASCRIPT>
-      </SPLITINLINE>
-      <SPLITINLINE>
-	<SCHEME>
-	  <SCHEMEINLINE>query-syntax\?process</SCHEMEINLINE>
-	</SCHEME>
-	<JAVASCRIPT>
-	  <JAVASCRIPTINLINE>query_process</JAVASCRIPTINLINE>
-	</JAVASCRIPT>
-      </SPLITINLINE>
-      and
-      <SPLITINLINE>
-	<SCHEME>
-	  <SCHEMEINLINE>contract-question-mark</SCHEMEINLINE>
-	</SCHEME>
-	<JAVASCRIPT>
-	  <JAVASCRIPTINLINE>contract_question_mark</JAVASCRIPTINLINE>
-	</JAVASCRIPT>
-      </SPLITINLINE>
-      (section<SPACE/><REF NAME="sec:query-syntax"/>).
-    </TEXT>
-
-    <TEXT>
+      <TEXT>
+	<SPLIT>
+	  <SCHEME>
+	    Before doing any processing on an input expression, the driver loop
+	    transforms it syntactically into a form that makes the processing more
+	    efficient. This involves changing the 
+	    <INDEX>pattern variable<SUBINDEX>representation of</SUBINDEX></INDEX>
+	    <INDEX>query interpreter
+	    <SUBINDEX>pattern-variable representation</SUBINDEX></INDEX>
+	    representation of pattern variables.  When the query is instantiated, any
+	    variables that remain unbound are transformed back to the input
+	    representation before being printed.  These transformations are performed
+	    by the two procedures
+	    <SCHEMEINLINE>query-syntax\?process</SCHEMEINLINE>
+	    and
+	    <SCHEMEINLINE>contract-question-mark</SCHEMEINLINE>
+	    (section<SPACE/><REF NAME="sec:query-syntax"/>).
+	  </SCHEME>
+	  <JAVASCRIPT>
+	    The transformation to the query syntax in
+	    <JAVASCRIPTINLINE>process_query</JAVASCRIPTINLINE>	    
+	    involves 
+	    changing the 
+	    <INDEX>pattern variable<SUBINDEX>representation of</SUBINDEX></INDEX>
+	    <INDEX>query interpreter
+	    <SUBINDEX>pattern-variable representation</SUBINDEX></INDEX>
+	    representation of pattern variables. When the query is instantiated, any
+	    variables that remain unbound are transformed back to the input
+	    representation by
+	    <JAVASCRIPTINLINE>contract_question_mark</JAVASCRIPTINLINE>
+	    before being printed (also in section<SPACE/><REF NAME="sec:query-syntax"/>).
+	  </JAVASCRIPT>
+	</SPLIT>
+      </TEXT>
+      <TEXT>
       <INDEX>query interpreter<SUBINDEX>instantiation|(</SUBINDEX></INDEX>
       To instantiate
       <SPLITINLINE>
@@ -310,7 +365,7 @@ function first_answer(input) {
       an expression,
 	</SCHEME>
 	<JAVASCRIPT>
-	  a component,
+	  an expression,
 	</JAVASCRIPT>
       </SPLITINLINE>
       we copy it, replacing any variables in
@@ -350,17 +405,17 @@ function first_answer(input) {
       <SCHEMEINLINE>instantiate</SCHEMEINLINE>.
       <SNIPPET HIDE="yes">
 	<NAME>append_to_form_example_5</NAME>
-	<REQUIRES>process_query</REQUIRES>
+	<REQUIRES>parse_and_process_query</REQUIRES>
 	<REQUIRES>first_answer</REQUIRES>
 	<JAVASCRIPT>
-process_query('assert(                           \
+parse_and_process_query('assert(                           \
 rule(append_to_form(null, y, y)))                ', "verbose");
-process_query('assert(                           \
+parse_and_process_query('assert(                           \
 rule(append_to_form(pair(u, v), y, pair(u, z)),  \
      append_to_form(v, y, z)))                   ', "verbose");
 	  
 first_answer('append_to_form(x, y, list("a", "b", "c", "d"))');
-// process_query('append_to_form(x, y, list("a", "b", "c", "d"))', "");
+// parse_and_process_query('append_to_form(x, y, list("a", "b", "c", "d"))', "");
 	</JAVASCRIPT>
       </SNIPPET>
       <!--  \indcode*{instantiate} -->
@@ -495,9 +550,12 @@ function evaluate_query(query, frame_stream) {
       and <SCHEMEINLINE>contents</SCHEMEINLINE>, defined in
       section<SPACE/><REF NAME="sec:query-syntax"/>, implement 
       <SPLITINLINE>
-	<SCHEME>the abstract
-      syntax of the special forms.</SCHEME>
-	<JAVASCRIPT>tagged list representation of the syntactic forms.</JAVASCRIPT>
+	<SCHEME>
+	  the abstract syntax of the special forms.
+	</SCHEME>
+	<JAVASCRIPT>
+	  a tagged-list representation of the syntactic forms.
+	</JAVASCRIPT>
       </SPLITINLINE>
     </TEXT>
 
@@ -841,7 +899,7 @@ put("not", "evaluate_query", negate);
 	  <REQUIRES>first_answer</REQUIRES>
 	  <JAVASCRIPT>
 first_answer('and(salary(person, amount), javascript_value(amount &gt; 30000))');
-// process_query('and(salary(person, amount), javascript_value(amount &gt; 30000))', "verbose");
+// parse_and_process_query('and(salary(person, amount), javascript_value(amount &gt; 30000))', "verbose");
 	  </JAVASCRIPT>
 	</SNIPPET>
         <!-- \indcodeplus*{lisp-value}{(query interpreter)}-->
@@ -909,7 +967,7 @@ put("javascript_value", "evaluate_query", javascript_value);
 	  The function <JAVASCRIPTINLINE>execute</JAVASCRIPTINLINE>
 	  uses <JAVASCRIPTINLINE>evaluate</JAVASCRIPTINLINE>
 	  from section<SPACE/><REF NAME="sec:mc-eval"/> and thus
-	  can apply primitive functions to constants and instantiated
+	  can apply operator combinations to literal values and instantiated
 	  variables.
 	</JAVASCRIPT>
       </SPLIT>
@@ -988,12 +1046,11 @@ put("always_true", "evaluate_query", always_true);
     </TEXT>
 
     <TEXT>
-      The selectors that define the
       <SPLITINLINE>
-	<SCHEME>syntax</SCHEME>
-	<JAVASCRIPT>structure</JAVASCRIPT>
+	<SCHEME>The selectors that define the syntax of</SCHEME>
+	<JAVASCRIPT>The selectors for the syntactic forms</JAVASCRIPT>
       </SPLITINLINE>
-      of <SCHEMEINLINE>not</SCHEMEINLINE>
+      <SCHEMEINLINE>not</SCHEMEINLINE>
       and
       <SPLITINLINE>
 	<SCHEME><SCHEMEINLINE>lisp-value</SCHEMEINLINE></SCHEME>
@@ -2106,8 +2163,10 @@ function depends_on(exp, variable, frame) {
       <SUBINDEX>indexing</SUBINDEX></INDEX><INDEX>indexing a data base</INDEX>
       One important problem in designing logic programming languages is that
       of arranging things so that as few irrelevant data-base entries as
-      possible will be examined in checking a given pattern.  In our
-      system, in addition to storing all assertions in one big stream,
+      possible will be examined in checking a given pattern. For this purpose,
+      we will represent assertions with lists whose head is a string that
+      represents the kind of information of the assertion. Then, 
+      in addition to storing all assertions in one big stream,
       we store all assertions whose
       <SPLITINLINE>
 	<SCHEME><SCHEMEINLINE>car</SCHEMEINLINE>s</SCHEME>
@@ -2177,7 +2236,6 @@ function depends_on(exp, variable, frame) {
       <!--  \indcode*{fetch-assertions} -->
       <SNIPPET>
 	<NAME>fetch_assertions</NAME>
-	<REQUIRES>use_index</REQUIRES>
 	<REQUIRES>get_stream</REQUIRES>
 	<REQUIRES>index_key_of</REQUIRES>
 	<EXAMPLE>append_to_form_example_5</EXAMPLE>
@@ -2195,24 +2253,14 @@ function depends_on(exp, variable, frame) {
   (get-stream (index-key-of pattern) 'assertion-stream))
 	</SCHEME>
 	<JAVASCRIPT>
-let THE_ASSERTIONS = null;
-
 function fetch_assertions(pattern, frame) {
-    return use_index(pattern)
-        ? get_indexed_assertions(pattern)
-        : get_all_assertions;
-}
-function get_all_assertions() {
-    return THE_ASSERTIONS;
+    return get_indexed_assertions(pattern);
 }
 function get_indexed_assertions(pattern) {
     return get_stream(index_key_of(pattern), "assertion-stream");
 }
 	</JAVASCRIPT>
       </SNIPPET>
-    </TEXT>
-
-    <TEXT>
       <SPLITINLINE>
 	<SCHEME><SCHEMEINLINE>Get-stream</SCHEMEINLINE></SCHEME>
 	<JAVASCRIPT>The function <JAVASCRIPTINLINE>get_stream</JAVASCRIPTINLINE>
@@ -2240,56 +2288,45 @@ function get_stream(key1, key2) {
     </TEXT>
 
     <TEXT>
-      Rules are stored similarly, using the
-      <SPLITINLINE>
-	<SCHEME><SCHEMEINLINE>car</SCHEMEINLINE></SCHEME>
-	<JAVASCRIPT><JAVASCRIPTINLINE>head</JAVASCRIPTINLINE></JAVASCRIPT>
-      </SPLITINLINE>
-      of the rule conclusion.  Rule conclusions are arbitrary patterns, however,
-      so they differ from assertions in that they can contain variables.
-      A pattern whose
-      <SPLITINLINE>
-	<SCHEME><SCHEMEINLINE>car</SCHEMEINLINE></SCHEME>
-	<JAVASCRIPT><JAVASCRIPTINLINE>head</JAVASCRIPTINLINE></JAVASCRIPT>
-      </SPLITINLINE>
-      is a
-      <SPLITINLINE>
-	<SCHEME>constant symbol</SCHEME>
-	<JAVASCRIPT>string</JAVASCRIPT>
-      </SPLITINLINE>
-      can match rules whose conclusions start with a
-      variable as well as rules whose conclusions have the same
-      <SPLITINLINE>
-	<SCHEME><SCHEMEINLINE>car</SCHEMEINLINE>.</SCHEME>
-	<JAVASCRIPT><JAVASCRIPTINLINE>head</JAVASCRIPTINLINE>.</JAVASCRIPT>
-      </SPLITINLINE>
-      Thus, when fetching rules that might match a pattern whose
-      <SPLITINLINE>
-	<SCHEME><SCHEMEINLINE>car</SCHEMEINLINE></SCHEME>
-	<JAVASCRIPT><JAVASCRIPTINLINE>head</JAVASCRIPTINLINE></JAVASCRIPT>
-      </SPLITINLINE>
-      is a
-      <SPLITINLINE>
-	<SCHEME>constant symbol</SCHEME>
-	<JAVASCRIPT>string</JAVASCRIPT>
-      </SPLITINLINE>
-      we fetch all rules whose conclusions start with a
-      variable as well as those whose conclusions have the same
-      <SPLITINLINE>
-	<SCHEME><SCHEMEINLINE>car</SCHEMEINLINE></SCHEME>
-	<JAVASCRIPT><JAVASCRIPTINLINE>head</JAVASCRIPTINLINE></JAVASCRIPT>
-      </SPLITINLINE>
-      as the pattern.  For this purpose we store all rules whose conclusions
-      start with a variable in a separate stream in our table, indexed by the
-      <SPLITINLINE>
-	<SCHEME>symbol <SCHEMEINLINE>?</SCHEMEINLINE>.</SCHEME>
-	<JAVASCRIPT>string <JAVASCRIPTINLINE>"?"</JAVASCRIPTINLINE>.
+      <SPLIT>
+	<SCHEME>
+	  Rules are stored similarly, using the
+	  <SCHEMEINLINE>car</SCHEMEINLINE>
+	  of the rule conclusion.  Rule conclusions are arbitrary patterns, however,
+	  so they differ from assertions in that they can contain variables.
+	  A pattern whose
+	  <SCHEMEINLINE>car</SCHEMEINLINE>
+	  is a constant symbol can match rules whose conclusions start with a
+	  variable as well as rules whose conclusions have the same
+	  <SCHEMEINLINE>car</SCHEMEINLINE>.
+	  Thus, when fetching rules that might match a pattern whose
+	  <SCHEMEINLINE>car</SCHEMEINLINE> is a
+	  constant symbol we fetch all rules whose conclusions start with a
+	  variable as well as those whose conclusions have the same
+	  <SCHEMEINLINE>car</SCHEMEINLINE>
+	  as the pattern.  For this purpose we store all rules whose conclusions
+	  start with a variable in a separate stream in our table, indexed by the
+	  symbol <SCHEMEINLINE>?</SCHEMEINLINE>.
+	</SCHEME>
+	<JAVASCRIPT>
+	  Rules are stored similarly, using the
+	  <SCHEMEINLINE>head</SCHEMEINLINE>
+	  of the rule conclusion.  Rule conclusions are arbitrary patterns, however,
+	  so they differ from assertions in that they can contain variables.
+	  A pattern with a <JAVASCRIPT>string</JAVASCRIPT> as 
+	  <JAVASCRIPTINLINE>head</JAVASCRIPTINLINE>	  
+	  can match rules whose conclusions have the same
+	  <JAVASCRIPTINLINE>head</JAVASCRIPTINLINE>.
+	  Thus, when fetching rules that might match a pattern whose
+	  <JAVASCRIPTINLINE>head</JAVASCRIPTINLINE> is a
+	  string we fetch all rules whose conclusions have the same
+	  <JAVASCRIPTINLINE>head</JAVASCRIPTINLINE>
+	  as the pattern.
 	</JAVASCRIPT>
-      </SPLITINLINE>
+      </SPLIT>
       <!--  \indcode*{fetch-rules} -->
       <SNIPPET>
 	<NAME>fetch_rules</NAME>
-	<REQUIRES>use_index</REQUIRES>
 	<REQUIRES>get_stream</REQUIRES>
 	<REQUIRES>index_key_of</REQUIRES>
 	<EXAMPLE>append_to_form_example_5</EXAMPLE>
@@ -2309,25 +2346,19 @@ function get_stream(key1, key2) {
    (get-stream '? 'rule-stream)))
 	</SCHEME>
 	<JAVASCRIPT>
-let THE_RULES = null;
-
 function fetch_rules(pattern, frame) {
-    return use_index(pattern)
-        ? get_indexed_rules(pattern)
-        : get_all_rules();
-}
-function get_all_rules() {
-    return THE_RULES;
+    return get_indexed_rules(pattern);
 }
 function get_indexed_rules(pattern) {
-    return stream_append(
-              get_stream(index_key_of(pattern),
-                         "rule-stream"),
-              get_stream("?", "rule-stream"));
+    return get_stream(index_key_of(pattern), "rule-stream");
 }
 	</JAVASCRIPT>
       </SNIPPET>
     </TEXT>
+    <!-- was: return append(...,
+                         "rule-stream"),
+              get_stream("?", "rule-stream"));
+    -->
 
     <TEXT>
       <SPLITINLINE>
@@ -2379,14 +2410,10 @@ function add_rule_or_assertion(assertion) {
 }
 function add_assertion(assertion) {
     store_assertion_in_index(assertion);
-    const old_assertions = THE_ASSERTIONS;
-    THE_ASSERTIONS = pair(assertion, () => old_assertions);
     return "ok";
 }
 function add_rule(rule) {
     store_rule_in_index(rule);
-    const old_rules = THE_RULES;
-    THE_RULES = pair(rule, () => old_rules);
     return "ok";
 }
 	</JAVASCRIPT>
@@ -2400,7 +2427,6 @@ function add_rule(rule) {
 	<NAME>store_assertion_in_index</NAME>
 	<REQUIRES>operation_table_from_chapter_3</REQUIRES>
 	<REQUIRES>operation_table</REQUIRES>
-	<REQUIRES>is_indexable</REQUIRES>
 	<REQUIRES>index_key_of</REQUIRES>
 	<REQUIRES>get_stream</REQUIRES>
 	<REQUIRES>is_rule</REQUIRES>
@@ -2429,68 +2455,52 @@ function add_rule(rule) {
 	</SCHEME>
 	<JAVASCRIPT>
 function store_assertion_in_index(assertion) {
-    if (is_indexable(assertion)) {
-        const key = index_key_of(assertion);
-        const current_assertion_stream =
-                    get_stream(key, "assertion-stream");
-        put(key, "assertion-stream",
-            pair(assertion, () => current_assertion_stream));
-    } else {
-    }
+    const key = index_key_of(assertion);
+    const current_assertion_stream =
+                get_stream(key, "assertion-stream");
+    put(key, "assertion-stream",
+        pair(assertion, () => current_assertion_stream));
 }
 function store_rule_in_index(rule) {
     const pattern = conclusion(rule);
-    if (is_indexable(pattern)) {
-        const key = index_key_of(pattern);
-        const current_rule_stream =
-                    get_stream(key, "rule-stream");
-        put(key, "rule-stream",
-            pair(rule, () => current_rule_stream));
-    } else {
-    }
+    const key = index_key_of(pattern);
+    const current_rule_stream =
+                get_stream(key, "rule-stream");
+    put(key, "rule-stream",
+        pair(rule, () => current_rule_stream));
 }    
 	</JAVASCRIPT>
       </SNIPPET>
     </TEXT>
-
     <TEXT>
-      The following
-      <SPLITINLINE>
-	<SCHEME>procedures</SCHEME>
-	<JAVASCRIPT>functions</JAVASCRIPT>
-      </SPLITINLINE>
-      define how the data-base index is used.  A pattern (an assertion or a rule
-      conclusion) will be stored in the table if it starts with a variable or a
-      <SPLITINLINE>
-	<SCHEME>constant symbol.</SCHEME>
-	<JAVASCRIPT>string.</JAVASCRIPT>
-      </SPLITINLINE>
-      <SNIPPET>
-	<NAME>is_indexable</NAME>
-	<REQUIRES>is_var</REQUIRES>
-	<EXAMPLE>append_to_form_example_5</EXAMPLE>
+      <SPLIT>
 	<SCHEME>
-(define (indexable? pat)
-  (or (constant-symbol? (car pat))
-      (var? (car pat))))
+	  The following
+	  procedures
+	  define how the data-base index is used.  A pattern (an assertion or a rule
+	  conclusion) will be stored in the table if it starts with a variable or a
+	  constant symbol.
+	  <SNIPPET>
+	    <NAME>is_indexable</NAME>
+	    <REQUIRES>is_var</REQUIRES>
+	    <EXAMPLE>append_to_form_example_5</EXAMPLE>
+	    <SCHEME>
+	      (define (indexable? pat)
+	      (or (constant-symbol? (car pat))
+	      (var? (car pat))))
+	    </SCHEME>
+	  </SNIPPET>
+	  The key under which a pattern is stored in the table is either
+	  <SCHEMEINLINE>?</SCHEMEINLINE>
+	  (if it starts with a variable) or the
+	  constant symbol
+	  with which it starts.
 	</SCHEME>
 	<JAVASCRIPT>
-function is_indexable(pat) {
-    return is_string(head(pat)) || is_var(head(pat));
-}
+	  The key under which a pattern is stored in the table is the
+	string with which it starts.
 	</JAVASCRIPT>
-      </SNIPPET>
-      The key under which a pattern is stored in the table is either
-      <SPLITINLINE>
-	<SCHEME><SCHEMEINLINE>?</SCHEMEINLINE></SCHEME>
-	<JAVASCRIPT><JAVASCRIPTINLINE>"?"</JAVASCRIPTINLINE></JAVASCRIPT>
-      </SPLITINLINE>
-      (if it starts with a variable) or the
-      <SPLITINLINE>
-	<SCHEME>constant symbol</SCHEME>
-	<JAVASCRIPT>string</JAVASCRIPT>
-      </SPLITINLINE>
-      with which it starts.
+      </SPLIT>
       <SNIPPET>
 	<NAME>index_key_of</NAME>
 	<REQUIRES>is_var</REQUIRES>
@@ -2502,31 +2512,26 @@ function is_indexable(pat) {
 	</SCHEME>
 	<JAVASCRIPT>
 function index_key_of(pat) {
-    const key = head(pat);
-    return is_var(key) ? "?" : key;
+    return(head(pat));
 }
 	</JAVASCRIPT>
       </SNIPPET>
-      The index will be used to retrieve items that might match a pattern if
-      the pattern starts with a
-      <SPLITINLINE>
-	<SCHEME>constant symbol.</SCHEME>
-	<JAVASCRIPT>string.</JAVASCRIPT>
-      </SPLITINLINE>
-      <SNIPPET>
-	<NAME>use_index</NAME>
-	<EXAMPLE>append_to_form_example_5</EXAMPLE>
+      <SPLIT>
+	<SCHEME>
+	  The index will be used to retrieve items that might match a pattern if
+	  the pattern starts with a
+	constant symbol.
+	<SNIPPET>
+	  <NAME>use_index</NAME>
+	  <EXAMPLE>append_to_form_example_5</EXAMPLE>
 	<SCHEME>
 (define (use-index? pat)
   (constant-symbol? (car pat)))
 	</SCHEME>
-	<JAVASCRIPT>
-function use_index(pat) {
-    return is_string(head(pat));
-}
-	</JAVASCRIPT>
-      </SNIPPET>
-    </TEXT>
+	</SNIPPET>
+	</SCHEME>
+      </SPLIT>
+      </TEXT>
 
     <EXERCISE>
       What is the purpose of the
@@ -2580,7 +2585,6 @@ function use_index(pat) {
 	<JAVASCRIPT>
 function add_assertion(assertion) {
     store_assertion_in_index(assertion);
-    THE_ASSERTIONS = pair(assertion, () => THE_ASSERTIONS);
     return "ok";
 }
 	</JAVASCRIPT>
@@ -2755,10 +2759,140 @@ function singleton_stream(x) {
       Query 
       <SPLITINLINE>
 	<SCHEME>Syntax Procedures</SCHEME>
-	<JAVASCRIPT>Functions</JAVASCRIPT>
+	<JAVASCRIPT>Syntax Functions</JAVASCRIPT>
       </SPLITINLINE>
     </NAME>
     <LABEL NAME="sec:query-syntax"/>
+
+    <SPLIT>
+      <JAVASCRIPT>
+	<TEXT>
+	  <INDEX>query interpreter
+	  <SUBINDEX>pattern-variable representation|(</SUBINDEX></INDEX>
+	  <INDEX>pattern variable
+	  <SUBINDEX>representation of|(</SUBINDEX></INDEX>
+	  The function <JAVASCRIPTINLINE>query_driver_loop</JAVASCRIPTINLINE>
+	  (section<SPACE/><REF NAME="sec:query-driver"/>) calls
+	  <JAVASCRIPTINLINE>process_query</JAVASCRIPTINLINE>
+	  to transform the tagged-list representation of the input
+	  formed by
+	  <JAVASCRIPTINLINE>parse</JAVASCRIPTINLINE>
+	  to the more concise tagged-list
+	  representation to be used by the query system, where the tags represent
+	  the kinds of information in assertions and queries and the syntactic
+	  forms of rules and queries
+	  described in
+	  section<SPACE/><REF NAME="sec:deductive-info-retrieval"/>.
+	  Along the way, pattern variables in the expression, which
+	  are identified using  <JAVASCRIPTINLINE>is_name</JAVASCRIPTINLINE>,
+	  are converted into a tagged list with the tag 
+	  <JAVASCRIPTINLINE>"?"</JAVASCRIPTINLINE> whose second element
+	  is the symbol that represents the name.
+	  A pattern such as
+	  <JAVASCRIPTINLINE>job(x, y)</JAVASCRIPTINLINE> is represented
+	  internally as
+	  <JAVASCRIPTINLINE>list("job", list("?", "x"), list("?", "y")))</JAVASCRIPTINLINE>.
+	  <SNIPPET>
+	    <NAME>process_query</NAME>
+	    <REQUIRES>functions_4_1_2</REQUIRES>
+	    <REQUIRES>javascript_value_process</REQUIRES>
+	    <EXAMPLE>append_to_form_example_5</EXAMPLE>
+	    <JAVASCRIPT>
+function process_query(exp) {
+    if (is_application(exp)) {
+      const function_symbol = symbol_of_name(function_expression(exp));
+      if (function_symbol === "javascript_value") {
+          return pair(function_symbol,
+                      map(javascript_value_process, arg_expressions(exp)));      
+      } else {
+          const processed_args = map(process_query, arg_expressions(exp));
+          return function_symbol === "pair"
+                 ? pair(head(processed_args), head(tail(processed_args)))
+                 : function_symbol === "list"
+                 ? processed_args
+                 : pair(function_symbol, processed_args);
+      }
+    } else if (is_name(exp)) {
+      return list("?", symbol_of_name(exp));
+    } else if (is_literal(exp)) {
+      return exp;
+    } else {
+      error(exp, "unknown query syntax -- process_query");
+    }
+}	      
+	    </JAVASCRIPT>
+	  </SNIPPET>
+	  An exception to this processing is the
+	  <JAVASCRIPTINLINE>javascript_value</JAVASCRIPTINLINE>
+	  syntactic form. Since the instantiated
+	  tagged-list representation
+	  of the argument of this syntactic form is passed to the
+	  <JAVASCRIPTINLINE>evaluate</JAVASCRIPTINLINE>
+	  function of section<SPACE/><REF NAME="sec:core-of-evaluator"/>,
+	  the original tagged-list representation coming from
+	  <JAVASCRIPTINLINE>parse</JAVASCRIPTINLINE>	  
+	  needs to remain intact,
+	  and only its names are converted to pattern variables.
+	  <SNIPPET>
+	    <NAME>javascript_value_process</NAME>
+	    <REQUIRES>functions_4_1_2</REQUIRES>
+	    <EXAMPLE>compound_queries_5_example</EXAMPLE>
+	    <JAVASCRIPT>
+function javascript_value_process(exp) {
+    return is_operator_combination(exp)
+           ? list("operator_combination", 
+                  operator_combination_operator_symbol(exp),
+                  javascript_value_process(
+                      operator_combination_first_operand(exp)),
+                  javascript_value_process(
+                      operator_combination_second_operand(exp)))
+           : is_name(exp)
+           ? list("?", symbol_of_name(exp))
+           : exp;
+}
+	    </JAVASCRIPT>
+	  </SNIPPET>
+	</TEXT>
+	<TEXT>
+	  The syntax predicate for variables checks for the tag
+	  <JAVASCRIPTINLINE>"?"</JAVASCRIPTINLINE>.
+	  <SNIPPET>
+	    <NAME>is_var</NAME>
+	    <REQUIRES>functions_4_1_2</REQUIRES>
+	    <EXAMPLE>append_to_form_example_5</EXAMPLE>
+	    <JAVASCRIPT>
+function is_var(exp) {
+    return is_tagged_list(exp, "?");
+}
+	    </JAVASCRIPT>
+	  </SNIPPET>
+	</TEXT>
+	
+	<TEXT>
+	  Unique variables are constructed during rule application
+	  (in section<SPACE/><REF NAME="sec:query-unify"/>) by means of
+	  the following functions.
+	  The unique identifier for a rule application is a number, which is
+	  incremented each time a rule is applied.
+	  <SNIPPET>
+	    <NAME>new_rule_application_id</NAME>
+	    <EXAMPLE>append_to_form_example_5</EXAMPLE>
+	    <JAVASCRIPT>
+let rule_counter = 0;
+
+function new_rule_application_id() {
+    rule_counter = rule_counter + 1;
+    return rule_counter;
+}
+function make_new_variable(variable, rule_application_id) {
+    return pair("?", pair(rule_application_id, tail(variable)));
+}
+	    </JAVASCRIPT>
+	  </SNIPPET>
+	</TEXT>
+      </JAVASCRIPT>
+    </SPLIT>
+
     
     <INDEX>query interpreter
     <SUBINDEX>syntax of query language|(</SUBINDEX></INDEX>
@@ -2847,13 +2981,11 @@ function contents(exp) {
 	<SCHEME>
 	<SCHEMEINLINE>(assert! ^rule-or-assertion^)</SCHEMEINLINE>:</SCHEME>
 	<JAVASCRIPT>
-	  <JAVASCRIPTINLINE>assert(</JAVASCRIPTINLINE>
-	  <LATEXINLINE>$\textit{rule-or-assertion}$</LATEXINLINE>
-	  <JAVASCRIPTINLINE>)</JAVASCRIPTINLINE>:
+	  <JAVASCRIPTINLINE>assert(</JAVASCRIPTINLINE><LATEXINLINE>$\textit{rule-or-assertion}$</LATEXINLINE><JAVASCRIPTINLINE>)</JAVASCRIPTINLINE>:
 	</JAVASCRIPT>
       </SPLITINLINE>
       <SNIPPET>
-	<NAME>assertion_to_be_added</NAME>
+	<NAME>is_assertion</NAME>
 	<REQUIRES>type</REQUIRES>
 	<EXAMPLE>append_to_form_example_5</EXAMPLE>
 	<SCHEME>
@@ -2864,10 +2996,10 @@ function contents(exp) {
   (car (contents exp)))
 	</SCHEME>
 	<JAVASCRIPT>
-function assertion_to_be_added(exp) {
+function is_assertion(exp) {
     return type(exp) === "assert";
 }
-function add_assertion_body(exp) {
+function assertion_body(exp) {
     return head(contents(exp));
 }
 	</JAVASCRIPT>
@@ -3040,180 +3172,53 @@ function rule_body(rule) {
 	    </SCHEME>
 	  </SNIPPET>
 	</TEXT>
-      </SCHEME>
-      <JAVASCRIPT>
 	<TEXT>
-	  <INDEX>query interpreter
-	  <SUBINDEX>pattern-variable representation|(</SUBINDEX></INDEX>
-	  <INDEX>pattern variable
-	  <SUBINDEX>representation of|(</SUBINDEX></INDEX>
-	  The function <JAVASCRIPTINLINE>query_driver_loop</JAVASCRIPTINLINE>
-	  (section<SPACE/><REF NAME="sec:query-driver"/>) calls
-	  <JAVASCRIPTINLINE>query_process</JAVASCRIPTINLINE>
-	  to transform the tagged list representation of the query
-	  formed by
-	  <JAVASCRIPTINLINE>parse</JAVASCRIPTINLINE>
-	  to a more concise tagged list
-	  representation, where the tags represent the kinds
-	  of queries described in
-	  section<SPACE/><REF NAME="sec:deductive-info-retrieval"/>.
-	  Along the way, pattern variables in the expression, which
-	  are identified using  <JAVASCRIPTINLINE>is_name</JAVASCRIPTINLINE>,
-	  are converted into the internal format
-	  <JAVASCRIPTINLINE>list("?", symbol)</JAVASCRIPTINLINE>.
-	  That is to say, a pattern such as
-	  <JAVASCRIPTINLINE>job(x, y)</JAVASCRIPTINLINE> is actually represented
-	  internally by the system as
-	  <JAVASCRIPTINLINE>list("job", list("?", "x"), list("?", "y")))</JAVASCRIPTINLINE>.
-	  This means that the system can
-	  check to see if an expression is a pattern variable by checking
-	  whether the <SCHEMEINLINE>head</SCHEMEINLINE> of the expression is the
-	  string <JAVASCRIPTINLINE>"?"</JAVASCRIPTINLINE>.
-	  The syntax transformation is accomplished
-	  by the following function:
+	  Once the variables are transformed in this way, the variables in a
+	  pattern are lists starting with	  
+	  <SCHEMEINLINE>?</SCHEMEINLINE>,
+	  and the constant symbols
+	  (which need to be recognized for
+	  data-base indexing, section<SPACE/><REF NAME="sec:query-db"/>) are
+	  just the symbols.
 	  <SNIPPET>
-	    <NAME>query_process</NAME>
+	    <NAME>is_var_scheme</NAME>
 	    <REQUIRES>functions_4_1_2</REQUIRES>
-	    <REQUIRES>javascript_value_process</REQUIRES>
 	    <EXAMPLE>append_to_form_example_5</EXAMPLE>
-	    <JAVASCRIPT>
-function query_process(exp) {
-    if (is_application(exp)) {
-      const function_symbol = 
-        symbol_of_name(function_expression(exp));
-      const processed_args = map(query_process, arg_expressions(exp));
-      return function_symbol === "pair"
-        ? pair(head(processed_args), head(tail(processed_args)))
-        : function_symbol === "list"
-        ? processed_args
-        : function_symbol === "javascript_value"
-        ? pair(function_symbol,
-               map(javascript_value_process, arg_expressions(exp)))
-        : pair(function_symbol, processed_args);
-    } else if (is_name(exp)) {
-      return list("?", symbol_of_name(exp));
-    } else if (is_literal(exp)) {
-      return literal_value(exp);
-    } else {
-      error(exp, "unknown query syntax -- query_process");
-    }
-}
-	    </JAVASCRIPT>
-	  </SNIPPET>
-	  Exceptions to this processing are
-	  <JAVASCRIPTINLINE>javascript_value</JAVASCRIPTINLINE>
-	  syntactic forms. Since the instantiated
-	  <SPLITINLINE>
-	    <SCHEME>syntax</SCHEME>
-	    <JAVASCRIPT>tagged list representation</JAVASCRIPT>
-	  </SPLITINLINE>
-	  of the argument of
-	  such a special form is passed to the
-	  <JAVASCRIPTINLINE>evaluate</JAVASCRIPTINLINE>
-	  function of section<SPACE/><REF NAME="sec:core-of-evaluator"/>,
-	  its applications and self-evaluating expressions remain intact,
-	  and only its names are converted to pattern variables.
-	  <SNIPPET>
-	    <NAME>javascript_value_process</NAME>
-	    <REQUIRES>functions_4_1_2</REQUIRES>
-	    <EXAMPLE>compound_queries_5_example</EXAMPLE>
-	    <JAVASCRIPT>
-function javascript_value_process(exp) {
-    return is_application(exp)
-        ? list("application", function_expression(exp),
-               map(javascript_value_process, arg_expressions(exp)))
-        : is_name(exp)
-        ? list("?", symbol_of_name(exp))
-        : exp;
-}
-	    </JAVASCRIPT>
+	    <SCHEME>
+	      (define (var? exp)
+	      (tagged-list? exp '?))
+
+	      (define (constant-symbol? exp) (symbol? exp))
+	    </SCHEME>
 	  </SNIPPET>
 	</TEXT>
-      </JAVASCRIPT>
+	
+	<TEXT>
+	  Unique variables are constructed during rule application
+	  (in section<SPACE/><REF NAME="sec:query-unify"/>) by means of
+	  the following procedures.
+	  The unique identifier for a rule application is a number, which is
+	  incremented each time a rule is applied.
+	  <SNIPPET>
+	    <NAME>new_rule_application_id</NAME>
+	    <EXAMPLE>append_to_form_example_5</EXAMPLE>
+	    <SCHEME>
+	      (define rule-counter 0)
+
+	      (define (new-rule-application-id)
+	      (set! rule-counter (+ 1 rule-counter))
+	      rule-counter)
+
+	      (define (make-new-variable var rule-application-id)
+	      (cons '? (cons rule-application-id (cdr var))))
+	    </SCHEME>
+	  </SNIPPET>
+	</TEXT>
+      </SCHEME>
     </SPLIT>
 
-    <TEXT>
-      Once the variables are transformed in this way, the variables in a
-      pattern are lists starting with
-      <SPLITINLINE>
-	<SCHEME>
-	  <SCHEMEINLINE>?</SCHEMEINLINE>,
-	</SCHEME>
-	<JAVASCRIPT>
-	  <JAVASCRIPTINLINE>"?"</JAVASCRIPTINLINE>
-	</JAVASCRIPT>
-      </SPLITINLINE>
-      and the
-      <SPLITINLINE>
-	<SCHEME>constant symbols</SCHEME>
-	<JAVASCRIPT>strings</JAVASCRIPT>
-      </SPLITINLINE>
-      (which need to be recognized for
-      data-base indexing, section<SPACE/><REF NAME="sec:query-db"/>) are
-      just
-      <SPLITINLINE>
-	<SCHEME>
-	  the symbols.
-	</SCHEME>
-	<JAVASCRIPT>
-	  the strings.
-	</JAVASCRIPT>
-      </SPLITINLINE>
-      <SNIPPET>
-	<NAME>is_var</NAME>
-	<REQUIRES>functions_4_1_2</REQUIRES>
-	<EXAMPLE>append_to_form_example_5</EXAMPLE>
-	<SCHEME>
-(define (var? exp)
-  (tagged-list? exp '?))
 
-(define (constant-symbol? exp) (symbol? exp))
-	</SCHEME>
-	<JAVASCRIPT>
-function is_var(exp) {
-    return is_tagged_list(exp, "?");
-}
-	</JAVASCRIPT>
-      </SNIPPET>
-    </TEXT>
     
-    <TEXT>
-      Unique variables are constructed during rule application
-      (in section<SPACE/><REF NAME="sec:query-unify"/>) by means of
-      the following
-      <SPLITINLINE>
-	<SCHEME>procedures.</SCHEME>
-	<JAVASCRIPT>functions.</JAVASCRIPT>
-      </SPLITINLINE>
-      The unique identifier for a rule application is a number, which is
-      incremented each time a rule is applied.
-      <SNIPPET>
-	<NAME>new_rule_application_id</NAME>
-	<EXAMPLE>append_to_form_example_5</EXAMPLE>
-	<SCHEME>
-(define rule-counter 0)
-
-(define (new-rule-application-id)
-  (set! rule-counter (+ 1 rule-counter))
-  rule-counter)
-
-(define (make-new-variable var rule-application-id)
-  (cons '? (cons rule-application-id (cdr var))))
-	</SCHEME>
-	<JAVASCRIPT>
-let rule_counter = 0;
-
-function new_rule_application_id() {
-    rule_counter = rule_counter + 1;
-    return rule_counter;
-}
-function make_new_variable(variable, rule_application_id) {
-    return pair("?", pair(rule_application_id, tail(variable)));
-}
-	</JAVASCRIPT>
-      </SNIPPET>
-    </TEXT>
-
     <TEXT>
       <SPLIT>
 	<SCHEME>
@@ -3246,52 +3251,57 @@ function make_new_variable(variable, rule_application_id) {
 	  the syntax described in
 	  section<SPACE/><REF NAME="sec:deductive-info-retrieval"/>.
 	  The function <JAVASCRIPTINLINE>unparse_term</JAVASCRIPTINLINE>
-	  formats unbound pattern variables using
-	  <JAVASCRIPTINLINE>contract_question_mark</JAVASCRIPTINLINE>.
-	  Note that it needs to distinguish genuine lists from pairs
-	  whose tail is a pattern variable (and therefore technically a list).
+	  formats any unbound pattern variable using
+	  <JAVASCRIPTINLINE>contract_question_mark</JAVASCRIPTINLINE>, and
+	  prints operator combinations (using infix notation) and 
+	  literal values.
+	  To achieve list notation in the output string, care must be taken to
+	  distinguish a genuine list from a pair whose tail is a pattern variable (and
+	  therefore technically is a list).
 	  <SNIPPET>
 	    <NAME>contract_question_mark</NAME>
 	    <REQUIRES>functions_4_1_2</REQUIRES>
 	    <EXAMPLE>append_to_form_example_5</EXAMPLE>
 	    <JAVASCRIPT>
-function contract_question_mark(variable) {
-    return is_number(head(tail(variable)))
-        ? head(tail(tail(variable))) + "_" + stringify(head(tail(variable)))
-        : head(tail(variable));
-}
-function comma_separated(strings) {
-    return accumulate((s, acc) => s + (acc === "" ? "" : ", " + acc),
-                      "", strings);
-}
-function unparse(string, args, arg_unparse) {	
-    return string + "(" + comma_separated(map(arg_unparse, args)) + ")";
-}
-function unparse_term(arg) {
-    return is_number(arg) || is_boolean(arg) || is_string(arg
-	   ? is_null(arg)
-        ? "null"
-        : is_list(arg) &amp;&amp;
-          (is_null(tail(arg)) || head(tail(arg)) !== "?")
-        ? (head(arg) === "?"
-           ? contract_question_mark(arg)
-           : is_application(arg)
-             // can assume function_expression(arg) is name
-           ? "(" + unparse_term(head(arg_expressions(arg))) + 
-             " " + symbol_of_name(function_expression(arg)) + 
-             " " + unparse_term(head(tail(arg_expressions(arg)))) +
-             ")"
-           : unparse("list", arg, unparse_term))
-        : is_pair(arg)
-        ? unparse("pair", list(head(arg), tail(arg)), unparse_term)
-        : error(arg, "unknown term -- unparse_term");
-}
 function unparse_query(query) {
     return is_null(member(head(query),
                           list("and", "or", "not", "assert", "rule")))
         ? unparse(head(query), tail(query), unparse_term)
         : unparse(head(query), tail(query), unparse_query);
 }
+function unparse(string, args, arg_unparse) {	
+    return string + "(" + comma_separated(map(arg_unparse, args)) + ")";
+}
+function comma_separated(strings) {
+    return accumulate((s, acc) => s + (acc === "" ? "" : ", " + acc),
+                      "", strings);
+}
+function unparse_term(arg) {
+    return is_var(arg)
+           ? contract_question_mark(arg)
+           : is_operator_combination(arg)
+           ? "(" + unparse_term(operator_combination_first_operand(arg)) +
+             " " + operator_combination_operator_symbol(arg) +
+             " " + unparse_term(operator_combination_second_operand(arg)) +
+             ")"
+           : is_literal(arg)
+           ? stringify(literal_value(arg))
+           : is_list(arg) &amp;&amp;
+	     // exclude pairs whose tail is a pattern variable 
+	     (is_null(arg) || is_null(tail(arg)) || head(tail(arg)) !== "?")
+           ? unparse("list", arg, unparse_term)
+           : is_pair(arg) 
+           ? unparse("pair", list(head(arg), tail(arg)), unparse_term)
+           : error(arg, "unknown term -- unparse_term");
+}    
+function contract_question_mark(variable) {
+    return is_number(head(tail(variable)))
+        ? head(tail(tail(variable))) + "_" + stringify(head(tail(variable)))
+        : head(tail(variable));
+}
+function is_list(xs) {    
+    return is_null(xs) || is_list(tail(xs));
+}	
 	    </JAVASCRIPT>
 	  </SNIPPET>
 	</JAVASCRIPT>
@@ -3783,7 +3793,7 @@ put("unique", "evaluate_query", uniquely_asserted);
       (rather than the stream of all answers) and the user can type
       <SPLITINLINE>
 	<SCHEME><SCHEMEINLINE>try-again</SCHEMEINLINE></SCHEME>
-	<JAVASCRIPT><JAVASCRIPTINLINE>try_again</JAVASCRIPTINLINE>
+	<JAVASCRIPT><JAVASCRIPTINLINE>retry</JAVASCRIPTINLINE>
 	</JAVASCRIPT>
       </SPLITINLINE>
       to see more answers.  You should find that much of the mechanism we built
