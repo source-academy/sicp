@@ -373,8 +373,11 @@ function amb_choices(component) {
 ((amb? exp) (analyze-amb exp))
       </SCHEME>
       <JAVASCRIPT>
+...
 : is_amb(component)
 ? analyze_amb(component)
+: is_application(component)
+...
       </JAVASCRIPT>
       <JAVASCRIPT_RUN>
       </JAVASCRIPT_RUN>
@@ -450,27 +453,31 @@ function amb_choices(component) {
 function analyze(component) {
     return is_literal(component)
            ? analyze_literal(component)
-         : is_name(component)
+           : is_name(component)
            ? analyze_name(component)
-         : is_declaration(component)
-           ? analyze_declaration(component)
-         : is_assignment(component)
-           ? analyze_assignment(component)
-         : is_conditional(component)
-           ? analyze_conditional(component)
-         : is_lambda_expression(component)
-           ? analyze_lambda_expression(component)
-         : is_sequence(component)
-           ? analyze_sequence(sequence_statements(component))
-         : is_block(component)
-           ? analyze_block(component)
-         : is_return_statement(component)
-           ? analyze_return_statement(component)
-         : is_amb(component)
+           : is_amb(component)
            ? analyze_amb(component)
-         : is_application(component)
+           : is_application(component)
            ? analyze_application(component)
-         : error(component, "Unknown syntax -- analyze");
+           : is_operator_combination(component)
+           ? analyze(operator_combination_to_application(component))
+           : is_conditional(component)
+           ? analyze_conditional(component)
+           : is_lambda_expression(component)
+           ? analyze_lambda_expression(component)
+           : is_sequence(component)
+           ? analyze_sequence(sequence_statements(component))
+           : is_block(component)
+           ? analyze_block(component)
+           : is_return_statement(component)
+           ? analyze_return_statement(component)
+           : is_function_declaration(component)	    
+           ? analyze(function_decl_to_constant_decl(component))
+           : is_declaration(component)
+           ? analyze_declaration(component)
+           : is_assignment(component)
+           ? analyze_assignment(component)
+           : error(component, "Unknown syntax -- analyze");
 }
       </JAVASCRIPT>
     </SNIPPET>
@@ -484,8 +491,8 @@ function analyze(component) {
   ((analyze exp) env succeed fail))
       </SCHEME>
       <JAVASCRIPT>
-function ambeval(prog, env, succeed, fail) {      
-    return analyze(prog)(env, succeed, fail);
+function ambeval(component, env, succeed, fail) {      
+    return analyze(component)(env, succeed, fail);
 }
       </JAVASCRIPT>
     </SNIPPET>
@@ -534,6 +541,8 @@ function ambeval(prog, env, succeed, fail) {
 }
       </JAVASCRIPT>
     </SNIPPET>
+  </TEXT>
+  <TEXT>
     For example, executing
     <SPLIT>
       <SCHEME>
@@ -549,7 +558,7 @@ function ambeval(prog, env, succeed, fail) {
       <JAVASCRIPT>
 	<SNIPPET EVAL="no" LATEX="yes">
 	  <JAVASCRIPT>
-ambeval($\textit{prog}$,      
+ambeval($\textit{component}$,      
     the_global_environment,
     (value, fail) => value,
     () => "failed");
@@ -560,12 +569,12 @@ ambeval($\textit{prog}$,
     will attempt to evaluate the given
     <SPLITINLINE>
       <SCHEME>expression</SCHEME>
-      <JAVASCRIPT>program</JAVASCRIPT>
+      <JAVASCRIPT>component</JAVASCRIPT>
     </SPLITINLINE>
     and will return either the
     <SPLITINLINE>
       <SCHEME>expression<APOS/>s</SCHEME>
-      <JAVASCRIPT>program<APOS/>s</JAVASCRIPT>
+      <JAVASCRIPT>component<APOS/>s</JAVASCRIPT>
     </SPLITINLINE>
     value (if the evaluation succeeds) or the
     <SPLITINLINE>
@@ -682,11 +691,10 @@ function analyze_name(component) {
       </SCHEME>
       <JAVASCRIPT>
 function analyze_lambda_expression(component) {
-    const parameters = lambda_parameter_symbols(component);
-    const body = lambda_body(component);
-    const bfun = analyze(body);
+    const params = lambda_parameter_symbols(component);
+    const bfun = analyze(lambda_body(component));
     return (env, succeed, fail) =>
-           succeed(make_function(parameters, bfun, env),
+           succeed(make_function(params, bfun, env),
                    fail);
 }
       </JAVASCRIPT>
@@ -804,14 +812,13 @@ function analyze_conditional(component) {
     const afun = analyze(conditional_alternative(component));
     return (env, succeed, fail) =>
            pfun(env,
-                // success continuation for evaluating 
-                // the predicate to obtain pred_value
+                // success continuation for evaluating the predicate 
+                // to obtain pred_value
                 (pred_value, fail2) =>
                     is_truthy(pred_value) 
                     ? cfun(env, succeed, fail2)
                     : afun(env, succeed, fail2),
-                // failure continuation for evaluating 
-                // the predicate		    
+                // failure continuation for evaluating the predicate		    
                 fail);
 }
       </JAVASCRIPT>
@@ -869,10 +876,12 @@ function analyze_sequence(stmts) {
     function sequentially(a, b) {
         return (env, succeed, fail) => 
                    a(env, 
+                     // success continuation for calling a
                      (a_value, fail2) =>
                         is_return_value(a_value)
                         ? succeed(a_value, fail2)
                         : b(env, succeed, fail2),
+                     // failure continuation for calling a
                      fail);
     }
     function loop(first_fun, rest_funs) {
@@ -1031,11 +1040,7 @@ function analyze_declaration(component) {
 	<INDEX>internal definition
 	<SUBINDEX>nondeterministic@in nondeterministic evaluator</SUBINDEX>
 	</INDEX>
-	assume that internal
-	<SPLITINLINE>
-	  <SCHEME>definitions</SCHEME>
-	  <JAVASCRIPT>declarations</JAVASCRIPT>
-	</SPLITINLINE>
+	assume that internal definitions
 	are scanned out
 	(section<SPACE/><REF NAME="sec:internal-definitions"/>).
       </SCHEME>
@@ -1045,13 +1050,7 @@ function analyze_declaration(component) {
 	<SUBINDEX>nondeterministic@in nondeterministic evaluator</SUBINDEX>
 	</INDEX>
 	assume that names are not used prior to the evaluation of their
-	declaration, see exercise<SPACE/><REF NAME="ex:internal-defs"/>.
-	<SPLITINLINE>
-	  <SCHEME>definitions</SCHEME>
-	  <JAVASCRIPT>declarations</JAVASCRIPT>
-	</SPLITINLINE>
-	are scanned out
-	(section<SPACE/><REF NAME="sec:internal-definitions"/>).
+	declaration, see exercise<SPACE/><REF NAME="ex:access_unassigned"/>.
       </JAVASCRIPT>
     </SPLITINLINE></FOOTNOTE>
   </TEXT>
@@ -1148,6 +1147,8 @@ function analyze_return_statement(component) {
 }
 	  </JAVASCRIPT>
 	</SNIPPET>
+      </TEXT>
+      <TEXT>
 	The execution function for blocks calls the body<APOS/>s execution
 	function on an extended environment, without changing success or
 	failure continuations.
@@ -1641,15 +1642,20 @@ driver_loop();
 const input_prompt = "amb-evaluate input:";
 const output_prompt =  "amb-evaluate value:";
 
-function driver_loop() {
+function driver_loop(env) {
     function internal_loop(retry) {
         const input = user_read(input_prompt);
         if (input === "retry") {
             retry();
         } else {
             display("Starting a new problem");
-            ambeval(parse(input),
-                the_global_environment,
+            const program = parse(input);
+            const locals = scan_out_declarations(program);
+            const unassigneds = list_of_unassigned(locals);
+            const program_env = extend_environment(locals, unassigneds, env);
+            ambeval(
+                program,  
+                program_env,
                 // ambeval success
                 (val, next_alternative) => {
                     user_print(output_prompt, val);
@@ -1659,15 +1665,14 @@ function driver_loop() {
                 () => {
                     display("There are no more values of");
                     display(input);
-                    return driver_loop();
+                    driver_loop(env);
                 });
         }
     }
-    return internal_loop(
-               () => {
-                   display("There is no current problem");
-                   return driver_loop();
-               });
+    internal_loop( () => {
+                       display("There is no current problem");
+                       driver_loop(env);
+                   } );
 }
       </JAVASCRIPT>
       <JAVASCRIPT_RUN>
@@ -1708,9 +1713,6 @@ function driver_loop() {
 }
       </JAVASCRIPT_RUN>
     </SNIPPET>
-  </TEXT>
-
-  <TEXT>
     The initial call to
     <SPLITINLINE>
       <SCHEME><SCHEMEINLINE>internal-loop</SCHEMEINLINE></SCHEME>
@@ -1735,7 +1737,21 @@ function driver_loop() {
     </SPLITINLINE>
     when there is no evaluation in progress.
   </TEXT>
-
+  <SPLIT>
+    <JAVASCRIPT>
+      <TEXT>
+	We start the driver loop as usual, by setting up the global environment
+	and passing it as enclosing environment for the first iteration of
+	<JAVASCRIPTINLINE>driver_loop</JAVASCRIPTINLINE>.
+	<SNIPPET EVAL="no">
+	  <JAVASCRIPT>
+const the_global_environment = setup_environment();
+driver_loop(the_global_environment);
+	  </JAVASCRIPT>
+	</SNIPPET>
+      </TEXT>
+    </JAVASCRIPT>
+  </SPLIT>
   <EXERCISE>
     Implement a new
     <SPLITINLINE>
@@ -1757,7 +1773,7 @@ function driver_loop() {
 	<SCHEMEINLINE>permanent-set!</SCHEMEINLINE> that
       </SCHEME>
       <JAVASCRIPT>
-	Implement assignment such that 
+	Change the Implementation of assignment such that it
       </JAVASCRIPT>
     </SPLITINLINE>
     is not undone upon failure. For example, we can choose two distinct
@@ -1886,10 +1902,9 @@ if (evaluation_succeeds_take) { $statement$ } else { $alternative$ }
 	  </JAVASCRIPT>
 	</SNIPPET>
 	The construct permits the user to catch the failure of a
-	<LATEXINLINE>$\textit{statement}$</LATEXINLINE>. It evaluates the
-	<LATEXINLINE>$\textit{statement}$</LATEXINLINE> as usual and returns
+	statement. It evaluates the statement as usual and returns
 	as usual if the evaluation succeeds. If the evaluation fails,
-	however, the <LATEXINLINE>$\textit{alternative}$</LATEXINLINE>
+	however, the given alternative statement 
 	is evaluated, as in the following example:
 	<SNIPPET EVAL="no">
 	  <JAVASCRIPT>
@@ -1903,6 +1918,7 @@ amb-evaluate input:
 if (evaluation_succeeds_take) {
     const x = an_element_of(list(1, 3, 5));
     require(is_even(x));
+    x;
 } else {
     "all odd";
 }
@@ -1931,6 +1947,11 @@ amb-evaluate value:
 8
 	  </JAVASCRIPT_OUTPUT>
 	</SNIPPET>
+	Implement this construct by extending the
+	<JAVASCRIPTINLINE>amb</JAVASCRIPTINLINE>
+	evaluator. Hint: Exercise<SPACE/><REF NAME="ex:unless-syntactic-form"/> shows
+	how to abuse the existing JavaScript syntax in order to implement
+	a new syntactic form.
       </EXERCISE>
     </JAVASCRIPT>
   </SPLIT>
