@@ -134,8 +134,11 @@ export const preamble = `\\documentclass[a4paper, 12pt]{book}
    basicstyle=\\linespread{1.0}\\ttfamily,
    showstringspaces=false,
    showspaces=false,
+   deletekeywords={continue},
    escapechar=^
 }
+
+\\newcommand{\\OptionalPar}[2][]{\\ensuremath{\\langle\\text{\\textrm{\\sl #2}}_{#1}\\rangle}}
 
 \\usepackage[svgnames]{xcolor}
 \\definecolor{LeftBarClickable}{RGB}{187, 187, 187}
@@ -231,7 +234,7 @@ export const preamble = `\\documentclass[a4paper, 12pt]{book}
 \\newcommand{\\lt}{\\ensuremath{<}}% Less than
 \\newcommand{\\gt}{\\ensuremath{>}}% Greater than
 
-\\hyphenation{Solution}
+\\hyphenation{Solution Java-Script}
 
 \\newsavebox\\lstbox
 
