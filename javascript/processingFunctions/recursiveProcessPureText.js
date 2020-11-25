@@ -21,15 +21,15 @@ const recursiveProcessPureText = (
       value = value.replace(/\{/g, "\\{");
       value = value.replace(/\}/g, "\\}");
     }
-    /// \OptionalPar[n]{...} ===> \langle\textit{...}_{n}\rangle
+    /// \OptionalPar[n]{...} ===> \textit{...}_{n}
     value = value.replace(
       /\\OptionalPar\[(.)\]{(.*?)}/g,
-      "\\langle\\textit{$2}_{$1}\\rangle"
+      "\\ensuremath{\\text{\\textrm{\\sl $2}}_{$1}}"
     );
-    /// \OptionalPar{...} ===> \langle\textit{...}\rangle
+    /// \OptionalPar{...} ===> \textit{...}
     value = value.replace(
       /\\OptionalPar{(.*?)}/g,
-      "\\langle\\textit{$1}\\rangle"
+      "\\ensuremath{\\text{\\textrm{\\sl $1}}}"
     );
     writeTo.push(value);
   }

@@ -138,7 +138,7 @@ export const preamble = `\\documentclass[a4paper, 12pt]{book}
    escapechar=^
 }
 
-\\newcommand{\\OptionalPar}[2][]{\\ensuremath{\\langle\\text{\\textrm{\\sl #2}}_{#1}\\rangle}}
+\\newcommand{\\OptionalPar}[2][]{\\ensuremath{\\text{\\textrm{\\sl #2}}_{#1}}}
 
 \\usepackage[svgnames]{xcolor}
 \\definecolor{LeftBarClickable}{RGB}{187, 187, 187}
