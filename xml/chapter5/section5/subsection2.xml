@@ -2,9 +2,9 @@
   <NAME>
     Compiling
     <SPLITINLINE>
-      <JAVASCRIPT>Statements and</JAVASCRIPT>
+      <SCHEME>Expressions</SCHEME>
+      <JAVASCRIPT>Components</JAVASCRIPT>
     </SPLITINLINE>
-    Expressions
   </NAME>
 
   <TEXT>
@@ -121,26 +121,24 @@
       <JAVASCRIPT>
 function compile_linkage(target, linkage) {
     return linkage === "return"
-        ? make_instruction_sequence(
-              list("continue"), 
-              null,
-              list(go_to(reg("continue"))))
-        : linkage === "return_undefined"
-        ? make_instruction_sequence(
-              list("continue"), 
-              list(target),
-              list(assign(target, constant(undefined)),
-                   go_to(reg("continue"))))
-        : linkage === "next"
-          ? empty_instruction_sequence()
-          : make_instruction_sequence(null, null, 
-                list(go_to(label(linkage))));
+           ? make_instruction_sequence(
+                 list("continue"), 
+                 null,
+                 list(go_to(reg("continue"))))
+           : linkage === "return_undefined"
+           ? make_instruction_sequence(
+                 list("continue"), 
+                 list(target),
+                 list(assign(target, constant(undefined)),
+                      go_to(reg("continue"))))
+           : linkage === "next"
+           ? empty_instruction_sequence()
+           : make_instruction_sequence(null, null, 
+                 list(go_to(label(linkage))));
 }
       </JAVASCRIPT>
     </SNIPPET>
-  </TEXT>
 
-  <TEXT>
     The linkage code is appended to an instruction sequence by
     <SCHEMEINLINE>preserving</SCHEMEINLINE> the
     <SCHEMEINLINE>continue</SCHEMEINLINE> register, since a
@@ -185,10 +183,10 @@ function end_with_linkage(target, linkage, instruction_sequence) {
     <SUBINDEX>self-evaluating expressions</SUBINDEX></INDEX>
     <INDEX>compiler for Scheme<SUBINDEX>quotations</SUBINDEX></INDEX>
     <INDEX>compiler for Scheme<SUBINDEX>variables</SUBINDEX></INDEX>
-    The code generators for self-evaluating 
+    The code generators for 
     <SPLITINLINE>
-      <SCHEME>expressions, quotations, and variables</SCHEME>
-      <JAVASCRIPT>expressions and names</JAVASCRIPT>
+      <SCHEME>self-evaluating expressions, quotations, and variables</SCHEME>
+      <JAVASCRIPT>literal expressions and names</JAVASCRIPT>
     </SPLITINLINE>
     construct instruction
     sequences that assign the required value to the target register
@@ -218,20 +216,20 @@ function end_with_linkage(target, linkage, instruction_sequence) {
             (reg env))))))
     </SCHEME>
     <JAVASCRIPT>
-function compile_literal(exp, target, linkage) {
+function compile_literal(component, target, linkage) {
     return end_with_linkage(target, linkage,
                make_instruction_sequence(
                    null,
                    list(target),
-                   list(assign(target, constant(literal_value(exp))))));
+                   list(assign(target, constant(literal_value(component))))));
 }
 
-function compile_name(exp, target, linkage) {
+function compile_name(component, target, linkage) {
     return end_with_linkage(target, linkage,
                make_instruction_sequence(list("env"), list(target),
                    list(assign(target, 
                                list(op("lookup_symbol_value"),
-                                    constant(exp), reg("env"))))));
+                                    constant(component), reg("env"))))));
 }
     </JAVASCRIPT>
     </SNIPPET>
@@ -345,17 +343,17 @@ function compile_name(exp, target, linkage) {
             (assign ,target (const ok))))))))
       </SCHEME>
       <JAVASCRIPT>
-function compile_assignment(stmt, target, linkage) {
-    const symbol = assignment_symbol(stmt);
+function compile_assignment(component, target, linkage) {
+    const symbol = assignment_symbol(component);
     const value_code =
-              compile(assignment_value_expression(stmt), "val", "next");
+              compile(assignment_value_expression(component), "val", "next");
     return compile_assignment_returning(symbol,
                value_code, target, linkage, reg("val"));
 }
 
-function compile_declaration(stmt, target, linkage) {
-    const symbol = declaration_symbol(stmt);
-    const value_code = compile(declaration_value_expression(stmt), "val", "next");
+function compile_declaration(component, target, linkage) {
+    const symbol = declaration_symbol(component);
+    const value_code = compile(declaration_value_expression(component), "val", "next");
     return compile_assignment_returning(symbol,
                value_code, target, linkage, constant(undefined));
 }
@@ -378,9 +376,7 @@ function compile_assignment_returning(
 }
       </JAVASCRIPT>
     </SNIPPET>
-  </TEXT>
 
-  <TEXT>
     The appended two-instruction sequence requires
     <SCHEMEINLINE>env</SCHEMEINLINE> and <SCHEMEINLINE>val</SCHEMEINLINE>
     and modifies the target.  Note that although we preserve
@@ -405,7 +401,16 @@ function compile_assignment_returning(
   </TEXT>
 
   <SUBHEADING>
-    <NAME>Compiling conditional expressions</NAME>
+    <NAME>Compiling 
+    <SPLITINLINE>
+      <SCHEME>
+        conditional expressions
+      </SCHEME>
+      <JAVASCRIPT>
+        conditionals
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    </NAME>
   </SUBHEADING>
 
   <TEXT>
@@ -413,13 +418,13 @@ function compile_assignment_returning(
     The code for 
     <SPLITINLINE>
       <SCHEME>
-	an <SCHEMEINLINE>if</SCHEMEINLINE>
+	an <SCHEMEINLINE>if expression</SCHEMEINLINE>
       </SCHEME>
       <JAVASCRIPT>
 	a conditional
       </JAVASCRIPT>
     </SPLITINLINE>
-    expression compiled with a given target and linkage has the form
+    compiled with a given target and linkage has the form
     <SNIPPET EVAL="no" LATEX="yes">
       <SCHEME>
       ^compilation of predicate, target^ val^, linkage^ next
@@ -587,16 +592,16 @@ function make_label(name) {
             after-if))))))
       </SCHEME>
       <JAVASCRIPT>
-function compile_conditional(stmt, target, linkage) {
+function compile_conditional(component, target, linkage) {
     let t_branch = make_label("true_branch");
     let f_branch = make_label("false_branch");
     let after_cond = make_label("after_cond");
     let consequent_linkage =
             linkage === "next" ? after_cond : linkage;
-    let p_code = compile(conditional_predicate(stmt), "val", "next");
-    let c_code = compile(conditional_consequent(stmt),
+    let p_code = compile(conditional_predicate(component), "val", "next");
+    let c_code = compile(conditional_consequent(component),
                          target, consequent_linkage);
-    let a_code = compile(conditional_alternative(stmt),
+    let a_code = compile(conditional_alternative(component),
                          target, linkage);
     return preserving(
              list("env", "continue"),
@@ -615,9 +620,7 @@ function compile_conditional(stmt, target, linkage) {
 }
       </JAVASCRIPT>
     </SNIPPET>
-  </TEXT>
 
-  <TEXT>
     <SPLITINLINE>
       <SCHEME>
 	<SCHEMEINLINE>Env</SCHEMEINLINE>
@@ -663,15 +666,45 @@ function compile_conditional(stmt, target, linkage) {
   <TEXT>
     <INDEX>compiler for Scheme
     <SUBINDEX>sequences of expressions</SUBINDEX></INDEX>
-    The compilation of sequences (from
+    The compilation of 
     <SPLITINLINE>
-      <SCHEME>procedure</SCHEME>
-      <JAVASCRIPT>function</JAVASCRIPT>
+      <SCHEME>
+        sequences (from procedure bodies or explicit <SCHEMEINLINE>begin</SCHEMEINLINE> expressions)
+      </SCHEME>
+      <JAVASCRIPT>
+        statement sequences (inside blocks)
+      </JAVASCRIPT>
     </SPLITINLINE>
-    bodies or explicit
-    <SCHEMEINLINE>begin</SCHEMEINLINE> expressions) parallels their evaluation.
-    Each expression of the sequence is compiled<EMDASH/>the last expression with
-    the linkage specified for the sequence, and the other expressions with
+    parallels their evaluation.
+    Each
+    <SPLITINLINE>
+      <SCHEME>
+        expression
+      </SCHEME>
+      <JAVASCRIPT>
+        statement
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    of the sequence is compiled<EMDASH/>the last
+    <SPLITINLINE>
+      <SCHEME>
+        expression
+      </SCHEME>
+      <JAVASCRIPT>
+        statement
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    with
+    the linkage specified for the sequence, and the other
+    <SPLITINLINE>
+      <SCHEME>
+        expressions
+      </SCHEME>
+      <JAVASCRIPT>
+        statements
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    with
     linkage
     <SPLITINLINE>
       <SCHEME>
@@ -682,7 +715,16 @@ function compile_conditional(stmt, target, linkage) {
       </JAVASCRIPT>
     </SPLITINLINE>
     (to execute the rest of the
-    sequence). The instruction sequences for the individual expressions are
+    sequence). The instruction sequences for the individual
+    <SPLITINLINE>
+      <SCHEME>
+        expressions
+      </SCHEME>
+      <JAVASCRIPT>
+        statements
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    are
     appended to form a single instruction sequence, such that
     <SCHEMEINLINE>env</SCHEMEINLINE> (needed for the rest of the sequence) and
     <SCHEMEINLINE>continue</SCHEMEINLINE> (possibly needed for the linkage at
@@ -701,11 +743,11 @@ function compile_conditional(stmt, target, linkage) {
       <JAVASCRIPT>
 function compile_sequence(seq, target, linkage) {
     return is_last_statement(seq)
-        ? compile(first_statement(seq), target, linkage)
-        : preserving(
-            list("env", "continue"),
-            compile(first_statement(seq), target, "next"),
-            compile_sequence(rest_statements(seq), target, linkage));
+           ? compile(first_statement(seq), target, linkage)
+           : preserving(
+               list("env", "continue"),
+               compile(first_statement(seq), target, "next"),
+               compile_sequence(rest_statements(seq), target, linkage));
 }
       </JAVASCRIPT>
     </SNIPPET>
@@ -744,9 +786,7 @@ $\langle construct$ $function$ $object$ $and$ $assign$ $it$ $to$ $target$ $regis
 $\langle linkage \rangle$
       </JAVASCRIPT>
     </SNIPPET>
-  </TEXT>
 
-  <TEXT>
     When we compile the lambda expression, we also generate the code for the
     <SPLITINLINE>
       <SCHEME>procedure</SCHEME>
@@ -922,9 +962,7 @@ function compile_lambda_expression(exp, target, linkage) {
 }
       </JAVASCRIPT>
     </SNIPPET>
-  </TEXT>
 
-  <TEXT>
     <SPLITINLINE>
       <SCHEME><SCHEMEINLINE>Compile-lambda</SCHEMEINLINE></SCHEME>
       <JAVASCRIPT>
@@ -994,13 +1032,13 @@ function compile_lambda_expression(exp, target, linkage) {
       <SCHEME>procedure</SCHEME>
       <JAVASCRIPT>function</JAVASCRIPT>
     </SPLITINLINE>
-    is called.  After this comes the code for the sequence of
+    is called.  After this comes the code for the 
     <SPLITINLINE>
       <SCHEME>
-	expressions
+	sequence of expressions
       </SCHEME>
       <JAVASCRIPT>
-	statements
+	block
       </JAVASCRIPT>
     </SPLITINLINE>
     that
