@@ -473,21 +473,20 @@ function f(x) {
           <JAVASCRIPT>
 function eval_block(component, env) {
     const body = block_body(component);
-    return evaluate(body, extend_environment(null,
-                                             null,
-                                             env);
+    return evaluate(body, extend_environment(null, null, env);
 }
           </JAVASCRIPT>
 	</SNIPPET>
 	The function 
 	<JAVASCRIPTINLINE>eval_declaration</JAVASCRIPTINLINE> can no
 	longer assume that the environment already has a binding for
-	the name's symbol. Instead of using
-	<JAVASCRIPTINLINE>add_binding_to_frame</JAVASCRIPTINLINE>, it
-	now applies a new function
+	the name's symbol.
+	Instead of using
 	<JAVASCRIPTINLINE>assign_symbol_value</JAVASCRIPTINLINE> to
-	the symbol, the value of the value expression, and the first
-	frame of the environment.
+	change an existing binding, it calls a new function,
+	<JAVASCRIPTINLINE>add_binding_to_frame</JAVASCRIPTINLINE>, to
+	add to the first frame of the environment a binding of the symbol
+	to the value of the value expression.
 	<SNIPPET EVAL="no">
           <NAME>eval_declaration_simplified</NAME>
           <JAVASCRIPT>
@@ -498,14 +497,7 @@ function eval_declaration(component, env) {
                          first_frame(env));
     return undefined;
 }
-	  </JAVASCRIPT>
-	</SNIPPET>
-	The function
-	<JAVASCRIPTINLINE>add_binding_to_frame</JAVASCRIPTINLINE>
-	modifies the given frame by adding a binding to it.
-	<SNIPPET EVAL="no">
-	  <NAME>add_binding_to_frame_javascript</NAME>
-	  <JAVASCRIPT>
+
 function add_binding_to_frame(symbol, value, frame) {
     set_head(frame, pair(symbol, head(frame)));
     set_tail(frame, pair(value, tail(frame)));
@@ -655,7 +647,12 @@ function add_binding_to_frame(symbol, value, frame) {
     </SCHEME>
     <JAVASCRIPT>
       <TEXT>
-	This sequential processing of declarations
+	With sequential declaration processing, the scope of a
+	declaration is no longer the entire block that immediately surrounds
+	the declaration, but rather just the portion of the block starting at
+	the point where the declaration occurs.
+	Although we no longer have simultaneous scope, sequential
+	declaration processing
 	will evaluate calls to the function
 	<SCHEMEINLINE>f</SCHEMEINLINE> of the beginning of this section
 	correctly, but for an
@@ -663,8 +660,8 @@ function add_binding_to_frame(symbol, value, frame) {
 	of the internal functions come first, no calls to these functions
 	will be evaluated until all of them have been declared. Hence,
 	<JAVASCRIPTINLINE>is_odd</JAVASCRIPTINLINE> will have been declared by the time
-	<JAVASCRIPTINLINE>is_even</JAVASCRIPTINLINE> is executed.  In fact, the 
-	sequential processing of declarations
+	<JAVASCRIPTINLINE>is_even</JAVASCRIPTINLINE> is executed.  In fact, 
+	sequential declaration processing 
 	will give the same result as our scanning-out-names evaluator in
 	section<SPACE/><REF NAME="sec:core-of-evaluator"/>
 	for any function
@@ -679,20 +676,19 @@ function add_binding_to_frame(symbol, value, frame) {
 	equivalent to our scanning-out-names evaluator.
       </TEXT>
       <TEXT>
-	Sequential processing of declarations is more efficient and easier to
-	implement than our scanning-out-names evaluator. A disadvantage of
-	sequential processing of declarations is that in some cases, the
-	declaration to which a name refers will only be decided at runtime.
-	An important optimization presented in
-	section<SPACE/><REF NAME="sec:lexical-addressing"/> is not available in
-	those cases.
+	Sequential declaration processing is more efficient and easier to
+	implement than our scanning-out-names evaluator.
+	A disadvantage of
+	sequential processing is that the
+	declaration to which a name refers may depend on the order in which
+	the statements in a block are evaluated.
 	Interactive programming environments such as the read-evaluate-print loop
 	of MIT Scheme turn this disadvantage into a desirable feature. 
-	Using sequential processing of declarations at the top level, programmers
+	Using sequential declaration processing at the top level, programmers
 	of MIT Scheme
 	can write functions that use other functions
 	whose declarations they provide only
-	later. Programmers can fix bugs on-the-fly in these other functions simply
+	later. Programmers can fix bugs on the fly in these other functions simply
 	by reevaluating their declarations.
       </TEXT>
       <EXERCISE>
@@ -743,7 +739,7 @@ f(10);
       <EXERCISE>
       <JAVASCRIPT>
 	Consider the function <JAVASCRIPTINLINE>f_3</JAVASCRIPTINLINE>
-	in section<SPACE/><REF NAME="sec:lambda"/>, repeated here:
+	of section<SPACE/><REF NAME="sec:lambda"/>:
         <SNIPPET PAGE="64" EVAL="no">
           <NAME>f_helper_definition3_repeated</NAME>
           <JAVASCRIPT>
@@ -756,40 +752,35 @@ function f_3(x, y) {
         </SNIPPET>
 	<OL>
 	  <LI>
-	    Draw diagrams of the environment in effect when evaluating the
-	    return expression of
+	    Draw a diagram of the environment in effect during evaluation
+	    of the return expression of
 	    <JAVASCRIPTINLINE>f_3</JAVASCRIPTINLINE>.
 	  </LI>
 	  <LI>
-	    Compare how the environment will be structured when
-	    declarations are processed sequentially
-	    with how it is structured if declarations are scanned out as described
-	    in section<SPACE/><REF NAME="sec:core-of-evaluator"/>.
-	    Why is there an extra frame in the latter case?
-	  </LI>
-	  <LI>
 	    In the design of section<SPACE/><REF NAME="sec:core-of-evaluator"/>,
-	    the parameters of a function are included in an environment
-	    created by the function application, but are always accessed
-	    via the environment created by the evaluation of the function's body
-	    block or an environment
-	    enclosed by that environment. An implementation 
-	    could therefore combine the two environments.
+	    the parameters of a function are bound in a frame
+	    created by the function application, but
+	    any access of a parameter during the evaluation of the function's
+	    body needs to first visit the frame created by the 
+	    evaluation of the function's body
+	    block. An implementation 
+	    could therefore combine the two frames.
 	    Change the evaluator
 	    such that the evaluation of the body block itself does not create
-	    a new environment.
+	    a new frame.
 	  </LI>
 	  <LI>
 	    JavaScript forbids the redeclaration of parameters
-	    as local names directly in the function's body block.
-	    Modify your solution 
+	    as local names <EM>directly</EM> in the function's body block, 
+	    as opposed to in an inner block.
+	    Modify your solution to part b
 	    such that an error is generated whenever a function is
 	    called in which this happens. Alternatively, modify the
 	    evaluator such that it analyzes all function declarations
 	    and lambda expressions of a given program and generates an error 
 	    whenever
 	    a parameter is redeclared directly in a function's body block,
-	    regardless
+	    regardless of
 	    whether that function is ever applied or not. Which design
 	    do you prefer? Why?
 	  </LI>
