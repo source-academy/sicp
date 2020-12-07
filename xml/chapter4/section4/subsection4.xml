@@ -17,13 +17,13 @@
 	<LABEL NAME="sec:query-driver"/>
 	<TEXT>
 	  As in the other evaluators of this chapter, the input is
-	  given by the user as a string, here representing an assertion,
+	  read from the user as a string, here representing an assertion,
 	  rule or query. These are designed to look like
-	  JavaScript expressions, in order to reuse the
+	  JavaScript expressions, so that we can use the
 	  <JAVASCRIPTINLINE>parse</JAVASCRIPTINLINE> function 
 	  from section<SPACE/><REF NAME="sec:representing-expressions"/> to
 	  transform the input strings into a tagged-list representation and
-	  in order to use JavaScript notation in the
+	  to support JavaScript notation in the
 	  <JAVASCRIPTINLINE>javascript_value</JAVASCRIPTINLINE> syntactic form.
 	  For example, the assertion
 	  <SNIPPET EVAL="no">
@@ -47,19 +47,19 @@ list("application",
                     list("literal", 60000)))))	      
 	    </JAVASCRIPT>
 	  </SNIPPET>
-	</TEXT>
-	<TEXT>
 	  The tag
 	  <JAVASCRIPTINLINE>"application"</JAVASCRIPTINLINE> indicates that
 	  syntactically,
 	  the asssertion would be treated as a function application in JavaScipt.
-	  To properly identify assertions, rules, and queries, to access
+	  To easily identify assertions, rules, and queries, to access
 	  their commponents, and to identify the syntactic forms of the query
 	  system, we will use a second tagged-list representation.
 	  Section<SPACE/><REF NAME="sec:query-syntax"/> introduces
 	  the function <JAVASCRIPTINLINE>process_query</JAVASCRIPTINLINE>
-	  that translates from the first to the second, along with 
-	  predicates and selectors for the second. The example assertion
+	  that translates from the first representation to the second, along with 
+	  predicates and selectors for the second. The evaluator uses
+	  these to operate at the appropriate conceptual level.
+	  The example assertion
 	  above is processed in two steps as follows.
 	  <SNIPPET EVAL="no">
 	    <JAVASCRIPT>
@@ -197,7 +197,7 @@ const output_prompt = "Query results:";
 
 function query_driver_loop() {
     const input = user_read(input_prompt);
-    const q = process_query(parse(input + ";"));
+    const q = process_query(input);
     if (is_assertion(q)) {
         add_rule_or_assertion(assertion_body(q));
         display("Assertion added to data base.");
@@ -221,7 +221,7 @@ function query_driver_loop() {
     if (is_null(input)) {
         display("--- evaluator terminated ---");
     } else {
-        const q = process_query(parse(input + ";"));
+        const q = process_query(input);
         display("---- driver loop input -----");
         display(unparse_query(q));
         if (is_assertion(q)) {
@@ -247,7 +247,7 @@ function query_driver_loop() {
 	<EXAMPLE>process_query_example_1</EXAMPLE>
 	<JAVASCRIPT>
 function parse_and_process_query(input, verbosity) {
-    const q = process_query(parse(input + ";"));
+    const q = process_query(input);
     if (verbosity !== "silent") {
         display("--- process query input  ---"); 
         display(unparse_query(q)); } else {}
@@ -280,7 +280,7 @@ parse_and_process_query('son("Adam", x)');
 	<EXAMPLE>process_query_example_1</EXAMPLE>
 	<JAVASCRIPT>
 function first_answer(input) {
-    const q = process_query(parse(input + ";"));
+    const q = process_query(input);
     const frames = evaluate_query(q, singleton_stream(null));
     return is_null(frames)
            ? "no matching data"
@@ -602,11 +602,11 @@ function evaluate_query(query, frame_stream) {
 	<JAVASCRIPT>
 function simple_query(query_pattern, frame_stream) {
     return stream_flatmap(
-        frame => 
-            stream_append_delayed(
-                find_assertions(query_pattern, frame),
-                () => apply_rules(query_pattern, frame)),
-        frame_stream);
+               frame => 
+                   stream_append_delayed(
+                       find_assertions(query_pattern, frame),
+                       () => apply_rules(query_pattern, frame)),
+               frame_stream);
 }
 	</JAVASCRIPT>
       </SNIPPET>
@@ -669,12 +669,14 @@ function simple_query(query_pattern, frame_stream) {
     <INDEX>compound query<SUBINDEX>processing|(</SUBINDEX></INDEX>
     <TEXT>
       <!-- \indcodeplus{and}{(query language)}[evaluation of]-->
-      <SCHEMEINLINE>And</SCHEMEINLINE> queries are handled as illustrated in
       <SPLITINLINE>
 	<SCHEME>
+	  <SCHEMEINLINE>And</SCHEMEINLINE> queries are handled as illustrated in
 	  figure<SPACE/><REF NAME="fig:query-and_scheme"/>
 	</SCHEME>
 	<JAVASCRIPT>
+	  We handle <JAVASCRIPTINLINE>and</JAVASCRIPTINLINE>
+	  queries as illustrated in
 	  figure<SPACE/><REF NAME="fig:query-and"/>
 	</JAVASCRIPT>
       </SPLITINLINE>
@@ -808,8 +810,7 @@ function disjoin(disjuncts, frame_stream) {
            ? null
            : interleave_delayed(
                  evaluate_query(first_disjunct(disjuncts), frame_stream),
-	         () => disjoin(rest_disjuncts(disjuncts),
-	                       frame_stream));
+	         () => disjoin(rest_disjuncts(disjuncts), frame_stream));
 }
 put("or", "evaluate_query", disjoin);
 	</JAVASCRIPT>
@@ -933,14 +934,14 @@ first_answer('and(salary(person, amount), javascript_value(amount &gt; 30000))')
 function javascript_value(args, frame_stream) {
   return stream_flatmap(
            frame =>
-           execute(instantiate(
-                     javascript_expression(args), frame,
-                     (v, f) =>
-                       error(v, 
-                             "Unknown pat var -- " +
-			     "javascript_value")))
-           ? singleton_stream(frame)
-           : null,
+               execute(instantiate(
+                           javascript_expression(args), frame,
+                           (v, f) =>
+                               error(v, 
+                                     "Unknown pat var -- " +
+                                     "javascript_value")))
+               ? singleton_stream(frame)
+               : null,
            frame_stream);
 }
 put("javascript_value", "evaluate_query", javascript_value);
@@ -1006,7 +1007,7 @@ function execute(exp) {
       <SPLITINLINE>
 	<SCHEME><SCHEMEINLINE>always-true</SCHEMEINLINE> special form</SCHEME>
 	<JAVASCRIPT>
-	  <JAVASCRIPTINLINE>"always_true"</JAVASCRIPTINLINE> syntactic form
+	  <JAVASCRIPTINLINE>always_true</JAVASCRIPTINLINE> syntactic form
 	</JAVASCRIPT>
       </SPLITINLINE>
       provides for a query that is always satisfied.  It ignores its contents
@@ -1014,7 +1015,7 @@ function execute(exp) {
       stream.
       <SPLITINLINE>
 	<SCHEME><SCHEMEINLINE>Always-true</SCHEMEINLINE></SCHEME>
-	<JAVASCRIPT>The <JAVASCRIPTINLINE>"always_true"</JAVASCRIPTINLINE>
+	<JAVASCRIPT>The <JAVASCRIPTINLINE>always_true</JAVASCRIPTINLINE>
 	expression
 	</JAVASCRIPT>
       </SPLITINLINE>
@@ -1283,11 +1284,11 @@ function pattern_match(pat, dat, frame) {
         (extend var dat frame))))
 	</SCHEME>
 	<JAVASCRIPT>
-function extend_if_consistent(variable, dat, frame) {
+function extend_if_consistent(variable, data, frame) {
     const binding = binding_in_frame(variable, frame);
     return is_undefined(binding)
-           ? extend(variable, dat, frame)
-           : pattern_match(binding_value(binding), dat, frame);
+           ? extend(variable, data, frame)
+           : pattern_match(binding_value(binding), data, frame);
 }
 	</JAVASCRIPT>
       </SNIPPET>
@@ -2067,22 +2068,22 @@ function unify_match(p1, p2, frame) {
           (else (extend var val frame)))))
 	</SCHEME>
 	<JAVASCRIPT>
-function extend_if_possible(variable, val, frame) {
+function extend_if_possible(variable, value, frame) {
     const binding = binding_in_frame(variable, frame);
     if (! is_undefined(binding)) {
         return unify_match(binding_value(binding), 
-                            val, frame); 
-    } else if (is_var(val)) {                      // ***
-        const binding = binding_in_frame(val, frame);
+                            value, frame); 
+    } else if (is_var(value)) {                      // ***
+        const binding = binding_in_frame(value, frame);
         return ! is_undefined(binding)
                ? unify_match(variable,
                              binding_value(binding),
                              frame)
-               : extend(variable, val, frame);
-    } else if (depends_on(val, variable, frame)) { // ***
+               : extend(variable, value, frame);
+    } else if (depends_on(value, variable, frame)) { // ***
         return "failed";
     } else {
-        return extend(variable, val, frame);
+        return extend(variable, value, frame);
     }
 }
 	</JAVASCRIPT>
@@ -2128,7 +2129,7 @@ function extend_if_possible(variable, val, frame) {
         (tree-walk exp))
 	</SCHEME>
 	<JAVASCRIPT>
-function depends_on(exp, variable, frame) {
+function depends_on(expression, variable, frame) {
     function tree_walk(e) {
         if (is_var(e)) {
             if (equal(variable, e)) {
@@ -2145,7 +2146,7 @@ function depends_on(exp, variable, frame) {
                    : false;
         }
     }
-    return tree_walk(exp);
+    return tree_walk(expression);
 }
 	</JAVASCRIPT>
       </SNIPPET>
@@ -2172,7 +2173,7 @@ function depends_on(exp, variable, frame) {
       we store all assertions whose
       <SPLITINLINE>
 	<SCHEME><SCHEMEINLINE>car</SCHEMEINLINE>s</SCHEME>
-	<JAVASCRIPT><JAVASCRIPTINLINE>head</JAVASCRIPTINLINE>s</JAVASCRIPT>
+	<JAVASCRIPT>heads</JAVASCRIPT>
       </SPLITINLINE>
       are
       <SPLITINLINE>
@@ -2188,7 +2189,7 @@ function depends_on(exp, variable, frame) {
       to see if the
       <SPLITINLINE>
 	<SCHEME><SCHEMEINLINE>car</SCHEMEINLINE></SCHEME>
-	<JAVASCRIPT><JAVASCRIPTINLINE>head</JAVASCRIPTINLINE></JAVASCRIPT>
+	<JAVASCRIPT>head</JAVASCRIPT>
       </SPLITINLINE>
       of the pattern is a
       <SPLITINLINE>
@@ -2199,11 +2200,11 @@ function depends_on(exp, variable, frame) {
       the matcher) all the stored assertions that have the same
       <SPLITINLINE>
 	<SCHEME><SCHEMEINLINE>car</SCHEMEINLINE>.</SCHEME>
-	<JAVASCRIPT><JAVASCRIPTINLINE>head</JAVASCRIPTINLINE>.</JAVASCRIPT>
+	<JAVASCRIPT>head.</JAVASCRIPT>
       </SPLITINLINE>
       If the pattern<APOS/>s
       <SPLITINLINE><SCHEME><SCHEMEINLINE>car</SCHEMEINLINE></SCHEME>
-      <JAVASCRIPT><JAVASCRIPTINLINE>head</JAVASCRIPTINLINE></JAVASCRIPT>
+      <JAVASCRIPT>head</JAVASCRIPT>
       </SPLITINLINE>
       is not a
       <SPLITINLINE>
@@ -2311,8 +2312,7 @@ function get_stream(key1, key2) {
 	  symbol <SCHEMEINLINE>?</SCHEMEINLINE>.
 	</SCHEME>
 	<JAVASCRIPT>
-	  Rules are stored similarly, using the
-	  <SCHEMEINLINE>head</SCHEMEINLINE>
+	  Rules are stored similarly, using the head
 	  of the rule conclusion.  Rule conclusions are arbitrary patterns, however,
 	  so they differ from assertions in that they can contain variables.
 	  A pattern with a <JAVASCRIPT>string</JAVASCRIPT> as 
@@ -2499,8 +2499,14 @@ function store_rule_in_index(rule) {
 	  with which it starts.
 	</SCHEME>
 	<JAVASCRIPT>
-	  The key under which a pattern is stored in the table is the
-	string with which it starts.
+	  The key under which a pattern
+	  <SPLITINLINE>
+	    <JAVASCRIPT>
+	      (an assertion or rule conclusion)
+	    </JAVASCRIPT>
+	  </SPLITINLINE>
+	  is stored in the table is the
+	string it starts with.
 	</JAVASCRIPT>
       </SPLIT>
       <SNIPPET>
@@ -2535,6 +2541,8 @@ function index_key_of(pat) {
       </SPLIT>
       </TEXT>
 
+      <SPLIT>
+	<SCHEME>
     <EXERCISE>
       What is the purpose of the
       <SPLITINLINE>
@@ -2593,7 +2601,9 @@ function add_assertion(assertion) {
       </SNIPPET>
     </EXERCISE>
     <INDEX>query interpreter<SUBINDEX>data base|)</SUBINDEX></INDEX>
-
+	</SCHEME>
+      </SPLIT>
+      
   </SUBSUBSECTION>
 
   <SUBSUBSECTION>
@@ -2780,7 +2790,7 @@ function singleton_stream(x) {
 	  to transform the tagged-list representation of the input
 	  formed by
 	  <JAVASCRIPTINLINE>parse</JAVASCRIPTINLINE>
-	  to the more concise tagged-list
+	  to the higher-level tagged-list
 	  representation to be used by the query system, where the tags represent
 	  the kinds of information in assertions and queries and the syntactic
 	  forms of rules and queries
@@ -2801,7 +2811,8 @@ function singleton_stream(x) {
 	    <REQUIRES>javascript_value_process</REQUIRES>
 	    <EXAMPLE>append_to_form_example_5</EXAMPLE>
 	    <JAVASCRIPT>
-function process_query(exp) {
+function process_query(input) {
+    const exp = parse(input + ";");
     if (is_application(exp)) {
       const function_symbol = symbol_of_name(function_expression(exp));
       if (function_symbol === "javascript_value") {
@@ -2835,7 +2846,7 @@ function process_query(exp) {
 	  the original tagged-list representation coming from
 	  <JAVASCRIPTINLINE>parse</JAVASCRIPTINLINE>	  
 	  needs to remain intact,
-	  and only its names are converted to pattern variables.
+	  except that its names are converted to pattern variables.
 	  <SNIPPET>
 	    <NAME>javascript_value_process</NAME>
 	    <REQUIRES>functions_4_1_2</REQUIRES>
@@ -2919,7 +2930,7 @@ function make_new_variable(variable, rule_application_id) {
       is identified by
       <SPLITINLINE>
 	<SCHEME>the symbol in its <SCHEMEINLINE>car</SCHEMEINLINE>.</SCHEME>
-	<JAVASCRIPT>string in its <SCHEMEINLINE>head</SCHEMEINLINE>.
+	<JAVASCRIPT>the string in its head.
 	</JAVASCRIPT>
       </SPLITINLINE>
       They are the same as the
@@ -3243,7 +3254,7 @@ function rule_body(rule) {
 	  The function <JAVASCRIPTINLINE>unparse_term</JAVASCRIPTINLINE>
 	  formats any unbound pattern variable using
 	  <JAVASCRIPTINLINE>contract_question_mark</JAVASCRIPTINLINE>, and
-	  prints operator combinations (using infix notation) and 
+	  formats operator combinations (using infix notation) and 
 	  literal values.
 	  To achieve list notation in the output string, care must be taken to
 	  distinguish a genuine list from a pair whose tail is a pattern variable (and
@@ -3396,17 +3407,18 @@ function extend(variable, value, frame) {
 	<JAVASCRIPT>
 function simple_query(query_pattern, frame_stream) {
     return stream_flatmap(
-              frame =>
-                 stream_append(find_assertions(query_pattern, frame),
-                               apply_rules(query_pattern, frame)),
-              frame_stream);
+               frame =>
+                   stream_append(
+                       find_assertions(query_pattern, frame),
+                       apply_rules(query_pattern, frame)),
+               frame_stream);
 }
 function disjoin(disjuncts, frame_stream) {
     return is_empty_disjunction(disjuncts)
            ? null
-           : interleave(evaluate_query(first_disjunct(disjuncts), 
-                                       frame_stream),
-                        disjoin(rest_disjuncts(disjuncts), frame_stream));
+           : interleave(
+                 evaluate_query(first_disjunct(disjuncts), frame_stream),
+                 disjoin(rest_disjuncts(disjuncts), frame_stream));
 }
 	</JAVASCRIPT>
       </SNIPPET>
