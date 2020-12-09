@@ -209,6 +209,28 @@ parse_query_verbose('son("Adam", x)');
 	<REQUIRES>functions_4_4_4</REQUIRES>
 	<EXAMPLE>process_query_example_1</EXAMPLE>
 	<JAVASCRIPT>
+function process_query(input, verbosity) {
+    if (is_null(input)) {
+        display("--- evaluator terminated ---");
+    } else {
+        const q = parse_query(input);
+        display("---- driver loop input -----");
+        display(unparse_query(q));
+        if (is_assertion(q)) {
+            add_rule_or_assertion(assertion_body(q));
+            display("Assertion added to data base.");
+        } else {
+            display("------ query results -------", "");
+            display_stream(
+              stream_map(
+                frame =>
+                  unparse_query(
+		    instantiate(q, frame, (v, ignore) => v)),
+                evaluate_query(q, singleton_stream(null))));
+        }
+    }
+}
+    
 function first_answer(input) {
     const q = parse_query(input);
     const frames = evaluate_query(q, singleton_stream(null));
@@ -245,7 +267,7 @@ function first_answer(input) {
 	  The function <JAVASCRIPTINLINE>add_rule_or_assertion</JAVASCRIPTINLINE>
 	  is declared in section<SPACE/><REF NAME="sec:query-db"/>.
 	  After the query is instantiated, it is transformed back
-	  into a string using the function
+	  into a string by the function
 	  <JAVASCRIPTINLINE>unparse_query</JAVASCRIPTINLINE>
 	  (section<SPACE/><REF NAME="sec:query-syntax"/>)
 	  before being displayed.
@@ -569,14 +591,15 @@ function simple_query(query_pattern, frame_stream) {
 	<SCHEME>
 	  <SCHEMEINLINE>And</SCHEMEINLINE> queries are handled as illustrated in
 	  figure<SPACE/><REF NAME="fig:query-and_scheme"/>
+	  by the
 	</SCHEME>
 	<JAVASCRIPT>
 	  We handle <JAVASCRIPTINLINE>and</JAVASCRIPTINLINE>
 	  queries as illustrated in
 	  figure<SPACE/><REF NAME="fig:query-and"/>
+	  with the
 	</JAVASCRIPT>
       </SPLITINLINE>
-      by the
       <SCHEMEINLINE>conjoin</SCHEMEINLINE>
       <SPLITINLINE>
 	<SCHEME>procedure. <SCHEMEINLINE>Conjoin</SCHEMEINLINE></SCHEME>
@@ -2094,7 +2117,7 @@ function depends_on(expression, variable, frame) {
       One important problem in designing logic programming languages is that
       of arranging things so that as few irrelevant data-base entries as
       possible will be examined in checking a given pattern. For this purpose,
-      we will represent assertions with lists whose head is a string that
+      we will represent an assertion as a list whose head is a string that
       represents the kind of information of the assertion.
       <SPLITINLINE>
 	<SCHEME>
@@ -2175,8 +2198,7 @@ function depends_on(expression, variable, frame) {
 	  we call on predicates and selectors that embody our criteria.
 	</SCHEME>
 	<JAVASCRIPT>
-	  Then, 
-	  we store the assertions 
+	  We store the assertions 
 	  in separate streams, in a table indexed by the
 	  string that is the head of the assertion.
 	  To fetch an assertion that may match a pattern, we
@@ -2774,9 +2796,9 @@ list("application",
 	  follows.
 	  <SNIPPET EVAL="no">
 	    <JAVASCRIPT>
-const an_assertion = 
-          parse_query('assert(salary(list("Bitdiddle", "Ben"), 122000))'));
-an_assertion;	      
+const assertion_string = 'assert(salary(list("Bitdiddle", "Ben"), 122000))';
+const assertion = parse_query(assertion_string);
+assertion;
 	    </JAVASCRIPT>
 	    <JAVASCRIPT_OUTPUT>
 list("assert",
@@ -2788,7 +2810,7 @@ list("assert",
 	  </SNIPPET>
 	  <SNIPPET EVAL="no">
 	    <JAVASCRIPT>
-unparse_query(an_assertion);
+unparse_query(assertion);
 	    </JAVASCRIPT>
 	    <JAVASCRIPT_OUTPUT>
 'assert(salary(list("Bitdiddle", "Ben"), 122000))'
@@ -2809,25 +2831,24 @@ unparse_query(an_assertion);
 	  <INDEX>pattern variable
 	  <SUBINDEX>representation of|(</SUBINDEX></INDEX>
 	  The function <JAVASCRIPTINLINE>parse_query</JAVASCRIPTINLINE>
-	  transforms an expression string into the query-language-specific
+	  transforms an input string into the query-language-specific
 	  representation. 
 	  The string (looking like a JavaScript expression)
 	  is transformed into a statement string by attaching a semicolon at the
-	  end.
-	  The function <JAVASCRIPTINLINE>parse</JAVASCRIPTINLINE> translates
-	  the result into a tagged-list representation according to the
+	  end, and <JAVASCRIPTINLINE>parse</JAVASCRIPTINLINE> translates
+	  the statement into a JavaScript syntax representation according to the
 	  specification of
 	  section<SPACE/><REF NAME="sec:representing-expressions"/>.
 	  The function <JAVASCRIPTINLINE>query_syntax_process</JAVASCRIPTINLINE>
-	  recursively transforms the tagged-list representation into
-	  the query-language-specific representation by identifying
-	  the kind of information in assertions and queries and the syntactic
-	  forms of rules and queries using tags and by
+	  recursively transforms that JavaScript syntax representation into
+	  the query-language-specific representation by tagging the
+	  components of assertions, rules, and queries with their kind of information
+	  and syntactic forms and by
 	  transforming applications of
 	  <JAVASCRIPTINLINE>pair</JAVASCRIPTINLINE>
 	  and <JAVASCRIPTINLINE>list</JAVASCRIPTINLINE> to JavaScript pairs
 	  and lists, respectively.
-	  Along the way, any pattern variable in the expression,
+	  Any pattern variable in the expression,
 	  as identified using <JAVASCRIPTINLINE>is_name</JAVASCRIPTINLINE>,
 	  is converted into a tagged list with the tag
 	  <JAVASCRIPTINLINE>"?"</JAVASCRIPTINLINE> whose second element
@@ -2842,7 +2863,7 @@ function parse_query(input) {
     const exp = parse(input + ";");
     return query_syntax_process(exp);
 }
-function query_syntax_process(exp) {    
+function query_syntax_process(exp) {
     if (is_application(exp)) {
       const function_symbol = symbol_of_name(function_expression(exp));
       if (function_symbol === "javascript_value") {
@@ -2861,7 +2882,7 @@ function query_syntax_process(exp) {
     } else if (is_literal(exp)) {
       return exp;
     } else {
-      error(exp, "unknown query syntax -- parse_query");
+      error(exp, "unknown query syntax -- query_syntax_process");
     }
 }	      
 	    </JAVASCRIPT>
@@ -2869,7 +2890,7 @@ function query_syntax_process(exp) {
 	  For example, a pattern such as
 	  <JAVASCRIPTINLINE>job(x, y)</JAVASCRIPTINLINE> is represented
 	  in the query-language-specific representation as
-	  <JAVASCRIPTINLINE>list("job", list("?", "x"), list("?", "y")))</JAVASCRIPTINLINE>.
+	  <JAVASCRIPTINLINE>list("job", list("?", "x"), list("?", "y"))</JAVASCRIPTINLINE>.
       </TEXT>
       <TEXT>
 	  An exception to this processing is the
@@ -2879,7 +2900,7 @@ function query_syntax_process(exp) {
 	  of the argument of this syntactic form is passed to the
 	  <JAVASCRIPTINLINE>evaluate</JAVASCRIPTINLINE>
 	  function of section<SPACE/><REF NAME="sec:core-of-evaluator"/>,
-	  the original tagged-list representation coming from
+	  the original JavaScript syntax representation coming from
 	  <JAVASCRIPTINLINE>parse</JAVASCRIPTINLINE>	  
 	  needs to remain intact in the query-language-specific representation,
 	  except that its names are converted to pattern variables so that
@@ -2921,9 +2942,9 @@ function javascript_value_process(exp) {
 
       <TEXT>
 	The function <JAVASCRIPTINLINE>unparse_query</JAVASCRIPTINLINE>
-	distinguishes between simple queries that are unparsed using
-	<JAVASCRIPTINLINE>unparse_term</JAVASCRIPTINLINE> and 
-	(possibly nested) syntactic forms that are unparsed recursively.
+	distinguishes between simple queries, which are unparsed using
+	<JAVASCRIPTINLINE>unparse_term</JAVASCRIPTINLINE>, and 
+	(possibly nested) syntactic forms, which are unparsed recursively.
 	  <SNIPPET>
 	    <NAME>contract_question_mark</NAME>
 	    <REQUIRES>functions_4_1_2</REQUIRES>
@@ -2937,8 +2958,8 @@ function unparse_query(query) {
            ? unparse(head(query), tail(query), unparse_term)
            : unparse(head(query), tail(query), unparse_query);
 }
-function unparse(string, args, arg_unparse) {	
-    return string + "(" + comma_separated(map(arg_unparse, args)) + ")";
+function unparse(header, args, arg_unparse) {	
+    return header + "(" + comma_separated(map(arg_unparse, args)) + ")";
 }
 function comma_separated(strings) {
     return accumulate((s, acc) => s + (acc === "" ? "" : ", " + acc),
@@ -2952,11 +2973,12 @@ function comma_separated(strings) {
 	  operator combinations (using infix notation), and 
 	  literal values (using
 	  <JAVASCRIPTINLINE>stringify</JAVASCRIPTINLINE>).
-	  To employ list notation in the output string, care must be taken to
-	  distinguish a genuine list from a pair whose tail is a pattern variable
-	  (and therefore technically is a list).
+	  Lists and
+          pairs of data are formatted to look like applications of JavaScript's
+          respective list and pair constructors.
 	  <SNIPPET>
 	    <NAME>unparse_term</NAME>
+	    <REQUIRES>is_data_list</REQUIRES>
 	    <JAVASCRIPT>
 function unparse_term(arg) {
     return is_var(arg)
@@ -2968,17 +2990,25 @@ function unparse_term(arg) {
              ")"
            : is_literal(arg)
            ? stringify(literal_value(arg))
-           : is_list(arg) &amp;&amp;
-	     // exclude pairs whose tail is a pattern variable 
-	     (is_null(arg) || is_null(tail(arg)) || head(tail(arg)) !== "?")
+           : is_data_list(arg)
            ? unparse("list", arg, unparse_term)
            : is_pair(arg) 
            ? unparse("pair", list(head(arg), tail(arg)), unparse_term)
            : error(arg, "unknown term -- unparse_term");
-}    
-function is_list(xs) {    
-    return is_null(xs) || is_list(tail(xs));
-}	
+}
+	    </JAVASCRIPT>
+	  </SNIPPET>
+	  The function
+	  <JAVASCRIPTINLINE>is_data_list</JAVASCRIPTINLINE> needs to make
+	  sure that variables and literals, both represented by tagged lists,
+	  are not mistaken as data lists.
+	  <SNIPPET>
+	    <NAME>is_data_list</NAME>
+	    <JAVASCRIPT>
+function is_data_list(x) {
+    return is_null(x) || (is_pair(x) &amp;&amp; ! is_var(x) &amp;&amp;
+                          ! is_literal(x) &amp;&amp; is_data_list(tail(x)));
+}
 	    </JAVASCRIPT>
 	  </SNIPPET>
       </TEXT>
