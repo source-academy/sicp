@@ -2760,15 +2760,13 @@ function singleton_stream(x) {
 	  transform the input string into a tagged-list representation and
 	  to support JavaScript notation in the
 	  <JAVASCRIPTINLINE>javascript_value</JAVASCRIPTINLINE> syntactic form.
-	  For example, the assertion
+	  For example, 
 	  <SNIPPET EVAL="no">
 	    <JAVASCRIPT>
-assert(salary(list("Bitdiddle", "Ben"), 122000))
+parse('assert(salary(list("Bitdiddle", "Ben"), 122000));')
 	    </JAVASCRIPT>
 	  </SNIPPET>
-	  is transformed by
-	  <JAVASCRIPTINLINE>parse</JAVASCRIPTINLINE> 
-	  into the following tagged list:
+	  yields
 	  <SNIPPET EVAL="no">
 	    <JAVASCRIPT>
 list("application",
@@ -2792,25 +2790,23 @@ list("application",
 	  abstraction barriers used in this section and how the functions
 	  <JAVASCRIPTINLINE>parse_query</JAVASCRIPTINLINE> and
 	  <JAVASCRIPTINLINE>unparse_query</JAVASCRIPTINLINE> bridge them.
-	  The example assertion	above is processed as
-	  follows.
+	  Using the same example,
 	  <SNIPPET EVAL="no">
 	    <JAVASCRIPT>
-const assertion_string = 'assert(salary(list("Bitdiddle", "Ben"), 122000))';
-const assertion = parse_query(assertion_string);
-assertion;
+parse_query('assert(salary(list("Bitdiddle", "Ben"), 122000))');
 	    </JAVASCRIPT>
-	    <JAVASCRIPT_OUTPUT>
-list("assert",
-     list("salary",
-          list(list("literal", "Bitdiddle"), 
-               list("literal", "Ben")),
-          list("literal", 122000)))
-	    </JAVASCRIPT_OUTPUT>
 	  </SNIPPET>
+	  yields
 	  <SNIPPET EVAL="no">
 	    <JAVASCRIPT>
-unparse_query(assertion);
+list("assert", list("salary", list("Bitdiddle", "Ben"), 122000))
+	    </JAVASCRIPT>
+	  </SNIPPET>
+	  and 
+	  <JAVASCRIPTINLINE>unparse_query</JAVASCRIPTINLINE> transforms it back into a string.
+	  <SNIPPET EVAL="no">
+	    <JAVASCRIPT>
+unparse_query(parse_query('assert(salary(list("Bitdiddle", "Ben"), 122000))'));
 	    </JAVASCRIPT>
 	    <JAVASCRIPT_OUTPUT>
 'assert(salary(list("Bitdiddle", "Ben"), 122000))'
@@ -2843,7 +2839,7 @@ unparse_query(assertion);
 	  recursively transforms that JavaScript syntax representation into
 	  the query-language-specific representation by tagging the
 	  components of assertions, rules, and queries with their kind of information
-	  and syntactic forms and by
+	  or syntactic form and by
 	  transforming applications of
 	  <JAVASCRIPTINLINE>pair</JAVASCRIPTINLINE>
 	  and <JAVASCRIPTINLINE>list</JAVASCRIPTINLINE> to JavaScript pairs
@@ -2880,16 +2876,15 @@ function query_syntax_process(exp) {
     } else if (is_name(exp)) {
       return list("?", symbol_of_name(exp));
     } else if (is_literal(exp)) {
-      return exp;
+      return literal_value(exp);
     } else {
       error(exp, "unknown query syntax -- query_syntax_process");
     }
 }	      
 	    </JAVASCRIPT>
 	  </SNIPPET>
-	  For example, a pattern such as
-	  <JAVASCRIPTINLINE>job(x, y)</JAVASCRIPTINLINE> is represented
-	  in the query-language-specific representation as
+	  For example, the query-language-specific representation of the pattern
+	  <JAVASCRIPTINLINE>job(x, y)</JAVASCRIPTINLINE> is 
 	  <JAVASCRIPTINLINE>list("job", list("?", "x"), list("?", "y"))</JAVASCRIPTINLINE>.
       </TEXT>
       <TEXT>
@@ -2904,8 +2899,8 @@ function query_syntax_process(exp) {
 	  <JAVASCRIPTINLINE>parse</JAVASCRIPTINLINE>	  
 	  needs to remain intact in the query-language-specific representation,
 	  except that its names are converted to pattern variables so that
-	  they are instantiated during query processing along with other
-	  occurrences of the same variable. For example, in this example
+	  they will be instantiated during query processing along with other
+	  occurrences of the same variable. In this example
 	  of section<SPACE/><REF NAME="sec:deductive-info-retrieval"/>
 	  <SNIPPET EVAL="no">
 	    <JAVASCRIPT>
@@ -2958,8 +2953,8 @@ function unparse_query(query) {
            ? unparse(head(query), tail(query), unparse_term)
            : unparse(head(query), tail(query), unparse_query);
 }
-function unparse(header, args, arg_unparse) {	
-    return header + "(" + comma_separated(map(arg_unparse, args)) + ")";
+function unparse(component_head, args, arg_unparse) {	
+    return component_head + "(" + comma_separated(map(arg_unparse, args)) + ")";
 }
 function comma_separated(strings) {
     return accumulate((s, acc) => s + (acc === "" ? "" : ", " + acc),
@@ -2975,7 +2970,7 @@ function comma_separated(strings) {
 	  <JAVASCRIPTINLINE>stringify</JAVASCRIPTINLINE>).
 	  Lists and
           pairs of data are formatted to look like applications of JavaScript's
-          respective list and pair constructors.
+          list and pair constructors, respectively.
 	  <SNIPPET>
 	    <NAME>unparse_term</NAME>
 	    <REQUIRES>is_data_list</REQUIRES>
@@ -2988,26 +2983,24 @@ function unparse_term(arg) {
              " " + operator_combination_operator_symbol(arg) +
              " " + unparse_term(operator_combination_second_operand(arg)) +
              ")"
-           : is_literal(arg)
-           ? stringify(literal_value(arg))
            : is_data_list(arg)
            ? unparse("list", arg, unparse_term)
            : is_pair(arg) 
            ? unparse("pair", list(head(arg), tail(arg)), unparse_term)
-           : error(arg, "unknown term -- unparse_term");
+           : stringify(arg);
 }
 	    </JAVASCRIPT>
 	  </SNIPPET>
 	  The function
-	  <JAVASCRIPTINLINE>is_data_list</JAVASCRIPTINLINE> needs to make
-	  sure that variables and literals, both represented by tagged lists,
-	  are not mistaken as data lists.
+	  <JAVASCRIPTINLINE>is_data_list</JAVASCRIPTINLINE> ensures
+	  sure that variables, represented by tagged lists,
+	  are not mistaken for data lists.
 	  <SNIPPET>
 	    <NAME>is_data_list</NAME>
 	    <JAVASCRIPT>
 function is_data_list(x) {
     return is_null(x) || (is_pair(x) &amp;&amp; ! is_var(x) &amp;&amp;
-                          ! is_literal(x) &amp;&amp; is_data_list(tail(x)));
+                          is_data_list(tail(x)));
 }
 	    </JAVASCRIPT>
 	  </SNIPPET>
