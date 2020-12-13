@@ -121,27 +121,33 @@ eval-dispatch
       </SCHEME>
       <JAVASCRIPT>
 "eval_dispatch",
-  test(list(op("is_literal"), reg("stmt"))),
-  branch(label("ev_literal")),
-  test(list(op("is_name"), reg("stmt"))),
-  branch(label("ev_name")),
-  test(list(op("is_application"), reg("stmt"))),
-  branch(label("ev_application")),
-  test(list(op("is_conditional"), reg("stmt"))),
-  branch(label("ev_cond")),
-  test(list(op("is_lambda_expression"), reg("stmt"))),
-  branch(label("ev_lambda")),
-  test(list(op("is_sequence"), reg("stmt"))),
-  branch(label("ev_seq")),
-  test(list(op("is_block"), reg("stmt"))),
-  branch(label("ev_block")),
-  test(list(op("is_return_statement"), reg("stmt"))),
-  branch(label("ev_return")),
-  test(list(op("is_declaration"), reg("stmt"))),
-  branch(label("ev_declaration")),
-  test(list(op("is_assignment"), reg("stmt"))),
-  branch(label("ev_assignment")),
-  go_to(label("unknown_expression_type")),
+      test(list(op("is_literal"), reg("stmt"))),
+      branch(label("ev_literal")),
+      test(list(op("is_name"), reg("stmt"))),
+      branch(label("ev_name")),
+      test(list(op("is_application"), reg("stmt"))),
+      branch(label("ev_application")),
+      test(list(op("is_operator_combination"), reg("stmt"))),
+      branch(label("ev_operator_combination")),
+      test(list(op("is_operator_combination"), reg("stmt"))),
+      branch(label("ev_operator_combination")),
+      test(list(op("is_conditional"), reg("stmt"))),
+      branch(label("ev_cond")),
+      test(list(op("is_lambda_expression"), reg("stmt"))),
+      branch(label("ev_lambda")),
+      test(list(op("is_sequence"), reg("stmt"))),
+      branch(label("ev_seq")),
+      test(list(op("is_block"), reg("stmt"))),
+      branch(label("ev_block")),
+      test(list(op("is_return_statement"), reg("stmt"))),
+      branch(label("ev_return")),
+      test(list(op("is_function_declaration"), reg("stmt"))),
+      branch(label("ev_function_declaration")),
+      test(list(op("is_declaration"), reg("stmt"))),
+      branch(label("ev_declaration")),
+      test(list(op("is_assignment"), reg("stmt"))),
+      branch(label("ev_assignment")),
+      go_to(label("unknown_expression_type")),
       </JAVASCRIPT>
     </SNIPPET>
   </TEXT>
@@ -609,7 +615,6 @@ ev-application
       <JAVASCRIPT>
 <!--  \indcode*{empty-arglist} -->
 const empty_arglist = list();
-
 <!--  \indcode*{adjoin-arg} --> 
 function adjoin_arg(arg, arglist) {
     return append(arglist, list(arg));
@@ -1214,14 +1219,20 @@ compound-apply
       assign("env", list(op("extend_environment"), 
                          reg("unev"), reg("argl"), reg("env"))),
       assign("stmt", list(op("function_body"), reg("fun"))),
-
-      test(list(op("does_not_handle_return"), reg("stmt"))),
-      branch(label("no_return_wrapping")),
-      restore("continue"),
+      save_frame(),
+      assign("continue", label("implicit_return")),
       go_to(label("eval_dispatch")),
 
-"no_return_wrapping",
-      assign("continue", label("end_without_return")),
+"implicit_return",
+      restore_frame(),
+      assign("val", constant(undefined)),
+      restore("continue"),
+      go_to(reg("continue")),
+
+"ev_return",
+      restore_frame(),
+      restore("continue"),
+      assign("stmt", list(op("return_expression"), reg("stmt"))),
       go_to(label("eval_dispatch")),
       </JAVASCRIPT>
     </SNIPPET>
@@ -1271,6 +1282,365 @@ compound-apply
 	<SUBINDEX>combinations|)</SUBINDEX></INDEX>
       </JAVASCRIPT>
     </SPLITINLINE>
-    </TEXT>
+  </TEXT>
 
+    <SPLIT>
+      <JAVASCRIPT>
+        <TEXT>
+          To simplify the treatment of unwinding the stack after a function
+          call, we extend the stack in <REF NAME="sec:machine-model"/> with two
+          new commands <JAVASCRIPTINLINE>save_frame</JAVASCRIPTINLINE> and
+          <JAVASCRIPTINLINE>restore_frame</JAVASCRIPTINLINE>. These commands can
+          be implemented using <JAVASCRIPTINLINE>save</JAVASCRIPTINLINE> and
+          <JAVASCRIPTINLINE>restore</JAVASCRIPTINLINE> and demarcates the
+          boundary of the current stack frame, and the new. This marker allows
+          returning from any point in a function, and dynamically unwinding the
+          stack using the marker as an end condition.
+        </TEXT>
+        <TEXT>
+          Inside a return statement, we unwind the stack before proceeding to
+          evaluate the expression that defines the return value. Unwinding the
+          stack <EM>before</EM> this evaluation does not pose a problem as
+          <JAVASCRIPTINLINE>env</JAVASCRIPTINLINE> and
+          <JAVASCRIPTINLINE>unev</JAVASCRIPTINLINE> are unaffected by operations
+          on the stack. 
+        </TEXT>
+        <TEXT>
+          To deal with the JavaScript idiosyncrasy that functions that do not
+          explicitly return a value returns
+          <JAVASCRIPTINLINE>undefined</JAVASCRIPTINLINE>, the evaluator a
+          special handler <JAVASCRIPTINLINE>implicit_return</JAVASCRIPTINLINE>
+          that sets <JAVASCRIPTINLINE>val</JAVASCRIPTINLINE> to
+          <JAVASCRIPTINLINE>undefined</JAVASCRIPTINLINE>. All function calls are
+          set up with this continuation after the call to
+          <JAVASCRIPTINLINE>save_frame</JAVASCRIPTINLINE>. Thus, an explicit
+          return's call to <JAVASCRIPTINLINE>restore_frame</JAVASCRIPTINLINE>
+          will skip over the handler which preserves the return value.
+        </TEXT>
+      </JAVASCRIPT>
+    </SPLIT>
+
+  <SUBHEADING> 
+    <NAME>Sequence Evaluation</NAME>
+  </SUBHEADING>
+
+  <LABEL NAME="sec:sequence-evaluation"/>
+  <INDEX>explicit-control evaluator for Scheme
+  <SUBINDEX>sequences of expressions|(</SUBINDEX></INDEX>
+
+  <TEXT>
+    The portion of the explicit-control evaluator at
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>ev-sequence</SCHEMEINLINE></SCHEME>
+      <JAVASCRIPT><JAVASCRIPTINLINE>ev_sequence</JAVASCRIPTINLINE></JAVASCRIPT>
+    </SPLITINLINE>
+    is analogous to the metacircular evaluator<APOS/>s
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>eval-sequence</SCHEMEINLINE></SCHEME>
+      <JAVASCRIPT><JAVASCRIPTINLINE>eval_sequence</JAVASCRIPTINLINE></JAVASCRIPT>
+    </SPLITINLINE>
+    <SPLITINLINE>
+      <SCHEME>procedure.</SCHEME>
+      <JAVASCRIPT>function.</JAVASCRIPT>
+    </SPLITINLINE>
+    It handles sequences of expressions in
+    <SPLITINLINE>
+      <SCHEME>procedure</SCHEME>
+      <JAVASCRIPT>function</JAVASCRIPT>
+    </SPLITINLINE>
+    bodies or in 
+    <SPLITINLINE>
+      <SCHEME>explicit <SCHEMEINLINE>begin</SCHEMEINLINE> expressions.</SCHEME>
+      <JAVASCRIPT>sequences of statements.</JAVASCRIPT>
+    </SPLITINLINE>
+  </TEXT>
+
+  <TEXT>
+    <SPLITINLINE>
+      <SCHEME>explicit<SCHEMEINLINE>begin</SCHEMEINLINE> expressions</SCHEME>
+      <JAVASCRIPT>Sequences of statements</JAVASCRIPT>
+    </SPLITINLINE>
+    are evaluated by placing the 
+    <SPLITINLINE>
+      <SCHEME>
+	sequence of expressions
+      </SCHEME>
+      <JAVASCRIPT>
+	sequence
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    to be evaluated in
+    <SCHEMEINLINE>unev</SCHEMEINLINE>, saving
+    <SCHEMEINLINE>continue</SCHEMEINLINE> on the
+    stack, and jumping to
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>ev-sequence</SCHEMEINLINE>.</SCHEME>
+      <JAVASCRIPT><JAVASCRIPTINLINE>ev_sequence</JAVASCRIPTINLINE>.</JAVASCRIPT>
+    </SPLITINLINE>
+    <!--  \indcode*{ev-begin} -->
+    <SNIPPET EVAL="no">
+      <SCHEME>
+ev-begin
+(assign unev (op begin-actions) (reg exp))
+(save continue)
+(goto (label ev-sequence))
+      </SCHEME>
+      <JAVASCRIPT>
+"ev_seq",
+      save("continue"),
+      assign("unev", list(op("sequence_statements"), reg("stmt"))),
+      </JAVASCRIPT>
+    </SNIPPET>
+
+    
+    <SPLITINLINE>
+      <SCHEME>The implicit sequences in procedure</SCHEME>
+      <JAVASCRIPT>All sequences in function</JAVASCRIPT>
+    </SPLITINLINE>
+    bodies are handled by jumping to
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>ev-sequence</SCHEMEINLINE> from</SCHEME>
+      <JAVASCRIPT><JAVASCRIPTINLINE>ev_sequence</JAVASCRIPTINLINE> via</JAVASCRIPT>
+    </SPLITINLINE>
+    
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>compound-apply</SCHEMEINLINE>,</SCHEME>
+      <JAVASCRIPT><JAVASCRIPTINLINE>ev_seq</JAVASCRIPTINLINE>,
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    at which point <SCHEMEINLINE>continue</SCHEMEINLINE> is already on the stack,
+    having been saved at
+    <SPLITINLINE>
+      <SCHEME>
+      <SCHEMEINLINE>ev-application</SCHEMEINLINE>.</SCHEME>
+      <JAVASCRIPT><JAVASCRIPTINLINE>ev_application</JAVASCRIPTINLINE>.
+      </JAVASCRIPT>
+    </SPLITINLINE>
+  </TEXT>
+
+  <TEXT>
+    The entries at
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>ev-sequence</SCHEMEINLINE></SCHEME>
+      <JAVASCRIPT><JAVASCRIPTINLINE>ev_sequence</JAVASCRIPTINLINE></JAVASCRIPT>
+    </SPLITINLINE>
+    and
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>ev-sequence-continue</SCHEMEINLINE></SCHEME>
+      <JAVASCRIPT><JAVASCRIPTINLINE>ev_sequence_continue</JAVASCRIPTINLINE>
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    form a loop that successively evaluates each
+    <SPLITINLINE>
+      <SCHEME>
+	expression
+      </SCHEME>
+      <JAVASCRIPT>
+	statement
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    in a sequence.  The
+    list of unevaluated
+    <SPLITINLINE>
+      <SCHEME>
+	expressions
+      </SCHEME>
+      <JAVASCRIPT>
+	statements
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    is kept in <SCHEMEINLINE>unev</SCHEMEINLINE>.
+    Before evaluating each
+    <SPLITINLINE>
+      <SCHEME>
+	expression,
+      </SCHEME>
+      <JAVASCRIPT>
+	statement,
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    we check to see if there are additional
+    <SPLITINLINE>
+      <SCHEME>
+	expressions
+      </SCHEME>
+      <JAVASCRIPT>
+	statements
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    to be evaluated in the sequence.  If so, we save the rest of the
+    unevaluated
+    <SPLITINLINE>
+      <SCHEME>
+	expressions
+      </SCHEME>
+      <JAVASCRIPT>
+	statements
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    (held in <SCHEMEINLINE>unev</SCHEMEINLINE>) and the
+    environment in which these must be evaluated (held in
+    <SCHEMEINLINE>env</SCHEMEINLINE>) and call
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>eval-dispatch</SCHEMEINLINE></SCHEME>
+      <JAVASCRIPT><JAVASCRIPTINLINE>eval_dispatch</JAVASCRIPTINLINE>
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    to evaluate the
+    <SPLITINLINE>
+      <SCHEME>
+	expression.
+      </SCHEME>
+      <JAVASCRIPT>
+	statement.
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    The two saved registers are restored upon
+    the return from this evaluation, at
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>ev-sequence-continue</SCHEMEINLINE>.</SCHEME>
+      <JAVASCRIPT><JAVASCRIPTINLINE>ev_sequence_continue</JAVASCRIPTINLINE>.
+      </JAVASCRIPT>
+    </SPLITINLINE>
+  </TEXT>
+
+  <TEXT>
+    The final
+    <SPLITINLINE>
+      <SCHEME>
+	expression
+      </SCHEME>
+      <JAVASCRIPT>
+	statement
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    in the sequence is handled differently, at the
+    entry point
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>ev-sequence-last-exp</SCHEMEINLINE>.</SCHEME>
+      <JAVASCRIPT>
+	<JAVASCRIPTINLINE>ev_sequence_last_stmt</JAVASCRIPTINLINE>.
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    Since there are no more
+    <SPLITINLINE>
+      <SCHEME>
+	expressions
+      </SCHEME>
+      <JAVASCRIPT>
+	statements
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    to be evaluated after this one, we need
+    not save <SCHEMEINLINE>unev</SCHEMEINLINE> or
+    <SCHEMEINLINE>env</SCHEMEINLINE> before going to
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>eval-dispatch</SCHEMEINLINE>.</SCHEME>
+      <JAVASCRIPT><JAVASCRIPTINLINE>eval_dispatch</JAVASCRIPTINLINE>.
+    </JAVASCRIPT></SPLITINLINE>
+    The value of the whole sequence is the value of the last
+    <SPLITINLINE>
+      <SCHEME>
+	expression,
+      </SCHEME>
+      <JAVASCRIPT>
+	statement,
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    so
+    after the evaluation of the last
+    <SPLITINLINE>
+      <SCHEME>
+	expression
+      </SCHEME>
+      <JAVASCRIPT>
+	statement
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    there is nothing left to do
+    except continue at the entry point currently held on the stack (which was
+    saved by
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>ev-application</SCHEMEINLINE></SCHEME>
+      <JAVASCRIPT><JAVASCRIPTINLINE>ev_application</JAVASCRIPTINLINE>
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    or
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>ev-begin</SCHEMEINLINE>.)</SCHEME>
+      <JAVASCRIPT><JAVASCRIPTINLINE>ev_seq</JAVASCRIPTINLINE>.)</JAVASCRIPT>
+    </SPLITINLINE>
+    Rather than setting up <SCHEMEINLINE>continue</SCHEMEINLINE> to arrange for
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>eval-dispatch</SCHEMEINLINE></SCHEME>
+      <JAVASCRIPT><JAVASCRIPTINLINE>eval_dispatch</JAVASCRIPTINLINE>
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    to return here and then restoring <SCHEMEINLINE>continue</SCHEMEINLINE> from
+    the stack and continuing at that entry point, we restore
+    <SCHEMEINLINE>continue</SCHEMEINLINE> from the stack before going to
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>eval-dispatch</SCHEMEINLINE>,</SCHEME>
+      <JAVASCRIPT><JAVASCRIPTINLINE>eval_dispatch</JAVASCRIPTINLINE>,
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    so that
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>eval-dispatch</SCHEMEINLINE></SCHEME>
+      <JAVASCRIPT><JAVASCRIPTINLINE>eval_dispatch</JAVASCRIPTINLINE>
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    will continue at that entry point after evaluating the
+    <SPLITINLINE>
+      <SCHEME>
+	expression.
+      </SCHEME>
+      <JAVASCRIPT>
+	statement.
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    <SNIPPET EVAL="no">
+      <SCHEME>
+<!--  \indcode*{ev-sequence}[with tail recursion] -->
+ev-sequence
+(assign exp (op first-exp) (reg unev))
+(test (op last-exp?) (reg unev))
+(branch (label ev-sequence-last-exp))
+(save unev)
+(save env)
+(assign continue (label ev-sequence-continue))
+(goto (label eval-dispatch))
+ev-sequence-continue
+(restore env)
+(restore unev)
+(assign unev (op rest-exps) (reg unev))
+(goto (label ev-sequence))
+ev-sequence-last-exp
+(restore continue)
+(goto (label eval-dispatch))
+      </SCHEME>
+      <JAVASCRIPT>
+"ev_sequence",
+      assign("stmt", list(op("first_statement"), reg("unev"))),
+      test(list(op("is_last_statement"), reg("unev"))),
+      branch(label("ev_sequence_last_exp")),
+      save("unev"),
+      save("env"),
+      assign("continue", label("ev_sequence_continue")),
+      go_to(label("eval_dispatch")),
+      
+"ev_sequence_continue",
+      restore("env"),
+      restore("unev"),
+      assign("unev", list(op("rest_statements"), reg("unev"))),
+      go_to(label("ev_sequence")),
+
+"ev_sequence_last_exp",
+      restore("continue"),
+      go_to(label("eval_dispatch")),
+      </JAVASCRIPT>
+    </SNIPPET>
+  </TEXT>
+
+    
 </SUBSECTION>
