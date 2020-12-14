@@ -1,5 +1,4 @@
 import { getChildrenByTagName, ancestorHasTag } from "./utilityFunctions";
-import { checkIndexBadEndWarning } from "./processingFunctions/warnings.js";
 
 import {
   replaceTagWithSymbol,
@@ -147,18 +146,46 @@ const processTextFunctionsDefaultLatex = {
 
   INDEX: (node, writeTo) => {
     writeTo.push("\\index{");
-    const indexArr = [];
     const order = getChildrenByTagName(node, "ORDER")[0];
     if (order) {
-      recursiveProcessTextLatex(order.firstChild, indexArr);
-      indexArr.push("@");
+      recursiveProcessTextLatex(order.firstChild, writeTo);
+      writeTo.push("@");
     }
-    recursiveProcessTextLatex(node.firstChild, indexArr);
-    const indexStr = indexArr.join("");
-
-    // Do error checking
-    checkIndexBadEndWarning(indexStr);
-    writeTo.push(indexStr);
+    const declaration = getChildrenByTagName(node, "DECLARATION")[0];
+    if (declaration) {
+      recursiveProcessTextLatex(declaration.firstChild, writeTo);
+      writeTo.push("@");
+    }
+    recursiveProcessTextLatex(node.firstChild, writeTo);
+    if (getChildrenByTagName(node, "OPEN")[0]) {
+      writeTo.push("|(");
+    }
+    const close = getChildrenByTagName(node, "CLOSE")[0];
+    if (close) {
+      writeTo.push("|)");
+    }
+    if (ancestorHasTag(node, "FOOTNOTE")) {
+      writeTo.push("|nn");
+    } else if (ancestorHasTag(node, "EXERCISE")) {
+      writeTo.push("|xx{\\theExercise}");
+    } else if (ancestorHasTag(node, "FIGURE")) {
+      writeTo.push("|ff{\\thefigure}");
+    } else if (getChildrenByTagName(node, "DECLARATION")[0]) {
+      writeTo.push("|dd");
+    } else {
+      const see = getChildrenByTagName(node, "SEE")[0];
+      if (see) {
+        writeTo.push("|see{");
+        recursiveProcessTextLatex(see.firstChild, writeTo);
+        writeTo.push("}");
+      }
+      const seealso = getChildrenByTagName(node, "SEEALSO")[0];
+      if (seealso) {
+        writeTo.push("|seealso{");
+        recursiveProcessTextLatex(seealso.firstChild, writeTo);
+        writeTo.push("}");
+      }
+    }
     writeTo.push("}%\n");
   },
 
@@ -270,6 +297,8 @@ const processTextFunctionsDefaultLatex = {
   },
 
   SCHEMEINLINE: (node, writeTo) =>
+    processTextFunctionsLatex["JAVASCRIPTINLINE"](node, writeTo),
+  DECLARATION: (node, writeTo) =>
     processTextFunctionsLatex["JAVASCRIPTINLINE"](node, writeTo),
   JAVASCRIPTINLINE: (node, writeTo) => {
     if (node.getAttribute("break")) {

@@ -17,13 +17,16 @@ const title = `\\begin{titlepage}
   \\end{flushright}
 
   \\vspace{0.2cm}
-  {\\small This work is licensed under a \\href{https://creativecommons.org/licenses/by-nc-sa/4.0/}{Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International License}.}
+  {\\small This work is licensed under a 
+\\href{https://creativecommons.org/licenses/by-nc-sa/4.0/}{Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International License}.}
 
   \\vspace{0.1cm}
-{\\small All JavaScript programs in this work are licensed under the \\href{https://www.gnu.org/licenses/gpl-3.0.en.html}{GNU General Public License Version 3}.}
+{\\small All JavaScript programs in this work are licensed under the 
+\\href{https://www.gnu.org/licenses/gpl-3.0.en.html}{GNU General Public License Version 3}.}
 
   \\vspace{0.1cm}
-  {\\small The final version of this work will be published by The MIT Press under a \\href{https://creativecommons.org/licenses/by-nc-sa/4.0/}{Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International License}.}
+  {\\small The final version of this work will be published by The MIT Press under a 
+\\href{https://creativecommons.org/licenses/by-nc-sa/4.0/}{Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International License}.}
 
 \\end{titlepage}
 \\pagestyle{main}
@@ -238,6 +241,12 @@ export const preamble = `\\documentclass[a4paper, 12pt]{book}
 
 \\newsavebox\\lstbox
 
+\\newcommand{\\gobbleit}[1]{}
+\\newcommand{\\Also}[1]{\\emph{See also} #1}
+\\newcommand{\\nn}[1]{#1$\\,$\\emph{n}}
+\\newcommand{\\xx}[2]{#2 (ex. #1)}
+\\newcommand{\\ff}[2]{#2 (fig. #1)}
+\\newcommand{\\dd}[1]{\\textit{#1}}
 \\makeindex
 
 % to avoid spurious white space around index entries
