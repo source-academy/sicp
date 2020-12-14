@@ -284,7 +284,6 @@ export const ending = `
 
 \\input{./others/97references97.tex}
 
-\\addcontentsline{toc}{chapter}{Index}
 \\indexprologue{\\input{./others/98indexpreface98.tex}}
 \\printindex
 
