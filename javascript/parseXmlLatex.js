@@ -164,10 +164,10 @@ const processTextFunctionsDefaultLatex = {
     if (close) {
       writeTo.push("|)");
     }
-      if (ancestorHasTag(node, "FOOTNOTE")) {
-	  if (ancestorHasTag(node, "EXERCISE")) {
-	      writeTo.push("\\ \\textbf{footnoteinexercise}");
-	  }
+    if (ancestorHasTag(node, "FOOTNOTE")) {
+      if (ancestorHasTag(node, "EXERCISE")) {
+        writeTo.push("\\ \\textbf{footnoteinexercise}");
+      }
       writeTo.push("|nn");
     } else if (ancestorHasTag(node, "EXERCISE")) {
       writeTo.push("|xx{\\theExercise}");
