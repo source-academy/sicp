@@ -17,6 +17,10 @@ import {
   addName
 } from "./processingFunctions";
 
+// set true to generate index annotations
+// in the margins of the text
+const indexAnnotations = false;
+
 const tagsToRemove = new Set([
   "#comment",
   "COMMENT",
@@ -26,6 +30,11 @@ const tagsToRemove = new Set([
   "HISTORY",
   "NAME",
   "ORDER",
+  "SUBINDEX",
+  "SEE",
+  "SEEALSO",
+  "OPEN",
+  "CLOSE",
   "SCHEME",
   "SOLUTION",
   "WEB_ONLY"
@@ -145,51 +154,91 @@ const processTextFunctionsDefaultLatex = {
   },
 
   INDEX: (node, writeTo) => {
+    let margintext = "\\mymarginpar{";
+    let inlinetext = "";      
     writeTo.push("\\index{");
+
+    // handle explicit order commands ORDER, DECLARATION, USE
     const order = getChildrenByTagName(node, "ORDER")[0];
+    const declaration = getChildrenByTagName(node, "DECLARATION")[0];
+    const use = getChildrenByTagName(node, "USE")[0];
     if (order) {
       recursiveProcessTextLatex(order.firstChild, writeTo);
       writeTo.push("@");
-    }
-    const declaration = getChildrenByTagName(node, "DECLARATION")[0];
-    if (declaration) {
+//      margintext += order.firstChild + "}\\mymarginpar{\\klammeraffe ";
+//      inlinetext += order.firstChild + "\\klammeraffe ";
+    } else if (declaration) {
       recursiveProcessTextLatex(declaration.firstChild, writeTo);
       writeTo.push("@");
+//      margintext += declaration.firstChild + "}\\mymarginpar{\\klammeraffe ";
+//      inlinetext += declaration.firstChild + "\\klammeraffe ";
+    } else if (use) {
+      recursiveProcessTextLatex(use.firstChild, writeTo);
+      writeTo.push("@");
+//      margintext += use.firstChild + "}\\mymarginpar{\\klammeraffe ";
+//      inlinetext += use.firstChild + "\\klammeraffe ";
     }
-    recursiveProcessTextLatex(node.firstChild, writeTo);
-    if (getChildrenByTagName(node, "OPEN")[0]) {
-      writeTo.push("|(");
+
+    // render the actual index text
+    const indexArr = [];
+    recursiveProcessTextLatex(node.firstChild, indexArr);
+    const indexStr = indexArr.join("");
+    writeTo.push(indexStr);      
+    margintext += indexStr;
+    inlinetext += indexStr;
+
+    // render subindex
+    const subIndex = getChildrenByTagName(node, "SUBINDEX")[0];
+    if (subIndex) {
+	const subIndexArr = [];
+	recursiveProcessTextLatex(subIndex.firstChild, subIndexArr);
+	const subIndexStr = subIndexArr.join("");
+	writeTo.push("!");
+	writeTo.push(subIndexStr);
+	margintext += "}\\mymarginpar{!" + subIndexStr + "!";
+	inlinetext += "!" + subIndexStr ;
     }
+
+    // render the page number and whatever needs to come after
+    const open = getChildrenByTagName(node, "OPEN")[0];
     const close = getChildrenByTagName(node, "CLOSE")[0];
-    if (close) {
+    const see = getChildrenByTagName(node, "SEE")[0];
+    const seealso = getChildrenByTagName(node, "SEEALSO")[0];
+    if (open) {
+      writeTo.push("|(");
+    } else if (close) {
       writeTo.push("|)");
-    }
-    if (ancestorHasTag(node, "FOOTNOTE")) {
-      if (ancestorHasTag(node, "EXERCISE")) {
-        writeTo.push("\\ \\textbf{footnoteinexercise}");
-      }
+    } else if (ancestorHasTag(node, "FOOTNOTE")) {
       writeTo.push("|nn");
     } else if (ancestorHasTag(node, "EXERCISE")) {
       writeTo.push("|xx{\\theExercise}");
     } else if (ancestorHasTag(node, "FIGURE")) {
       writeTo.push("|ff{\\thefigure}");
-    } else if (getChildrenByTagName(node, "DECLARATION")[0]) {
+    } else if (declaration) {
       writeTo.push("|dd");
-    } else {
-      const see = getChildrenByTagName(node, "SEE")[0];
-      if (see) {
+    } else if (see) {
         writeTo.push("|see{");
         recursiveProcessTextLatex(see.firstChild, writeTo);
         writeTo.push("}");
-      }
-      const seealso = getChildrenByTagName(node, "SEEALSO")[0];
-      if (seealso) {
+    } else if (seealso) {
         writeTo.push("|seealso{");
         recursiveProcessTextLatex(seealso.firstChild, writeTo);
         writeTo.push("}");
-      }
     }
-    writeTo.push("}%\n");
+
+    if (indexAnnotations) {
+    if (
+      ancestorHasTag(node, "FIGURE") ||
+      ancestorHasTag(node, "FOOTNOTE") ||
+      ancestorHasTag(node, "EPIGRAPH")
+    ) {
+      writeTo.push("}{\\color{DarkGreen}\\textsf{[" + inlinetext + "]}} ");
+    } else {
+      writeTo.push("}" + margintext + "}%\n");
+    }
+    } else {
+	writeTo.push("}%\n");
+    }
   },
 
   IMAGE: (node, writeTo) => {
@@ -320,18 +369,6 @@ const processTextFunctionsDefaultLatex = {
 
   SNIPPET: (node, writeTo) => {
     processSnippetPdf(node, writeTo);
-  },
-
-  SUBINDEX: (node, writeTo) => {
-    // should occur only within INDEX
-    // also should only exist after stuff in the main index
-    writeTo.push("!");
-    const order = getChildrenByTagName(node, "ORDER")[0];
-    if (order) {
-      recursiveProcessTextLatex(order.firstChild, writeTo);
-      writeTo.push("@");
-    }
-    recursiveProcessTextLatex(node.firstChild, writeTo);
   },
 
   TABLE: (node, writeTo) => {

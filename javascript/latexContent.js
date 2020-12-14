@@ -234,6 +234,17 @@ export const preamble = `\\documentclass[a4paper, 12pt]{book}
 
 \\usepackage[colorlinks=true, urlcolor=blue, linkcolor=blue, citecolor=blue]{hyperref}
 
+%\\renewcommand*{\\marginfont}{\\footnotesize\\\color{red}\\sffamily}
+
+\\usepackage[maxfloats=266]{morefloats}
+
+\\setlength\\marginparwidth{2.0cm}
+
+\\setlength\\marginparpush{13pt}
+
+\\DeclareRobustCommand{\\mymarginpar}[1]{%
+ \\marginpar[\\raggedleft\\color{DarkGreen}\\footnotesize\\sffamily#1]{\\raggedright\\color{DarkGreen}\\footnotesize\\sffamily#1}}
+
 \\newcommand{\\lt}{\\ensuremath{<}}% Less than
 \\newcommand{\\gt}{\\ensuremath{>}}% Greater than
 
@@ -247,6 +258,8 @@ export const preamble = `\\documentclass[a4paper, 12pt]{book}
 \\newcommand{\\xx}[2]{#2 (ex. #1)}
 \\newcommand{\\ff}[2]{#2 (fig. #1)}
 \\newcommand{\\dd}[1]{\\textit{#1}}
+\\newcommand\\klammeraffe{@}
+
 \\makeindex
 
 % to avoid spurious white space around index entries
