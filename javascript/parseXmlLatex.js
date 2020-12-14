@@ -155,7 +155,7 @@ const processTextFunctionsDefaultLatex = {
 
   INDEX: (node, writeTo) => {
     let margintext = "\\mymarginpar{";
-    let inlinetext = "";      
+    let inlinetext = "";
     writeTo.push("\\index{");
 
     // handle explicit order commands ORDER, DECLARATION, USE
@@ -165,38 +165,38 @@ const processTextFunctionsDefaultLatex = {
     if (order) {
       recursiveProcessTextLatex(order.firstChild, writeTo);
       writeTo.push("@");
-//      margintext += order.firstChild + "}\\mymarginpar{\\klammeraffe ";
-//      inlinetext += order.firstChild + "\\klammeraffe ";
+      //      margintext += order.firstChild + "}\\mymarginpar{\\klammeraffe ";
+      //      inlinetext += order.firstChild + "\\klammeraffe ";
     } else if (declaration) {
       recursiveProcessTextLatex(declaration.firstChild, writeTo);
       writeTo.push("@");
-//      margintext += declaration.firstChild + "}\\mymarginpar{\\klammeraffe ";
-//      inlinetext += declaration.firstChild + "\\klammeraffe ";
+      //      margintext += declaration.firstChild + "}\\mymarginpar{\\klammeraffe ";
+      //      inlinetext += declaration.firstChild + "\\klammeraffe ";
     } else if (use) {
       recursiveProcessTextLatex(use.firstChild, writeTo);
       writeTo.push("@");
-//      margintext += use.firstChild + "}\\mymarginpar{\\klammeraffe ";
-//      inlinetext += use.firstChild + "\\klammeraffe ";
+      //      margintext += use.firstChild + "}\\mymarginpar{\\klammeraffe ";
+      //      inlinetext += use.firstChild + "\\klammeraffe ";
     }
 
     // render the actual index text
     const indexArr = [];
     recursiveProcessTextLatex(node.firstChild, indexArr);
     const indexStr = indexArr.join("");
-    writeTo.push(indexStr);      
+    writeTo.push(indexStr);
     margintext += indexStr;
     inlinetext += indexStr;
 
     // render subindex
     const subIndex = getChildrenByTagName(node, "SUBINDEX")[0];
     if (subIndex) {
-	const subIndexArr = [];
-	recursiveProcessTextLatex(subIndex.firstChild, subIndexArr);
-	const subIndexStr = subIndexArr.join("");
-	writeTo.push("!");
-	writeTo.push(subIndexStr);
-	margintext += "}\\mymarginpar{!" + subIndexStr + "!";
-	inlinetext += "!" + subIndexStr ;
+      const subIndexArr = [];
+      recursiveProcessTextLatex(subIndex.firstChild, subIndexArr);
+      const subIndexStr = subIndexArr.join("");
+      writeTo.push("!");
+      writeTo.push(subIndexStr);
+      margintext += "}\\mymarginpar{!" + subIndexStr + "!";
+      inlinetext += "!" + subIndexStr;
     }
 
     // render the page number and whatever needs to come after
@@ -217,27 +217,27 @@ const processTextFunctionsDefaultLatex = {
     } else if (declaration) {
       writeTo.push("|dd");
     } else if (see) {
-        writeTo.push("|see{");
-        recursiveProcessTextLatex(see.firstChild, writeTo);
-        writeTo.push("}");
+      writeTo.push("|see{");
+      recursiveProcessTextLatex(see.firstChild, writeTo);
+      writeTo.push("}");
     } else if (seealso) {
-        writeTo.push("|seealso{");
-        recursiveProcessTextLatex(seealso.firstChild, writeTo);
-        writeTo.push("}");
+      writeTo.push("|seealso{");
+      recursiveProcessTextLatex(seealso.firstChild, writeTo);
+      writeTo.push("}");
     }
 
     if (indexAnnotations) {
-    if (
-      ancestorHasTag(node, "FIGURE") ||
-      ancestorHasTag(node, "FOOTNOTE") ||
-      ancestorHasTag(node, "EPIGRAPH")
-    ) {
-      writeTo.push("}{\\color{DarkGreen}\\textsf{[" + inlinetext + "]}} ");
+      if (
+        ancestorHasTag(node, "FIGURE") ||
+        ancestorHasTag(node, "FOOTNOTE") ||
+        ancestorHasTag(node, "EPIGRAPH")
+      ) {
+        writeTo.push("}{\\color{DarkGreen}\\textsf{[" + inlinetext + "]}} ");
+      } else {
+        writeTo.push("}" + margintext + "}%\n");
+      }
     } else {
-      writeTo.push("}" + margintext + "}%\n");
-    }
-    } else {
-	writeTo.push("}%\n");
+      writeTo.push("}%\n");
     }
   },
 
