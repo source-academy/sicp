@@ -154,62 +154,115 @@ const processTextFunctionsDefaultLatex = {
   },
 
   INDEX: (node, writeTo) => {
-    let margintext = "\\mymarginpar{";
+    let margintext = "";
     let inlinetext = "";
+    let prefix = "";
+
     writeTo.push("\\index{");
 
+    // prepare actual index string
+    const indexArr = [];
+    recursiveProcessTextLatex(node.firstChild, indexArr);
+    let indexStr = indexArr.join("");
+
     // handle explicit order commands ORDER, DECLARATION, USE
+    const open = getChildrenByTagName(node, "OPEN")[0];
+    if (open) {
+      prefix += "$\\langle$";
+    }
+    const close = getChildrenByTagName(node, "CLOSE")[0];
+    if (close) {
+      prefix += "$\\rangle$";
+    }
     const order = getChildrenByTagName(node, "ORDER")[0];
     const declaration = getChildrenByTagName(node, "DECLARATION")[0];
     const use = getChildrenByTagName(node, "USE")[0];
-    if (order) {
-      recursiveProcessTextLatex(order.firstChild, writeTo);
-      writeTo.push("@");
-      //      margintext += order.firstChild + "}\\mymarginpar{\\klammeraffe ";
-      //      inlinetext += order.firstChild + "\\klammeraffe ";
-    } else if (declaration) {
+    if (declaration) {
       recursiveProcessTextLatex(declaration.firstChild, writeTo);
       writeTo.push("@");
-      //      margintext += declaration.firstChild + "}\\mymarginpar{\\klammeraffe ";
-      //      inlinetext += declaration.firstChild + "\\klammeraffe ";
+      margintext += "\\indexdeclarationmarginpar{" + prefix + indexStr + "}";
+      inlinetext += "\\indexdeclarationinline{" + prefix + indexStr + "}";
     } else if (use) {
       recursiveProcessTextLatex(use.firstChild, writeTo);
       writeTo.push("@");
-      //      margintext += use.firstChild + "}\\mymarginpar{\\klammeraffe ";
-      //      inlinetext += use.firstChild + "\\klammeraffe ";
+      margintext += "\\indexusemarginpar{" + prefix + indexStr + "}";
+      inlinetext += "\\indexuseinline{" + prefix + indexStr + "}";
+    } else if (order) {
+      recursiveProcessTextLatex(order.firstChild, writeTo);
+      writeTo.push("@");
+      margintext += "\\indexmarginpar{" + prefix + indexStr + "}";
+      inlinetext += "\\indexinline{" + prefix + indexStr + "}";
+    } else {
+      margintext += "\\indexmarginpar{" + prefix + indexStr + "}";
+      inlinetext += "\\indexinline{" + prefix + indexStr + "}";
     }
 
     // render the actual index text
-    const indexArr = [];
-    recursiveProcessTextLatex(node.firstChild, indexArr);
-    const indexStr = indexArr.join("");
     writeTo.push(indexStr);
-    margintext += indexStr;
-    inlinetext += indexStr;
+
+    // display ORDER string in the margin
+    if (order) {
+      const orderArr = [];
+      recursiveProcessTextLatex(order.firstChild, orderArr);
+      const orderStr = orderArr.join("");
+      margintext += "\\ordermarginpar{" + orderStr + "}";
+      inlinetext += "\\orderinline{" + orderStr + "}";
+    }
 
     // render subindex
     const subIndex = getChildrenByTagName(node, "SUBINDEX")[0];
     if (subIndex) {
       const subIndexArr = [];
       recursiveProcessTextLatex(subIndex.firstChild, subIndexArr);
-      const subIndexStr = subIndexArr.join("");
+      let subIndexStr = subIndexArr.join("");
       writeTo.push("!");
-      writeTo.push(subIndexStr);
-      margintext += "}\\mymarginpar{!" + subIndexStr + "!";
-      inlinetext += "!" + subIndexStr;
+      const order = getChildrenByTagName(subIndex, "ORDER")[0];
+      if (order) {
+        recursiveProcessTextLatex(order.firstChild, writeTo);
+        writeTo.push("@");
+      }
+
+      // compute open/close prefix
+      let prefix = "";
+      let postfix = "";
+      const open = getChildrenByTagName(subIndex, "OPEN")[0];
+      const close = getChildrenByTagName(subIndex, "CLOSE")[0];
+      if (open) {
+        prefix += "$\\langle$";
+        postfix += "|(";
+      } else if (close) {
+        prefix += "$\\rangle$";
+        postfix += "|)";
+      }
+
+      writeTo.push(subIndexStr + postfix);
+      margintext += "\\subindexmarginpar{" + prefix + subIndexStr + "}";
+      inlinetext += "\\subindexinline{" + prefix + subIndexStr + "}";
+
+      // display ORDER string in the margin
+      if (order) {
+        const orderArr = [];
+        recursiveProcessTextLatex(order.firstChild, orderArr);
+        const orderStr = orderArr.join("");
+        margintext += "\\ordermarginpar{" + orderStr + "}";
+        inlinetext += "\\orderinline{" + orderStr + "}";
+      }
     }
 
-    // render the page number and whatever needs to come after
-    const open = getChildrenByTagName(node, "OPEN")[0];
-    const close = getChildrenByTagName(node, "CLOSE")[0];
     const see = getChildrenByTagName(node, "SEE")[0];
     const seealso = getChildrenByTagName(node, "SEEALSO")[0];
+
+    // render the page number and whatever needs to come after
     if (open) {
       writeTo.push("|(");
     } else if (close) {
       writeTo.push("|)");
     } else if (ancestorHasTag(node, "FOOTNOTE")) {
-      writeTo.push("|nn");
+      if (declaration) {
+        writeTo.push("|nndd");
+      } else {
+        writeTo.push("|nn");
+      }
     } else if (ancestorHasTag(node, "EXERCISE")) {
       writeTo.push("|xx{\\theExercise}");
     } else if (ancestorHasTag(node, "FIGURE")) {
@@ -232,9 +285,9 @@ const processTextFunctionsDefaultLatex = {
         ancestorHasTag(node, "FOOTNOTE") ||
         ancestorHasTag(node, "EPIGRAPH")
       ) {
-        writeTo.push("}{\\color{DarkGreen}\\textsf{[" + inlinetext + "]}} ");
+        writeTo.push("}" + inlinetext + "%\n");
       } else {
-        writeTo.push("}" + margintext + "}%\n");
+        writeTo.push("}" + margintext + "%\n");
       }
     } else {
       writeTo.push("}%\n");
@@ -351,6 +404,8 @@ const processTextFunctionsDefaultLatex = {
   SCHEMEINLINE: (node, writeTo) =>
     processTextFunctionsLatex["JAVASCRIPTINLINE"](node, writeTo),
   DECLARATION: (node, writeTo) =>
+    processTextFunctionsLatex["JAVASCRIPTINLINE"](node, writeTo),
+  USE: (node, writeTo) =>
     processTextFunctionsLatex["JAVASCRIPTINLINE"](node, writeTo),
   JAVASCRIPTINLINE: (node, writeTo) => {
     if (node.getAttribute("break")) {

@@ -234,16 +234,32 @@ export const preamble = `\\documentclass[a4paper, 12pt]{book}
 
 \\usepackage[colorlinks=true, urlcolor=blue, linkcolor=blue, citecolor=blue]{hyperref}
 
-%\\renewcommand*{\\marginfont}{\\footnotesize\\\color{red}\\sffamily}
-
 \\usepackage[maxfloats=266]{morefloats}
 
-\\setlength\\marginparwidth{2.0cm}
+\\setlength\\marginparwidth{2.3cm}
 
-\\setlength\\marginparpush{13pt}
+%\\setlength\\marginparpush{13pt}
 
-\\DeclareRobustCommand{\\mymarginpar}[1]{%
- \\marginpar[\\raggedleft\\color{DarkGreen}\\footnotesize\\sffamily#1]{\\raggedright\\color{DarkGreen}\\footnotesize\\sffamily#1}}
+\\DeclareRobustCommand{\\indexmarginpar}[1]{%
+ \\marginpar[{\\setstretch{0.5}\\raggedleft\\color{blue}\\footnotesize\\sffamily#1}]{\\parbox{\\marginparwidth}{\\setstretch{0.5}\\raggedright\\color{blue}\\footnotesize\\sffamily#1}}}
+
+\\DeclareRobustCommand{\\indexdeclarationmarginpar}[1]{%
+ \\marginpar[{\\setstretch{0.5}\\raggedleft\\color{purple}\\footnotesize\\sffamily#1}]{{\\setstretch{0.5}\\raggedright\\color{purple}\\footnotesize\\sffamily#1}}}
+
+\\DeclareRobustCommand{\\indexusemarginpar}[1]{%
+ \\marginpar[{\\setstretch{0.5}\\raggedleft\\color{red}\\footnotesize\\sffamily#1}]{{\\setstretch{0.5}\\raggedright\\color{red}\\footnotesize\\sffamily#1}}}
+
+\\DeclareRobustCommand{\\subindexmarginpar}[1]{%
+ \\marginpar[{\\setstretch{0.5}\\raggedleft\\color{DarkGreen}\\footnotesize\\sffamily#1}]{\\parbox{\\marginparwidth}{\\setstretch{0.5}\\raggedright\\color{DarkGreen}\\footnotesize\\sffamily#1}}}
+
+\\DeclareRobustCommand{\\ordermarginpar}[1]{%
+ \\marginpar[{\\setstretch{0.5}\\raggedleft\\color{brown}\\footnotesize\\sffamily#1}]{\\parbox{\\marginparwidth}{\\setstretch{0.5}\\raggedright\\color{brown}\\footnotesize\\sffamily#1}}}
+
+\\newcommand{\\indexinline}[1]{{\\color{blue}\\textsf{[#1]}}}
+\\newcommand{\\indexdeclarationinline}[1]{{\\color{purple}\\textsf{[#1]}}}
+\\newcommand{\\indexuseinline}[1]{{\\color{red}\\textsf{[#1]}}}
+\\newcommand{\\subindexinline}[1]{{\\color{DarkGreen}\\textsf{[#1]}}}
+\\newcommand{\\orderinline}[1]{{\\color{brown}\\textsf{[#1]}}}
 
 \\newcommand{\\lt}{\\ensuremath{<}}% Less than
 \\newcommand{\\gt}{\\ensuremath{>}}% Greater than
@@ -255,6 +271,7 @@ export const preamble = `\\documentclass[a4paper, 12pt]{book}
 \\newcommand{\\gobbleit}[1]{}
 \\newcommand{\\Also}[1]{\\emph{See also} #1}
 \\newcommand{\\nn}[1]{#1$\\,$\\emph{n}}
+\\newcommand{\\nndd}[1]{\\emph{#1}$\\,$\\emph{n}}
 \\newcommand{\\xx}[2]{#2 (ex. #1)}
 \\newcommand{\\ff}[2]{#2 (fig. #1)}
 \\newcommand{\\dd}[1]{\\textit{#1}}
