@@ -118,8 +118,13 @@ export const processSnippetPdf = (node, writeTo) => {
       checkLongLineWarning(codeStr);
     }
 
-    if (node.getAttribute("EVAL") === "no") {
-      if (ancestorHasTag(node, "EXERCISE")) {
+    if (
+      node.getAttribute("EVAL") === "no" ||
+      node.getAttribute("LATEX") === "yes"
+    ) {
+      if (node.getAttribute("LATEX") === "yes") {
+        writeTo.push("\n\\begin{JavaScriptLatex}\n");
+      } else if (ancestorHasTag(node, "EXERCISE")) {
         writeTo.push("\n\\begin{JavaScriptSmall}\n");
       } else {
         writeTo.push("\n\\begin{JavaScript}\n");
@@ -127,7 +132,9 @@ export const processSnippetPdf = (node, writeTo) => {
 
       writeTo.push(codeStr);
 
-      if (ancestorHasTag(node, "EXERCISE")) {
+      if (node.getAttribute("LATEX") === "yes") {
+        writeTo.push("\n\\end{JavaScriptLatex}\n");
+      } else if (ancestorHasTag(node, "EXERCISE")) {
         writeTo.push("\n\\end{JavaScriptSmall}\n");
       } else {
         writeTo.push("\n\\end{JavaScript}\n");

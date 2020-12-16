@@ -123,7 +123,7 @@ export const preamble = `\\documentclass[a4paper, 12pt]{book}
 
 \\lstdefinelanguage{JavaScript}{
   keywords={function,if,else,return,const,let,break,for,while,true,false,var},
-  %% keywords={const, let, break, case, catch, continue, debugger, default, delete, do, else, finally, for, function, if, in, instanceof, new, return, switch, this, throw, try, typeof, var, void, while, with},
+  %% keywords={const, let, break, case, catch, continue, debugger, default, delete, do, else, finally, for, function, if, in, instanceof, return, switch, this, throw, try, typeof, var, void, while, with},
   morecomment=[l]{//},
   morecomment=[s]{/*}{*/},
   morestring=[b]',
@@ -146,7 +146,7 @@ export const preamble = `\\documentclass[a4paper, 12pt]{book}
 \\usepackage[svgnames]{xcolor}
 \\definecolor{LeftBarClickable}{RGB}{187, 187, 187}
 
-\\lstdefinestyle{JavaScript}{
+\\lstdefinestyle{JavaScriptLatex}{
    language=JavaScript,
    basicstyle=\\linespread{1.0}\\fontsize{11}{12}\\selectfont\\ttfamily,
    showstringspaces=false,
@@ -155,6 +155,21 @@ export const preamble = `\\documentclass[a4paper, 12pt]{book}
    fontadjust=true,
    basewidth=0.55em,
    mathescape=true,
+   framerule=0.5ex,
+   framesep=1em,
+   rulecolor=\\color{LeftBarClickable},
+   escapechar=^
+}
+\\lstnewenvironment{JavaScriptLatex}{\\lstset{style=JavaScriptLatex,aboveskip=2.5ex,belowskip=1.8ex}}{}
+\\lstdefinestyle{JavaScript}{
+   language=JavaScript,
+   basicstyle=\\linespread{1.0}\\fontsize{11}{12}\\selectfont\\ttfamily,
+   showstringspaces=false,
+   showspaces=false,
+   keepspaces=true,
+   fontadjust=true,
+   basewidth=0.55em,
+   mathescape=false,
    framerule=0.5ex,
    framesep=1em,
    rulecolor=\\color{LeftBarClickable},
@@ -171,7 +186,7 @@ export const preamble = `\\documentclass[a4paper, 12pt]{book}
    keepspaces=true,
    fontadjust=true,
    basewidth=0.55em,
-   mathescape=true,
+   mathescape=false,
    framerule=0.5ex,
    framesep=1em,
    rulecolor=\\color{LeftBarClickable},
@@ -189,7 +204,7 @@ export const preamble = `\\documentclass[a4paper, 12pt]{book}
    columns=fullflexible,
    fontadjust=true,
    basewidth=0.55em,
-   mathescape=true,
+   mathescape=false,
    framerule=0.5ex,
    framesep=1em,
    rulecolor=\\color{LeftBarClickable},
@@ -208,7 +223,7 @@ export const preamble = `\\documentclass[a4paper, 12pt]{book}
    columns=fullflexible,
    fontadjust=true,
    basewidth=0.55em,
-   mathescape=true,
+   mathescape=false,
    framerule=0.5ex,
    framesep=1em,
    rulecolor=\\color{LeftBarClickable},

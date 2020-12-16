@@ -410,16 +410,16 @@ const processTextFunctionsDefaultLatex = {
   JAVASCRIPTINLINE: (node, writeTo) => {
     if (node.getAttribute("break")) {
       writeTo.push(
-        "{\\lstinline[breaklines=true, breakatwhitespace=true,mathescape=true]$"
+        "{\\lstinline[breaklines=true, breakatwhitespace=true,mathescape=false]~"
       );
     } else {
-      writeTo.push("{\\lstinline[mathescape=true]$");
+      writeTo.push("{\\lstinline[mathescape=false]~");
     }
     recursiveProcessPureText(node.firstChild, writeTo, {
       removeNewline: "all",
       escapeCurlyBracket: true
     });
-    writeTo.push("$}");
+    writeTo.push("~}");
   },
 
   SNIPPET: (node, writeTo) => {
@@ -465,12 +465,12 @@ const processTextFunctionsEpub = {
     recursiveProcessTextLatex(node.firstChild, writeTo);
   },
   JAVASCRIPTINLINE: (node, writeTo) => {
-    writeTo.push("{\\lstinline[mathescape=true, language=JavaScript]$");
+    writeTo.push("{\\lstinline[mathescape=false, language=JavaScript]~");
     recursiveProcessPureText(node.firstChild, writeTo, {
       removeNewline: "all",
       escapeCurlyBracket: true
     });
-    writeTo.push("$}%\n");
+    writeTo.push("~}%\n");
   },
   SNIPPET: (node, writeTo) => {
     processSnippetEpub(node, writeTo);
