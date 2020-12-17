@@ -178,7 +178,12 @@ const processTextFunctionsDefaultLatex = {
     const declaration = getChildrenByTagName(node, "DECLARATION")[0];
     const use = getChildrenByTagName(node, "USE")[0];
     if (declaration) {
-      recursiveProcessTextLatex(declaration.firstChild, writeTo);
+      if (order) {
+        // ORDER overrides
+        recursiveProcessTextLatex(order.firstChild, writeTo);
+      } else {
+        recursiveProcessTextLatex(declaration.firstChild, writeTo);
+      }
       writeTo.push("@");
       margintext += "\\indexdeclarationmarginpar{" + prefix + indexStr + "}";
       inlinetext += "\\indexdeclarationinline{" + prefix + indexStr + "}";
