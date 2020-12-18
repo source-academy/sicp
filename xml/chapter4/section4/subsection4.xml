@@ -352,7 +352,7 @@ first_answer('append_to_form(x, y, list("a", "b", "c", "d"))');
 	<JAVASCRIPT>
 function instantiate(exp, frame, unbound_var_handler) {
     function copy(exp) {
-        if (is_var(exp)) {
+        if (is_$_name(exp)) {
             const binding = binding_in_frame(exp, frame);
             return is_undefined(binding)
                    ? unbound_var_handler(exp, frame)
@@ -1155,7 +1155,7 @@ function pattern_match(pat, dat, frame) {
            ? "failed"
            : equal(pat, dat) 
            ? frame   
-           : is_var(pat) 
+           : is_name(pat) 
            ? extend_if_consistent(pat, dat, frame)
            : is_pair(pat) &amp;&amp; is_pair(dat)
            ? pattern_match(tail(pat),
@@ -1595,7 +1595,7 @@ function apply_a_rule(rule, query_pattern, query_frame) {
 function rename_variables_in(rule) {
     const rule_application_id = new_rule_application_id();
     function tree_walk(exp) {
-        return is_var(exp) 
+        return is_name(exp) 
                ? make_new_variable(exp, rule_application_id)
                : is_pair(exp)
                ? pair(tree_walk(head(exp)),
@@ -1666,9 +1666,9 @@ function unify_match(p1, p2, frame) {
            ? "failed"
            : equal(p1, p2)
            ? frame
-           : is_var(p1) 
+           : is_name(p1) 
            ? extend_if_possible(p1, p2, frame)
-           : is_var(p2) 
+           : is_name(p2) 
            ? extend_if_possible(p2, p1, frame)  // ***
            : is_pair(p1) &amp;&amp; is_pair(p2)
            ? unify_match(tail(p1),
@@ -2011,7 +2011,7 @@ function extend_if_possible(variable, value, frame) {
     if (! is_undefined(binding)) {
         return unify_match(binding_value(binding), 
                             value, frame); 
-    } else if (is_var(value)) {                      // ***
+    } else if (is_name(value)) {                      // ***
         const binding = binding_in_frame(value, frame);
         return ! is_undefined(binding)
                ? unify_match(variable,
@@ -2069,7 +2069,7 @@ function extend_if_possible(variable, value, frame) {
 	<JAVASCRIPT>
 function depends_on(expression, variable, frame) {
     function tree_walk(e) {
-        if (is_var(e)) {
+        if (is_name(e)) {
             if (equal(variable, e)) {
                 return true;
             } else {
@@ -2829,19 +2829,9 @@ unparse_query(parse_query('assert(salary(list("Bitdiddle", "Ben"), 122000))'));
 	  <JAVASCRIPTINLINE>pair</JAVASCRIPTINLINE>
 	  and <JAVASCRIPTINLINE>list</JAVASCRIPTINLINE> to JavaScript pairs
 	  and lists, respectively.
-	  Any pattern variable in the expression,
-	  as identified by <JAVASCRIPTINLINE>is_dollar_name</JAVASCRIPTINLINE>,
-	  is converted into a tagged list with the tag
-	  <JAVASCRIPTINLINE>"var"</JAVASCRIPTINLINE> whose second element
-	  is the symbol that represents the name.
-	  The function <JAVASCRIPTINLINE>is_var</JAVASCRIPTINLINE>
-	  can check to see whether an expression is a
-	  pattern variable by checking whether the head of the expression is the
-	  string<SPACE/><JAVASCRIPTINLINE>"var"</JAVASCRIPTINLINE>.	  
 	  <SNIPPET>
 	    <NAME>process_query</NAME>
 	    <REQUIRES>functions_4_1_2</REQUIRES>
-	    <REQUIRES>javascript_value_process</REQUIRES>
 	    <EXAMPLE>append_to_form_example_5</EXAMPLE>
 	    <JAVASCRIPT>
 function parse_query(input) {
@@ -2853,8 +2843,7 @@ function query_syntax_process(exp) {
     if (is_application(exp)) {
       const function_symbol = symbol_of_name(function_expression(exp));
       if (function_symbol === "javascript_value") {
-          return pair(function_symbol,
-                      map(javascript_value_process, arg_expressions(exp)));      
+          return pair(function_symbol, arg_expressions(exp));
       } else {
           const processed_args = map(query_syntax_process, arg_expressions(exp));
           return function_symbol === "pair"
@@ -2863,22 +2852,19 @@ function query_syntax_process(exp) {
                  ? processed_args
                  : pair(function_symbol, processed_args);
       }
-    } else if (is_dollar_name(exp)) {
-      return list("var", symbol_of_name(exp));
+    } else if (is_name(exp)) {
+      return exp;
     } else if (is_literal(exp)) {
       return literal_value(exp);
     } else {
       error(exp, "unknown query syntax -- query_syntax_process");
     }
-}	      
+}
 	    </JAVASCRIPT>
 	  </SNIPPET>
 	  For example, the query-language-specific representation of the pattern
 	  <JAVASCRIPTINLINE>job($x, $y)</JAVASCRIPTINLINE> is 
-	  <JAVASCRIPTINLINE>list("job", list("var", "$x"), list("var", "$y"))</JAVASCRIPTINLINE>.
-	  Once the variables are transformed in this way, the variables in a
-	  pattern are lists starting with
-	  <JAVASCRIPTINLINE>"var"</JAVASCRIPTINLINE>.
+	  <JAVASCRIPTINLINE>list("job", list("name", "$x"), list("name", "$y"))</JAVASCRIPTINLINE>.
       </TEXT>
       <TEXT>
 	  An exception to this processing is the
@@ -2890,35 +2876,27 @@ function query_syntax_process(exp) {
 	  function of section<SPACE/><REF NAME="sec:core-of-evaluator"/>,
 	  the original JavaScript syntax representation coming from
 	  <JAVASCRIPTINLINE>parse</JAVASCRIPTINLINE>	  
-	  needs to remain intact in the query-language-specific representation,
-	  except that names whose symbol starts with a dollar sign
-	  are converted to pattern variables so that
-	  they will be instantiated during query processing along with other
-	  occurrences of the same variable in the query. In this example
+	  needs to remain intact in the query-language-specific representation.
+	  In this example
 	  of section<SPACE/><REF NAME="sec:deductive-info-retrieval"/>
 	  <SNIPPET EVAL="no">
 	    <JAVASCRIPT>
 and(salary($person, $amount), javascript_value($amount &gt; 50000))	  
 	    </JAVASCRIPT>
 	  </SNIPPET>
-	  the query processing
+	  <JAVASCRIPTINLINE>parse_query</JAVASCRIPTINLINE> produces a data structure
+	  that combines the query-language specific representation with the JavaScript
+	  syntax respresentation:
+	  <SNIPPET EVAL="no">
+	    <JAVASCRIPT>
+parse_query("and(salary($person, $amount), javascript_value($amount &gt; 50000))");
+	    </JAVASCRIPT>
+	    <JAVASCRIPT_OUTPUT>
+	      
+	    </JAVASCRIPT_OUTPUT>
+	  </SNIPPET>
 	  needs to instantiate both occurrences of the variable
 	  <JAVASCRIPTINLINE>$amount</JAVASCRIPTINLINE>.
-	  <SNIPPET>
-	    <NAME>javascript_value_process</NAME>
-	    <REQUIRES>functions_4_1_2</REQUIRES>
-	    <EXAMPLE>compound_queries_5_example</EXAMPLE>
-	    <JAVASCRIPT>
-function javascript_value_process(exp) {
-    return is_dollar_name(exp)
-           ? list("var", symbol_of_name(exp))
-           : is_pair(exp)
-           ? pair(javascript_value_process(head(exp)),
-                  javascript_value_process(head(exp)))
-           : exp;
-}
-	    </JAVASCRIPT>
-	  </SNIPPET>
       </TEXT>
       
       <SUBHEADING>

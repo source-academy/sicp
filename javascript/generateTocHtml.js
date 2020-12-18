@@ -24,6 +24,8 @@ const generateChapterIndex = filename => {
     chapterIndex = "acknowledgements";
   } else if (filename.match(/references/)) {
     chapterIndex = "references";
+  } else if (filename.match(/see/)) {
+    chapterIndex = "see";
   } else if (filename.match(/indexpreface/)) {
     chapterIndex = "index";
   } else if (filename.match(/making/)) {
@@ -78,12 +80,14 @@ export const sortTOC = allFilepath => {
       sortedFilepath[1] = filename;
     } else if (filename.match(/acknowledgements/)) {
       sortedFilepath[2] = filename;
+    } else if (filename.match(/see/)) {
+      sortedFilepath[3] = filename;
     } else if (filename.match(/references/)) {
       sortedFilepath[totalFileCount - 2] = filename;
     } else if (filename.match(/making/)) {
       sortedFilepath[totalFileCount - 1] = filename;
     } else {
-      sortedFilepath[i + 3] = filename;
+      sortedFilepath[i + 4] = filename;
     }
   }
 
