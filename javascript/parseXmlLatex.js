@@ -26,7 +26,9 @@ const tagsToRemove = new Set([
   "COMMENT",
   "CHANGE",
   "EDIT",
+  "FRAGILE",
   "EXCLUDE",
+  "FRAGILE",
   "HISTORY",
   "NAME",
   "ORDER",
@@ -154,6 +156,7 @@ const processTextFunctionsDefaultLatex = {
   },
 
   INDEX: (node, writeTo) => {
+    const fragile = getChildrenByTagName(node, "FRAGILE")[0];
     let margintext = "";
     let inlinetext = "";
     let prefix = "";
@@ -175,7 +178,7 @@ const processTextFunctionsDefaultLatex = {
       prefix += "$\\rangle$";
     }
     const order = getChildrenByTagName(node, "ORDER")[0];
-    const declaration = getChildrenByTagName(node, "DECLARATION")[0];
+    let declaration = getChildrenByTagName(node, "DECLARATION")[0];
     const use = getChildrenByTagName(node, "USE")[0];
     if (declaration) {
       if (order) {
@@ -185,20 +188,41 @@ const processTextFunctionsDefaultLatex = {
         recursiveProcessTextLatex(declaration.firstChild, writeTo);
       }
       writeTo.push("@");
-      margintext += "\\indexdeclarationmarginpar{" + prefix + indexStr + "}";
+      if (fragile) {
+        margintext += "\\indexdeclarationinline{" + prefix + indexStr + "}";
+      } else {
+        margintext += "\\indexdeclarationmarginpar{" + prefix + indexStr + "}";
+      }
       inlinetext += "\\indexdeclarationinline{" + prefix + indexStr + "}";
     } else if (use) {
-      recursiveProcessTextLatex(use.firstChild, writeTo);
+      if (order) {
+        // ORDER overrides
+        recursiveProcessTextLatex(order.firstChild, writeTo);
+      } else {
+        recursiveProcessTextLatex(use.firstChild, writeTo);
+      }
       writeTo.push("@");
-      margintext += "\\indexusemarginpar{" + prefix + indexStr + "}";
+      if (fragile) {
+        margintext += "\\indexuseinline{" + prefix + indexStr + "}";
+      } else {
+        margintext += "\\indexusemarginpar{" + prefix + indexStr + "}";
+      }
       inlinetext += "\\indexuseinline{" + prefix + indexStr + "}";
     } else if (order) {
       recursiveProcessTextLatex(order.firstChild, writeTo);
       writeTo.push("@");
-      margintext += "\\indexmarginpar{" + prefix + indexStr + "}";
+      if (fragile) {
+        margintext += "\\indexinline{" + prefix + indexStr + "}";
+      } else {
+        margintext += "\\indexmarginpar{" + prefix + indexStr + "}";
+      }
       inlinetext += "\\indexinline{" + prefix + indexStr + "}";
     } else {
-      margintext += "\\indexmarginpar{" + prefix + indexStr + "}";
+      if (fragile) {
+        margintext += "\\indexinline{" + prefix + indexStr + "}";
+      } else {
+        margintext += "\\indexmarginpar{" + prefix + indexStr + "}";
+      }
       inlinetext += "\\indexinline{" + prefix + indexStr + "}";
     }
 
@@ -210,7 +234,11 @@ const processTextFunctionsDefaultLatex = {
       const orderArr = [];
       recursiveProcessTextLatex(order.firstChild, orderArr);
       const orderStr = orderArr.join("");
-      margintext += "\\ordermarginpar{" + orderStr + "}";
+      if (fragile) {
+        margintext += "\\orderinline{" + orderStr + "}";
+      } else {
+        margintext += "\\ordermarginpar{" + orderStr + "}";
+      }
       inlinetext += "\\orderinline{" + orderStr + "}";
     }
 
@@ -241,7 +269,11 @@ const processTextFunctionsDefaultLatex = {
       }
 
       writeTo.push(subIndexStr + postfix);
-      margintext += "\\subindexmarginpar{" + prefix + subIndexStr + "}";
+      if (fragile) {
+        margintext += "\\subindexinline{" + prefix + subIndexStr + "}";
+      } else {
+        margintext += "\\subindexmarginpar{" + prefix + subIndexStr + "}";
+      }
       inlinetext += "\\subindexinline{" + prefix + subIndexStr + "}";
 
       // display ORDER string in the margin
@@ -249,13 +281,21 @@ const processTextFunctionsDefaultLatex = {
         const orderArr = [];
         recursiveProcessTextLatex(order.firstChild, orderArr);
         const orderStr = orderArr.join("");
-        margintext += "\\ordermarginpar{" + orderStr + "}";
+        if (fragile) {
+          margintext += "\\orderinline{" + orderStr + "}";
+        } else {
+          margintext += "\\ordermarginpar{" + orderStr + "}";
+        }
         inlinetext += "\\orderinline{" + orderStr + "}";
       }
     }
 
     const see = getChildrenByTagName(node, "SEE")[0];
     const seealso = getChildrenByTagName(node, "SEEALSO")[0];
+
+    declaration =
+      declaration ||
+      (subIndex && getChildrenByTagName(subIndex, "DECLARATION")[0]);
 
     // render the page number and whatever needs to come after
     if (open) {
@@ -269,16 +309,28 @@ const processTextFunctionsDefaultLatex = {
         writeTo.push("|nn");
       }
     } else if (ancestorHasTag(node, "EXERCISE")) {
-      writeTo.push("|xx{\\theExercise}");
+      if (declaration) {
+        writeTo.push("|xxdd{\\theExercise}");
+      } else {
+        writeTo.push("|xx{\\theExercise}");
+      }
     } else if (ancestorHasTag(node, "FIGURE")) {
       writeTo.push("|ff{\\thefigure}");
     } else if (declaration) {
       writeTo.push("|dd");
     } else if (see) {
+      const seeArr = [];
+      recursiveProcessTextLatex(see.firstChild, seeArr);
+      const seeStr = seeArr.join("");
+      margintext += "\\seeinline{" + seeStr + "}";
       writeTo.push("|see{");
       recursiveProcessTextLatex(see.firstChild, writeTo);
       writeTo.push("}");
     } else if (seealso) {
+      const seeAlsoArr = [];
+      recursiveProcessTextLatex(seealso.firstChild, seeAlsoArr);
+      const seeAlsoStr = seeAlsoArr.join("");
+      margintext += "\\seealsoinline{" + seeAlsoStr + "}";
       writeTo.push("|seealso{");
       recursiveProcessTextLatex(seealso.firstChild, writeTo);
       writeTo.push("}");

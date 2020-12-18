@@ -270,11 +270,13 @@ export const preamble = `\\documentclass[a4paper, 12pt]{book}
 \\DeclareRobustCommand{\\ordermarginpar}[1]{%
  \\marginpar[{\\setstretch{0.5}\\raggedleft\\color{brown}\\footnotesize\\sffamily#1}]{\\parbox{\\marginparwidth}{\\setstretch{0.5}\\raggedright\\color{brown}\\footnotesize\\sffamily#1}}}
 
-\\newcommand{\\indexinline}[1]{{\\color{blue}\\textsf{[#1]}}}
-\\newcommand{\\indexdeclarationinline}[1]{{\\color{purple}\\textsf{[#1]}}}
-\\newcommand{\\indexuseinline}[1]{{\\color{red}\\textsf{[#1]}}}
-\\newcommand{\\subindexinline}[1]{{\\color{DarkGreen}\\textsf{[#1]}}}
-\\newcommand{\\orderinline}[1]{{\\color{brown}\\textsf{[#1]}}}
+\\newcommand{\\indexinline}[1]{{\\color{blue}\\textsf{[#1]} }}
+\\newcommand{\\indexdeclarationinline}[1]{{\\color{purple}\\textsf{[#1]} }}
+\\newcommand{\\indexuseinline}[1]{{\\color{red}\\textsf{[#1]} }}
+\\newcommand{\\subindexinline}[1]{{\\color{DarkGreen}\\textsf{[#1]} }}
+\\newcommand{\\orderinline}[1]{{\\color{brown}\\textsf{[#1]} }}
+\\newcommand{\\seeinline}[1]{{\\color{black}\\textsf{[#1]} }}
+\\newcommand{\\seealsoinline}[1]{{\\color{gray}\\textsf{[#1]} }}
 
 \\newcommand{\\lt}{\\ensuremath{<}}% Less than
 \\newcommand{\\gt}{\\ensuremath{>}}% Greater than
@@ -288,6 +290,7 @@ export const preamble = `\\documentclass[a4paper, 12pt]{book}
 \\newcommand{\\nn}[1]{#1$\\,$\\emph{n}}
 \\newcommand{\\nndd}[1]{\\emph{#1}$\\,$\\emph{n}}
 \\newcommand{\\xx}[2]{#2 (ex. #1)}
+\\newcommand{\\xxdd}[2]{\\emph{#2} (ex. #1)}
 \\newcommand{\\ff}[2]{#2 (fig. #1)}
 \\newcommand{\\dd}[1]{\\textit{#1}}
 \\newcommand\\klammeraffe{@}
@@ -318,6 +321,8 @@ ${title}
 `;
 
 export const ending = `
+\\input{./others/06see06.tex}
+
 \\pagestyle{plain}
 
 \\addcontentsline{toc}{chapter}{List Of Exercises}
