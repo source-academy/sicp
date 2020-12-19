@@ -801,11 +801,23 @@ put("not", "evaluate_query", negate);
 	  <JAVASCRIPTINLINE>javascript_value</JAVASCRIPTINLINE>
 	</JAVASCRIPT>
       </SPLITINLINE>
-      is a filter similar to <SCHEMEINLINE>not</SCHEMEINLINE>.  Each frame in
-      the stream is used to instantiate the variables in the pattern, the
-      indicated predicate is applied, and the frames for which the predicate
-      returns false are filtered out of the input stream.  An error results
-      if there are unbound pattern variables.
+      is a filter similar to <SCHEMEINLINE>not</SCHEMEINLINE>.
+      <SPLIT>
+	<SCHEME>
+	  Each frame in
+	  the stream is used to instantiate the variables in the pattern, the
+	  indicated predicate is applied, and the frames for which the predicate
+	  returns false are filtered out of the input stream.  An error results
+	  if there are unbound pattern variables.
+	</SCHEME>
+	<JAVASCRIPT>
+	  Each frame in
+	  the stream is used to instantiate the variables in the predicate, the
+	  instantiated predicate is evaluated, and the frames for which the predicate
+	  evaluates to false are filtered out of the input stream.  An error results
+	  if there are unbound pattern variables.
+	</JAVASCRIPT>
+      </SPLIT>
       <!-- mutual recursion -->
 	<SNIPPET HIDE="yes">
 	  <NAME>compound_queries_5_example</NAME>
@@ -2824,12 +2836,12 @@ unparse_query(parse_query('assert(salary(list("Bitdiddle", "Ben"), 122000))'));
 	  section<SPACE/><REF NAME="sec:representing-expressions"/>.
 	  The function <JAVASCRIPTINLINE>query_syntax_process</JAVASCRIPTINLINE>
 	  recursively transforms that JavaScript syntax representation into
-	  the query-language-specific representation by simplifying the
-	  subexpressions of assertions, rules, and queries and by
-	  transforming applications of
-	  <JAVASCRIPTINLINE>pair</JAVASCRIPTINLINE>
-	  and <JAVASCRIPTINLINE>list</JAVASCRIPTINLINE> to JavaScript pairs
-	  and lists, respectively.
+	  the query-language-specific representation by simplifying 
+	  assertions, rules, and queries such that the symbol of a name in a
+	  function expression of an application becomes a tag, except that if 
+	  the symbol is <JAVASCRIPTINLINE>"pair"</JAVASCRIPTINLINE>
+	  or <JAVASCRIPTINLINE>"list"</JAVASCRIPTINLINE>, an untagged JavaScript pair
+	  or list is constructed.
 	  <SNIPPET>
 	    <NAME>process_query</NAME>
 	    <REQUIRES>functions_4_1_2</REQUIRES>
@@ -2891,7 +2903,7 @@ parse_query("and(salary($person, $amount), javascript_value($amount &gt; 50000))
 	    </JAVASCRIPT>
 	    <JAVASCRIPT_OUTPUT>
 list("and",
-     list(list("salary", 
+     list(list("salary",
                list("name", "$person$), list("name", "$amount"))),
           list("javascript_value",
                list(list("binary_operator_combination",
@@ -2901,7 +2913,10 @@ list("and",
 	    </JAVASCRIPT_OUTPUT>
 	  </SNIPPET>
 	  Once the query processing instantiates <JAVASCRIPTINLINE>$amount</JAVASCRIPTINLINE> 
-	  with a number, the JavaScript evaluator can evaluate the predicate
+	  with a number, say 70000, by replacing
+	  <JAVASCRIPTINLINE>list("name", "$amount")</JAVASCRIPTINLINE> by
+	  <JAVASCRIPTINLINE>list("literal", 70000)</JAVASCRIPTINLINE>,
+	  the JavaScript evaluator can evaluate the predicate
 	  <JAVASCRIPTINLINE>$amount &gt; 50000</JAVASCRIPTINLINE>.
       </TEXT>
 
@@ -2959,9 +2974,9 @@ function unparse_term(arg) {
            : is_literal(arg)
            ? stringify(literal_value(arg))
            : is_binary_operator_combination(arg)
-           ? "(" + unparse_term(operator_combination_first_operand(arg)) +
-             " " + operator_combination_operator_symbol(arg) +
-             " " + unparse_term(operator_combination_second_operand(arg)) +
+           ? "(" + unparse_term(first_operand(arg)) +
+             " " + operator_symbol(arg) +
+             " " + unparse_term(second_operand(arg)) +
              ")"
 	   $\langle unparsing$ $other$ $JavaScript$ $syntactic$ $forms \rangle$
            : is_data_list(arg)
@@ -2972,17 +2987,7 @@ function unparse_term(arg) {
 }
 	    </JAVASCRIPT>
 	  </SNIPPET>
-	  A naive implementation of <JAVASCRIPTINLINE>is_data_list</JAVASCRIPTINLINE>
-	  would just check for list structure in its argument:
-	  <SNIPPET LATEX="yes">
-	    <NAME>is_data_list_naive</NAME>
-	    <JAVASCRIPT>
-function is_data_list(x) {
-    return is_null(x) || (is_pair(x) &amp;&amp; is_data_list(tail(x)));
-}
-	    </JAVASCRIPT>
-	  </SNIPPET>
-	  Consider the expression
+	  For <JAVASCRIPTINLINE>is_data_list</JAVASCRIPTINLINE>, consider the expression
 	  <JAVASCRIPTINLINE>pair("computer", $type)</JAVASCRIPTINLINE>
 	  in the simple query 
 	  <JAVASCRIPTINLINE>job($x, pair("computer", $type))</JAVASCRIPTINLINE>
@@ -3015,18 +3020,12 @@ const my_pair = head(tail(tail(parse_query('job($x, pair("computer", $type))')))
   list("name", "$type") ] 
 	    </JAVASCRIPT_LONELY>
 	  </SNIPPET>
-	  Unfortunately, 
-	  <JAVASCRIPTINLINE>is_data_list(my_pair)</JAVASCRIPTINLINE>
-	  returns true since its tail is a list and thus 
-	  <JAVASCRIPTINLINE>unparse_term(my_pair)</JAVASCRIPTINLINE>
-	  produces an error as a result of 
-	  <JAVASCRIPTINLINE>unparse_term</JAVASCRIPTINLINE>
-	  being applied to string 
-	  <JAVASCRIPTINLINE>"name"</JAVASCRIPTINLINE>.
-	  A correct implementation of 
-	  <JAVASCRIPTINLINE>is_data_list</JAVASCRIPTINLINE> ensures
-	  that tagged lists such as names, literals, and binary operator
-	  combinations are not mistaken for data lists.
+	  The value <JAVASCRIPTINLINE>my_pair</JAVASCRIPTINLINE> is actually
+	  a list: a pair whose tail is itself a list. The function
+	  <JAVASCRIPTINLINE>is_data_list</JAVASCRIPTINLINE> needs to make
+	  sure that tagged lists such as names, literals, and binary operator
+	  combinations in the tails of pairs 
+	  are not mistaken for data lists.
 	  <SNIPPET LATEX="yes">
 	    <NAME>is_data_list</NAME>
 	    <JAVASCRIPT>
@@ -3040,12 +3039,6 @@ function is_data_list(x) {
 }
 	    </JAVASCRIPT>
 	  </SNIPPET>
-	  Using this version,
-	  <JAVASCRIPTINLINE>is_data_list(my_pair)</JAVASCRIPTINLINE>
-	  returns false, and
-	  <JAVASCRIPTINLINE>unparse_term(my_pair)</JAVASCRIPTINLINE>
-	  produces the expected string 
-	  <JAVASCRIPTINLINE>'pair("computer", $type)'</JAVASCRIPTINLINE>.
       </TEXT>
 
       <SUBHEADING>
@@ -3053,10 +3046,13 @@ function is_data_list(x) {
       </SUBHEADING>
       
       <TEXT>
-	For the syntax predicate
-	<JAVASCRIPTINLINE>is_$_name</JAVASCRIPTINLINE> that	
-	identifies JavaScript names that start with a dollar
-	sign, we assume there is a function <JAVASCRIPTINLINE>char_at</JAVASCRIPTINLINE> that
+	The pattern variables are JavaScript names, which are represented
+	as lists of the form
+	<JAVASCRIPTINLINE>list("name", </JAVASCRIPTINLINE><LATEXINLINE>$\textit{string-starting-with-\$}$</LATEXINLINE><JAVASCRIPTINLINE>)</JAVASCRIPTINLINE>.
+	To identify pattern variables, the syntax predicate
+	<JAVASCRIPTINLINE>is_$_name</JAVASCRIPTINLINE>
+	checks whether a JavaScript name starts with a dollar sign,
+	assuming that we have a function <JAVASCRIPTINLINE>char_at</JAVASCRIPTINLINE> that
 	returns a single-character string containing the character of the given string
 	at the given position.<FOOTNOTE>The actual way to get the string that
 	contains the first
@@ -3066,9 +3062,8 @@ function is_data_list(x) {
       <SNIPPET EVAL="no">
 	<JAVASCRIPT>
 function is_$_name(exp) {
-    const symbol = symbol_of_name(exp);
-    return char_at(symbol, 0) === "$";
-}	  
+    return is_name(exp) &amp;&amp; char_at(symbol_of_name(exp), 0) === "$";
+}
 	</JAVASCRIPT>
       </SNIPPET>
 	</TEXT>
@@ -3090,7 +3085,7 @@ function new_rule_application_id() {
 }
     
 function make_new_var(variable, rule_application_id) {
-    return make_name(symbol_of_name(variable) + 
+    return make_name(symbol_of_name(variable) + "_" +
                      stringify(rule_application_id));
 }
 	    </JAVASCRIPT>
