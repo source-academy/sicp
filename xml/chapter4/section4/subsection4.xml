@@ -126,11 +126,9 @@ function query_driver_loop() {
     } else {
         display(output_prompt);
         display_stream(
-          stream_map(
-            frame =>
-              unparse_query(
-                instantiate(q, frame, (v, ignore) => v)),
-            evaluate_query(q, singleton_stream(null))));
+            stream_map(
+                frame => unparse_query(instantiate(q, frame)),
+                evaluate_query(q, singleton_stream(null))));
     }
     query_driver_loop();
 }
@@ -155,7 +153,7 @@ function query_driver_loop() {
               stream_map(
                 frame =>
                   unparse_query(
-		    instantiate(q, frame, (v, ignore) => v)),
+		    instantiate(q, frame)),
                 evaluate_query(q, singleton_stream(null))));
         }
         query_driver_loop();
@@ -183,7 +181,7 @@ function parse_query_verbose(input, verbosity) {
             stream_map(
                 frame =>
                     unparse_query(
-                        instantiate(q, frame, (v, f) => v)),
+                        instantiate(q, frame)),
                 evaluate_query(q, singleton_stream(null))));
     }
 }
@@ -217,7 +215,7 @@ function process_query(input, verbosity) {
               stream_map(
                 frame =>
                   unparse_query(
-		    instantiate(q, frame, (v, ignore) => v)),
+		    instantiate(q, frame)),
                 evaluate_query(q, singleton_stream(null))));
         }
     }
@@ -228,7 +226,7 @@ function first_answer(input) {
     const frames = evaluate_query(q, singleton_stream(null));
     return is_null(frames)
            ? "no matching data"
-           : unparse_query(instantiate(q, head(frames), (v, f) => v));
+           : unparse_query(instantiate(q, head(frames)));
 }
 	</JAVASCRIPT>
       </SNIPPET>
@@ -274,8 +272,7 @@ function first_answer(input) {
 	    transforms it syntactically into a form that makes the processing more
 	    efficient. This involves changing the 
 	    <INDEX>pattern variable<SUBINDEX>representation of</SUBINDEX></INDEX>
-	    <INDEX>query interpreter
-	    <SUBINDEX>pattern-variable representation</SUBINDEX></INDEX>
+	    <INDEX>query interpreter<SUBINDEX>pattern-variable representation</SUBINDEX></INDEX>
 	    representation of pattern variables.  When the query is instantiated, any
 	    variables that remain unbound are transformed back to the input
 	    representation before being printed.  These transformations are performed
@@ -307,14 +304,23 @@ function first_answer(input) {
 	<SCHEME><SCHEMEINLINE>?y</SCHEMEINLINE></SCHEME>
 	<JAVASCRIPT><JAVASCRIPTINLINE>$y</JAVASCRIPTINLINE></JAVASCRIPT>
       </SPLITINLINE>
-      is in turn bound to<SPACE/>5).  The action to take if a variable cannot be
-      instantiated is given by a
-      <SPLITINLINE>
-	<SCHEME>procedural</SCHEME>
-	<JAVASCRIPT>functional</JAVASCRIPT>
-      </SPLITINLINE>
-      argument to
-      <SCHEMEINLINE>instantiate</SCHEMEINLINE>.
+      is in turn bound to<SPACE/>5).
+      <SPLIT>
+	<SCHEME>
+	  The action to take if a variable cannot be
+	  instantiated is given by a
+	  <SPLITINLINE>
+	    <SCHEME>procedural</SCHEME>
+	    <JAVASCRIPT>functional</JAVASCRIPT>
+	  </SPLITINLINE>
+	  argument to
+	  <SCHEMEINLINE>instantiate</SCHEMEINLINE>.
+	</SCHEME>
+	<JAVASCRIPT>
+	  If there is no binding for the variable in the
+	  frame, the variable is retained.
+	</JAVASCRIPT>
+      </SPLIT>
       <SNIPPET HIDE="yes">
 	<NAME>append_to_form_example_5</NAME>
 	<REQUIRES>parse_query_verbose</REQUIRES>
@@ -350,12 +356,12 @@ first_answer('append_to_form(x, y, list("a", "b", "c", "d"))');
   (copy exp))
 	</SCHEME>
 	<JAVASCRIPT>
-function instantiate(exp, frame, unbound_var_handler) {
+function instantiate(exp, frame) {
     function copy(exp) {
-        if (is_$_name(exp)) {
+        if (is_var(exp)) {
             const binding = binding_in_frame(exp, frame);
             return is_undefined(binding)
-                   ? unbound_var_handler(exp, frame)
+                   ? exp
                    : copy(binding_value(binding));
         } else if (is_pair(exp)) {
             return pair(copy(head(exp)), copy(tail(exp)));
@@ -814,8 +820,7 @@ put("not", "evaluate_query", negate);
 	  Each frame in
 	  the stream is used to instantiate the variables in the predicate, the
 	  instantiated predicate is evaluated, and the frames for which the predicate
-	  evaluates to false are filtered out of the input stream.  An error results
-	  if there are unbound pattern variables.
+	  evaluates to false are filtered out of the input stream.  
 	</JAVASCRIPT>
       </SPLIT>
       <!-- mutual recursion -->
@@ -857,12 +862,7 @@ first_answer('and(salary(person, amount), javascript_value(amount &gt; 50000))')
 function javascript_value(args, frame_stream) {
   return stream_flatmap(
            frame =>
-               execute(instantiate(
-                           javascript_expression(args), frame,
-                           (v, f) =>
-                               error(v, 
-                                     "unknown pat var -- " +
-                                     "javascript_value")))
+               execute(instantiate(javascript_expression(args), frame))
                ? singleton_stream(frame)
                : null,
            frame_stream);
@@ -1167,7 +1167,7 @@ function pattern_match(pat, dat, frame) {
            ? "failed"
            : equal(pat, dat) 
            ? frame   
-           : is_name(pat) 
+           : is_var(pat) 
            ? extend_if_consistent(pat, dat, frame)
            : is_pair(pat) &amp;&amp; is_pair(dat)
            ? pattern_match(tail(pat),
@@ -1607,7 +1607,7 @@ function apply_a_rule(rule, query_pattern, query_frame) {
 function rename_variables_in(rule) {
     const rule_application_id = new_rule_application_id();
     function tree_walk(exp) {
-        return is_name(exp) 
+        return is_var(exp) 
                ? make_new_variable(exp, rule_application_id)
                : is_pair(exp)
                ? pair(tree_walk(head(exp)),
@@ -1678,9 +1678,9 @@ function unify_match(p1, p2, frame) {
            ? "failed"
            : equal(p1, p2)
            ? frame
-           : is_name(p1) 
+           : is_var(p1) 
            ? extend_if_possible(p1, p2, frame)
-           : is_name(p2) 
+           : is_var(p2) 
            ? extend_if_possible(p2, p1, frame)  // ***
            : is_pair(p1) &amp;&amp; is_pair(p2)
            ? unify_match(tail(p1),
@@ -2023,7 +2023,7 @@ function extend_if_possible(variable, value, frame) {
     if (! is_undefined(binding)) {
         return unify_match(binding_value(binding), 
                             value, frame); 
-    } else if (is_name(value)) {                     // ***
+    } else if (is_var(value)) {                      // ***
         const binding = binding_in_frame(value, frame);
         return ! is_undefined(binding)
                ? unify_match(variable,
@@ -2081,7 +2081,7 @@ function extend_if_possible(variable, value, frame) {
 	<JAVASCRIPT>
 function depends_on(expression, variable, frame) {
     function tree_walk(e) {
-        if (is_name(e)) {
+        if (is_var(e)) {
             if (equal(variable, e)) {
                 return true;
             } else {
@@ -2916,8 +2916,8 @@ list("and",
 	  with a number, say 70000, by replacing
 	  <JAVASCRIPTINLINE>list("name", "$amount")</JAVASCRIPTINLINE> by
 	  <JAVASCRIPTINLINE>list("literal", 70000)</JAVASCRIPTINLINE>,
-	  the JavaScript evaluator can evaluate the predicate
-	  <JAVASCRIPTINLINE>$amount &gt; 50000</JAVASCRIPTINLINE>.
+	  the JavaScript evaluator can evaluate the predicate, which is now
+	  <JAVASCRIPTINLINE>70000 &gt; 50000</JAVASCRIPTINLINE>.
       </TEXT>
 
       <SUBHEADING>
@@ -2969,8 +2969,8 @@ function comma_separated(strings) {
 	    <REQUIRES>is_data_list</REQUIRES>
 	    <JAVASCRIPT>
 function unparse_term(arg) {
-    return is_name(arg)
-           ? symbol_of_name(arg)
+    return is_var(arg)
+           ? symbol_of_var(arg)
            : is_literal(arg)
            ? stringify(literal_value(arg))
            : is_binary_operator_combination(arg)
@@ -3046,35 +3046,46 @@ function is_data_list(x) {
       </SUBHEADING>
       
       <TEXT>
-	The pattern variables are JavaScript names, which are represented
-	as lists of the form
-	<JAVASCRIPTINLINE>list("name", </JAVASCRIPTINLINE><LATEXINLINE>$\textit{string-starting-with-\$}$</LATEXINLINE><JAVASCRIPTINLINE>)</JAVASCRIPTINLINE>.
-	To identify pattern variables, the syntax predicate
-	<JAVASCRIPTINLINE>is_$_name</JAVASCRIPTINLINE>
-	checks whether a JavaScript name starts with a dollar sign,
-	assuming that we have a function <JAVASCRIPTINLINE>char_at</JAVASCRIPTINLINE> that
-	returns a single-character string containing the character of the given string
-	at the given position.<FOOTNOTE>The actual way to get the string that
-	contains the first
-	character from of a string <JAVASCRIPTINLINE>s</JAVASCRIPTINLINE> in JavaScript is
-	<JAVASCRIPTINLINE>s.charAt(0)</JAVASCRIPTINLINE>.
-      </FOOTNOTE>
-      <SNIPPET EVAL="no">
-	<JAVASCRIPT>
-function is_$_name(exp) {
-    return is_name(exp) &amp;&amp; char_at(symbol_of_name(exp), 0) === "$";
-}
-	</JAVASCRIPT>
-      </SNIPPET>
+	The pattern variables are JavaScript names, which are tagged lists with
+	the tag
+	<JAVASCRIPTINLINE>"name"</JAVASCRIPTINLINE>. The functions
+	<JAVASCRIPTINLINE>is_var</JAVASCRIPTINLINE> and
+	<JAVASCRIPTINLINE>symbol_of_var</JAVASCRIPTINLINE> 
+	are therefore implemented
+	by the functions
+	<JAVASCRIPTINLINE>is_name</JAVASCRIPTINLINE> and
+	<JAVASCRIPTINLINE>symbol_of_name</JAVASCRIPTINLINE> 
+	from
+	section<SPACE/><REF NAME="sec:representing-expressions"/>:
+	<SNIPPET>
+	  <JAVASCRIPT>
+const is_var = is_name;
+const symbol_of_var = symbol_of_name;
+	  </JAVASCRIPT>
+	</SNIPPET>
 	</TEXT>
 	<TEXT>
 	  Unique pattern variables are constructed during rule application
-	  (in section<SPACE/><REF NAME="sec:query-unify"/>) by means of
-	  the following functions.
+	  (in section<SPACE/><REF NAME="sec:query-unify"/>) by 
+	  <JAVASCRIPTINLINE>make_new_var</JAVASCRIPTINLINE>, which uses
+	  <JAVASCRIPTINLINE>make_name</JAVASCRIPTINLINE> from
+	  section<SPACE/><REF NAME="sec:representing-expressions"/> to
+	  construct a new name from the symbol of the given name, concatenated
+	  with the string representation of the given number.
+	  <SNIPPET>
+	    <NAME>make_new_var</NAME>
+	    <JAVASCRIPT>
+function make_new_var(variable, rule_application_id) {
+    return make_name(symbol_of_name(variable) + "_" +
+                     stringify(rule_application_id));
+}
+	    </JAVASCRIPT>
+	  </SNIPPET>
 	  The unique identifier for a rule application is a number, which is
 	  incremented each time a rule is applied.
 	  <SNIPPET>
 	    <NAME>new_rule_application_id</NAME>
+	    <REQUIRES>make_new_var</REQUIRES>
 	    <EXAMPLE>append_to_form_example_5</EXAMPLE>
 	    <JAVASCRIPT>
 let rule_counter = 0;
@@ -3082,11 +3093,6 @@ let rule_counter = 0;
 function new_rule_application_id() {
     rule_counter = rule_counter + 1;
     return rule_counter;
-}
-    
-function make_new_var(variable, rule_application_id) {
-    return make_name(symbol_of_name(variable) + "_" +
-                     stringify(rule_application_id));
 }
 	    </JAVASCRIPT>
 	  </SNIPPET>
@@ -4034,4 +4040,3 @@ sum_of_squares(3, 4);
     </EXERCISE>
   </SUBSUBSECTION>
 </SUBSECTION>
-  
