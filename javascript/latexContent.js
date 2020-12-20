@@ -161,6 +161,36 @@ export const preamble = `\\documentclass[a4paper, 12pt]{book}
    escapechar=^
 }
 \\lstnewenvironment{JavaScriptLatex}{\\lstset{style=JavaScriptLatex,aboveskip=2.5ex,belowskip=1.8ex}}{}
+\\lstdefinestyle{JavaScriptLatexSmall}{
+   language=JavaScript,
+   basicstyle=\\linespread{1.0}\\fontsize{10}{11}\\selectfont\\ttfamily,
+   showstringspaces=false,
+   showspaces=false,
+   keepspaces=true,
+   fontadjust=true,
+   basewidth=0.55em,
+   mathescape=true,
+   framerule=0.5ex,
+   framesep=1em,
+   rulecolor=\\color{LeftBarClickable},
+   escapechar=^
+}
+\\lstnewenvironment{JavaScriptLatexSmall}{\\lstset{style=JavaScriptLatexSmall,aboveskip=2.5ex,belowskip=1.8ex}}{}
+\\lstdefinestyle{JavaScriptLatexFootnote}{
+   language=JavaScript,
+   basicstyle=\\linespread{1.0}\\fontsize{9}{10}\\selectfont\\ttfamily,
+   showstringspaces=false,
+   showspaces=false,
+   keepspaces=true,
+   fontadjust=true,
+   basewidth=0.55em,
+   mathescape=true,
+   framerule=0.5ex,
+   framesep=1em,
+   rulecolor=\\color{LeftBarClickable},
+   escapechar=^
+}
+\\lstnewenvironment{JavaScriptLatexFootnote}{\\lstset{style=JavaScriptLatexFootnote,aboveskip=2.5ex,belowskip=1.8ex}}{}
 \\lstdefinestyle{JavaScript}{
    language=JavaScript,
    basicstyle=\\linespread{1.0}\\fontsize{11}{12}\\selectfont\\ttfamily,
@@ -195,9 +225,26 @@ export const preamble = `\\documentclass[a4paper, 12pt]{book}
 \\lstnewenvironment{JavaScriptSmall}{\\lstset{style=JavaScriptSmall,aboveskip=2.5ex,belowskip=1.8ex}}{}
 \\lstnewenvironment{JavaScriptClickableSmall}{\\lstset{style=JavaScriptSmall,frame=leftline,aboveskip=2.5ex,belowskip=1.8ex,escapeinside={/*!}{!*/}}}{}
 
+\\lstdefinestyle{JavaScriptFootnote}{
+   language=JavaScript,
+   basicstyle=\\linespread{1.0}\\fontsize{9}{10}\\selectfont\\ttfamily,
+   showstringspaces=false,
+   showspaces=false,
+   keepspaces=true,
+   fontadjust=true,
+   basewidth=0.55em,
+   mathescape=false,
+   framerule=0.5ex,
+   framesep=1em,
+   rulecolor=\\color{LeftBarClickable},
+   escapechar=^
+}
+\\lstnewenvironment{JavaScriptFootnote}{\\lstset{style=JavaScriptFootnote,aboveskip=2.5ex,belowskip=1.8ex}}{}
+\\lstnewenvironment{JavaScriptClickableFootnote}{\\lstset{style=JavaScriptFootnote,frame=leftline,aboveskip=2.5ex,belowskip=1.8ex,escapeinside={/*!}{!*/}}}{}
+
 \\lstdefinestyle{JavaScriptOutput}{
    language=JavaScript,
-   basicstyle=\\linespread{1.0}\\fontsize{11}{12}\\slshape,
+   basicstyle=\\linespread{1.0}\\fontsize{11}{12}\\usefont{T1}{cmtt}{m}{sl},
    showstringspaces=false,
    showspaces=false,
    keepspaces=true,
@@ -216,7 +263,7 @@ export const preamble = `\\documentclass[a4paper, 12pt]{book}
 
 \\lstdefinestyle{JavaScriptOutputSmall}{
    language=JavaScript,
-   basicstyle=\\linespread{1.0}\\fontsize{10}{11}\\slshape,
+   basicstyle=\\linespread{1.0}\\fontsize{10}{11}\\usefont{T1}{cmtt}{m}{sl},
    showstringspaces=false,
    showspaces=false,
    keepspaces=true,
@@ -230,8 +277,27 @@ export const preamble = `\\documentclass[a4paper, 12pt]{book}
    escapechar=^
 }
 \\lstnewenvironment{JavaScriptOutputSmall}{\\lstset{style=JavaScriptOutputSmall,aboveskip=-0.5ex,belowskip=1.8ex}}{}
-\\lstnewenvironment{JavaScriptPromptSmall}{\\lstset{style=JavaScriptOutput,aboveskip=2.5ex,belowskip=-0.5ex}}{}
-\\lstnewenvironment{JavaScriptLonelySmall}{\\lstset{style=JavaScriptOutput,aboveskip=2.5ex,belowskip=2.5ex}}{}
+\\lstnewenvironment{JavaScriptPromptSmall}{\\lstset{style=JavaScriptOutputSmall,aboveskip=2.5ex,belowskip=-0.5ex}}{}
+\\lstnewenvironment{JavaScriptLonelySmall}{\\lstset{style=JavaScriptOutputSmall,aboveskip=2.5ex,belowskip=2.5ex}}{}
+
+\\lstdefinestyle{JavaScriptOutputFootnote}{
+   language=JavaScript,
+   basicstyle=\\linespread{1.0}\\fontsize{9}{10}\\usefont{T1}{cmtt}{m}{sl},
+   showstringspaces=false,
+   showspaces=false,
+   keepspaces=true,
+   columns=fullflexible,
+   fontadjust=true,
+   basewidth=0.55em,
+   mathescape=false,
+   framerule=0.5ex,
+   framesep=1em,
+   rulecolor=\\color{LeftBarClickable},
+   escapechar=^
+}
+\\lstnewenvironment{JavaScriptOutputFootnote}{\\lstset{style=JavaScriptOutputFootnote,aboveskip=-0.5ex,belowskip=1.8ex}}{}
+\\lstnewenvironment{JavaScriptPromptFootnote}{\\lstset{style=JavaScriptOutputFootnote,aboveskip=2.5ex,belowskip=-0.5ex}}{}
+\\lstnewenvironment{JavaScriptLonelyFootnote}{\\lstset{style=JavaScriptOutputFootnote,aboveskip=2.5ex,belowskip=2.5ex}}{}
 
 \\usepackage{epigraph}
 \\renewcommand{\\textflush}{flushepinormal}
