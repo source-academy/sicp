@@ -109,6 +109,9 @@ export const preamble = `\\documentclass[a4paper, 12pt]{book}
              \\ExerciseName~\\ExerciseHeaderNB\\ExerciseHeaderTitle
              \\ExerciseHeaderOrigin\\medskip}}}
 
+\\usepackage{lmodern}
+\\usepackage[T1]{fontenc}
+
 \\usepackage{listings}
 \\expandafter\\patchcmd\\csname \\string\\lstinline\\endcsname{%
   \\leavevmode
@@ -148,7 +151,10 @@ export const preamble = `\\documentclass[a4paper, 12pt]{book}
 
 \\lstdefinestyle{JavaScriptLatex}{
    language=JavaScript,
-   basicstyle=\\linespread{1.0}\\fontsize{11}{12}\\selectfont\\ttfamily,
+   basicstyle=\\linespread{1.0}\\fontsize{11}{12}\\usefont{T1}{lmtt}{m}{n},
+   keywordstyle=\\linespread{1.0}\\fontsize{11}{12}\\usefont{T1}{lmtt}{b}{n},
+   commentstyle=\\linespread{1.0}\\fontsize{11}{12}\\usefont{T1}{lmtt}{m}{it},
+   stringstyle=\\linespread{1.0}\\fontsize{11}{12}\\usefont{T1}{lmtt}{m}{sl},
    showstringspaces=false,
    showspaces=false,
    keepspaces=true,
@@ -161,9 +167,13 @@ export const preamble = `\\documentclass[a4paper, 12pt]{book}
    escapechar=^
 }
 \\lstnewenvironment{JavaScriptLatex}{\\lstset{style=JavaScriptLatex,aboveskip=2.5ex,belowskip=1.8ex}}{}
+
 \\lstdefinestyle{JavaScriptLatexSmall}{
    language=JavaScript,
-   basicstyle=\\linespread{1.0}\\fontsize{10}{11}\\selectfont\\ttfamily,
+   basicstyle=\\linespread{1.0}\\fontsize{10}{11}\\usefont{T1}{lmtt}{m}{n},
+   keywordstyle=\\linespread{1.0}\\fontsize{10}{11}\\usefont{T1}{lmtt}{b}{n},
+   commentstyle=\\linespread{1.0}\\fontsize{10}{11}\\usefont{T1}{lmtt}{m}{it},
+   stringstyle=\\linespread{1.0}\\fontsize{10}{11}\\usefont{T1}{lmtt}{m}{sl},
    showstringspaces=false,
    showspaces=false,
    keepspaces=true,
@@ -176,9 +186,13 @@ export const preamble = `\\documentclass[a4paper, 12pt]{book}
    escapechar=^
 }
 \\lstnewenvironment{JavaScriptLatexSmall}{\\lstset{style=JavaScriptLatexSmall,aboveskip=2.5ex,belowskip=1.8ex}}{}
+
 \\lstdefinestyle{JavaScriptLatexFootnote}{
    language=JavaScript,
-   basicstyle=\\linespread{1.0}\\fontsize{9}{10}\\selectfont\\ttfamily,
+   basicstyle=\\linespread{1.0}\\fontsize{9}{10}\\usefont{T1}{lmtt}{m}{n},
+   keywordstyle=\\linespread{1.0}\\fontsize{9}{10}\\usefont{T1}{lmtt}{b}{n},
+   commentstyle=\\linespread{1.0}\\fontsize{9}{10}\\usefont{T1}{lmtt}{m}{it},
+   stringstyle=\\linespread{1.0}\\fontsize{9}{10}\\usefont{T1}{lmtt}{m}{sl},
    showstringspaces=false,
    showspaces=false,
    keepspaces=true,
@@ -191,9 +205,13 @@ export const preamble = `\\documentclass[a4paper, 12pt]{book}
    escapechar=^
 }
 \\lstnewenvironment{JavaScriptLatexFootnote}{\\lstset{style=JavaScriptLatexFootnote,aboveskip=2.5ex,belowskip=1.8ex}}{}
+
 \\lstdefinestyle{JavaScript}{
    language=JavaScript,
-   basicstyle=\\linespread{1.0}\\fontsize{11}{12}\\selectfont\\ttfamily,
+   basicstyle=\\linespread{1.0}\\fontsize{11}{12}\\usefont{T1}{lmtt}{m}{n},
+   keywordstyle=\\linespread{1.0}\\fontsize{11}{12}\\usefont{T1}{lmtt}{b}{n},
+   commentstyle=\\linespread{1.0}\\fontsize{11}{12}\\usefont{T1}{lmtt}{m}{it},
+   stringstyle=\\linespread{1.0}\\fontsize{11}{12}\\usefont{T1}{lmtt}{m}{sl},
    showstringspaces=false,
    showspaces=false,
    keepspaces=true,
@@ -210,7 +228,10 @@ export const preamble = `\\documentclass[a4paper, 12pt]{book}
 
 \\lstdefinestyle{JavaScriptSmall}{
    language=JavaScript,
-   basicstyle=\\linespread{1.0}\\fontsize{10}{11}\\selectfont\\ttfamily,
+   basicstyle=\\linespread{1.0}\\fontsize{10}{11}\\usefont{T1}{lmtt}{m}{n},
+   keywordstyle=\\linespread{1.0}\\fontsize{10}{11}\\usefont{T1}{lmtt}{b}{n},
+   commentstyle=\\linespread{1.0}\\fontsize{10}{11}\\usefont{T1}{lmtt}{m}{it},
+   stringstyle=\\linespread{1.0}\\fontsize{10}{11}\\usefont{T1}{lmtt}{m}{sl},
    showstringspaces=false,
    showspaces=false,
    keepspaces=true,
@@ -227,7 +248,10 @@ export const preamble = `\\documentclass[a4paper, 12pt]{book}
 
 \\lstdefinestyle{JavaScriptFootnote}{
    language=JavaScript,
-   basicstyle=\\linespread{1.0}\\fontsize{9}{10}\\selectfont\\ttfamily,
+   basicstyle=\\linespread{1.0}\\fontsize{9}{10}\\usefont{T1}{lmtt}{m}{n},
+   keywordstyle=\\linespread{1.0}\\fontsize{9}{10}\\usefont{T1}{lmtt}{b}{n},
+   commentstyle=\\linespread{1.0}\\fontsize{9}{10}\\usefont{T1}{lmtt}{m}{it},
+   stringstyle=\\linespread{1.0}\\fontsize{9}{10}\\usefont{T1}{lmtt}{m}{sl},
    showstringspaces=false,
    showspaces=false,
    keepspaces=true,
@@ -244,7 +268,8 @@ export const preamble = `\\documentclass[a4paper, 12pt]{book}
 
 \\lstdefinestyle{JavaScriptOutput}{
    language=JavaScript,
-   basicstyle=\\linespread{1.0}\\fontsize{11}{12}\\usefont{T1}{cmtt}{m}{sl},
+   basicstyle=\\linespread{1.0}\\fontsize{11}{12}\\usefont{T1}{lmtt}{m}{sl},
+   keywordstyle=\\linespread{1.0}\\fontsize{11}{12}\\usefont{T1}{lmtt}{b}{sl},
    showstringspaces=false,
    showspaces=false,
    keepspaces=true,
@@ -263,7 +288,8 @@ export const preamble = `\\documentclass[a4paper, 12pt]{book}
 
 \\lstdefinestyle{JavaScriptOutputSmall}{
    language=JavaScript,
-   basicstyle=\\linespread{1.0}\\fontsize{10}{11}\\usefont{T1}{cmtt}{m}{sl},
+   basicstyle=\\linespread{1.0}\\fontsize{10}{11}\\usefont{T1}{lmtt}{m}{sl},
+   keywordstyle=\\linespread{1.0}\\fontsize{10}{11}\\usefont{T1}{lmtt}{b}{sl},
    showstringspaces=false,
    showspaces=false,
    keepspaces=true,
@@ -282,7 +308,8 @@ export const preamble = `\\documentclass[a4paper, 12pt]{book}
 
 \\lstdefinestyle{JavaScriptOutputFootnote}{
    language=JavaScript,
-   basicstyle=\\linespread{1.0}\\fontsize{9}{10}\\usefont{T1}{cmtt}{m}{sl},
+   basicstyle=\\linespread{1.0}\\fontsize{9}{10}\\usefont{T1}{lmtt}{m}{sl},
+   keywordstyle=\\linespread{1.0}\\fontsize{9}{10}\\usefont{T1}{lmtt}{b}{sl},
    showstringspaces=false,
    showspaces=false,
    keepspaces=true,

@@ -130,7 +130,7 @@ export const processSnippetPdf = (node, writeTo) => {
       node.getAttribute("EVAL") === "no" ||
       node.getAttribute("LATEX") === "yes"
     ) {
-      const LatexString = (node.getAttribute("LATEX") === "yes" ? "Latex" : "");
+      const LatexString = node.getAttribute("LATEX") === "yes" ? "Latex" : "";
       if (ancestorHasTag(node, "FOOTNOTE")) {
         writeTo.push("\n\\begin{JavaScript" + LatexString + "Footnote}\n");
       } else if (ancestorHasTag(node, "EXERCISE")) {
