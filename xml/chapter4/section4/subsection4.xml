@@ -819,8 +819,14 @@ put("not", "evaluate_query", negate);
 	<JAVASCRIPT>
 	  Each frame in
 	  the stream is used to instantiate the variables in the predicate, the
-	  instantiated predicate is evaluated, and the frames for which the predicate
-	  evaluates to false are filtered out of the input stream.  
+	  instantiated predicate is evaluated, and the frames for which the
+	  predicate evaluates to false are filtered out of the input stream.
+	  The instantiated predicate is evaluated using
+	  <JAVASCRIPTINLINE>evaluate</JAVASCRIPTINLINE>
+	  from section<SPACE/><REF NAME="sec:mc-eval"/> with
+	  <JAVASCRIPTINLINE>the_global_environment</JAVASCRIPTINLINE> and
+	  thus can handle any JavaScript expression, as long as all
+	  pattern variables are instantiated prior to evaluation.
 	</JAVASCRIPT>
       </SPLIT>
       <!-- mutual recursion -->
@@ -839,7 +845,6 @@ first_answer('and(salary(person, amount), javascript_value(amount &gt; 50000))')
 	  <REQUIRES>operation_table_from_chapter_3</REQUIRES>
 	  <REQUIRES>operation_table</REQUIRES>
 	  <REQUIRES>stream_flatmap</REQUIRES>
-	  <REQUIRES>execute</REQUIRES>
 	  <REQUIRES>singleton_stream</REQUIRES>
 	  <EXAMPLE>compound_queries_5_example</EXAMPLE>
 	  <SCHEME>
@@ -862,7 +867,8 @@ first_answer('and(salary(person, amount), javascript_value(amount &gt; 50000))')
 function javascript_value(args, frame_stream) {
   return stream_flatmap(
            frame =>
-               execute(instantiate(javascript_expression(args), frame))
+               evaluate(instantiate(javascript_expression(args), frame),
+	                the_global_environment)
                ? singleton_stream(frame)
                : null,
            frame_stream);
@@ -890,11 +896,6 @@ put("javascript_value", "evaluate_query", javascript_value);
 	  underlying Lisp system.
 	</SCHEME>
 	<JAVASCRIPT>
-	  The function <JAVASCRIPTINLINE>execute</JAVASCRIPTINLINE>
-	  uses <JAVASCRIPTINLINE>evaluate</JAVASCRIPTINLINE>
-	  from section<SPACE/><REF NAME="sec:mc-eval"/> and thus
-	  can apply operator combinations to literal values and instantiated
-	  variables.
 	</JAVASCRIPT>
       </SPLIT>
       <COMMENT>
@@ -917,11 +918,6 @@ put("javascript_value", "evaluate_query", javascript_value);
   (apply (eval (predicate exp) user-initial-environment)
          (args exp)))
 	</SCHEME>
-	<JAVASCRIPT>
-function execute(exp) {
-    return evaluate(exp, the_global_environment);
-}
-	</JAVASCRIPT>
       </SNIPPET>
     </TEXT>
 
@@ -2865,25 +2861,55 @@ function query_syntax_process(exp) {
                  ? processed_args
                  : pair(function_symbol, processed_args);
       }
-    } else {  // exp is name or literal
+    } else if (is_variable(exp) || is_literal(exp)) {
       return exp;
+    } else {
+      error(exp, "unknown syntax -- query_syntax_process");
     }
 }
 	    </JAVASCRIPT>
 	  </SNIPPET>
 	  Names and literals are preserved in this transformation.
-	  For example, the query-language-specific representation of the pattern
-	  <JAVASCRIPTINLINE>job($x, $y)</JAVASCRIPTINLINE> is 
-	  <JAVASCRIPTINLINE>list("job", list("name", "$x"), list("name", "$y"))</JAVASCRIPTINLINE>.
+	  For example, the query
+	  <SNIPPET EVAL="no">
+	    <JAVASCRIPT>
+job($x, list("computer", $type))
+	    </JAVASCRIPT>
+	  </SNIPPET>
+	  is transformed into this query-language-specific representation:
+	  <SNIPPET EVAL="no">
+	    <JAVASCRIPT>
+list("job", 
+     list("name", "$x"), 
+     list(list("literal", "computer"), list("name", "$type")))
+	    </JAVASCRIPT>
+	  </SNIPPET>
+	  We choose not to simplify literals in
+	  <JAVASCRIPTINLINE>query_syntax_process</JAVASCRIPTINLINE>,
+	  which means that a frame that results from processing this
+	  query might bind 
+	  <JAVASCRIPTINLINE>$x</JAVASCRIPTINLINE> to
+	  <SNIPPET EVAL="no">
+	    <JAVASCRIPT>
+list(list("literal", "BitDiddle"), list("literal", "Ben"))
+	    </JAVASCRIPT>
+	  </SNIPPET>
+	  and
+	  <JAVASCRIPTINLINE>$type</JAVASCRIPTINLINE> to	  
+	  <SNIPPET EVAL="no">
+	    <JAVASCRIPT>
+list(list("literal", "computer"), list("literal", "wizard"))
+	    </JAVASCRIPT>
+	  </SNIPPET>
       </TEXT>
       <TEXT>
 	  An exception to this processing is the
 	  <JAVASCRIPTINLINE>javascript_value</JAVASCRIPTINLINE>
 	  syntactic form. Since the instantiated
 	  representation
-	  of the argument of this syntactic form is passed to the
+	  of the argument of this syntactic form is passed to 
 	  <JAVASCRIPTINLINE>evaluate</JAVASCRIPTINLINE>
-	  function of section<SPACE/><REF NAME="sec:core-of-evaluator"/>,
+	  of section<SPACE/><REF NAME="sec:core-of-evaluator"/>,
 	  the original JavaScript syntax representation coming from
 	  <JAVASCRIPTINLINE>parse</JAVASCRIPTINLINE>	  
 	  needs to remain intact in the query-language-specific representation.
@@ -2898,10 +2924,7 @@ and(salary($person, $amount), javascript_value($amount &gt; 50000))
 	  that combines the query-language specific representation with the JavaScript
 	  syntax respresentation:
 	  <SNIPPET EVAL="no">
-	    <JAVASCRIPT>
-parse_query("and(salary($person, $amount), javascript_value($amount &gt; 50000))");
-	    </JAVASCRIPT>
-	    <JAVASCRIPT_OUTPUT>
+	    <JAVASCRIPT_LONELY>
 list("and",
      list(list("salary",
                list("name", "$person$), list("name", "$amount"))),
@@ -2910,14 +2933,18 @@ list("and",
                          "&gt;",
                          list(list("name", "$amount"),
                               list("literal", 50000)))))))
-	    </JAVASCRIPT_OUTPUT>
+	    </JAVASCRIPT_LONELY>
 	  </SNIPPET>
 	  Once the query processing instantiates <JAVASCRIPTINLINE>$amount</JAVASCRIPTINLINE> 
 	  with a number, say 70000, by replacing
 	  <JAVASCRIPTINLINE>list("name", "$amount")</JAVASCRIPTINLINE> by
 	  <JAVASCRIPTINLINE>list("literal", 70000)</JAVASCRIPTINLINE>,
 	  the JavaScript evaluator can evaluate the predicate, which is now
-	  <JAVASCRIPTINLINE>70000 &gt; 50000</JAVASCRIPTINLINE>.
+	  <JAVASCRIPTINLINE>70000 &gt; 50000</JAVASCRIPTINLINE>. This explains
+	  why we chose not to simplify literals in
+	  <JAVASCRIPTINLINE>query_syntax_process</JAVASCRIPTINLINE>; this way,
+	  no further processing other than instantiation is required prior
+	  to evaluation of JavaScript expressions.
       </TEXT>
 
       <SUBHEADING>
@@ -2926,7 +2953,7 @@ list("and",
 
       <TEXT>
 	The function <JAVASCRIPTINLINE>unparse_query</JAVASCRIPTINLINE>
-	distinguishes between simple queries, which are unparsed using
+	distinguishes between simple queries, whose components are unparsed using
 	<JAVASCRIPTINLINE>unparse_term</JAVASCRIPTINLINE>, and 
 	compound queries, whose components are unparsed recursively.
 	  <SNIPPET>
@@ -2950,17 +2977,16 @@ function comma_separated(strings) {
 	    </JAVASCRIPT>
 	  </SNIPPET>
 	  The function <JAVASCRIPTINLINE>unparse_term</JAVASCRIPTINLINE>
-	  formats any remaining unbound pattern variables (taking
-	  its symbol) and JavaScript literals 
+	  formats any remaining unbound pattern variable (taking
+	  its symbol) and JavaScript literal 
 	  (<JAVASCRIPTINLINE>stringify</JAVASCRIPTINLINE>ing its value).
 	  The subexpression of
 	  <JAVASCRIPTINLINE>javascript_value</JAVASCRIPTINLINE> queries
 	  may contain JavaScript syntactic forms
 	  such as binary operator combinations,
-	  which are handled
-	  by transforming them into strings according to the JavaScript
+	  which are transformed into strings according to the JavaScript
 	  syntax described in section<SPACE/><REF NAME="sec:representing-expressions"/>.
-	  (See also exercise<SPACE/><REF NAME="ex:parse"/> ).
+	  (See also exercise<SPACE/><REF NAME="ex:parse"/>.)
 	  Lists and
           pairs of data are formatted to look like applications of JavaScript's
           list and pair constructors, respectively.
@@ -2987,45 +3013,56 @@ function unparse_term(arg) {
 }
 	    </JAVASCRIPT>
 	  </SNIPPET>
-	  For <JAVASCRIPTINLINE>is_data_list</JAVASCRIPTINLINE>, consider the expression
-	  <JAVASCRIPTINLINE>pair("computer", $type)</JAVASCRIPTINLINE>
-	  in the simple query 
-	  <JAVASCRIPTINLINE>job($x, pair("computer", $type))</JAVASCRIPTINLINE>
-	  of section<SPACE/><REF NAME="sec:deductive-info-retrieval"/>.
-	  The function
-	  <JAVASCRIPTINLINE>parse_query</JAVASCRIPTINLINE> constructs
-	  the query-language-specific representation, shown here in
-	  list notation
-	  <SNIPPET>
+	  The function <JAVASCRIPTINLINE>is_data_list</JAVASCRIPTINLINE>
+	  identifies data structures that can be transformed into
+	  applications of the
+	  <JAVASCRIPTINLINE>list</JAVASCRIPTINLINE> constructor. For
+	  example,
+	  <SNIPPET EVAL="no">
 	    <JAVASCRIPT>
-parse_query('job($x, pair("computer", $type))');
-	    </JAVASCRIPT>
-	    <JAVASCRIPT_OUTPUT>
-list("job",	      
-     list("name", "$x"),
-     [ list("literal", "computer"),
-       list("name", "$type") ] )
-	    </JAVASCRIPT_OUTPUT>
-	  </SNIPPET>
-	  and
-	  <SNIPPET>
-	    <JAVASCRIPT>
-const my_pair = head(tail(tail(parse_query('job($x, pair("computer", $type))'))));
+is_data_list(list(list("literal", "computer"), list("name", "$type")))
 	    </JAVASCRIPT>
 	  </SNIPPET>
-	  binds <JAVASCRIPTINLINE>my_pair</JAVASCRIPTINLINE> to
-	  <SNIPPET>
-	    <JAVASCRIPT_LONELY>
-[ list("literal", "computer"),
-  list("name", "$type") ] 
-	    </JAVASCRIPT_LONELY>
+	  should return true, and thus
+	  <SNIPPET EVAL="no">
+	    <JAVASCRIPT>
+unparse_term(list(list("literal", "computer"), list("name", "$type")))
+	    </JAVASCRIPT>
 	  </SNIPPET>
-	  The value <JAVASCRIPTINLINE>my_pair</JAVASCRIPTINLINE> is actually
-	  a list: a pair whose tail is itself a list. The function
-	  <JAVASCRIPTINLINE>is_data_list</JAVASCRIPTINLINE> needs to make
-	  sure that tagged lists such as names, literals, and binary operator
-	  combinations in the tails of pairs 
-	  are not mistaken for data lists.
+	  should result in the string
+	  <JAVASCRIPTINLINE>'list("computer", $type)'</JAVASCRIPTINLINE>.
+	  On the other hand, when
+	  <JAVASCRIPTINLINE>is_data_list</JAVASCRIPTINLINE> is
+	  applied to the query-language-specific
+	  representation of the expression
+	  <JAVASCRIPTINLINE>pair("computer", $type))</JAVASCRIPTINLINE>
+	  as in
+	  <SNIPPET EVAL="no">
+	    <JAVASCRIPT>
+is_data_list(pair("computer", list("name", "$type")))
+	    </JAVASCRIPT>
+	  </SNIPPET>
+	  (which arises while unparsing the simple query 
+	  <JAVASCRIPTINLINE>job($x, pair("computer", $type))</JAVASCRIPTINLINE>)
+	  the result should
+	  be false; in this case, the result of
+	  <JAVASCRIPTINLINE>unparse_term</JAVASCRIPTINLINE>
+	  should start with
+	  <JAVASCRIPTINLINE>"pair"</JAVASCRIPTINLINE> and not with
+	  <JAVASCRIPTINLINE>"list"</JAVASCRIPTINLINE>.
+	  Note that technically,
+	  <SNIPPET EVAL="no">
+		<JAVASCRIPT>
+pair("computer", list("name", "$type"))
+		</JAVASCRIPT>
+	  </SNIPPET>
+	  is a list (a pair whose tail is a list), so 
+	  <JAVASCRIPTINLINE>is_data_list</JAVASCRIPTINLINE> needs to
+	  return false when it is applied (even in a recursive call)
+	  to a pair whose head is the tag
+	  of a name, a literal, or<EMDASH/>in case of the components of a
+	  <JAVASCRIPTINLINE>javascript_value</JAVASCRIPTINLINE> syntactic	  
+	  form<EMDASH/>the tag of a JavaScript syntactic form.
 	  <SNIPPET LATEX="yes">
 	    <NAME>is_data_list</NAME>
 	    <JAVASCRIPT>
@@ -3033,8 +3070,10 @@ function is_data_list(x) {
     return is_null(x) ||
            (is_pair(x) &amp;&amp;
             is_null(member(head(x), 
-                           list("name", "literal", "binary_operator_combination", 
-                                $\langle tags$ $of$ $other$ $syntactic$ $forms \rangle$))) &amp;&amp;
+                           list("name", 
+                                "literal",
+                                "binary_operator_combination", 
+                                $\langle tags$ $of$ $other$ $JavaScript$ $syntactic$ $forms \rangle$))) &amp;&amp;
             is_data_list(tail(x)));
 }
 	    </JAVASCRIPT>
