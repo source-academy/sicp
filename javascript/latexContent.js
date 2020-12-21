@@ -137,10 +137,10 @@ export const preamble = `\\documentclass[a4paper, 12pt]{book}
 
 \\lstset{
    language=JavaScript,
-   basicstyle=\\linespread{1.0}\\fontsize{11}{12}\\usefont{T1}{lmtt}{m}{n},
-   keywordstyle=\\linespread{1.0}\\fontsize{11}{12}\\usefont{T1}{lmtt}{b}{n},
+   basicstyle=\\linespread{1.0}\\fontsize{11}{12}\\ttfamily,
+%   keywordstyle=\\linespread{1.0}\\fontsize{11}{12}\\usefont{T1}{lmtt}{b}{n},
    commentstyle=\\linespread{1.0}\\fontsize{11}{12}\\usefont{T1}{lmtt}{m}{it},
-   stringstyle=\\linespread{1.0}\\fontsize{11}{12}\\usefont{T1}{lmtt}{m}{sl},
+%   stringstyle=\\linespread{1.0}\\fontsize{11}{12}\\usefont{T1}{lmtt}{m}{sl},
    showstringspaces=false,
    showspaces=false,
    deletekeywords={continue},
@@ -154,10 +154,10 @@ export const preamble = `\\documentclass[a4paper, 12pt]{book}
 
 \\lstdefinestyle{JavaScriptLatex}{
    language=JavaScript,
-   basicstyle=\\linespread{1.0}\\fontsize{11}{12}\\usefont{T1}{lmtt}{m}{n},
-   keywordstyle=\\linespread{1.0}\\fontsize{11}{12}\\usefont{T1}{lmtt}{b}{n},
+   basicstyle=\\linespread{1.0}\\fontsize{11}{12}\\selectfont\\ttfamily,
+%   keywordstyle=\\linespread{1.0}\\fontsize{11}{12}\\usefont{T1}{lmtt}{b}{n},
    commentstyle=\\linespread{1.0}\\fontsize{11}{12}\\usefont{T1}{lmtt}{m}{it},
-   stringstyle=\\linespread{1.0}\\fontsize{11}{12}\\usefont{T1}{lmtt}{m}{sl},
+%   stringstyle=\\linespread{1.0}\\fontsize{11}{12}\\usefont{T1}{lmtt}{m}{sl},
    showstringspaces=false,
    showspaces=false,
    keepspaces=true,
@@ -173,10 +173,10 @@ export const preamble = `\\documentclass[a4paper, 12pt]{book}
 
 \\lstdefinestyle{JavaScriptLatexSmall}{
    language=JavaScript,
-   basicstyle=\\linespread{1.0}\\fontsize{10}{11}\\usefont{T1}{lmtt}{m}{n},
-   keywordstyle=\\linespread{1.0}\\fontsize{10}{11}\\usefont{T1}{lmtt}{b}{n},
+   basicstyle=\\linespread{1.0}\\fontsize{10}{11}\\selectfont\\ttfamily,
+%   keywordstyle=\\linespread{1.0}\\fontsize{10}{11}\\usefont{T1}{lmtt}{b}{n},
    commentstyle=\\linespread{1.0}\\fontsize{10}{11}\\usefont{T1}{lmtt}{m}{it},
-   stringstyle=\\linespread{1.0}\\fontsize{10}{11}\\usefont{T1}{lmtt}{m}{sl},
+%   stringstyle=\\linespread{1.0}\\fontsize{10}{11}\\usefont{T1}{lmtt}{m}{sl},
    showstringspaces=false,
    showspaces=false,
    keepspaces=true,
@@ -192,10 +192,10 @@ export const preamble = `\\documentclass[a4paper, 12pt]{book}
 
 \\lstdefinestyle{JavaScriptLatexFootnote}{
    language=JavaScript,
-   basicstyle=\\linespread{1.0}\\fontsize{9}{10}\\usefont{T1}{lmtt}{m}{n},
-   keywordstyle=\\linespread{1.0}\\fontsize{9}{10}\\usefont{T1}{lmtt}{b}{n},
+   basicstyle=\\linespread{1.0}\\fontsize{9}{10}\\selectfont\\ttfamily,
+ %  keywordstyle=\\linespread{1.0}\\fontsize{9}{10}\\usefont{T1}{lmtt}{b}{n},
    commentstyle=\\linespread{1.0}\\fontsize{9}{10}\\usefont{T1}{lmtt}{m}{it},
-   stringstyle=\\linespread{1.0}\\fontsize{9}{10}\\usefont{T1}{lmtt}{m}{sl},
+%   stringstyle=\\linespread{1.0}\\fontsize{9}{10}\\usefont{T1}{lmtt}{m}{sl},
    showstringspaces=false,
    showspaces=false,
    keepspaces=true,
@@ -211,10 +211,10 @@ export const preamble = `\\documentclass[a4paper, 12pt]{book}
 
 \\lstdefinestyle{JavaScript}{
    language=JavaScript,
-   basicstyle=\\linespread{1.0}\\fontsize{11}{12}\\usefont{T1}{lmtt}{m}{n},
-   keywordstyle=\\linespread{1.0}\\fontsize{11}{12}\\usefont{T1}{lmtt}{b}{n},
+   basicstyle=\\linespread{1.0}\\fontsize{11}{12}\\selectfont\\ttfamily,
+%   keywordstyle=\\linespread{1.0}\\fontsize{11}{12}\\usefont{T1}{lmtt}{b}{n},
    commentstyle=\\linespread{1.0}\\fontsize{11}{12}\\usefont{T1}{lmtt}{m}{it},
-   stringstyle=\\linespread{1.0}\\fontsize{11}{12}\\usefont{T1}{lmtt}{m}{sl},
+%  stringstyle=\\linespread{1.0}\\fontsize{11}{12}\\usefont{T1}{lmtt}{m}{sl},
    showstringspaces=false,
    showspaces=false,
    keepspaces=true,
@@ -231,10 +231,10 @@ export const preamble = `\\documentclass[a4paper, 12pt]{book}
 
 \\lstdefinestyle{JavaScriptSmall}{
    language=JavaScript,
-   basicstyle=\\linespread{1.0}\\fontsize{10}{11}\\usefont{T1}{lmtt}{m}{n},
-   keywordstyle=\\linespread{1.0}\\fontsize{10}{11}\\usefont{T1}{lmtt}{b}{n},
+   basicstyle=\\linespread{1.0}\\fontsize{10}{11}\\selectfont\\ttfamily,
+%   keywordstyle=\\linespread{1.0}\\fontsize{10}{11}\\usefont{T1}{lmtt}{b}{n},
    commentstyle=\\linespread{1.0}\\fontsize{10}{11}\\usefont{T1}{lmtt}{m}{it},
-   stringstyle=\\linespread{1.0}\\fontsize{10}{11}\\usefont{T1}{lmtt}{m}{sl},
+%   stringstyle=\\linespread{1.0}\\fontsize{10}{11}\\usefont{T1}{lmtt}{m}{sl},
    showstringspaces=false,
    showspaces=false,
    keepspaces=true,
@@ -251,10 +251,10 @@ export const preamble = `\\documentclass[a4paper, 12pt]{book}
 
 \\lstdefinestyle{JavaScriptFootnote}{
    language=JavaScript,
-   basicstyle=\\linespread{1.0}\\fontsize{9}{10}\\usefont{T1}{lmtt}{m}{n},
-   keywordstyle=\\linespread{1.0}\\fontsize{9}{10}\\usefont{T1}{lmtt}{b}{n},
+   basicstyle=\\linespread{1.0}\\fontsize{9}{10}\\selectfont\\ttfamily,
+%   keywordstyle=\\linespread{1.0}\\fontsize{9}{10}\\usefont{T1}{lmtt}{b}{n},
    commentstyle=\\linespread{1.0}\\fontsize{9}{10}\\usefont{T1}{lmtt}{m}{it},
-   stringstyle=\\linespread{1.0}\\fontsize{9}{10}\\usefont{T1}{lmtt}{m}{sl},
+%   stringstyle=\\linespread{1.0}\\fontsize{9}{10}\\usefont{T1}{lmtt}{m}{sl},
    showstringspaces=false,
    showspaces=false,
    keepspaces=true,
@@ -272,7 +272,7 @@ export const preamble = `\\documentclass[a4paper, 12pt]{book}
 \\lstdefinestyle{JavaScriptOutput}{
    language=JavaScript,
    basicstyle=\\linespread{1.0}\\fontsize{11}{12}\\usefont{T1}{lmtt}{m}{sl},
-   keywordstyle=\\linespread{1.0}\\fontsize{11}{12}\\usefont{T1}{lmtt}{b}{sl},
+%   keywordstyle=\\linespread{1.0}\\fontsize{11}{12}\\usefont{T1}{lmtt}{b}{sl},
    showstringspaces=false,
    showspaces=false,
    keepspaces=true,
@@ -286,13 +286,14 @@ export const preamble = `\\documentclass[a4paper, 12pt]{book}
    escapechar=^
 }
 \\lstnewenvironment{JavaScriptOutput}{\\lstset{style=JavaScriptOutput,aboveskip=-0.5ex,belowskip=1.8ex}}{}
-\\lstnewenvironment{JavaScriptPrompt}{\\lstset{style=JavaScriptOutput,aboveskip=2.5ex,belowskip=-0.5ex}}{}
+% Julie seems to prefer upright font for the prompt: To be revisited
+\\lstnewenvironment{JavaScriptPrompt}{\\lstset{style=JavaScript,aboveskip=2.5ex,belowskip=-0.5ex}}{}
 \\lstnewenvironment{JavaScriptLonely}{\\lstset{style=JavaScriptOutput,aboveskip=2.5ex,belowskip=2.5ex}}{}
 
 \\lstdefinestyle{JavaScriptOutputSmall}{
    language=JavaScript,
    basicstyle=\\linespread{1.0}\\fontsize{10}{11}\\usefont{T1}{lmtt}{m}{sl},
-   keywordstyle=\\linespread{1.0}\\fontsize{10}{11}\\usefont{T1}{lmtt}{b}{sl},
+%   keywordstyle=\\linespread{1.0}\\fontsize{10}{11}\\usefont{T1}{lmtt}{b}{sl},
    showstringspaces=false,
    showspaces=false,
    keepspaces=true,
@@ -306,13 +307,14 @@ export const preamble = `\\documentclass[a4paper, 12pt]{book}
    escapechar=^
 }
 \\lstnewenvironment{JavaScriptOutputSmall}{\\lstset{style=JavaScriptOutputSmall,aboveskip=-0.5ex,belowskip=1.8ex}}{}
-\\lstnewenvironment{JavaScriptPromptSmall}{\\lstset{style=JavaScriptOutputSmall,aboveskip=2.5ex,belowskip=-0.5ex}}{}
+% Julie seems to prefer upright font for the prompt: To be revisited
+\\lstnewenvironment{JavaScriptPromptSmall}{\\lstset{style=JavaScriptSmall,aboveskip=2.5ex,belowskip=-0.5ex}}{}
 \\lstnewenvironment{JavaScriptLonelySmall}{\\lstset{style=JavaScriptOutputSmall,aboveskip=2.5ex,belowskip=2.5ex}}{}
 
 \\lstdefinestyle{JavaScriptOutputFootnote}{
    language=JavaScript,
    basicstyle=\\linespread{1.0}\\fontsize{9}{10}\\usefont{T1}{lmtt}{m}{sl},
-   keywordstyle=\\linespread{1.0}\\fontsize{9}{10}\\usefont{T1}{lmtt}{b}{sl},
+%   keywordstyle=\\linespread{1.0}\\fontsize{9}{10}\\usefont{T1}{lmtt}{b}{sl},
    showstringspaces=false,
    showspaces=false,
    keepspaces=true,
@@ -326,7 +328,8 @@ export const preamble = `\\documentclass[a4paper, 12pt]{book}
    escapechar=^
 }
 \\lstnewenvironment{JavaScriptOutputFootnote}{\\lstset{style=JavaScriptOutputFootnote,aboveskip=-0.5ex,belowskip=1.8ex}}{}
-\\lstnewenvironment{JavaScriptPromptFootnote}{\\lstset{style=JavaScriptOutputFootnote,aboveskip=2.5ex,belowskip=-0.5ex}}{}
+% Julie seems to prefer upright font for the prompt: To be revisited
+\\lstnewenvironment{JavaScriptPromptFootnote}{\\lstset{style=JavaScriptFootnote,aboveskip=2.5ex,belowskip=-0.5ex}}{}
 \\lstnewenvironment{JavaScriptLonelyFootnote}{\\lstset{style=JavaScriptOutputFootnote,aboveskip=2.5ex,belowskip=2.5ex}}{}
 
 \\usepackage{epigraph}
