@@ -109,8 +109,8 @@ export const preamble = `\\documentclass[a4paper, 12pt]{book}
              \\ExerciseName~\\ExerciseHeaderNB\\ExerciseHeaderTitle
              \\ExerciseHeaderOrigin\\medskip}}}
 
-\\usepackage{lmodern}
-\\usepackage[T1]{fontenc}
+%\\usepackage{lmodern}
+%\\usepackage[T1]{fontenc}
 
 \\usepackage{listings}
 \\expandafter\\patchcmd\\csname \\string\\lstinline\\endcsname{%
