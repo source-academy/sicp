@@ -137,7 +137,7 @@ export const preamble = `\\documentclass[a4paper, 12pt]{book}
 
 \\lstset{
    language=JavaScript,
-   basicstyle=\\linespread{1.0}\\fontsize{11}{12}\\ttfamily,
+   basicstyle=\\linespread{1.0}\\ttfamily,
 %   keywordstyle=\\linespread{1.0}\\fontsize{11}{12}\\usefont{T1}{lmtt}{b}{n},
 %   commentstyle=\\linespread{1.0}\\fontsize{11}{12}\\usefont{T1}{lmtt}{m}{it},
 %   stringstyle=\\linespread{1.0}\\fontsize{11}{12}\\usefont{T1}{lmtt}{m}{sl},
