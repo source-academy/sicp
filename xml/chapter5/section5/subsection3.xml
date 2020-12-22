@@ -37,9 +37,9 @@
       ^compilation of procedure call with given target and linkage^
       </SCHEME>
       <JAVASCRIPT>
-$\langle compilation$ $of$ $function$ $expression,$ $target$ fun, $linkage$ next$\rangle$
-$\langle evaluate$ $arg$ $expressions$ $and$ $construct$ $arg$ $list$ $in$ argl$\rangle$
-$\langle compilation$ $of$ $function$ $call$ $with$ $given$ $target$ $and$ $linkage\rangle$
+$\langle \text{\it compilation of function expression, target \texttt{fun}, linkage \texttt{next}}\rangle$
+$\langle \text{\it evaluate arg expressions and construct arg list in}\ argl\rangle$
+$\langle \text{\it compilation of function call with given target and linkage}\rangle$
       </JAVASCRIPT>
     </SNIPPET>
 
@@ -215,7 +215,7 @@ function compile_application(exp, target, linkage) {
     const fun_code = compile(function_expression(exp), "fun", "next"); 
     const arguments_codes =
               map(arg => compile(arg, "val", "next"),
-                  args(exp));
+                  arg_expressions(exp));
     return preserving(list("env", "continue"), 
                fun_code,
                preserving(list("fun", "continue"), 
@@ -283,12 +283,12 @@ function compile_application(exp, target, linkage) {
       (assign argl (op cons) (reg val) (reg argl))
       </SCHEME>
       <JAVASCRIPT>
-$\langle compilation$ $of$ $last$ $argument,$ $targeted$ $to$ val$\rangle$
+$\langle \text{\it compilation of last argument, targeted to}\ val\rangle$
 assign("argl", list(op("list"), reg("val")));
-$\langle compilation$ $of$ $next$ $argument,$ $targeted$ $to$ val$\rangle$
+$\langle \text{\it compilation of next argument, targeted to}\ val\rangle$
 assign("argl", list(op("pair"), reg("val"), reg("argl")));
 $\ldots$
-$\langle compilation$ $of$ $first$ $argument,$ $targeted$ $to$ val$\rangle$
+$\langle \text{\it compilation of first argument, targeted to}\ val\rangle$
 assign("argl", list(op("pair"), reg("val"), reg("argl")));
       </JAVASCRIPT>
     </SNIPPET>
@@ -550,13 +550,13 @@ function code_to_get_rest_args(arg_codes) {
 $$  test(op("primitive_function"), reg("fun")),
   branch(label("primitive_branch")),
 "compiled_branch",
-  $\langle code$ $to$ $apply$ $compiled$ $function$ $with$ $given$ $target$ $and$ $appropriate$ $linkage \rangle$
+  $\langle\text{\it code to apply compiled function with given target and appropriate linkage} \rangle$
 "primitive_branch",
-  assign($target$,
+  assign($\OptionalPar{target}$,
          list(op("apply_primitive_function"),
          reg("fun"),
          reg("argl")))
-$linkage$
+$\OptionalPar{linkage}$
 "after_call"
       </JAVASCRIPT>
     </SNIPPET>
@@ -738,18 +738,18 @@ $$  assign("continue", label("fun_return")),
   assign("val", list(op("compiled_function_entry"), reg("fun"))),
   go_to(reg("val")),
 "fun_return",
-  assign($target$, reg("val")),   // included if target is not val
-  go_to(label($linkage$)),        // linkage code
+  assign($\OptionalPar{target}$, reg("val")),   // included if target is not val
+  go_to(label($\OptionalPar{linkage}$)),        // linkage code
       </JAVASCRIPT>
     </SNIPPET>
 
     or like this if the linkage is
     <SPLITINLINE>
       <SCHEME>
-	<SCHEMEINLINE>return</SCHEMEINLINE>.
+	<SCHEMEINLINE>return.</SCHEMEINLINE>
       </SCHEME>
       <JAVASCRIPT>
-	<JAVASCRIPTINLINE>"return"</JAVASCRIPTINLINE>.
+	<JAVASCRIPTINLINE>"return"</JAVASCRIPTINLINE>
       </JAVASCRIPT>
     </SPLITINLINE>
     <SNIPPET EVAL="no" LATEX="yes">
@@ -771,11 +771,31 @@ $$  save("continue"),
   assign("val", list(op("compiled_function_entry"), reg("fun"))),
   go_to(reg("val")),
 "fun_return",
-  assign($target$, reg("val")),   // included if target is not val
+  assign($\OptionalPar{target}$, reg("val")),   // included if target is not val
   restore("continue"),
   go_to(reg("continue")),         // linkage code
       </JAVASCRIPT>
     </SNIPPET>
+ 
+    
+    <SPLIT>
+      <JAVASCRIPT>
+        of, finally, if the linkage is <JAVASCRIPTINLINE>"return_undefined"</JAVASCRIPTINLINE>.
+        <SNIPPET EVAL="no" LATEX="yes">
+          <SCHEME></SCHEME>
+<JAVASCRIPT latex="yes"><!-- The $$ below is a hack to ensure the leading spaces are not consumed-->
+$$  save("continue"),
+  assign("continue", label("return_undefined")),
+  assign("val", list(op("compiled_function_entry"), reg("fun"))),
+  go_to(reg("val")),
+"return_undefined",
+  assign($\OptionalPar{target}$, constant(undefined)),   // included even if target is val
+  restore("continue"),
+  go_to(reg("continue")),         // linkage code
+</JAVASCRIPT>
+</SNIPPET>
+</JAVASCRIPT>
+</SPLIT>
 
     This code sets up <SCHEMEINLINE>continue</SCHEMEINLINE> so that the
     <SPLITINLINE>
@@ -788,6 +808,8 @@ $$  save("continue"),
       <SCHEMEINLINE>proc-return</SCHEMEINLINE></SCHEME>
       <JAVASCRIPT>
 	<JAVASCRIPTINLINE>fun_return</JAVASCRIPTINLINE>
+  or
+	<JAVASCRIPTINLINE>return_undefined</JAVASCRIPTINLINE>
       </JAVASCRIPT>
     </SPLITINLINE>
     and jumps to the
@@ -805,7 +827,7 @@ $$  save("continue"),
       <SCHEME>procedure<APOS/>s</SCHEME>
       <JAVASCRIPT>function<APOS/>s</JAVASCRIPT>
     </SPLITINLINE>
-    result from <SCHEMEINLINE>val</SCHEMEINLINE> to the target register (if
+    result from <SCHEMEINLINE>val</SCHEMEINLINE> <SPLITINLINE><JAVASCRIPT>(or undefined)</JAVASCRIPT></SPLITINLINE> to the target register (if
     necessary) and then jumps to the location specified by the linkage.
     (The linkage is always
     <SPLITINLINE>
@@ -813,7 +835,8 @@ $$  save("continue"),
 	<SCHEMEINLINE>return</SCHEMEINLINE>
       </SCHEME>
       <JAVASCRIPT>
-	<JAVASCRIPTINLINE>"return"</JAVASCRIPTINLINE>
+	<JAVASCRIPTINLINE>"return"</JAVASCRIPTINLINE>,
+	<JAVASCRIPTINLINE>"return_undefined"</JAVASCRIPTINLINE>
       </JAVASCRIPT>
     </SPLITINLINE>
     or a label,
@@ -903,7 +926,7 @@ $$  save("continue"),
     </SPLITINLINE>
     result is put directly into
     the target register and there is no need to return to a special
-    location that copies it.  Instead, we simplify the code by
+    location that copies it. Instead, <SPLITINLINE><JAVASCRIPT>unless linkage is <JAVASCRIPTINLINE>"return_undefined"</JAVASCRIPTINLINE>,</JAVASCRIPT></SPLITINLINE> we simplify the code by
     setting up <SCHEMEINLINE>continue</SCHEMEINLINE> so that the
     <SPLITINLINE>
       <SCHEME>procedure</SCHEME>
@@ -918,7 +941,7 @@ $$  save("continue"),
       (goto (reg val))
       </SCHEME>
       <JAVASCRIPT>
-$\langle set$ $up$ cont$$inue $for$ $linkage\rangle$
+$\langle \text{\it set up continue for linkage}\rangle$
 assign("val", list(op("compiled_function_entry"), reg("fun"))),
 go_to(reg("val")),
       </JAVASCRIPT>
@@ -948,7 +971,7 @@ go_to(reg("val")),
       <SCHEME><SCHEMEINLINE>(goto (label ^linkage^))</SCHEMEINLINE></SCHEME>
       <JAVASCRIPT>
 	<JAVASCRIPTINLINE>go_to(label(</JAVASCRIPTINLINE>
-	<LATEXINLINE>$\langle linkage\rangle$</LATEXINLINE>
+	<LATEXINLINE>$\OptionalPar{linkage}$</LATEXINLINE>
 	<JAVASCRIPTINLINE>))</JAVASCRIPTINLINE>
       </JAVASCRIPT>
     </SPLITINLINE>
@@ -966,7 +989,7 @@ go_to(reg("val")),
       (goto (reg val))
       </SCHEME>
       <JAVASCRIPT>
-assign("continue", label($linkage$)),
+assign("continue", label($\OptionalPar{linkage}$)),
 assign("val", list(op("compiled_function_entry"), reg("fun"))),
 go_to(reg("val")),
       </JAVASCRIPT>
@@ -1051,43 +1074,33 @@ go_to(reg("val")),
   </TEXT>
 
   <TEXT>
-    Suppose instead that we had handled the case of a
-    <SPLITINLINE>
-      <SCHEME>procedure</SCHEME>
-      <JAVASCRIPT>function</JAVASCRIPT>
-    </SPLITINLINE>
-    call with a linkage of
     <SPLITINLINE>
       <SCHEME>
-	<SCHEMEINLINE>return</SCHEMEINLINE>
-      </SCHEME>
+        Suppose instead that we had handled the case of a procedure call with a
+        linkage of <SCHEMEINLINE>return</SCHEMEINLINE> and a target of
+        <SCHEMEINLINE>val</SCHEMEINLINE> as shown above for a
+        non-<SCHEMEINLINE>val</SCHEMEINLINE> target. This would destroy tail
+        recursion. Our system would still give the same value for any
+        expression. But each time we called a procedure, we would save
+        <SCHEMEINLINE>continue</SCHEMEINLINE> and return after the call to undo
+        the (useless) save. These extra saves would accumulate during a nest of
+        procedure calls.</SCHEME>
       <JAVASCRIPT>
-	<JAVASCRIPTINLINE>"return"</JAVASCRIPTINLINE>
-      </JAVASCRIPT>
-    </SPLITINLINE>
-    and a target of
-    <SCHEMEINLINE>val</SCHEMEINLINE> as shown above for a
-    non-<SCHEMEINLINE>val</SCHEMEINLINE> target.  This would destroy tail
-    recursion.  Our system would still give the same value for any expression.
-    But each time we called a
-    <SPLITINLINE>
-      <SCHEME>procedure,</SCHEME>
-      <JAVASCRIPT>function,</JAVASCRIPT>
-    </SPLITINLINE>
-    we would save <SCHEMEINLINE>continue</SCHEMEINLINE> and return
-    after the call to undo the (useless) save.  These extra saves would
-    accumulate during a nest of
-    <SPLITINLINE>
-      <SCHEME>procedure</SCHEME>
-      <JAVASCRIPT>function</JAVASCRIPT>
-    </SPLITINLINE>
-    calls.<FOOTNOTE>Making a
+        This is not the case for 
+        function calls with linkage <JAVASCRIPTINLINE>"return_undefined"</JAVASCRIPTINLINE>.
+        In this case we must save <JAVASCRIPTINLINE>continue</JAVASCRIPTINLINE> and
+        return after the call to store <JAVASCRIPTINLINE>undefined</JAVASCRIPTINLINE> 
+        in target. These extra saves accumulate during a nest of procedure calls which
+        destroys tail recursion.</JAVASCRIPT></SPLITINLINE><FOOTNOTE>Making a
     <INDEX>compiler
     <SUBINDEX>tail recursion, stack allocation,
     and garbage-collection</SUBINDEX></INDEX>
     compiler generate tail-recursive code might seem like a
     straightforward idea.  But most compilers for common languages,
-    including C and Pascal, do not do this, and therefore these languages
+    including 
+<SPLITINLINE><SCHEME>C and Pascal,</SCHEME><JAVASCRIPT>C (at least without optimisation flags turned on)</JAVASCRIPT></SPLITINLINE>
+do not do this, 
+and therefore these languages
     cannot represent iterative processes in terms of
     <SPLITINLINE>
       <SCHEME>procedure</SCHEME>
@@ -1150,22 +1163,23 @@ go_to(reg("val")),
   <TEXT>
     <SPLITINLINE>
       <SCHEME><SCHEMEINLINE>Compile-proc-appl</SCHEMEINLINE></SCHEME>
-      <JAVASCRIPT><JAVASCRIPTINLINE>Compile_fun_appl</JAVASCRIPTINLINE>
+      <JAVASCRIPT>The function <JAVASCRIPTINLINE>compile_fun_appl</JAVASCRIPTINLINE>
       </JAVASCRIPT>
     </SPLITINLINE>
     generates the above
     <SPLITINLINE>
-      <SCHEME>procedure-application</SCHEME>
-      <JAVASCRIPT>function-application</JAVASCRIPT>
+      <SCHEME>procedure-application code by considering four cases, </SCHEME>
+      <JAVASCRIPT>function-application code by considering five cases, </JAVASCRIPT>
     </SPLITINLINE>
-    code by considering four cases, depending on whether the target for the call
+    depending on whether the target for the call
     is <SCHEMEINLINE>val</SCHEMEINLINE> and whether the linkage is
     <SPLITINLINE>
       <SCHEME>
 	<SCHEMEINLINE>return</SCHEMEINLINE>.
       </SCHEME>
       <JAVASCRIPT>
-	<JAVASCRIPTINLINE>"return"</JAVASCRIPTINLINE>.
+	<JAVASCRIPTINLINE>"return"</JAVASCRIPTINLINE> or
+	<JAVASCRIPTINLINE>"return_undefined"</JAVASCRIPTINLINE> (in which case both targets can be handled by a single case).
       </JAVASCRIPT>
     </SPLITINLINE>
     Observe that the instruction sequences
@@ -1248,7 +1262,20 @@ const all_regs = list("env", "fun", "val", "argl", "continue");
       </SCHEME>
       <JAVASCRIPT>
 function compile_fun_appl(target, linkage) {
-    if (target === "val" &amp;&amp; linkage !== "return") {
+    if (linkage === "return_undefined") {
+        const return_undefined = make_label("return_undefined");
+        return make_instruction_sequence(
+            list("fun"),
+            all_regs,
+            list(
+                assign("continue", label(return_undefined)),
+                assign("val", list(op("compiled_function_entry"), 
+                                   reg("fun"))),
+                go_to(reg("val")),
+                return_undefined,
+                assign(target, constant(undefined)),
+                go_to(reg("continue"))));
+    } else if (target === "val" &amp;&amp; linkage !== "return") {
         return make_instruction_sequence(
             list("fun"),
             all_regs,
