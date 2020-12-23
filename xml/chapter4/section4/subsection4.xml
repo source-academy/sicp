@@ -2821,9 +2821,9 @@ list("rule", list("append_to_form",
 	  the symbol is <JAVASCRIPTINLINE>"pair"</JAVASCRIPTINLINE>
 	  or <JAVASCRIPTINLINE>"list"</JAVASCRIPTINLINE>, an (untagged) JavaScript pair
 	  or list is built, effectively interpreting the constructor.
-	  The case when the function symbol is
-	  <JAVASCRIPTINLINE>"javascript_value"</JAVASCRIPTINLINE> is handled
-	  separately.
+	  The case of
+	  <JAVASCRIPTINLINE>"javascript_value"</JAVASCRIPTINLINE>
+	  as function symbol is is handled separately.
 	  <SNIPPET>
 	    <NAME>query_syntax_process</NAME>
 	    <REQUIRES>functions_4_1_2</REQUIRES>
@@ -2994,28 +2994,33 @@ function comma_separated(strings) {
 	  <JAVASCRIPTINLINE>$type</JAVASCRIPTINLINE>
 	  to
 	  <JAVASCRIPTINLINE>list("computer", "wizard")</JAVASCRIPTINLINE>
-	  in which case the expected query result string is
+	  in which case the expected query result string is:
 	  <SNIPPET>
 	  <JAVASCRIPT>
 'job(list("Bitdiddle", "Ben"), list("computer", "wizard"))'
 	  </JAVASCRIPT>
 	  </SNIPPET>
-	  while <JAVASCRIPTINLINE>unparse</JAVASCRIPTINLINE>
+	  However, <JAVASCRIPTINLINE>unparse</JAVASCRIPTINLINE>
 	  produces:
 	  <SNIPPET>
 	  <JAVASCRIPT>
 'job(pair("Bitdiddle", pair("Ben", null)), pair("computer", pair("wizard", null)))'
 	  </JAVASCRIPT>
 	  </SNIPPET>
-          In order to render nested applications of
-	  <JAVASCRIPTINLINE>pair</JAVASCRIPTINLINE> as
-	  applications of
-	  <JAVASCRIPTINLINE>list</JAVASCRIPTINLINE>
-	  whenever possible, we add a clause to format expressions
-	  that represent list constructions:
+          To achieve the expected formatting,
+	  we add a clause to
+	  <JAVASCRIPTINLINE>unparse</JAVASCRIPTINLINE>
+	  that identifies list constructions
+	  with
+	  <JAVASCRIPTINLINE>is_list_construction</JAVASCRIPTINLINE>
+	  and formats them as applications of
+	  <JAVASCRIPTINLINE>list</JAVASCRIPTINLINE> to the list elements,
+	  which
+	  <JAVASCRIPTINLINE>element_expressions</JAVASCRIPTINLINE>
+	  extracts from the nested applications of 
+	  <JAVASCRIPTINLINE>pair</JAVASCRIPTINLINE>.
 	  <SNIPPET EVAL="no" LATEX="yes">
 	    <NAME>unparse</NAME>
-	    <REQUIRES>is_list_construction</REQUIRES>
 	    <JAVASCRIPT>
 function unparse(exp) {
     return is_name(exp)
@@ -3027,6 +3032,19 @@ function unparse(exp) {
                                       element_expressions(exp)))
            : is_application(exp) &amp;&amp; is_name(function_expression(exp))
 	   $\vdots$
+}
+function is_list_construction(exp) {
+    return (is_literal(exp) &amp;&amp; is_null(literal_value(exp))) ||
+           (is_application(exp) &amp;&amp; is_name(function_expression(exp)) &amp;&amp;
+            symbol_of_name(function_expression(exp)) === "pair" &amp;&amp;
+            is_list_construction(head(tail(arg_expressions(exp)))));
+}
+function element_expressions(exp) {
+    return is_literal(exp)
+           ? null // exp is literal null
+           :      // exp is application of pair
+             pair(head(arg_expressions(exp)),
+                  element_expressions(head(tail(arg_expressions(exp)))));
 }
 	    </JAVASCRIPT>
 	    <JAVASCRIPT_RUN>
@@ -3056,24 +3074,6 @@ function comma_separated(strings) {
 }
 	    </JAVASCRIPT_RUN>
 	  </SNIPPET>
-	  <SNIPPET EVAL="no">
-	    <NAME>is_list_construction</NAME>
-	    <JAVASCRIPT>
-function is_list_construction(exp) {
-    return (is_literal(exp) &amp;&amp; is_null(literal_value(exp))) ||
-           (is_application(exp) &amp;&amp; is_name(function_expression(exp)) &amp;&amp;
-            symbol_of_name(function_expression(exp)) === "pair" &amp;&amp;
-            is_list_construction(head(tail(arg_expressions(exp)))));
-}
-function element_expressions(exp) {
-    return is_literal(exp)
-           ? null // exp is literal null
-           :      // exp is pair expression
-             pair(head(arg_expressions(exp)),
-                  element_expressions(head(tail(arg_expressions(exp)))));
-}
-	    </JAVASCRIPT>
-	  </SNIPPET>
       </TEXT>
 
       <SUBHEADING>
@@ -3092,6 +3092,7 @@ function element_expressions(exp) {
 	<JAVASCRIPTINLINE>s.charAt(0)</JAVASCRIPTINLINE>.
       </FOOTNOTE>
       <SNIPPET EVAL="no">
+	<NAME>is_variable_2</NAME>
 	<JAVASCRIPT>
 function is_variable(exp) {
     return is_name(exp) &amp;&amp; char_at(symbol_of_name(exp), 0) === "$";
