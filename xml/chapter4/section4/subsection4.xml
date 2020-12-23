@@ -17,27 +17,10 @@
     <TEXT>
       <INDEX>driver loop<SUBINDEX>query@in query interpreter</SUBINDEX></INDEX>
       <INDEX>query interpreter<SUBINDEX>driver loop|(</SUBINDEX></INDEX>
-      The driver loop for the query system repeatedly reads input
-      <SPLITINLINE>
-	<SCHEME>
-	  expressions.
-	</SCHEME>
-	<JAVASCRIPT>
-	  expressions as strings and parses them.
-	</JAVASCRIPT>
-      </SPLITINLINE>
-      If the expression is
-      a rule or assertion to be added to
+      The driver loop for the query system repeatedly reads input expressions.
+      If the expression is a rule or assertion to be added to
       the data base, then the information is added.  Otherwise the
-      <SPLITINLINE>
-	<SCHEME>
-	  input
-	</SCHEME>
-	<JAVASCRIPT>
-	  expression
-	</JAVASCRIPT>
-      </SPLITINLINE>
-      is assumed to be a query.  The driver passes this query to
+      expression is assumed to be a query.  The driver passes this query to
       the evaluator
       <SPLITINLINE><SCHEME><SCHEMEINLINE>qeval</SCHEMEINLINE></SCHEME>
       <JAVASCRIPT><JAVASCRIPTINLINE>evaluate_query</JAVASCRIPTINLINE>
@@ -119,8 +102,9 @@ const input_prompt = "Query input:";
 const output_prompt = "Query results:";
 
 function query_driver_loop() {
-    const input = user_read(input_prompt);
-    const q = parse_query(input);
+    const input = user_read(input_prompt) + ";";
+    const exp = parse(input);
+    const q = query_syntax_process(exp);
     if (is_assertion(q)) {
         add_rule_or_assertion(assertion_body(q));
         display("Assertion added to data base.");
@@ -128,7 +112,7 @@ function query_driver_loop() {
         display(output_prompt);
         display_stream(
             stream_map(
-                frame => unparse_query(instantiate(q, frame)),
+                frame => unparse(instantiate(exp, frame)),
                 evaluate_query(q, singleton_stream(null))));
     }
     query_driver_loop();
@@ -248,22 +232,26 @@ function first_answer(input) {
 	<JAVASCRIPT>
 	  Here, as in the other evaluators in this chapter,
 	  we transform expressions of the query language given as strings
-	  into abstract syntax expressions. The function
-	  <JAVASCRIPTINLINE>parse_query</JAVASCRIPTINLINE> that performs
-	  the transformation, the predicate
+	  into a JavaScript syntax representation using 
+	  <JAVASCRIPTINLINE>parse</JAVASCRIPTINLINE>. (We append a
+	  semicolon to the input string because
+	  <JAVASCRIPTINLINE>parse</JAVASCRIPTINLINE> expects a statement.)
+	  In this section,
+	  we further transform the syntax representation into
+	  into an abstract object at a conceptual level appropriate
+	  for the query system using
+	  <JAVASCRIPTINLINE>query_syntax_process</JAVASCRIPTINLINE>
+	  declared in section<SPACE/><REF NAME="sec:query-syntax"/>,
+	  along with the predicate
 	  <JAVASCRIPTINLINE>is_assertion</JAVASCRIPTINLINE>,
 	  and the selector
-	  <JAVASCRIPTINLINE>assertion_body</JAVASCRIPTINLINE> are
-	  declared in section<SPACE/><REF NAME="sec:query-syntax"/>.
+	  <JAVASCRIPTINLINE>assertion_body</JAVASCRIPTINLINE>.
 	  The function <JAVASCRIPTINLINE>add_rule_or_assertion</JAVASCRIPTINLINE>
 	  is declared in section<SPACE/><REF NAME="sec:query-db"/>.
-	  The frames resulting from query evaluation are used
-	  by <JAVASCRIPTINLINE>instantiate</JAVASCRIPTINLINE> (declared in
-	  section<SPACE/><REF NAME="sec:query-syntax"/>) to instantiate
-	  the query's pattern variables.
-	  After the query is instantiated, it is transformed back
-	  into a string by 
-	  <JAVASCRIPTINLINE>unparse_query</JAVASCRIPTINLINE>
+	  The frames resulting from query evaluation are used to instantiate
+	  the pattern variables of the query syntax representation.
+	  The result is transformed back into a string by 
+	  <JAVASCRIPTINLINE>unparse</JAVASCRIPTINLINE>
 	  (section<SPACE/><REF NAME="sec:query-syntax"/>)
 	  and the string is displayed.
 	</JAVASCRIPT>
@@ -371,14 +359,13 @@ function instantiate(exp, frame) {
                 return exp;
             } else {	    
                 const value = binding_value(binding);
-	        if (is_variable(value) {
-                   return copy(value);
-                } else if (is_pair(value)) {
-                   return make_pair_expression(copy(head(exp), 
-                                               copy(tail(exp)));
-                } else { // value is a literal
-                   return make_literal_expression(value);
-                }
+                return is_variable(value)
+                       ? copy(value)
+                       : is_pair(value)
+                       ? make_pair_expression(copy(head(value), 
+                                              copy(tail(value)))
+                       : // value is a literal
+                         make_literal_expression(value);
             }
         } else if (is_pair(exp)) {
             return pair(copy(head(exp)), copy(tail(exp)));
@@ -2771,24 +2758,18 @@ function singleton_stream(x) {
     <SPLIT>
       <JAVASCRIPT>
 	<TEXT>
-	  The driver loop uses 
-	  <JAVASCRIPTINLINE>parse_query</JAVASCRIPTINLINE>
-	  to transform an input string into an abstract expression
-	  representing an assertion, a rule, or a query,
-	  and 
-	  <JAVASCRIPTINLINE>unparse_query</JAVASCRIPTINLINE>
-	  to transform an instantiated query back to a string.
+	  The driver loop first transforms an input string into the
+	  syntax representation.
 	  The input is designed to look like a
 	  JavaScript expression, so that we can use the
 	  <JAVASCRIPTINLINE>parse</JAVASCRIPTINLINE> function 
-	  from section<SPACE/><REF NAME="sec:representing-expressions"/> to
-	  transform the input string into a tagged-list representation and
+	  from section<SPACE/><REF NAME="sec:representing-expressions"/> and
 	  also to support JavaScript notation in the
 	  <JAVASCRIPTINLINE>javascript_value</JAVASCRIPTINLINE> syntactic form.
 	  For example, 
 	  <SNIPPET EVAL="no">
 	    <JAVASCRIPT>
-parse('rule(append_to_form(null, $y, $y));')
+parse('rule(append_to_form(null, $y, $y));');
 	    </JAVASCRIPT>
 	  </SNIPPET>
 	  yields
@@ -2807,16 +2788,27 @@ list("application",
 	  <JAVASCRIPTINLINE>"application"</JAVASCRIPTINLINE> indicates that
 	  syntactically,
 	  the rule would be treated as a function application in JavaScipt.
-	  We will use a more appropriate, query-language-specific, representation
-	  to identify and manipulate assertions, rules, and queries.
-	  Figure<SPACE/><REF NAME="fig:syntax-abstraction-lp"/> depicts the three
-	  abstraction barriers used in this section and how the functions
-	  <JAVASCRIPTINLINE>parse_query</JAVASCRIPTINLINE> and
-	  <JAVASCRIPTINLINE>unparse_query</JAVASCRIPTINLINE> bridge them.
+	  The function
+	  <JAVASCRIPTINLINE>unparse</JAVASCRIPTINLINE> transforms the syntax
+	  back into a string:
+	  <SNIPPET EVAL="no">
+	    <JAVASCRIPT>
+unparse(parse('rule(append_to_form(null, $y, $y));'));
+	    </JAVASCRIPT>
+	    <JAVASCRIPT_OUTPUT>
+'rule(append_to_form(null, $y, $y))'
+	    </JAVASCRIPT_OUTPUT>
+	  </SNIPPET>
+	  In the query processor, we will use a more appropriate,
+	  query-language-specific, representation
+	  to identify and manipulate assertions, rules, and queries, and
+	  declare a function
+	  <JAVASCRIPTINLINE>query_syntax_process</JAVASCRIPTINLINE> that transforms
+	  the syntax prepresentation into that representation. 
 	  Using the same example,
 	  <SNIPPET EVAL="no">
 	    <JAVASCRIPT>
-parse_query('rule(append_to_form(null, $y, $y));')
+query_syntax_process(parse('rule(append_to_form(null, $y, $y));'));
 	    </JAVASCRIPT>
 	  </SNIPPET>
 	  yields
@@ -2826,16 +2818,14 @@ list("rule", list("append_to_form",
                   list(null, list("name", "$y"), list("name", "$y"))))
 	    </JAVASCRIPT_LONELY>
 	  </SNIPPET>
-	  and 
-	  <JAVASCRIPTINLINE>unparse_query</JAVASCRIPTINLINE> transforms it back into a string:
-	  <SNIPPET EVAL="no">
-	    <JAVASCRIPT>
-unparse_query(parse_query('rule(append_to_form(null, $y, $y));'))
-	    </JAVASCRIPT>
-	    <JAVASCRIPT_OUTPUT>
-'rule(append_to_form(null, $y, $y))'
-	    </JAVASCRIPT_OUTPUT>
-	  </SNIPPET>
+	  The query system uses abstract functions such as
+	  <JAVASCRIPTINLINE>rename_variables_in</JAVASCRIPTINLINE> to manipulate
+	  objects that are represented in the query-language-specific representation.
+	  Figure<SPACE/><REF NAME="fig:syntax-abstraction-lp"/> depicts the three
+	  abstraction barriers used in this section and how the functions
+	  <JAVASCRIPTINLINE>parse</JAVASCRIPTINLINE>,
+	  <JAVASCRIPTINLINE>unparse</JAVASCRIPTINLINE>, and
+	  <JAVASCRIPTINLINE>query_syntax_process</JAVASCRIPTINLINE> bridge them.
           <FIGURE>
             <FIGURE src="img_javascript/ch4-syntax-abstraction-logic-programming.svg"></FIGURE>
             <CAPTION>Syntax abstraction in the query system.</CAPTION>
@@ -2844,24 +2834,15 @@ unparse_query(parse_query('rule(append_to_form(null, $y, $y));'))
 	</TEXT>
 
       <SUBHEADING>
-      <NAME>The function <JAVASCRIPTINLINE>parse_query</JAVASCRIPTINLINE></NAME>
+      <NAME>The function <JAVASCRIPTINLINE>query_syntax_process</JAVASCRIPTINLINE></NAME>
       </SUBHEADING>
       <TEXT>
 	  <INDEX>query interpreter
 	  <SUBINDEX>pattern-variable representation|(</SUBINDEX></INDEX>
 	  <INDEX>pattern variable
 	  <SUBINDEX>representation of|(</SUBINDEX></INDEX>
-	  The function <JAVASCRIPTINLINE>parse_query</JAVASCRIPTINLINE>
-	  transforms an input string into the query-language-specific
-	  representation. 
-	  The string (which looks like a JavaScript expression)
-	  is transformed into a statement string by attaching a semicolon at the
-	  end, and <JAVASCRIPTINLINE>parse</JAVASCRIPTINLINE> translates
-	  the statement into a JavaScript syntax representation according to the
-	  specification of
-	  section<SPACE/><REF NAME="sec:representing-expressions"/>.
 	  The function <JAVASCRIPTINLINE>query_syntax_process</JAVASCRIPTINLINE>
-	  recursively transforms that JavaScript syntax representation into
+	  recursively transforms the JavaScript syntax representation into
 	  the query-language-specific representation by simplifying 
 	  assertions, rules, and queries such that the symbol of a name in a
 	  function expression of an application becomes a tag, except that if 
@@ -2875,11 +2856,6 @@ unparse_query(parse_query('rule(append_to_form(null, $y, $y));'))
 	    <REQUIRES>functions_4_1_2</REQUIRES>
 	    <EXAMPLE>append_to_form_example_5</EXAMPLE>
 	    <JAVASCRIPT>
-function parse_query(input) {
-    const exp = parse(input + ";");
-    return query_syntax_process(exp);
-}
-
 function query_syntax_process(exp) {
     if (is_application(exp)) {
       const function_symbol = symbol_of_name(function_expression(exp));
@@ -2902,7 +2878,7 @@ function query_syntax_process(exp) {
 	    </JAVASCRIPT>
 	  </SNIPPET>
 	  Names are preserved in this transformation whereas literals are simplified
-	  to the value they contain. For example, the query
+	  to the value they contain. For example, the syntax representation of the query
 	  <SNIPPET EVAL="no">
 	    <JAVASCRIPT>
 job($x, list("computer", $type))
@@ -2920,12 +2896,12 @@ list("job",
       <TEXT>
 	  An exception to this processing is the
 	  <JAVASCRIPTINLINE>javascript_value</JAVASCRIPTINLINE>
-	  syntactic form. Since the instantiated
+	  syntactic form. Since the instantiated JavaScript syntax
 	  representation
-	  of the predicate expression is passed to 
+	  of its predicate expression is passed to 
 	  <JAVASCRIPTINLINE>evaluate</JAVASCRIPTINLINE>
 	  of section<SPACE/><REF NAME="sec:core-of-evaluator"/>,
-	  the original JavaScript syntax representation coming from
+	  the original syntax representation coming from
 	  <JAVASCRIPTINLINE>parse</JAVASCRIPTINLINE>	  
 	  needs to remain intact in the query-language-specific representation.
 	  In this example
@@ -2935,9 +2911,9 @@ list("job",
 and(salary($person, $amount), javascript_value($amount &gt; 50000))	  
 	    </JAVASCRIPT>
 	  </SNIPPET>
-	  <JAVASCRIPTINLINE>parse_query</JAVASCRIPTINLINE> produces a data structure
-	  that combines the query-language specific representation with the JavaScript
-	  syntax respresentation:
+	  <JAVASCRIPTINLINE>query_syntax_process</JAVASCRIPTINLINE> produces a data structure
+	  in which a JavaScript syntax respresentation is embedded in
+	  a query-language specific representation.
 	  <SNIPPET EVAL="no">
 	    <JAVASCRIPT_LONELY>
 list("and",
@@ -2967,8 +2943,8 @@ list("and",
 	  <JAVASCRIPTINLINE>instantiate</JAVASCRIPTINLINE> uses
 	  <JAVASCRIPTINLINE>make_literal_expression</JAVASCRIPTINLINE> and
 	  <JAVASCRIPTINLINE>make_pair_expression</JAVASCRIPTINLINE> to convert
-	  the values of bindings in frames to expressions that represent those
-	  values, using the syntax
+	  the values of bindings in frames to expressions in JavaScript syntax
+	  representation, using the syntax
 	  constructors of section<SPACE/><REF NAME="sec:representing-expressions"/>.
 	  <SNIPPET>
 	    <JAVASCRIPT>
@@ -2982,126 +2958,77 @@ function make_pair_expression(head_expr, tail_expr) {
 	    </JAVASCRIPT>
 	  </SNIPPET>
       </TEXT>
-      <TEXT>
-	  For the purpose of unparsing queries, other representations might
-	  be equally suitable for literals and pairs, but the JavaScript syntax
-	  representation has the advantage that instantiated
-	  <JAVASCRIPTINLINE>javascript_value</JAVASCRIPTINLINE> queries can
-	  be readily evaluated by
-	  <JAVASCRIPTINLINE>evaluate</JAVASCRIPTINLINE>.
-      </TEXT>
       
       <SUBHEADING>
-	<NAME>The function <JAVASCRIPTINLINE>unparse_query</JAVASCRIPTINLINE></NAME>
+	<NAME>The function <JAVASCRIPTINLINE>unparse</JAVASCRIPTINLINE></NAME>
       </SUBHEADING>
 
       <TEXT>
-	The function <JAVASCRIPTINLINE>unparse_query</JAVASCRIPTINLINE>
-	distinguishes between compound queries, whose components are unparsed
-	recursively, and simple queries and
-	<JAVASCRIPTINLINE>javascript_value</JAVASCRIPTINLINE> queries,
-	whose components are unparsed using
-	<JAVASCRIPTINLINE>unparse_term</JAVASCRIPTINLINE>.
-	  <SNIPPET>
-	    <NAME>contract_question_mark</NAME>
-	    <REQUIRES>functions_4_1_2</REQUIRES>
-	    <REQUIRES>unparse_term</REQUIRES>
-	    <EXAMPLE>append_to_form_example_5</EXAMPLE>
+	  The function <JAVASCRIPTINLINE>unparse</JAVASCRIPTINLINE>
+	  transforms a JavaScript expression given in syntax representation
+	  into a string by applying the syntax rules
+	  of section<SPACE/><REF NAME="sec:representing-expressions"/>
+	  from right to left.
+	  We only describe <JAVASCRIPTINLINE>unparse</JAVASCRIPTINLINE> as
+	  far as needed for the query processing language and leave the remaining cases
+	  as exercise<SPACE/><REF NAME="ex:parse"/>. A name is transformed into the
+	  symbol that represents it, and a literal is transformed by
+	  <JAVASCRIPTINLINE>stringify</JAVASCRIPTINLINE>ing its value.
+	  An application is formatted by unparsing the function expression
+	  (here assumed to be a name) followed by the comma-separated unparsed
+	  argument expressions enclosed in parentheses.
+	  Binary operator combinations are formatted using infix notation.
+	  <SNIPPET LATEX="yes">
+	    <NAME>unparse_term</NAME>
 	    <JAVASCRIPT>
-function unparse_query(query) {
-    return is_null(member(head(query), list("and", "or", "not")))
-           ? unparse(head(query), tail(query), unparse_term)
-           : unparse(head(query), tail(query), unparse_query);
-}
-function unparse(expression_head, args, arg_unparse) {	
-    return expression_head + "(" + comma_separated(map(arg_unparse, args)) + ")";
+function unparse(exp) {
+    return is_name(arg)
+           ? symbol_of_name(arg)
+           : is_literal(arg)
+           ? stringify(literal_value(arg))
+           : is_application(arg) &amp;&amp; is_name(function_expression(arg))
+           ? symbol_of_name(function_expression(arg) +
+                 "(" +	   
+                 comma_separated(map(unparse, argument_expressions(exp)) +
+                 ")"
+           : is_binary_operator_combination(arg)
+           ? "(" + unparse(first_operand(arg)) +
+             " " + operator_symbol(arg) +
+             " " + unparse(second_operand(arg)) +
+             ")"
+           $\langle unparsing$ $other$ $kinds$ $of$ $JavaScript$ $expressions \rangle$
+           : error(arg, "unknown syntax -- unparse");
 }
 function comma_separated(strings) {
     return accumulate((s, acc) => s + (acc === "" ? "" : ", " + acc),
                       "", strings);
 }
-	    </JAVASCRIPT>
-	  </SNIPPET>
-	  The function <JAVASCRIPTINLINE>unparse_term</JAVASCRIPTINLINE>
-	  formats any unbound pattern variables (taking
-	  their symbols) and JavaScript literals 
-	  (<JAVASCRIPTINLINE>stringify</JAVASCRIPTINLINE>ing their values).
-	  The argument of 
-	  <JAVASCRIPTINLINE>unparse_term</JAVASCRIPTINLINE> might be an
-	  application of
-	  <JAVASCRIPTINLINE>pair</JAVASCRIPTINLINE>
-	  as a result of 
-	  <JAVASCRIPTINLINE>instantiate</JAVASCRIPTINLINE>
-	  applying 
-	  <JAVASCRIPTINLINE>make_pair_expression</JAVASCRIPTINLINE>
-	  to a value, or when a
-	  <JAVASCRIPTINLINE>javascript_value</JAVASCRIPTINLINE> syntactic
-	  form contains a call of a primitive JavaScript function. Such
-	  applications are formatted using
-	  <JAVASCRIPTINLINE>unparse</JAVASCRIPTINLINE>.
-	  Operator combinators are formatted using infix notation.
-	  To support other
-	  kinds of JavaScript expressions in 
-	  <JAVASCRIPTINLINE>javascript_value</JAVASCRIPTINLINE> syntactic
-	  forms, more clauses can be added
-	  according to the JavaScript
-	  syntax described in section<SPACE/><REF NAME="sec:representing-expressions"/>.
-	  (See also exercise<SPACE/><REF NAME="ex:parse"/>.)
-	  <SNIPPET LATEX="yes">
-	    <NAME>unparse_term</NAME>
-	    <JAVASCRIPT>
-function unparse_term(arg) {
-    return is_variable(arg)
-           ? symbol_of_variable(arg)
-           : is_literal(arg)
-           ? stringify(literal_value(arg))
-           : is_application(arg) &amp;&amp; is_name(function_expression(arg))
-           ? unparse(symbol_of_name(function_expression(arg), 
-                     arg_expressions(arg), 
-                     unparse_term)
-           : is_binary_operator_combination(arg)
-           ? "(" + unparse_term(first_operand(arg)) +
-             " " + operator_symbol(arg) +
-             " " + unparse_term(second_operand(arg)) +
-             ")"
-	   $\langle unparsing$ $other$ $kinds$ $of$ $JavaScript$ $expressions \rangle$
-           : error(arg, "unknown query syntax -- unparse_term");
-}
+	   
 	    </JAVASCRIPT>
 	  </SNIPPET>
 	  The output of this 
-	  <JAVASCRIPTINLINE>unparse_term</JAVASCRIPTINLINE> function
-	  is correct but note that the string will become unnecessarily
+	  <JAVASCRIPTINLINE>unparse</JAVASCRIPTINLINE> function
+	  yields correct strings for our instantiated queries,
+	  but they will become unnecessarily
 	  verbose in cases where pattern variables are instantiated
 	  by lists. For example, processing of the query
 	  <JAVASCRIPTINLINE>job($x, pair("computer", $type))</JAVASCRIPTINLINE>
 	  might lead to a binding of
 	  <JAVASCRIPTINLINE>$x</JAVASCRIPTINLINE>
 	  to
-	  <JAVASCRIPTINLINE>list("Hacker", "Alyssa", "P")</JAVASCRIPTINLINE>
+	  <JAVASCRIPTINLINE>list("Bitdiddle", "Ben")</JAVASCRIPTINLINE>
 	  and of 
 	  <JAVASCRIPTINLINE>$type</JAVASCRIPTINLINE>
 	  to
-	  <JAVASCRIPTINLINE>list("computer", "programmer")</JAVASCRIPTINLINE>
-	  in which case the expected query result string is:
+	  <JAVASCRIPTINLINE>list("computer", "wizard")</JAVASCRIPTINLINE>
+	  in which case the expected query result string is
 	  <SNIPPET>
 	  <JAVASCRIPT>
 'job(list("Bitdiddle", "Ben"), list("computer", "wizard"))'
 	  </JAVASCRIPT>
 	  </SNIPPET>
-	  However, instead of the expected string
-	  <JAVASCRIPTINLINE>
-'list("Bitdiddle", "Ben")'
-	  </JAVASCRIPTINLINE>
-	  for <JAVASCRIPTINLINE>$x</JAVASCRIPTINLINE>
-	  the function <JAVASCRIPTINLINE>unparse_term</JAVASCRIPTINLINE>
-	  given above produces:
-	  <SNIPPET>
-	  <JAVASCRIPT>
-'pair("Bitdiddle", pair("Ben", null))
-	  </JAVASCRIPT>
-	  </SNIPPET>
-	  and the overall query result string is:
+	  while <JAVASCRIPTINLINE>unparse</JAVASCRIPTINLINE>
+	  produces:
 	  <SNIPPET>
 	  <JAVASCRIPT>
 'job(pair("Bitdiddle", pair("Ben", null)), pair("computer", pair("wizard", null)))'
@@ -3109,30 +3036,31 @@ function unparse_term(arg) {
 	  </SNIPPET>
           In order to render nested applications of
 	  <JAVASCRIPTINLINE>pair</JAVASCRIPTINLINE> as
-	  lists whenever possible, we add a clause to
-	  <JAVASCRIPTINLINE>unparse_term</JAVASCRIPTINLINE>:
-	  <SNIPPET EVAL="no">
+	  applications of
+	  <JAVASCRIPTINLINE>list</JAVASCRIPTINLINE>
+	  whenever possible, we add a clause to format expressions
+	  that represent list constructions:
+	  <SNIPPET EVAL="no" LATEX="yes">
 	    <JAVASCRIPT>
-function unparse_term(arg) {
-    return is_variable(arg)
-	   ? symbol_of_variable(arg)
-           ...
-           ? is_list_expression(arg)
-	   : unparse("list", element_expressions(arg), unparse_term
-           ? is_application(arg) // arg is pair expression
-           : unparse("pair", arg_expressions(arg), unparse_term)
-	   $\langle unparsing$ $JavaScript$ $syntactic$ $forms \rangle$
-           : error(arg, "unknown query syntax -- unparse_term");
+function unparse(arg) {
+    return is_name(arg)
+           ? symbol_of_name(arg)
+           : is_literal(arg)
+           ? stringify(literal_value(arg))
+	   : is_list_construction(arg)
+	   ? unparse(make_application(make_name("list"), 
+                                      element_expressions(arg)))
+           : is_application(arg) &amp;&amp; is_name(function_expression(arg))
+	   $\vdots$
 }
 	    </JAVASCRIPT>
 	  </SNIPPET>
-	  using the following straightforward helper functions.
 	  <SNIPPET EVAL="no">
 	    <JAVASCRIPT>
-function is_list_expression(arg) {
-    return (is_literal(arg) &amp;&amp; literal_value(arg) === null) ||
+function is_list_construction(arg) {
+    return (is_literal(arg) &amp;&amp; is_null(literal_value(arg))) ||
            is_application(arg) &amp;&amp; // arg is pair expression
-           is_list_expression(head(tail(arg_expressions(arg))));
+           is_list_construction(head(tail(arg_expressions(arg))));
 }
 function element_expressions(arg) {
     return is_literal(arg) 
