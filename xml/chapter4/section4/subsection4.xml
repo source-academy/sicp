@@ -41,15 +41,15 @@
 // functions from SICP JS 4.4.4
 	</JAVASCRIPT>
       </SNIPPET>
-      <SNIPPET HIDE="yes">
-	<NAME>functions_4_4_4</NAME>
+      <INDEX>prompts<SUBINDEX>query interpreter</SUBINDEX></INDEX>
+      <!--  \indcode*{query-driver-loop} -->
+      <SNIPPET>
+	<NAME>query_driver_loop</NAME>
 	<REQUIRES>functions_4_1_1</REQUIRES>
 	<REQUIRES>functions_4_1_2</REQUIRES>
 	<REQUIRES>functions_4_1_3</REQUIRES>
 	<REQUIRES>functions_4_1_4</REQUIRES>
-	<!--
 	<REQUIRES>lp_header</REQUIRES>
-	<REQUIRES>process_query</REQUIRES>
 	<REQUIRES>is_assertion</REQUIRES>
 	<REQUIRES>instantiate</REQUIRES>
 	<REQUIRES>evaluate_query</REQUIRES>
@@ -61,15 +61,10 @@
 	<REQUIRES>javascript_value</REQUIRES>
 	<REQUIRES>display_stream</REQUIRES>
 	<REQUIRES>always_true</REQUIRES>
--->
-	<JAVASCRIPT>
-	</JAVASCRIPT>
-      </SNIPPET>
-      <INDEX>prompts<SUBINDEX>query interpreter</SUBINDEX></INDEX>
-      <!--  \indcode*{query-driver-loop} -->
-      <SNIPPET>
-	<NAME>query_driver_loop</NAME>
-	<REQUIRES>functions_4_4_4</REQUIRES>
+	<REQUIRES>is_variable_2</REQUIRES>
+	<REQUIRES>query_syntax_process</REQUIRES>
+	<REQUIRES>unparse</REQUIRES>
+	<REQUIRES>user_read</REQUIRES>
 	<EXAMPLE>append_to_form_example_4</EXAMPLE>
 	<SCHEME>
 (define input-prompt ";;; Query input:")
@@ -121,13 +116,14 @@ function query_driver_loop() {
 const input_prompt = "Query input:";
 
 function query_driver_loop() {
-    const input = prompt(input_prompt);
+    const input = user_read(input_prompt);
     if (is_null(input)) {
         display("--- evaluator terminated ---");
     } else {
-        const q = parse_query(input);
+        const exp = parse(input + ";");
+        const q = query_syntax_process(exp);
         display("---- driver loop input -----");
-        display(unparse_query(q));
+        display(unparse(exp));
         if (is_assertion(q)) {
             add_rule_or_assertion(assertion_body(q));
             display("Assertion added to data base.");
@@ -135,41 +131,13 @@ function query_driver_loop() {
             display("------ query results -------", "");
             display_stream(
               stream_map(
-                frame =>
-                  unparse_query(
-		    instantiate(q, frame)),
+                frame => unparse(instantiate(exp, frame)),
                 evaluate_query(q, singleton_stream(null))));
         }
         query_driver_loop();
     }
 }
 	</JAVASCRIPT_RUN>
-      </SNIPPET>
-      <SNIPPET HIDE="yes">
-	<NAME>parse_query_verbose</NAME>
-	<REQUIRES>functions_4_4_4</REQUIRES>
-	<EXAMPLE>process_query_example_1</EXAMPLE>
-	<JAVASCRIPT>
-function parse_query_verbose(input, verbosity) {
-    const q = parse_query(input);
-    if (verbosity !== "silent") {
-        display("--- process query input  ---"); 
-        display(unparse_query(q)); } else {}
-    if (is_assertion(q)) {
-        add_rule_or_assertion(assertion_body(q));
-        if (verbosity !== "silent") {
-            display("----- assertion added ------"); } else {}
-    } else {
-        display("------ query results -------");
-        display_stream(
-            stream_map(
-                frame =>
-                    unparse_query(
-                        instantiate(q, frame)),
-                evaluate_query(q, singleton_stream(null))));
-    }
-}
-	</JAVASCRIPT>
       </SNIPPET>
       <SNIPPET HIDE="yes">
 	<NAME>process_query_example_1</NAME>
@@ -180,16 +148,17 @@ parse_query_verbose('son("Adam", x)');
       </SNIPPET>
       <SNIPPET HIDE="yes">
 	<NAME>process_query</NAME>
-	<REQUIRES>functions_4_4_4</REQUIRES>
+	<REQUIRES>query_driver_loop</REQUIRES>
 	<EXAMPLE>process_query_example_1</EXAMPLE>
 	<JAVASCRIPT>
 function process_query(input, verbosity) {
     if (is_null(input)) {
         display("--- evaluator terminated ---");
     } else {
-        const q = parse_query(input);
+        const exp = parse(input + ";");
+        const q = query_syntax_process(exp);
         display("---- driver loop input -----");
-        display(unparse_query(q));
+        display(unparse(exp));
         if (is_assertion(q)) {
             add_rule_or_assertion(assertion_body(q));
             display("Assertion added to data base.");
@@ -197,20 +166,19 @@ function process_query(input, verbosity) {
             display("------ query results -------", "");
             display_stream(
               stream_map(
-                frame =>
-                  unparse_query(
-		    instantiate(q, frame)),
+                frame => unparse(instantiate(exp, frame)),
                 evaluate_query(q, singleton_stream(null))));
         }
     }
 }
     
 function first_answer(input) {
-    const q = parse_query(input);
+    const exp = parse(input + ";");
+    const q = query_syntax_process(exp);
     const frames = evaluate_query(q, singleton_stream(null));
     return is_null(frames)
            ? "no matching data"
-           : unparse_query(instantiate(q, head(frames)));
+           : unparse(instantiate(exp, head(frames)));
 }
 	</JAVASCRIPT>
       </SNIPPET>
@@ -276,65 +244,39 @@ function first_answer(input) {
       </SPLIT>
     </TEXT>
 
-    <TEXT>
       <INDEX>query interpreter<SUBINDEX>instantiation|(</SUBINDEX></INDEX>
+      <TEXT>
       <SPLIT>
 	<SCHEME>
 	  To instantiate an expression, we copy it, replacing any variables in
 	  the expression by their values in a given frame.  The values are
 	  themselves instantiated, since they could contain variables (for
 	  example, if
-	  <SPLITINLINE>
-	    <SCHEME><SCHEMEINLINE>?x</SCHEMEINLINE></SCHEME>
-	    <JAVASCRIPT><JAVASCRIPTINLINE>$x</JAVASCRIPTINLINE></JAVASCRIPT>
-	  </SPLITINLINE>
+	  <SCHEMEINLINE>?x</SCHEMEINLINE>
 	  in <SCHEMEINLINE>exp</SCHEMEINLINE> is bound to
-	  <SPLITINLINE>
-	    <SCHEME><SCHEMEINLINE>?y</SCHEMEINLINE></SCHEME>
-	    <JAVASCRIPT><JAVASCRIPTINLINE>$y</JAVASCRIPTINLINE></JAVASCRIPT>
-	  </SPLITINLINE>
+	  <SCHEMEINLINE>?y</SCHEMEINLINE>
 	  as the result of unification and
-	  <SPLITINLINE>
-	    <SCHEME><SCHEMEINLINE>?y</SCHEMEINLINE></SCHEME>
-	    <JAVASCRIPT><JAVASCRIPTINLINE>$y</JAVASCRIPTINLINE></JAVASCRIPT>
-	  </SPLITINLINE>
+	  <SCHEMEINLINE>?y</SCHEMEINLINE>
 	  is in turn bound to<SPACE/>5).
 	  The action to take if a variable cannot be
 	  instantiated is given by a
 	  procedural
 	  argument to
 	  <SCHEMEINLINE>instantiate</SCHEMEINLINE>.
+	  <INDEX>query interpreter<SUBINDEX>instantiation|)</SUBINDEX></INDEX>
+	  <INDEX>query interpreter<SUBINDEX>driver loop|)</SUBINDEX></INDEX>
 	</SCHEME>
 	<JAVASCRIPT>
 	  To instantiate an expression, we copy it, replacing any variables in
 	  the expression by expressions that represent their values in a given
 	  frame.
-	  If there is no binding for the variable in the
-	  frame, the variable represents itself. If the
-	  variable is bound to another variable, we need
-	  to instantiate that variable.
-	  For
-	  example, if 
-	  <JAVASCRIPTINLINE>$x</JAVASCRIPTINLINE>
-	  in <SCHEMEINLINE>exp</SCHEMEINLINE> is bound to
-	  <JAVASCRIPTINLINE>$y</JAVASCRIPTINLINE>
-	  as the result of unification and
-	<JAVASCRIPTINLINE>$y</JAVASCRIPTINLINE>
-	  is in turn bound to<SPACE/>5, we need to find the representation
-	  for 5. If the value is a pair or literal,
-	  we use the functions
-	  <JAVASCRIPTINLINE>make_pair_expression</JAVASCRIPTINLINE>
-	  or <JAVASCRIPTINLINE>make_literal_expression</JAVASCRIPTINLINE>
-	  in section<SPACE/><REF NAME="sec:query-syntax"/>
-	  to construct an expression that represents it.
-	    </JAVASCRIPT>
-	  </SPLIT>
-	  <INDEX>query interpreter<SUBINDEX>instantiation|)</SUBINDEX></INDEX>
-	  <INDEX>query interpreter<SUBINDEX>driver loop|)</SUBINDEX></INDEX>
+	</JAVASCRIPT>
 	  <SNIPPET>
 	    <NAME>instantiate</NAME>
 	    <REQUIRES>make_binding</REQUIRES>
 	    <REQUIRES>variable</REQUIRES>
+	    <REQUIRES>make_literal_expression</REQUIRES>
+	    <REQUIRES>express</REQUIRES>
 	    <EXAMPLE>append_to_form_example_5</EXAMPLE>
 	    <SCHEME>
 (define (instantiate exp frame unbound-var-handler)
@@ -352,34 +294,61 @@ function first_answer(input) {
 	    <JAVASCRIPT>
 function instantiate(exp, frame) {
     function copy(exp) {
-        if (is_variable(exp)) {
-            const binding = binding_in_frame(exp, frame);
-            if (is_undefined(binding))
-                return exp;
-            } else {	    
-                const value = binding_value(binding);
-                return is_variable(value)
-                       ? copy(value)
-                       : is_pair(value)
-                       ? make_pair_expression(copy(head(value), 
-                                              copy(tail(value)))
-                       : // value is a literal
-                         make_literal_expression(value);
-            }
-        } else if (is_pair(exp)) {
-            return pair(copy(head(exp)), copy(tail(exp)));
-        } else {
-            return exp;
-        }
+        return is_variable(exp)
+               ? express(exp, frame)
+               : is_pair(exp)
+               ? pair(copy(head(exp)), 
+                      copy(tail(exp)))
+               : exp;
     }
     return copy(exp);
 }
 	    </JAVASCRIPT>
 	  </SNIPPET>
+      </SPLIT>
+      <SPLIT>
+	<JAVASCRIPT>
+	  If there is no binding for the variable in the
+	  frame, the variable expresses itself. If the
+	  variable is bound to another variable, we need
+	  to express that variable.
+	  For example, if 
+	  <JAVASCRIPTINLINE>$x</JAVASCRIPTINLINE>
+	  in <SCHEMEINLINE>exp</SCHEMEINLINE> is bound to
+	  <JAVASCRIPTINLINE>$y</JAVASCRIPTINLINE>
+	  as the result of unification and
+	<JAVASCRIPTINLINE>$y</JAVASCRIPTINLINE>
+	  is in turn bound to<SPACE/>5, we need to express the value 5.
+	  If the value is a pair or literal,
+	  we use the functions
+	  <JAVASCRIPTINLINE>make_pair_expression</JAVASCRIPTINLINE>
+	  or <JAVASCRIPTINLINE>make_literal_expression</JAVASCRIPTINLINE>
+	  in section<SPACE/><REF NAME="sec:query-syntax"/>
+	  to construct an expression that represents it.
+	  <INDEX>query interpreter<SUBINDEX>instantiation|)</SUBINDEX></INDEX>
+	  <INDEX>query interpreter<SUBINDEX>driver loop|)</SUBINDEX></INDEX>
+	  <SNIPPET>
+	    <NAME>express</NAME>
+	    <JAVASCRIPT>
+function express(value, frame) {
+    if (is_variable(value)) {
+        const binding = binding_in_frame(value, frame);
+        if (is_undefined(binding)) {
+            return value;
+        } else {	    
+            return express(binding_value(binding), frame);
+        }
+    } else if (is_pair(value)) {
+        return make_pair_expression(express(head(value), frame), 
+                                    express(tail(value), frame));
+    } else { // value is a literal
+        return make_literal_expression(value);
+    }
+}
+	    </JAVASCRIPT>
+	  </SNIPPET>
 	  <SNIPPET HIDE="yes">
 	    <NAME>append_to_form_example_5</NAME>
-	    <REQUIRES>parse_query_verbose</REQUIRES>
-	    <REQUIRES>process_query</REQUIRES>
 	    <JAVASCRIPT>
 parse_query_verbose('assert(                           \
 rule(append_to_form(null, y, y)))                ', "verbose");
@@ -391,17 +360,21 @@ first_answer('append_to_form(x, y, list("a", "b", "c", "d"))');
 // parse_query_verbose('append_to_form(x, y, list("a", "b", "c", "d"))', "");
 	    </JAVASCRIPT>
 	  </SNIPPET>
+	</JAVASCRIPT>
+      </SPLIT>
+      The
+      <SPLITINLINE>
+	<SCHEME>procedures</SCHEME>
+	<JAVASCRIPT>functions</JAVASCRIPT>
+      </SPLITINLINE>
+      that manipulate bindings are defined in
+      section<SPACE/><REF NAME="sec:query-bindings"/>.
+      <INDEX>query interpreter<SUBINDEX>instantiation|)</SUBINDEX></INDEX>
+      <INDEX>query interpreter<SUBINDEX>driver loop|)</SUBINDEX></INDEX>
+      </TEXT>
+	  
 	  <!--  \indcode*{instantiate} -->
-	  The
-	  <SPLITINLINE>
-	    <SCHEME>procedures</SCHEME>
-	    <JAVASCRIPT>functions</JAVASCRIPT>
-	  </SPLITINLINE>
-	  that manipulate bindings are defined in
-	  section<SPACE/><REF NAME="sec:query-bindings"/>.
-	  <INDEX>query interpreter<SUBINDEX>instantiation|)</SUBINDEX></INDEX>
-	  <INDEX>query interpreter<SUBINDEX>driver loop|)</SUBINDEX></INDEX>
-    </TEXT>
+
   </SUBSUBSECTION>
   
   <SUBSUBSECTION>
@@ -2846,12 +2819,13 @@ list("rule", list("append_to_form",
 	  assertions, rules, and queries such that the symbol of a name in a
 	  function expression of an application becomes a tag, except that if 
 	  the symbol is <JAVASCRIPTINLINE>"pair"</JAVASCRIPTINLINE>
-	  or <JAVASCRIPTINLINE>"list"</JAVASCRIPTINLINE>, an untagged JavaScript pair
-	  or list is constructed. The case when the function symbol is
+	  or <JAVASCRIPTINLINE>"list"</JAVASCRIPTINLINE>, an (untagged) JavaScript pair
+	  or list is built, effectively interpreting the constructor.
+	  The case when the function symbol is
 	  <JAVASCRIPTINLINE>"javascript_value"</JAVASCRIPTINLINE> is handled
 	  separately.
 	  <SNIPPET>
-	    <NAME>parse_query</NAME>
+	    <NAME>query_syntax_process</NAME>
 	    <REQUIRES>functions_4_1_2</REQUIRES>
 	    <EXAMPLE>append_to_form_example_5</EXAMPLE>
 	    <JAVASCRIPT>
@@ -2946,6 +2920,7 @@ list("and",
 	  representation, using the syntax
 	  constructors of section<SPACE/><REF NAME="sec:representing-expressions"/>.
 	  <SNIPPET>
+	    <NAME>make_literal_expression</NAME>
 	    <JAVASCRIPT>
 function make_literal_expression(value) {
     return make_literal(value);
@@ -2978,31 +2953,30 @@ function make_pair_expression(head_expr, tail_expr) {
 	  argument expressions enclosed in parentheses.
 	  Binary operator combinations are formatted using infix notation.
 	  <SNIPPET LATEX="yes">
-	    <NAME>unparse_term</NAME>
+	    <NAME>unparse_simple</NAME>
 	    <JAVASCRIPT>
 function unparse(exp) {
-    return is_name(arg)
-           ? symbol_of_name(arg)
-           : is_literal(arg)
-           ? stringify(literal_value(arg))
-           : is_application(arg) &amp;&amp; is_name(function_expression(arg))
-           ? symbol_of_name(function_expression(arg) +
+    return is_name(exp)
+           ? symbol_of_name(exp)
+           : is_literal(exp)
+           ? stringify(literal_value(exp))
+           : is_application(exp) &amp;&amp; is_name(function_expression(exp))
+           ? symbol_of_name(function_expression(exp)) +
                  "(" +	   
-                 comma_separated(map(unparse, argument_expressions(exp)) +
+                 comma_separated(map(unparse, arg_expressions(exp))) +
                  ")"
-           : is_binary_operator_combination(arg)
-           ? "(" + unparse(first_operand(arg)) +
-             " " + operator_symbol(arg) +
-             " " + unparse(second_operand(arg)) +
+           : is_binary_operator_combination(exp)
+           ? "(" + unparse(first_operand(exp)) +
+             " " + operator_symbol(exp) +
+             " " + unparse(second_operand(exp)) +
              ")"
            $\langle unparsing$ $other$ $kinds$ $of$ $JavaScript$ $expressions \rangle$
-           : error(arg, "unknown syntax -- unparse");
+           : error(exp, "unknown syntax -- unparse");
 }
 function comma_separated(strings) {
     return accumulate((s, acc) => s + (acc === "" ? "" : ", " + acc),
                       "", strings);
 }
-	   
 	    </JAVASCRIPT>
 	  </SNIPPET>
 	  The output of this 
@@ -3040,34 +3014,63 @@ function comma_separated(strings) {
 	  whenever possible, we add a clause to format expressions
 	  that represent list constructions:
 	  <SNIPPET EVAL="no" LATEX="yes">
+	    <NAME>unparse</NAME>
+	    <REQUIRES>is_list_construction</REQUIRES>
 	    <JAVASCRIPT>
-function unparse(arg) {
-    return is_name(arg)
-           ? symbol_of_name(arg)
-           : is_literal(arg)
-           ? stringify(literal_value(arg))
-	   : is_list_construction(arg)
+function unparse(exp) {
+    return is_name(exp)
+           ? symbol_of_name(exp)
+           : is_literal(exp)
+           ? stringify(literal_value(exp))
+	   : is_list_construction(exp)
 	   ? unparse(make_application(make_name("list"), 
-                                      element_expressions(arg)))
-           : is_application(arg) &amp;&amp; is_name(function_expression(arg))
+                                      element_expressions(exp)))
+           : is_application(exp) &amp;&amp; is_name(function_expression(exp))
 	   $\vdots$
 }
 	    </JAVASCRIPT>
+	    <JAVASCRIPT_RUN>
+function unparse(exp) {
+    return is_name(exp)
+           ? symbol_of_name(exp)
+           : is_literal(exp)
+           ? stringify(literal_value(exp))
+           : is_list_construction(exp)
+           ? unparse(make_application(make_name("list"), 
+                                      element_expressions(exp)))
+           : is_application(exp) &amp;&amp; is_name(function_expression(exp))
+           ? symbol_of_name(function_expression(exp)) +
+                 "(" +	   
+                 comma_separated(map(unparse, arg_expressions(exp))) +
+                 ")"
+           : is_binary_operator_combination(exp)
+           ? "(" + unparse(first_operand(exp)) +
+             " " + operator_symbol(exp) +
+             " " + unparse(second_operand(exp)) +
+             ")"
+           : error(exp, "unknown syntax -- unparse");
+}
+function comma_separated(strings) {
+    return accumulate((s, acc) => s + (acc === "" ? "" : ", " + acc),
+                      "", strings);
+}
+	    </JAVASCRIPT_RUN>
 	  </SNIPPET>
 	  <SNIPPET EVAL="no">
+	    <NAME>is_list_construction</NAME>
 	    <JAVASCRIPT>
-function is_list_construction(arg) {
-    return (is_literal(arg) &amp;&amp; is_null(literal_value(arg))) ||
-           (is_application(arg) &amp;&amp; is_name(function_expression(arg)) &amp;&amp;
-            symbol_of_name(function_expression(arg)) === "pair" &amp;&amp;
-            is_list_construction(head(tail(arg_expressions(arg)))));
+function is_list_construction(exp) {
+    return (is_literal(exp) &amp;&amp; is_null(literal_value(exp))) ||
+           (is_application(exp) &amp;&amp; is_name(function_expression(exp)) &amp;&amp;
+            symbol_of_name(function_expression(exp)) === "pair" &amp;&amp;
+            is_list_construction(head(tail(arg_expressions(exp)))));
 }
-function element_expressions(arg) {
-    return is_literal(arg) 
-           ? null // arg is literal null
-           :      // arg is pair expression
-             pair(head(arg_expressions(arg)),
-                  element_expressions(head(tail(arg_expressions(arg))));      
+function element_expressions(exp) {
+    return is_literal(exp)
+           ? null // exp is literal null
+           :      // exp is pair expression
+             pair(head(arg_expressions(exp)),
+                  element_expressions(head(tail(arg_expressions(exp)))));
 }
 	    </JAVASCRIPT>
 	  </SNIPPET>
@@ -3078,23 +3081,28 @@ function element_expressions(arg) {
       </SUBHEADING>
 
       <TEXT>
-	The pattern variables are JavaScript names, which are tagged lists with
-	the tag
-	<JAVASCRIPTINLINE>"name"</JAVASCRIPTINLINE>. The functions
-	<JAVASCRIPTINLINE>is_variable</JAVASCRIPTINLINE> and
-	<JAVASCRIPTINLINE>symbol_of_variable</JAVASCRIPTINLINE> 
-	are therefore implemented
-	by the functions
-	<JAVASCRIPTINLINE>is_name</JAVASCRIPTINLINE> and
-	<JAVASCRIPTINLINE>symbol_of_name</JAVASCRIPTINLINE> 
-	from
-	section<SPACE/><REF NAME="sec:representing-expressions"/>:
-	<SNIPPET>
-	  <JAVASCRIPT>
+	The syntax predicate
+	<JAVASCRIPTINLINE>is_variable</JAVASCRIPTINLINE> 	
+	identifies JavaScript names that start with a dollar
+	sign. We assume there is a function <JAVASCRIPTINLINE>char_at</JAVASCRIPTINLINE> that
+	returns a single-character string containing the character of the given string
+	at the given position.<FOOTNOTE>The actual way to get the string that
+	contains the first
+	character from of a string <JAVASCRIPTINLINE>s</JAVASCRIPTINLINE> in JavaScript is
+	<JAVASCRIPTINLINE>s.charAt(0)</JAVASCRIPTINLINE>.
+      </FOOTNOTE>
+      <SNIPPET EVAL="no">
+	<JAVASCRIPT>
+function is_variable(exp) {
+    return is_name(exp) &amp;&amp; char_at(symbol_of_name(exp), 0) === "$";
+}	  
+const symbol_of_variable = symbol_of_name;
+	</JAVASCRIPT>
+	  <JAVASCRIPT_RUN>
 const is_variable = is_name;
 const symbol_of_variable = symbol_of_name;
-	  </JAVASCRIPT>
-	</SNIPPET>
+	  </JAVASCRIPT_RUN>
+      </SNIPPET>
 	</TEXT>
 	<TEXT>
 	  Unique pattern variables are constructed during rule application

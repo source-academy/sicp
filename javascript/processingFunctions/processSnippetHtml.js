@@ -34,10 +34,11 @@ export const setupSnippetsHtml = node => {
       const codeArr = [];
       recursiveProcessPureText(jsRunSnippet.firstChild, codeArr);
       const codeStr = codeArr.join("").trim();
-
       const requirements = snippet.getElementsByTagName("REQUIRES");
       const requireNames = [];
       for (let i = 0; requirements[i]; i++) {
+        //  console.log("in setupSnippetsHtml: name: " + nameStr);
+        //  console.log("in setupSnippetsHtml: " + requirements[i].firstChild.nodeValue);
         requireNames.push(requirements[i].firstChild.nodeValue);
       }
       snippetStore[nameStr] = { codeStr, requireNames };
@@ -62,6 +63,22 @@ const recursiveGetRequires = (name, seen) => {
 export const processSnippetHtml = (node, writeTo, split) => {
   if (node.getAttribute("HIDE") == "yes") {
     return;
+  }
+
+  const jsPromptSnippet = node.getElementsByTagName("JAVASCRIPT_PROMPT")[0];
+
+  if (jsPromptSnippet) {
+    writeTo.push("<pre class='prettyprintoutput'>");
+    writeTo.push(jsPromptSnippet.firstChild.nodeValue.trimRight());
+    writeTo.push("</pre>");
+  }
+
+  const jsLonelySnippet = node.getElementsByTagName("JAVASCRIPT_LONELY")[0];
+
+  if (jsLonelySnippet) {
+    writeTo.push("<pre class='prettyprintoutput'>");
+    writeTo.push(jsLonelySnippet.firstChild.nodeValue.trimRight());
+    writeTo.push("</pre>");
   }
 
   const jsSnippet = node.getElementsByTagName("JAVASCRIPT")[0];
