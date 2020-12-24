@@ -59,7 +59,7 @@
     the designated operations in the machine.  Then it uses an 
     <INDEX>assembler</INDEX>
     <EM>assembler</EM> (described below in
-    section<SPACE/><REF NAME="sec:assembler"/>) to transform the controller list
+    section<SPACE/><REF NAME="sec:assembler"/>) to transform the controller <SPLITINLINE><SCHEME>list</SCHEME></SPLITINLINE>
     into instructions for the new machine and installs these as the
     machine<APOS/>s instruction sequence.
     <SPLITINLINE>
@@ -113,14 +113,14 @@ get_register_contents(gcd_machine, "a");
     machine))
       </SCHEME>
       <JAVASCRIPT>
-function make_machine(register_names, ops, controller_text) {
+function make_machine(register_names, ops, controller_ir) {
     const machine = make_new_machine();
     for_each(register_name => 
                  machine("allocate_register")(register_name), 
              register_names);
     machine("install_operations")(ops);
     machine("install_instruction_sequence")
-           (assemble(controller_text, machine));
+           (assemble(controller_ir, machine));
     return machine;
 }
       </JAVASCRIPT>
@@ -418,9 +418,175 @@ function push(stack, value) {
     </SNIPPET>
   </TEXT>
 
-  <SUBHEADING>
+<SPLIT>
+  <JAVASCRIPT>
+    <SUBHEADING>
+      <NAME>The controller intermediate representation</NAME>
+    </SUBHEADING>
+
+    <TEXT>
+      As input to the machine, we feed it the intermediate
+      representation of the controller where every instruction is
+      represented as a tagged list whose head is the string
+      corresponding to the type of the instruction.
+
+      As JavaScript is an applicative order language, the
+      intermediate representation must be constructed before
+      calling <JAVASCRIPTINLINE>make_machine</JAVASCRIPTINLINE>.
+      Each constructor for an instruction simply returns a tagged
+      list, and does not perform any instruction in the machine.
+      To extract arguments from an instruction, we use selector
+      functions, which introduce meaningful names such as
+      <JAVASCRIPTINLINE>perform_action</JAVASCRIPTINLINE> to get
+      the action from a <JAVASCRIPTINLINE>perform</JAVASCRIPTINLINE>
+      instruction. 
+    </TEXT>
+    
+    <TEXT>
+      The function <JAVASCRIPTINLINE>assign</JAVASCRIPTINLINE> is the 
+      constructor for <JAVASCRIPTINLINE>assign</JAVASCRIPTINLINE> instructions.
+      <SNIPPET>
+        <NAME>assign_constructor</NAME>
+        <EXAMPLE>gcd_machine_complete_example</EXAMPLE>
+        <JAVASCRIPT>
+function assign(register_name, source) {
+    return list("assign", register_name, source);
+}
+        </JAVASCRIPT>
+      </SNIPPET>
+
+      The function <JAVASCRIPTINLINE>test</JAVASCRIPTINLINE> is a
+      constructor function for a test instruction. The selector
+      function <JAVASCRIPTINLINE>test_condition</JAVASCRIPTINLINE>
+      extracts the condition from a test.
+
+      <SNIPPET>
+        <NAME>test_instruction_syntax</NAME>
+        <EXAMPLE>gcd_machine_complete_example</EXAMPLE>
+        <JAVASCRIPT>
+function test(condition) { return list("test", condition); }
+function test_condition(test_inst) { return head(tail(test_inst)); }
+        </JAVASCRIPT>
+      </SNIPPET>
+      
+      
+      The function <JAVASCRIPTINLINE>branch</JAVASCRIPTINLINE> is
+      a constructor function for a branch instruction. The
+      selector function
+      <JAVASCRIPTINLINE>branch_dest</JAVASCRIPTINLINE> extracts
+      the destination from a branch.
+      <SNIPPET>
+        <NAME>branch_branch_dest</NAME>
+        <EXAMPLE>gcd_machine_complete_example</EXAMPLE>
+        <JAVASCRIPT>
+function branch(label) { return list("branch", label); }
+function branch_dest(branch_inst) { return head(tail(branch_inst)); }
+        </JAVASCRIPT>
+      </SNIPPET>
+
+      The functions <JAVASCRIPTINLINE>save</JAVASCRIPTINLINE> and
+      <JAVASCRIPTINLINE>restore</JAVASCRIPTINLINE> are constructor
+      functions that create save and restore instructions. The
+      selector function
+      <JAVASCRIPTINLINE>stack_inst_reg_name</JAVASCRIPTINLINE>
+      extracts the register name from such instructions.
+
+    <SNIPPET>
+      <NAME>save_restore</NAME>
+      <REQUIRES>make_save</REQUIRES>
+      <EXAMPLE>gcd_machine_complete_example</EXAMPLE>
+      <JAVASCRIPT>
+function save(reg) { return list("save", reg); }
+function restore(reg) { return list("restore", reg); }
+function stack_inst_reg_name(stack_instruction) {
+    return head(tail(stack_instruction));
+}
+      </JAVASCRIPT>
+    </SNIPPET>
+
+      The function <JAVASCRIPTINLINE>perform</JAVASCRIPTINLINE> is
+      a constructor function for perform instructions. The
+      selector function
+      <JAVASCRIPTINLINE>perform_action</JAVASCRIPTINLINE> extracts
+      the action from a perform instruction.
+
+      <SNIPPET>
+        <NAME>perform_perform_action</NAME>
+        <REQUIRES>make_perform</REQUIRES>
+        <EXAMPLE>perform_perform_action</EXAMPLE>
+        <JAVASCRIPT>
+function perform(action) { return list("perform", action); }
+function perform_action(inst) { return head(tail(inst)); }
+        </JAVASCRIPT>
+      </SNIPPET>
+
+      The function <JAVASCRIPTINLINE>go_to</JAVASCRIPTINLINE> is a constructor function
+      for a go_to instruction. The selector function
+      <JAVASCRIPTINLINE>go_to_dest</JAVASCRIPTINLINE> extracts the destination from a go_to instruction.
+      
+      <SNIPPET>
+        <NAME>go_to_go_to_dest</NAME>
+        <REQUIRES>make_go_to</REQUIRES>
+        <EXAMPLE>go_to_go_to_dest</EXAMPLE>
+        <JAVASCRIPT>
+function go_to(label) { return list("go_to", label); }
+function go_to_dest(go_to_inst) { return head(tail(go_to_inst)); }
+        </JAVASCRIPT>
+      </SNIPPET>
+
+      The syntax of <JAVASCRIPTINLINE>reg</JAVASCRIPTINLINE>,
+        <JAVASCRIPTINLINE>label</JAVASCRIPTINLINE>, and <JAVASCRIPTINLINE>constant</JAVASCRIPTINLINE>
+        expressions is determined by the following constructor functions, along with
+        corresponding predicates and selectors.
+      <!--  \indcode*{register-exp} -->
+      <!--  \indcode*{register-exp-reg} -->
+      <!--  \indcode*{constant-exp} -->
+      <!--  \indcode*{constant-exp-value} -->
+      <!--  \indcode*{label-exp} -->
+      <!--  \indcode*{label-exp-label} -->
+    <SNIPPET>
+      <NAME>is_register_exp</NAME>
+      <REQUIRES>tagged_list</REQUIRES>
+      <EXAMPLE>gcd_machine_complete_example</EXAMPLE>
+      <JAVASCRIPT>
+function reg(name) { return list("reg", name); }
+function is_register_exp(exp) { return is_tagged_list(exp, "reg"); }
+function register_exp_reg(exp) { return head(tail(exp)); }
+
+function constant(value) { return list("constant", value); }
+function is_constant_exp(exp) { return is_tagged_list(exp, "constant"); }
+function constant_exp_value(exp) { return head(tail(exp)); }
+
+function label(name) { return list("label", name); }
+function is_label_exp(exp) { return is_tagged_list(exp, "label"); }
+function label_exp_label(exp) { return head(tail(exp)); }
+      </JAVASCRIPT>
+    </SNIPPET>
+
+      Finally, we use the function <JAVASCRIPTINLINE>type</JAVASCRIPTINLINE> to extract
+      an instruction<APOS/>s type which is always the first element of the list.
+      
+      <SNIPPET>
+        <NAME>type_function</NAME>
+        <EXAMPLE>gcd_machine_complete_example</EXAMPLE>
+        <JAVASCRIPT>
+function type(instruction) { return head(instruction); }
+const type = head; // Alternate implementation which highlights the structure of the list
+        </JAVASCRIPT>
+      </SNIPPET>
+
+      In section<SPACE/><REF NAME="sec:ex-proc"/>, we will
+      describe functions that give semantics to the intermediate
+      representations of the instructions in the register machine. 
+
+    </TEXT>
+  </JAVASCRIPT>
+</SPLIT>
+
+
+<SUBHEADING>
     <NAME>The basic machine</NAME>
-  </SUBHEADING>
+</SUBHEADING>
 
   <TEXT>
     The
@@ -513,7 +679,7 @@ function push(stack, value) {
     
     <SPLITINLINE>
       <SCHEME><EM>instruction execution procedure</EM>,</SCHEME>
-      <JAVASCRIPT><EM>instruction execution function</EM>,</JAVASCRIPT>
+      <JAVASCRIPT><EM>instruction execution function</EM> (created from the controller intermediate representation),</JAVASCRIPT>
     </SPLITINLINE>
     such that calling this
     <SPLITINLINE>
@@ -793,5 +959,6 @@ function get_register(machine, reg_name) {
 }
       </JAVASCRIPT>
     </SNIPPET>
-  </TEXT>
+</TEXT>
 </SUBSECTION>
+
