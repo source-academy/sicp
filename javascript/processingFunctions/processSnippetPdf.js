@@ -57,6 +57,7 @@ const recursiveGetRequires = (name, seen) => {
 };
 
 export const processSnippetPdf = (node, writeTo) => {
+  const LatexString = node.getAttribute("LATEX") === "yes" ? "Latex" : "";
   if (node.getAttribute("HIDE") == "yes") {
     return;
   }
@@ -65,21 +66,21 @@ export const processSnippetPdf = (node, writeTo) => {
 
   if (jsPromptSnippet) {
     if (ancestorHasTag(node, "FOOTNOTE")) {
-      writeTo.push("\n\\begin{JavaScriptPromptFootnote}");
+      writeTo.push("\n\\begin{JavaScriptPrompt" + LatexString + "Footnote}");
     } else if (ancestorHasTag(node, "EXERCISE")) {
-      writeTo.push("\n\\begin{JavaScriptPromptSmall}");
+      writeTo.push("\n\\begin{JavaScriptPrompt" + LatexString + "Small}");
     } else {
-      writeTo.push("\n\\begin{JavaScriptPrompt}");
+      writeTo.push("\n\\begin{JavaScriptPrompt" + LatexString + "}");
     }
 
     writeTo.push(jsPromptSnippet.firstChild.nodeValue.trimRight());
 
     if (ancestorHasTag(node, "FOOTNOTE")) {
-      writeTo.push("\n\\end{JavaScriptPromptFootnote}\n");
+      writeTo.push("\n\\end{JavaScriptPrompt" + LatexString + "Footnote}\n");
     } else if (ancestorHasTag(node, "EXERCISE")) {
-      writeTo.push("\n\\end{JavaScriptPromptSmall}\n");
+      writeTo.push("\n\\end{JavaScriptPrompt" + LatexString + "Small}\n");
     } else {
-      writeTo.push("\n\\end{JavaScriptPrompt}\n");
+      writeTo.push("\n\\end{JavaScriptPrompt" + LatexString + "}\n");
     }
   }
 
@@ -87,21 +88,21 @@ export const processSnippetPdf = (node, writeTo) => {
 
   if (jsLonelySnippet) {
     if (ancestorHasTag(node, "FOOTNOTE")) {
-      writeTo.push("\n\\begin{JavaScriptLonelyFootnote}");
+      writeTo.push("\n\\begin{JavaScriptLonely" + LatexString + "Footnote}");
     } else if (ancestorHasTag(node, "EXERCISE")) {
-      writeTo.push("\n\\begin{JavaScriptLonelySmall}");
+      writeTo.push("\n\\begin{JavaScriptLonely" + LatexString + "Small}");
     } else {
-      writeTo.push("\n\\begin{JavaScriptLonely}");
+      writeTo.push("\n\\begin{JavaScriptLonely" + LatexString + "}");
     }
 
     writeTo.push(jsLonelySnippet.firstChild.nodeValue.trimRight());
 
     if (ancestorHasTag(node, "FOOTNOTE")) {
-      writeTo.push("\n\\end{JavaScriptLonelyFootnote}\n");
+      writeTo.push("\n\\end{JavaScriptLonely" + LatexString + "Footnote}\n");
     } else if (ancestorHasTag(node, "EXERCISE")) {
-      writeTo.push("\n\\end{JavaScriptLonelySmall}\n");
+      writeTo.push("\n\\end{JavaScriptLonelySmall" + LatexString + "}\n");
     } else {
-      writeTo.push("\n\\end{JavaScriptLonely}\n");
+      writeTo.push("\n\\end{JavaScriptLonely" + LatexString + "}\n");
     }
   }
 
@@ -130,7 +131,6 @@ export const processSnippetPdf = (node, writeTo) => {
       node.getAttribute("EVAL") === "no" ||
       node.getAttribute("LATEX") === "yes"
     ) {
-      const LatexString = node.getAttribute("LATEX") === "yes" ? "Latex" : "";
       if (ancestorHasTag(node, "FOOTNOTE")) {
         writeTo.push("\n\\begin{JavaScript" + LatexString + "Footnote}\n");
       } else if (ancestorHasTag(node, "EXERCISE")) {
@@ -278,21 +278,21 @@ export const processSnippetPdf = (node, writeTo) => {
 
   if (jsOutputSnippet) {
     if (ancestorHasTag(node, "FOOTNOTE")) {
-      writeTo.push("\n\\begin{JavaScriptOutputFootnote}");
+      writeTo.push("\n\\begin{JavaScriptOutput" + LatexString + "Footnote}");
     } else if (ancestorHasTag(node, "EXERCISE")) {
-      writeTo.push("\n\\begin{JavaScriptOutputSmall}");
+      writeTo.push("\n\\begin{JavaScriptOutput" + LatexString + "Small}");
     } else {
-      writeTo.push("\n\\begin{JavaScriptOutput}");
+      writeTo.push("\n\\begin{JavaScriptOutput" + LatexString + "}");
     }
 
     writeTo.push(jsOutputSnippet.firstChild.nodeValue.trimRight());
 
     if (ancestorHasTag(node, "FOOTNOTE")) {
-      writeTo.push("\n\\end{JavaScriptOutputFootnote}\n");
+      writeTo.push("\n\\end{JavaScriptOutput" + LatexString + "Footnote}\n");
     } else if (ancestorHasTag(node, "EXERCISE")) {
-      writeTo.push("\n\\end{JavaScriptOutputSmall}\n");
+      writeTo.push("\n\\end{JavaScriptOutput" + LatexString + "Small}\n");
     } else {
-      writeTo.push("\n\\end{JavaScriptOutput}\n");
+      writeTo.push("\n\\end{JavaScriptOutput" + LatexString + "}\n");
     }
   }
 
