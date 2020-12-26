@@ -100,17 +100,17 @@ const output_prompt = "Query results:";
 
 function query_driver_loop() {
     const input = user_read(input_prompt) + ";";
-    const exp = parse(input);
-    const q = query_syntax_process(exp);
-    if (is_assertion(q)) {
-        add_rule_or_assertion(assertion_body(q));
+    const expression = parse(input);
+    const query = query_syntax_process(expression);
+    if (is_assertion(query)) {
+        add_rule_or_assertion(assertion_body(query));
         display("Assertion added to data base.");
     } else {
         display(output_prompt);
         display_stream(
             stream_map(
-                frame => unparse(instantiate(exp, frame)),
-                evaluate_query(q, singleton_stream(null))));
+                frame => unparse(instantiate(expression, frame)),
+                evaluate_query(query, singleton_stream(null))));
     }
     query_driver_loop();
 }
@@ -210,16 +210,15 @@ function first_answer(input) {
 	  we further transform the syntax representation into
 	  into an abstract object at a conceptual level appropriate
 	  for the query system using
-	  <JAVASCRIPTINLINE>query_syntax_process</JAVASCRIPTINLINE>
-	  declared in section<SPACE/><REF NAME="sec:query-syntax"/>,
+	  <JAVASCRIPTINLINE>query_syntax_process</JAVASCRIPTINLINE>,
+	  which is declared in section<SPACE/><REF NAME="sec:query-syntax"/>
 	  along with the predicate
 	  <JAVASCRIPTINLINE>is_assertion</JAVASCRIPTINLINE>
 	  and the selector
 	  <JAVASCRIPTINLINE>assertion_body</JAVASCRIPTINLINE>. This
 	  transformation identifies names starting with a dollar sign and
 	  transforms them into <EM>variables</EM>,
-	  a data structure that allows more efficient processing in the query
-	  system.
+	  which makes the processing more efficient.
 	  The function <JAVASCRIPTINLINE>add_rule_or_assertion</JAVASCRIPTINLINE>
 	  is declared in section<SPACE/><REF NAME="sec:query-db"/>.
 	  The frames resulting from query evaluation are used to instantiate
@@ -2874,11 +2873,11 @@ job($x, list("computer", $type))
 	  </SNIPPET>
 	  is transformed into this query-language-specific representation:
 	  <SNIPPET EVAL="no" LATEX="yes">
-	    <JAVASCRIPT>
+	    <JAVASCRIPT_LONELY>
 list("job", 
      $variable$-$for$-$\$x$,
      list("computer", list("name", $variable$-$for$-$\$type$)))
-	    </JAVASCRIPT>
+	    </JAVASCRIPT_LONELY>
 	  </SNIPPET>
       </TEXT>
       <TEXT>
@@ -2931,7 +2930,7 @@ list("and",
 	  <JAVASCRIPTINLINE>instantiate</JAVASCRIPTINLINE> uses
 	  <JAVASCRIPTINLINE>express_literal</JAVASCRIPTINLINE> and
 	  <JAVASCRIPTINLINE>express_pair</JAVASCRIPTINLINE> to convert
-	  the values of bindings in frames to expressions in JavaScript syntax
+	  the values of bindings in frames to expressions in the JavaScript syntax
 	  representation, using the syntax
 	  constructors of section<SPACE/><REF NAME="sec:representing-expressions"/>.
 	  <SNIPPET>
@@ -2954,27 +2953,27 @@ function express_pair(head_expr, tail_expr) {
 
       <TEXT>
 	  The function <JAVASCRIPTINLINE>unparse</JAVASCRIPTINLINE>
-	  transforms a JavaScript expression given in syntax representation
+	  transforms a JavaScript expression given in the syntax representation
 	  into a string by applying the syntax rules
 	  of section<SPACE/><REF NAME="sec:representing-expressions"/>
 	  from right to left.
 	  We only describe <JAVASCRIPTINLINE>unparse</JAVASCRIPTINLINE> as
 	  far as needed for the query processing language and leave the remaining cases
-	  as exercise<SPACE/><REF NAME="ex:parse"/>. A name is transformed into the
-	  symbol that identifies it, and a literal is transformed by
-	  <JAVASCRIPTINLINE>stringify</JAVASCRIPTINLINE>ing its value.
-	  An application is formatted by unparsing the function expression
-	  (here assumed to be a name) followed by the comma-separated unparsed
+	  as exercise<SPACE/><REF NAME="ex:parse"/>. A literal is transformed by
+	  <JAVASCRIPTINLINE>stringify</JAVASCRIPTINLINE>ing its value, and
+	  a name is transformed into the symbol that identifies it.
+	  An application is formatted by unparsing the function expression,
+	  which we can asume to be a name here, followed by the comma-separated unparsed
 	  argument expressions enclosed in parentheses.
 	  Binary operator combinations are formatted using infix notation.
 	  <SNIPPET LATEX="yes">
 	    <NAME>unparse_simple</NAME>
 	    <JAVASCRIPT>
 function unparse(exp) {
-    return is_name(exp)
-           ? symbol_of_name(exp)
-           : is_literal(exp)
+    return is_literal(exp)
            ? stringify(literal_value(exp))
+           : is_name(exp)
+           ? symbol_of_name(exp)
            : is_application(exp) &amp;&amp; is_name(function_expression(exp))
            ? symbol_of_name(function_expression(exp)) +
                  "(" +	   
@@ -2994,7 +2993,7 @@ function comma_separated(strings) {
 }
 	    </JAVASCRIPT>
 	  </SNIPPET>
-	  The output of this 
+	  This 
 	  <JAVASCRIPTINLINE>unparse</JAVASCRIPTINLINE> function
 	  yields correct strings for our instantiated queries,
 	  but they will become unnecessarily
@@ -3010,17 +3009,17 @@ function comma_separated(strings) {
 	  to
 	  <JAVASCRIPTINLINE>list("computer", "wizard")</JAVASCRIPTINLINE>
 	  in which case the expected query result string is:
-	  <SNIPPET>
-	  <JAVASCRIPT>
+	  <SNIPPET EVAL="no">
+	  <JAVASCRIPT_LONELY>
 'job(list("Bitdiddle", "Ben"), list("computer", "wizard"))'
-	  </JAVASCRIPT>
+	  </JAVASCRIPT_LONELY>
 	  </SNIPPET>
 	  However, <JAVASCRIPTINLINE>unparse</JAVASCRIPTINLINE>
 	  produces:
-	  <SNIPPET>
-	  <JAVASCRIPT>
+	  <SNIPPET EVAL="no">
+	  <JAVASCRIPT_LONELY>
 'job(pair("Bitdiddle", pair("Ben", null)), pair("computer", pair("wizard", null)))'
-	  </JAVASCRIPT>
+	  </JAVASCRIPT_LONELY>
 	  </SNIPPET>
           To achieve the expected formatting,
 	  we add a clause in
@@ -3032,15 +3031,15 @@ function comma_separated(strings) {
 	    <NAME>unparse</NAME>
 	    <JAVASCRIPT>
 function unparse(exp) {
-    return is_name(exp)
-           ? symbol_of_name(exp)
-           : is_literal(exp)
+    return is_literal(exp)
            ? stringify(literal_value(exp))
-	   : is_list_construction(exp)
+           : is_name(exp)
+           ? symbol_of_name(exp)
+           : is_list_construction(exp)
 	   ? unparse(make_application(make_name("list"), 
                                       element_expressions(exp)))
            : is_application(exp) &amp;&amp; is_name(function_expression(exp))
-	   $\vdots$
+           $\langle remaining$ $cases$ $as$ $above \rangle$
 }
 function is_list_construction(exp) {
     return (is_literal(exp) &amp;&amp; is_null(literal_value(exp))) ||
@@ -3126,11 +3125,11 @@ const is_$_name = is_name;
       </SNIPPET>
       </TEXT>
       <TEXT>
-	Variables are tagged lists with the tag
+	In the query processor, variables are tagged lists with the tag
 	<JAVASCRIPTINLINE>"variable"</JAVASCRIPTINLINE>, whose
 	second element is a value that uniquely identifies the variable.
 	When we convert a name to a variable, we use the name<APOS/>s
-	symbol as identifier.
+	symbol as identifier. 
       <SNIPPET EVAL="no">
 	<NAME>is_variable_3</NAME>
 	<JAVASCRIPT>
@@ -3148,15 +3147,21 @@ function name_to_variable(name) {
 }
 	</JAVASCRIPT>
       </SNIPPET>
+      Identifying names that start with a dollar
+	sign and transforming them into variables in
+	<JAVASCRIPTINLINE>query_syntax_process</JAVASCRIPTINLINE>
+	increases the efficiency of query processing, since it means
+	that the system can check to see if a value is a pattern variable
+	by checking whether the head of the value is the string
+	<JAVASCRIPTINLINE>"variable"</JAVASCRIPTINLINE>, rather than
+	having to extract characters from the symbol of the name.      
       </TEXT>
 	<TEXT>
 	  Unique variables are constructed during rule application
 	  (in section<SPACE/><REF NAME="sec:query-unify"/>) by 
 	  <JAVASCRIPTINLINE>make_new_variable</JAVASCRIPTINLINE>, which uses
 	  as identifier a pair consisting of a number and the symbol of a given
-	  variable. This increases the efficiency of the query processing,
-	  since it means that we can rename variables by constructing pairs
-	  rather than constructing new strings.
+	  variable. 
 	  <SNIPPET>
 	    <NAME>is_variable_4</NAME>
 	    <JAVASCRIPT>
@@ -3165,20 +3170,11 @@ function make_new_variable(variable, rule_application_id) {
 }
 	    </JAVASCRIPT>
 	  </SNIPPET>
-	  Consequently the conversion function
-	  <JAVASCRIPTINLINE>variable_to_name</JAVASCRIPTINLINE> needs to
-	  distinguish the two different kinds of identifiers a variable can have.
-          <SNIPPET>
-	    <NAME>is_variable_5</NAME>
-	    <JAVASCRIPT>
-function variable_to_name(variable) {
-    const identifier = identifier_of_variable(variable);
-    return is_pair(identifier)
-           ? make_name(tail(identifier) + "_" + stringify(head(identifier)))
-           : make_name(identifier);
-}
-	    </JAVASCRIPT>
-	  </SNIPPET>
+	  This increases the efficiency of query processing,
+	  since it means that variables can be renamed by constructing pairs
+	  rather than new strings.
+	</TEXT>
+	<TEXT>
 	  The unique identifier for a rule application is a number, which is
 	  incremented each time a rule is applied.
 	  <SNIPPET>
@@ -3190,6 +3186,22 @@ let rule_counter = 0;
 function new_rule_application_id() {
     rule_counter = rule_counter + 1;
     return rule_counter;
+}
+	    </JAVASCRIPT>
+	  </SNIPPET>
+	</TEXT>
+	<TEXT>
+	  The conversion function
+	  <JAVASCRIPTINLINE>variable_to_name</JAVASCRIPTINLINE> needs to
+	  distinguish the two different kinds of identifiers a variable can have.
+          <SNIPPET>
+	    <NAME>is_variable_5</NAME>
+	    <JAVASCRIPT>
+function variable_to_name(variable) {
+    const identifier = identifier_of_variable(variable);
+    return is_pair(identifier)
+           ? make_name(tail(identifier) + "_" + stringify(head(identifier)))
+           : make_name(identifier);
 }
 	    </JAVASCRIPT>
 	  </SNIPPET>
