@@ -201,7 +201,7 @@ function first_answer(input) {
 	</SCHEME>
 	<JAVASCRIPT>
 	  Here, as in the other evaluators in this chapter,
-	  we transform expressions of the query language given as strings
+	  we transform an expression of the query language given as a string
 	  into a JavaScript syntax representation using 
 	  <JAVASCRIPTINLINE>parse</JAVASCRIPTINLINE>. (We append a
 	  semicolon to the input string because
@@ -216,14 +216,13 @@ function first_answer(input) {
 	  <JAVASCRIPTINLINE>is_assertion</JAVASCRIPTINLINE>
 	  and the selector
 	  <JAVASCRIPTINLINE>assertion_body</JAVASCRIPTINLINE>. This
-	  transformation identifies names starting with a dollar sign and
+	  transformation also identifies names starting with a dollar sign and
 	  transforms them into <EM>variables</EM>,
 	  which makes the processing more efficient.
 	  The function <JAVASCRIPTINLINE>add_rule_or_assertion</JAVASCRIPTINLINE>
 	  is declared in section<SPACE/><REF NAME="sec:query-db"/>.
 	  The frames resulting from query evaluation are used to instantiate
-	  the pattern variables of the query syntax representation.
-	  The result is transformed back into a string by 
+	  the expression, and the result is transformed back into a string by 
 	  <JAVASCRIPTINLINE>unparse</JAVASCRIPTINLINE>
 	  (section<SPACE/><REF NAME="sec:query-syntax"/>)
 	  for display.
@@ -287,7 +286,7 @@ function first_answer(input) {
 	    <NAME>instantiate</NAME>
 	    <REQUIRES>make_binding</REQUIRES>
 	    <REQUIRES>variable</REQUIRES>
-	    <REQUIRES>express_literal</REQUIRES>
+	    <REQUIRES>make_pair_expression</REQUIRES>
 	    <REQUIRES>express</REQUIRES>
 	    <EXAMPLE>append_to_form_example_5</EXAMPLE>
 	    <SCHEME>
@@ -304,16 +303,16 @@ function first_answer(input) {
   (copy exp))
 	    </SCHEME>
 	    <JAVASCRIPT>
-function instantiate(exp, frame) {
-    function copy(exp) {
-        return is_$_name(exp)
-               ? express(name_to_variable(exp), frame)
-               : is_pair(exp)
-               ? pair(copy(head(exp)), 
-                      copy(tail(exp)))
-               : exp;
+function instantiate(expression, frame) {
+    function copy(expression) {
+        return is_$_name(expression)
+               ? express_with_bindings(name_to_variable(expression), frame)
+               : is_pair(expression)
+               ? pair(copy(head(expression)), 
+                      copy(tail(expression)))
+               : expression;
     }
-    return copy(exp);
+    return copy(expression);
 }
 	    </JAVASCRIPT>
 	  </SNIPPET>
@@ -327,35 +326,36 @@ function instantiate(exp, frame) {
 	  to express that variable.
 	  For example, if 
 	  <JAVASCRIPTINLINE>$x</JAVASCRIPTINLINE>
-	  in <SCHEMEINLINE>exp</SCHEMEINLINE> is bound to
+	  in <SCHEMEINLINE>expression</SCHEMEINLINE> is bound to
 	  <JAVASCRIPTINLINE>$y</JAVASCRIPTINLINE>
 	  as the result of unification and
 	<JAVASCRIPTINLINE>$y</JAVASCRIPTINLINE>
 	  is in turn bound to<SPACE/>5, we need to express the value 5.
 	  If the value is a pair or literal,
-	  we use the functions
-	  <JAVASCRIPTINLINE>express_pair</JAVASCRIPTINLINE>
-	  or <JAVASCRIPTINLINE>express_literal</JAVASCRIPTINLINE>
+	  we use the function
+	  <JAVASCRIPTINLINE>make_pair_expression</JAVASCRIPTINLINE>
 	  in section<SPACE/><REF NAME="sec:query-syntax"/>
+	  or the function <JAVASCRIPTINLINE>make_literal</JAVASCRIPTINLINE>
+	  in section<SPACE/><REF NAME="sec:representing-expressions"/>
 	  to construct an expression that represents it.
 	  <INDEX>query interpreter<SUBINDEX>instantiation|)</SUBINDEX></INDEX>
 	  <INDEX>query interpreter<SUBINDEX>driver loop|)</SUBINDEX></INDEX>
 	  <SNIPPET>
 	    <NAME>express</NAME>
 	    <JAVASCRIPT>
-function express(value, frame) {
+function express_with_bindings(value, frame) {
     if (is_variable(value)) {
         const binding = binding_in_frame(value, frame);
         if (is_undefined(binding)) {
             return variable_to_name(value);
         } else {	    
-            return express(binding_value(binding), frame);
+            return express_with_bindings(binding_value(binding), frame);
         }
     } else if (is_pair(value)) {
-        return express_pair(express(head(value), frame), 
-                            express(tail(value), frame));
+        return make_pair_expression(express_with_bindings(head(value), frame), 
+                                    express_with_bindings(tail(value), frame));
     } else { // value is a literal
-        return express_literal(value);
+        return make_literal(value);
     }
 }
 	    </JAVASCRIPT>
@@ -2922,24 +2922,20 @@ list("and",
       </TEXT>
 
       <SUBHEADING>
-	<NAME>Representation of pairs and literals in instantiated queries</NAME>
+	<NAME>Representation of pairs in instantiated queries</NAME>
       </SUBHEADING>
 
       <TEXT>
 	  The function 
 	  <JAVASCRIPTINLINE>instantiate</JAVASCRIPTINLINE> uses
-	  <JAVASCRIPTINLINE>express_literal</JAVASCRIPTINLINE> and
-	  <JAVASCRIPTINLINE>express_pair</JAVASCRIPTINLINE> to convert
-	  the values of bindings in frames to expressions in the JavaScript syntax
+	  <JAVASCRIPTINLINE>make_pair_expression</JAVASCRIPTINLINE> to convert pairs as
+	  values of bindings in frames to expressions in the JavaScript syntax
 	  representation, using the syntax
 	  constructors of section<SPACE/><REF NAME="sec:representing-expressions"/>.
 	  <SNIPPET>
-	    <NAME>express_literal</NAME>
+	    <NAME>make_pair_expression</NAME>
 	    <JAVASCRIPT>
-function express_literal(value) {
-    return make_literal(value);
-}
-function express_pair(head_expr, tail_expr) {
+function make_pair_expression(head_expr, tail_expr) {
     return make_application(make_name("pair"),
                             list(head_expr, tail_expr));
 }
