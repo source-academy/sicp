@@ -451,14 +451,14 @@ function display_instructions(instructions) {
 const eceval_operations = 
     list(
       // args
-      list("args"                 , arg_expressions),
+      list("arg_expressions"      , arg_expressions),
       list("function_expression"  , function_expression),
-      list("has_no_argument_expressions"
+      list("no_argument_expressions"
                                   , is_null),
-      list("first_arg"            , head),
+      list("first_arg_exp"        , head),
       list("is_last_argument_expression"
                                   , a => is_null(tail(a))),
-      list("rest_args"            , tail),
+      list("rest_arg_exps"        , tail),
 
       //arg
       list("empty_arglist"        , () => null),
@@ -518,11 +518,6 @@ const eceval_operations =
       list("extend_environment"  , extend_environment),
       list("make_function"       , make_function),
 
-      list("lookup_name_value"   , (comp, env) =>
-                                   lookup_symbol_value(
-				       symbol_of_name(comp),
-				       env)),
-
       list("get_program_environment"
                                  , get_program_environment),
       list("set_program_environment"
@@ -540,7 +535,7 @@ const eceval_operations =
 
       // generic helpers
       list("is_truthy", is_truthy),
-      list("is_falsy"                , x => ! is_truthy(x)),
+      list("is_falsy"                , x => ! is_truthy(x)), /// FIXE: can be removed if not used
       list("is_null", is_null),
       list("is_pair"                 , is_pair),
       list("is_number"               , is_number),
@@ -548,9 +543,7 @@ const eceval_operations =
       list("pair"                    , pair),
 
       list(
-        "lookup_symbol_value"        ,
-        (stmt, env) => lookup_symbol_value(symbol_of_name(stmt), env)
-      ),
+        "lookup_symbol_value"        , lookup_symbol_value),
       list("get_program_environment" , get_program_environment),
       list("set_program_environment" , set_program_environment),
 
@@ -625,10 +618,10 @@ list(
       branch(label("ev_block")),
       test(list(op("is_application"), reg("comp"))),
       branch(label("ev_application")),
-      go_to(label("unknown_expression_type")),
+      go_to(label("unknown_component_type")),
 
       "ev_return",
-      restore_frame(),
+      restore_marker(),
       restore("continue"),
       assign("comp", list(op("return_expression"), reg("comp"))),
       go_to(label("eval_dispatch")),
@@ -639,7 +632,9 @@ list(
       
       "ev_name",
       assign("val",
-        list(op("lookup_name_value"), reg("comp"), reg("env"))),
+        list(op("symbol_of_name"), reg("comp"), reg("env"))),
+      assign("val",
+        list(op("lookup_symbol_value"), reg("val"), reg("env"))),
       go_to(reg("continue")),
       
       "ev_lambda",
@@ -656,7 +651,7 @@ list(
       "ev_application",
       save("continue"),
       save("env"),
-      assign("unev", list(op("args"), reg("comp"))),
+      assign("unev", list(op("arg_expressions"), reg("comp"))),
       save("unev"),
       assign("comp", list(op("function_expression"), reg("comp"))),
       assign("continue", label("ev_appl_did_function_expression")),
@@ -667,14 +662,14 @@ list(
       restore("env"),
       assign("argl", list(op("empty_arglist"))),
       assign("fun", reg("val")), // the function_expression
-      test(list(op("has_no_argument_expressions"),
+      test(list(op("no_argument_expressions"),
                 reg("unev"))),
       branch(label("apply_dispatch")),
       save("fun"),
       
       "ev_appl_argument_expression_loop",
       save("argl"),
-      assign("comp", list(op("first_arg"), reg("unev"))),
+      assign("comp", list(op("first_arg_exp"), reg("unev"))),
       test(list(op("is_last_argument_expression"),
                 reg("unev"))),
       branch(label("ev_appl_last_arg")),
@@ -689,7 +684,7 @@ list(
       restore("argl"),
       assign("argl", list(op("adjoin_arg"),
                           reg("val"), reg("argl"))),
-      assign("unev", list(op("rest_args"), reg("unev"))),
+      assign("unev", list(op("rest_arg_exps"), reg("unev"))),
       go_to(label("ev_appl_argument_expression_loop")),
       
       "ev_appl_last_arg",
@@ -732,13 +727,13 @@ list(
       assign("env", list(op("extend_environment"), 
                          reg("unev"), reg("argl"), reg("env"))),
       assign("comp", list(op("function_body"), reg("fun"))),
-      save_frame(),
+      save_marker(),
       assign("continue", label("return_undefined")),
       go_to(label("eval_dispatch")),
 
       "return_undefined",
       assign("val", constant(undefined)),
-      restore_frame(),
+      restore_marker(),
       restore("continue"),
       go_to(reg("continue")),
 
@@ -842,13 +837,13 @@ list(
       go_to(reg("continue")),
       
       // Error handling
-      "unknown_expression_type",
-      assign("val", constant("Unknown expression type error")),
+      "unknown_component_type",
+      assign("val", constant("Unknown expression type")),
       go_to(label("signal_error")),
       
       "unknown_function_type",
       restore("continue"), /// clean up stack (from apply_dispatch)
-      assign("val", constant("Unknown function type error")),
+      assign("val", constant("Unknown function type")),
       go_to(label("signal_error")),
       
       "signal_error",
@@ -1125,7 +1120,7 @@ EC-evaluate value:
     </SPLITINLINE>
     program on the new machine by first compiling it with the compiler running
     on our
-    original <SPLITINLINE><SCHEME>Lisp</SCHEME><JAVASCRIPT>JavaScript</JAVASCRIPT></SPLITINLINE> system, and linking it with a compiled version of the run-time
+    original <SPLITINLINE><SCHEME>Lisp</SCHEME><JAVASCRIPT>JavaScript</JAVASCRIPT></SPLITINLINE> system, and linking it with a compiled version of the runtime
     library.<FOOTNOTE>Of course, with either the interpretation or the
     compilation strategy we must also implement for the new machine storage
     allocation, input and output, and all the various operations that we took
@@ -1482,7 +1477,7 @@ EC-Eval value:
     in C (or some other low-level language of your choice) by translating the
     explicit-control evaluator of section<SPACE/><REF NAME="sec:eceval"/>
     into C.  In order to run this code you will need to also
-    provide appropriate storage-allocation routines and other run-time
+    provide appropriate storage-allocation routines and other runtime
     support.
     <LABEL NAME="ex:interp-in-C"/>
   </EXERCISE>

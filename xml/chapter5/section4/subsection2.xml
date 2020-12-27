@@ -76,8 +76,8 @@ function sqrt_iter(guess, x) {
       </SCHEME>
       <JAVASCRIPT>
         The metacircular implementation of the evaluator in chapter<SPACE/>4 is
-        not tail-recursive, because apply in 4.1.1 needs to check whether the
-        evaluation of the function body yields a return value.
+        not tail-recursive, because of the need to check whether the
+        evaluation of the function body returns explicitly or not.
       </JAVASCRIPT>
     </SPLIT>
     With
@@ -91,10 +91,10 @@ function sqrt_iter(guess, x) {
   </TEXT>
 
   <TEXT>
-    Our evaluator is tail-recursive, because in order to evaluate the 
+    Our evaluator is tail-recursive, because in order to evaluate 
     <SPLITINLINE>
       <SCHEME>
-	      final expression of a sequence 
+	      the final expression of a sequence 
       </SCHEME>
       <JAVASCRIPT>
 	      a return statement in a function body
@@ -107,8 +107,8 @@ function sqrt_iter(guess, x) {
         Hence, evaluating the final expression in a sequence<EMDASH/>even if it is a
       </SCHEME>
       <JAVASCRIPT>
-        <JAVASCRIPTINLINE>eval_dispatch</JAVASCRIPTINLINE> after unwinding the stack down to the next marker introduced
-        by <JAVASCRIPTINLINE>save_frame</JAVASCRIPTINLINE>.
+        <JAVASCRIPTINLINE>eval_dispatch</JAVASCRIPTINLINE> after having restored the stack using the marker introduced
+        by <JAVASCRIPTINLINE>save_marker</JAVASCRIPTINLINE>.
         Hence, evaluating a return statement in a function body<EMDASH/>even if it contains a
       </JAVASCRIPT>
     </SPLITINLINE>
@@ -123,13 +123,13 @@ function sqrt_iter(guess, x) {
     </SPLITINLINE>
     where the
     <SPLITINLINE>
-      <SCHEME><SCHEMEINLINE>if</SCHEMEINLINE> expression,</SCHEME>
-      <JAVASCRIPT>conditional,</JAVASCRIPT>
+      <SCHEME><SCHEMEINLINE>if</SCHEMEINLINE></SCHEME>
+      <JAVASCRIPT>conditional</JAVASCRIPT>
     </SPLITINLINE>
-    which is the last expression in the
+     expression, which is the last 
     <SPLITINLINE>
-      <SCHEME>procedure</SCHEME>
-      <JAVASCRIPT>function</JAVASCRIPT>
+      <SCHEME>expression in the procedure</SCHEME>
+      <JAVASCRIPT>component in the function</JAVASCRIPT>
     </SPLITINLINE>
     body, reduces to a call to
     <SPLITINLINE>
@@ -162,17 +162,6 @@ function sqrt_iter(guess, x) {
     entry point. Building this strategy into the interpreter, as we have done in
     this section, provides the optimization uniformly throughout the
     language.</FOOTNOTE> 
-
-    <SPLIT>
-      <JAVASCRIPT>
-        <TEXT>
-          Note that JavaScript is only tail recursive in the presence of an
-          explicit return statement. Without this return statement, we must 
-          dispatch to the implicit return handler that ensures that the
-          function returned <JAVASCRIPTINLINE>undefined</JAVASCRIPTINLINE>.
-        </TEXT>
-      </JAVASCRIPT>
-    </SPLIT>
 
     <SPLIT>
       <SCHEME>
@@ -252,17 +241,17 @@ function has_no_more_exps(seq) {
           If we did not think to take advantage of the fact that it was unnecessary to
           save information in this case, we might have implemented 
           <JAVASCRIPTINLINE>ev_return</JAVASCRIPTINLINE>
-          by first evaluating the return expression before unwinding the stack. 
+          by first evaluating the return expression before restoring the stack:
           <SNIPPET EVAL="no">
             <JAVASCRIPT>
 "ev_return",
       assign("comp", list(op("return_expression"), reg("comp"))),
-      assign("continue", label("ev_unwind")),
+      assign("continue", label("ev_restore_stack")),
       save("continue"),
       go_to(label("eval_dispatch")),
 
-"ev_unwind",
-      restore_frame("continue"),
+"ev_restore_stack",
+      restore_marker("continue"),
       restore("continue"),
       go_to(reg("continue")),
             </JAVASCRIPT>
@@ -280,8 +269,7 @@ function has_no_more_exps(seq) {
         as for the others.
       </SCHEME>
       <JAVASCRIPT>
-        This may seem like a minor change to our previous code for
-        evaluation of a return statement.
+        This may seem like a minor change to <JAVASCRIPTINLINE>ev_return</JAVASCRIPTINLINE> as defined in section<SPACE/><REF NAME="sec:eceval-core"/>.
       </JAVASCRIPT>
     </SPLITINLINE>
     The interpreter will still give the same value for any
@@ -297,14 +285,13 @@ function has_no_more_exps(seq) {
     must now return after evaluating the 
     <SPLITINLINE>
       <SCHEME>
-        final expression in a sequence 
+        final expression in a sequence in order to undo the (useless) register saves. These extra saves 
       </SCHEME>
       <JAVASCRIPT>
-        final expression inside the return statement
+        expression inside the return statement in order to undo the (useless) register save. Such extra saves 
       </JAVASCRIPT>
     </SPLITINLINE>
-    in order to undo the (useless) register saves. These extra saves will
-    accumulate during a nest of
+    will accumulate during a nest of
     <SPLITINLINE>
       <SCHEME>procedure</SCHEME>
       <JAVASCRIPT>function</JAVASCRIPT>
@@ -352,6 +339,19 @@ function count(n) {
     </SPLITINLINE>
     call.
   </TEXT>
+
+  <SPLIT>
+    <JAVASCRIPT>
+      <TEXT>
+        Note that our JavaScript implementation is only tail-recursive in the presence of an
+        explicit return statement. A function that ends without an explicit return statement will 
+        dispatch to the implicit return handler <JAVASCRIPTINLINE>return_undefined</JAVASCRIPTINLINE> that stores
+        <JAVASCRIPTINLINE>undefined</JAVASCRIPTINLINE> in the <JAVASCRIPTINLINE>val</JAVASCRIPTINLINE> register.
+        Thus, removing <JAVASCRIPTINLINE>return</JAVASCRIPTINLINE> from the above count function will
+        eventually run out of stack space.
+      </TEXT>
+    </JAVASCRIPT>
+  </SPLIT>
 
     <INDEX>explicit-control evaluator for Scheme
     <SUBINDEX>tail recursion|)</SUBINDEX></INDEX>
