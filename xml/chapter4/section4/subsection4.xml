@@ -2673,7 +2673,7 @@ list("application",
           list("application",
                list("name", "list"),
                list(list("literal", "computer"),
-                    list("literal", "wizard"))))
+                    list("literal", "wizard")))))
 	    </JAVASCRIPT_LONELY>
 	  </SNIPPET>
 	  The tag
@@ -2709,9 +2709,7 @@ query_syntax_process(parse('job($x, list("computer", "wizard"));'));
 	  yields
 	  <SNIPPET EVAL="no">
 	    <JAVASCRIPT_LONELY>
-list("job", 
-     list(list("name", "$x"),
-          list("computer", "wizard")))
+list("job", list("name", "$x"), list("computer", "wizard"))
 	    </JAVASCRIPT_LONELY>
 	  </SNIPPET>
 	  Figure<SPACE/><REF NAME="fig:syntax-abstraction-lp"/> depicts the three
@@ -2799,13 +2797,12 @@ and(salary($person, $amount), javascript_value($amount &gt; 50000))
 	  <SNIPPET EVAL="no">
 	    <JAVASCRIPT_LONELY>
 list("and",
-     list(list("salary",
-               list(list("name", "$person"), list("name", "$amount"))),
-          list("javascript_value",
-               list(list("binary_operator_combination",
-                         "&gt;",
-                         list(list("name", "$amount"),
-                              list("literal", 50000)))))))
+     list("salary", list("name", "$person"), list("name", "$amount")),
+     list("javascript_value",
+          list("binary_operator_combination",
+               "&gt;",
+               list("name", "$amount"),
+               list("literal", 50000))))
 	    </JAVASCRIPT_LONELY>
 	  </SNIPPET>
 	  Once <JAVASCRIPTINLINE>instantiate</JAVASCRIPTINLINE> replaces
@@ -2960,7 +2957,7 @@ list("application",
 list("application",
      list("name", "job"),
      list(list("application",
-               list(list("name", "pair"),
+               list("name", "pair"),
                list(list("literal", "Ben"),
                     list("application",
                          list("name", "pair"),
@@ -2995,13 +2992,18 @@ list("application",
 	  argument expression strings enclosed in parentheses.
 	  Binary operator combinations are formatted using infix notation.
 	  <SNIPPET LATEX="yes">
-	    <NAME>unparse_simple</NAME>
+	    <NAME>unparse</NAME>
+	    <EXPECTS>is_list_construction</EXPECTS>
+	    <EXPECTS>element_expression</EXPECTS>
 	    <JAVASCRIPT>
 function unparse(exp) {
     return is_literal(exp)
            ? stringify(literal_value(exp))
            : is_name(exp)
            ? symbol_of_name(exp)
+	   : is_list_construction(exp)
+           ? unparse(make_application(make_name("list"), 
+                                      element_expressions(exp)))
            : is_application(exp) &amp;&amp; is_name(function_expression(exp))
            ? symbol_of_name(function_expression(exp)) +
                  "(" +	   
@@ -3012,7 +3014,7 @@ function unparse(exp) {
              " " + operator_symbol(exp) +
              " " + unparse(second_operand(exp)) +
              ")"
-           $\langle unparsing$ $other$ $kinds$ $of$ $JavaScript$ $expressions \rangle$
+           $\langle unparsing$ $other$ $kinds$ $of$ $JavaScript$ $components \rangle$
            : error(exp, "unknown syntax -- unparse");
 }
 function comma_separated(strings) {
@@ -3020,11 +3022,44 @@ function comma_separated(strings) {
                       "", strings);
 }
 	    </JAVASCRIPT>
+	    <JAVASCRIPT_RUN>
+function unparse(exp) {
+    return is_literal(exp)
+           ? stringify(literal_value(exp))
+           : is_name(exp)
+           ? symbol_of_name(exp)
+	   : is_list_construction(exp)
+           ? unparse(make_application(make_name("list"), 
+                                      element_expressions(exp)))
+           : is_application(exp) &amp;&amp; is_name(function_expression(exp))
+           ? symbol_of_name(function_expression(exp)) +
+                 "(" +	   
+                 comma_separated(map(unparse, arg_expressions(exp))) +
+                 ")"
+           : is_binary_operator_combination(exp)
+           ? "(" + unparse(first_operand(exp)) +
+             " " + operator_symbol(exp) +
+             " " + unparse(second_operand(exp)) +
+             ")"
+           : error(exp, "unknown syntax -- unparse");
+}
+function comma_separated(strings) {
+    return accumulate((s, acc) => s + (acc === "" ? "" : ", " + acc),
+                      "", strings);
+}
+	    </JAVASCRIPT_RUN>
 	  </SNIPPET>
-	  This 
-	  <JAVASCRIPTINLINE>unparse</JAVASCRIPTINLINE> function
-	  yields correct strings for our instantiated queries,
-	  but they become unnecessarily
+	  The function
+	  <JAVASCRIPTINLINE>unparse</JAVASCRIPTINLINE>
+	  would work fine without the clause
+	  <SNIPPET>
+	    <JAVASCRIPT>
+: is_list_construction(exp)
+? unparse(make_application(make_name("list"), 
+                           element_expressions(exp)))
+	    </JAVASCRIPT>
+	  </SNIPPET>
+	  but the output string would become unnecessarily
 	  verbose in cases where pattern variables are instantiated
 	  by lists. In the example above, where processing the query
 	  <SNIPPET>
@@ -3040,14 +3075,13 @@ job($x, list("computer", "wizard"))
 pair("Bitdiddle", pair("Ben", null))
 	    </JAVASCRIPT>
 	  </SNIPPET>
-	  the expected query result string is:
+	  <JAVASCRIPTINLINE>unparse</JAVASCRIPTINLINE> produces
 	  <SNIPPET EVAL="no">
 	  <JAVASCRIPT_LONELY>
 'job(list("Bitdiddle", "Ben"), list("computer", "wizard"))'
 	  </JAVASCRIPT_LONELY>
 	  </SNIPPET>
-	  However, the <JAVASCRIPTINLINE>unparse</JAVASCRIPTINLINE> function
-	  above produces
+	  However, without the clause it would produce
 	  <SNIPPET EVAL="no">
 	  <JAVASCRIPT_LONELY>
 'job(pair("Bitdiddle", pair("Ben", null)), list("computer", "wizard"))'
@@ -3056,28 +3090,11 @@ pair("Bitdiddle", pair("Ben", null))
 	  which explicitly constructs the two pairs that make up the first list.
           To achieve the more concise formatting used throughout 
 	  section<SPACE/><REF NAME="sec:deductive-info-retrieval"/>,
-	  we insert a clause in
-	  <JAVASCRIPTINLINE>unparse</JAVASCRIPTINLINE>
-	  after the clause for literals to check
+	  we inserted the clause to check
 	  if the expression constructs a list, in which case
 	  we format it as a single application of
 	  <JAVASCRIPTINLINE>list</JAVASCRIPTINLINE> to the list of element
 	  expressions that we extract from the expression.
-	  <SNIPPET EVAL="no" LATEX="yes">
-	    <NAME>unparse</NAME>
-	    <EXPECTS>is_list_construction</EXPECTS>
-	    <EXPECTS>element_expression</EXPECTS>
-	    <JAVASCRIPT>
-function unparse(exp) {
-    return is_literal(exp)
-           ? stringify(literal_value(exp))
-           : is_list_construction(exp)
-           ? unparse(make_application(make_name("list"), 
-                                      element_expressions(exp)))
-           $\langle remaining$ $cases$ $as$ $above \rangle$
-}
-	    </JAVASCRIPT>
-	  </SNIPPET>
 	  A list construction is the literal
 	  <JAVASCRIPTINLINE>null</JAVASCRIPTINLINE> or
 	  an application of
