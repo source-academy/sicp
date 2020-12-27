@@ -67,7 +67,7 @@
       <JAVASCRIPT><JAVASCRIPTINLINE>eval_dispatch</JAVASCRIPTINLINE>
       </JAVASCRIPT>
     </SPLITINLINE>
-    is a case analysis on the syntactic type of the expression to be
+    is a case analysis on the syntactic type of the <SPLITINLINE><SCHEME>expression</SCHEME><JAVASCRIPT>component</JAVASCRIPT></SPLITINLINE> to be
     evaluated.<FOOTNOTE>In our controller, the dispatch is written as a
     sequence of <SCHEMEINLINE>test</SCHEMEINLINE> and
     <SCHEMEINLINE>branch</SCHEMEINLINE> instructions.  Alternatively,
@@ -86,9 +86,9 @@
       <JAVASCRIPT>
         Most common JavaScript implementations today do not interpret the
         JavaScript source code directly. Instead, source is transformed
-        into an intermediate representation called bytecode which is
+        into an intermediate representation called <EM>bytecode</EM> which is
         typically interpreted in a loop similar to our dispatch functions.
-        Some JavaScript interpreters are register machines, like ours --
+        Some JavaScript interpreters are register machines, like ours;
         others are stack machines, in which operations pop and push
         operands from and to a stack instead of keeping a large number of
         registers. For performance reasons, most JavaScript interpreters
@@ -133,8 +133,6 @@ eval-dispatch
       branch(label("ev_application")),
       test(list(op("is_operator_combination"), reg("comp"))),
       branch(label("ev_operator_combination")),
-      test(list(op("is_operator_combination"), reg("comp"))),
-      branch(label("ev_operator_combination")),
       test(list(op("is_conditional"), reg("comp"))),
       branch(label("ev_conditional")),
       test(list(op("is_lambda_expression"), reg("comp"))),
@@ -151,7 +149,7 @@ eval-dispatch
       branch(label("ev_declaration")),
       test(list(op("is_assignment"), reg("comp"))),
       branch(label("ev_assignment")),
-      go_to(label("unknown_expression_type")),
+      go_to(label("unknown_component_type")),
       </JAVASCRIPT>
     </SNIPPET>
   </TEXT>
@@ -172,7 +170,7 @@ eval-dispatch
   </SPLITINLINE>
 
     <TEXT>
-    Numbers and strings <SPLITINLINE><SCHEME>(which are self-evaluating)</SCHEME></SPLITINLINE>,
+    Numbers and strings<SPLITINLINE><SCHEME> (which are self-evaluating)</SCHEME></SPLITINLINE>,
     <SPLITINLINE>
       <SCHEME>
 	variables,
@@ -193,7 +191,7 @@ eval-dispatch
     <SCHEMEINLINE>val</SCHEMEINLINE> register and continues
     execution at the entry point specified by
     <SCHEMEINLINE>continue</SCHEMEINLINE>.  Evaluation
-    of simple <SPLITINLINE><SCHEME>expressions</SCHEME><JAVASCRIPT>components</JAVASCRIPT></SPLITINLINE> is performed by the following controller code:
+    of simple expressions is performed by the following controller code:
     <SNIPPET EVAL="no">
       <SCHEME>
 <!--  \indcode*{ev-self-eval} -->
@@ -222,8 +220,8 @@ ev-lambda
       go_to(reg("continue")),
       
 "ev_name",
-      assign("val",
-        list(op("lookup_symbol_value"), reg("comp"), reg("env"))),
+      assign("val", list(op("symbol_of_name"), reg("comp"), reg("env"))),
+      assign("val", list(op("lookup_symbol_value"), reg("val"), reg("env"))),
       go_to(reg("continue")),
       
 "ev_lambda",
@@ -249,7 +247,7 @@ ev-lambda
       <SCHEME><SCHEMEINLINE>exp</SCHEMEINLINE></SCHEME>
       <JAVASCRIPT><JAVASCRIPTINLINE>comp</JAVASCRIPTINLINE></JAVASCRIPT>
     </SPLITINLINE>
-    registers to hold the parameters and body of the lambda <SPLITINLINE><SCHEME>expressions</SCHEME><JAVASCRIPT>components</JAVASCRIPT></SPLITINLINE> so
+    registers to hold the parameters and body of the lambda expressions so
     that they can be passed to the
     <SPLITINLINE>
       <SCHEME><SCHEMEINLINE>make-procedure</SCHEMEINLINE></SCHEME>
@@ -374,8 +372,16 @@ ev-lambda
     would work but might save more registers than necessary; this could be
     an important consideration in a system where stack operations are
     expensive.  Saving registers whose contents will not be needed later
-    may also hold onto useless data that could otherwise be
+    may also hold on to useless data that could otherwise be
     garbage-collected, freeing space to be reused.</FOOTNOTE>
+  </TEXT>
+
+  <TEXT>
+    Just like in the metacircular evaluator, operator combinations
+    are transformed into applications of primitive functions
+    corresponding to the operators. This takes place in <JAVASCRIPTINLINE>ev_operator_combination</JAVASCRIPTINLINE>
+    which performs this transformation in-place in <JAVASCRIPTINLINE>comp</JAVASCRIPTINLINE> and falls through to
+    <JAVASCRIPTINLINE>ev_application</JAVASCRIPTINLINE>. 
   </TEXT>
 
   <TEXT>
@@ -487,10 +493,13 @@ ev-application
 (goto (label eval-dispatch))
       </SCHEME>
       <JAVASCRIPT>
+"ev_operator_combination",
+      assign("comp", list(op("operator_combination_to_application"),
+                          reg("comp"), reg("env"))),
 "ev_application",
       save("continue"),
       save("env"),
-      assign("unev", list(op("args"), reg("comp"))),
+      assign("unev", list(op("arg_expressions"), reg("comp"))),
       save("unev"),
       assign("comp", list(op("function_expression"), reg("comp"))),
       assign("continue", label("ev_appl_did_function_expression")),
@@ -644,8 +653,8 @@ function adjoin_arg(arg, arglist) {
       </SCHEME>
       <JAVASCRIPT>
 <!--  \indcode*{last-operand?} -->
-function is_last_argument_expression(ops) {
-    return is_null(tail(ops));
+function is_last_argument_expression(arg_expression) {
+    return is_null(tail(arg_expression));
 }
       </JAVASCRIPT>
     </SNIPPET>
@@ -663,11 +672,11 @@ ev-appl-did-operator
     </SCHEME>
     <JAVASCRIPT>
 "ev_appl_did_function_expression",
-      restore("unev"), // the args
+      restore("unev"), // the argument expressions
       restore("env"),
       assign("argl", list(op("empty_arglist"))),
-      assign("fun", reg("val")), // the function_expression
-      test(list(op("has_no_argument_expressions"),
+      assign("fun", reg("val")), // the function
+      test(list(op("no_argument_expressions"),
                 reg("unev"))),
       branch(label("apply_dispatch")),
       save("fun"),
@@ -711,8 +720,7 @@ ev-appl-did-operator
     is made for the evaluation of the last
     <SPLITINLINE>
       <SCHEME>operand</SCHEME>
-      <JAVASCRIPT>argument expression
-      </JAVASCRIPT>
+      <JAVASCRIPT>argument expression,</JAVASCRIPT>
     </SPLITINLINE>
     which is handled at
     <SPLITINLINE>
@@ -735,7 +743,7 @@ ev-appl-operand-loop
       <JAVASCRIPT>
 "ev_appl_argument_expression_loop",
       save("argl"),
-      assign("comp", list(op("first_arg"), reg("unev"))),
+      assign("comp", list(op("first_arg_exp"), reg("unev"))),
       test(list(op("is_last_argument_expression"),
                 reg("unev"))),
       branch(label("ev_appl_last_arg")),
@@ -784,14 +792,14 @@ ev-appl-accumulate-arg
       restore("argl"),
       assign("argl", list(op("adjoin_arg"),
                           reg("val"), reg("argl"))),
-      assign("unev", list(op("rest_args"), reg("unev"))),
+      assign("unev", list(op("rest_arg_exps"), reg("unev"))),
       go_to(label("ev_appl_argument_expression_loop")),
       </JAVASCRIPT>
     </SNIPPET>
   </TEXT>
 
   <TEXT>
-    Evaluation of the last argument is handled differently.  There is no
+    Evaluation of the last argument <SPLITINLINE><JAVASCRIPT>expression</JAVASCRIPT></SPLITINLINE> is handled differently.  There is no
     need to save the environment or the list of unevaluated 
   <SPLITINLINE>
     <SCHEME>operands</SCHEME>
@@ -900,13 +908,21 @@ ev-appl-accum-last-arg
     left to right or right to left<EMDASH/>see
     exercise<SPACE/><REF NAME="ex:order-of-evaluation"/>).  This order is not
     determined by the metacircular evaluator, which inherits its control
-    structure from the underlying Scheme in which it is implemented.<FOOTNOTE>The
+    structure from the underlying <SPLITINLINE><SCHEME>Scheme</SCHEME><JAVASCRIPT>JavaScript</JAVASCRIPT></SPLITINLINE> in which it is implemented.<FOOTNOTE><SPLITINLINE><SCHEME>The</SCHEME><JAVASCRIPT>Consequently, the</JAVASCRIPT></SPLITINLINE>
     order of
     <SPLITINLINE>
     <SCHEME>operand</SCHEME>
     <JAVASCRIPT>argument expression</JAVASCRIPT>
   </SPLITINLINE>
-  evaluation in the metacircular evaluator is determined by
+  evaluation
+  <SPLITINLINE>
+    <SCHEME>
+      in the metacircular evaluator is determined by
+    </SCHEME>
+    <JAVASCRIPT>
+      in our explicit-control evaluator is left-to-right, as opposed to the metacircular evaluator where the order is determined by
+    </JAVASCRIPT>
+  </SPLITINLINE>
     the order of evaluation of the arguments to
     <SPLITINLINE>
       <SCHEME><SCHEMEINLINE>cons</SCHEMEINLINE></SCHEME>
@@ -919,7 +935,7 @@ ev-appl-accum-last-arg
     </SPLITINLINE>
     <SPLITINLINE>
       <SCHEME><SCHEMEINLINE>list-of-values</SCHEMEINLINE></SCHEME>
-      <JAVASCRIPT><JAVASCRIPTINLINE>list_of_values</JAVASCRIPTINLINE>
+      <JAVASCRIPT>alternative implementation of <JAVASCRIPTINLINE>list_of_values</JAVASCRIPTINLINE>
       </JAVASCRIPT>
     </SPLITINLINE>
     of section<SPACE/><REF NAME="sec:core-of-evaluator"/>
@@ -927,14 +943,14 @@ ev-appl-accum-last-arg
     Because the
     <SPLITINLINE>
       <SCHEME><SCHEMEINLINE>first-operand</SCHEMEINLINE></SCHEME>
-      <JAVASCRIPT><JAVASCRIPTINLINE>first_arg</JAVASCRIPTINLINE>
+      <JAVASCRIPT><JAVASCRIPTINLINE>first_arg_exp</JAVASCRIPTINLINE>
       </JAVASCRIPT>
     </SPLITINLINE>
     selector (used in
     <SPLITINLINE>
       <SCHEME><SCHEMEINLINE>ev-appl-operand-loop</SCHEMEINLINE></SCHEME>
       <JAVASCRIPT>
-	<JAVASCRIPTINLINE>ev_appl_argument_loop</JAVASCRIPTINLINE>
+	<JAVASCRIPTINLINE>ev_appl_argument_expression_loop</JAVASCRIPTINLINE>
       </JAVASCRIPT>
     </SPLITINLINE>
     to extract successive
@@ -953,7 +969,7 @@ ev-appl-accum-last-arg
 	<SCHEMEINLINE>rest-operands</SCHEMEINLINE>
       </SCHEME>
       <JAVASCRIPT>
-	<JAVASCRIPTINLINE>rest_args</JAVASCRIPTINLINE>
+	<JAVASCRIPTINLINE>rest_arg_exps</JAVASCRIPTINLINE>
       </JAVASCRIPT>
     </SPLITINLINE>
     selector is implemented as
@@ -1192,19 +1208,39 @@ primitive-apply
         handles the evaluation of the sequence.
       </SCHEME>
       <JAVASCRIPT>
-        A little extra work is needed to handle function bodies
-        with a single non-return statement as these should return
-        <JAVASCRIPTINLINE>undefined</JAVASCRIPTINLINE>. In this
-        case, we set as continuation the label
+        A little extra work is needed to handle return statements
+        which should be allowed to return immediately to the point
+        where the function was called, bypassing any continuations
+        which may have been set up in-between. We handle this by
+        recording the top of the stack by pushing a special marker on
+        the stack. When a function returns, we will pop the stack
+        repeatedly until we hit the marker. This ensures that
+        the next <JAVASCRIPTINLINE>restore</JAVASCRIPTINLINE> will
+        be the continuation set up in <JAVASCRIPTINLINE>ev_application</JAVASCRIPTINLINE>.
+
+        To simplify this stack management, we extend the stack
+        in section<SPACE/><REF NAME="sec:machine-model"/> with two new commands:
+        <JAVASCRIPTINLINE>save_marker</JAVASCRIPTINLINE> (for pushing the maker) and
+        <JAVASCRIPTINLINE>restore_marker</JAVASCRIPTINLINE> (for popping until the marker is reached).
+        
+        We must also handle function bodies
+        whose <EM>evaluation</EM> do not end in an explicit
+        return statement as such functions implicitly return
+        <JAVASCRIPTINLINE>undefined</JAVASCRIPTINLINE>.
+        To handle this case, we set as continuation the label
         <JAVASCRIPTINLINE>return_undefined</JAVASCRIPTINLINE>,
         which will overwrite the contents of
         <JAVASCRIPTINLINE>val</JAVASCRIPTINLINE> by
         <JAVASCRIPTINLINE>undefined</JAVASCRIPTINLINE> before
-        jumping back into the dispatch loop. This has implications
-        for tail-recursion, which is discussed in
-        section<SPACE/><REF NAME="sec:sequence-evaluation"/>.
-        All other cases handle returns by themselves as part of
-        the normal dispatch loop.
+        restoring the continuation set up in
+        <JAVASCRIPTINLINE>ev_application</JAVASCRIPTINLINE>.
+
+        Because the <JAVASCRIPTINLINE>return_undefined</JAVASCRIPTINLINE>
+        continuation is installed after <JAVASCRIPTINLINE>save_marker</JAVASCRIPTINLINE>,
+        it will be skipped by an explicit return which causes the value in
+        <JAVASCRIPTINLINE>val</JAVASCRIPTINLINE> to be preserved. The behavior
+        of <JAVASCRIPTINLINE>return_undefined</JAVASCRIPTINLINE> and
+        <JAVASCRIPTINLINE>ev_return</JAVASCRIPTINLINE> is described below.
       </JAVASCRIPT>
     </SPLIT>
     <!--  \indcode*{compound-apply} -->
@@ -1225,18 +1261,18 @@ compound-apply
       assign("env", list(op("extend_environment"), 
                          reg("unev"), reg("argl"), reg("env"))),
       assign("comp", list(op("function_body"), reg("fun"))),
-      save_frame(),
+      save_marker(),
       assign("continue", label("return_undefined")),
       go_to(label("eval_dispatch")),
 
 "return_undefined",
-      restore_frame(),
+      restore_marker(),
       assign("val", constant(undefined)),
       restore("continue"),
       go_to(reg("continue")),
 
 "ev_return",
-      restore_frame(),
+      restore_marker(),
       restore("continue"),
       assign("comp", list(op("return_expression"), reg("comp"))),
       go_to(label("eval_dispatch")),
@@ -1293,35 +1329,25 @@ compound-apply
     <SPLIT>
       <JAVASCRIPT>
         <TEXT>
-          To simplify the treatment of unwinding the stack after a function
-          call, we extend the stack in <REF NAME="sec:machine-model"/> with two
-          new commands <JAVASCRIPTINLINE>save_frame</JAVASCRIPTINLINE> and
-          <JAVASCRIPTINLINE>restore_frame</JAVASCRIPTINLINE>. These commands can
-          be implemented using <JAVASCRIPTINLINE>save</JAVASCRIPTINLINE> and
-          <JAVASCRIPTINLINE>restore</JAVASCRIPTINLINE> and demarcates the
-          boundary of the current stack frame, and the new. This marker allows
-          returning from any point in a function, and dynamically unwinding the
-          stack using the marker as an end condition.
+          The special handler <JAVASCRIPTINLINE>return_undefined</JAVASCRIPTINLINE>
+          sets <JAVASCRIPTINLINE>val</JAVASCRIPTINLINE> to
+          <JAVASCRIPTINLINE>undefined</JAVASCRIPTINLINE> before restoring
+          the continuation set up by <JAVASCRIPTINLINE>ev_application</JAVASCRIPTINLINE>. Because the 
+          marker is at the top of the stack, a simple
+          <JAVASCRIPTINLINE>restore</JAVASCRIPTINLINE> would suffice to remove it, but
+          we use <JAVASCRIPTINLINE>restore_frame</JAVASCRIPTINLINE> for uniformity. 
         </TEXT>
         <TEXT>
-          Inside a return statement, we unwind the stack before proceeding to
-          evaluate the expression that defines the return value. Unwinding the
-          stack <EM>before</EM> this evaluation does not pose a problem as
+          To evaluate a return statement, we first pop the stack repeatedly to restore
+          its state from when the <JAVASCRIPTINLINE>save_marker</JAVASCRIPTINLINE> instruction
+          was executed just before the start of the evaluation of the body of the function which we are returning from.
+          This is handled by the <JAVASCRIPTINLINE>restore_marker</JAVASCRIPTINLINE> instruction.
+          We then evaluate the subexpression that defines the return value
+          using the current values of 
           <JAVASCRIPTINLINE>env</JAVASCRIPTINLINE> and
-          <JAVASCRIPTINLINE>unev</JAVASCRIPTINLINE> are unaffected by operations
-          on the stack. 
-        </TEXT>
-        <TEXT>
-          To deal with the JavaScript idiosyncrasy that functions that do not
-          explicitly return a value returns
-          <JAVASCRIPTINLINE>undefined</JAVASCRIPTINLINE>, the evaluator a
-          special handler <JAVASCRIPTINLINE>return_undefined</JAVASCRIPTINLINE>
-          that sets <JAVASCRIPTINLINE>val</JAVASCRIPTINLINE> to
-          <JAVASCRIPTINLINE>undefined</JAVASCRIPTINLINE>. All function calls are
-          set up with this continuation after the call to
-          <JAVASCRIPTINLINE>save_frame</JAVASCRIPTINLINE>. Thus, an explicit
-          return's call to <JAVASCRIPTINLINE>restore_frame</JAVASCRIPTINLINE>
-          will skip over the handler which preserves the return value.
+          <JAVASCRIPTINLINE>unev</JAVASCRIPTINLINE>.
+          Restoring the stack before evaluating the subexpression rather than after is
+          key to tail recursion which is discussed in section<SPACE/><REF NAME="sec:tail-recursion-return"/>.
         </TEXT>
       </JAVASCRIPT>
     </SPLIT>
@@ -1349,7 +1375,14 @@ compound-apply
         <JAVASCRIPTINLINE>ev_sequence</JAVASCRIPTINLINE> is analogous to the
         metacircular evaluator<APOS/>s
         <JAVASCRIPTINLINE>eval_sequence</JAVASCRIPTINLINE> function. It handles
-        sequences of expressions in blocks or at the top level.
+        sequences of statements in function bodies, blocks or at the top level.
+
+        The handling of returns in the explicit-control evaluator deviates from
+        the metacircular evaluator in order to support tail recursion. By using
+        the marker to pop everything on the stack down to the continuation of
+        the current function call the sequence does not need to cooperate in its
+        own abortion, or even be aware of the existence of explicit returns in
+        the language.
       </JAVASCRIPT>
     </SPLIT>
   </TEXT>
@@ -1359,22 +1392,22 @@ compound-apply
       <SCHEME>explicit<SCHEMEINLINE>begin</SCHEMEINLINE> expressions</SCHEME>
       <JAVASCRIPT>Sequences of statements</JAVASCRIPT>
     </SPLITINLINE>
-    are evaluated by placing the 
+    are evaluated 
     <SPLITINLINE>
       <SCHEME>
-	sequence of expressions
+	      by placing the sequence of expressions
       </SCHEME>
       <JAVASCRIPT>
-	sequence
+	      in <JAVASCRIPTINLINE>ev_sequence_start</JAVASCRIPTINLINE> by placing the sequence of statements
       </JAVASCRIPT>
     </SPLITINLINE>
     to be evaluated in
     <SCHEMEINLINE>unev</SCHEMEINLINE>, saving
     <SCHEMEINLINE>continue</SCHEMEINLINE> on the
-    stack, and jumping to
+    stack, and
     <SPLITINLINE>
-      <SCHEME><SCHEMEINLINE>ev-sequence</SCHEMEINLINE>.</SCHEME>
-      <JAVASCRIPT><JAVASCRIPTINLINE>ev_sequence</JAVASCRIPTINLINE>.</JAVASCRIPT>
+      <SCHEME> jumping to <SCHEMEINLINE>ev-sequence</SCHEMEINLINE>.</SCHEME>
+      <JAVASCRIPT>proceeding to the next entry <JAVASCRIPTINLINE>ev_sequence</JAVASCRIPTINLINE>.</JAVASCRIPT>
     </SPLITINLINE>
     <!--  \indcode*{ev-begin} -->
     <SNIPPET EVAL="no">
@@ -1392,26 +1425,20 @@ ev-begin
     </SNIPPET>
 
     
-    <SPLITINLINE>
-      <SCHEME>The implicit sequences in procedure</SCHEME>
-      <JAVASCRIPT>All sequences in function</JAVASCRIPT>
-    </SPLITINLINE>
-    bodies are handled by jumping to
-    <SPLITINLINE>
-      <SCHEME><SCHEMEINLINE>ev-sequence</SCHEMEINLINE> from</SCHEME>
-      <JAVASCRIPT><JAVASCRIPTINLINE>ev_sequence</JAVASCRIPTINLINE> via</JAVASCRIPT>
-    </SPLITINLINE>
-    <SPLITINLINE>
+    <SPLIT>
       <SCHEME>
+        The implicit sequences in procedure bodies are handled by jumping to
+        <SCHEMEINLINE>ev-sequence</SCHEMEINLINE> from
         <SCHEMEINLINE>compound-apply</SCHEMEINLINE>, at which point
         <SCHEMEINLINE>continue</SCHEMEINLINE> is already on the stack, having
         been saved at <SCHEMEINLINE>ev-application</SCHEMEINLINE>.
       </SCHEME>
-      <JAVASCRIPT><JAVASCRIPTINLINE>ev_sequence_start</JAVASCRIPTINLINE>.
-      The latter takes care to save <JAVASCRIPTINLINE>continue</JAVASCRIPTINLINE>
-      to allow the register to be used in the iteration over the statements in the sequence.
+      <JAVASCRIPT>
+        Saving <JAVASCRIPTINLINE>continue</JAVASCRIPTINLINE> allows
+        the register to be used in the iteration over the statements in the
+        sequence. 
       </JAVASCRIPT>
-    </SPLITINLINE>
+    </SPLIT>
   </TEXT>
 
   <TEXT>
@@ -1557,14 +1584,9 @@ ev-begin
     except continue at the entry point currently held on the stack (which was
     saved by
     <SPLITINLINE>
-      <SCHEME><SCHEMEINLINE>ev-application</SCHEMEINLINE></SCHEME>
-      <JAVASCRIPT><JAVASCRIPTINLINE>ev_application</JAVASCRIPTINLINE>
-      </JAVASCRIPT>
-    </SPLITINLINE>
-    or
-    <SPLITINLINE>
-      <SCHEME><SCHEMEINLINE>ev-begin</SCHEMEINLINE>.)</SCHEME>
-      <JAVASCRIPT><JAVASCRIPTINLINE>ev_seq</JAVASCRIPTINLINE>.)</JAVASCRIPT>
+      <SCHEME><SCHEMEINLINE>ev-application</SCHEMEINLINE> or <SCHEMEINLINE>ev-begin</SCHEMEINLINE>.)</SCHEME>
+      <JAVASCRIPT><JAVASCRIPTINLINE>ev_application</JAVASCRIPTINLINE>, <JAVASCRIPTINLINE>ev_sequence_start</JAVASCRIPTINLINE> or
+      <JAVASCRIPTINLINE>ev_conditional</JAVASCRIPTINLINE>.)</JAVASCRIPT>
     </SPLITINLINE>
     Rather than setting up <SCHEMEINLINE>continue</SCHEMEINLINE> to arrange for
     <SPLITINLINE>

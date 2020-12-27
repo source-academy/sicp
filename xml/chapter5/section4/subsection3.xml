@@ -228,7 +228,7 @@ ev-assignment-1
 "ev_assignment",
       assign("unev", list(op("assignment_symbol"), reg("comp"))),
       save("unev"), // save variable for later
-      assign("comp", list(op("assignment_value"), reg("comp"))),
+      assign("comp", list(op("assignment_value_expression"), reg("comp"))),
       save("env"),
       save("continue"),
       assign("continue", label("ev_assignment_1")),
@@ -254,11 +254,16 @@ ev-assignment-1
       </SCHEME>
       <JAVASCRIPT>
         Declarations of variables and constants are handled in a similar way.
-        Note that declarations do not returns
-        <JAVASCRIPTINLINE>undefined</JAVASCRIPTINLINE> instead of the result of
-        the expression used to initialize the variable. This is handled by
+        Note that whereas the value of an assignment is the value that was assigned,
+        the value of a declaration is
+        <JAVASCRIPTINLINE>undefined</JAVASCRIPTINLINE>. This is handled by
         setting <JAVASCRIPTINLINE>val</JAVASCRIPTINLINE> to
-        <JAVASCRIPTINLINE>undefined</JAVASCRIPTINLINE> before continuing.
+        <JAVASCRIPTINLINE>undefined</JAVASCRIPTINLINE> before continuing. 
+        Like in the metacircular evaluator, we transform a function declaration
+        into a constant declaration whose value expression is a lambda expression. This happens in
+        <JAVASCRIPTINLINE>ev_function_declaration</JAVASCRIPTINLINE> which makes the
+        transformation in-place in <JAVASCRIPTINLINE>comp</JAVASCRIPTINLINE> and
+        falls through to <JAVASCRIPTINLINE>ev_declaration</JAVASCRIPTINLINE>.
       </JAVASCRIPT>
       </SPLITINLINE>
 <!--  \indcode*{ev_declaration} -->
@@ -283,10 +288,13 @@ ev-definition-1
 (goto (reg continue))
       </SCHEME>
       <JAVASCRIPT>
+"ev_function_declaration",
+      assign("comp", list(op("function_decl_to_constant_decl"), reg("comp"))),
+
 "ev_declaration",
       assign("unev", list(op("declaration_symbol"),
                           reg("comp"))),
-      save("unev"), // save variable for later
+      save("unev"), // save declared name
       assign("comp", list(op("declaration_value_expression"),
                           reg("comp"))),
       save("env"),
@@ -320,10 +328,14 @@ ev-definition-1
       <JAVASCRIPT>
         <INDEX>explicit-control evaluator <SUBINDEX>definitions</SUBINDEX></INDEX>
 
-        Evaluation of blocks evaluates the body of the block with
+        The body of a block is evaluated with
         respect to the current environment extended by a binding
         of all local names to the value
-        <JAVASCRIPTINLINE>"*undefined*"</JAVASCRIPTINLINE>.
+        <JAVASCRIPTINLINE>"*unassigned*"</JAVASCRIPTINLINE>.
+        We temporarily make us of the <JAVASCRIPTINLINE>comp</JAVASCRIPTINLINE>
+        register to hold the list of all variables declared in the block
+        which are obtained by the function <JAVASCRIPTINLINE>scan_out_declarations</JAVASCRIPTINLINE>
+        from section<SPACE/><REF NAME="sec:core-of-evaluator"/>.
       
     <SNIPPET EVAL="no">
       <JAVASCRIPT>
@@ -331,7 +343,7 @@ ev-definition-1
       assign("comp", list(op("block_body"), reg("comp"))),
       assign("val", list(op("scan_out_declarations"), reg("comp"))),
 
-      save("comp"), // temporarily store to comp
+      save("comp"), // temporarily use for *unassigned* values
       assign("comp", list(op("list_of_unassigned"), reg("val"))),
       assign("env", list(op("extend_environment"), 
                          reg("val"), 
@@ -378,7 +390,7 @@ ev-definition-1
 	<JAVASCRIPTINLINE>while_loop</JAVASCRIPTINLINE> in front of user programs.
 	You may <QUOTE>cheat</QUOTE> and assume that the syntax transformer
 	<JAVASCRIPTINLINE>while_to_application</JAVASCRIPTINLINE> is available
-	as machine operation.<FOOTNOTE>This isn<APOS/>t really cheating.  In an
+	as a machine operation.<FOOTNOTE>This isn<APOS/>t really cheating.  In an
 	actual implementation built from scratch, we would use our explicit-control
 	evaluator to interpret a JavaScript program that performs source-level
 	transformations like
@@ -397,8 +409,8 @@ ev-definition-1
     <JAVASCRIPT>
       <EXERCISE>
         Implement the equivalent of
-        <JAVASCRIPTINLINE>save_frame</JAVASCRIPTINLINE> and
-        <JAVASCRIPTINLINE>restore_frame</JAVASCRIPTINLINE> by using save to
+        <JAVASCRIPTINLINE>save_marker</JAVASCRIPTINLINE> and
+        <JAVASCRIPTINLINE>restore_marker</JAVASCRIPTINLINE> by using save to
         store a special marker value on the stack. Use a restoring loop for
         implicit and explicit returns that restores from the stack until it hits
         the marker.
@@ -418,16 +430,17 @@ ev-definition-1
 	      the actions of the clause.
       </SCHEME>
       <JAVASCRIPT>
-        Implement <JAVASCRIPTINLINE>save_frame</JAVASCRIPTINLINE> and
-        <JAVASCRIPTINLINE>restore_frame</JAVASCRIPTINLINE>. Extend the evaluator
+        Implement <JAVASCRIPTINLINE>save_marker</JAVASCRIPTINLINE> and
+        <JAVASCRIPTINLINE>restore_marker</JAVASCRIPTINLINE>. Extend the evaluator
         with two new instructions implemented as the nullary functions
-        save_frame and restore_frame, similar to save and restore. You will have
-        to add dispatch cases in the stack,
-        <JAVASCRIPTINLINE>make_save_frame</JAVASCRIPTINLINE> and
-        <JAVASCRIPTINLINE>make_restore_frame</JAVASCRIPTINLINE> functions. Note
-        that you do not need to actually insert a marker in the stack, but keep
+        <JAVASCRIPTINLINE>save_marker</JAVASCRIPTINLINE> and
+        <JAVASCRIPTINLINE>restore_marker</JAVASCRIPTINLINE>, similar to
+        <JAVASCRIPTINLINE>save</JAVASCRIPTINLINE> and
+        <JAVASCRIPTINLINE>restore</JAVASCRIPTINLINE>. You will have
+        add cases to the stack's dispatch function as well. Note
+        that you do not need to actually insert a marker in the stack, but can keep
         a parallel structure that only keeps track of the position of the last
-        save before a call to <JAVASCRIPTINLINE>save_frame</JAVASCRIPTINLINE>.
+        save before a call to <JAVASCRIPTINLINE>save_marker</JAVASCRIPTINLINE>.
       </JAVASCRIPT>
     </SPLIT>
       <LABEL NAME="ex:eceval-cond"/>
