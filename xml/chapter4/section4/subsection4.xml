@@ -2827,13 +2827,13 @@ list("and",
 	    <REQUIRES>make_binding</REQUIRES>
 	    <REQUIRES>variable</REQUIRES>
 	    <REQUIRES>express</REQUIRES>
-	    <REQUIRES>reify_datum</REQUIRES>
+	    <REQUIRES>reverse_interpret</REQUIRES>
 	    <EXAMPLE>append_to_form_example_5</EXAMPLE>
 	    <JAVASCRIPT>
 function instantiate_expression(expression, frame) {
     function copy(expression) {
         return is_variable(expression)
-               ? reify_datum(instantiate_datum(expression, frame))
+               ? reverse_interpret(instantiate_datum(expression, frame))
                : is_pair(expression)
                ? pair(copy(head(expression)), 
                       copy(tail(expression)))
@@ -2881,18 +2881,18 @@ function instantiate_datum(datum, frame) {
 	    </JAVASCRIPT>
 	  </SNIPPET>
 	  The function
-	  <JAVASCRIPTINLINE>reify_datum</JAVASCRIPTINLINE>
+	  <JAVASCRIPTINLINE>reverse_interpret</JAVASCRIPTINLINE>
 	  constructs a JavaScript syntax representation for a given datum.
 	  <SNIPPET>
-	    <NAME>reify_datum</NAME>
+	    <NAME>reverse_interpret</NAME>
 	    <JAVASCRIPT>
-function reify_datum(datum) {
+function reverse_interpret(datum) {
     return is_variable(datum)
            ? datum
            : is_pair(datum)
            ? make_application(make_name("pair"),
-                              list(reify_datum(head(datum)),
-                                   reify_datum(tail(datum))))
+                              list(reverse_interpret(head(datum)),
+                                   reverse_interpret(tail(datum))))
            : // datum is a primitive value
              make_literal(datum);
 }
@@ -2936,7 +2936,7 @@ list("Bitdiddle", "Ben")
 	    </JAVASCRIPT_LONELY>
 	  </SNIPPET>
 	  which
-	  <JAVASCRIPTINLINE>reify_datum</JAVASCRIPTINLINE> transforms into
+	  <JAVASCRIPTINLINE>reverse_interpret</JAVASCRIPTINLINE> transforms into
 	  <SNIPPET>
 	    <JAVASCRIPT_LONELY>
 list("application",
@@ -2993,8 +2993,8 @@ list("application",
 	  Binary operator combinations are formatted using infix notation.
 	  <SNIPPET LATEX="yes">
 	    <NAME>unparse</NAME>
-	    <EXPECTS>is_list_construction</EXPECTS>
-	    <EXPECTS>element_expression</EXPECTS>
+	    <REQUIRES>is_list_construction</REQUIRES>
+	    <REQUIRES>element_expressions</REQUIRES>
 	    <JAVASCRIPT>
 function unparse(exp) {
     return is_literal(exp)
@@ -3100,7 +3100,7 @@ pair("Bitdiddle", pair("Ben", null))
 	  an application of
 	  <JAVASCRIPTINLINE>pair</JAVASCRIPTINLINE>
 	  whose second argument is itself a list construction.
-	  <SNIPPET EVAL="no" LATEX="yes">
+	  <SNIPPET EVAL="no">
 	    <NAME>is_list_construction</NAME>
 	    <JAVASCRIPT>
 function is_list_construction(exp) {
@@ -3115,8 +3115,8 @@ function is_list_construction(exp) {
 	  amounts to collecting the first arguments of applications of
 	  <JAVASCRIPTINLINE>pair</JAVASCRIPTINLINE> until the literal	  
 	  <JAVASCRIPTINLINE>null</JAVASCRIPTINLINE> is reached.
-	  <SNIPPET EVAL="no" LATEX="yes">
-	    <NAME>element_expression</NAME>
+	  <SNIPPET EVAL="no">
+	    <NAME>element_expressions</NAME>
 	    <JAVASCRIPT>
 function element_expressions(exp) {
     return is_literal(exp)
@@ -3127,36 +3127,6 @@ function element_expressions(exp) {
 }
 	    </JAVASCRIPT>
 	    <JAVASCRIPT_RUN>
-function unparse(exp) {
-    return is_name(exp)
-           ? symbol_of_name(exp)
-           : is_literal(exp)
-           ? stringify(literal_value(exp))
-           : is_list_construction(exp)
-           ? unparse(make_application(make_name("list"), 
-                                      element_expressions(exp)))
-           : is_application(exp) &amp;&amp; is_name(function_expression(exp))
-           ? symbol_of_name(function_expression(exp)) +
-                 "(" +	   
-                 comma_separated(map(unparse, arg_expressions(exp))) +
-                 ")"
-           : is_binary_operator_combination(exp)
-           ? "(" + unparse(first_operand(exp)) +
-             " " + operator_symbol(exp) +
-             " " + unparse(second_operand(exp)) +
-             ")"
-           : error(exp, "unknown syntax -- unparse");
-}
-function comma_separated(strings) {
-    return accumulate((s, acc) => s + (acc === "" ? "" : ", " + acc),
-                      "", strings);
-}
-function is_list_construction(exp) {
-    return (is_literal(exp) &amp;&amp; is_null(literal_value(exp))) ||
-           (is_application(exp) &amp;&amp; is_name(function_expression(exp)) &amp;&amp;
-            symbol_of_name(function_expression(exp)) === "pair" &amp;&amp;
-            is_list_construction(head(tail(arg_expressions(exp)))));
-}
 function element_expressions(exp) {
     return is_literal(exp)
            ? null // exp is literal null
