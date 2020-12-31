@@ -2640,7 +2640,7 @@ function singleton_stream(x) {
       Query 
       <SPLITINLINE>
 	<SCHEME>Syntax Procedures</SCHEME>
-	<JAVASCRIPT>Syntax Functions</JAVASCRIPT>
+	<JAVASCRIPT>Syntax Functions and Instantiation</JAVASCRIPT>
       </SPLITINLINE>
     </NAME>
     <LABEL NAME="sec:query-syntax"/>
@@ -2739,7 +2739,6 @@ list("job", list("name", "$x"), list("computer", "wizard"))
 	<JAVASCRIPTINLINE>is_variable</JAVASCRIPTINLINE> is used on the 
 	query-language-specific representation during query processing and
 	on the JavaScript syntax representation during instantiation
-	and unparsing
 	to identify names that start with a dollar sign.
 	We assume there is a function <JAVASCRIPTINLINE>char_at</JAVASCRIPTINLINE> that
 	returns a string containing only the character of the given string
@@ -2908,31 +2907,28 @@ list("and",
 	The function <JAVASCRIPTINLINE>javascript_value</JAVASCRIPTINLINE>
 	of section<SPACE/><REF NAME="sec:query-eval"/> and the driver loop
 	of section<SPACE/><REF NAME="sec:query-driver"/> call
-	<JAVASCRIPTINLINE>instantiate</JAVASCRIPTINLINE> on a given
+	<JAVASCRIPTINLINE>instantiate</JAVASCRIPTINLINE> on an
 	expression to obtain a copy in which any variable in the
 	expression is replaced by its value in a given frame.
 	The input and result expressions use the JavaScript syntax
 	representation, so any value that results from instantiating a
-	variable needs to be converted from its form in the binding back to
+	variable needs to be converted from its form in the binding to
 	the JavaScript syntax representation.
 	  <SNIPPET>
 	    <NAME>instantiate</NAME>
 	    <REQUIRES>make_binding</REQUIRES>
 	    <REQUIRES>variable</REQUIRES>
 	    <REQUIRES>express</REQUIRES>
-	    <REQUIRES>reverse_interpret</REQUIRES>
+	    <REQUIRES>convert</REQUIRES>
 	    <EXAMPLE>append_to_form_example_5</EXAMPLE>
 	    <JAVASCRIPT>
 function instantiate_expression(expression, frame) {
-    function copy(expression) {
-        return is_variable(expression)
-               ? reverse_interpret(instantiate_term(expression, frame))
-               : is_pair(expression)
-               ? pair(copy(head(expression)), 
-                      copy(tail(expression)))
-               : expression;
-    }
-    return copy(expression);
+    return is_variable(expression)
+           ? convert(instantiate_term(expression, frame))
+           : is_pair(expression)
+           ? pair(instantiate_expression(head(expression), frame), 
+                  instantiate_expression(tail(expression), frame))
+           : expression;
 }
 	    </JAVASCRIPT>
 	  </SNIPPET>
@@ -2940,8 +2936,10 @@ function instantiate_expression(expression, frame) {
 	  <JAVASCRIPTINLINE>instantiate_term</JAVASCRIPTINLINE> takes
 	  a variable, pair, or primitive value as first argument and a frame
 	  as second argument and recursively replaces the variables in
-	  the first argument by their bindings in the frame
+	  the first argument by their values in the frame
 	  until a primitive value or an unbound variable is reached.
+	  When the process encounters a pair, a new pair is constructed
+	  whose parts are the instantiated versions of the original parts.
 	  For example, if 
 	  <JAVASCRIPTINLINE>$x</JAVASCRIPTINLINE>
 	  is bound to the pair
@@ -2964,7 +2962,7 @@ function instantiate_term(term, frame) {
     if (is_variable(term)) {
         const binding = binding_in_frame(term, frame);
         return is_undefined(binding)
-               ? term
+               ? term  // leave unbound variable as is
                : instantiate_term(binding_value(binding), frame);
     } else if (is_pair(term)) {
         return pair(instantiate_term(head(term), frame), 
@@ -2976,20 +2974,22 @@ function instantiate_term(term, frame) {
 	    </JAVASCRIPT>
 	  </SNIPPET>
 	  The function
-	  <JAVASCRIPTINLINE>reverse_interpret</JAVASCRIPTINLINE>
+	  <JAVASCRIPTINLINE>convert</JAVASCRIPTINLINE>
 	  constructs a JavaScript syntax representation for a variable,
 	  pair, or primitive value returned by
 	  <JAVASCRIPTINLINE>instantiate_term</JAVASCRIPTINLINE>.
+	  A pair in the original becomes an application of JavaScript's
+	  pair constructor and a primitive value becomes a literal.
 	  <SNIPPET>
-	    <NAME>reverse_interpret</NAME>
+	    <NAME>convert</NAME>
 	    <JAVASCRIPT>
-function reverse_interpret(term) {
+function convert(term) {
     return is_variable(term)
            ? term
            : is_pair(term)
            ? make_application(make_name("pair"),
-                              list(reverse_interpret(head(term)),
-                                   reverse_interpret(tail(term))))
+                              list(convert(head(term)),
+                                   convert(tail(term))))
            : // term is a primitive value
              make_literal(term);
 }
@@ -3014,14 +3014,14 @@ first_answer('append_to_form(x, y, list("a", "b", "c", "d"))');
 job($x, list("computer", "wizard"))
 	    </JAVASCRIPT>
 	  </SNIPPET>
-	  whose JavaScript syntax representation is given above is
+	  whose JavaScript syntax representation is given above, is
 	  processed by the driver loop.
 	  Let's say a frame <LATEXINLINE>$g$</LATEXINLINE> of the result stream
-	  binds the variannble 
+	  binds the variable 
 	  <JAVASCRIPTINLINE>$x</JAVASCRIPTINLINE> to the pair
 	  <LATEXINLINE>$[\texttt{"Bitdiddle"}, \texttt{\$y}]$</LATEXINLINE> and 
 	  the variable <JAVASCRIPTINLINE>$y</JAVASCRIPTINLINE> to the pair
-	  <LATEXINLINE>[\texttt{"Ben"}, \texttt{null}]</LATEXINLINE>. Then,
+	  <LATEXINLINE>[\texttt{"Ben"}, \texttt{null}]</LATEXINLINE>. Then
 	  <SNIPPET LATEX="yes">
 	    <JAVASCRIPT>
 instantiate_term(list("name", "$\$$x"), $g$)
@@ -3034,7 +3034,7 @@ list("Bitdiddle", "Ben")
 	    </JAVASCRIPT_LONELY>
 	  </SNIPPET>
 	  which
-	  <JAVASCRIPTINLINE>reverse_interpret</JAVASCRIPTINLINE> transforms into
+	  <JAVASCRIPTINLINE>convert</JAVASCRIPTINLINE> transforms into
 	  <SNIPPET>
 	    <JAVASCRIPT_LONELY>
 list("application",
@@ -3084,15 +3084,15 @@ list("application",
 	  transforms a component given in the  JavaScript syntax representation
 	  into a string by applying the syntax rules
 	  of section<SPACE/><REF NAME="sec:representing-expressions"/>.
-	  We describe <JAVASCRIPTINLINE>unparse</JAVASCRIPTINLINE> only for expressions
-	  and cover only those kinds of expressions that appear in the examples of
+	  We describe <JAVASCRIPTINLINE>unparse</JAVASCRIPTINLINE> only for
+	  those kinds of expressions that appear in the examples of
 	  section<SPACE/><REF NAME="sec:deductive-info-retrieval"/>, leaving statements
 	  and the remaining kinds of expressions
 	  as exercise<SPACE/><REF NAME="ex:parse"/>. A literal is transformed by
 	  <JAVASCRIPTINLINE>stringify</JAVASCRIPTINLINE>ing its value, and
 	  a name is transformed into its symbol.
 	  An application is formatted by unparsing the function expression,
-	  which we can asume to be a name here, followed by the comma-separated 
+	  which we can assume to be a name here, followed by the comma-separated 
 	  argument expression strings enclosed in parentheses.
 	  Binary operator combinations are formatted using infix notation.
 	  <SNIPPET LATEX="yes">
@@ -3268,8 +3268,8 @@ function contents(exp) {
     </TEXT>
     <TEXT>
       The following functions used in the driver loop
-      specify
-      that rules and assertions are added to the data base by an
+      (section<SPACE/><REF NAME="sec:query-driver"/>)
+      specify that rules and assertions are added to the data base by an
       <JAVASCRIPTINLINE>assert</JAVASCRIPTINLINE> command, which
       <JAVASCRIPTINLINE>query_syntax_process</JAVASCRIPTINLINE> transforms
       into a pair of the form
