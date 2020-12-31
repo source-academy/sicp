@@ -1658,5 +1658,107 @@ ev-sequence-last-exp
     </SNIPPET>
   </TEXT>
 
+  <SPLIT>
+    <JAVASCRIPT>
+      <SUBHEADING> 
+        <NAME>Stack Management</NAME>
+      </SUBHEADING>
+      <TEXT>
+Our explicit-control evaluator saves register values to the stack, occasionally
+to make space for a temporary value in a register whose contents is then
+immediately restored, but most commonly before processing an instruction which
+may overwrite the saved registers as part of its evaluation.
+      </TEXT>
+      <TEXT>
+With the exception of return statements, which we shall soon address, after
+evaluating an instruction, the stack will hold at its top precisely what is
+about to be restored by its continuation. For example, when we construct the
+list of arguments to a function in
+<JAVASCRIPTINLINE>ev_appl_argument_expression_loop</JAVASCRIPTINLINE>, we push
+<JAVASCRIPTINLINE>env</JAVASCRIPTINLINE> and
+<JAVASCRIPTINLINE>unev</JAVASCRIPTINLINE> to the stack before evaluating the
+current argument expression, and when we continue in
+<JAVASCRIPTINLINE>ev_appl_accumulate_arg</JAVASCRIPTINLINE>, we pop the stack to
+restore the environment and the remainder of the argument list. Each instruction
+only stores to the stack what is needed by the continuation and as a result, at
+the end of a program, the stack will be empty.
+      </TEXT>
+      <TEXT>
+The ability to return from a function in the middle of a sequence of statements
+destroys this property and thus necessitates additional stack management which
+we shall now explain. Consider the following body of a function
+<JAVASCRIPTINLINE>f</JAVASCRIPTINLINE>:
+
+    <SNIPPET EVAL="no">
+      <JAVASCRIPT>
+x = 42;
+if (x > 0) { return x; } else { ... }; 
+x = x + 1;
+      </JAVASCRIPT>
+    </SNIPPET>
+
+The evaluation of this code starts in
+<JAVASCRIPTINLINE>ev_sequence_start</JAVASCRIPTINLINE> by saving the current
+continuation, which is the label
+<JAVASCRIPTINLINE>return_undefined</JAVASCRIPTINLINE> which was setup in
+<JAVASCRIPTINLINE>compound_apply</JAVASCRIPTINLINE> and then jumping to
+<JAVASCRIPTINLINE>ev_sequence</JAVASCRIPTINLINE>. We then evaluate each
+statement in the sequence in a loop. Each turn of the loop, we place the first
+of the remaining statements in the sequence in
+<JAVASCRIPTINLINE>comp</JAVASCRIPTINLINE>. Then, like we did when evaluating the
+argument list, we save <JAVASCRIPTINLINE>unev</JAVASCRIPTINLINE> (the list of
+statements) and <JAVASCRIPTINLINE>env</JAVASCRIPTINLINE>, and install
+<JAVASCRIPTINLINE>ev_sequence_continue</JAVASCRIPTINLINE> as the continuation
+before jumping to the dispatcher to evaluate the statement in
+<JAVASCRIPTINLINE>comp</JAVASCRIPTINLINE>.
+      </TEXT>
+      <TEXT>
+If the return statement did not exist, we would do two saves before and two
+restores after each statement, except the last, and at the evaluation of the
+last statement, in <JAVASCRIPTINLINE>ev_sequence_last_statement</JAVASCRIPTINLINE>,
+restore the continuation saved in <JAVASCRIPTINLINE>ev_sequence_start</JAVASCRIPTINLINE>.
+Consequently, we would have restored the stack to its state right 
+when we jumped to <JAVASCRIPTINLINE>ev_sequence_start</JAVASCRIPTINLINE>.
+      </TEXT>
+      <TEXT>
+When we evaluate a return statement inside a function
+<JAVASCRIPTINLINE>f</JAVASCRIPTINLINE>, we must skip all remaining statements in
+<JAVASCRIPTINLINE>f</JAVASCRIPTINLINE><APOS/>s body and after evaluating the
+return expression jump to the continuation of the call to
+<JAVASCRIPTINLINE>f</JAVASCRIPTINLINE>. To do so, we must remove any data saved
+on the stack for continuations which are cancelled by the return, as these will
+never pop their values from the stack.
+      </TEXT>
+      <TEXT>
+In the example above, the continuation cancelled by the return statement is
+<JAVASCRIPTINLINE>ev_sequence_continue</JAVASCRIPTINLINE>, which means that
+<JAVASCRIPTINLINE>env</JAVASCRIPTINLINE> and
+<JAVASCRIPTINLINE>unev</JAVASCRIPTINLINE> must be popped from the stack. If the
+return statement was inside a nested sequence (which would be the case if there
+were more statements in the consequent branch of the conditional), there would
+also be a continuation for the nested sequence and associated saves on the
+stack to remove. This illustrates that different return statements must remove differently
+many values from the stack depending on the structure of the program where they appear.
+      </TEXT>
+      <TEXT>
+Our solution to this problem which was introduced in
+<JAVASCRIPTINLINE>compound_apply</JAVASCRIPTINLINE> is to insert a marker in the
+stack during a function call that marks the place to which a return in the
+function body must restore the stack (which is done in
+<JAVASCRIPTINLINE>ev_return</JAVASCRIPTINLINE>). The instructions
+<JAVASCRIPTINLINE>save_marker</JAVASCRIPTINLINE> and <JAVASCRIPTINLINE>restore_marker</JAVASCRIPTINLINE> were defined
+to simplify this stack management.
+      </TEXT>
+      <TEXT>
+Because all non-primitive function calls involve a
+<JAVASCRIPTINLINE>save_marker</JAVASCRIPTINLINE>, also functions whose
+evaluation end without a return statement must use
+<JAVASCRIPTINLINE>restore_marker</JAVASCRIPTINLINE> to remove the marker from
+the stack, as is visible in
+<JAVASCRIPTINLINE>return_undefined</JAVASCRIPTINLINE>.
+      </TEXT>
+    </JAVASCRIPT>
+  </SPLIT>
+
     
 </SUBSECTION>
