@@ -1284,34 +1284,34 @@ function make_execution_function(inst, labels, machine, pc, flag, stack, ops) {
     const x = head(inst);
 
     return x === "assign"
-           ? make_ef_assign(inst, machine, labels, ops, pc)
+           ? make_assign_ef(inst, machine, labels, ops, pc)
            : x === "test"
-           ? make_ef_test(inst, machine, labels, ops, flag, pc)
+           ? make_test_ef(inst, machine, labels, ops, flag, pc)
            : x === "branch"
-           ? make_ef_branch(inst, machine, labels, flag, pc)
+           ? make_branch_ef(inst, machine, labels, flag, pc)
            : x === "go_to"
-           ? make_ef_goto(inst, machine, labels, pc)
+           ? make_goto_ef(inst, machine, labels, pc)
            : x === "save"
-           ? make_ef_save(inst, machine, stack, pc)
+           ? make_save_ef(inst, machine, stack, pc)
            : x === "restore"
-           ? make_ef_restore(inst, machine, stack, pc)
+           ? make_restore_ef(inst, machine, stack, pc)
            : x === "perform"
-           ? make_ef_perform(inst, machine, labels, ops, pc)
+           ? make_perform_ef(inst, machine, labels, ops, pc)
            : x === "dump_memory" // Added to allow printing the memory vectors
            ? () => {
-               display(get_register_contents(machine, "the_heads"));
-               display(get_register_contents(machine, "the_tails"));
+               display(stringify(get_register_contents(machine, "the_heads")));
+               display(stringify(get_register_contents(machine, "the_tails")));
                advance_pc(pc);
            }
            : error(inst, "unknown instruction type -- assemble");
 }
 
-function make_ef_assign(inst, machine, labels, operations, pc) {
+function make_assign_ef(inst, machine, labels, operations, pc) {
     const target = get_register(machine, assign_reg_name(inst));
     const value_exp = assign_value_exp(inst);
     const value_fun = is_operation_exp(value_exp)
-          ? make_ef_operation_exp(value_exp, machine, labels, operations)
-          : make_ef_primitive_exp(value_exp, machine, labels);
+          ? make_operation_exp_ef(value_exp, machine, labels, operations)
+          : make_primitive_exp_ef(value_exp, machine, labels);
 
     function perform_assign() {
         set_contents(target, value_fun());
@@ -1342,11 +1342,11 @@ function advance_pc(pc) {
     
 }
 
-function make_ef_test(inst, machine, labels, operations, flag, pc) {
+function make_test_ef(inst, machine, labels, operations, flag, pc) {
     const condition = test_condition(inst);
 
     if (is_operation_exp(condition)) {
-    const condition_fun = make_ef_operation_exp(condition, machine,
+    const condition_fun = make_operation_exp_ef(condition, machine,
                                              labels, operations);
 
         function perform_test() {
@@ -1368,7 +1368,7 @@ function test(condition) {
     return list("test", condition);
 }
 
-function make_ef_branch(inst, machine, labels, flag, pc) {
+function make_branch_ef(inst, machine, labels, flag, pc) {
     const dest = branch_dest(inst);
     
     if (is_label_exp(dest)) {
@@ -1422,7 +1422,7 @@ function go_to(dest) {
     return list("go_to", dest);
 }
 
-function make_ef_save(inst, machine, stack, pc) {
+function make_save_ef(inst, machine, stack, pc) {
     const reg = get_register(machine, stack_inst_reg_name(inst));
 
     function perform_save() {
@@ -1433,7 +1433,7 @@ function make_ef_save(inst, machine, stack, pc) {
     return perform_save;
 }
 
-function make_ef_restore(inst, machine, stack, pc) {
+function make_restore_ef(inst, machine, stack, pc) {
     const reg = get_register(machine, stack_inst_reg_name(inst));
 
     function perform_restore() {
@@ -1456,11 +1456,11 @@ function restore(register_name) {
     return list("restore", register_name);
 }
 
-function make_ef_perform(inst, machine, labels, operations, pc) {
+function make_perform_ef(inst, machine, labels, operations, pc) {
     const action = perform_action(inst);
 
     if (is_operation_exp(action)) {
-        const action_fun = make_ef_operation_exp(action, machine, 
+        const action_fun = make_operation_exp_ef(action, machine, 
                                               labels, operations);
         return () => { action_fun(); advance_pc(pc); };
 
@@ -1478,7 +1478,7 @@ function perform(op) {
 }
 
 
-function make_ef_primitive_exp(exp, machine, labels) {
+function make_primitive_exp_ef(exp, machine, labels) {
     if (is_constant_exp(exp)) {
         const c = constant_exp_value(exp);
         return () => c;
@@ -1532,9 +1532,9 @@ function label(string) {
     return list("label", string);
 }
 
-function make_ef_operation_exp(exp, machine, labels, operations) {
+function make_operation_exp_ef(exp, machine, labels, operations) {
     const op = lookup_prim(op_exp_op(exp), operations);
-    const aprocs = map(e => make_ef_primitive_exp(e, machine, labels),
+    const aprocs = map(e => make_primitive_exp_ef(e, machine, labels),
                        operation_exp_operands(exp));
 
     function perform_operation_exp() {

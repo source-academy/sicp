@@ -80,7 +80,7 @@
 	<SCHEMEINLINE>read</SCHEMEINLINE>
       </SCHEME>
       <JAVASCRIPT>
-	<JAVASCRIPTINLINE>prompt_for_input</JAVASCRIPTINLINE>
+	<JAVASCRIPTINLINE>user_read</JAVASCRIPTINLINE>
       </JAVASCRIPT>
     </SPLITINLINE>
     and the various printing
@@ -131,7 +131,7 @@
       <JAVASCRIPT>
 "read_eval_print_loop",
       perform(list(op("initialize_stack"))),
-      assign("comp", list(op("prompt_for_input"),
+      assign("comp", list(op("user_read"),
                           constant("EC-evaluate input:"))),
       test(list(op("is_null"), reg("comp"))),
       branch(label("evaluator_done")),
@@ -312,7 +312,7 @@ const eceval_controller =
     list(
       "read_eval_print_loop",
       perform(list(op("initialize_stack"))),
-      assign("comp", list(op("prompt_for_input"),
+      assign("comp", list(op("user_read"),
                           constant("EC-evaluate input:"))),
       test(list(op("is_null"), reg("comp"))),
       branch(label("evaluator_done")),
@@ -405,14 +405,14 @@ const eceval_controller =
       restore("env"),
       assign("argl", list(op("empty_arglist"))),
       assign("fun", reg("val")), // the function_expression
-      test(list(op("no_argument_expressions"),
+      test(list(op("is_null"),
                 reg("unev"))),
       branch(label("apply_dispatch")),
       save("fun"),
       
       "ev_appl_argument_expression_loop",
       save("argl"),
-      assign("comp", list(op("first_arg_exp"), reg("unev"))),
+      assign("comp", list(op("head"), reg("unev"))),
       test(list(op("is_last_argument_expression"),
                 reg("unev"))),
       branch(label("ev_appl_last_arg")),
@@ -427,7 +427,7 @@ const eceval_controller =
       restore("argl"),
       assign("argl", list(op("adjoin_arg"),
                           reg("val"), reg("argl"))),
-      assign("unev", list(op("rest_arg_exps"), reg("unev"))),
+      assign("unev", list(op("tail"), reg("unev"))),
       go_to(label("ev_appl_argument_expression_loop")),
       
       "ev_appl_last_arg",
@@ -624,11 +624,10 @@ const eceval_operations =
 function prompt_for_input(input_prompt) {
     const input = prompt(input_prompt);
     if (is_null(input)) {
-        display("--- evaluator terminated ---", "");
+        display("--- evaluator terminated ---");
         return null;
     } else {
-        display("----------------------------",
-                input_prompt + "\n" + input + "\n");
+        display(input_prompt + "\n" + input + "\n----------------------------");
         return parse(input);
     }
 }
@@ -637,19 +636,19 @@ function prompt_for_input(input_prompt) {
     <!-- FIXME: remove no_args, first_arg etc -->
     <SNIPPET HIDE="yes">
       <NAME>eceval_operations</NAME>
-      <REQUIRES>prompt_for_input</REQUIRES>
+      <REQUIRES>user_read</REQUIRES>
       <JAVASCRIPT>
 const eceval_operations = 
     list(
       // args
       list("arg_expressions"      , arg_expressions),
       list("function_expression"  , function_expression),
-      list("no_argument_expressions"
+      list("is_null"
                                   , is_null),
-      list("first_arg_exp"        , head),
+      list("head"        , head),
       list("is_last_argument_expression"
                                   , a => is_null(tail(a))),
-      list("rest_arg_exps"        , tail),
+      list("tail"        , tail),
 
       //arg
       list("empty_arglist"        , () => null),
@@ -730,7 +729,7 @@ const eceval_operations =
       list("is_truthy", is_truthy),
       list("is_null", is_null),
 
-      list("prompt_for_input", prompt_for_input),
+      list("user_read", user_read),
       list("user_print", user_print),
       list("display", display),
       list("list", list)
@@ -745,6 +744,7 @@ const eceval_operations =
     <SNIPPET>
       <NAME>ec_eval_all</NAME>
       <REQUIRES>eceval</REQUIRES>
+      <REQUIRES>user_read</REQUIRES>
       <REQUIRES>>type_function</REQUIRES>
       <SCHEME>
       (define the-global-environment (setup-environment))
@@ -769,15 +769,15 @@ ok
       <JAVASCRIPT_RUN>
 const test_program_1 = "                       \
 function test1() {                             \
-    display('A', 1);                           \
+    display('A 1');                            \
     const result = test2();                    \
-    return display(result, 3);                 \
-    display('I should not be printed', 7);     \
+    return display(stringify(result) + ' 3');  \
+    display('I should not be printed 7');      \
 }                                              \
 function test2() {                             \
-    display('B', 2);                           \
+    display('B 2');                            \
     return 'C';                                \
-    display('I should not be printed', 4);     \
+    display('I should not be printed 4');      \
 }                                              \
 function test3() {                             \
     display('Hello from test3');               \
@@ -785,9 +785,9 @@ function test3() {                             \
 function test4() {                             \
     return display('Hello from test4');        \
 }                                              \
-display(test1(), 5);                           \
-display(test3(), 6); // Should print undefined \
-display(test4(), 8);                           \
+display('5 ' + stringify(test1()));                           \
+display('6 ' + stringify(test3())); // Should print undefined \
+display('8 ' + stringify(test4()));                           \
 ";
 
 const test_program_2 = "           \
@@ -798,7 +798,7 @@ function adder(a, b) {             \
       : adder(a - 1, b + 1);       \
  42;                               \
 }                                  \
-display(adder(7, 5), \"7 + 5 =\"); \
+display(\"7 + 5 = \" + stringify(adder(7, 5)); \
 ";
 
 start(eceval);
