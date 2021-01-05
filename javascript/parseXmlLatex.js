@@ -32,7 +32,7 @@ const tagsToRemove = new Set([
   "HISTORY",
   "NAME",
   "ORDER",
-  "PRIMITIVE",    
+  "PRIMITIVE",
   "SUBINDEX",
   "SEE",
   "SEEALSO",
@@ -169,10 +169,11 @@ const processTextFunctionsDefaultLatex = {
     const indexArr = [];
     recursiveProcessTextLatex(node.firstChild, indexArr);
     let indexStr = indexArr.join("");
-      if (primitive) {      
-	  indexStr += "primitive functions (ECMAScript equivalent in parentheses; those marked \\textit{ns} are not in the ECMAScript standard)";
-      }
-      
+    if (primitive) {
+      indexStr +=
+        "primitive functions (ECMAScript equivalent in parentheses; those marked \\textit{ns} are not in the ECMAScript standard)";
+    }
+
     // handle explicit order commands ORDER, DECLARATION, USE
     const open = getChildrenByTagName(node, "OPEN")[0];
     if (open) {
@@ -263,11 +264,11 @@ const processTextFunctionsDefaultLatex = {
       let ecmaString = "";
       const ecma = getChildrenByTagName(subIndex, "ECMA")[0];
       if (ecma) {
-	  const ecmaArr = [];
-	  recursiveProcessTextLatex(ecma.firstChild, ecmaArr);
-	  ecmaString = " (\\texttt{" + ecmaArr.join("") + "})";
+        const ecmaArr = [];
+        recursiveProcessTextLatex(ecma.firstChild, ecmaArr);
+        ecmaString = " (\\texttt{" + ecmaArr.join("") + "})";
       }
-	
+
       // compute open/close prefix
       let prefix = "";
       let postfix = "";
@@ -477,8 +478,7 @@ const processTextFunctionsDefaultLatex = {
     processTextFunctionsLatex["JAVASCRIPTINLINE"](node, writeTo),
   USE: (node, writeTo) =>
     processTextFunctionsLatex["JAVASCRIPTINLINE"](node, writeTo),
-  ECMA: (node, writeTo) =>
-    {},
+  ECMA: (node, writeTo) => {},
   JAVASCRIPTINLINE: (node, writeTo) => {
     if (node.getAttribute("break")) {
       writeTo.push(
