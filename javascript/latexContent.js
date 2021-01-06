@@ -143,7 +143,6 @@ export const preamble = `\\documentclass[a4paper, 12pt]{book}
 %   stringstyle=\\linespread{1.0}\\fontsize{11}{12}\\usefont{T1}{lmtt}{m}{sl},
    showstringspaces=false,
    showspaces=false,
-   deletekeywords={continue},
    escapechar=^
 }
 
