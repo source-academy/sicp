@@ -122,16 +122,17 @@
 function compile_linkage(target, linkage) {
     return linkage === "return"
            ? make_instruction_sequence(list("continue"), 
-                                       null,
+                                       list(),
                                        list(go_to(reg("continue"))))
            : linkage === "return_undefined"
            ? make_instruction_sequence(list("continue"), 
-                                       list(target),
-                                       list(assign(target, constant(undefined)),
+                                       list(target), list(assign(target, constant(undefined)),
+                                            restore_marker(),
+                                            restore("continue"),
                                             go_to(reg("continue"))))
            : linkage === "next"
            ? empty_instruction_sequence()
-           : make_instruction_sequence(null, null, 
+           : make_instruction_sequence(list(), list(), 
                  list(go_to(label(linkage))));
 }
       </JAVASCRIPT>
@@ -214,7 +215,7 @@ function end_with_linkage(target, linkage, instruction_sequence) {
 function compile_literal(component, target, linkage) {
     return end_with_linkage(target, linkage,
                make_instruction_sequence(
-                   null,
+                   list(),
                    list(target),
                    list(assign(target, constant(literal_value(component))))));
 }
@@ -353,8 +354,8 @@ function compile_declaration(component, target, linkage) {
                value_code, target, linkage, constant(undefined));
 }
 
-function compile_assignment_returning(
-             symbol, value_code, target, linkage, return_val) {
+function compile_assignment_returning(symbol, value_code, target,
+                                      linkage, return_val) {
     return end_with_linkage(target, linkage,
                preserving(
                    list("env"),
@@ -748,17 +749,13 @@ function compile_sequence(seq, target, linkage) {
 
     Treating return statements as if they always appear as the last statement in a sequence
     using the check <JAVASCRIPTINLINE>is_return_statement(first_statement(seq))</JAVASCRIPTINLINE>
-    serves two purposes. First, it avoids saving
-    <JAVASCRIPTINLINE>env</JAVASCRIPTINLINE> and
-    <JAVASCRIPTINLINE>continue</JAVASCRIPTINLINE> to the stack to allow us to
-    jump directly to <JAVASCRIPTINLINE>continue</JAVASCRIPTINLINE> in the
-    evaluation of the return statement. Second, it avoids compiling the
+    avoids compiling the
     <QUOTE>dead code</QUOTE> after the return statement which
     therefore never will be executed. Not compiling dead code is good for
     several reasons: it shortens the compilation time, it reduces the size of
     the executable by emitting fewer instructions, and it removes possible
     security hazards if a malicious user could trick the program to execute the
-    dead code.
+    dead code. Removing the check does not change the semantics of the program.
   </TEXT>
 
   <SUBHEADING>
@@ -1132,7 +1129,12 @@ function compile_lambda_body(exp, fun_entry) {
 	  <NAME>compile_return</NAME>
 	  <JAVASCRIPT>
 function compile_return_statement(stmt, target, linkage) {
-    return compile(return_expression(stmt), target, "return");
+    return append_instruction_sequences(
+        make_instruction_sequence(
+            list(),
+            list(),
+            list(restore_marker(), restore("continue"))),
+        compile(return_expression(stmt), target, "return"));
 }
 	  </JAVASCRIPT>
 	</SNIPPET>
