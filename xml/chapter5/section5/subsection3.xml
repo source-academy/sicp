@@ -704,7 +704,9 @@ function compile_function_call(target, linkage) {
     <SCHEMEINLINE>val</SCHEMEINLINE> and returns by executing the instruction
     <SPLITINLINE>
       <SCHEME><SCHEMEINLINE>(goto (reg continue))</SCHEMEINLINE>.</SCHEME>
-      <JAVASCRIPT><JAVASCRIPTINLINE>go_to(reg("continue"))</JAVASCRIPTINLINE>.
+      <JAVASCRIPT><JAVASCRIPTINLINE>go_to(reg("continue"))</JAVASCRIPTINLINE> after 
+      restoring the stack using the marker and restoring the 
+      <JAVASCRIPTINLINE>continue</JAVASCRIPTINLINE> register.
       </JAVASCRIPT>
     </SPLITINLINE>
     Thus, we might expect the code for a
@@ -732,6 +734,8 @@ function compile_function_call(target, linkage) {
       </SCHEME>
       <JAVASCRIPT latex="yes"><!-- The $$ below is a hack to ensure the leading spaces are not consumed-->
 $$  assign("continue", label("fun_return")),
+  save("continue"),
+  save_marker(),
   assign("val", list(op("compiled_function_entry"), reg("fun"))),
   go_to(reg("val")),
 "fun_return",
@@ -765,6 +769,8 @@ $$  assign("continue", label("fun_return")),
       <JAVASCRIPT latex="yes"><!-- The $$ below is a hack to ensure the leading spaces are not consumed-->
 $$  save("continue"),
   assign("continue", label("fun_return")),
+  save("continue"),
+  save_marker(),
   assign("val", list(op("compiled_function_entry"), reg("fun"))),
   go_to(reg("val")),
 "fun_return",
@@ -783,10 +789,13 @@ $$  save("continue"),
 <JAVASCRIPT latex="yes"><!-- The $$ below is a hack to ensure the leading spaces are not consumed-->
 $$  save("continue"),
   assign("continue", label("return_undefined")),
+  save("continue"),
+  save_marker(),
   assign("val", list(op("compiled_function_entry"), reg("fun"))),
   go_to(reg("val")),
 "return_undefined",
   assign($\OptionalPar{target}$, constant(undefined)),   // included even if target is val
+  restore_marker(),
   restore("continue"),
   go_to(reg("continue")),         // linkage code
 </JAVASCRIPT>
@@ -864,6 +873,18 @@ $$  save("continue"),
       <JAVASCRIPTINLINE>after_call</JAVASCRIPTINLINE></JAVASCRIPT>
     </SPLITINLINE>
     label.)
+    <SPLIT>
+      <JAVASCRIPT>
+        As we did for the explicit-control evaluator, we save 
+        <JAVASCRIPTINLINE>continue</JAVASCRIPTINLINE> before using 
+        <JAVASCRIPTINLINE>save_marker()</JAVASCRIPTINLINE> when calling
+        a function. This marker is removed as the function is returning 
+        as part of  evaluating <JAVASCRIPTINLINE>return</JAVASCRIPTINLINE> statements. 
+        To remove the marker also when there is no explicit return, we place an additional 
+        <JAVASCRIPTINLINE>restore_marker()</JAVASCRIPTINLINE> in 
+        <JAVASCRIPTINLINE>return_undefined</JAVASCRIPTINLINE>. 
+</JAVASCRIPT>
+    </SPLIT>
   </TEXT>
 
   <TEXT>
@@ -987,6 +1008,8 @@ go_to(reg("val")),
       </SCHEME>
       <JAVASCRIPT>
 assign("continue", label($\OptionalPar{linkage}$)),
+save("continue"),
+save_marker(),
 assign("val", list(op("compiled_function_entry"), reg("fun"))),
 go_to(reg("val")),
       </JAVASCRIPT>
@@ -1061,10 +1084,10 @@ go_to(reg("val")),
       <SCHEME>procedure</SCHEME>
       <JAVASCRIPT>function</JAVASCRIPT>
     </SPLITINLINE>
-    as the final step in a
+    as the 
     <SPLITINLINE>
-      <SCHEME>procedure</SCHEME>
-      <JAVASCRIPT>function</JAVASCRIPT>
+      <SCHEME>final step in a procedure</SCHEME>
+      <JAVASCRIPT>return expression in a function</JAVASCRIPT>
     </SPLITINLINE>
     body does a direct transfer, without saving any information on the stack.
   </TEXT>
@@ -1205,6 +1228,8 @@ and therefore these languages
 const all_regs = list("env", "fun", "val", "argl", "continue");
       </JAVASCRIPT>
     </SNIPPET></FOOTNOTE>
+    <SPLIT>
+      <SCHEME>
     Also note that the code sequence for the case with target
     <SCHEMEINLINE>val</SCHEMEINLINE> and linkage
     <SPLITINLINE>
@@ -1225,6 +1250,9 @@ const all_regs = list("env", "fun", "val", "argl", "continue");
       <SCHEME>procedure.</SCHEME>
       <JAVASCRIPT>function.</JAVASCRIPT>
     </SPLITINLINE>
+      </SCHEME>
+    </SPLIT>
+
     <INDEX><DECLARATION>compile_fun_appl</DECLARATION></INDEX> 
     <SNIPPET EVAL="no">
       <NAME>compile_fun_appl</NAME>
@@ -1265,8 +1293,9 @@ function compile_fun_appl(target, linkage) {
             all_regs,
             list(
                 assign("continue", label(return_undefined)),
-                assign("val", list(op("compiled_function_entry"), 
-                                   reg("fun"))),
+                save("continue"),
+                save_marker(),
+                assign("val", list(op("compiled_function_entry"), reg("fun"))),
                 go_to(reg("val")),
                 return_undefined,
                 assign(target, constant(undefined)),
@@ -1277,8 +1306,9 @@ function compile_fun_appl(target, linkage) {
             all_regs,
             list(
                 assign("continue", label(linkage)),
-                assign("val", list(op("compiled_function_entry"), 
-                                   reg("fun"))),
+                save("continue"),
+                save_marker(),
+                assign("val", list(op("compiled_function_entry"), reg("fun"))),
                 go_to(reg("val"))));
     } else if (target !== "val" &amp;&amp; linkage !== "return") {
         const fun_return = make_label("fun_return");
@@ -1287,19 +1317,21 @@ function compile_fun_appl(target, linkage) {
             all_regs,
             list(
                 assign("continue", label(fun_return)),
-                assign("val", list(op("compiled_function_entry"), 
-                                   reg("fun"))),
+                save("continue"),
+                save_marker(),
+                assign("val", list(op("compiled_function_entry"), reg("fun"))),
                 go_to(reg("val")),
                 fun_return,
                 assign(target, reg("val")),
                 go_to(label(linkage))));
     } else if (target === "val" &amp;&amp; linkage === "return") {
         return make_instruction_sequence(
-            list("fun", "continue"),
+            list("fun"),
             all_regs,
             list(
-                assign("val", list(op("compiled_function_entry"), 
-                                   reg("fun"))),
+                save("continue"),
+                save_marker(),
+                assign("val", list(op("compiled_function_entry"), reg("fun"))),
                 go_to(reg("val"))));
     } else if (target !== "val" &amp;&amp; linkage === "return") {
         error(target, "return linkage, target not val -- compile");
