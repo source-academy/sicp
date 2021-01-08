@@ -322,6 +322,8 @@ const processTextFunctionsDefaultLatex = {
       writeTo.push("|(");
     } else if (close) {
       writeTo.push("|)");
+    } else if (ancestorHasTag(node, "FIGURE")) {
+      writeTo.push("|ff{\\thefigure}");
     } else if (ancestorHasTag(node, "FOOTNOTE")) {
       if (declaration) {
         writeTo.push("|nndd");
@@ -334,8 +336,6 @@ const processTextFunctionsDefaultLatex = {
       } else {
         writeTo.push("|xx{\\theExercise}");
       }
-    } else if (ancestorHasTag(node, "FIGURE")) {
-      writeTo.push("|ff{\\thefigure}");
     } else if (declaration) {
       writeTo.push("|dd");
     } else if (see) {
