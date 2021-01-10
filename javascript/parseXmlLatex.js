@@ -184,12 +184,10 @@ const processTextFunctionsDefaultLatex = {
         "operators (ECMAScript may allow additional operand type combinations)";
     }
     if (functioN) {
-      indexStr +=
-        "function (JavaScript)";
+      indexStr += "function (JavaScript)";
     }
     if (parsing) {
-      indexStr +=
-        "parsing JavaScript";
+      indexStr += "parsing JavaScript";
     }
 
     // handle explicit order commands ORDER, DECLARATION, USE
