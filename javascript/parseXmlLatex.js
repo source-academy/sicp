@@ -34,6 +34,8 @@ const tagsToRemove = new Set([
   "ORDER",
   "PRIMITIVE",
   "OPERATOR",
+  "FUNCTION",
+  "PARSING",
   "SUBINDEX",
   "SEE",
   "SEEALSO",
@@ -160,6 +162,8 @@ const processTextFunctionsDefaultLatex = {
   INDEX: (node, writeTo) => {
     const primitive = getChildrenByTagName(node, "PRIMITIVE")[0];
     const operator = getChildrenByTagName(node, "OPERATOR")[0];
+    const functioN = getChildrenByTagName(node, "FUNCTION")[0];
+    const parsing = getChildrenByTagName(node, "PARSING")[0];
     const fragile = getChildrenByTagName(node, "FRAGILE")[0];
     let margintext = "";
     let inlinetext = "";
@@ -178,6 +182,14 @@ const processTextFunctionsDefaultLatex = {
     if (operator) {
       indexStr +=
         "operators (ECMAScript may allow additional operand type combinations)";
+    }
+    if (functioN) {
+      indexStr +=
+        "function (JavaScript)";
+    }
+    if (parsing) {
+      indexStr +=
+        "parsing JavaScript";
     }
 
     // handle explicit order commands ORDER, DECLARATION, USE
