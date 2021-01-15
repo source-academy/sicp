@@ -48,6 +48,7 @@ const tagsToRemoveDefault = new Set([
   "SCHEME",
   "SOLUTION",
   "INDEX",
+  "CAPTION",
   "NAME",
   "LABEL",
   "CODEINDEX",
@@ -185,6 +186,7 @@ const processTextFunctionsDefaultHtml = {
   },
 
   FIGURE: (node, writeTo) => {
+    recursiveProcessTextHtml(node.firstChild, writeTo);
     processFigureHtml(node, writeTo, chapArrIndex, snippet_count, false);
   },
 
@@ -486,6 +488,7 @@ const processTextFunctionsSplit = {
   },
 
   FIGURE: (node, writeTo) => {
+    recursiveProcessTextHtml(node.firstChild, writeTo);
     processFigureHtml(node, writeTo, chapArrIndex, snippet_count, true);
   },
 
