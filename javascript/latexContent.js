@@ -148,6 +148,7 @@ export const preamble = `\\documentclass[a4paper, 12pt]{book}
 }
 
 \\newcommand{\\OptionalPar}[2][]{\\ensuremath{\\text{\\textrm{\\sl #2}}_{#1}}}
+\\mathchardef\\mhyphen="2D 
 
 \\usepackage[svgnames]{xcolor}
 \\definecolor{LeftBarClickable}{RGB}{187, 187, 187}

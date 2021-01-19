@@ -115,7 +115,7 @@ export const processSnippetPdf = (node, writeTo) => {
     }
 
     const codeArr = [];
-    recursiveProcessPureText(jsSnippet.firstChild, codeArr);
+    recursiveProcessTextLatex(jsSnippet.firstChild, codeArr);
     const codeStr = codeArr.join("").trim();
 
     const codeArr_run = [];

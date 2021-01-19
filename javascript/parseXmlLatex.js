@@ -63,11 +63,16 @@ const processTextFunctionsDefaultLatex = {
   },
 
   "#text": (node, writeTo) => {
-    const trimedValue = node.nodeValue
-      .replace(/[\r\n]+/, " ")
-      .replace(/\s+/g, " ")
-      .replace(/\^/g, "^{}")
-      .replace(/%/g, "\\%");
+    let trimedValue;
+    if (ancestorHasTag(node, "SNIPPET")) {
+      trimedValue = node.nodeValue.replace(/\^/g, "^{}").replace(/%/g, "\\%");
+    } else {
+      trimedValue = node.nodeValue
+        .replace(/[\r\n]+/, " ")
+        .replace(/\s+/g, " ")
+        .replace(/\^/g, "^{}")
+        .replace(/%/g, "\\%");
+    }
     if (trimedValue.match(/&(\w|\.)+;/)) {
       processFileInput(trimedValue.trim(), writeTo);
     } else {
@@ -157,6 +162,14 @@ const processTextFunctionsDefaultLatex = {
     writeTo.push("\\subsection*{");
     recursiveProcessTextLatex(node.firstChild, writeTo);
     writeTo.push("}");
+  },
+
+  META: (node, writeTo) => {
+    writeTo.push("$\\mathit{");
+    let s = node.firstChild.nodeValue;
+    s = s.replace(/-/g, "\\mhyphen ");
+    writeTo.push(s);
+    writeTo.push("}$");
   },
 
   INDEX: (node, writeTo) => {
