@@ -167,7 +167,7 @@ const processTextFunctionsDefaultLatex = {
   META: (node, writeTo) => {
     writeTo.push("$\\mathit{");
     let s = node.firstChild.nodeValue;
-    s = s.replace(/-/g, "\\mhyphen ");
+    s = s.replace(/-/g, "\\mhyphen{}");
     writeTo.push(s);
     writeTo.push("}$");
   },

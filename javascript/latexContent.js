@@ -148,6 +148,7 @@ export const preamble = `\\documentclass[a4paper, 12pt]{book}
 }
 
 \\newcommand{\\OptionalPar}[2][]{\\ensuremath{\\text{\\textrm{\\sl #2}}_{#1}}}
+% \mhyphen{} in math mode creates hyphen character (META in parseXmlLatex.js)
 \\mathchardef\\mhyphen="2D 
 
 \\usepackage[svgnames]{xcolor}
