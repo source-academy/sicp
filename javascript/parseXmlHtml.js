@@ -231,6 +231,14 @@ const processTextFunctionsDefaultHtml = {
     processTextHtml(node, writeTo);
   },
 
+  META: (node, writeTo) => {
+    writeTo.push("$");
+    let s = node.firstChild.nodeValue;
+    s = s.replace(/-/g, "$-$");
+    writeTo.push(s);
+    writeTo.push("$");
+  },
+
   IMAGE: (node, writeTo) => {
     writeTo.push(`<IMAGE src="${toIndexFolder}${node.getAttribute("src")}"/>`);
   },
@@ -347,7 +355,7 @@ const processTextFunctionsDefaultHtml = {
       writeTo.push("<kbd class='snippet'>");
       const textit = getChildrenByTagName(node, "JAVASCRIPT")[0];
       if (textit) {
-        recursiveProcessPureText(textit.firstChild, writeTo, {
+        recursiveProcessTextHtml(textit.firstChild, writeTo, {
           removeNewline: "beginning&end"
         });
       } else {
