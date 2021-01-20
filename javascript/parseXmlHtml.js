@@ -352,6 +352,16 @@ const processTextFunctionsDefaultHtml = {
     if (node.getAttribute("HIDE") == "yes") {
       return;
     } else if (node.getAttribute("LATEX") == "yes") {
+
+      const textprompt = getChildrenByTagName(node, "JAVASCRIPT_PROMPT")[0];
+      if (textprompt) {
+        writeTo.push("<kbd class='snippet'>");
+        recursiveProcessTextHtml(textprompt.firstChild, writeTo, {
+          removeNewline: "beginning&end"
+        });
+        writeTo.push("</kbd>");
+      }
+
       writeTo.push("<kbd class='snippet'>");
       const textit = getChildrenByTagName(node, "JAVASCRIPT")[0];
       if (textit) {
@@ -362,6 +372,16 @@ const processTextFunctionsDefaultHtml = {
         recursiveProcessTextHtml(node.firstChild, writeTo);
       }
       writeTo.push("</kbd>");
+
+      const textoutput = getChildrenByTagName(node, "JAVASCRIPT_OUTPUT")[0];
+      if (textoutput) {
+        writeTo.push("<kbd class='snippet'>");
+        recursiveProcessTextHtml(textoutput.firstChild, writeTo, {
+          removeNewline: "beginning&end"
+        });
+        writeTo.push("</kbd>");
+      }
+	
       return;
     }
     snippet_count += 1;
@@ -598,16 +618,36 @@ const processTextFunctionsSplit = {
     if (node.getAttribute("HIDE") == "yes") {
       return;
     } else if (node.getAttribute("LATEX") == "yes") {
+
+      const textprompt = getChildrenByTagName(node, "JAVASCRIPT_PROMPT")[0];
+      if (textprompt) {
+        writeTo.push("<kbd class='snippet'>");
+        recursiveProcessTextHtml(textprompt.firstChild, writeTo, {
+          removeNewline: "beginning&end"
+        });
+        writeTo.push("</kbd>");
+      }
+	
       writeTo.push("<kbd class='snippet'>");
       const textit = getChildrenByTagName(node, "JAVASCRIPT")[0];
       if (textit) {
-        recursiveProcessPureText(textit.firstChild, writeTo, {
+        recursiveProcessTextHtml(textit.firstChild, writeTo, {
           removeNewline: "beginning&end"
         });
       } else {
         recursiveProcessTextHtml(node.firstChild, writeTo);
       }
       writeTo.push("</kbd>");
+
+      const textoutput = getChildrenByTagName(node, "JAVASCRIPT_OUTPUT")[0];
+      if (textoutput) {
+        writeTo.push("<kbd class='snippet'>");
+        recursiveProcessTextHtml(textoutput.firstChild, writeTo, {
+          removeNewline: false
+        });
+        writeTo.push("</kbd>");
+      }
+
       return;
     }
     snippet_count += 1;
