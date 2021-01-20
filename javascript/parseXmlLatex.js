@@ -65,7 +65,7 @@ const processTextFunctionsDefaultLatex = {
   "#text": (node, writeTo) => {
     let trimedValue;
     if (ancestorHasTag(node, "SNIPPET")) {
-      trimedValue = node.nodeValue.replace(/\^/g, "^{}").replace(/%/g, "\\%");
+      trimedValue = node.nodeValue;
     } else {
       trimedValue = node.nodeValue
         .replace(/[\r\n]+/, " ")
