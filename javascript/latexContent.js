@@ -273,7 +273,7 @@ export const preamble = `\\documentclass[a4paper, 12pt]{book}
 
 \\lstdefinestyle{JavaScriptOutput}{
    language=JavaScript,
-   basicstyle=\\linespread{1.0}\\fontsize{10.5}{11.5}\\usefont{T1}{lmtt}{m}{sl},
+   basicstyle=\\linespread{1.0}\\fontsize{10.5}{12.5}\\usefont{T1}{lmtt}{m}{sl},
 %   keywordstyle=\\linespread{1.0}\\fontsize{11}{12}\\usefont{T1}{lmtt}{b}{sl},
    showstringspaces=false,
    showspaces=false,
@@ -289,7 +289,7 @@ export const preamble = `\\documentclass[a4paper, 12pt]{book}
 }
 \\lstdefinestyle{JavaScriptOutputLatex}{
    language=JavaScript,
-   basicstyle=\\linespread{1.0}\\fontsize{10.5}{11.5}\\usefont{T1}{lmtt}{m}{sl},
+   basicstyle=\\linespread{1.0}\\fontsize{10.5}{12.5}\\usefont{T1}{lmtt}{m}{sl},
 %   keywordstyle=\\linespread{1.0}\\fontsize{11}{12}\\usefont{T1}{lmtt}{b}{sl},
    showstringspaces=false,
    showspaces=false,
@@ -304,14 +304,15 @@ export const preamble = `\\documentclass[a4paper, 12pt]{book}
    escapechar=^
 }
 \\lstnewenvironment{JavaScriptOutput}{\\lstset{style=JavaScriptOutput,aboveskip=-0.5ex,belowskip=1.8ex}}{}
-% Julie seems to prefer upright font for the prompt: To be revisited
-\\lstnewenvironment{JavaScriptPrompt}{\\lstset{style=JavaScript,aboveskip=2.5ex,belowskip=-0.5ex}}{}
+\\lstnewenvironment{JavaScriptOutputLatex}{\\lstset{style=JavaScriptOutputLatex,aboveskip=-0.5ex,belowskip=1.8ex}}{}
+\\lstnewenvironment{JavaScriptPrompt}{\\lstset{style=JavaScriptOutput,aboveskip=2.5ex,belowskip=-3.0ex}}{}
+\\lstnewenvironment{JavaScriptPromptLatex}{\\lstset{style=JavaScriptOutputLatex,aboveskip=2.5ex,belowskip=-3.0ex}}{}
 \\lstnewenvironment{JavaScriptLonely}{\\lstset{style=JavaScriptOutput,aboveskip=2.5ex,belowskip=2.5ex}}{}
 \\lstnewenvironment{JavaScriptLonelyLatex}{\\lstset{style=JavaScriptOutputLatex,aboveskip=2.5ex,belowskip=2.5ex}}{}
 
 \\lstdefinestyle{JavaScriptOutputSmall}{
    language=JavaScript,
-   basicstyle=\\linespread{1.0}\\fontsize{9.5}{10.5}\\usefont{T1}{lmtt}{m}{sl},
+   basicstyle=\\linespread{1.0}\\fontsize{9.5}{11.5}\\usefont{T1}{lmtt}{m}{sl},
 %   keywordstyle=\\linespread{1.0}\\fontsize{10}{11}\\usefont{T1}{lmtt}{b}{sl},
    showstringspaces=false,
    showspaces=false,
@@ -325,10 +326,29 @@ export const preamble = `\\documentclass[a4paper, 12pt]{book}
    rulecolor=\\color{LeftBarClickable},
    escapechar=^
 }
+\\lstdefinestyle{JavaScriptOutputLatexSmall}{
+   language=JavaScript,
+   basicstyle=\\linespread{1.0}\\fontsize{9.5}{11.5}\\usefont{T1}{lmtt}{m}{sl},
+%   keywordstyle=\\linespread{1.0}\\fontsize{10}{11}\\usefont{T1}{lmtt}{b}{sl},
+   showstringspaces=false,
+   showspaces=false,
+   keepspaces=true,
+   columns=fullflexible,
+   fontadjust=true,
+   basewidth=0.55em,
+   mathescape=true,
+   framerule=0.5ex,
+   framesep=1em,
+   rulecolor=\\color{LeftBarClickable},
+   escapechar=^
+}
+
 \\lstnewenvironment{JavaScriptOutputSmall}{\\lstset{style=JavaScriptOutputSmall,aboveskip=-0.5ex,belowskip=1.8ex}}{}
-% Julie seems to prefer upright font for the prompt: To be revisited
-\\lstnewenvironment{JavaScriptPromptSmall}{\\lstset{style=JavaScriptSmall,aboveskip=2.5ex,belowskip=-0.5ex}}{}
+\\lstnewenvironment{JavaScriptOutputLatexSmall}{\\lstset{style=JavaScriptOutputLatexSmall,aboveskip=-0.5ex,belowskip=1.8ex}}{}
+\\lstnewenvironment{JavaScriptPromptSmall}{\\lstset{style=JavaScriptSmall,aboveskip=2.5ex,belowskip=-3.0ex}}{}
+\\lstnewenvironment{JavaScriptPromptLatexSmall}{\\lstset{style=JavaScriptOutputLatexSmall,aboveskip=2.5ex,belowskip=-3.0ex}}{}
 \\lstnewenvironment{JavaScriptLonelySmall}{\\lstset{style=JavaScriptOutputSmall,aboveskip=2.5ex,belowskip=2.5ex}}{}
+\\lstnewenvironment{JavaScriptLonelyLatexSmall}{\\lstset{style=JavaScriptOutputLatexSmall,aboveskip=2.5ex,belowskip=2.5ex}}{}
 
 \\lstdefinestyle{JavaScriptOutputFootnote}{
    language=JavaScript,
@@ -346,10 +366,29 @@ export const preamble = `\\documentclass[a4paper, 12pt]{book}
    rulecolor=\\color{LeftBarClickable},
    escapechar=^
 }
+\\lstdefinestyle{JavaScriptOutputLatexFootnote}{
+   language=JavaScript,
+   basicstyle=\\linespread{1.0}\\fontsize{8.5}{10.5}\\usefont{T1}{lmtt}{m}{sl},
+%   keywordstyle=\\linespread{1.0}\\fontsize{9}{10}\\usefont{T1}{lmtt}{b}{sl},
+   showstringspaces=false,
+   showspaces=false,
+   keepspaces=true,
+   columns=fullflexible,
+   fontadjust=true,
+   basewidth=0.55em,
+   mathescape=true,
+   framerule=0.5ex,
+   framesep=1em,
+   rulecolor=\\color{LeftBarClickable},
+   escapechar=^
+}
+
 \\lstnewenvironment{JavaScriptOutputFootnote}{\\lstset{style=JavaScriptOutputFootnote,aboveskip=-0.5ex,belowskip=1.8ex}}{}
-% Julie seems to prefer upright font for the prompt: To be revisited
-\\lstnewenvironment{JavaScriptPromptFootnote}{\\lstset{style=JavaScriptFootnote,aboveskip=2.5ex,belowskip=-0.5ex}}{}
+\\lstnewenvironment{JavaScriptOutputLatexFootnote}{\\lstset{style=JavaScriptOutputLatexFootnote,aboveskip=-0.5ex,belowskip=1.8ex}}{}
+\\lstnewenvironment{JavaScriptPromptFootnote}{\\lstset{style=JavaScriptOutputFootnote,aboveskip=2.5ex,belowskip=-3.0ex}}{}
+\\lstnewenvironment{JavaScriptPromptLatexFootnote}{\\lstset{style=JavaScriptOutputLatexFootnote,aboveskip=2.5ex,belowskip=-3.0ex}}{}
 \\lstnewenvironment{JavaScriptLonelyFootnote}{\\lstset{style=JavaScriptOutputFootnote,aboveskip=2.5ex,belowskip=2.5ex}}{}
+\\lstnewenvironment{JavaScriptLonelyLatexFootnote}{\\lstset{style=JavaScriptOutputLatexFootnote,aboveskip=2.5ex,belowskip=2.5ex}}{}
 
 \\usepackage{epigraph}
 \\renewcommand{\\textflush}{flushepinormal}

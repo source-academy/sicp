@@ -73,7 +73,11 @@ export const processSnippetPdf = (node, writeTo) => {
       writeTo.push("\n\\begin{JavaScriptPrompt" + LatexString + "}");
     }
 
-    writeTo.push(jsPromptSnippet.firstChild.nodeValue.trimRight());
+    const promptArr = [];
+    recursiveProcessTextLatex(jsPromptSnippet.firstChild, promptArr);
+    const promptStr = promptArr.join("").trimRight();
+
+    writeTo.push(promptStr);
 
     if (ancestorHasTag(node, "FOOTNOTE")) {
       writeTo.push("\n\\end{JavaScriptPrompt" + LatexString + "Footnote}\n");
@@ -95,7 +99,11 @@ export const processSnippetPdf = (node, writeTo) => {
       writeTo.push("\n\\begin{JavaScriptLonely" + LatexString + "}");
     }
 
-    writeTo.push(jsLonelySnippet.firstChild.nodeValue.trimRight());
+    const lonelyArr = [];
+    recursiveProcessTextLatex(jsLonelySnippet.firstChild, lonelyArr);
+    const lonelyStr = lonelyArr.join("").trimRight();
+
+    writeTo.push(lonelyStr);
 
     if (ancestorHasTag(node, "FOOTNOTE")) {
       writeTo.push("\n\\end{JavaScriptLonely" + LatexString + "Footnote}\n");
@@ -285,7 +293,11 @@ export const processSnippetPdf = (node, writeTo) => {
       writeTo.push("\n\\begin{JavaScriptOutput" + LatexString + "}");
     }
 
-    writeTo.push(jsOutputSnippet.firstChild.nodeValue.trimRight());
+    const outputArr = [];
+    recursiveProcessTextLatex(jsOutputSnippet.firstChild, outputArr);
+    const outputStr = outputArr.join("").trimRight();
+
+    writeTo.push(outputStr);
 
     if (ancestorHasTag(node, "FOOTNOTE")) {
       writeTo.push("\n\\end{JavaScriptOutput" + LatexString + "Footnote}\n");
