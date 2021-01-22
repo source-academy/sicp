@@ -182,28 +182,30 @@ function sqrt_iter(guess, x) {
       <JAVASCRIPT>
         Let us consider an implementation of the handling of
         <JAVASCRIPTINLINE>return</JAVASCRIPTINLINE> statements in the spirit of
-        the metacircular evaluator. In this design, a function that returns
-        explicitly wraps its return value in a return value object, making it
-        possible to determine if a result placed in
-        <JAVASCRIPTINLINE>val</JAVASCRIPTINLINE> is due to an explicit
-        <JAVASCRIPTINLINE>return</JAVASCRIPTINLINE> statement. For simplicity,
-        assume that a function body does not continue once a
+        the metacircular evaluator. In ev_return, we evaluate the return
+        expression, place the result in <JAVASCRIPTINLINE>val</JAVASCRIPTINLINE>, and then continue at
+        <JAVASCRIPTINLINE>ev_make_return_value</JAVASCRIPTINLINE> where a return
+        value object is created. 
+        
+        For simplicity, assume that a function body does not continue once a
         <JAVASCRIPTINLINE>return</JAVASCRIPTINLINE> statement has been
         evaluated, and that all saves to the stack in the function body have
-        been restored when the body is fully evaluated, meaning there is no
-        need to use our marker trick.
+        been restored when the body is fully evaluated, meaning there is no need
+        to use our marker trick. 
 
-        In this design <JAVASCRIPTINLINE>compound_apply</JAVASCRIPTINLINE> will
-        invariantly continue to
-        <JAVASCRIPTINLINE>check_return_value</JAVASCRIPTINLINE>. At
-        <JAVASCRIPTINLINE>check_return_value</JAVASCRIPTINLINE>, we check
-        whether the <JAVASCRIPTINLINE>val</JAVASCRIPTINLINE> register contains a
-        return value object or not. If it does, we extract the contents from the
-        object and place it in <JAVASCRIPTINLINE>val</JAVASCRIPTINLINE>. If it
-        does not, we assign <JAVASCRIPTINLINE>undefined</JAVASCRIPTINLINE> to
+        In this design <JAVASCRIPTINLINE>compound_apply</JAVASCRIPTINLINE> installs
+        a continuation
+        <JAVASCRIPTINLINE>check_return_value</JAVASCRIPTINLINE>, and every function
+        call will eventually arrive here after its complete evaluation.
+        At <JAVASCRIPTINLINE>check_return_value</JAVASCRIPTINLINE>, we check
+        whether the function's return value stored in <JAVASCRIPTINLINE>val</JAVASCRIPTINLINE> 
+        is a return value object or not. If it is, we extract the contents from the
+        object and place it in <JAVASCRIPTINLINE>val</JAVASCRIPTINLINE>. Otherwise,
+        the function did not return explicitly so we must assign
+        <JAVASCRIPTINLINE>undefined</JAVASCRIPTINLINE> to
         <JAVASCRIPTINLINE>val</JAVASCRIPTINLINE>. We then restore
         <JAVASCRIPTINLINE>continue</JAVASCRIPTINLINE> and jump to the
-        <QUOTE>final</QUOTE> continuation, set up in
+        <QUOTE>final</QUOTE> continuation, which was saved in
         <JAVASCRIPTINLINE>ev_application</JAVASCRIPTINLINE>.
           <SNIPPET EVAL="no">
             <JAVASCRIPT>
@@ -241,13 +243,14 @@ function sqrt_iter(guess, x) {
 
           This design is not tail-recursive. Assigning
           <JAVASCRIPTINLINE>check_for_explicit_return</JAVASCRIPTINLINE> to
-          <JAVASCRIPTINLINE>continue</JAVASCRIPTINLINE> requires us to store the
-          final continuation of a function call on the stack during the
+          <JAVASCRIPTINLINE>continue</JAVASCRIPTINLINE> requires us to store its
+          previous value, the 
+          final continuation of the function call, on the stack during the
           evaluation of its body. These stores will accumulate during a nest of
           function calls. Consequently, processes such as
           <JAVASCRIPTINLINE>sqrt_iter</JAVASCRIPTINLINE> would require space
           proportional to the number of iterations rather than requiring
-          constant space.
+          constant space. 
       </JAVASCRIPT>
     </SPLIT>
   </TEXT>
@@ -290,12 +293,22 @@ function count(n) {
   <SPLIT>
     <JAVASCRIPT>
       <TEXT>
-        Note that our JavaScript implementation is tail-recursive only in the
-        presence of an explicit <JAVASCRIPTINLINE>return</JAVASCRIPTINLINE>
-        statement. A function that ends without an explicit
-        <JAVASCRIPTINLINE>return</JAVASCRIPTINLINE> statement will go to the
-        implicit return handler
-        <JAVASCRIPTINLINE>return_undefined</JAVASCRIPTINLINE>, which stores
+        The reason why the <JAVASCRIPTINLINE>return_undefined</JAVASCRIPTINLINE>
+        continuation from section<SPACE/>5.4.1 does not lead to an accumulation
+        of space is because it was placed on the stack <EM>after</EM> the
+        marker. This means that the
+        <JAVASCRIPTINLINE>restore_marker</JAVASCRIPTINLINE> instruction will
+        remove this continuation from the stack before evaluating the return
+        expression. In other words: when we know that the check is not needed,
+        we remove it along with the stack space it occupied. 
+        
+        Because the <JAVASCRIPTINLINE>restore_marker</JAVASCRIPTINLINE> is part
+        of <JAVASCRIPTINLINE>ev_return</JAVASCRIPTINLINE>, our JavaScript
+        implementation is tail-recursive only in the presence of an explicit
+        <JAVASCRIPTINLINE>return</JAVASCRIPTINLINE> statement. Without it,
+        one save of <JAVASCRIPTINLINE>continue</JAVASCRIPTINLINE> 
+        is needed per function call to ensure its eventual arrival at
+        <JAVASCRIPTINLINE>return_undefined</JAVASCRIPTINLINE> to store 
         <JAVASCRIPTINLINE>undefined</JAVASCRIPTINLINE> in the
         <JAVASCRIPTINLINE>val</JAVASCRIPTINLINE> register. Thus, removing
         <JAVASCRIPTINLINE>return</JAVASCRIPTINLINE> from the above count
