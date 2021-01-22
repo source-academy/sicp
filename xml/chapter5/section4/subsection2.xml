@@ -77,15 +77,13 @@ function sqrt_iter(guess, x) {
       <JAVASCRIPT>
         The implementation of the metacircular evaluator in chapter<SPACE/>4 is
         not tail-recursive. The reason for this is found in the handling of
-        sequences and relates to returning from functions. After the evaluation
-        of a statement, we inspect the result to see if the function is
-        returning or not. If it is, we return the result. If it is not, we
-        continue evaluating the next statement or return
-        <JAVASCRIPTINLINE>undefined</JAVASCRIPTINLINE> if there are no more
-        statements to evaluate. In a process that computes a value through a
-        nested sequence of function calls, such as
-        <JAVASCRIPTINLINE>sqrt_iter</JAVASCRIPTINLINE> above, this causes a
-        build-up of deferred checking operations, which leads to an accumulation
+        <JAVASCRIPTINLINE>return</JAVASCRIPTINLINE> as an operator that creates
+        a return value object and inspecting the result of a function call to
+        see if it is such an object or not.
+        If the result of a function is a return value object, its contents
+        is the return value of the function. 
+        Otherwise, the return value is <JAVASCRIPTINLINE>undefined</JAVASCRIPTINLINE>.
+        This check is a deferred operation, which leads to an accumulation
         of information on the stack.
       </JAVASCRIPT>
     </SPLIT>
@@ -120,12 +118,14 @@ function sqrt_iter(guess, x) {
         <JAVASCRIPTINLINE>eval_dispatch</JAVASCRIPTINLINE> without any additional saves.<!--
    --></JAVASCRIPT><!-- 
  --></SPLIT><FOOTNOTE>This implementation of tail
-        recursion in <SCHEMEINLINE>ev-sequence</SCHEMEINLINE> is one variety of
+        recursion in <SPLITINLINE><SCHEME><SCHEMEINLINE>ev-sequence</SCHEMEINLINE></SCHEME></SPLITINLINE> is one variety of
         a well-known optimization technique used by many compilers. In compiling
-        a procedure that ends with a procedure call, one can replace the call by
-        a jump to the called procedure<APOS/>s entry point. Building this
-        strategy into the interpreter, as we have done in this section, provides
-        the optimization uniformly throughout the language.
+        a <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+        that ends with a <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+        call, one can replace the call by a jump to the called
+        <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE><APOS/>s
+        entry point.
+        <SPLITINLINE><SCHEME>Building this strategy into the interpreter, as we have done in this section, provides the optimization uniformly throughout the language.</SCHEME><JAVASCRIPT></JAVASCRIPT></SPLITINLINE>
       </FOOTNOTE>
 
       <TEXT>
@@ -145,7 +145,7 @@ function sqrt_iter(guess, x) {
               (define (no-more-exps? seq) (null? seq))
             </SCHEME>
           </SNIPPET></FOOTNOTE>
-          <INDEX><DECLARATION>ev_sequence</DECLARATION><SUBINDEX>without tail recursion</SUBINDEX></INDEX>
+          <INDEX><DECLARATION>ev-sequence</DECLARATION><SUBINDEX>without tail recursion</SUBINDEX></INDEX>
           <SNIPPET EVAL="no">
             <SCHEME>
             ev-sequence
@@ -180,43 +180,74 @@ function sqrt_iter(guess, x) {
         space.
           </SCHEME>
       <JAVASCRIPT>
-If we think of <JAVASCRIPTINLINE>return</JAVASCRIPTINLINE> as an operator and the return expression as
-its operand, we might consider it more intuitive to evaluate
-<JAVASCRIPTINLINE>return</JAVASCRIPTINLINE> statements by first computing the return value, and then restore the
-stack:
-          <!-- FIXME: mislabelling of index? -->
-	        <INDEX><DECLARATION>ev_sequence</DECLARATION><SUBINDEX>without tail recursion</SUBINDEX></INDEX>
+        Let us consider an implementation of the handling of
+        <JAVASCRIPTINLINE>return</JAVASCRIPTINLINE> statements in the spirit of
+        the metacircular evaluator. In this design, a function that returns
+        explicitly wraps its return value in a return value object, making it
+        possible to determine if a result placed in
+        <JAVASCRIPTINLINE>val</JAVASCRIPTINLINE> is due to an explicit
+        <JAVASCRIPTINLINE>return</JAVASCRIPTINLINE> statement. For simplicity,
+        assume that a function body does not continue once a
+        <JAVASCRIPTINLINE>return</JAVASCRIPTINLINE> statement has been
+        evaluated, and that all saves to the stack in the function body have
+        been restored when the body is fully evaluated, meaning there is no
+        need to use our marker trick.
+
+        In this design <JAVASCRIPTINLINE>compound_apply</JAVASCRIPTINLINE> will
+        invariantly continue to
+        <JAVASCRIPTINLINE>check_return_value</JAVASCRIPTINLINE>. At
+        <JAVASCRIPTINLINE>check_return_value</JAVASCRIPTINLINE>, we check
+        whether the <JAVASCRIPTINLINE>val</JAVASCRIPTINLINE> register contains a
+        return value object or not. If it does, we extract the contents from the
+        object and place it in <JAVASCRIPTINLINE>val</JAVASCRIPTINLINE>. If it
+        does not, we assign <JAVASCRIPTINLINE>undefined</JAVASCRIPTINLINE> to
+        <JAVASCRIPTINLINE>val</JAVASCRIPTINLINE>. We then restore
+        <JAVASCRIPTINLINE>continue</JAVASCRIPTINLINE> and jump to the
+        <QUOTE>final</QUOTE> continuation, set up in
+        <JAVASCRIPTINLINE>ev_application</JAVASCRIPTINLINE>.
           <SNIPPET EVAL="no">
             <JAVASCRIPT>
-"ev_return",
+"ev_return", 
       assign("comp", list(op("return_expression"), reg("comp"))),
-      assign("continue", label("ev_restore_stack")),
-      save("continue"),
+      assign("continue", label("ev_make_return_value")),
+      go_to(label("eval_dispatch")), // evaluate the return expression
+
+"ev_make_return_value",
+      // wrap contents of val in return value object 
+      assign("val", list(op("make_return_value"), reg("val"))), 
+      restore("continue"),
+      go_to(reg("continue")), 
+
+"compound_apply",
+      ... // as before (first 4 lines)
+      assign("continue", label("check_for_explicit_return")), // install return handler
       go_to(label("eval_dispatch")),
 
-"ev_restore_stack",
-      restore_marker("continue"),
+"check_for_explicit_return",
+      test(list(op("is_return_value"), reg("val"))),
+      branch(label("explicit_return")),
+      assign("val", constant(undefined)),
+      go_to(label("ev_return_from_function")),
+
+"explicit_return",
+      // extract return value from wrapper
+      assign("val", list(op("return_value_content"), reg("val"))), 
+      
+"ev_return_from_function",
       restore("continue"),
-      go_to(reg("continue")),
+      go_to(reg("continue")), // jump to final continuation 
             </JAVASCRIPT>
           </SNIPPET>
 
-        This may seem like a minor change to our previous code for evaluation of
-        <JAVASCRIPTINLINE>return</JAVASCRIPTINLINE> statements.  However, 
-        this not only keeps the useless information on the stack
-        during the evaluation of the return expression, but additionally saves
-        <JAVASCRIPTINLINE>continue</JAVASCRIPTINLINE> to ensure an eventual
-        jump back to <JAVASCRIPTINLINE>ev_restore_stack</JAVASCRIPTINLINE> to
-        restore the stack and jumping to the continuation of the function
-        call. Even if there are never any saves by the current
-        function<FOOTNOTE>With our current design, there will always be at
-        least one: a save of <JAVASCRIPTINLINE>continue</JAVASCRIPTINLINE> at
-        <JAVASCRIPTINLINE>ev_sequence_start</JAVASCRIPTINLINE>.</FOOTNOTE>,
-        the last save of <JAVASCRIPTINLINE>continue</JAVASCRIPTINLINE> will
-        accumulate during a nest of function calls. In this design, processes
-        such as <JAVASCRIPTINLINE>sqrt_iter</JAVASCRIPTINLINE> would require
-        space proportional to the number of iterations rather than requiring
-        constant space.
+          This design is not tail-recursive. Assigning
+          <JAVASCRIPTINLINE>check_for_explicit_return</JAVASCRIPTINLINE> to
+          <JAVASCRIPTINLINE>continue</JAVASCRIPTINLINE> requires us to store the
+          final continuation of a function call on the stack during the
+          evaluation of its body. These stores will accumulate during a nest of
+          function calls. Consequently, processes such as
+          <JAVASCRIPTINLINE>sqrt_iter</JAVASCRIPTINLINE> would require space
+          proportional to the number of iterations rather than requiring
+          constant space.
       </JAVASCRIPT>
     </SPLIT>
   </TEXT>
