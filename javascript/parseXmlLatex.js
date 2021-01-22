@@ -167,9 +167,17 @@ const processTextFunctionsDefaultLatex = {
   META: (node, writeTo) => {
     writeTo.push("$\\mathit{");
     let s = node.firstChild.nodeValue;
-    s = s.replace(/-/g, "\\mhyphen{}");
+    s = s.replace(/-/g, "\\mhyphen{}").replace(/ /g, "\\ ");
     writeTo.push(s);
     writeTo.push("}$");
+  },
+
+  METAPHRASE: (node, writeTo) => {
+    writeTo.push("$\\langle\\mathit{");
+    let s = node.firstChild.nodeValue;
+    s = s.replace(/-/g, "\\mhyphen{}").replace(/ /g, "\\ ");
+    writeTo.push(s);
+    writeTo.push("}\\rangle$");
   },
 
   INDEX: (node, writeTo) => {

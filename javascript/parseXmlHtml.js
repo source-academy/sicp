@@ -234,9 +234,17 @@ const processTextFunctionsDefaultHtml = {
   META: (node, writeTo) => {
     writeTo.push("$");
     let s = node.firstChild.nodeValue;
-    s = s.replace(/-/g, "$-$");
+    s = s.replace(/-/g, "$-$").replace(/ /g, "\\ ");
     writeTo.push(s);
     writeTo.push("$");
+  },
+
+  METAPHRASE: (node, writeTo) => {
+    writeTo.push("$\\langle{}");
+    let s = node.firstChild.nodeValue;
+    s = s.replace(/-/g, "$-$").replace(/ /g, "\\ ");
+    writeTo.push(s);
+    writeTo.push("\\rangle$");
   },
 
   IMAGE: (node, writeTo) => {
