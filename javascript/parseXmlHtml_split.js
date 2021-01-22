@@ -300,7 +300,6 @@ export const processTextFunctionsHtml = {
     if (node.getAttribute("HIDE") == "yes") {
       return;
     } else if (node.getAttribute("LATEX") == "yes") {
-
       writeTo.push("<kbd class='snippet'>");
       const textit = getChildrenByTagName(node, "JAVASCRIPT")[0];
       if (textit) {
@@ -311,7 +310,7 @@ export const processTextFunctionsHtml = {
         recursiveProcessTextHtml(node.firstChild, writeTo);
       }
       writeTo.push("</kbd>");
-	
+
       return;
     }
     snippet_count += 1;

@@ -352,7 +352,6 @@ const processTextFunctionsDefaultHtml = {
     if (node.getAttribute("HIDE") == "yes") {
       return;
     } else if (node.getAttribute("LATEX") == "yes") {
-
       const textprompt = getChildrenByTagName(node, "JAVASCRIPT_PROMPT")[0];
       if (textprompt) {
         writeTo.push("<kbd class='snippet'>");
@@ -381,7 +380,7 @@ const processTextFunctionsDefaultHtml = {
         });
         writeTo.push("</kbd>");
       }
-	
+
       return;
     }
     snippet_count += 1;
@@ -618,7 +617,6 @@ const processTextFunctionsSplit = {
     if (node.getAttribute("HIDE") == "yes") {
       return;
     } else if (node.getAttribute("LATEX") == "yes") {
-
       const textprompt = getChildrenByTagName(node, "JAVASCRIPT_PROMPT")[0];
       if (textprompt) {
         writeTo.push("<kbd class='snippet'>");
@@ -627,7 +625,7 @@ const processTextFunctionsSplit = {
         });
         writeTo.push("</kbd>");
       }
-	
+
       writeTo.push("<kbd class='snippet'>");
       const textit = getChildrenByTagName(node, "JAVASCRIPT")[0];
       if (textit) {
