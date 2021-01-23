@@ -240,11 +240,9 @@ const processTextFunctionsDefaultHtml = {
   },
 
   METAPHRASE: (node, writeTo) => {
-    writeTo.push("$\\langle{}");
-    let s = node.firstChild.nodeValue;
-    s = s.replace(/-/g, "$-$").replace(/ /g, "\\ ");
-    writeTo.push(s);
-    writeTo.push("\\rangle$");
+    writeTo.push("$\\langle{}$<EM>");
+    recursiveProcessTextHtml(node.firstChild, writeTo);
+    writeTo.push("</EM>$\\rangle$");
   },
 
   IMAGE: (node, writeTo) => {

@@ -174,7 +174,9 @@ const processTextFunctionsDefaultLatex = {
 
   METAPHRASE: (node, writeTo) => {
     writeTo.push("$\\langle\\mathit{");
-    let s = node.firstChild.nodeValue;
+    const contentArr = [];
+    recursiveProcessTextLatex(node.firstChild, contentArr);
+    let s = contentArr.join("");
     s = s.replace(/-/g, "\\mhyphen{}").replace(/ /g, "\\ ");
     writeTo.push(s);
     writeTo.push("}\\rangle$");
@@ -517,18 +519,24 @@ const processTextFunctionsDefaultLatex = {
     processTextFunctionsLatex["JAVASCRIPTINLINE"](node, writeTo),
   ECMA: (node, writeTo) => {},
   JAVASCRIPTINLINE: (node, writeTo) => {
-    if (node.getAttribute("break")) {
-      writeTo.push(
-        "{\\lstinline[breaklines=true, breakatwhitespace=true,mathescape=false]~"
-      );
+    if (ancestorHasTag(node, "METAPHRASE")) {
+      writeTo.push("}$");
+      recursiveProcessPureText(node.firstChild, writeTo);
+      writeTo.push("$\\mathit{");
     } else {
-      writeTo.push("{\\lstinline[mathescape=false]~");
+      if (node.getAttribute("break")) {
+        writeTo.push(
+          "{\\lstinline[breaklines=true, breakatwhitespace=true,mathescape=false]~"
+        );
+      } else {
+        writeTo.push("{\\lstinline[mathescape=false]~");
+      }
+      recursiveProcessPureText(node.firstChild, writeTo, {
+        removeNewline: "all",
+        escapeCurlyBracket: true
+      });
+      writeTo.push("~}");
     }
-    recursiveProcessPureText(node.firstChild, writeTo, {
-      removeNewline: "all",
-      escapeCurlyBracket: true
-    });
-    writeTo.push("~}");
   },
 
   SNIPPET: (node, writeTo) => {
