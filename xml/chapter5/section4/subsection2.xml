@@ -83,8 +83,9 @@ function sqrt_iter(guess, x) {
         If the result of a function is a return value object, its content
         is the return value of the function. 
         Otherwise, the return value is <JAVASCRIPTINLINE>undefined</JAVASCRIPTINLINE>.
-        This check is a deferred operation, which leads to an accumulation
-        of information on the stack.
+        Both the construction of the return value object, and the eventual inspection of
+        the result of the function call are deferred operations, which lead to an
+        accumulation of information on the stack.
       </JAVASCRIPT>
     </SPLIT>
   </TEXT>
@@ -106,13 +107,16 @@ function sqrt_iter(guess, x) {
       <JAVASCRIPT>
         Our explicit-control evaluator is tail-recursive, because it avoids the accumulation
         of information such as in the metacircular evaluator. When we
-        evaluate a <JAVASCRIPTINLINE>return</JAVASCRIPTINLINE> statement at <JAVASCRIPTINLINE>ev_return</JAVASCRIPTINLINE>, we
+        evaluate a return statement at <JAVASCRIPTINLINE>ev_return</JAVASCRIPTINLINE>, we
         first remove anything saved by the current function on the stack, and
-        restore <JAVASCRIPTINLINE>continue</JAVASCRIPTINLINE>. Thus, right before 
-        proceeding to evaluate the return expression, the information 
-        on the stack is the same as at the start of
-        <JAVASCRIPTINLINE>ev_application</JAVASCRIPTINLINE>, just before the
-        call to the function whose return value we are about to compute. We then
+        restore <JAVASCRIPTINLINE>continue</JAVASCRIPTINLINE> to the value saved
+        at <JAVASCRIPTINLINE>ev_application</JAVASCRIPTINLINE> in the beginning
+        of the function call. 
+        Thus, when we 
+        proceed to evaluate the return expression, the information 
+        accumulated on the stack is the same as just before the
+        call to the function whose return value we are about to compute.
+        We then
         place the return expression in <JAVASCRIPTINLINE>comp</JAVASCRIPTINLINE>
         and transfer directly to
         <JAVASCRIPTINLINE>eval_dispatch</JAVASCRIPTINLINE> without any additional saves.<!--
@@ -181,14 +185,14 @@ function sqrt_iter(guess, x) {
           </SCHEME>
       <JAVASCRIPT>
         Let us consider an implementation of the handling of
-        <JAVASCRIPTINLINE>return</JAVASCRIPTINLINE> statements in the spirit of
+        return statements in the spirit of
         the metacircular evaluator. In ev_return, we evaluate the return
         expression, place the result in <JAVASCRIPTINLINE>val</JAVASCRIPTINLINE>, and then continue at
         <JAVASCRIPTINLINE>ev_make_return_value</JAVASCRIPTINLINE> where a return
         value object is created. 
         
         For simplicity, assume that a function body does not continue once a
-        <JAVASCRIPTINLINE>return</JAVASCRIPTINLINE> statement has been
+        return statement has been
         evaluated, and that all saves to the stack in the function body have
         been restored when the body is fully evaluated, meaning there is no need
         to use our marker trick. 
@@ -241,12 +245,25 @@ function sqrt_iter(guess, x) {
             </JAVASCRIPT>
           </SNIPPET>
 
-          This design is not tail-recursive. Assigning
+          This design is not tail-recursive as it introduces two deferred
+          operations:
+          <JAVASCRIPTINLINE>ev_make_return_value</JAVASCRIPTINLINE> and
+          <JAVASCRIPTINLINE>check_for_explicit_return</JAVASCRIPTINLINE>.
+          The cost of these deferred operations will materialise on the stack through
+          saves of <JAVASCRIPTINLINE>continue</JAVASCRIPTINLINE>.
+          For example, assigning
           <JAVASCRIPTINLINE>check_for_explicit_return</JAVASCRIPTINLINE> to
           <JAVASCRIPTINLINE>continue</JAVASCRIPTINLINE> requires us to store its
           previous value, the 
           final continuation of the function call, on the stack during the
-          evaluation of its body. These stores will accumulate during a nest of
+          evaluation of its body. This save took place in <JAVASCRIPTINLINE>ev_application</JAVASCRIPTINLINE>.
+          Without <JAVASCRIPTINLINE>check_for_explicit_return</JAVASCRIPTINLINE>, this value
+          could have been restored in <JAVASCRIPTINLINE>compound_apply</JAVASCRIPTINLINE>.
+          Similar reasoning applies to the assignment of <JAVASCRIPTINLINE>ev_make_return_value</JAVASCRIPTINLINE>
+          to <JAVASCRIPTINLINE>continue</JAVASCRIPTINLINE> in <JAVASCRIPTINLINE>ev_return</JAVASCRIPTINLINE>.
+          
+
+          These stores will accumulate during a nest of
           function calls. Consequently, processes such as
           <JAVASCRIPTINLINE>sqrt_iter</JAVASCRIPTINLINE> would require space
           proportional to the number of iterations rather than requiring
@@ -260,7 +277,7 @@ function sqrt_iter(guess, x) {
     with tail recursion, an infinite loop can be expressed using only the
     <SPLITINLINE>
       <SCHEME>procedure-call mechanism:</SCHEME>
-      <JAVASCRIPT>function-call and <JAVASCRIPTINLINE>return</JAVASCRIPTINLINE> mechanisms:</JAVASCRIPT>
+      <JAVASCRIPT>function-call and return mechanisms:</JAVASCRIPT>
     </SPLITINLINE>
     <SNIPPET EVAL="no">
       <SCHEME>
@@ -305,7 +322,7 @@ function count(n) {
         Because the <JAVASCRIPTINLINE>restore_marker</JAVASCRIPTINLINE> is part
         of <JAVASCRIPTINLINE>ev_return</JAVASCRIPTINLINE>, our JavaScript
         implementation is tail-recursive only in the presence of an explicit
-        <JAVASCRIPTINLINE>return</JAVASCRIPTINLINE> statement. Without it,
+        return statement. Without it,
         one save of <JAVASCRIPTINLINE>continue</JAVASCRIPTINLINE> 
         is needed per function call to ensure its eventual arrival at
         <JAVASCRIPTINLINE>return_undefined</JAVASCRIPTINLINE> to store 
