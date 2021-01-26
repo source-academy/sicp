@@ -78,12 +78,12 @@ function sqrt_iter(guess, x) {
         The implementation of the metacircular evaluator in chapter<SPACE/>4 is
         not tail-recursive. The reason for this is found in the handling of
         <JAVASCRIPTINLINE>return</JAVASCRIPTINLINE> as an operator that creates
-        a return value object and inspecting the result of a function call to
-        see if it is such an object or not.
-        If the result of a function is a return value object, its content
+        a return value object containing the value to be returned and inspecting the result of a function call to
+        see whether it is such an object.
+        If the evaluation of a function body produces a return value object, its content
         is the return value of the function. 
         Otherwise, the return value is <JAVASCRIPTINLINE>undefined</JAVASCRIPTINLINE>.
-        Both the construction of the return value object, and the eventual inspection of
+        Both the construction of the return value object and the eventual inspection of
         the result of the function call are deferred operations, which lead to an
         accumulation of information on the stack.
       </JAVASCRIPT>
@@ -105,21 +105,24 @@ function sqrt_iter(guess, x) {
         information to be accumulated on the stack.
       </SCHEME>
       <JAVASCRIPT>
-        Our explicit-control evaluator is tail-recursive, because it avoids the accumulation
-        of information such as in the metacircular evaluator. When we
-        evaluate a return statement at <JAVASCRIPTINLINE>ev_return</JAVASCRIPTINLINE>, we
-        first remove anything saved by the current function on the stack, and
-        restore <JAVASCRIPTINLINE>continue</JAVASCRIPTINLINE> to the value saved
-        at <JAVASCRIPTINLINE>ev_application</JAVASCRIPTINLINE> in the beginning
-        of the function call. 
-        Thus, when we 
-        proceed to evaluate the return expression, the information 
-        accumulated on the stack is the same as just before the
-        call to the function whose return value we are about to compute.
-        We then
-        place the return expression in <JAVASCRIPTINLINE>comp</JAVASCRIPTINLINE>
-        and transfer directly to
-        <JAVASCRIPTINLINE>eval_dispatch</JAVASCRIPTINLINE> without any additional saves.<!--
+        Our explicit-control evaluator is tail-recursive, because it does not
+        need to wrap up return values for inspection and avoids the buildup of
+        stack from deferred operations. When we evaluate a return statement at
+        <JAVASCRIPTINLINE>ev_return</JAVASCRIPTINLINE>, we first remove anything
+        saved by the current function on the stack and restore
+        <JAVASCRIPTINLINE>continue</JAVASCRIPTINLINE> to the value saved at
+        <JAVASCRIPTINLINE>ev_application</JAVASCRIPTINLINE> in the beginning of
+        the function call. Thus, when we proceed to evaluate the return
+        expression, the stack is the same as just before the call to the
+        function whose return value we are about to compute. We then place the
+        return expression in <JAVASCRIPTINLINE>comp</JAVASCRIPTINLINE> and
+        transfer directly to <JAVASCRIPTINLINE>eval_dispatch</JAVASCRIPTINLINE>
+        without saving any information on the stack. Hence, evaluating a return
+        expression<EMDASH/>even if it is a function call (as in
+        <JAVASCRIPTINLINE>sqrt_iter</JAVASCRIPTINLINE>, where the conditional
+        expression reduces to a call to
+        <JAVASCRIPTINLINE>sqrt_iter</JAVASCRIPTINLINE>)<EMDASH/>will not cause
+        any information to be accumulated on the stack.<!--
    --></JAVASCRIPT><!-- 
  --></SPLIT><FOOTNOTE>This implementation of tail
         recursion <SPLITINLINE><SCHEME>in <SCHEMEINLINE>ev-sequence</SCHEMEINLINE></SCHEME></SPLITINLINE> is one variety of
@@ -184,43 +187,43 @@ function sqrt_iter(guess, x) {
         space.
           </SCHEME>
       <JAVASCRIPT>
-If we think of <JAVASCRIPTINLINE>return</JAVASCRIPTINLINE> as an operator and the return expression as
-its operand, we might consider it more intuitive to evaluate
-return statements by first computing the return value, and then restore the
-stack:
-          <!-- FIXME: mislabelling of index? -->
-	        <INDEX><DECLARATION>ev_sequence</DECLARATION><SUBINDEX>without tail recursion</SUBINDEX></INDEX>
-          <SNIPPET EVAL="no">
-            <JAVASCRIPT>
-"ev_return",
-      assign("comp", list(op("return_expression"), reg("comp"))),
-      assign("continue", label("ev_restore_stack")),
-      save("continue"),
-      go_to(label("eval_dispatch")),
+<!-- If we think of <JAVASCRIPTINLINE>return</JAVASCRIPTINLINE> as an operator and the return expression as -->
+<!-- its operand, we might consider it more intuitive to evaluate -->
+<!-- return statements by first computing the return value, and then restore the -->
+<!-- stack: -->
+<!--           <!-\- FIXME: mislabelling of index? -\-> -->
+<!-- 	        <INDEX><DECLARATION>ev_sequence</DECLARATION><SUBINDEX>without tail recursion</SUBINDEX></INDEX> -->
+<!--           <SNIPPET EVAL="no"> -->
+<!--             <JAVASCRIPT> -->
+<!-- "ev_return", -->
+<!--       assign("comp", list(op("return_expression"), reg("comp"))), -->
+<!--       assign("continue", label("ev_restore_stack")), -->
+<!--       save("continue"), -->
+<!--       go_to(label("eval_dispatch")), -->
 
-"ev_restore_stack",
-      restore_marker("continue"),
-      restore("continue"),
-      go_to(reg("continue")),
-            </JAVASCRIPT>
-          </SNIPPET>
+<!-- "ev_restore_stack", -->
+<!--       restore_marker("continue"), -->
+<!--       restore("continue"), -->
+<!--       go_to(reg("continue")), -->
+<!--             </JAVASCRIPT> -->
+<!--           </SNIPPET> -->
 
-        This may seem like a minor change to our previous code for evaluation of
-        return statements.  However, 
-        this not only keeps the useless information on the stack
-        during the evaluation of the return expression, but additionally saves
-        <JAVASCRIPTINLINE>continue</JAVASCRIPTINLINE> to ensure an eventual
-        jump back to <JAVASCRIPTINLINE>ev_restore_stack</JAVASCRIPTINLINE> to
-        restore the stack and jumping to the continuation of the function
-        call. Even if there are never any saves by the current
-        function<FOOTNOTE>With our current design, there will always be at
-        least one: a save of <JAVASCRIPTINLINE>continue</JAVASCRIPTINLINE> in
-        <JAVASCRIPTINLINE>ev_sequence_start</JAVASCRIPTINLINE>.</FOOTNOTE>,
-        the last save of <JAVASCRIPTINLINE>continue</JAVASCRIPTINLINE> will
-        accumulate during a nest of function calls. In this design, processes
-        such as <JAVASCRIPTINLINE>sqrt_iter</JAVASCRIPTINLINE> would require
-        space proportional to the number of iterations rather than requiring
-        constant space.
+<!--         This may seem like a minor change to our previous code for evaluation of -->
+<!--         return statements.  However,  -->
+<!--         this not only keeps the useless information on the stack -->
+<!--         during the evaluation of the return expression, but additionally saves -->
+<!--         <JAVASCRIPTINLINE>continue</JAVASCRIPTINLINE> to ensure an eventual -->
+<!--         jump back to <JAVASCRIPTINLINE>ev_restore_stack</JAVASCRIPTINLINE> to -->
+<!--         restore the stack and jumping to the continuation of the function -->
+<!--         call. Even if there are never any saves by the current -->
+<!--         function<FOOTNOTE>With our current design, there will always be at -->
+<!--         least one: a save of <JAVASCRIPTINLINE>continue</JAVASCRIPTINLINE> in -->
+<!--         <JAVASCRIPTINLINE>ev_sequence_start</JAVASCRIPTINLINE>.</FOOTNOTE>, -->
+<!--         the last save of <JAVASCRIPTINLINE>continue</JAVASCRIPTINLINE> will -->
+<!--         accumulate during a nest of function calls. In this design, processes -->
+<!--         such as <JAVASCRIPTINLINE>sqrt_iter</JAVASCRIPTINLINE> would require -->
+<!--         space proportional to the number of iterations rather than requiring -->
+<!--         constant space. -->
 
         Let us consider an implementation of the handling of
         return statements in the spirit of
