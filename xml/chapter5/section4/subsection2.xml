@@ -104,35 +104,44 @@ function sqrt_iter(guess, x) {
         <SCHEMEINLINE>sqrt-iter</SCHEMEINLINE>)<EMDASH/>will not cause any
         information to be accumulated on the stack.
       </SCHEME>
-      <JAVASCRIPT>
-        Our explicit-control evaluator is tail-recursive, because it does not
-        need to wrap up return values for inspection and avoids the buildup of
-        stack from deferred operations. When we evaluate a return statement at
-        <JAVASCRIPTINLINE>ev_return</JAVASCRIPTINLINE>, we first remove anything
-        saved by the current function on the stack and restore
-        <JAVASCRIPTINLINE>continue</JAVASCRIPTINLINE> to the value saved at
-        <JAVASCRIPTINLINE>ev_application</JAVASCRIPTINLINE> in the beginning of
-        the function call. Thus, when we proceed to evaluate the return
-        expression, the stack is the same as just before the call to the
-        function whose return value we are about to compute. We then place the
-        return expression in <JAVASCRIPTINLINE>comp</JAVASCRIPTINLINE> and
-        transfer directly to <JAVASCRIPTINLINE>eval_dispatch</JAVASCRIPTINLINE>
-        without saving any information on the stack. Hence, evaluating a return
-        expression<EMDASH/>even if it is a function call (as in
-        <JAVASCRIPTINLINE>sqrt_iter</JAVASCRIPTINLINE>, where the conditional
-        expression reduces to a call to
-        <JAVASCRIPTINLINE>sqrt_iter</JAVASCRIPTINLINE>)<EMDASH/>will not cause
-        any information to be accumulated on the stack.<!--
-   --></JAVASCRIPT><!-- 
- --></SPLIT><FOOTNOTE>This implementation of tail
-        recursion <SPLITINLINE><SCHEME>in <SCHEMEINLINE>ev-sequence</SCHEMEINLINE></SCHEME></SPLITINLINE> is one variety of
-        a well-known optimization technique used by many compilers. In compiling
-        a <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
-        that ends with a <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+      <JAVASCRIPT> 
+        Our evaluator is tail-recursive, because in order to evaluate the expression that
+        computes the return value of a function, we transfer directly to
+        <JAVASCRIPTINLINE>eval_dispatch</JAVASCRIPTINLINE> with nothing more on the stack
+        than right before the function call. <!-- Thus, return expressions that do not -->
+        <!-- lead to deferred operations will result in tair-recursive  -->
+
+        We accomplish this by undoing any saves to the stack by the function (which are
+        useless as we are returning) using
+        <JAVASCRIPTINLINE>restore_marker</JAVASCRIPTINLINE>.
+
+        Then, rather than arranging for <JAVASCRIPTINLINE>eval_dispatch</JAVASCRIPTINLINE>
+        to return here and then restore <JAVASCRIPTINLINE>continue</JAVASCRIPTINLINE>
+        from the stack and continuing at that entry point, we restore
+        <JAVASCRIPTINLINE>continue</JAVASCRIPTINLINE> from the stack before going to
+        <JAVASCRIPTINLINE>eval_dispatch</JAVASCRIPTINLINE> so that
+        <JAVASCRIPTINLINE>eval_dispatch</JAVASCRIPTINLINE> will continue at that entry
+        point after evaluating the expression. 
+
+        Finally, we transfer to <JAVASCRIPTINLINE>eval_dispatch</JAVASCRIPTINLINE> without
+        saving any information on the stack. Thus, when we proceed to evaluate a return
+        expression, the stack is the same as just before the call to the function whose
+        return value we are about to compute.
+
+        Hence, evaluating a return expression<EMDASH/>even if it is a function call (as in
+        <JAVASCRIPTINLINE>sqrt_iter</JAVASCRIPTINLINE>, where the conditional expression
+        reduces to a call to <JAVASCRIPTINLINE>sqrt_iter</JAVASCRIPTINLINE>)<EMDASH/>will
+        not cause any information to be accumulated on the stack.<!-- --></JAVASCRIPT><!--
+        --></SPLIT><FOOTNOTE>This implementation of tail recursion <SPLITINLINE><SCHEME>in
+        <SCHEMEINLINE>ev-sequence</SCHEMEINLINE></SCHEME></SPLITINLINE> is one variety of
+        a well-known optimization technique used by many compilers. In compiling a
+        <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+        that ends with a
+        <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
         call, one can replace the call by a jump to the called
         <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE><APOS/>s
-        entry point.
-        Building this strategy into the interpreter, as we have done in this section, provides the optimization uniformly throughout the language.
+        entry point. Building this strategy into the interpreter, as we have done in this
+        section, provides the optimization uniformly throughout the language.
       </FOOTNOTE>
 
       <TEXT>
@@ -186,39 +195,41 @@ function sqrt_iter(guess, x) {
         proportional to the number of iterations rather than requiring constant
         space.
           </SCHEME>
-      <JAVASCRIPT>
-        If we, like the metacircular evaluator, treat
-        <JAVASCRIPTINLINE>return</JAVASCRIPTINLINE> as an operator and the
-        return expression as its operand, we might consider it more intuitive to
-        evaluate return statements by first computing the return value, and then
-        restore the stack:
+     <JAVASCRIPT>
+        If we did not think to take advantage of the fact that it is unnecessary to
+        hold on to the useless information on the stack when evaluating a return expression,
+        we might have implemented
+        <JAVASCRIPTINLINE>return</JAVASCRIPTINLINE> as an operator, with the
+        return expression as its operand
+        (like in the metacircular evaluator). 
+        A straightforward implementation would evaluate the return expression,
+        come back to restore the registers,
+        and finally continue at the entry point of the function call:
           <!-- FIXME: mislabelling of index? -->
 	        <INDEX><DECLARATION>ev_sequence</DECLARATION><SUBINDEX>without tail recursion</SUBINDEX></INDEX>
           <SNIPPET EVAL="no">
             <JAVASCRIPT>
-"ev_return",
+"ev_return_alternative", 
       assign("comp", list(op("return_expression"), reg("comp"))),
       assign("continue", label("ev_restore_stack")),
       go_to(label("eval_dispatch")),
 
 "ev_restore_stack",
-      restore_marker(),
-      restore("continue"), // restore save at ev_application
+      restore_marker(),    // undo saves in current function
+      restore("continue"), // undo save at ev_application
       go_to(reg("continue")),
             </JAVASCRIPT>
           </SNIPPET>
+          This may seem like a minor change to our previous code for evaluation of return
+          statements: The only difference is that we delay undoing any register saves to
+          the stack until after the evaluation of the return expression. The interpreter
+          will still give the same value for any expression. But this change is fatal to
+          the tail-recursive implementation, because we must now return after evaluating
+          the return expression in order to undo the (useless) register saves. These extra
+          saves will accumulate during a nest of procedure calls. Consequently, processes
+          such as <JAVASCRIPTINLINE>sqrt_iter</JAVASCRIPTINLINE> would require space
+          proportional to the number of iterations rather than requiring constant space.
 
-        This may seem like a minor change to our previous code for evaluation of
-        return statements. However, this change leads to useless information
-        being kept on the stack during the evaluation of the return expression.
-        In particular, the continuation to
-        <JAVASCRIPTINLINE>return_undefined</JAVASCRIPTINLINE> saved in
-        <JAVASCRIPTINLINE>ev_sequence_start</JAVASCRIPTINLINE> which is no
-        longer necessary as we are returning via a return statement. These extra
-        saves will accumulate during a nest of function calls. Consequently,
-        processes such as <JAVASCRIPTINLINE>sqrt_iter</JAVASCRIPTINLINE> would
-        require space proportional to the number of iterations rather than
-        requiring constant space.
 
 <!--         Let us consider an implementation of the handling of -->
 <!--         return statements in the spirit of -->
@@ -348,25 +359,14 @@ function count(n) {
       <TEXT>
         <!-- Because our explicit-control evaluator does not use a special return value -->
         <!-- object, we do not introduce any associated deferred operations. -->
-        Because <JAVASCRIPTINLINE>ev_return</JAVASCRIPTINLINE> in
-        section<SPACE/>5.4.1 starts by removing anything saved on the stack by
-        the current function using
-        <JAVASCRIPTINLINE>restore_marker</JAVASCRIPTINLINE> any stack space used
-        to ensure the arrival of the current function at
-        <JAVASCRIPTINLINE>return_undefined</JAVASCRIPTINLINE> is removed before
-        evaluating the return expression. In other words: when we know that the
-        check is not needed, we remove it along with the stack space it occupied
-        (along with any other saves by the current function which are not needed
-        since it is returning).
-
-        Notably, because the <JAVASCRIPTINLINE>restore_marker</JAVASCRIPTINLINE> is part
-        of <JAVASCRIPTINLINE>ev_return</JAVASCRIPTINLINE>, our JavaScript
-        implementation requires use of <JAVASCRIPTINLINE>return</JAVASCRIPTINLINE> to be tail-recursive.
-        Removing
-        <JAVASCRIPTINLINE>return</JAVASCRIPTINLINE> from the <JAVASCRIPTINLINE>count</JAVASCRIPTINLINE>
-        function above will cause it to eventually run out of stack space. This explains
-        the use of <JAVASCRIPTINLINE>return</JAVASCRIPTINLINE> in the infinite driver loops
-        in section<SPACE/>4.1.4 and elsewhere.
+        Notably, because the the undoing of the register saves takes place at
+        <JAVASCRIPTINLINE>ev_return</JAVASCRIPTINLINE>, our JavaScript implementation
+        requires use of <JAVASCRIPTINLINE>return</JAVASCRIPTINLINE> to be tail-recursive.
+        Removing <JAVASCRIPTINLINE>return</JAVASCRIPTINLINE> from the
+        <JAVASCRIPTINLINE>count</JAVASCRIPTINLINE> function above will cause it to
+        eventually run out of stack space. This explains the use of
+        <JAVASCRIPTINLINE>return</JAVASCRIPTINLINE> in the infinite driver loops in
+        section<SPACE/>4.1.4 and elsewhere.
       </TEXT>
     </JAVASCRIPT>
   </SPLIT>
