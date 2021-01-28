@@ -187,128 +187,123 @@ function sqrt_iter(guess, x) {
         space.
           </SCHEME>
       <JAVASCRIPT>
-<!-- If we think of <JAVASCRIPTINLINE>return</JAVASCRIPTINLINE> as an operator and the return expression as -->
-<!-- its operand, we might consider it more intuitive to evaluate -->
-<!-- return statements by first computing the return value, and then restore the -->
-<!-- stack: -->
-<!--           <!-\- FIXME: mislabelling of index? -\-> -->
-<!-- 	        <INDEX><DECLARATION>ev_sequence</DECLARATION><SUBINDEX>without tail recursion</SUBINDEX></INDEX> -->
-<!--           <SNIPPET EVAL="no"> -->
-<!--             <JAVASCRIPT> -->
-<!-- "ev_return", -->
-<!--       assign("comp", list(op("return_expression"), reg("comp"))), -->
-<!--       assign("continue", label("ev_restore_stack")), -->
-<!--       save("continue"), -->
-<!--       go_to(label("eval_dispatch")), -->
-
-<!-- "ev_restore_stack", -->
-<!--       restore_marker("continue"), -->
-<!--       restore("continue"), -->
-<!--       go_to(reg("continue")), -->
-<!--             </JAVASCRIPT> -->
-<!--           </SNIPPET> -->
-
-<!--         This may seem like a minor change to our previous code for evaluation of -->
-<!--         return statements.  However,  -->
-<!--         this not only keeps the useless information on the stack -->
-<!--         during the evaluation of the return expression, but additionally saves -->
-<!--         <JAVASCRIPTINLINE>continue</JAVASCRIPTINLINE> to ensure an eventual -->
-<!--         jump back to <JAVASCRIPTINLINE>ev_restore_stack</JAVASCRIPTINLINE> to -->
-<!--         restore the stack and jumping to the continuation of the function -->
-<!--         call. Even if there are never any saves by the current -->
-<!--         function<FOOTNOTE>With our current design, there will always be at -->
-<!--         least one: a save of <JAVASCRIPTINLINE>continue</JAVASCRIPTINLINE> in -->
-<!--         <JAVASCRIPTINLINE>ev_sequence_start</JAVASCRIPTINLINE>.</FOOTNOTE>, -->
-<!--         the last save of <JAVASCRIPTINLINE>continue</JAVASCRIPTINLINE> will -->
-<!--         accumulate during a nest of function calls. In this design, processes -->
-<!--         such as <JAVASCRIPTINLINE>sqrt_iter</JAVASCRIPTINLINE> would require -->
-<!--         space proportional to the number of iterations rather than requiring -->
-<!--         constant space. -->
-
-        Let us consider an implementation of the handling of
-        return statements in the spirit of
-        the metacircular evaluator. In ev_return, we evaluate the return
-        expression, place the result in <JAVASCRIPTINLINE>val</JAVASCRIPTINLINE>, and then continue at
-        <JAVASCRIPTINLINE>ev_make_return_value</JAVASCRIPTINLINE> where a return
-        value object is created. 
-        
-        For simplicity, assume that a function body does not continue once a
-        return statement has been
-        evaluated, and that all saves to the stack in the function body have
-        been restored when the body is fully evaluated, meaning there is no need
-        to use our marker trick. 
-
-        In this design <JAVASCRIPTINLINE>compound_apply</JAVASCRIPTINLINE> installs
-        a continuation
-        <JAVASCRIPTINLINE>check_return_value</JAVASCRIPTINLINE>, and every function
-        call will eventually arrive here after its complete evaluation.
-        At <JAVASCRIPTINLINE>check_return_value</JAVASCRIPTINLINE>, we check
-        whether the function's return value stored in <JAVASCRIPTINLINE>val</JAVASCRIPTINLINE> 
-        is a return value object or not. If it is, we extract the contents from the
-        object and place it in <JAVASCRIPTINLINE>val</JAVASCRIPTINLINE>. Otherwise,
-        the function did not return explicitly so we must assign
-        <JAVASCRIPTINLINE>undefined</JAVASCRIPTINLINE> to
-        <JAVASCRIPTINLINE>val</JAVASCRIPTINLINE>. We then restore
-        <JAVASCRIPTINLINE>continue</JAVASCRIPTINLINE> and jump to the
-        <QUOTE>final</QUOTE> continuation, which was saved in
-        <JAVASCRIPTINLINE>ev_application</JAVASCRIPTINLINE>.
+        If we, like the metacircular evaluator, treat
+        <JAVASCRIPTINLINE>return</JAVASCRIPTINLINE> as an operator and the
+        return expression as its operand, we might consider it more intuitive to
+        evaluate return statements by first computing the return value, and then
+        restore the stack:
+          <!-- FIXME: mislabelling of index? -->
+	        <INDEX><DECLARATION>ev_sequence</DECLARATION><SUBINDEX>without tail recursion</SUBINDEX></INDEX>
           <SNIPPET EVAL="no">
             <JAVASCRIPT>
-"ev_return", 
+"ev_return",
       assign("comp", list(op("return_expression"), reg("comp"))),
-      assign("continue", label("ev_make_return_value")),
-      go_to(label("eval_dispatch")), // evaluate the return expression
-
-"ev_make_return_value",
-      // wrap contents of val in return value object 
-      assign("val", list(op("ev_make_return_value"), reg("val"))), 
-      restore("continue"),
-      go_to(reg("continue")), 
-
-"compound_apply",
-      ... // as before (first 4 lines)
-      assign("continue", label("check_for_explicit_return")), // install return handler
+      assign("continue", label("ev_restore_stack")),
       go_to(label("eval_dispatch")),
 
-"check_for_explicit_return",
-      test(list(op("is_return_value"), reg("val"))),
-      branch(label("explicit_return")),
-      assign("val", constant(undefined)),
-      go_to(label("return_from_function")),
-
-"explicit_return",
-      // extract return value from wrapper
-      assign("val", list(op("return_value_content"), reg("val"))), 
-      
-"return_from_function",
-      restore("continue"),
-      go_to(reg("continue")), // jump to final continuation 
+"ev_restore_stack",
+      restore_marker(),
+      restore("continue"), // restore save at ev_application
+      go_to(reg("continue")),
             </JAVASCRIPT>
           </SNIPPET>
 
-          This design is not tail-recursive as it introduces two deferred
-          operations:
-          <JAVASCRIPTINLINE>ev_make_return_value</JAVASCRIPTINLINE> and
-          <JAVASCRIPTINLINE>check_for_explicit_return</JAVASCRIPTINLINE>.
-          The cost of these deferred operations will materialise on the stack through
-          saves of <JAVASCRIPTINLINE>continue</JAVASCRIPTINLINE>.
-          For example, assigning
-          <JAVASCRIPTINLINE>check_for_explicit_return</JAVASCRIPTINLINE> to
-          <JAVASCRIPTINLINE>continue</JAVASCRIPTINLINE> requires us to store its
-          previous value, the 
-          final continuation of the function call, on the stack during the
-          evaluation of its body. This save took place in <JAVASCRIPTINLINE>ev_application</JAVASCRIPTINLINE>.
-          Without <JAVASCRIPTINLINE>check_for_explicit_return</JAVASCRIPTINLINE>, this value
-          could have been restored in <JAVASCRIPTINLINE>compound_apply</JAVASCRIPTINLINE>.
-          Similar reasoning applies to the assignment of <JAVASCRIPTINLINE>ev_make_return_value</JAVASCRIPTINLINE>
-          to <JAVASCRIPTINLINE>continue</JAVASCRIPTINLINE> in <JAVASCRIPTINLINE>ev_return</JAVASCRIPTINLINE>.
+        This may seem like a minor change to our previous code for evaluation of
+        return statements. However, this change leads to useless information
+        being kept on the stack during the evaluation of the return expression.
+        In particular, the continuation to
+        <JAVASCRIPTINLINE>return_undefined</JAVASCRIPTINLINE> saved in
+        <JAVASCRIPTINLINE>ev_sequence_start</JAVASCRIPTINLINE> which is no
+        longer necessary as we are returning via a return statement. These extra
+        saves will accumulate during a nest of function calls. Consequently,
+        processes such as <JAVASCRIPTINLINE>sqrt_iter</JAVASCRIPTINLINE> would
+        require space proportional to the number of iterations rather than
+        requiring constant space.
+
+<!--         Let us consider an implementation of the handling of -->
+<!--         return statements in the spirit of -->
+<!--         the metacircular evaluator. In ev_return, we evaluate the return -->
+<!--         expression, place the result in <JAVASCRIPTINLINE>val</JAVASCRIPTINLINE>, and then continue at -->
+<!--         <JAVASCRIPTINLINE>ev_make_return_value</JAVASCRIPTINLINE> where a return -->
+<!--         value object is created.  -->
+        
+<!--         For simplicity, assume that a function body does not continue once a -->
+<!--         return statement has been -->
+<!--         evaluated, and that all saves to the stack in the function body have -->
+<!--         been restored when the body is fully evaluated, meaning there is no need -->
+<!--         to use our marker trick.  -->
+
+<!--         In this design <JAVASCRIPTINLINE>compound_apply</JAVASCRIPTINLINE> installs -->
+<!--         a continuation -->
+<!--         <JAVASCRIPTINLINE>check_return_value</JAVASCRIPTINLINE>, and every function -->
+<!--         call will eventually arrive here after its complete evaluation. -->
+<!--         At <JAVASCRIPTINLINE>check_return_value</JAVASCRIPTINLINE>, we check -->
+<!--         whether the function's return value stored in <JAVASCRIPTINLINE>val</JAVASCRIPTINLINE>  -->
+<!--         is a return value object or not. If it is, we extract the contents from the -->
+<!--         object and place it in <JAVASCRIPTINLINE>val</JAVASCRIPTINLINE>. Otherwise, -->
+<!--         the function did not return explicitly so we must assign -->
+<!--         <JAVASCRIPTINLINE>undefined</JAVASCRIPTINLINE> to -->
+<!--         <JAVASCRIPTINLINE>val</JAVASCRIPTINLINE>. We then restore -->
+<!--         <JAVASCRIPTINLINE>continue</JAVASCRIPTINLINE> and jump to the -->
+<!--         <QUOTE>final</QUOTE> continuation, which was saved in -->
+<!--         <JAVASCRIPTINLINE>ev_application</JAVASCRIPTINLINE>. -->
+<!--           <SNIPPET EVAL="no"> -->
+<!--             <JAVASCRIPT> -->
+<!-- "ev_return",  -->
+<!--       assign("comp", list(op("return_expression"), reg("comp"))), -->
+<!--       assign("continue", label("ev_make_return_value")), -->
+<!--       go_to(label("eval_dispatch")), // evaluate the return expression -->
+
+<!-- "ev_make_return_value", -->
+<!--       // wrap contents of val in return value object  -->
+<!--       assign("val", list(op("ev_make_return_value"), reg("val"))),  -->
+<!--       restore("continue"), -->
+<!--       go_to(reg("continue")),  -->
+
+<!-- "compound_apply", -->
+<!--       ... // as before (first 4 lines) -->
+<!--       assign("continue", label("check_for_explicit_return")), // install return handler -->
+<!--       go_to(label("eval_dispatch")), -->
+
+<!-- "check_for_explicit_return", -->
+<!--       test(list(op("is_return_value"), reg("val"))), -->
+<!--       branch(label("explicit_return")), -->
+<!--       assign("val", constant(undefined)), -->
+<!--       go_to(label("return_from_function")), -->
+
+<!-- "explicit_return", -->
+<!--       // extract return value from wrapper -->
+<!--       assign("val", list(op("return_value_content"), reg("val"))),  -->
+      
+<!-- "return_from_function", -->
+<!--       restore("continue"), -->
+<!--       go_to(reg("continue")), // jump to final continuation  -->
+<!--             </JAVASCRIPT> -->
+<!--           </SNIPPET> -->
+
+<!--           This design is not tail-recursive as it introduces two deferred -->
+<!--           operations: -->
+<!--           <JAVASCRIPTINLINE>ev_make_return_value</JAVASCRIPTINLINE> and -->
+<!--           <JAVASCRIPTINLINE>check_for_explicit_return</JAVASCRIPTINLINE>. -->
+<!--           The cost of these deferred operations will materialise on the stack through -->
+<!--           saves of <JAVASCRIPTINLINE>continue</JAVASCRIPTINLINE>. -->
+<!--           For example, assigning -->
+<!--           <JAVASCRIPTINLINE>check_for_explicit_return</JAVASCRIPTINLINE> to -->
+<!--           <JAVASCRIPTINLINE>continue</JAVASCRIPTINLINE> requires us to store its -->
+<!--           previous value, the  -->
+<!--           final continuation of the function call, on the stack during the -->
+<!--           evaluation of its body. This save took place in <JAVASCRIPTINLINE>ev_application</JAVASCRIPTINLINE>. -->
+<!--           Without <JAVASCRIPTINLINE>check_for_explicit_return</JAVASCRIPTINLINE>, this value -->
+<!--           could have been restored in <JAVASCRIPTINLINE>compound_apply</JAVASCRIPTINLINE>. -->
+<!--           Similar reasoning applies to the assignment of <JAVASCRIPTINLINE>ev_make_return_value</JAVASCRIPTINLINE> -->
+<!--           to <JAVASCRIPTINLINE>continue</JAVASCRIPTINLINE> in <JAVASCRIPTINLINE>ev_return</JAVASCRIPTINLINE>. -->
           
 
-          These stores will accumulate during a nest of
-          function calls. Consequently, processes such as
-          <JAVASCRIPTINLINE>sqrt_iter</JAVASCRIPTINLINE> would require space
-          proportional to the number of iterations rather than requiring
-          constant space. 
+<!--           These stores will accumulate during a nest of -->
+<!--           function calls. Consequently, processes such as -->
+<!--           <JAVASCRIPTINLINE>sqrt_iter</JAVASCRIPTINLINE> would require space -->
+<!--           proportional to the number of iterations rather than requiring -->
+<!--           constant space.  -->
       </JAVASCRIPT>
     </SPLIT>
   </TEXT>
@@ -351,31 +346,27 @@ function count(n) {
   <SPLIT>
     <JAVASCRIPT>
       <TEXT>
-        Because our explicit-control evaluator does not use a special return value
-        object, we do not introduce any associated deferred operations.
-        Our <JAVASCRIPTINLINE>return_undefined</JAVASCRIPTINLINE> continuation from section<SPACE/>5.4.1 is very
-        similar to <JAVASCRIPTINLINE>check_for_explicit_return</JAVASCRIPTINLINE> in
-        the alternative design explored above.
-        The reason why <JAVASCRIPTINLINE>return_undefined</JAVASCRIPTINLINE>
-        does not lead to an accumulation
-        of space is because it stored on the stack <EM>after</EM> the
-        marker. This means that the
-        <JAVASCRIPTINLINE>restore_marker</JAVASCRIPTINLINE> instruction will
-        remove this continuation from the stack before evaluating the return
-        expression. In other words: when we know that the check is not needed,
-        we remove it along with the stack space it occupied. 
-        
-        Because the <JAVASCRIPTINLINE>restore_marker</JAVASCRIPTINLINE> is part
+        <!-- Because our explicit-control evaluator does not use a special return value -->
+        <!-- object, we do not introduce any associated deferred operations. -->
+        Because <JAVASCRIPTINLINE>ev_return</JAVASCRIPTINLINE> in
+        section<SPACE/>5.4.1 starts by removing anything saved on the stack by
+        the current function using
+        <JAVASCRIPTINLINE>restore_marker</JAVASCRIPTINLINE> any stack space used
+        to ensure the arrival of the current function at
+        <JAVASCRIPTINLINE>return_undefined</JAVASCRIPTINLINE> is removed before
+        evaluating the return expression. In other words: when we know that the
+        check is not needed, we remove it along with the stack space it occupied
+        (along with any other saves by the current function which are not needed
+        since it is returning).
+
+        Notably, because the <JAVASCRIPTINLINE>restore_marker</JAVASCRIPTINLINE> is part
         of <JAVASCRIPTINLINE>ev_return</JAVASCRIPTINLINE>, our JavaScript
-        implementation is tail-recursive only in the presence of an explicit
-        return statement. Without it,
-        one save of <JAVASCRIPTINLINE>continue</JAVASCRIPTINLINE> 
-        is needed per function call to ensure its eventual arrival at
-        <JAVASCRIPTINLINE>return_undefined</JAVASCRIPTINLINE> to store 
-        <JAVASCRIPTINLINE>undefined</JAVASCRIPTINLINE> in the
-        <JAVASCRIPTINLINE>val</JAVASCRIPTINLINE> register. Thus, removing
+        implementation requires use of <JAVASCRIPTINLINE>return</JAVASCRIPTINLINE> to be tail-recursive.
+        Removing
         <JAVASCRIPTINLINE>return</JAVASCRIPTINLINE> from the <JAVASCRIPTINLINE>count</JAVASCRIPTINLINE>
-        function above will cause it to eventually run out of stack space.
+        function above will cause it to eventually run out of stack space. This explains
+        the use of <JAVASCRIPTINLINE>return</JAVASCRIPTINLINE> in the infinite driver loops
+        in section<SPACE/>4.1.4 and elsewhere.
       </TEXT>
     </JAVASCRIPT>
   </SPLIT>
