@@ -294,19 +294,6 @@ const processTextFunctionsDefaultLatex = {
       recursiveProcessTextLatex(subIndex.firstChild, subIndexArr);
       let subIndexStr = subIndexArr.join("");
       writeTo.push("!");
-      const order = getChildrenByTagName(subIndex, "ORDER")[0];
-      if (order) {
-        recursiveProcessTextLatex(order.firstChild, writeTo);
-        writeTo.push("@");
-      }
-
-      let ecmaString = "";
-      const ecma = getChildrenByTagName(subIndex, "ECMA")[0];
-      if (ecma) {
-        const ecmaArr = [];
-        recursiveProcessTextLatex(ecma.firstChild, ecmaArr);
-        ecmaString = " (\\texttt{" + ecmaArr.join("") + "})";
-      }
 
       // compute open/close prefix
       let prefix = "";
@@ -321,6 +308,64 @@ const processTextFunctionsDefaultLatex = {
         postfix += "|)";
       }
 
+      const order = getChildrenByTagName(subIndex, "ORDER")[0];
+      let declaration = getChildrenByTagName(subIndex, "DECLARATION")[0];
+      const use = getChildrenByTagName(subIndex, "USE")[0];
+      if (declaration) {
+        if (order) {
+          // ORDER overrides
+          recursiveProcessTextLatex(order.firstChild, writeTo);
+        } else {
+          recursiveProcessTextLatex(declaration.firstChild, writeTo);
+        }
+        writeTo.push("@");
+        if (fragile) {
+          margintext += "\\indexdeclarationinline{" + prefix + indexStr + "}";
+        } else {
+          margintext +=
+            "\\indexdeclarationmarginpar{" + prefix + indexStr + "}";
+        }
+        inlinetext += "\\indexdeclarationinline{" + prefix + indexStr + "}";
+      } else if (use) {
+        if (order) {
+          // ORDER overrides
+          recursiveProcessTextLatex(order.firstChild, writeTo);
+        } else {
+          recursiveProcessTextLatex(use.firstChild, writeTo);
+        }
+        writeTo.push("@");
+        if (fragile) {
+          margintext += "\\indexuseinline{" + prefix + indexStr + "}";
+        } else {
+          margintext += "\\indexusemarginpar{" + prefix + indexStr + "}";
+        }
+        inlinetext += "\\indexuseinline{" + prefix + indexStr + "}";
+      } else if (order) {
+        recursiveProcessTextLatex(order.firstChild, writeTo);
+        writeTo.push("@");
+        if (fragile) {
+          margintext += "\\indexinline{" + prefix + indexStr + "}";
+        } else {
+          margintext += "\\indexmarginpar{" + prefix + indexStr + "}";
+        }
+        inlinetext += "\\indexinline{" + prefix + indexStr + "}";
+      } else {
+        if (fragile) {
+          margintext += "\\indexinline{" + prefix + indexStr + "}";
+        } else {
+          margintext += "\\indexmarginpar{" + prefix + indexStr + "}";
+        }
+        inlinetext += "\\indexinline{" + prefix + indexStr + "}";
+      }
+
+      let ecmaString = "";
+      const ecma = getChildrenByTagName(subIndex, "ECMA")[0];
+      if (ecma) {
+        const ecmaArr = [];
+        recursiveProcessTextLatex(ecma.firstChild, ecmaArr);
+        ecmaString = " (\\texttt{" + ecmaArr.join("") + "})";
+      }
+
       writeTo.push(subIndexStr + ecmaString + postfix);
       if (fragile) {
         margintext += "\\subindexinline{" + prefix + subIndexStr + "}";
@@ -328,19 +373,6 @@ const processTextFunctionsDefaultLatex = {
         margintext += "\\subindexmarginpar{" + prefix + subIndexStr + "}";
       }
       inlinetext += "\\subindexinline{" + prefix + subIndexStr + "}";
-
-      // display ORDER string in the margin
-      if (order) {
-        const orderArr = [];
-        recursiveProcessTextLatex(order.firstChild, orderArr);
-        const orderStr = orderArr.join("");
-        if (fragile) {
-          margintext += "\\orderinline{" + orderStr + "}";
-        } else {
-          margintext += "\\ordermarginpar{" + orderStr + "}";
-        }
-        inlinetext += "\\orderinline{" + orderStr + "}";
-      }
     }
 
     const see = getChildrenByTagName(node, "SEE")[0];
