@@ -337,7 +337,10 @@ ev-lambda
       <TEXT>
         The entries at <JAVASCRIPTINLINE>ev_sequence_next</JAVASCRIPTINLINE> and
         <JAVASCRIPTINLINE>ev_sequence_continue</JAVASCRIPTINLINE> form a loop that
-        successively evaluates each statement in a sequence. The list of unevaluated
+        successively evaluates each statement in a sequence.
+        (Empty sequences avoid the loop and jump straight to <JAVASCRIPTINLINE>continue</JAVASCRIPTINLINE> via
+        <JAVASCRIPTINLINE>ev_sequence_empty</JAVASCRIPTINLINE>.)
+        The list of unevaluated
         statements is kept in <JAVASCRIPTINLINE>unev</JAVASCRIPTINLINE>. At
         <JAVASCRIPTINLINE>ev_sequence</JAVASCRIPTINLINE>, before starting the loop, we
         place the sequence of statements to be evaluated in
@@ -386,6 +389,8 @@ ev-lambda
         <JAVASCRIPT>
 "ev_sequence",
   assign("unev", list(op("sequence_statements"), reg("comp"))),
+  test(list(op("is_empty_sequence"), reg("unev"))), 
+  branch(label("ev_sequence_empty")),
   save("continue"),
 "ev_sequence_next",
   assign("comp", list(op("first_statement"), reg("unev"))),
@@ -403,6 +408,8 @@ ev-lambda
 "ev_sequence_last_statement",
   restore("continue"),
   go_to(label("eval_dispatch")),
+"ev_sequence_empty",
+  go_to(reg("continue")), 
         </JAVASCRIPT>
       </SNIPPET>
 
@@ -1402,14 +1409,14 @@ The sequence of instructions labeled
         <JAVASCRIPTINLINE>compound_apply</JAVASCRIPTINLINE> pushes a 
         <EM>marker</EM> value on the stack to indicate the top-value of the stack after
         function returns. For simplicity, we introduce a new instruction for pushing
-        the marker: <JAVASCRIPTINLINE>push_mark_to_stack</JAVASCRIPTINLINE>.<FOOTNOTE>
-        The special instruction <JAVASCRIPTINLINE>push_mark_to_stack</JAVASCRIPTINLINE> and its counterpart,
-        <JAVASCRIPTINLINE>revert_stack_to_mark</JAVASCRIPTINLINE>, are not strictly
+        the marker: <JAVASCRIPTINLINE>push_marker_to_stack</JAVASCRIPTINLINE>.<FOOTNOTE>
+        The special instruction <JAVASCRIPTINLINE>push_marker_to_stack</JAVASCRIPTINLINE> and its counterpart,
+        <JAVASCRIPTINLINE>revert_stack_to_marker</JAVASCRIPTINLINE>, are not strictly
         necessary and could be implemented by explicitly pushing and popping a
         marker value onto and off the stack. Anything that could not be confused
         for a value in the program can be used as a marker, for example
         a pointer to a specific list or function object.
-        See exercise <REF NAME="ex:push_mark_to_stack1"/>.
+        See exercise <REF NAME="ex:push_marker_to_stack1"/>.
       </FOOTNOTE>
       </TEXT>
       </JAVASCRIPT>
@@ -1432,7 +1439,7 @@ compound-apply
       assign("env", list(op("extend_environment"), 
                          reg("unev"), reg("argl"), reg("env"))),
       assign("comp", list(op("function_body"), reg("fun"))),
-      push_mark_to_stack(),
+      push_marker_to_stack(),
       assign("continue", label("return_undefined")),
       go_to(label("eval_dispatch")),
       </JAVASCRIPT>
@@ -1444,7 +1451,7 @@ compound-apply
         <TEXT>
 	  <INDEX><DECLARATION>ev_return</DECLARATION></INDEX>
         When a return statement is evaluated at <JAVASCRIPTINLINE>ev_return</JAVASCRIPTINLINE>,
-        we use the <JAVASCRIPTINLINE>revert_stack_to_mark</JAVASCRIPTINLINE> instruction to restore the stack to its state at the beginning of the
+        we use the <JAVASCRIPTINLINE>revert_stack_to_marker</JAVASCRIPTINLINE> instruction to restore the stack to its state at the beginning of the
         function call by popping all values from the stack down to and including
         the marker. 
         As a consequence, <JAVASCRIPTINLINE>restore("continue")</JAVASCRIPTINLINE>
@@ -1457,7 +1464,7 @@ compound-apply
     <SNIPPET EVAL="no">
       <JAVASCRIPT>
 "ev_return",
-      revert_stack_to_mark(),
+      revert_stack_to_marker(),
       restore("continue"),
       assign("comp", list(op("return_expression"), reg("comp"))),
       go_to(label("eval_dispatch")),
@@ -1479,7 +1486,7 @@ compound-apply
     <SNIPPET EVAL="no">
       <JAVASCRIPT>
 "return_undefined",
-      revert_stack_to_mark(),
+      revert_stack_to_marker(),
       restore("continue"),
       assign("val", constant(undefined)),
       go_to(reg("continue")),
