@@ -54,16 +54,6 @@
     </SPLITINLINE>
     This needs the <SCHEMEINLINE>continue</SCHEMEINLINE> register and does not
     modify any registers.
-    <SPLIT>
-      <JAVASCRIPT>
-	If the linkage is <JAVASCRIPTINLINE>"return_undefined"</JAVASCRIPTINLINE>,
-	we insert an assignment instruction before the
-	<JAVASCRIPTINLINE>go_to</JAVASCRIPTINLINE>, which assigns the
-  the constant <JAVASCRIPTINLINE>undefined</JAVASCRIPTINLINE> to
-	the current target register. The target register
-	must be treated as modified in this case.
-      </JAVASCRIPT>
-    </SPLIT>
     If the linkage is
     <SPLITINLINE>
       <SCHEME>
@@ -125,16 +115,10 @@ function compile_linkage(target, linkage) {
            ? make_instruction_sequence(list("continue"), 
                                        null,
                                        list(go_to(reg("continue"))))
-           : linkage === "return_undefined"
-           ? make_instruction_sequence(null, 
-                                       list(target),
-                                       list(assign(target, constant(undefined)),
-                                            restore_marker(),
-                                            restore("continue"),
-                                            go_to(reg("continue"))))
            : linkage === "next"
            ? empty_instruction_sequence()
            : make_instruction_sequence(null, null, list(go_to(label(linkage))));
+}
       </JAVASCRIPT>
     </SNIPPET>
 
@@ -748,7 +732,7 @@ function compile_sequence(seq, target, linkage) {
     avoids compiling the
     <QUOTE>dead code</QUOTE> after the return statement that can
     never be executed. Not compiling dead<FOOTNOTE>Our compiler does not detect all dead code. For example,
-    one or more conditionals that guarantee the execution of a return
+    a conditional whose consequent and alternative branches both end in a return
     statement will not prevent subsequent statements from being compiled. See exercise<SPACE/><REF NAME="ex:dead-code"/>.
     <LABEL NAME="foot:dead-code"/></FOOTNOTE> is good for
     several reasons: it shortens the compilation time, it reduces the size of
@@ -1043,35 +1027,22 @@ function compile_lambda_expression(exp, target, linkage) {
       </SCHEME>
     </SPLITINLINE>
     <SPLITINLINE>
-      <SCHEME>procedure</SCHEME>
-      <JAVASCRIPT>function</JAVASCRIPT>
+      <SCHEME>procedure body.</SCHEME>
+      <JAVASCRIPT>
+        function body, wrapped in a call to
+        <JAVASCRIPTINLINE>append_return_undefined</JAVASCRIPTINLINE>, which will be explained shortly.
+      </JAVASCRIPT>
     </SPLITINLINE>
-    body.
-    <SPLIT>
-      <SCHEME>
-	The sequence is compiled with linkage
-	<SCHEMEINLINE>return</SCHEMEINLINE>
+	  The sequence is compiled with linkage
+    <SPLITINLINE><SCHEME>return</SCHEME><JAVASCRIPT>"return"</JAVASCRIPT></SPLITINLINE>
 	and target <SCHEMEINLINE>val</SCHEMEINLINE>
 	so that it will end by returning from the
 	procedure with the
 	procedure 
 	result in <SCHEMEINLINE>val</SCHEMEINLINE>.
-      </SCHEME>
-      <JAVASCRIPT>
-	The body is compiled with linkage
-	<JAVASCRIPTINLINE>"return_undefined"</JAVASCRIPTINLINE>
-	so that it will end by returning from the function
-	with the return value <JAVASCRIPTINLINE>undefined</JAVASCRIPTINLINE>
-	unless a return statement is executed
-  before reaching the end of the function.
-	The target is <SCHEMEINLINE>val</SCHEMEINLINE>
-	so that the return value (or
-	<JAVASCRIPTINLINE>undefined</JAVASCRIPTINLINE>)
-	will be in <SCHEMEINLINE>val</SCHEMEINLINE>.
-      </JAVASCRIPT>
-    </SPLIT>
     <SNIPPET EVAL="no">
       <NAME>compile_lambda_body</NAME>
+      <REQUIRES>append_return_undefined</REQUIRES>
       <SCHEME>
       (define (compile-lambda-body exp proc-entry)
       (let ((formals (lambda-parameters exp)))
@@ -1102,12 +1073,52 @@ function compile_lambda_body(exp, fun_entry) {
                                     constant(params),
                                     reg("argl"), 
                                     reg("env"))))),
-        compile(lambda_body(exp), "val", "return_undefined"));
+        compile(append_return_undefined(lambda_body(exp)), "val", "return"));
 }
       </JAVASCRIPT>
     </SNIPPET>
   </TEXT>
 
+  <TEXT>
+    The function <JAVASCRIPTINLINE>append_return_undefined</JAVASCRIPTINLINE> appends
+    a <JAVASCRIPTINLINE>return undefined</JAVASCRIPTINLINE> to the lambda body.
+    <SNIPPET EVAL="no">
+      <NAME>append_return_undefined</NAME>
+      <JAVASCRIPT>
+function append_return_undefined(body) {
+    const return_stmt = list("return_statement", list("name", "undefined"));
+    return is_return_statement(body)
+        ? body
+        : is_sequence(body)
+        ? list("sequence", append(sequence_statements(body), list(return_stmt)))
+        : list("sequence", list(body, return_stmt));
+}
+      </JAVASCRIPT>
+    </SNIPPET>
+    This simple transformation of lambda bodies ensures that all functions end with a
+    return statement (inserted by the programmer or by
+    <JAVASCRIPTINLINE>append_return_undefined</JAVASCRIPTINLINE>) that returns the
+    appropriate value. Thus, this represents a third way to ensure that a function that did not
+    return explicitly has the return value <JAVASCRIPTINLINE>undefined</JAVASCRIPTINLINE>.
+    
+    In the meta-circular evaluator, we used a return value object which also played a
+    role in stopping the sequence evaluation.
+
+    In the explicit-control evaluator, functions that did not return explicitly continued
+    to a specific entry point that stored <JAVASCRIPTINLINE>undefined</JAVASCRIPTINLINE>
+    in <JAVASCRIPTINLINE>val</JAVASCRIPTINLINE>.
+
+    Since a compiler is operating on the source of a program before it is executed, and
+    only once for any number of runs, it is less sensitive to overheads of performing
+    program analysis and program transformations than an interpreter. Therefore we opt for
+    this source-level transformation in the compiler.
+
+    (See exercise<SPACE/><REF NAME="ex:append_return_undefined"/> for a more elegant way
+    to handle insertion of a return statement.)
+    <LABEL NAME="sec:append_return_undefined"/>
+  </TEXT>
+
+  
   <SPLIT>
     <JAVASCRIPT>
       <SUBHEADING>
@@ -1129,11 +1140,14 @@ function compile_return_statement(stmt, target, linkage) {
         make_instruction_sequence(
             null,
             null,
-            list(restore_marker(), restore("continue"))),
+            list(revert_stack_to_marker(), restore("continue"))),
         compile(return_expression(stmt), target, "return"));
 }
 	  </JAVASCRIPT>
 	</SNIPPET>
+  The return statements do not need any register values and from the point
+  of view of the current function does not modify any registers as there are
+  no subsequent statements in the function body.
       </TEXT>
 
       <SUBHEADING>
@@ -1170,7 +1184,6 @@ function compile_block(stmt, target, linkage) {
 	  </JAVASCRIPT>
 	</SNIPPET>
       </TEXT>
-
 
     </JAVASCRIPT>
   </SPLIT>
