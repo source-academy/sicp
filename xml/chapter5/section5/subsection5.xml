@@ -278,22 +278,14 @@ assign("val", constant(undefined))
       (assign val (const ok))
       </SCHEME>
       <JAVASCRIPT>
-$$  assign("val", list(op("make_compiled_function"),
-                     label(entry2), 
-                     reg("env"))),
-  go_to(label("after_lambda1")),
-"entry2",
+$$ assign("val", list(op("make_compiled_function"), label("entry1"), reg("env"))),
+  go_to(label("after_lambda2")),
+"entry1",
   assign("env", list(op("compiled_function_env"), reg("fun"))),
-  assign("env", list(op("extend_environment"), 
-                     constant("n"), 
-                     reg("argl"), 
-                     reg("env"))),
+  assign("env", list(op("extend_environment"), constant("n"), reg("argl"), reg("env"))),
   <METAPHRASE>compilation of function body</METAPHRASE>
 "after_lambda1",
-  perform(list(op("assign_symbol_value"), 
-               constant("factorial"), 
-               reg("val"), 
-               reg("env"))),
+  perform(list(op("assign_symbol_value"), constant("factorial"), reg("val"), reg("env"))),
   assign("val", constant(undefined))
       </JAVASCRIPT>
     </SNIPPET>
@@ -320,7 +312,7 @@ $$  assign("val", list(op("make_compiled_function"),
 	<SCHEMEINLINE>return</SCHEMEINLINE>.
       </SCHEME>
       <JAVASCRIPT>
-	<JAVASCRIPTINLINE>"return_undefined"</JAVASCRIPTINLINE>.
+	<JAVASCRIPTINLINE>"return"</JAVASCRIPTINLINE>.
       </JAVASCRIPT>
     </SPLITINLINE>
     The
@@ -339,7 +331,17 @@ $$  assign("val", list(op("make_compiled_function"),
 	<SCHEMEINLINE>if</SCHEMEINLINE> expression:
       </SCHEME>
       <JAVASCRIPT>
-	return statement:
+	return statement:<FOOTNOTE>
+  If a function body that consists of a single return statement does not give rise to a
+  sequence (a parse which is handled both by the explicit-control evaluator and the
+  compiler), the <JAVASCRIPTINLINE>append_return_undefined</JAVASCRIPTINLINE> function
+  defined in section<SPACE/><REF NAME="sec:append_return_undefined"/> will not append an
+  additional <JAVASCRIPTINLINE>return</JAVASCRIPTINLINE>
+  <JAVASCRIPTINLINE>undefined</JAVASCRIPTINLINE> when compiling the body. Note that even
+  if such a return statement was appended, the
+  <JAVASCRIPTINLINE>compile_sequence</JAVASCRIPTINLINE> function will not compile it as it
+  is <QUOTE>dead code</QUOTE>.
+</FOOTNOTE>
       </JAVASCRIPT>
     </SPLITINLINE>
     <SNIPPET EVAL="no">
@@ -455,12 +457,12 @@ $$  <METAPHRASE>save <JAVASCRIPTINLINE>continue</JAVASCRIPTINLINE>, <JAVASCRIPTI
   <METAPHRASE>compilation of predicate, target <JAVASCRIPTINLINE>val</JAVASCRIPTINLINE>, linkage <JAVASCRIPTINLINE>"next"</JAVASCRIPTINLINE></METAPHRASE>
   <METAPHRASE>restore <JAVASCRIPTINLINE>continue</JAVASCRIPTINLINE>, <JAVASCRIPTINLINE>env</JAVASCRIPTINLINE> if saved above</METAPHRASE>
   test(list(op("is_falsy"), reg("val"))),
-  branch(label("false_branch5")),
-"true_branch4",
+  branch(label("false_branch4")),
+"true_branch3",
   <METAPHRASE>compilation of true branch, target <JAVASCRIPTINLINE>val</JAVASCRIPTINLINE>, linkage <JAVASCRIPTINLINE>"return"</JAVASCRIPTINLINE></METAPHRASE>
-"false_branch5",
+"false_branch4",
   <METAPHRASE>compilation of false branch, target <JAVASCRIPTINLINE>val</JAVASCRIPTINLINE>, linkage <JAVASCRIPTINLINE>"return"</JAVASCRIPTINLINE></METAPHRASE>
-"after_cond3",
+"after_cond5",
       </JAVASCRIPT>
     </SNIPPET>
   </TEXT>
@@ -545,25 +547,22 @@ $$  <METAPHRASE>save <JAVASCRIPTINLINE>continue</JAVASCRIPTINLINE>, <JAVASCRIPTI
       after-call15
       </SCHEME>
       <JAVASCRIPT latex="yes"><!-- The $$ below is a hack to ensure the leading spaces are not consumed-->
-$$  assign("fun", list(op("lookup_symbol_value"), constant("==="), 
-                     reg("env"))),
+$$  assign("fun", list(op("lookup_symbol_value"), constant("==="), reg("env"))),
   assign("val", constant(1)),
   assign("argl", list(op("list"), reg("val"))),
-  assign("val", list(op("lookup_symbol_value"), constant(n), 
-                     reg("env"))),
+  assign("val", list(op("lookup_symbol_value"), constant("n"), reg("env"))),
   assign("argl", list(op("pair"), reg("val"), reg("argl"))),
-  test(list(op("primitive_function"), reg("fun"))),
-  branch(label("primitive_branch17")),
-"compiled_branch16",
-  assign("continue", label("after_call15")),
+  test(list(op("is_primitive_function"), reg("fun"))),
+  branch(label("primitive_branch6")),
+"compiled_branch7",
+  assign("continue", label("after_call8")),
   save("continue"),
-  save_marker(),
+  push_marker_to_stack(),
   assign("val", list(op("compiled_function_entry"), reg("fun"))),
   go_to(reg("val")),
-"primitive_branch17",
-  assign("val", list(op("apply_primitive_function"), reg("fun"), 
-                     reg("argl"))),
-"after_call15"
+"primitive_branch6",
+  assign("val", list(op("apply_primitive_function"), reg("fun"), reg("argl"))),
+"after_call8",
       </JAVASCRIPT>
     </SNIPPET>
   </TEXT>
@@ -586,10 +585,8 @@ $$  assign("fun", list(op("lookup_symbol_value"), constant("==="),
       (goto (reg continue))
       </SCHEME>
       <JAVASCRIPT>
-assign("val", constant(1)),
-restore_marker(),
-restore("continue"),
-go_to(reg("continue"))
+  assign("val", constant(1)),
+  go_to(reg("continue")),
       </JAVASCRIPT>
     </SNIPPET>
 
@@ -656,7 +653,7 @@ go_to(reg("continue"))
 	<SCHEMEINLINE>return</SCHEMEINLINE>
       </SCHEME>
       <JAVASCRIPT>
-	<JAVASCRIPTINLINE>return</JAVASCRIPTINLINE>
+	<JAVASCRIPTINLINE>"return"</JAVASCRIPTINLINE>
       </JAVASCRIPT>
     </SPLITINLINE>
     linkage in the branches.
@@ -669,6 +666,27 @@ go_to(reg("continue"))
       </JAVASCRIPT>
     </SPLITINLINE>
   </TEXT>
+
+  <SPLIT>
+    <JAVASCRIPT>
+      <EXERCISE>
+        The current design of <JAVASCRIPTINLINE>append_return_undefined</JAVASCRIPTINLINE>
+        is very simplistic: it always appends a
+        <JAVASCRIPTINLINE>return</JAVASCRIPTINLINE> <JAVASCRIPTINLINE>undefined</JAVASCRIPTINLINE> statement to all sequences, even if the sequence
+        already contains a return statement. Change
+        <JAVASCRIPTINLINE>append_return_undefined</JAVASCRIPTINLINE> to omit the
+        <JAVASCRIPTINLINE>return</JAVASCRIPTINLINE> <JAVASCRIPTINLINE>undefined</JAVASCRIPTINLINE> on all paths where you can
+        decide that the function will always encounter a return statement. Test your
+        solution with a conditional as the last statement of a function body, and set it
+        up to test the following three cases: both the consequent and alternative branches contain return statements; just one of
+        the branches contains a return statement; neither branch contains a return statement. In the first case, no return statement should be appended.
+        In the second case, only the branch missing a return statement should have one added.
+        In the last case, either both branches should have return statements added, or a
+        return statement can be added after the conditional. (Note that conditionals can be nested!)
+        <LABEL NAME="ex:append_return_undefined"/>
+      </EXERCISE>
+    </JAVASCRIPT>
+  </SPLIT>
 
   <EXERCISE>
     Consider the following declaration of a factorial
@@ -688,7 +706,7 @@ go_to(reg("continue"))
 function factorial_alt(n) {
     return n === 1  
            ? 1
-           : n * factorial_alt(n - 1);
+           : factorial_alt(n - 1) * n;
 }
       </JAVASCRIPT>
     </SNIPPET>
@@ -802,10 +820,10 @@ function factorial(n) {
 // calls to factorial will enter here
 "entry1",
   assign("env", list(op("compiled_function_env"), reg("fun"))),
-  assign("env", list(op("extend_environment"), constant(list("n")), reg("argl"), reg("env"))),
+  assign("env", list(op("extend_environment"), constant("n"), reg("argl"), reg("env"))),
 
 // begin actual function body
-  restore_marker(),
+  revert_stack_to_marker(),
   restore("continue"),
   save("continue"),
   save("env"),
@@ -821,7 +839,7 @@ function factorial(n) {
 "compiled_branch7",
   assign("continue", label("after_call8")),
   save("continue"),
-  save_marker(),
+  push_marker_to_stack(),
   assign("val", list(op("compiled_function_entry"), reg("fun"))),
   go_to(reg("val")),
 "primitive_branch6",
@@ -920,29 +938,29 @@ function factorial(n) {
   assign("val", list(op("lookup_symbol_value"), constant("n"), reg("env"))),
   assign("argl", list(op("pair"), reg("val"), reg("argl"))),
   test(list(op("is_primitive_function"), reg("fun"))),
-  branch(label("primitive_branch9")),
-"compiled_branch10",
-  assign("continue", label("after_call11")),
+  branch(label("primitive_branch10")),
+"compiled_branch11",
+  assign("continue", label("after_call12")),
   save("continue"),
-  save_marker(),
+  push_marker_to_stack(),
   assign("val", list(op("compiled_function_entry"), reg("fun"))),
   go_to(reg("val")),
-"primitive_branch9",
+"primitive_branch10",
   assign("val", list(op("apply_primitive_function"), reg("fun"), reg("argl"))),
-"after_call11",
+"after_call12",
   assign("argl", list(op("list"), reg("val"))),
   restore("fun"),
-  test(list(op("is_primitive_function"), reg("fun")))),
-  branch(label("primitive_branch12")),
-"compiled_branch13",
-  assign("continue", label("after_call14")),
+  test(list(op("is_primitive_function"), reg("fun"))),
+  branch(label("primitive_branch14")),
+"compiled_branch15",
+  assign("continue", label("after_call16")),
   save("continue"),
-  save_marker(),
+  push_marker_to_stack(),
   assign("val", list(op("compiled_function_entry"), reg("fun"))),
   go_to(reg("val")),
-"primitive_branch12",
+"primitive_branch14",
   assign("val", list(op("apply_primitive_function"), reg("fun"), reg("argl"))),
-"after_call14",                     // val now has result of factorial(n - 1)
+"after_call16",                     // val now has result of factorial(n - 1)
   assign("argl", list(op("list"), reg("val"))),
   restore("env"),
   assign("val", list(op("lookup_symbol_value"), constant("n"), reg("env"))),
@@ -951,7 +969,7 @@ function factorial(n) {
   restore("continue"),
   // apply factorial
   test(list(op("is_primitive_function"), reg("fun"))),
-  branch(label("primitive_branch15")),
+  branch(label("primitive_branch18")),
     </JAVASCRIPT>
   </SNIPPET>
   <CAPTION>(continued)</CAPTION>
@@ -962,22 +980,22 @@ function factorial(n) {
       <SNIPPET EVAL="no">
 	<NAME>compiled_factorial_3</NAME>
       <JAVASCRIPT>
-"compiled_branch16",
+"compiled_branch19",
 // note the compound function here is called tail-recursively 
   save("continue"),
-  save_marker(),
+  push_marker_to_stack(),
   assign("val", list(op("compiled_function_entry"), reg("fun"))),
   go_to(reg("val")),
-"primitive_branch15",
+"primitive_branch18",
   assign("val", list(op("apply_primitive_function"), reg("fun"), reg("argl"))),
   go_to(reg("continue")),
-"after_call17",
+"after_call20",
 "after_cond5",
 "after_lambda2",
   // assign the function to the name factorial 
   perform(list(op("assign_symbol_value"), constant("factorial"), reg("val"), reg("env"))),
   assign("val", constant(undefined)),
-  go_to(reg("continue")) 
+  go_to(reg("continue"))
     </JAVASCRIPT>
   </SNIPPET>
   <CAPTION>(continued)</CAPTION>
@@ -1036,8 +1054,11 @@ $$  assign("val", list(op("make_compiled_function"), label("entry1"), reg("env")
   go_to(label("after_lambda2")),
 "entry1",
   assign("env", list(op("compiled_function_env"), reg("fun"))),
-  assign("env", list(op("extend_environment"), constant(list("x")), reg("argl"), reg("env"))),
+  assign("env", list(op("extend_environment"), constant("x"), reg("argl"), reg("env"))),
+  revert_stack_to_marker(),
+  restore("continue"),
   assign("fun", list(op("lookup_symbol_value"), constant("+"), reg("env"))),
+  save("continue"),
   save("fun"),
   save("env"),
   assign("fun", list(op("lookup_symbol_value"), constant("g"), reg("env"))),
@@ -1052,7 +1073,7 @@ $$  assign("val", list(op("make_compiled_function"), label("entry1"), reg("env")
 "compiled_branch4",
   assign("continue", label("after_call5")),
   save("continue"),
-  save_marker(),
+  push_marker_to_stack(),
   assign("val", list(op("compiled_function_entry"), reg("fun"))),
   go_to(reg("val")),
 "primitive_branch3",
@@ -1061,23 +1082,24 @@ $$  assign("val", list(op("make_compiled_function"), label("entry1"), reg("env")
   assign("argl", list(op("list"), reg("val"))),
   restore("fun"),
   test(list(op("is_primitive_function"), reg("fun"))),
-  branch(label("primitive_branch6")),
-"compiled_branch7",
-  assign("continue", label("after_call8")),
+  branch(label("primitive_branch7")),
+"compiled_branch8",
+  assign("continue", label("after_call9")),
   save("continue"),
-  save_marker(),
+  push_marker_to_stack(),
   assign("val", list(op("compiled_function_entry"), reg("fun"))),
   go_to(reg("val")),
-"primitive_branch6",
+"primitive_branch7",
   assign("val", list(op("apply_primitive_function"), reg("fun"), reg("argl"))),
-"after_call8",
+"after_call9",
   assign("argl", list(op("list"), reg("val"))),
   restore("env"),
   assign("val", list(op("lookup_symbol_value"), constant("x"), reg("env"))),
   assign("argl", list(op("pair"), reg("val"), reg("argl"))),
   restore("fun"),
+  restore("continue"),
   test(list(op("is_primitive_function"), reg("fun"))),
-  branch(label("primitive_branch9")),
+  branch(label("primitive_branch11")),
     </JAVASCRIPT>
   </SNIPPET>
   <CAPTION>An example of compiler output (continued on next page).
@@ -1111,26 +1133,19 @@ $$  assign("val", list(op("make_compiled_function"), label("entry1"), reg("env")
       (assign val (const ok))
     </SCHEME>
     <JAVASCRIPT>
-"compiled_branch10",
-  assign("continue", label("return_undefined12")),
+"compiled_branch12",
   save("continue"),
-  save_marker(),
+  push_marker_to_stack(),
   assign("val", list(op("compiled_function_entry"), reg("fun"))),
   go_to(reg("val")),
-"return_undefined12",
-  assign("val", constant(undefined)),
-  go_to(reg("continue")),
-"primitive_branch9",
+"primitive_branch11",
   assign("val", list(op("apply_primitive_function"), reg("fun"), reg("argl"))),
-  assign("val", constant(undefined)),
-  restore_marker(),
-  restore("continue"),
   go_to(reg("continue")),
-"after_call11",
+"after_call13",
 "after_lambda2",
   perform(list(op("assign_symbol_value"), constant("f"), reg("val"), reg("env"))),
   assign("val", constant(undefined)),
-  go_to(reg("continue"))
+  go_to(reg("continue")),
     </JAVASCRIPT>
   </SNIPPET>
     <CAPTION>(continued)</CAPTION>
@@ -1436,7 +1451,7 @@ assign("val", list(op("+"), reg("val"), constant(1))
     <LABEL NAME="ex:dead-code"/>
     <INDEX>compiler for JavaScript<SUBINDEX>dead code analysis</SUBINDEX></INDEX>
 
-    Footnote<SPACE/><REF NAME="foot:dead-code"/> shows that the compiler does not
+    Footnote<SPACE/><REF NAME="foot:dead-code"/> explained that the compiler does not
     identify all instances of dead code. What would be required of a compiler to
     properly detect all instances of dead code? 
   </EXERCISE>
