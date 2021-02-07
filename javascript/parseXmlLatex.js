@@ -560,10 +560,12 @@ const processTextFunctionsDefaultLatex = {
         writeTo.push(
           "{\\lstinline[breaklines=true, breakatwhitespace=true,mathescape=false]~"
         );
+      } else if(getChildrenByTagName(node, "META")[0]) {
+        writeTo.push("{\\lstinline[mathescape=true]~");
       } else {
         writeTo.push("{\\lstinline[mathescape=false]~");
       }
-      recursiveProcessPureText(node.firstChild, writeTo, {
+      recursiveProcessTextLatex(node.firstChild, writeTo, {
         removeNewline: "all",
         escapeCurlyBracket: true
       });
