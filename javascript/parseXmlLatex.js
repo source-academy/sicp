@@ -560,7 +560,7 @@ const processTextFunctionsDefaultLatex = {
         writeTo.push(
           "{\\lstinline[breaklines=true, breakatwhitespace=true,mathescape=false]~"
         );
-      } else if(getChildrenByTagName(node, "META")[0]) {
+      } else if (getChildrenByTagName(node, "META")[0]) {
         writeTo.push("{\\lstinline[mathescape=true]~");
       } else {
         writeTo.push("{\\lstinline[mathescape=false]~");
