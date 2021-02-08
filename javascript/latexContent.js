@@ -424,6 +424,12 @@ export const preamble = `\\documentclass[a4paper, 12pt]{book}
 \\DeclareRobustCommand{\\subindexmarginpar}[1]{%
  \\marginpar[{\\setstretch{0.5}\\raggedleft\\color{DarkGreen}\\footnotesize\\sffamily#1}]{\\parbox{\\marginparwidth}{\\setstretch{0.5}\\raggedright\\color{DarkGreen}\\footnotesize\\sffamily#1}}}
 
+\\DeclareRobustCommand{\\subindexusemarginpar}[1]{%
+ \\marginpar[{\\setstretch{0.5}\\raggedleft\\color{Turquoise}\\footnotesize\\sffamily#1}]{\\parbox{\\marginparwidth}{\\setstretch{0.5}\\raggedright\\color{Turquoise}\\footnotesize\\sffamily#1}}}
+
+\\DeclareRobustCommand{\\subindexdeclarationmarginpar}[1]{%
+ \\marginpar[{\\setstretch{0.5}\\raggedleft\\color{green}\\footnotesize\\sffamily#1}]{\\parbox{\\marginparwidth}{\\setstretch{0.5}\\raggedright\\color{green}\\footnotesize\\sffamily#1}}}
+
 \\DeclareRobustCommand{\\ordermarginpar}[1]{%
  \\marginpar[{\\setstretch{0.5}\\raggedleft\\color{brown}\\footnotesize\\sffamily#1}]{\\parbox{\\marginparwidth}{\\setstretch{0.5}\\raggedright\\color{brown}\\footnotesize\\sffamily#1}}}
 
@@ -431,6 +437,8 @@ export const preamble = `\\documentclass[a4paper, 12pt]{book}
 \\newcommand{\\indexdeclarationinline}[1]{{\\color{purple}\\textsf{[#1]} }}
 \\newcommand{\\indexuseinline}[1]{{\\color{red}\\textsf{[#1]} }}
 \\newcommand{\\subindexinline}[1]{{\\color{DarkGreen}\\textsf{[#1]} }}
+\\newcommand{\\subindexdeclarationinline}[1]{{\\color{green}\\textsf{[#1]} }}
+\\newcommand{\\subindexuseinline}[1]{{\\color{Turquoise}\\textsf{[#1]} }}
 \\newcommand{\\orderinline}[1]{{\\color{brown}\\textsf{[#1]} }}
 \\newcommand{\\seeinline}[1]{{\\color{black}\\textsf{[#1]} }}
 \\newcommand{\\seealsoinline}[1]{{\\color{gray}\\textsf{[#1]} }}
