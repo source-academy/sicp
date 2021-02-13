@@ -263,23 +263,21 @@ ev-lambda
       </TEXT>
 
       <TEXT>
-        Before evaluating the predicate, we save the conditional itself so that we can
-        later extract the consequent or alternative. We also save the environment, which
-        we will need later in order to evaluate the consequent or the alternative, and we
-        save <JAVASCRIPTINLINE>continue</JAVASCRIPTINLINE>, which we will need later in
-        order to return to the evaluation of the statement that is waiting for the value
-        of the conditional.<FOOTNOTE>
-
-        In this chapter, we will use the function
-        <JAVASCRIPTINLINE>is_falsy</JAVASCRIPTINLINE> to test the value of the predicate.
-        This allows us to write the consequent and the alternate branches in the same
-        order as they appear in a conditional, and simply fall through to the consequent
-        branch when the predicate holds. The function is declared as the opposite of the
-        <JAVASCRIPTINLINE>is_truthy</JAVASCRIPTINLINE> function used to test predicates of
-        conditionals in section<SPACE/><REF NAME="sec:core-of-evaluator"/>.
-        <INDEX><DECLARATION>is_falsy</DECLARATION><SUBINDEX>why used in explicit-control
-        evaluator</SUBINDEX></INDEX>
-        </FOOTNOTE>
+        Before evaluating the predicate, we save the conditional itself, which is in
+        <JAVASCRIPTINLINE>comp</JAVASCRIPTINLINE>, so that we can later extract the
+        consequent or alternative. To evaluate the predicate expression, we move it to
+        the <JAVASCRIPTINLINE>comp</JAVASCRIPTINLINE> register and go to
+        <JAVASCRIPTINLINE>eval_dispatch</JAVASCRIPTINLINE>. The environment in the
+        <JAVASCRIPTINLINE>env</JAVASCRIPTINLINE> register is already the correct one in
+        which to evaluate the predicate. However, we save
+        <JAVASCRIPTINLINE>env</JAVASCRIPTINLINE> because we will need it later to
+        evaluate the consequent or the alternative. We set up
+        <JAVASCRIPTINLINE>continue</JAVASCRIPTINLINE> so that evaluation will resume at
+        <JAVASCRIPTINLINE>ev_conditional_decide</JAVASCRIPTINLINE> after the predicate
+        has been evaluated. First, however, we save the old value of
+        <JAVASCRIPTINLINE>continue</JAVASCRIPTINLINE>, which we will need later in order
+        to return to the evaluation of the statement that is waiting for the value of
+        the conditional.
         <INDEX><DECLARATION>ev_conditional</DECLARATION></INDEX> 
         <SNIPPET EVAL="no">
           <JAVASCRIPT>
@@ -295,10 +293,21 @@ ev-lambda
       </TEXT>
 
       <TEXT>
-        When we return from evaluating the predicate, we test whether it was true or false
+        When we resume at <JAVASCRIPTINLINE>ev_conditional_decide</JAVASCRIPTINLINE> after evaluating the predicate, we test whether it was true or false
         and, depending on the result, place either the consequent or the alternative in
         <JAVASCRIPTINLINE>comp</JAVASCRIPTINLINE> before going to
-        <JAVASCRIPTINLINE>eval_dispatch</JAVASCRIPTINLINE>. Notice that restoring
+        <JAVASCRIPTINLINE>eval_dispatch</JAVASCRIPTINLINE>.<FOOTNOTE>
+        In this chapter, we will use the function
+        <JAVASCRIPTINLINE>is_falsy</JAVASCRIPTINLINE> to test the value of the predicate.
+        This allows us to write the consequent and the alternate branches in the same
+        order as they appear in a conditional, and simply fall through to the consequent
+        branch when the predicate holds. The function is declared as the opposite of the
+        <JAVASCRIPTINLINE>is_truthy</JAVASCRIPTINLINE> function used to test predicates of
+        conditionals in section<SPACE/><REF NAME="sec:core-of-evaluator"/>.
+        <INDEX><DECLARATION>is_falsy</DECLARATION><SUBINDEX>why used in explicit-control
+        evaluator</SUBINDEX></INDEX>
+      </FOOTNOTE>
+      Notice that restoring
         <JAVASCRIPTINLINE>env</JAVASCRIPTINLINE> and
         <JAVASCRIPTINLINE>continue</JAVASCRIPTINLINE> here sets up
         <JAVASCRIPTINLINE>eval_dispatch</JAVASCRIPTINLINE> to have the correct environment
@@ -338,16 +347,15 @@ ev-lambda
         The entries at <JAVASCRIPTINLINE>ev_sequence_next</JAVASCRIPTINLINE> and
         <JAVASCRIPTINLINE>ev_sequence_continue</JAVASCRIPTINLINE> form a loop that
         successively evaluates each statement in a sequence.
-        (Empty sequences avoid the loop and jump straight to <JAVASCRIPTINLINE>continue</JAVASCRIPTINLINE> via
-        <JAVASCRIPTINLINE>ev_sequence_empty</JAVASCRIPTINLINE>.)
         The list of unevaluated
-        statements is kept in <JAVASCRIPTINLINE>unev</JAVASCRIPTINLINE>. At
-        <JAVASCRIPTINLINE>ev_sequence</JAVASCRIPTINLINE>, before starting the loop, we
-        place the sequence of statements to be evaluated in
-        <JAVASCRIPTINLINE>unev</JAVASCRIPTINLINE> and save
-        <JAVASCRIPTINLINE>continue</JAVASCRIPTINLINE> on the stack,
-        <!-- %jems: not sure about wording of next phrase -->
-        because it will be used for local flow of control in the loop, and the original
+        statements is kept in <JAVASCRIPTINLINE>unev</JAVASCRIPTINLINE>.
+        At <JAVASCRIPTINLINE>ev_sequence</JAVASCRIPTINLINE> we place the sequence of
+        statements to be evaluated in <JAVASCRIPTINLINE>unev</JAVASCRIPTINLINE>. If the
+        sequence is empty, we jump straight to
+        <JAVASCRIPTINLINE>continue</JAVASCRIPTINLINE> via
+        <JAVASCRIPTINLINE>ev_sequence_empty</JAVASCRIPTINLINE>. Otherwise we start the
+        sequence-evaluation loop, first saving continue on the stack, because
+        it will be used for local flow of control in the loop, and the original
         value is needed for continuing after the statement sequence. Before evaluating
         each statement, we check to see if there are additional statements to be evaluated
         in the sequence. If so, we save the rest of the unevaluated statements (held in
@@ -408,6 +416,7 @@ ev-lambda
 "ev_sequence_last_statement",
   restore("continue"),
   go_to(label("eval_dispatch")),
+
 "ev_sequence_empty",
   go_to(reg("continue")), 
         </JAVASCRIPT>
