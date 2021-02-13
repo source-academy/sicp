@@ -4,6 +4,7 @@
       <NAME>
         Evaluating function applications
       </NAME>
+      <LABEL NAME="sec:evaluating-function-applications"/>
 
       <INDEX>explicit-control evaluator for JavaScript<SUBINDEX>function application<OPEN/></SUBINDEX></INDEX>
       <INDEX>explicit-control evaluator for JavaScript<SUBINDEX>combinations<OPEN/></SUBINDEX></INDEX>
@@ -41,7 +42,17 @@
         applications of primitive functions corresponding to the operators. This takes
         place at <JAVASCRIPTINLINE>ev_operator_combination</JAVASCRIPTINLINE>, which
         performs this transformation in place in <JAVASCRIPTINLINE>comp</JAVASCRIPTINLINE>
-        and falls through to <JAVASCRIPTINLINE>ev_application</JAVASCRIPTINLINE>.
+        and falls through to <JAVASCRIPTINLINE>ev_application</JAVASCRIPTINLINE>.<FOOTNOTE>
+    We assume that the syntax transformer <JAVASCRIPTINLINE>operator_combination_to_application</JAVASCRIPTINLINE>
+    is available as a machine operation.
+    In an actual implementation built from scratch, we would use our
+    explicit-control evaluator to interpret a JavaScript program that
+    performs source-level transformations like
+    <JAVASCRIPTINLINE>operator_combination_to_application</JAVASCRIPTINLINE>
+    and <JAVASCRIPTINLINE>function_decl_to_constant_decl</JAVASCRIPTINLINE>
+    in a syntax phase that runs before execution.
+    <LABEL NAME="foot:syntax-transformer"/>
+      </FOOTNOTE>
       </TEXT>
       <TEXT>
         We begin the evaluation of an application by evaluating the function expression to
@@ -82,7 +93,9 @@
         <INDEX>explicit-control evaluator for JavaScript<SUBINDEX>argument evaluation<OPEN/></SUBINDEX></INDEX>
         Upon returning from evaluating the function expression, we proceed to evaluate the
         argument expressions of the application and to accumulate the resulting arguments
-        in a list, held in <JAVASCRIPTINLINE>argl</JAVASCRIPTINLINE>. First we restore the
+        in a list, held in <JAVASCRIPTINLINE>argl</JAVASCRIPTINLINE>. 
+        (This is like the evaluation of sequences of statements, except that we collect the values.)
+        First we restore the
         unevaluated argument expressions and the environment. We initialize
         <JAVASCRIPTINLINE>argl</JAVASCRIPTINLINE> to an empty list. Then we assign to the
         <JAVASCRIPTINLINE>fun</JAVASCRIPTINLINE> register the function that was produced
@@ -336,7 +349,7 @@ function is_last_argument_expression(arg_expression) {
     <TEXT>
       <INDEX>explicit-control evaluator for JavaScript<SUBINDEX>return statements</SUBINDEX><OPEN/></INDEX>
       The complication has two aspects. One is that at any point in the evaluation of the
-      body a return statement may require the function to return the value of the return
+      body, a return statement may require the function to return the value of the return
       expression as the value of the body. But a return statement may be nested
       arbitrarily deeply in the body; so the stack at the moment the return statement is
       encountered is not necessarily the stack that is needed for a return from the
@@ -349,7 +362,7 @@ function is_last_argument_expression(arg_expression) {
       <JAVASCRIPTINLINE>push_marker_to_stack</JAVASCRIPTINLINE> and its counterpart,
       <JAVASCRIPTINLINE>revert_stack_to_marker</JAVASCRIPTINLINE>, are not strictly necessary and
       could be implemented by explicitly pushing and popping a marker value onto and off
-      the stack. Anything that could not be confused for a value in the program can be
+      the stack. Anything that could not be confused with a value in the program can be
       used as a marker. See exercise<SPACE/><REF NAME="ex:push_marker_to_stack1"/>.</FOOTNOTE>
     </TEXT>
 
@@ -357,9 +370,11 @@ function is_last_argument_expression(arg_expression) {
       The other aspect of the complication is that if the evaluation of the body terminates without
       executing a return statement, the value of the body must be
       <JAVASCRIPTINLINE>undefined</JAVASCRIPTINLINE>. To handle this, we set up the
-      <JAVASCRIPTINLINE>continue</JAVASCRIPTINLINE> register to point at the code labeled
+      <JAVASCRIPTINLINE>continue</JAVASCRIPTINLINE> register to point to the entry point
       <JAVASCRIPTINLINE>return_undefined</JAVASCRIPTINLINE> before going off to
       <JAVASCRIPTINLINE>eval_dispatch</JAVASCRIPTINLINE> to evaluate the body.
+      If a return statement is not encountered during evaluation of the body,
+      evaluation of the body will continue at <JAVASCRIPTINLINE>return_undefined</JAVASCRIPTINLINE>.
     <INDEX><DECLARATION>compound_apply</DECLARATION></INDEX> 
     <SNIPPET EVAL="no">
       <JAVASCRIPT>
@@ -418,7 +433,7 @@ function is_last_argument_expression(arg_expression) {
     continuation that was set up at <JAVASCRIPTINLINE>compound_apply</JAVASCRIPTINLINE>.
     To return <JAVASCRIPTINLINE>undefined</JAVASCRIPTINLINE> from the function, we put
     <JAVASCRIPTINLINE>undefined</JAVASCRIPTINLINE> into
-    <JAVASCRIPTINLINE>val</JAVASCRIPTINLINE> and continue to the entry point that was put
+    <JAVASCRIPTINLINE>val</JAVASCRIPTINLINE> and go to the entry point that was put
     onto the stack at <JAVASCRIPTINLINE>ev_application</JAVASCRIPTINLINE>. Before we can
     restore that continuation from the stack, however, we must remove the marker that was
     saved at <JAVASCRIPTINLINE>compound_apply</JAVASCRIPTINLINE>.
@@ -512,17 +527,19 @@ function sqrt_iter(guess, x) {
         accumulation of information on the stack.
       </SCHEME>
       <JAVASCRIPT>
+      <TEXT>
         The implementation of the metacircular evaluator in chapter<SPACE/>4 is
-        not tail-recursive. The reason for this is found in the handling of
+        not tail-recursive. It treats 
         <JAVASCRIPTINLINE>return</JAVASCRIPTINLINE> as an operator that creates
-        a return value object containing the value to be returned and inspecting the result of a function call to
+        a return value object containing the value to be returned and inspects the result of a function call to
         see whether it is such an object.
-        If the evaluation of a function body produces a return value object, its content
-        is the return value of the function;
+        If the evaluation of a function body produces a return value object, 
+        the return value of the function is the contents of that object;
         otherwise, the return value is <JAVASCRIPTINLINE>undefined</JAVASCRIPTINLINE>.
         Both the construction of the return value object and the eventual inspection of
         the result of the function call are deferred operations, which lead to an
         accumulation of information on the stack.
+      </TEXT>
       </JAVASCRIPT>
     </SPLIT>
   </TEXT>
@@ -551,7 +568,7 @@ function sqrt_iter(guess, x) {
         the stack by the function (which are useless because we are returning) using
         <JAVASCRIPTINLINE>revert_stack_to_marker</JAVASCRIPTINLINE>. Then, rather than arranging
         for <JAVASCRIPTINLINE>eval_dispatch</JAVASCRIPTINLINE> to come back here and then
-        restore <JAVASCRIPTINLINE>continue</JAVASCRIPTINLINE> from the stack and
+        restoring <JAVASCRIPTINLINE>continue</JAVASCRIPTINLINE> from the stack and
         continuing at that entry point, we restore
         <JAVASCRIPTINLINE>continue</JAVASCRIPTINLINE> from the stack before going to
         <JAVASCRIPTINLINE>eval_dispatch</JAVASCRIPTINLINE> so that
@@ -623,9 +640,10 @@ function sqrt_iter(guess, x) {
         space.
           </SCHEME>
           <JAVASCRIPT>
+  <TEXT>
             If we did not think to take advantage of the fact that it is unnecessary to
-            hold on to the useless information on the stack when evaluating a return
-            expression, we might have implemented
+            hold on to the useless information on the stack while evaluating a return
+            expression, we might have treated
             <JAVASCRIPTINLINE>return</JAVASCRIPTINLINE> as an operator, with the return
             expression as its operand (as in the metacircular evaluator). A
             straightforward implementation would evaluate the return expression, come back
@@ -644,16 +662,16 @@ function sqrt_iter(guess, x) {
   go_to(reg("continue")),
             </JAVASCRIPT>
           </SNIPPET>
+  </TEXT>
           This may seem like a minor change to our previous code for evaluation of return
           statements: The only difference is that we delay undoing any register saves to
           the stack until after the evaluation of the return expression. The interpreter
           will still give the same value for any expression. But this change is fatal to
-          the tail-recursive implementation, because we must now return after evaluating
+          the tail-recursive implementation, because we must now come back after evaluating
           the return expression in order to undo the (useless) register saves. These extra
           saves will accumulate during a nest of function calls. Consequently, processes
           such as <JAVASCRIPTINLINE>sqrt_iter</JAVASCRIPTINLINE> would require space
           proportional to the number of iterations rather than requiring constant space.
-
 
 <!--         Let us consider an implementation of the handling of -->
 <!--         return statements in the spirit of -->
@@ -741,8 +759,6 @@ function sqrt_iter(guess, x) {
 <!--           constant space.  -->
       </JAVASCRIPT>
     </SPLIT>
-  </TEXT>
-  <TEXT>
     This difference can be significant. For example,
     <INDEX>iterative process<SUBINDEX>implemented by <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE> call</SUBINDEX></INDEX>
     with tail recursion, an infinite loop can be expressed using only the
@@ -785,10 +801,11 @@ function count(n) {
         <!-- object, we do not introduce any associated deferred operations. -->
 	<INDEX>tail recursion<SUBINDEX>return statement necessary for</SUBINDEX></INDEX>
 	<INDEX>explicit-control evaluator for JavaScript<SUBINDEX>return statements</SUBINDEX><CLOSE/></INDEX>	
-        Note that because the undoing of the register saves takes place at
-        <JAVASCRIPTINLINE>ev_return</JAVASCRIPTINLINE>, our JavaScript implementation
+        Note that our JavaScript implementation
         requires the use of <JAVASCRIPTINLINE>return</JAVASCRIPTINLINE> in order to be tail-recursive.
-        Removing <JAVASCRIPTINLINE>return</JAVASCRIPTINLINE> from the
+        Because the undoing of the register saves takes place at
+        <JAVASCRIPTINLINE>ev_return</JAVASCRIPTINLINE>, 
+        removing <JAVASCRIPTINLINE>return</JAVASCRIPTINLINE> from the
         <JAVASCRIPTINLINE>count</JAVASCRIPTINLINE> function above will cause it to
         eventually run out of stack space. This explains the use of
         <JAVASCRIPTINLINE>return</JAVASCRIPTINLINE> in the infinite driver loops in
