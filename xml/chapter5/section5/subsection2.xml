@@ -197,11 +197,12 @@ function end_with_linkage(linkage, instruction_sequence) {
     </SCHEME>
     <JAVASCRIPT>
 function compile_literal(component, target, linkage) {
+    const literal = literal_value(component);
     return end_with_linkage(linkage,
                make_instruction_sequence(
                    null,
                    list(target),
-                   list(assign(target, constant(literal_value(component))))));
+                   list(assign(target, constant(literal)))));
 }
 
 function compile_name(component, target, linkage) {
@@ -235,7 +236,7 @@ function compile_name(component, target, linkage) {
         The result of compiling a name is
         an <JAVASCRIPTINLINE>assign</JAVASCRIPTINLINE> instruction that 
         causes the operation <JAVASCRIPTINLINE>lookup_symbol_value</JAVASCRIPTINLINE> to be executed
-        when the computed program is run, to look up the value of a constant in the current environment.
+        when the compiled program is run, to look up the value of a constant in the current environment.
         The constant is however computed at compile time: <JAVASCRIPTINLINE>symbol_of_name(component)</JAVASCRIPTINLINE>
         is executed only once, when the program is being compiled, to extract the string to put into the <JAVASCRIPTINLINE>constant</JAVASCRIPTINLINE>
         part of the instruction. 
@@ -263,7 +264,7 @@ function compile_name(component, target, linkage) {
         actually sets or defines the variable
       </SCHEME>
       <JAVASCRIPT>
-        installs or updates the name in the environment
+        updates the value associated with the name in the environment
       </JAVASCRIPT>
     </SPLITINLINE>
     and assigns the
@@ -293,7 +294,7 @@ function compile_name(component, target, linkage) {
     since the environment is needed for
     <SPLITINLINE>
       <SCHEME>setting or defining the variable</SCHEME>
-      <JAVASCRIPT>installing or updating the name</JAVASCRIPT>
+      <JAVASCRIPT>updating the name-value association</JAVASCRIPT>
     </SPLITINLINE> 
     and the code for 
     <SPLITINLINE><SCHEME>the variable</SCHEME><JAVASCRIPT>computing the</JAVASCRIPT></SPLITINLINE>
@@ -769,13 +770,12 @@ function compile_sequence(seq, target, linkage) {
     there are many reasons not to compile dead code, which are beyond the scope of this book 
     (security, compilation time, size of the object code, etc.),
     and many compilers give warnings for dead code. In our case, the most important reason to
-    not compile dead code is to keep our generated code simple.<FOOTNOTE>Shortly, we will introduce a program transformation to deal with
-    returning <JAVASCRIPTINLINE>undefined</JAVASCRIPTINLINE> from functions that do not end
-    with a return statement. Our simplistic transformation will give rise
+    not compile dead code is to keep our generated code simple.<FOOTNOTE>Shortly, we will introduce a
+    program transformation to ensure that all functions contain a return statement.
+    Our simplistic transformation will give rise
     to dead code in all functions that return explicitly. However, because of the check in 
     <JAVASCRIPTINLINE>compile_sequence</JAVASCRIPTINLINE>, 
-    this dead code will not appear 
-    in our code listings in figures<SPACE/><REF NAME="fig:comp-factorial1"/> and <REF NAME="fig:compilation-example1"/>.</FOOTNOTE>
+    this dead code will not appear in our generated code.</FOOTNOTE>
       </JAVASCRIPT>
     </SPLIT>
   </TEXT>
@@ -1127,76 +1127,44 @@ function compile_lambda_body(exp, fun_entry) {
   </TEXT>
 
   <TEXT>
-    The function <JAVASCRIPTINLINE>append_return_undefined</JAVASCRIPTINLINE> appends
-    a <JAVASCRIPTINLINE>return undefined</JAVASCRIPTINLINE> to the lambda body.
+    To ensure that every function ends with a return statement, <JAVASCRIPTINLINE>compile_lambda_body</JAVASCRIPTINLINE>
+    appends a return statement whose return expression is the literal <JAVASCRIPTINLINE>undefined</JAVASCRIPTINLINE>
+    to the lambda body.
+    
     <SNIPPET EVAL="no">
       <NAME>append_return_undefined</NAME>
       <JAVASCRIPT>
 function append_return_undefined(body) {
-    const return_stmt = list("return_statement", list("name", "undefined"));
-    return is_return_statement(body)
-        ? body
-        : is_sequence(body)
-        ? list("sequence", append(sequence_statements(body), list(return_stmt)))
-        : list("sequence", list(body, return_stmt));
+    return list("sequence", list(body, 
+                                 list("return_statement", 
+                                      list("literal", undefined))));
 }
       </JAVASCRIPT>
     </SNIPPET>
-    This simple transformation of lambda bodies ensures that all functions end with a
-    return statement (inserted by the programmer or by
-    <JAVASCRIPTINLINE>append_return_undefined</JAVASCRIPTINLINE>) that returns the
-    appropriate value. Thus, this represents a third way to ensure that a function that did not
+    This simple transformation of lambda bodies represents a third way to ensure that a function that does not
     return explicitly has the return value <JAVASCRIPTINLINE>undefined</JAVASCRIPTINLINE>.
     
-    In the meta-circular evaluator, we used a return value object which also played a
+    In the metacircular evaluator, we used a return-value object, which also played a
     role in stopping the sequence evaluation.
 
     In the explicit-control evaluator, functions that did not return explicitly continued
-    to a specific entry point that stored <JAVASCRIPTINLINE>undefined</JAVASCRIPTINLINE>
+    to an entry point that stored <JAVASCRIPTINLINE>undefined</JAVASCRIPTINLINE>
     in <JAVASCRIPTINLINE>val</JAVASCRIPTINLINE>.
 
-    Since a compiler is operating on the source of a program before it is executed, and
-    only once for any number of runs, it is less sensitive to overheads of performing
-    program analysis and program transformations than an interpreter. Therefore we opt for
-    this source-level transformation in the compiler.
+    Source-level transformations like
+    <JAVASCRIPTINLINE>append_return_undefined</JAVASCRIPTINLINE> are common in
+    compilers, which are fed a complete source to compile to object code, as
+    opposed to interpreters which may be fed their programs line-by-line as they
+    are typed into a read-evaluate-print loop.
 
     (See exercise<SPACE/><REF NAME="ex:append_return_undefined"/> for a more elegant way
-    to handle insertion of a return statement.)
+    to handle insertion of return statements.)
     <LABEL NAME="sec:append_return_undefined"/>
   </TEXT>
 
   
   <SPLIT>
     <JAVASCRIPT>
-      <SUBHEADING>
-	<NAME>
-	  Compiling return statements
-	</NAME>
-      </SUBHEADING>
-
-      <TEXT>
-	<INDEX>compiler for JavaScript<SUBINDEX>return statements</SUBINDEX></INDEX>
-	JavaScript's return statements are compiled such that the compiled code
-	returns  to the caller of the current function the result of running the
-	code of the return expression, ignoring the current linkage. 
-	<SNIPPET EVAL="no">
-	  <NAME>compile_return</NAME>
-	  <JAVASCRIPT>
-function compile_return_statement(stmt, target, linkage) {
-    return append_instruction_sequences(
-        make_instruction_sequence(
-            null,
-            null,
-            list(revert_stack_to_marker(), restore("continue"))),
-        compile(return_expression(stmt), target, "return"));
-}
-	  </JAVASCRIPT>
-	</SNIPPET>
-  The return statements do not need any register values and from the point
-  of view of the current function does not modify any registers as there are
-  no subsequent statements in the function body.
-      </TEXT>
-
       <SUBHEADING>
 	<NAME>
 	  Compiling blocks
@@ -1260,20 +1228,20 @@ function compile_block(stmt, target, linkage) {
         In <JAVASCRIPTINLINE>t3</JAVASCRIPTINLINE>, no return statement should be added.
 	<SNIPPET EVAL="no">
 	  <JAVASCRIPT>
-function t1(b) {    function t2(b) {    function t3(b) {      function t4(b) {        
-    if (b) {            if (b) {            if (b) {              if (b) {            
-        42;                 return 42;          return 42;            return 42;      
+function t1(b) {    function t2(b) {    function t3(a, b) {   function t4(b1, b2) {
+    if (b) {            if (b) {            if (a &lt; b) {          if (b1) {
+        s1;                 return e1;          return a;             return e1;
         (*)                                                       } else {
-    } else {            } else {            } else {                  if (!b) {       
-        42;                 42;                 return 42;                42;         
+    } else {            } else {            } else {                  if (b2) {
+        s2;                 s1;                 return b;                 s1;
         (*)                 (*)                                           (*)
-    }                   }                   }                         } else {        
-    (**)                (*)                                               return 42;
-}                   }                   }                             }               
-                                                                      (*)             
-                                                                  }                   
-                                                                  (*)                 
-                                                              }                       
+    }                   }                   }                         } else {
+    (**)                (*)                                               return e2;
+}                   }                   }                             }
+                                                                      (*)
+                                                                  }
+                                                                  (*)
+                                                              }
 	  </JAVASCRIPT>
     <LABEL NAME="ex:append_return_undefined"/>
   </SNIPPET>
