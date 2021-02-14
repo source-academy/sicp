@@ -110,7 +110,7 @@
             ` ((goto (label ,linkage)))))))
       </SCHEME>
       <JAVASCRIPT>
-function compile_linkage(target, linkage) {
+function compile_linkage(linkage) {
     return linkage === "return"
            ? make_instruction_sequence(list("continue"), 
                                        null,
@@ -148,10 +148,10 @@ function compile_linkage(target, linkage) {
       (compile-linkage linkage)))
       </SCHEME>
       <JAVASCRIPT>
-function end_with_linkage(target, linkage, instruction_sequence) {
+function end_with_linkage(linkage, instruction_sequence) {
     return preserving(list("continue"),
                       instruction_sequence,
-                      compile_linkage(target, linkage));
+                      compile_linkage(linkage));
 }
       </JAVASCRIPT>
     </SNIPPET>
@@ -197,7 +197,7 @@ function end_with_linkage(target, linkage, instruction_sequence) {
     </SCHEME>
     <JAVASCRIPT>
 function compile_literal(component, target, linkage) {
-    return end_with_linkage(target, linkage,
+    return end_with_linkage(linkage,
                make_instruction_sequence(
                    null,
                    list(target),
@@ -205,11 +205,12 @@ function compile_literal(component, target, linkage) {
 }
 
 function compile_name(component, target, linkage) {
-    return end_with_linkage(target, linkage,
+    const name = symbol_of_name(component);
+    return end_with_linkage(linkage,
                make_instruction_sequence(list("env"), list(target),
                    list(assign(target, 
                         list(op("lookup_symbol_value"), 
-                             constant(symbol_of_name(component)), 
+                             constant(name), 
                              reg("env"))))));
 }
     </JAVASCRIPT>
@@ -231,12 +232,13 @@ function compile_name(component, target, linkage) {
   <SPLIT>
     <TEXT>
       <JAVASCRIPT>
-        Note the subtle mix of compile-time and run-time concerns. The generated code is
-        an <JAVASCRIPTINLINE>assign</JAVASCRIPTINLINE> instruction which
-        causes <JAVASCRIPTINLINE>lookup_symbol_value</JAVASCRIPTINLINE> to be executed
-        when the program is run to look up the value of a constant in the current environment.
-        The constant is however computed at compile-time: <JAVASCRIPTINLINE>constant(symbol_of_name(component))</JAVASCRIPTINLINE>
-        is only executed once, when the program is being compiled.
+        The result of compiling a name is
+        an <JAVASCRIPTINLINE>assign</JAVASCRIPTINLINE> instruction that 
+        causes the operation <JAVASCRIPTINLINE>lookup_symbol_value</JAVASCRIPTINLINE> to be executed
+        when the computed program is run, to look up the value of a constant in the current environment.
+        The constant is however computed at compile time: <JAVASCRIPTINLINE>symbol_of_name(component)</JAVASCRIPTINLINE>
+        is executed only once, when the program is being compiled, to extract the string to put into the <JAVASCRIPTINLINE>constant</JAVASCRIPTINLINE>
+        part of the instruction. 
       </JAVASCRIPT>
     </TEXT>
   </SPLIT>
@@ -248,29 +250,22 @@ function compile_name(component, target, linkage) {
     Assignments and
     <SPLITINLINE>
       <SCHEME>definitions</SCHEME>
-      <JAVASCRIPT>the two kinds of declarations</JAVASCRIPT>
+      <JAVASCRIPT>declarations</JAVASCRIPT>
     </SPLITINLINE>
     are handled much as they are in the
     interpreter.
-    <SPLIT>
-      <JAVASCRIPT>
-	The two functions use the function
-	<JAVASCRIPTINLINE>compile_assignment_returning</JAVASCRIPTINLINE>,
-	whose parameter
-	<JAVASCRIPTINLINE>return_val</JAVASCRIPTINLINE> lets declarations
-	return <JAVASCRIPTINLINE>undefined</JAVASCRIPTINLINE> and assignments
-	return the assigned value.
-      </JAVASCRIPT>
-    </SPLIT>
     We recursively generate code that computes the value to be assigned to the
     <SPLITINLINE><SCHEME>variable</SCHEME><JAVASCRIPT>name</JAVASCRIPT></SPLITINLINE>, and
     <SPLITINLINE><JAVASCRIPT>use <JAVASCRIPTINLINE>compile_assignment_returning</JAVASCRIPTINLINE> to</JAVASCRIPT></SPLITINLINE>
-    append to it a two-instruction sequence that actually sets
+    append to it a two-instruction sequence that 
     <SPLITINLINE>
-      <SCHEME>or defines</SCHEME>
+      <SCHEME>
+        actually sets or defines the variable
+      </SCHEME>
+      <JAVASCRIPT>
+        installs or updates the name in the environment
+      </JAVASCRIPT>
     </SPLITINLINE>
-    the
-    <SPLITINLINE><SCHEME>variable</SCHEME><JAVASCRIPT>name</JAVASCRIPT></SPLITINLINE>
     and assigns the
     value of the whole
     <SPLITINLINE>
@@ -295,12 +290,24 @@ function compile_name(component, target, linkage) {
     so that the code will put its result into
     <SCHEMEINLINE>val</SCHEMEINLINE> and continue with the code that is appended
     after it.  The appending is done preserving <SCHEMEINLINE>env</SCHEMEINLINE>,
-    since the environment is needed for setting <SPLITINLINE><SCHEME>or defining</SCHEME></SPLITINLINE> the
-    <SPLITINLINE><SCHEME>variable</SCHEME><JAVASCRIPT>name</JAVASCRIPT></SPLITINLINE>
-    and the code for the
-    <SPLITINLINE><SCHEME>variable</SCHEME><JAVASCRIPT>name</JAVASCRIPT></SPLITINLINE>
+    since the environment is needed for
+    <SPLITINLINE>
+      <SCHEME>setting or defining the variable</SCHEME>
+      <JAVASCRIPT>installing or updating the name</JAVASCRIPT>
+    </SPLITINLINE> 
+    and the code for 
+    <SPLITINLINE><SCHEME>the variable</SCHEME><JAVASCRIPT>computing the</JAVASCRIPT></SPLITINLINE>
     value could be the compilation of a complex expression
     that might modify the registers in arbitrary ways.
+    <SPLIT>
+      <JAVASCRIPT>
+	      The parameter <JAVASCRIPTINLINE>return_val</JAVASCRIPTINLINE>
+        of <JAVASCRIPTINLINE>compile_assignment_returning</JAVASCRIPTINLINE>
+	      lets declarations return <JAVASCRIPTINLINE>undefined</JAVASCRIPTINLINE> and assignments
+	      return the assigned value.
+      </JAVASCRIPT>
+    </SPLIT>
+    
     <INDEX><DECLARATION>compile_assignment</DECLARATION></INDEX> 
     <INDEX><DECLARATION>compile_declaration</DECLARATION></INDEX> 
     <SNIPPET EVAL="no">
@@ -337,22 +344,23 @@ function compile_name(component, target, linkage) {
       <JAVASCRIPT>
 function compile_assignment(component, target, linkage) {
     const symbol = assignment_symbol(component);
-    const value_code =
-              compile(assignment_value_expression(component), "val", "next");
+    const value_code = compile(
+              assignment_value_expression(component), "val", "next");
     return compile_assignment_returning(symbol,
                value_code, target, linkage, reg("val"));
 }
 
 function compile_declaration(component, target, linkage) {
     const symbol = declaration_symbol(component);
-    const value_code = compile(declaration_value_expression(component), "val", "next");
+    const value_code = compile(
+              declaration_value_expression(component), "val", "next");
     return compile_assignment_returning(symbol,
                value_code, target, linkage, constant(undefined));
 }
 
 function compile_assignment_returning(symbol, value_code, target,
                                       linkage, return_val) {
-    return end_with_linkage(target, linkage,
+    return end_with_linkage(linkage,
                preserving(
                    list("env"),
                    value_code,
@@ -737,7 +745,9 @@ function compile_conditional(component, target, linkage) {
       </SCHEME>
       <JAVASCRIPT>
 function compile_sequence(seq, target, linkage) {
-    return is_last_statement(seq) || is_return_statement(first_statement(seq))
+    return is_empty_sequence(seq)
+           ? empty_instruction_sequence()
+           : is_last_statement(seq) || is_return_statement(first_statement(seq))
            ? compile(first_statement(seq), target, linkage)
            : preserving(
                  list("env", "continue"),
@@ -748,17 +758,16 @@ function compile_sequence(seq, target, linkage) {
     </SNIPPET>
     <SPLIT>
       <JAVASCRIPT>
-    Treating return statements as if they always appear as the last statement in a sequence
-    avoids compiling the
+    Treating a return statement as if it is the last statement in a sequence
+    avoids compiling any
     <QUOTE>dead code</QUOTE> after the return statement that can
     never be executed.<FOOTNOTE>Our compiler does not detect all dead code. For example,
     a conditional statement whose consequent and alternative branches both end in a return
     statement will not stop subsequent statements from being compiled. See exercise<SPACE/><REF NAME="ex:dead-code"/>.
     <LABEL NAME="foot:dead-code"/></FOOTNOTE>
     Removing the <JAVASCRIPTINLINE>is_return_statement</JAVASCRIPTINLINE> check does not change the behavior of the program; however,
-    there are many reasons not to compile dead code, which are beyond the scope of this book: 
-    security, compilation time, size of
-    the object code, etc.,
+    there are many reasons not to compile dead code, which are beyond the scope of this book 
+    (security, compilation time, size of the object code, etc.),
     and many compilers give warnings for dead code. In our case, the most important reason to
     not compile dead code is to keep our generated code simple.<FOOTNOTE>Shortly, we will introduce a program transformation to deal with
     returning <JAVASCRIPTINLINE>undefined</JAVASCRIPTINLINE> from functions that do not end
@@ -868,7 +877,7 @@ function compile_sequence(seq, target, linkage) {
       </SCHEME>
       <JAVASCRIPT>
 	The function
-      <JAVASCRIPTINLINE>compile_lambda</JAVASCRIPTINLINE></JAVASCRIPT>
+      <JAVASCRIPTINLINE>compile_lambda_expression</JAVASCRIPTINLINE></JAVASCRIPT>
     </SPLITINLINE>
     generates the code for constructing the
     <SPLITINLINE>
@@ -886,7 +895,7 @@ function compile_sequence(seq, target, linkage) {
       <JAVASCRIPT>function</JAVASCRIPT>
     </SPLITINLINE>
     object will be constructed at run time by combining the current environment
-    (the environment at the point of definition) with the entry point to the
+    (the environment at the point of <SPLITINLINE><SCHEME>definition</SCHEME><JAVASCRIPT>declaration</JAVASCRIPT></SPLITINLINE>) with the entry point to the
     compiled
     <SPLITINLINE>
       <SCHEME>procedure</SCHEME>
@@ -926,16 +935,16 @@ function make_compiled_function(entry, env) {
     return list("compiled_function", entry, env);
 }
 
-function is_compiled_function(proc) {
-    return is_tagged_list(proc, "compiled_function");
+function is_compiled_function(fun) {
+    return is_tagged_list(fun, "compiled_function");
 } 
 
-function compiled_function_entry(c_proc) {
-    return head(tail(c_proc));
+function compiled_function_entry(c_fun) {
+    return head(tail(c_fun));
 }
 
-function compiled_function_env(c_proc) {
-    return head(tail(tail(c_proc)));
+function compiled_function_env(c_fun) {
+    return head(tail(tail(c_fun)));
 }
       </JAVASCRIPT>
     </SNIPPET>
@@ -968,7 +977,7 @@ function compile_lambda_expression(exp, target, linkage) {
             linkage === "next" ? after_lambda : linkage;
     return append_instruction_sequences(
                tack_on_instruction_sequence(
-                   end_with_linkage(target, lambda_linkage,
+                   end_with_linkage(lambda_linkage,
                        make_instruction_sequence(list("env"), list(target),
                            list(assign(target, 
                                        list(op("make_compiled_function"),
@@ -1033,7 +1042,9 @@ function compile_lambda_expression(exp, target, linkage) {
       <SCHEME>procedure</SCHEME>
       <JAVASCRIPT>function</JAVASCRIPT>
     </SPLITINLINE>
-    body<EMDASH/>namely, the definition environment of the
+    body<EMDASH/>namely, the
+    <SPLITINLINE><SCHEME>definition</SCHEME></SPLITINLINE>
+    environment of the
     <SPLITINLINE>
       <SCHEME>procedure,</SCHEME>
       <JAVASCRIPT>function,</JAVASCRIPT>
@@ -1057,11 +1068,12 @@ function compile_lambda_expression(exp, target, linkage) {
     <SPLITINLINE>
       <SCHEME>procedure body.</SCHEME>
       <JAVASCRIPT>
-        function body, wrapped in a call to
-        <JAVASCRIPTINLINE>append_return_undefined</JAVASCRIPTINLINE>, which will be explained shortly.
+        function body.
       </JAVASCRIPT>
     </SPLITINLINE>
-	  The sequence is compiled with linkage
+	  The
+    <SPLITINLINE><SCHEME>sequence</SCHEME><JAVASCRIPT>body</JAVASCRIPT></SPLITINLINE>
+    is compiled with linkage
     <SPLITINLINE><SCHEME>return</SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>"return"</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>
 	and target <SCHEMEINLINE>val</SCHEMEINLINE>
 	so that it will end by returning from the
@@ -1226,7 +1238,7 @@ function compile_block(stmt, target, linkage) {
 
     Footnote<SPACE/><REF NAME="foot:dead-code"/> explained that the compiler does not
     identify all instances of dead code. What would be required of a compiler to
-    properly detect all instances of dead code? 
+    detect all instances of dead code? 
   </EXERCISE>
     </JAVASCRIPT>
   </SPLIT>
@@ -1236,19 +1248,36 @@ function compile_block(stmt, target, linkage) {
       <EXERCISE>
         The current design of <JAVASCRIPTINLINE>append_return_undefined</JAVASCRIPTINLINE>
         is very simplistic: it always appends a
-        <JAVASCRIPTINLINE>return</JAVASCRIPTINLINE> <JAVASCRIPTINLINE>undefined</JAVASCRIPTINLINE> statement to all sequences, even if the sequence
+        <JAVASCRIPTINLINE>return</JAVASCRIPTINLINE> <JAVASCRIPTINLINE>undefined</JAVASCRIPTINLINE> to a sequence, even if the sequence
         already contains a return statement. Change
-        <JAVASCRIPTINLINE>append_return_undefined</JAVASCRIPTINLINE> to omit the
-        <JAVASCRIPTINLINE>return</JAVASCRIPTINLINE> <JAVASCRIPTINLINE>undefined</JAVASCRIPTINLINE> on all paths where you can
-        decide that the function will always encounter a return statement. Test your
-        solution with a conditional as the last statement of a function body, and set it
-        up to test the following three cases: both the consequent and alternative branches contain return statements; just one of
-        the branches contains a return statement; neither branch contains a return statement. In the first case, no return statement should be appended.
-        In the second case, only the branch missing a return statement should have one added.
-        In the last case, either both branches should have return statements added, or a
-        return statement can be added after the conditional. (Note that conditionals can be nested!)
-        <LABEL NAME="ex:append_return_undefined"/>
-      </EXERCISE>
+        <JAVASCRIPTINLINE>append_return_undefined</JAVASCRIPTINLINE> to only insert
+        <JAVASCRIPTINLINE>return</JAVASCRIPTINLINE> <JAVASCRIPTINLINE>undefined</JAVASCRIPTINLINE> at the end of a path
+        that does not end with an explicit return statement. Test your
+        solution using the functions below.
+
+        In <JAVASCRIPTINLINE>t1</JAVASCRIPTINLINE>, a return statement should be added either at both <JAVASCRIPTINLINE>(*)</JAVASCRIPTINLINE>'s or just once at <JAVASCRIPTINLINE>(**)</JAVASCRIPTINLINE>.
+        In <JAVASCRIPTINLINE>t2</JAVASCRIPTINLINE> and <JAVASCRIPTINLINE>t4</JAVASCRIPTINLINE>, a return statement should be added at one of the <JAVASCRIPTINLINE>(*)</JAVASCRIPTINLINE>'s.
+        In <JAVASCRIPTINLINE>t3</JAVASCRIPTINLINE>, no return statement should be added.
+	<SNIPPET EVAL="no">
+	  <JAVASCRIPT>
+function t1(b) {    function t2(b) {    function t3(b) {      function t4(b) {        
+    if (b) {            if (b) {            if (b) {              if (b) {            
+        42;                 return 42;          return 42;            return 42;      
+        (*)                                                       } else {
+    } else {            } else {            } else {                  if (!b) {       
+        42;                 42;                 return 42;                42;         
+        (*)                 (*)                                           (*)
+    }                   }                   }                         } else {        
+    (**)                (*)                                               return 42;
+}                   }                   }                             }               
+                                                                      (*)             
+                                                                  }                   
+                                                                  (*)                 
+                                                              }                       
+	  </JAVASCRIPT>
+    <LABEL NAME="ex:append_return_undefined"/>
+  </SNIPPET>
+  </EXERCISE>
     </JAVASCRIPT>
   </SPLIT>
 
