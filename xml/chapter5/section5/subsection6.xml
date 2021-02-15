@@ -195,7 +195,7 @@
     that takes as arguments an environment and a <EM>lexical address</EM> that
     consists of two numbers: a <EM>frame number</EM>, which specifies how many
     frames to pass over, and a <EM>displacement number</EM>, which specifies
-    how many variables to pass over in that frame.  
+    how many <SPLITINLINE><SCHEME>variables</SCHEME><JAVASCRIPT>names</JAVASCRIPT></SPLITINLINE> to pass over in that frame.  
     <INDEX><USE>lexical_address_lookup</USE></INDEX> 
     <SPLITINLINE>
       <SCHEME><SCHEMEINLINE>Lexical-address-lookup</SCHEMEINLINE></SCHEME>
@@ -260,7 +260,7 @@
     one is in the code.  For example, in the following program, the
     address of <SCHEMEINLINE>x</SCHEMEINLINE> in expression
     <LATEXINLINE>$e_1$</LATEXINLINE> is (2,0)<EMDASH/>two frames back
-    and the first variable in the frame.  At that point
+    and the first <SPLITINLINE><SCHEME>variable</SCHEME><JAVASCRIPT>name</JAVASCRIPT></SPLITINLINE> in the frame.  At that point
     <SCHEMEINLINE>y</SCHEMEINLINE> is at
     address (0,0) and <SCHEMEINLINE>c</SCHEMEINLINE> is at address (1,2).
     In expression
@@ -330,7 +330,7 @@
     is compiled,
     <SPLITINLINE>
       <SCHEME><SCHEMEINLINE>compile-lambda-body</SCHEMEINLINE></SCHEME>
-      <JAVASCRIPT><JAVASCRIPTINLINE>compile_body</JAVASCRIPTINLINE>
+      <JAVASCRIPT><JAVASCRIPTINLINE>compile_lambda_body</JAVASCRIPTINLINE>
       </JAVASCRIPT>
     </SPLITINLINE>
     extends the compile-time environment by a frame containing the
@@ -343,18 +343,17 @@
     </SPLITINLINE>
     parameters, so that the
     <SPLITINLINE>
-      <SCHEME>sequence</SCHEME>
-      <JAVASCRIPT>statement</JAVASCRIPT>
+      <SCHEME>sequence making up the</SCHEME>
     </SPLITINLINE>
-    making up the body is compiled with that extended environment.
+    body is compiled with that extended environment.
     <SPLIT>
       <JAVASCRIPT>
 	Similarly when
 	the body of a block
 	is compiled,
-	<JAVASCRIPTINLINE>compile_body</JAVASCRIPTINLINE>
+	<JAVASCRIPTINLINE>compile_block</JAVASCRIPTINLINE>
 	extends the compile-time environment by a frame containing the
-	scanned-out local names of the body
+	scanned-out local names of the body<SPLITINLINE><JAVASCRIPT>,</JAVASCRIPT></SPLITINLINE>
 	so that the body 
 	is compiled with that extended environment.
 	<INDEX>compiler for JavaScript<SUBINDEX>scanning out internal declarations</SUBINDEX></INDEX>
@@ -645,8 +644,11 @@ find_symbol("w", list(list("y", "z"),
 	In cases where <JAVASCRIPTINLINE>find_symbol</JAVASCRIPTINLINE>
 	returns <JAVASCRIPTINLINE>"not found"</JAVASCRIPTINLINE>
 	(that is, where the symbol is not in the compile-time environment),
-	we can safely raise a compile-time error, because we use lexical
-	scoping for all names.
+	we can safely raise a compile-time error. Because we use lexical
+	scoping for all names, it is not possible for a name to be defined at runtime,
+  that was not defined at compile-time. (This would not be the case if we used <EM>dynamic
+  scoping</EM> where the surrounding environment for a name is determined by its use, not its
+  definition.)
       </JAVASCRIPT>
     </SPLIT>
     Test the modified compiler on a few simple cases, such as the nested
@@ -694,17 +696,17 @@ find_symbol("w", list(list("y", "z"),
       <EXERCISE>
 	<LABEL NAME="ex:lexical-constants"/>
 	<INDEX>constant (in JavaScript)<SUBINDEX>detecting assignment to</SUBINDEX></INDEX>
-	In JavaScript, any attempt to use assignment on a name that is declared
+	In JavaScript, an attempt to assign to a name that is declared
 	as a constant leads to an error.
 	Exercise<SPACE/><REF NAME="ex:mutable"/> shows how to
 	detect such errors at run time. With the techniques presented in this
-	section, we can detect these errors <EM>at compile-time</EM> and make
-	sure only programs are run in which no assignment to constants will
-	ever occur. For this purpose, extend the function
-	<JAVASCRIPTINLINE>compile_body</JAVASCRIPTINLINE> to collect the
-	information whether a name is declared as a variable (using
+	section, we can detect these errors <EM>at compile time</EM> and avoid
+	running a program that tries to assign to a constant. For this purpose, extend the functions
+	<JAVASCRIPTINLINE>compile_lambda_body</JAVASCRIPTINLINE> and
+  <JAVASCRIPTINLINE>compile_block</JAVASCRIPTINLINE>
+  to record whether a name is declared as a variable (using
 	<JAVASCRIPTINLINE>let</JAVASCRIPTINLINE> or as a parameter), or as
-	a constant (using <JAVASCRIPTINLINE>const</JAVASCRIPTINLINE>).
+	a constant (using <JAVASCRIPTINLINE>const</JAVASCRIPTINLINE>) in the compile-time environment.
 	Modify <JAVASCRIPTINLINE>compile_assignment</JAVASCRIPTINLINE>
 	to generate an appropriate error when it detects an assignment to a
 	constant.
@@ -792,21 +794,25 @@ find_symbol("w", list(list("y", "z"),
 	<INDEX>open coding of primitives</INDEX>
 	<INDEX>compile-time environment<SUBINDEX>open coding and</SUBINDEX></INDEX>
 	We can apply the idea of the previous exercise to the technique of
-	open-coding in exercise<SPACE/><REF NAME="ex:open-code"/>: For
-	this, our compile time environment
-	can store for many constants what kinds of values
-	they will refer to at run time. For example, if the expression on
-	the right-hand side of the <JAVASCRIPTINLINE>=</JAVASCRIPTINLINE>
-	sign in a constant declaration is a number literal, we know that
-	occurrences of the name on the left-hand side within the scope of
-	the declaration can only refer to a number at run time.
-	Similarly, we can identify at compile time names that will
-	surely refer to a compound function object at run time, and
+	open coding in exercise<SPACE/><REF NAME="ex:open-code"/>: For
+	this, our compile-time environment
+	can store for many constants what <QUOTE>types</QUOTE> of values
+	they will refer to at run time, by looking at their value expressions.
+  For example, in the scope where <JAVASCRIPTINLINE>const x = 42</JAVASCRIPTINLINE> appears, we
+  know that <JAVASCRIPTINLINE>x</JAVASCRIPTINLINE> will always refer to a number.<FOOTNOTE>
+  Or the number 42, to be precise. However reasoning about a name<APOS/>s type is often
+  a useful abstraction; for example adding a number to a string is always as error,
+  no matter what the values are of the number and the string. 
+</FOOTNOTE>
+	Similarly, for each scope, we can identify at compile time names that will
+	always refer to a compound function object at run time, and
 	store this information in the compile-time environment.
 	Use such an extended compile-time environment
-	in the compilation of function applications in order to
-	compile away the runtime distinction between primitive and
-	compound functions whenever possible.
+	in the compilation of function applications to move the test if a function
+  is primitive or compound to compile time where possible. This will allow you to produce
+  much simpler object code for the cases where this property can be determined, as you will only
+  need the code in either the primitive branch or the compiled branch
+  in <JAVASCRIPTINLINE>compile_function_call</JAVASCRIPTINLINE>.
       </JAVASCRIPT>
     </SPLIT>
   </EXERCISE>
