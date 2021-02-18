@@ -324,7 +324,11 @@ $$  assign("val", list(op("make_compiled_function"), label("entry1"), reg("env")
 	<SCHEMEINLINE>return</SCHEMEINLINE>.
       </SCHEME>
       <JAVASCRIPT>
-	<JAVASCRIPTINLINE>"return"</JAVASCRIPTINLINE>.
+	      <JAVASCRIPTINLINE>"next"</JAVASCRIPTINLINE>. As a function body always
+	      ends with a return statement, which always uses the
+	      <JAVASCRIPTINLINE>"return"</JAVASCRIPTINLINE> linkage internally for its
+	      return expression, the last expression in a function body is always compiled
+	      using <JAVASCRIPTINLINE>"return"</JAVASCRIPTINLINE> linkage.
       </JAVASCRIPT>
     </SPLITINLINE>
     The
@@ -344,15 +348,12 @@ $$  assign("val", list(op("make_compiled_function"), label("entry1"), reg("env")
       </SCHEME>
       <JAVASCRIPT>
 	return statement:<FOOTNOTE>
-  If a function body that consists of a single return statement does not give rise to a
-  sequence (a parse which is handled both by the explicit-control evaluator and the
-  compiler), the <JAVASCRIPTINLINE>append_return_undefined</JAVASCRIPTINLINE> function
-  defined in section<SPACE/><REF NAME="sec:append_return_undefined"/> will not append an
-  additional <JAVASCRIPTINLINE>return</JAVASCRIPTINLINE>
-  <JAVASCRIPTINLINE>undefined</JAVASCRIPTINLINE> when compiling the body. Note that even
-  if such a return statement was appended, the
-  <JAVASCRIPTINLINE>compile_sequence</JAVASCRIPTINLINE> function will not compile it as it
-  is <QUOTE>dead code.</QUOTE>
+  Because of the <JAVASCRIPTINLINE>append_return_undefined</JAVASCRIPTINLINE> in
+  <JAVASCRIPTINLINE>compile_lambda_body</JAVASCRIPTINLINE>, the body actually
+  does consist of a sequence with two return expressions. However, the dead code check
+  in <JAVASCRIPTINLINE>compile_sequence</JAVASCRIPTINLINE> will stop after the compilation
+  of the first return statement,
+  so the body effectively consists of only a single return statement.
 </FOOTNOTE>
       </JAVASCRIPT>
     </SPLITINLINE>
@@ -373,9 +374,12 @@ return n === 1
       <JAVASCRIPT>
 	The function
 	<JAVASCRIPTINLINE>compile_return_statement</JAVASCRIPTINLINE>
-	compiles the return expression with the same target
-	<SCHEMEINLINE>val</SCHEMEINLINE> but with linkage
-	<SCHEMEINLINE>"return"</SCHEMEINLINE>, because the return
+  generates code to revert the stack using the marker and restoring
+  the <JAVASCRIPTINLINE>continue</JAVASCRIPTINLINE> register,
+  and then 
+	compiles the return expression. It uses the 
+	<SCHEMEINLINE>val</SCHEMEINLINE> same target but uses
+	<SCHEMEINLINE>"return"</SCHEMEINLINE> linkage, because the return
 	expression is the last
   <SPLITINLINE>
     <SCHEME>
@@ -465,7 +469,9 @@ return n === 1
       after-if3
       </SCHEME>
       <JAVASCRIPT><!-- The $$ below is a hack to ensure the leading spaces are not consumed-->
-$$  <METAPHRASE>save <JAVASCRIPTINLINE>continue</JAVASCRIPTINLINE>, <JAVASCRIPTINLINE>env</JAVASCRIPTINLINE> if modified by predicate and needed by branches</METAPHRASE>
+$$  revert_stack_to_marker(), 
+  restore("continue"), 
+  <METAPHRASE>save <JAVASCRIPTINLINE>continue</JAVASCRIPTINLINE>, <JAVASCRIPTINLINE>env</JAVASCRIPTINLINE> if modified by predicate and needed by branches</METAPHRASE>
   <METAPHRASE>compilation of predicate, target <JAVASCRIPTINLINE>val</JAVASCRIPTINLINE>, linkage <JAVASCRIPTINLINE>"next"</JAVASCRIPTINLINE></METAPHRASE>
   <METAPHRASE>restore <JAVASCRIPTINLINE>continue</JAVASCRIPTINLINE>, <JAVASCRIPTINLINE>env</JAVASCRIPTINLINE> if saved above</METAPHRASE>
   test(list(op("is_falsy"), reg("val"))),
@@ -524,8 +530,16 @@ $$  <METAPHRASE>save <JAVASCRIPTINLINE>continue</JAVASCRIPTINLINE>, <JAVASCRIPTI
       <SCHEME><SCHEMEINLINE>after-call</SCHEMEINLINE></SCHEME>
       <JAVASCRIPT><JAVASCRIPTINLINE>after_call</JAVASCRIPTINLINE></JAVASCRIPT>
     </SPLITINLINE>
-    label.  The requirements to preserve registers
-    around the evaluation of the
+    label.
+    <SPLITINLINE>
+      <JAVASCRIPT>
+      The compiled branch must set up
+      <JAVASCRIPTINLINE>continue</JAVASCRIPTINLINE> to jump past the primitive
+      branch and push a marker to the stack to match the corresponding revert
+      operation in the return statement of the compiled function.
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    The requirements to preserve registers around the evaluation of the
     <SPLITINLINE>
       <SCHEME>
 	operator and operands
@@ -558,7 +572,7 @@ $$  <METAPHRASE>save <JAVASCRIPTINLINE>continue</JAVASCRIPTINLINE>, <JAVASCRIPTI
             (reg argl))
       after-call15
       </SCHEME>
-      <JAVASCRIPT latex="yes"><!-- The $$ below is a hack to ensure the leading spaces are not consumed-->
+      <JAVASCRIPT><!-- The $$ below is a hack to ensure the leading spaces are not consumed-->
 $$  assign("fun", list(op("lookup_symbol_value"), constant("==="), reg("env"))),
   assign("val", constant(1)),
   assign("argl", list(op("list"), reg("val"))),
@@ -591,7 +605,7 @@ $$  assign("fun", list(op("lookup_symbol_value"), constant("==="), reg("env"))),
       </JAVASCRIPT>
     </SPLITINLINE>
     to
-    <SNIPPET EVAL="no">
+    <SNIPPET EVAL="no" LATEX="yes">
       <SCHEME>
       (assign val (const 1))
       (goto (reg continue))
@@ -602,7 +616,7 @@ $$  assign("val", constant(1)),
       </JAVASCRIPT>
     </SNIPPET>
 
-    The code for the false branch is another a
+    The code for the false branch is another
     <SPLITINLINE>
       <SCHEME>procedure</SCHEME>
       <JAVASCRIPT>function</JAVASCRIPT>
@@ -1039,7 +1053,7 @@ function factorial(n) {
       primitive-branch22
       (assign val (op apply-primitive-procedure) (reg proc) (reg argl))
     </SCHEME>
-    <JAVASCRIPT latex="yes"><!-- The $$ below is a hack to ensure the leading spaces are not consumed-->
+    <JAVASCRIPT LATEX="yes"><!-- The $$ below is a hack to ensure the leading spaces are not consumed-->
 $$  assign("val", list(op("make_compiled_function"), label("entry1"), reg("env"))),
   go_to(label("after_lambda2")),
 "entry1",

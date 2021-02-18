@@ -214,7 +214,7 @@ function compile(component, target, linkage) {
     the following three things:
     <UL>
       <LI>
-	continue at the next instruction in sequence (this is
+	proceed to the next instruction in sequence (this is
 	<INDEX><USE>next</USE> (linkage descriptor)</INDEX>
 	specified by the linkage descriptor
 	<SPLITINLINE>
@@ -227,21 +227,24 @@ function compile(component, target, linkage) {
 	</SPLITINLINE>
       </LI>
       <LI>
-	return from the
 	<SPLITINLINE>
-	  <SCHEME>procedure</SCHEME>
-	  <JAVASCRIPT>function</JAVASCRIPT>
+	  <SCHEME>
+      return from the procedure being compiled
+    </SCHEME>
+	  <JAVASCRIPT>
+      jump to the current value of the <JAVASCRIPTINLINE>continue</JAVASCRIPTINLINE> register
+    </JAVASCRIPT>
 	</SPLITINLINE>
-	being compiled (this is specified
 	<INDEX><ORDER>return</ORDER>\texttt{return} (linkage descriptor)</INDEX>
 	<INDEX><USE>return</USE> (linkage descriptor)</INDEX>
+	(this is specified
 	by the linkage descriptor
 	<SPLITINLINE>
 	  <SCHEME>
 	    <SCHEMEINLINE>return</SCHEMEINLINE>),
 	  </SCHEME>
 	  <JAVASCRIPT>
-	    <JAVASCRIPTINLINE>"return"</JAVASCRIPTINLINE>),
+	    <JAVASCRIPTINLINE>"return"</JAVASCRIPTINLINE> and is only used when compiling return expressions),
 	  </JAVASCRIPT>
 	</SPLITINLINE>
 	or
@@ -311,27 +314,28 @@ go_to(reg("continue"))
     </SNIPPET>
 
     In the first case, execution will continue with the next instruction
-    in the sequence. In the second case, we will return from a
+    in the sequence. In the second case, 
     <SPLITINLINE>
-      <SCHEME>procedure</SCHEME>
-      <JAVASCRIPT>function</JAVASCRIPT>
+      <SCHEME>we will return from a procedure call.</SCHEME>
+      <JAVASCRIPT>we will jump to whatever entry point is stored in the <JAVASCRIPTINLINE>continue</JAVASCRIPTINLINE> register.</JAVASCRIPT>
     </SPLITINLINE>
-    call.  In both cases, the value of the expression will be placed into
+    In both cases, the value of the expression will be placed into
     the target <SCHEMEINLINE>val</SCHEMEINLINE> register.
     <SPLITINLINE>
       <JAVASCRIPT>
-        The return <EM>linkage</EM> works hand-in-hand with the return <EM>statements</EM>
-        to return from a function. Just like in the explicit-control evaluator, returning from a
-        function has three components:
+        Our compiler uses the <JAVASCRIPTINLINE>"return"</JAVASCRIPTINLINE> linkage only when compiling
+        the return expression inside a return statement, making the jump due to a <JAVASCRIPTINLINE>"continue"</JAVASCRIPTINLINE> linkage the
+        final step in returning from a function.
+        Just like in the explicit-control evaluator, returning from a function happens in three steps:
         <OL>
-          <LI>reverting the stack to the marker and restoring <JAVASCRIPTINLINE>continue</JAVASCRIPTINLINE></LI>
+          <LI>reverting the stack to the marker and restoring <JAVASCRIPTINLINE>continue</JAVASCRIPTINLINE> (which holds a continuation set up at the beginning of the function call)</LI>
           <LI>calculating the return value and placing it in <JAVASCRIPTINLINE>val</JAVASCRIPTINLINE></LI>
           <LI>jumping to <JAVASCRIPTINLINE>continue</JAVASCRIPTINLINE></LI>
         </OL>
-        The return statement performs the first two, and the return linkage
-        is responsible for the third. Later, we shall see how we can ensure
-        that <JAVASCRIPTINLINE>val</JAVASCRIPTINLINE> always holds the
-        appropriate value, even if a function does not return explicitly.
+        Compilation of a return statement explicitly generates code for reverting the stack and restoring <JAVASCRIPTINLINE>continue</JAVASCRIPTINLINE>,
+        and because of the target and linkage used to compile the return expression, the return
+        value will be placed in <JAVASCRIPTINLINE>val</JAVASCRIPTINLINE>, and the generated code for computing the return value ends by
+        jumping to <JAVASCRIPTINLINE>continue</JAVASCRIPTINLINE>. 
       </JAVASCRIPT>
     </SPLITINLINE>
   </TEXT>
@@ -493,10 +497,15 @@ go_to(reg("continue"))
     individual code  generators.
     In fact no <SCHEMEINLINE>save</SCHEMEINLINE> or
     <SCHEMEINLINE>restore</SCHEMEINLINE> instructions are explicitly
-    produced by the code generators<SPLITINLINE><JAVASCRIPT>, except in relation
-    to calling and returning from functions where the value we wish to save on
-    the stack is produced by the generator and must be saved before the marker.
-    </JAVASCRIPT></SPLITINLINE>.
+    produced by the code generators<SPLITINLINE><SCHEME>.</SCHEME><JAVASCRIPT>, except in relation
+    to calling and returning from functions because these saves and restores are 
+    inserted by different calls to <JAVASCRIPTINLINE>compile</JAVASCRIPTINLINE>
+    and are not balanced in the same way as those produced by <JAVASCRIPTINLINE>preserve</JAVASCRIPTINLINE>.
+    For example, each compiled call to a function <EM>f</EM> will generate a <JAVASCRIPTINLINE>save</JAVASCRIPTINLINE>
+    instruction as part of setting up the linkage, but the
+    corresponding <JAVASCRIPTINLINE>restore</JAVASCRIPTINLINE> is generated only once,
+    when <EM>f</EM>'s body is compiled.
+    </JAVASCRIPT></SPLITINLINE>
   </TEXT>
 
   <TEXT>

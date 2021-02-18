@@ -764,18 +764,20 @@ function compile_sequence(seq, target, linkage) {
     <QUOTE>dead code</QUOTE> after the return statement that can
     never be executed.<FOOTNOTE>Our compiler does not detect all dead code. For example,
     a conditional statement whose consequent and alternative branches both end in a return
-    statement will not stop subsequent statements from being compiled. See exercise<SPACE/><REF NAME="ex:dead-code"/>.
+    statement will not stop subsequent statements from being compiled. See exercises<SPACE/><REF NAME="ex:dead-code"/> and <REF NAME="ex:append_return_undefined"/>.
+    In the next section, we will see that we sometimes generate <EM>dead object code</EM>. For example,
+    we generate two branches for each function call depending on whether the function is compiled or primitive,
+    yet only one of these paths will ever be taken. See exercise<SPACE/><REF NAME="ex:constant-optimisations"/>.
     <LABEL NAME="foot:dead-code"/></FOOTNOTE>
     Removing the <JAVASCRIPTINLINE>is_return_statement</JAVASCRIPTINLINE> check does not change the behavior of the program; however,
     there are many reasons not to compile dead code, which are beyond the scope of this book 
     (security, compilation time, size of the object code, etc.),
-    and many compilers give warnings for dead code. In our case, the most important reason to
-    not compile dead code is to keep our generated code simple.<FOOTNOTE>Shortly, we will introduce a
-    program transformation to ensure that all functions contain a return statement.
-    Our simplistic transformation will give rise
-    to dead code in all functions that return explicitly. However, because of the check in 
-    <JAVASCRIPTINLINE>compile_sequence</JAVASCRIPTINLINE>, 
-    this dead code will not appear in our generated code.</FOOTNOTE>
+    and many compilers give warnings for dead code. In our case, the most important reason for
+    this check is to keep our generated code simple.<FOOTNOTE>Shortly, we will introduce a
+    program transformation to ensure that all functions end by executing a return statement.
+    Without the check in <JAVASCRIPTINLINE>compile_sequence</JAVASCRIPTINLINE>, 
+    this simplistic transformation would lead to the generation of 
+    dead object code in all functions that already returned explicitly. </FOOTNOTE>
       </JAVASCRIPT>
     </SPLIT>
   </TEXT>
@@ -1071,22 +1073,23 @@ function compile_lambda_expression(exp, target, linkage) {
         function body.
       </JAVASCRIPT>
     </SPLITINLINE>
-	  The
-    <SPLITINLINE><SCHEME>sequence</SCHEME><JAVASCRIPT>body</JAVASCRIPT></SPLITINLINE>
-    is compiled with linkage
-    <SPLITINLINE><SCHEME>return</SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>"return"</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>
-	and target <SCHEMEINLINE>val</SCHEMEINLINE>
-	so that it will end by returning from the
-    <SPLITINLINE>
-      <SCHEME>procedure</SCHEME>
-      <JAVASCRIPT>function</JAVASCRIPT>
-    </SPLITINLINE>
-	  with the
-    <SPLITINLINE>
-      <SCHEME>procedure</SCHEME>
-      <JAVASCRIPT>function</JAVASCRIPT>
-    </SPLITINLINE>
-	result in <SCHEMEINLINE>val</SCHEMEINLINE>.
+    <SPLIT>
+      <SCHEME>
+	      The sequence is compiled with linkage return and target
+	      <SCHEMEINLINE>val</SCHEMEINLINE> so that it will end by returning from
+	      the procedure with the procedure result in
+	      <SCHEMEINLINE>val</SCHEMEINLINE>.
+      </SCHEME>
+      <JAVASCRIPT>
+	      The sequence is compiled with target <SCHEMEINLINE>val</SCHEMEINLINE> so
+	      that its return value is placed in <SCHEMEINLINE>val</SCHEMEINLINE>.
+        For reasons that will be revealed shortly and discussed further
+        in section<SPACE/><REF NAME="sec:compiling-combinations"/>, the linkage descriptor used in
+        the argument to <JAVASCRIPTINLINE>compile</JAVASCRIPTINLINE> when compiling the
+        function body is irrelevant as it will be ignored. However,
+        as a linkage argument is required, we pick <JAVASCRIPTINLINE>"next"</JAVASCRIPTINLINE>.
+      </JAVASCRIPT>
+    </SPLIT>
     <SNIPPET EVAL="no">
       <NAME>compile_lambda_body</NAME>
       <REQUIRES>append_return_undefined</REQUIRES>
@@ -1127,9 +1130,13 @@ function compile_lambda_body(exp, fun_entry) {
   </TEXT>
 
   <TEXT>
-    To ensure that every function ends with a return statement, <JAVASCRIPTINLINE>compile_lambda_body</JAVASCRIPTINLINE>
+    To ensure that every function ends by executing a return statement, <JAVASCRIPTINLINE>compile_lambda_body</JAVASCRIPTINLINE>
     appends a return statement whose return expression is the literal <JAVASCRIPTINLINE>undefined</JAVASCRIPTINLINE>
-    to the lambda body.
+    to the lambda body. Because return statements always use the <JAVASCRIPTINLINE>"return"</JAVASCRIPTINLINE> linkage
+    descriptor for their return expressions, all function bodies will end with a <JAVASCRIPTINLINE>"return"</JAVASCRIPTINLINE>
+    linkage<EMDASH>and not the <JAVASCRIPTINLINE>"next"</JAVASCRIPTINLINE> we passed in above.<FOOTNOTE>Note
+    that a sequence of statements compiled with linkage descriptor <EM>l</EM> will compile all its statements with
+  linkage <JAVASCRIPTINLINE>"next"</JAVASCRIPTINLINE> except the last, which uses <EM>l</EM>.</FOOTNOTE>
     
     <SNIPPET EVAL="no">
       <NAME>append_return_undefined</NAME>
