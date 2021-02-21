@@ -12,7 +12,7 @@
     machine or how to run it.  We will assume that the explicit-control-evaluator
     machine has been defined as in
     section<SPACE/><REF NAME="sec:running-evaluator"/>, with the additional
-    operations specified in footnote<SPACE/><REF NAME="foot:compiler-ops"/>.
+    operations specified in footnote<SPACE/><REF NAME="foot:compiler-ops"/> (section<SPACE/><REF NAME="sec:compiling-components"/>).
     We will implement a
     <SPLITINLINE>
       <SCHEME>procedure</SCHEME>
@@ -66,12 +66,11 @@
       </SCHEMEOUTPUT>
       <JAVASCRIPT>
 compile_and_go(
-    parse(
-        "function factorial(n) {             \
-             return n === 1                  \
-                    ? 1                      \
-                    : n * factorial(n - 1);  \
-         }"));    
+    parse(`function factorial(n) {
+               return n === 1
+                      ? 1
+                      : factorial(n - 1) * n;
+           }`));    
       </JAVASCRIPT>
       <JAVASCRIPT_OUTPUT>
 EC-evaluate value:
@@ -152,9 +151,9 @@ EC-evaluate value:
       </SCHEME>
       <JAVASCRIPT>
 "apply_dispatch",
-  test(list(op("primitive_function"), reg("fun"))),
+  test(list(op("is_primitive_function"), reg("fun"))),
   branch(label("primitive_apply")),
-  test(list(op("compound_function"), reg("fun"))),
+  test(list(op("is_compound_function"), reg("fun"))),
   branch(label("compound_apply")),
   test(list(op("is_compiled_function"), reg("fun"))),
   branch(label("compiled_apply")),
@@ -191,12 +190,9 @@ EC-evaluate value:
         restored before the compiled code is executed.
       </SCHEME>
       <JAVASCRIPT>
-        Recall that the evaluator was arranged so that at
-        <JAVASCRIPTINLINE>apply_dispatch</JAVASCRIPTINLINE>, the continuation
-        would be at the top of the stack. This allows us to save a marker so
-        that a subsequent return statement
-        can restore the stack to this state, and finally restore the
-        continuation to the <JAVASCRIPTINLINE>continue</JAVASCRIPTINLINE> register.
+        In compiled_apply, as at compound_apply, we push a marker to the stack
+        so that a subsequent return statement
+        can revert the stack to this state.
       </JAVASCRIPT>
     </SPLIT>
   </TEXT>
@@ -239,9 +235,9 @@ function start_eceval() {
       ^$\ldots$^
       </SCHEME>
       <JAVASCRIPT>
-$$  branch(label("external_entry")), // branches if flag is set
+$$  branch(label("external_entry")), // branches if flag is set    
 "read_evaluate_print_loop",
-  perform(op("initialize_stack")),
+  perform(list(op("initialize_stack"))),
   $\ldots$
       </JAVASCRIPT>
     </SNIPPET>
@@ -348,7 +344,7 @@ function user_print(prompt_string, object) {
       </SCHEME>
       <JAVASCRIPT>
 "external_entry",
-  perform(op("initialize_stack")),
+  perform(list(op("initialize_stack"))),
   assign("env", list(op("get_global_environment"))),
   assign("continue", label("print_result")),
   go_to(reg("val")),
@@ -386,7 +382,7 @@ function user_print(prompt_string, object) {
         <INDEX>scanning out declarations<SUBINDEX>in compiler</SUBINDEX></INDEX>	
       </JAVASCRIPT>
     </SPLIT>
-    Because we want the compiled code to return to the location in
+    Because we want the compiled code to <SPLITINLINE><SCHEME>return</SCHEME><JAVASCRIPT>proceed</JAVASCRIPT></SPLITINLINE>to the location in
     <SCHEMEINLINE>continue</SCHEMEINLINE> with its result in
     <SCHEMEINLINE>val</SCHEMEINLINE>, we compile the
     <SPLITINLINE>
@@ -400,7 +396,10 @@ function user_print(prompt_string, object) {
 	<SCHEMEINLINE>return</SCHEMEINLINE>.
       </SCHEME>
       <JAVASCRIPT>
-	<JAVASCRIPTINLINE>"return"</JAVASCRIPTINLINE>.
+	      <JAVASCRIPTINLINE>"return"</JAVASCRIPTINLINE>.
+        This is the only place outside of return expressions to use this linkage.
+        Because the program is not a body of a function, there is no marker on
+        the stack and no need to revert a stack after the program finishes.
       </JAVASCRIPT>
     </SPLITINLINE>
     In order to transform the
@@ -972,12 +971,11 @@ function compile_and_go(stmt) {
       </SCHEMEOUTPUT>
       <JAVASCRIPT>
 compile_and_go(
-    parse(
-        "function factorial(n) {              \
-             return n === 1                   \
-                    ? 1                       \
-                    : factorial(n - 1) * n;   \
-                                          }"));
+    parse(`function factorial(n) {
+               return n === 1
+                      ? 1
+                      : factorial(n - 1) * n;
+           }`));
       </JAVASCRIPT>
       <JAVASCRIPT_OUTPUT>
 total pushes = 0 
@@ -1027,7 +1025,7 @@ EC-evaluate value:
         The interpreted version required 144 pushes and a maximum stack depth of 28.
       </SCHEME>
       <JAVASCRIPT>
-        The interpreted version required 147 pushes and a maximum stack depth of 20.
+        The interpreted version required 151 pushes and a maximum stack depth of 28.
       </JAVASCRIPT>
     </SPLITINLINE>
     This illustrates the optimization that results from our compilation strategy.
@@ -1082,10 +1080,9 @@ EC-evaluate value:
     code with such checks, should avoid redundant checks, and should allow
     programmers to control the extent and type of error checking in the
     compiled code.
-  </FOOTNOTE>
-  </TEXT>
 
-  <TEXT>
+    <PDF_ONLY>\par</PDF_ONLY>
+
     <INDEX>C<SUBINDEX>error handling</SUBINDEX></INDEX>
     Compilers for popular languages, such as C and C++,
     put hardly any error-checking operations into
@@ -1102,6 +1099,7 @@ EC-evaluate value:
     operating system<APOS/>s failure to check whether the input buffer has
     <INDEX>Spafford, Eugene H.</INDEX>
     overflowed in the finger daemon. (See <CITATION>Spafford 1989</CITATION>.)
+  </FOOTNOTE>
   </TEXT>
 
   <TEXT>
@@ -1233,10 +1231,8 @@ EC-evaluate value:
       (+ (fib (- n 1)) (fib (- n 2)))))
       </SCHEME>
       <JAVASCRIPT>
-function fib(n) {
-    return n &lt; 2 
-           ? n
-           : fib(n - 1) + fib(n - 2);
+function fib(n) { 
+    return n &lt; 2 ? n : fib(n - 1) + fib(n - 2); 
 }
       </JAVASCRIPT>
     </SNIPPET>
@@ -1343,7 +1339,7 @@ $$  assign("compapp", label("compound_apply")),
       <JAVASCRIPT>
 	To test your code, start by declaring a function
 	<SCHEMEINLINE>f</SCHEMEINLINE> that takes a function
-	as parameter and applies it in its body. Use
+	as parameter and applies it <SPLITINLINE><SCHEME>in its body</SCHEME></SPLITINLINE>. Use
 	<JAVASCRIPTINLINE>compile_and_go</JAVASCRIPTINLINE>
 	to compile the declaration of <SCHEMEINLINE>f</SCHEMEINLINE>
 	and start the evaluator. Now, typing at the evaluator,
@@ -1397,12 +1393,11 @@ EC-evaluate input:
      </JAVASCRIPT_PROMPT>
       <JAVASCRIPT>
 compile_and_run(
-    parse(
-        "function factorial(n) {             \
-             return n === 1                  \
-                    ? 1                      \
-                    : n * factorial(n - 1);  \
-         }                                "));
+    parse(`function factorial(n) {
+               return n === 1
+                      ? 1
+                      : factorial(n - 1) * n;
+           }`));
       </JAVASCRIPT>
       <JAVASCRIPT_OUTPUT>
 EC-evaluate value:
@@ -1457,10 +1452,17 @@ EC-Eval value:
     register-machine simulator.
     <SPLIT>
       <SCHEME>
-	(To compile more than one definition at a time,
-	you can package the definitions in a
-	<SCHEMEINLINE>begin</SCHEMEINLINE>.)
+	      (To compile more than one definition at a time,
+	      you can package the definitions in a
+	      <SCHEMEINLINE>begin</SCHEMEINLINE>.)
       </SCHEME>
+      <JAVASCRIPT>
+        As the parser takes a string as input, you will need to
+        convert the program into a string. The simplest way to do this is
+        to use the back quote string delimiter (<JAVASCRIPTINLINE>`</JAVASCRIPTINLINE>),
+        just as we have done for the example inputs to <JAVASCRIPTINLINE>compile_and_go</JAVASCRIPTINLINE> and
+        <JAVASCRIPTINLINE>compile_and_run</JAVASCRIPTINLINE>. 
+      </JAVASCRIPT>
     </SPLIT>
     The resulting interpreter will run very slowly because of the multiple
     levels of interpretation, but getting all the details to work is an

@@ -23,7 +23,7 @@
       <SCHEME>procedure</SCHEME>
       <JAVASCRIPT>function</JAVASCRIPT>
     </SPLITINLINE>
-    by calling <SCHEMEINLINE>compile</SCHEMEINLINE><SPLITINLINE><JAVASCRIPT> (the <JAVASCRIPTINLINE>\</JAVASCRIPTINLINE> characters below are needed in JavaScript to allow a string literal to span multiple lines</JAVASCRIPT>)</SPLITINLINE>:<FOOTNOTE>The <JAVASCRIPTINLINE>\</JAVASCRIPTINLINE> character is not part of the string, but simply tells the parser that the string literal continues on the next line. The string
+    by calling <SCHEMEINLINE>compile</SCHEMEINLINE><SPLITINLINE><JAVASCRIPT> (the <JAVASCRIPTINLINE>`</JAVASCRIPTINLINE> character is a string delimiter, just like <JAVASCRIPTINLINE>"</JAVASCRIPTINLINE> which allows a string literal to span multiple lines, and also include <JAVASCRIPTINLINE>"</JAVASCRIPTINLINE> characters</JAVASCRIPT>)</SPLITINLINE>:<FOOTNOTE>A string delimited by <JAVASCRIPTINLINE>`</JAVASCRIPTINLINE> will contain the line breaks, which is not important for us here as the parser does not care about them. The string
     <INDEX><ORDER>''</ORDER><JAVASCRIPTINLINE>`</JAVASCRIPTINLINE> (back quote)</INDEX>
     <INDEX><ORDER>//</ORDER><JAVASCRIPTINLINE>\</JAVASCRIPTINLINE> (for multi-line strings)</INDEX>
     <INDEX>quotation marks<SUBINDEX>back quotes</SUBINDEX></INDEX>
@@ -32,12 +32,12 @@
     <INDEX>string(s)<SUBINDEX>typed over multiple lines</SUBINDEX></INDEX>
     <SNIPPET>
       <JAVASCRIPT>
-"a \
- b"
+`a
+ b`
       </JAVASCRIPT>
     </SNIPPET>
-    parses exactly like the string <JAVASCRIPTINLINE>"a  b"</JAVASCRIPTINLINE>.
-JavaScript has, apart from single quotes and double quotes, a third string delimiter, the back quote (<JAVASCRIPTINLINE>`</JAVASCRIPTINLINE>), which we chose not to use in this book. Strings delimited with back quotes can span multiple lines without the <JAVASCRIPTINLINE>\</JAVASCRIPTINLINE> character.</FOOTNOTE>
+    parses exactly like the string <JAVASCRIPTINLINE>"a\n b"</JAVASCRIPTINLINE>.
+JavaScript allows strings constructed using single quotes and double quotes to span multiple lines if each line break is prefixed with a <JAVASCRIPTINLINE>\</JAVASCRIPTINLINE>. We do not use this feature in this book.</FOOTNOTE>
     <SNIPPET EVAL="no">
       <SCHEME>
       (compile
@@ -49,10 +49,10 @@ JavaScript has, apart from single quotes and double quotes, a third string delim
       'next)
       </SCHEME>
       <JAVASCRIPT>
-compile(parse("                                    \
-    function factorial(n) {                        \
-        return n === 1 ? 1 : n * factorial(n - 1); \
-    }"),
+compile(parse(`
+    function factorial(n) {
+        return n === 1 ? 1 : n * factorial(n - 1);
+    }`),
     "val",
     "next");
       </JAVASCRIPT>
@@ -819,11 +819,10 @@ function factorial(n) {
     </SCHEME>
     <JAVASCRIPT>
 // construct the function and skip over the code for the function body
-  assign("val", list(op("make_compiled_function"), label("entry1"), reg("env"))),
-  go_to(label("after_lambda2")),
+  assign("val", list(op("make_compiled_function"), label("entry1"), reg("env"))), 
+  go_to(label("after_lambda2")), 
 
-// calls to factorial will enter here
-"entry1",
+"entry1",  // calls to factorial will enter here
   assign("env", list(op("compiled_function_env"), reg("fun"))),
   assign("env", list(op("extend_environment"), constant(list("n")), reg("argl"), reg("env"))),
 
@@ -849,12 +848,13 @@ function factorial(n) {
   go_to(reg("val")),
 "primitive_branch6",
   assign("val", list(op("apply_primitive_function"), reg("fun"), reg("argl"))),
+
 "after_call8",  // val now contains n === 1
   restore("env"),
   restore("continue"),
   test(list(op("is_falsy"), reg("val"))),
   branch(label("false_branch4")),
-"true_branch3",
+"true_branch3", // return 1
   assign("val", constant(1)),
   go_to(reg("continue")),
     </JAVASCRIPT>
@@ -927,22 +927,27 @@ function factorial(n) {
       (assign val (const ok))
     </SCHEME>
     <JAVASCRIPT latex="yes"><!-- The $$ below is a hack to ensure the leading spaces are not consumed-->
-// compute and return n * factorial(n - 1)
 "false_branch4",
-  assign("fun", list(op("lookup_symbol_value"), constant("*"), reg("env"))),
-  save("continue"),
-  save("fun"),
-  save("env"),
-  assign("fun", list(op("lookup_symbol_value"), constant("factorial"), reg("env"))),
-  save("fun"),
+// compute and return n * factorial(n - 1)
+  assign("fun", list(op("lookup_symbol_value"), constant("*"), reg("env"))), 
+  save("continue"), 
+  save("fun"), 
+  assign("val", list(op("lookup_symbol_value"), constant("n"), reg("env"))), 
+  assign("argl", list(op("list"), reg("val"))), 
+  save("argl"), 
+
+// compute factorial(n - 1) which is the other argument for *
+  assign("fun", list(op("lookup_symbol_value"), constant("factorial"), reg("env"))), 
+  save("fun"), 
+
 // compute n - 1 which is the argument for factorial
-  assign("fun", list(op("lookup_symbol_value"), constant("-"), reg("env"))),
-  assign("val", constant(1)),
-  assign("argl", list(op("list"), reg("val"))),
-  assign("val", list(op("lookup_symbol_value"), constant("n"), reg("env"))),
-  assign("argl", list(op("pair"), reg("val"), reg("argl"))),
-  test(list(op("is_primitive_function"), reg("fun"))),
-  branch(label("primitive_branch10")),
+  assign("fun", list(op("lookup_symbol_value"), constant("-"), reg("env"))), 
+  assign("val", constant(1)), 
+  assign("argl", list(op("list"), reg("val"))), 
+  assign("val", list(op("lookup_symbol_value"), constant("n"), reg("env"))), 
+  assign("argl", list(op("pair"), reg("val"), reg("argl"))), 
+  test(list(op("is_primitive_function"), reg("fun"))), 
+  branch(label("primitive_branch10")), 
 "compiled_branch11",
   assign("continue", label("after_call12")),
   save("continue"),
@@ -951,9 +956,11 @@ function factorial(n) {
   go_to(reg("val")),
 "primitive_branch10",
   assign("val", list(op("apply_primitive_function"), reg("fun"), reg("argl"))),
-"after_call12",
+
+"after_call12",                     // val now holds result of n - 1
   assign("argl", list(op("list"), reg("val"))),
   restore("fun"),
+  // apply factorial 
   test(list(op("is_primitive_function"), reg("fun"))),
   branch(label("primitive_branch14")),
 "compiled_branch15",
@@ -964,16 +971,15 @@ function factorial(n) {
   go_to(reg("val")),
 "primitive_branch14",
   assign("val", list(op("apply_primitive_function"), reg("fun"), reg("argl"))),
+
 "after_call16",                     // val now has result of factorial(n - 1)
-  assign("argl", list(op("list"), reg("val"))),
-  restore("env"),
-  assign("val", list(op("lookup_symbol_value"), constant("n"), reg("env"))),
-  assign("argl", list(op("pair"), reg("val"), reg("argl"))),
-  restore("fun"),
-  restore("continue"),
-  // apply factorial
-  test(list(op("is_primitive_function"), reg("fun"))),
-  branch(label("primitive_branch18")),
+  restore("argl"),                  // restore partial argument list for *
+  assign("argl", list(op("pair"), reg("val"), reg("argl"))), 
+  restore("fun"),                   // restore *
+  restore("continue"), 
+  // apply * and return its value
+  test(list(op("is_primitive_function"), reg("fun"))), 
+  branch(label("primitive_branch18")), 
     </JAVASCRIPT>
   </SNIPPET>
   <CAPTION>(continued)</CAPTION>
@@ -1082,7 +1088,7 @@ $$  assign("val", list(op("make_compiled_function"), label("entry1"), reg("env")
   go_to(reg("val")),
 "primitive_branch3",
   assign("val", list(op("apply_primitive_function"), reg("fun"), reg("argl"))),
-"after_call5",
+ "after_call5",
   assign("argl", list(op("list"), reg("val"))),
   restore("fun"),
   test(list(op("is_primitive_function"), reg("fun"))),
