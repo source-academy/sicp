@@ -426,7 +426,7 @@ const processTextFunctionsDefaultLatex = {
   },
 
   LaTeX: (node, writeTo) => {
-    writeTo.push("\\LaTeX\\");
+    writeTo.push("\\LaTeX{}");
   },
 
   TeX: (node, writeTo) => {
