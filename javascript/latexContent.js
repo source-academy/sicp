@@ -80,18 +80,19 @@ export const preamble = `
 
 \\usepackage{titleps}
 \\newpagestyle{main}{
+  \\setheadrule{0pt}
   \\sethead{}{}{}
   \\setfoot{}{\\thepage}{\\footnotesize Generated \\DTMnow}
 }
 \\newpagestyle{section}{
-  \\setheadrule{0pt}
+  \\setheadrule{0.4pt}
   \\sethead{\\chaptertitle}
     {} 
     {\\thesection}
   \\setfoot{}{\\thepage}{\\footnotesize Generated \\DTMnow}
 }
 \\newpagestyle{subsection}{
-  \\setheadrule{0pt}
+  \\setheadrule{0.4pt}
   \\sethead{\\chaptertitle}
     {} 
     {\\thesubsection}
@@ -106,9 +107,7 @@ export const preamble = `
 \\renewcommand{\\theExercise}{\\thechapter.\\arabic{ExerciseDisplayNumber}}
 %\\addtolength{\\ExerciseSkipBefore}{1em}
 \\addtolength{\\Exelabelsep}{12pt}
-\\renewcommand{\\ExerciseHeader}{\\par\\needspace{2\\baselineskip}\\centerline{\\textbf{\\large
-             \\ExerciseName~\\ExerciseHeaderNB\\ExerciseHeaderTitle
-             \\ExerciseHeaderOrigin\\medskip}}}
+\\renewcommand{\\ExerciseHeader}{\\smallskip\\par\\needspace{2\\baselineskip}\\centerline{\\fontsize{8.5}{13}\\usefont{T1}{phv}{b}{n}{\\ExerciseName~\\ExerciseHeaderNB\\ExerciseHeaderTitle \\ExerciseHeaderOrigin}\\smallskip}}
 
 \\usepackage{listings}
 \\expandafter\\patchcmd\\csname \\string\\lstinline\\endcsname{%
