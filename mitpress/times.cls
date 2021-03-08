@@ -129,29 +129,28 @@
 \newif\ifsevenbyten %% 
 \DeclareOption{7x10}{\global\sevenbytentrue
 \widthofcropmarks=7in
-\advance\widthofcropmarks-2pt
-\movecropmarksright=22pt
-\advance\movecropmarksright-3pc
+% \advance\widthofcropmarks-2pt
+%\movecropmarksright=-22pt
+% \advance\movecropmarksright-3pc
 \raisetopcropmarks=-15pt 
 \raisebottomcropmarks=-34pt
 %%%%
 \parindent=8pt
 %\parindent=10pt
 \parskip0pt
-\textwidth=32pc %% ok
-\textheight=47pc %% ok
-\oddsidemargin=3.5pc %
-\advance\oddsidemargin 3pt
+\textwidth=137.8mm %% ok
+\textheight=225mm %% ok
+\oddsidemargin=20mm %
+%\advance\oddsidemargin -3pt
 \evensidemargin=\oddsidemargin
-\topmargin4pc
-\headsep 2pc
-\advance\headsep by 1pt
+\topmargin8mm
+\headsep 6mm
 \footskip 28pt
-\headheight 12pt
-\voffset=-15pt
-\hoffset=0pt
-\pdfpagewidth=8.5in
-\pdfpageheight=11in
+\headheight 6mm
+\voffset=-9.4mm
+\hoffset=-9.3mm
+\pdfpagewidth=210mm %8.5in
+\pdfpageheight=297mm %11in
 } 
 
 
