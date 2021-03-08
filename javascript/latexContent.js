@@ -86,18 +86,17 @@ export const preamble = `
 }
 \\newpagestyle{section}{
   \\setheadrule{0.4pt}
-  \\sethead{\\chaptertitle}
-    {} 
-    {\\thesection}
-  \\setfoot{}{\\thepage}{\\footnotesize Generated \\DTMnow}
+  \\sethead[\\it\\thepage][][\\it\\thesection\\quad\\chaptertitle]
+          {\\it\\thesection\\quad\\chaptertitle}{}{\\thepage}
+  \\setfoot{}{}{\\footnotesize Generated \\DTMnow}
 }
 \\newpagestyle{subsection}{
   \\setheadrule{0.4pt}
-  \\sethead{\\chaptertitle}
-    {} 
-    {\\thesubsection}
-  \\setfoot{}{\\thepage}{\\footnotesize Generated \\DTMnow}
+  \\sethead[\\it\\thepage][][\\it\\thesubsection\\quad\\chaptertitle]
+          {\\it\\thesubsection\\quad\\chaptertitle}{}{\\it\\thepage}
+  \\setfoot{}{}{\\footnotesize Generated \\DTMnow}
 }
+
 
 \\usepackage{graphicx}
 \\graphicspath{ {../static/} }
