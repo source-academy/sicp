@@ -57,8 +57,8 @@ export const processFigurePdf = (node, writeTo) => {
 
 export const generateImage = imagePath => {
   return (
-    "\n\\maxsizebox{\\linewidth}{0.8\\paperheight}{" +
-    "\\includegraphics[scale=0.8]{{" +
+    "\n\\adjustbox{max width=32pc}{" +
+    "\\includegraphics[scale=0.65]{{" +
     imagePath
       .replace(/\.gif$/, ".png")
       .replace(/\.svg$/, ".svg.pdf")
