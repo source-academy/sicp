@@ -82,19 +82,19 @@ export const preamble = `
 \\newpagestyle{main}{
   \\setheadrule{0pt}
   \\sethead{}{}{}
-  \\setfoot{}{\\thepage}{\\footnotesize Generated \\DTMnow}
+  \\setfoot{}{\\small\\thepage}{}
 }
 \\newpagestyle{section}{
   \\setheadrule{0.4pt}
-  \\sethead[\\it\\thepage][][\\it\\thesection\\quad\\chaptertitle]
-          {\\it\\thesection\\quad\\chaptertitle}{}{\\thepage}
-  \\setfoot{}{}{\\footnotesize Generated \\DTMnow}
+  \\sethead[\\small\\it\\thepage][][\\small\\it\\thesection\\quad\\chaptertitle]
+          {\\small\\it\\thesection\\quad\\chaptertitle}{}{\\small\\thepage}
+  \\setfoot{}{}{}
 }
 \\newpagestyle{subsection}{
   \\setheadrule{0.4pt}
-  \\sethead[\\it\\thepage][][\\it\\thesubsection\\quad\\chaptertitle]
-          {\\it\\thesubsection\\quad\\chaptertitle}{}{\\it\\thepage}
-  \\setfoot{}{}{\\footnotesize Generated \\DTMnow}
+  \\sethead[\\small\\it\\thepage][][\\small\\it\\thesubsection\\quad\\chaptertitle]
+          {\\small\\it\\thesubsection\\quad\\chaptertitle}{}{\\small\\it\\thepage}
+  \\setfoot{}{}{}
 }
 
 
