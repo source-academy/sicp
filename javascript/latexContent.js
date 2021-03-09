@@ -84,6 +84,24 @@ export const preamble = `
   \\sethead{}{}{}
   \\setfoot{}{\\small\\thepage}{}
 }
+\\newpagestyle{prefaces}{
+  \\setheadrule{0.4pt}
+  \\sethead[\\small\\it\\thepage][][\\small\\it Prefaces]
+          {\\small\\it Prefaces}{}{\\small\\thepage}
+  \\setfoot{}{}{}
+}
+\\newpagestyle{forewords}{
+  \\setheadrule{0.4pt}
+  \\sethead[\\small\\it\\thepage][][\\small\\it Forewords]
+          {\\small\\it Forewords}{}{\\small\\thepage}
+  \\setfoot{}{}{}
+}
+\\newpagestyle{acknowledgements}{
+  \\setheadrule{0.4pt}
+  \\sethead[\\small\\it\\thepage][][\\small\\it Acknowledgements]
+          {\\small\\it Acknowledgements}{}{\\small\\thepage}
+  \\setfoot{}{}{}
+}
 \\newpagestyle{section}{
   \\setheadrule{0.4pt}
   \\sethead[\\small\\it\\thepage][][\\small\\it\\thesection\\quad\\chaptertitle]
@@ -469,9 +487,17 @@ ${title}
 \\end{singlespace}
 
 
+\\pagestyle{forewords}
+
 \\input{./others/02foreword02.tex}
 
+\\cleardoublepage
+\\pagestyle{prefaces}
+
 \\input{./others/03prefaces03.tex}
+
+\\cleardoublepage
+\\pagestyle{acknowledgements}
 
 \\input{./others/04acknowledgements04.tex}
 

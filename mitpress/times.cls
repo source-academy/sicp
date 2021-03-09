@@ -255,7 +255,7 @@
 
 
 
-\topskip  10pt
+% \topskip  10pt
 \columnsep 10pt
 \columnseprule 0pt
 
@@ -535,18 +535,27 @@ to2pc{\hskip3pt\hrulefill}\hss}\hss}%
 \newdimen\manuSkip
 \manuSkip=23pt
 \renewcommand\normalsize{%
-\font\verbatim@font=cmtt10 at 9pt% 
-\ifmanuscript
-   \@setfontsize\normalsize\@xpt{\manuSkip}
-\else
-   \@setfontsize\normalsize\@xpt{13}
-\fi
+  \@setfontsize\normalsize{10.5\p@}{13\p@}%
    \abovedisplayskip 6\p@ %\@plus2\p@ \@minus2\p@
    \abovedisplayshortskip \z@ %\@plus3\p@
    \belowdisplayshortskip 6\p@ %\@plus3\p@ \@minus3\p@
    \belowdisplayskip 8pt
    \let\@listi\@listI}
 \normalsize
+\let\@bls\baselineskip
+% \renewcommand\normalsize{%
+% %%\font\verbatim@font=cmtt10 at 9pt% 
+% \ifmanuscript
+%    \@setfontsize\normalsize\@xpt{\manuSkip}
+% \else
+%    \@setfontsize\normalsize\@xpt{13}
+% \fi
+%    \abovedisplayskip 6\p@ %\@plus2\p@ \@minus2\p@
+%    \abovedisplayshortskip \z@ %\@plus3\p@
+%    \belowdisplayshortskip 6\p@ %\@plus3\p@ \@minus3\p@
+%    \belowdisplayskip 8pt
+%    \let\@listi\@listI}
+% \normalsize
 \newcommand\small{%
 \font\verbatim@font=cmtt10 at 8.5pt% 
 \ifmanuscript\@setfontsize\small\@ixpt{\manuSkip}%
@@ -821,9 +830,9 @@ BoldItalicFont=TimesLTStd-BoldItalic
 \font\abstractfont=\helveticabold at 8.5pt
 
 %% Section Heads
-\font\sectionfont=\helveticabold at 8.5pt
-\font\subsectionfont=\helveticabold at 8.5pt
-\def\subsubsectionfont{\small\bfseries\itshape}
+\font\sectionfont=\helveticabold at 9.5pt
+\font\subsectionfont=\helveticabold at 9.5pt
+\font\subsubsectionfont=\helveticabold at 8.5pt
 \font\paragraphfont=\helveticabold at 8.5pt
 
 %% Extract
@@ -1382,7 +1391,7 @@ to\@pnumwidth{\hss\starTocFont #2}\par
 
 \def\preface{\startonoddpage
   %% chapter* is the default for all non numbered chapter type headings
-\chapter*{Preface}
+\chapter*{Prefaces
   %% send Preface to table of contents, formatted with macro \l@starchap
   %% defined below
 %\addcontentsline{toc}{starchap}{Preface}
@@ -1394,7 +1403,7 @@ to\@pnumwidth{\hss\starTocFont #2}\par
 \def\date##1{\vskip-.5\parskip\hbox to\textwidth{\hfill\it##1}\vskip1pt}
 }
 
-\def\endpreface{\newpage\markboth{}{}}
+\def\endpreface\newpage\markboth{}{}}
 
 \def\acknowledgments{\startonoddpage
   %% chapter* is the default for all non numbered chapter type headings
@@ -1666,7 +1675,8 @@ Acknowledgements:}
 \def\@makeschapterhead#1{\global\titleMITtrue
       \global\@topnum\z@   % Prevents figures from going at top of page.
 \iftoc\else
-\addcontentsline{toc}{starchap}{#1}\fi
+%\addcontentsline{toc}{starchap}{#1}  %% SICPJS -- don't want \section* etc. in the TOC
+\fi
   {\starchapterfont\noindent\relax{#1}}
 \vskip11pc
 \vskip-4pt
@@ -1897,19 +1907,19 @@ Acknowledgements:}
 
 \newcommand{\section}{\global\everypar={}
 \@startsection {section}{1}{0pt}%
-                                   {-13pt} 
-                                   {13pt}%
+                                   {-15pt} 
+                                   {10pt}%
                                    {\hyphenpenalty=10000\boldmath\reset@font\normalsize\sectionfont}}
 \newcommand{\subsection}{\global\everypar={}
 \@startsection{subsection}{2}{\z@}%
-                                     {-13pt}%
-                                     {1sp}%
+                                     {-15pt}%
+                                     {5pt}%
                                  {\hyphenpenalty=10000\reset@font\normalsize\bfseries\subsectionfont}}
 \newcommand{\subsubsection}{\global\everypar={}
 \@startsection{subsubsection}{3}{\z@}%
                                      {-13pt}%
-                                     {-1em}
-                           {\hyphenpenalty=10000\hskip-3pt\reset@font\normalsize\bfseries\subsubsectionfont}}
+                                     {3pt}
+                           {\hyphenpenalty=10000\reset@font\normalsize\bfseries\subsubsectionfont}}
 \newcommand{\paragraph}{\@startsection{paragraph}{4}{\z@}%
                                     {-6pt}%
                                     {-1em}%
@@ -2802,7 +2812,7 @@ LuaLaTeX\else PDFLaTeX\fi \hskip.1in Size:
 \vskip10pc
 \vskip6pt]
   \markboth{{#2}}{{#2}}
-  \addcontentsline{toc}{section}{#2}
+  %% \addcontentsline{toc}{section}{#2} %% SICPJS -- we already emit this from XML
   \@input{#1.ind}}
 
 \def\yprintindex{\startonoddpage
