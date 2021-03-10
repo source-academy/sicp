@@ -476,21 +476,33 @@ const processTextFunctionsDefaultLatex = {
   },
 
   SECTION: (node, writeTo) => {
-    writeTo.push("\\section{");
+    if (ancestorHasTag(node, "MATTER")) {
+      writeTo.push("\\section*{");
+    } else {
+      writeTo.push("\\section{");
+    }
     addName(node, writeTo);
     writeTo.push("\\pagestyle{section}%\n");
     recursiveProcessTextLatex(node.firstChild, writeTo);
   },
 
   SUBSECTION: (node, writeTo) => {
-    writeTo.push("\\subsection{");
+    if (ancestorHasTag(node, "MATTER")) {
+      writeTo.push("\\subsection*{");
+    } else {
+      writeTo.push("\\subsection{");
+    }
     addName(node, writeTo);
     writeTo.push("\\pagestyle{subsection}%\n");
     recursiveProcessTextLatex(node.firstChild, writeTo);
   },
 
   SUBSUBSECTION: (node, writeTo) => {
-    writeTo.push("\\subsubsection{");
+    if (ancestorHasTag(node, "MATTER")) {
+      writeTo.push("\\subsubsection*{");
+    } else {
+      writeTo.push("\\subsubsection{");
+    }
     addName(node, writeTo);
     recursiveProcessTextLatex(node.firstChild, writeTo);
   },
