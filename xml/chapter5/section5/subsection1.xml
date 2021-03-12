@@ -169,7 +169,7 @@ function compile(component, target, linkage) {
            : is_block(component)
            ? compile_block(component, target, linkage)
            : is_return_statement(component)
-           ? compile_return_statement(component)
+           ? compile_return_statement(component, target, linkage)
            : is_function_declaration(component)
            ? compile(function_decl_to_constant_decl(component), target, linkage)
            : is_declaration(component)
@@ -345,16 +345,16 @@ go_to(reg("continue"))
       <JAVASCRIPT>
         Our compiler uses the <JAVASCRIPTINLINE>"return"</JAVASCRIPTINLINE> linkage when compiling
         the return expression of a return statement. 
-        Just like in the explicit-control evaluator, returning from a function happens in three steps:
+        Just as in the explicit-control evaluator, returning from a function happens in three steps:
         <OL>
           <LI>reverting the stack to the marker and restoring <JAVASCRIPTINLINE>continue</JAVASCRIPTINLINE> (which holds a continuation set up at the beginning of the function call)</LI>
           <LI>calculating the return value and placing it in <JAVASCRIPTINLINE>val</JAVASCRIPTINLINE></LI>
-          <LI>jumping to <JAVASCRIPTINLINE>continue</JAVASCRIPTINLINE></LI>
+          <LI>jumping to the entry point in <JAVASCRIPTINLINE>continue</JAVASCRIPTINLINE></LI>
         </OL>
-        Compilation of a return statement explicitly generates code for reverting the stack and restoring <JAVASCRIPTINLINE>continue</JAVASCRIPTINLINE>,
-        and because of the target and linkage used to compile the return expression, the return
-        value will be placed in <JAVASCRIPTINLINE>val</JAVASCRIPTINLINE>, and the generated code for computing the return value ends by
-        jumping to <JAVASCRIPTINLINE>continue</JAVASCRIPTINLINE>.
+        Compilation of a return statement explicitly generates code for reverting the stack and restoring <JAVASCRIPTINLINE>continue</JAVASCRIPTINLINE>.
+        The return expression is compiled with target <JAVASCRIPTINLINE>val</JAVASCRIPTINLINE> and linkage <JAVASCRIPTINLINE>"return"</JAVASCRIPTINLINE>
+        so that the generated code for computing the return value places the return value in <JAVASCRIPTINLINE>val</JAVASCRIPTINLINE> and ends by
+        jumping to <JAVASCRIPTINLINE>continue</JAVASCRIPTINLINE>. 
       </JAVASCRIPT>
     </SPLITINLINE>
   </TEXT>
@@ -381,7 +381,7 @@ go_to(reg("continue"))
     Code generation for a
     <SPLITINLINE>
       <SCHEME>compound expression</SCHEME>
-      <JAVASCRIPT>complex component</JAVASCRIPT>
+      <JAVASCRIPT>compound component</JAVASCRIPT>
     </SPLITINLINE>
     is accomplished by combining the output from simpler code
     generators for
@@ -392,7 +392,7 @@ go_to(reg("continue"))
     just as evaluation of a
     <SPLITINLINE>
       <SCHEME>compound expression</SCHEME>
-      <JAVASCRIPT>complex component</JAVASCRIPT>
+      <JAVASCRIPT>compound component</JAVASCRIPT>
     </SPLITINLINE>
     is accomplished by evaluating the
     <SPLITINLINE>
@@ -531,11 +531,13 @@ go_to(reg("continue"))
     <SPLITINLINE>
       <SCHEME>generators.</SCHEME>
       <JAVASCRIPT>
-	generators, except in relation
-	to calling and returning from functions<EMDASH/>in these cases matching
+	      generators, except that the code for calling a function saves
+        <JAVASCRIPTINLINE>continue</JAVASCRIPTINLINE> and returning
+        from functions restores it<EMDASH/>in these cases matching
   <JAVASCRIPTINLINE>save</JAVASCRIPTINLINE> and <JAVASCRIPTINLINE>restore</JAVASCRIPTINLINE>
-  instructions are generated
-	by different calls to <JAVASCRIPTINLINE>compile</JAVASCRIPTINLINE>.
+  instructions are generated explicitly 
+	by different calls to <JAVASCRIPTINLINE>compile</JAVASCRIPTINLINE>,
+  not as a matched pair by preserving.
       </JAVASCRIPT>
     </SPLITINLINE>
   </TEXT>
@@ -579,7 +581,7 @@ go_to(reg("continue"))
     </SPLITINLINE>
     that combine instruction sequences will derive
     register-use information for the combined sequence from the
-    information associated with the component sequences.
+    information associated with the sequences being compiled.
   </TEXT>
 
   <TEXT>
@@ -649,9 +651,7 @@ function make_instruction_sequence(needs, modifies, instructions) {
       (goto (reg continue))))
       </SCHEME>
       <JAVASCRIPT>
-make_instruction_sequence(
-    list("env", "continue"),
-    list("val"),
+make_instruction_sequence(list("env", "continue"), list("val"),
     list(assign("val",
                 list(op("lookup_symbol_value"), constant("x"), reg("env"))),
          go_to(reg("continue"))));
