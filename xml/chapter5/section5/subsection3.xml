@@ -654,19 +654,6 @@ function compile_function_call(target, linkage) {
     </SPLITINLINE>
     because they will not be executed sequentially.
   </TEXT>
-  <SPLIT>
-    <JAVASCRIPT>
-      <TEXT>
-	Like a function declaration, an operator combination is a derived component,
-	so the compiler just needs to apply the
-	<JAVASCRIPTINLINE>operator_combination_to_application</JAVASCRIPTINLINE>
-	transformer (from section<SPACE/><REF NAME="sec:representing-expressions"/>)
-	and compile the resulting application.
-	<INDEX>derived component<SUBINDEX>adding to compiler</SUBINDEX></INDEX>
-	<INDEX>compiler for JavaScript<SUBINDEX>derived components</SUBINDEX></INDEX>
-      </TEXT>
-    </JAVASCRIPT>
-  </SPLIT>
 
   <SUBHEADING> 
     <NAME>
@@ -857,6 +844,42 @@ $$  assign("continue", label("fun_return")),
   </TEXT>
 </SCHEME>
 <JAVASCRIPT>
+
+  <TEXT>
+    The code that handles
+    <SPLITINLINE>
+      <SCHEME>procedure</SCHEME>
+      <JAVASCRIPT>function</JAVASCRIPT>
+    </SPLITINLINE>
+    application is the most subtle part of the compiler<SPLITINLINE><SCHEME>, even though the
+    instruction sequences it generates are very short</SCHEME></SPLITINLINE>.  A compiled
+    <SPLITINLINE>
+      <SCHEME>procedure</SCHEME>
+      <JAVASCRIPT>function</JAVASCRIPT>
+    </SPLITINLINE>
+    (as constructed by
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>compile-lambda</SCHEMEINLINE>)</SCHEME>
+      <JAVASCRIPT><JAVASCRIPTINLINE>compile_lambda_expression</JAVASCRIPTINLINE>)
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    has an entry point, which is a label that designates where the code for the
+    <SPLITINLINE>
+      <SCHEME>procedure</SCHEME>
+      <JAVASCRIPT>function</JAVASCRIPT>
+    </SPLITINLINE>
+    starts.  The code at this entry point computes a result in
+    <SCHEMEINLINE>val</SCHEMEINLINE> and returns by executing the instruction
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>(goto (reg continue))</SCHEMEINLINE>.</SCHEME>
+      <JAVASCRIPT><JAVASCRIPTINLINE>go_to(reg("continue"))</JAVASCRIPTINLINE> after
+      having reverted the stack using the marker to the state expected by the label 
+      in
+      <JAVASCRIPTINLINE>continue</JAVASCRIPTINLINE>, which was set up at the
+      beginning of the function call.
+      </JAVASCRIPT>
+    </SPLITINLINE>
+</TEXT>
   <TEXT>
 Calls to compiled functions are different from what we
 have seen so far because the instructions for the function call
@@ -865,8 +888,7 @@ generated separately and are stored in different places of the
 object code. Also, regardless of the number of calls to a function,
 there will only be one set of instructions generated from its body
 to which all calls to the function will dispatch, by jumping to
-the corresponding label. After constructing the list of
-arguments, compiled functions must be applied
+the corresponding label. Compiled functions must be applied
 so that that no matter how the function returns, it will proceed
 to the right continuation, with any intermediate saves to the
 stack restored, and with the return value in the <JAVASCRIPTINLINE>val</JAVASCRIPTINLINE> register.
@@ -888,21 +910,21 @@ Compiling a return statement will generate code for reverting the
 stack and restoring and jumping to <JAVASCRIPTINLINE>continue</JAVASCRIPTINLINE>. Because we
 append a <JAVASCRIPTINLINE>return undefined;</JAVASCRIPTINLINE> to all function bodies, 
 every function call eventually results in the execution of
-instructions leading to a corresponding return (unless the function contains an infinite loop).<FOOTNOTE>
+instructions leading to a corresponding return (unless the function enters an infinite loop).<FOOTNOTE>
         Because the execution of a function body always ends with a return statement<EMDASH/>either
         a return statement written by the programmer or one
-        inserted by the compiler returning <JAVASCRIPTINLINE>undefined</JAVASCRIPTINLINE>, 
-        we have eliminated the need for the
+        inserted by the compiler returning <JAVASCRIPTINLINE>undefined</JAVASCRIPTINLINE><EMDASH/>we
+        have eliminated the need for the
         <JAVASCRIPTINLINE>return_undefined</JAVASCRIPTINLINE> entry point from
-	chapter<SPACE/><REF NAME="sec:eceval"/> for compiled-function calls.
+	section<SPACE/><REF NAME="sec:eceval"/> for compiled-function calls.
         </FOOTNOTE>
 </TEXT>
   <TEXT>
 In summary, the code for applying a compiled function has the following form
     <SNIPPET EVAL="no" LATEX="yes">
       <JAVASCRIPT>
-<METAPHRASE>save the function's continuation in <JAVASCRIPTINLINE>continue</JAVASCRIPTINLINE></METAPHRASE>
-<METAPHRASE>push a marker on the stack</METAPHRASE>
+save("continue"),
+push_marker_to_stack(),
 <METAPHRASE>lookup the function's entry point and jump to it</METAPHRASE>
       </JAVASCRIPT>
     </SNIPPET>
@@ -910,8 +932,8 @@ In summary, the code for applying a compiled function has the following form
 and the code for returning from a compiled function (due to a return statement) has the following form
     <SNIPPET EVAL="no" LATEX="yes">
       <JAVASCRIPT>
-<METAPHRASE>revert the stack using the marker</METAPHRASE>
-<METAPHRASE>restore <JAVASCRIPTINLINE>continue</JAVASCRIPTINLINE></METAPHRASE>
+revert_stack_to_marker(),
+restore("continue"),
 <METAPHRASE>compute the return value</METAPHRASE>
 go_to(reg("continue"))
       </JAVASCRIPT>
@@ -919,10 +941,22 @@ go_to(reg("continue"))
 </TEXT>
 
 <TEXT>
-More concretely, the code for a compiled-function application generated by
-<JAVASCRIPTINLINE>compile_fun_appl</JAVASCRIPTINLINE>
-with target <META>target</META> and linkage <META>linkage</META> will
-look like this:
+    Thus, we might expect the code for a
+    <SPLITINLINE>
+      <SCHEME>compiled-procedure</SCHEME>
+      <JAVASCRIPT>compiled-function</JAVASCRIPT>
+    </SPLITINLINE>
+    application (to be generated by
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>compile-proc-appl</SCHEMEINLINE>)</SCHEME>
+      <JAVASCRIPT><JAVASCRIPTINLINE>compile_fun_appl</JAVASCRIPTINLINE>)
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    with a given target and linkage to look like this if the linkage is a
+    <SPLITINLINE>
+      <SCHEME>label</SCHEME>
+      <JAVASCRIPT>label:</JAVASCRIPT>
+    </SPLITINLINE>
     <SNIPPET EVAL="no" LATEX="yes">
       <SCHEME>
       (assign continue (label proc-return))
@@ -945,7 +979,14 @@ $$  assign("continue", label("fun_return")),
   go_to(label(<META>linkage</META>)),        // linkage code
       </JAVASCRIPT>
     </SNIPPET>
-And like this with target <META>target</META> and linkage <JAVASCRIPTINLINE>"return"</JAVASCRIPTINLINE>:
+    or like this if the linkage is
+    <SPLITINLINE>
+      <SCHEME>
+	<SCHEMEINLINE>return.</SCHEMEINLINE>
+      </SCHEME>
+      <JAVASCRIPT>
+	<JAVASCRIPTINLINE>"return"</JAVASCRIPTINLINE>:
+      </JAVASCRIPT>
     <SNIPPET EVAL="no" LATEX="yes">
       <SCHEME>
       (save continue)
@@ -960,7 +1001,8 @@ And like this with target <META>target</META> and linkage <JAVASCRIPTINLINE>"ret
       \aligncomment{ (goto (reg continue))}{2in}<EM>; linkage code</EM>
       </SCHEME>
       <JAVASCRIPT latex="yes"><!-- The $$ below is a hack to ensure the leading spaces are not consumed-->
-$$  assign("continue", label("fun_return")),
+$$  save("continue"),
+  assign("continue", label("fun_return")),
   save("continue"),
   push_marker_to_stack(),
   assign("val", list(op("compiled_function_entry"), reg("fun"))),
@@ -1048,9 +1090,9 @@ $$  assign("continue", label("fun_return")),
         corresponding
         <JAVASCRIPTINLINE>revert_stack_to_mark()</JAVASCRIPTINLINE> and
         restoring of <JAVASCRIPTINLINE>continue</JAVASCRIPTINLINE> are 
-        generated by compilation of the return statement(s) in the body of the
-        function called. As compiling a function call does not involve compilation of the called function 
-        we must generate 
+        generated by <JAVASCRIPTINLINE>compile_return_statement</JAVASCRIPTINLINE> for each return statement in the body of the
+        function. As compiling a function call does not involve compilation of the called function 
+        we must generate the
         <JAVASCRIPTINLINE>save</JAVASCRIPTINLINE> and <JAVASCRIPTINLINE>restore</JAVASCRIPTINLINE> of 
         <JAVASCRIPTINLINE>continue</JAVASCRIPTINLINE> explicitly, and cannot rely on
         a mechanism such as
@@ -1082,13 +1124,13 @@ $$  assign("continue", label("fun_return")),
     since the only place we request
     <SPLITINLINE>
       <SCHEME>
-	<SCHEMEINLINE>return</SCHEMEINLINE>
+	      <SCHEMEINLINE>return</SCHEMEINLINE>linkages 
       </SCHEME>
       <JAVASCRIPT>
-	<JAVASCRIPTINLINE>"return"</JAVASCRIPTINLINE>
+        a <JAVASCRIPTINLINE>"return"</JAVASCRIPTINLINE> linkage
       </JAVASCRIPT>
     </SPLITINLINE>
-    linkages is in compiling
+    is in compiling
     <SPLITINLINE>
       <SCHEME>procedures,</SCHEME>
       <JAVASCRIPT>return statements,</JAVASCRIPT>
@@ -1304,7 +1346,7 @@ go_to(reg("val")),
     </SPLITINLINE>
     call with a
     linkage of <SPLITINLINE><SCHEME>return</SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>"return"</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> and a target of
-    <SCHEMEINLINE>val</SCHEMEINLINE> in the same was as for a
+    <SCHEMEINLINE>val</SCHEMEINLINE> in the same way as for a
     non-<SCHEMEINLINE>val</SCHEMEINLINE> target. This would destroy tail
     recursion. Our system would still give the same value for any
     <SPLITINLINE>
@@ -1325,7 +1367,7 @@ go_to(reg("val")),
     <SPLITINLINE>
       <SCHEME>and return after the call to undo the (useless) save. These extra </SCHEME>
       <JAVASCRIPT>
-        twice<EMDASH/>the final continuation followed by <JAVASCRIPTINLINE>fun_return</JAVASCRIPTINLINE>.
+        twice<EMDASH/>the final continuation of the function plus the intermediate <JAVASCRIPTINLINE>fun_return</JAVASCRIPTINLINE> entry point that assigns <JAVASCRIPTINLINE>val</JAVASCRIPTINLINE> to the appropriate target register before jumping to <JAVASCRIPTINLINE>continue</JAVASCRIPTINLINE>.
         As a return statement would only restore the last of these saves before computing the return value, these
       </JAVASCRIPT>
     </SPLITINLINE>
@@ -1560,15 +1602,15 @@ function compile_fun_appl(target, linkage) {
         The code for a return statement takes the following form, regardless of the given linkage and target:
         <SNIPPET EVAL="no" LATEX="yes">
           <JAVASCRIPT>
-<METAPHRASE>revert the stack using the marker</METAPHRASE>
-<METAPHRASE>restore <JAVASCRIPTINLINE>continue</JAVASCRIPTINLINE> to the linkage saved by <JAVASCRIPTINLINE>compile_fun_appl</JAVASCRIPTINLINE></METAPHRASE>
+revert_stack_to_marker(),
+restore("continue"), // saved by compile_fun_appl
 <METAPHRASE>evaluate the return expression and store the result in <JAVASCRIPTINLINE>val</JAVASCRIPTINLINE></METAPHRASE>
 go_to(reg("continue"))
           </JAVASCRIPT>
         </SNIPPET>
         The reverting of the stack using the marker and the subsequent restoring
-        of <JAVASCRIPTINLINE>continue</JAVASCRIPTINLINE> correspond to 
-        instructions generated at <JAVASCRIPTINLINE>compile_fun_appl</JAVASCRIPTINLINE>
+        of <JAVASCRIPTINLINE>continue</JAVASCRIPTINLINE> correspond to the
+        instructions generated by <JAVASCRIPTINLINE>compile_fun_appl</JAVASCRIPTINLINE>
         to save <JAVASCRIPTINLINE>continue</JAVASCRIPTINLINE> and mark the stack.
         The final jump to <JAVASCRIPTINLINE>continue</JAVASCRIPTINLINE> is
         generated by the use of the <JAVASCRIPTINLINE>"return"</JAVASCRIPTINLINE>
