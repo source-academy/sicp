@@ -34,6 +34,22 @@ const title = `\\begin{titlepage}
 
 export const preamble = `
 \\documentclass[7x10]{../mitpress/times}
+
+\\usepackage[
+  paper=a4paper,
+  layoutsize={7in, 10in},
+  layoutoffset={15mm, 15mm},
+%%
+  text={32pc, 49pc},
+  footskip=28pt,
+  headsep=2pc,
+  headheight=12pt,
+  inner=5.5pc,
+%%
+  showcrop=true,
+  showframe=false %% Turn on to see all text size boxes
+  ]{geometry}
+
 \\usepackage[T1]{fontenc}
 \\usepackage{textcomp}
 \\usepackage[utf8]{inputenc}
@@ -145,7 +161,7 @@ export const preamble = `
   morecomment=[s]{/*}{*/},
   morestring=[b]',
   morestring=[b]",
-  columns=fixed,
+  columns=fullflexible,
   sensitive=true
 }
 
@@ -153,7 +169,7 @@ export const preamble = `
    language=JavaScript,
    basicstyle=\\usefont{T1}{lmtt}{m}{n},
    keywordstyle=\\linespread{1.0}\\usefont{T1}{lmtt}{b}{n},
-   commentstyle=\\linespread{1.0}\\usefont{T1}{lmtt}{m}{it},
+   commentstyle=\\linespread{1.0}\\usefont{T1}{ptm}{m}{it},
    stringstyle=\\linespread{1.0}\\usefont{T1}{lmtt}{m}{sl},
    showstringspaces=false,
    showspaces=false,
@@ -172,7 +188,7 @@ export const preamble = `
    language=JavaScript,
    basicstyle=\\normalcodesize\\usefont{T1}{lmtt}{m}{n},
    keywordstyle=\\linespread{1.0}\\usefont{T1}{lmtt}{b}{n},
-   commentstyle=\\linespread{1.0}\\usefont{T1}{lmtt}{m}{it},
+   commentstyle=\\linespread{1.0}\\usefont{T1}{ptm}{m}{it},
    stringstyle=\\linespread{1.0}\\usefont{T1}{lmtt}{m}{sl},
    showstringspaces=false,
    showspaces=false,
@@ -191,7 +207,7 @@ export const preamble = `
    language=JavaScript,
    basicstyle=\\exercisecodesize\\usefont{T1}{lmtt}{m}{n},
    keywordstyle=\\linespread{1.0}\\usefont{T1}{lmtt}{b}{n},
-   commentstyle=\\linespread{1.0}\\usefont{T1}{lmtt}{m}{it},
+   commentstyle=\\linespread{1.0}\\usefont{T1}{ptm}{m}{it},
    stringstyle=\\linespread{1.0}\\usefont{T1}{lmtt}{m}{sl},
    showstringspaces=false,
    showspaces=false,
@@ -210,7 +226,7 @@ export const preamble = `
    language=JavaScript,
    basicstyle=\\footnotecodesize\\usefont{T1}{lmtt}{m}{n},
    keywordstyle=\\linespread{1.0}\\usefont{T1}{lmtt}{b}{n},
-   commentstyle=\\linespread{1.0}\\usefont{T1}{lmtt}{m}{it},
+   commentstyle=\\linespread{1.0}\\usefont{T1}{ptm}{m}{it},
    stringstyle=\\linespread{1.0}\\usefont{T1}{lmtt}{m}{sl},
    showstringspaces=false,
    showspaces=false,
@@ -229,7 +245,7 @@ export const preamble = `
    language=JavaScript,
    basicstyle=\\normalcodesize\\usefont{T1}{lmtt}{m}{n},
    keywordstyle=\\linespread{1.0}\\usefont{T1}{lmtt}{b}{n},
-   commentstyle=\\linespread{1.0}\\usefont{T1}{lmtt}{m}{it},
+   commentstyle=\\linespread{1.0}\\usefont{T1}{ptm}{m}{it},
    stringstyle=\\linespread{1.0}\\usefont{T1}{lmtt}{m}{sl},
    showstringspaces=false,
    showspaces=false,
@@ -249,7 +265,7 @@ export const preamble = `
    language=JavaScript,
    basicstyle=\\exercisecodesize\\usefont{T1}{lmtt}{m}{n},
    keywordstyle=\\linespread{1.0}\\usefont{T1}{lmtt}{b}{n},
-   commentstyle=\\linespread{1.0}\\usefont{T1}{lmtt}{m}{it},
+   commentstyle=\\linespread{1.0}\\usefont{T1}{ptm}{m}{it},
    stringstyle=\\linespread{1.0}\\usefont{T1}{lmtt}{m}{sl},
    showstringspaces=false,
    showspaces=false,
@@ -269,7 +285,7 @@ export const preamble = `
    language=JavaScript,
    basicstyle=\\footnotecodesize\\usefont{T1}{lmtt}{m}{n},
    keywordstyle=\\linespread{1.0}\\usefont{T1}{lmtt}{b}{n},
-   commentstyle=\\linespread{1.0}\\usefont{T1}{lmtt}{m}{it},
+   commentstyle=\\linespread{1.0}\\usefont{T1}{ptm}{m}{it},
    stringstyle=\\linespread{1.0}\\usefont{T1}{lmtt}{m}{sl},
    showstringspaces=false,
    showspaces=false,
