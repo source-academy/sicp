@@ -455,7 +455,7 @@
 %% Copyright Amy Hendrickson, TeXnology Inc.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \newif\ifcropmarkson
-\global\cropmarksontrue
+\global\cropmarksonfalse
 
 \def\topcropmarks{\ifcropmarkson
 \vtop to0pt{\vss%
@@ -1650,7 +1650,7 @@ Acknowledgements:}
 %\chaptermark{#1}{}%
 \global\setbox\chapnumberbox=\hbox{\chapternumberfont \thechapter}
 \noindent%\hskip-\wd\chapnumberbox\hskip-1.5pc
-\llap{\chapternumberfont \thechapter\hskip1.5pc}\noindent\vbox to
+\llap{\chapternumberfont \thechapter\hskip0.8pc}\noindent\vbox to
 \ht\chapnumberbox{\vss
 \advance\hsize-2pc
 \advance\hsize-\wd0
