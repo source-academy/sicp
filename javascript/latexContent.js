@@ -50,6 +50,8 @@ export const preamble = `
   showframe=false %% Turn on to see all text size boxes
   ]{geometry}
 
+\\raggedbottom
+
 \\usepackage[T1]{fontenc}
 \\usepackage{textcomp}
 \\usepackage[utf8]{inputenc}
