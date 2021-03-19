@@ -261,7 +261,7 @@ export const preamble = `
    escapechar=^
 }
 \\lstnewenvironment{JavaScript}{\\lstset{style=JavaScript,aboveskip=2.5ex,belowskip=1.8ex}}{}
-\\lstnewenvironment{JavaScriptClickable}{\\lstset{style=JavaScript,frame=leftline,aboveskip=2.5ex,belowskip=1.8ex,escapeinside={/*!}{!*/}}}{}
+\\lstnewenvironment{JavaScriptClickable}{\\lstset{style=JavaScript,aboveskip=2.5ex,belowskip=1.8ex,escapeinside={/*!}{!*/}}}{}
 
 \\lstdefinestyle{JavaScriptSmall}{
    language=JavaScript,
@@ -281,7 +281,7 @@ export const preamble = `
    escapechar=^
 }
 \\lstnewenvironment{JavaScriptSmall}{\\lstset{style=JavaScriptSmall,aboveskip=2.5ex,belowskip=1.8ex}}{}
-\\lstnewenvironment{JavaScriptClickableSmall}{\\lstset{style=JavaScriptSmall,frame=leftline,aboveskip=2.5ex,belowskip=1.8ex,escapeinside={/*!}{!*/}}}{}
+\\lstnewenvironment{JavaScriptClickableSmall}{\\lstset{style=JavaScriptSmall,aboveskip=2.5ex,belowskip=1.8ex,escapeinside={/*!}{!*/}}}{}
 
 \\lstdefinestyle{JavaScriptFootnote}{
    language=JavaScript,
@@ -301,7 +301,7 @@ export const preamble = `
    escapechar=^
 }
 \\lstnewenvironment{JavaScriptFootnote}{\\lstset{style=JavaScriptFootnote,aboveskip=2.5ex,belowskip=1.8ex}}{}
-\\lstnewenvironment{JavaScriptClickableFootnote}{\\lstset{style=JavaScriptFootnote,frame=leftline,aboveskip=2.5ex,belowskip=1.8ex,escapeinside={/*!}{!*/}}}{}
+\\lstnewenvironment{JavaScriptClickableFootnote}{\\lstset{style=JavaScriptFootnote,aboveskip=2.5ex,belowskip=1.8ex,escapeinside={/*!}{!*/}}}{}
 
 \\lstdefinestyle{JavaScriptOutput}{
    language=JavaScript,

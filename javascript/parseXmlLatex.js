@@ -87,6 +87,7 @@ const processTextFunctionsDefaultLatex = {
     const name = addName(node, writeTo);
     writeTo.push("\\addcontentsline{toc}{chapter}{");
     writeTo.push(name + "}");
+    writeTo.push("\\thispagestyle{main}%\n");
     recursiveProcessTextLatex(node.firstChild, writeTo);
   },
   REFERENCES: (node, writeTo) =>
@@ -471,7 +472,7 @@ const processTextFunctionsDefaultLatex = {
   CHAPTER: (node, writeTo) => {
     writeTo.push("\\chapter{");
     addName(node, writeTo);
-    writeTo.push("\\pagestyle{main}%\n");
+    writeTo.push("\\thispagestyle{main}%\n");
     recursiveProcessTextLatex(node.firstChild, writeTo);
   },
 
