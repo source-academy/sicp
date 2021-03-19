@@ -29,11 +29,14 @@ const title = `\\begin{titlepage}
 \\href{https://creativecommons.org/licenses/by-nc-sa/4.0/}{Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International License}.}
 
 \\end{titlepage}
-\\pagestyle{main}
+\\pagestyle{chapter-open}
 `;
 
 export const preamble = `
 \\documentclass[7x10]{../mitpress/times}
+
+\\newboolean{show-links}
+\\setboolean{show-links}{false}
 
 \\usepackage[
   paper=a4paper,
@@ -97,11 +100,6 @@ export const preamble = `
 \\setcounter{secnumdepth}{5}
 
 \\usepackage{titleps}
-\\newpagestyle{main}{
-  \\setheadrule{0pt}
-  \\sethead{}{}{}
-  \\setfoot{}{\\small\\thepage}{}
-}
 \\newpagestyle{prefaces}{
   \\setheadrule{0.4pt}
   \\sethead[\\small\\it\\thepage][][\\small\\it Prefaces]
@@ -118,6 +116,17 @@ export const preamble = `
   \\setheadrule{0.4pt}
   \\sethead[\\small\\it\\thepage][][\\small\\it Acknowledgements]
           {\\small\\it Acknowledgements}{}{\\small\\thepage}
+  \\setfoot{}{}{}
+}
+\\newpagestyle{chapter-open}{
+  \\setheadrule{0pt}
+  \\sethead{}{}{}
+  \\setfoot{}{\\small\\thepage}{}
+}
+\\newpagestyle{chapter}{
+  \\setheadrule{0.4pt}
+  \\sethead[\\small\\it\\thepage][][\\small\\it Chapter\\,\\thechapter\\quad\\chaptertitle]
+          {}{}{\\small\\thepage}
   \\setfoot{}{}{}
 }
 \\newpagestyle{section}{
