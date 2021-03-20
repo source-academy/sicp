@@ -162,6 +162,7 @@ export const preamble = `
 \\graphicspath{ {../static/} }
 
 \\newenvironment{Exercise}{%
+  \\needspace{5\\baselineskip}
   \\subsubsection*{Exercise~\\theExercise}
   \\begingroup\\fontsize{9}{10.5pt}\\selectfont
   }{
