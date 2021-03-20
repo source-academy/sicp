@@ -246,6 +246,11 @@ export const processSnippetPdf = (node, writeTo) => {
 
       // writeTo.push("\n\\marginnote{\\href{" + url + "}{\\ensuremath{\\blacktriangleright}}}[2ex]" + "\\begin{JavaScriptClickable}\n");
 
+        //writeTo.push("\n\n\\noindent\\begin{minipage}{\\linewidth}");
+        if (node.getAttribute("PROTECT") === "yes") {
+            writeTo.push("\n\n\\vbox{");
+        }
+
       if (ancestorHasTag(node, "FOOTNOTE")) {
         writeTo.push("\n\\begin{JavaScriptClickableFootnote}\n");
       } else if (ancestorHasTag(node, "EXERCISE")) {
@@ -263,6 +268,11 @@ export const processSnippetPdf = (node, writeTo) => {
       } else {
         writeTo.push("\n\\end{JavaScriptClickable}\n");
       }
+
+        if (node.getAttribute("PROTECT") === "yes") {
+            writeTo.push("} %% end vbox\n");
+        }
+        //writeTo.push("\\end{minipage}\n");
 
       // // 6 lines plus rest
       // writeTo.push(
