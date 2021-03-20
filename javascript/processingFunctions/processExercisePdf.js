@@ -15,7 +15,7 @@ const processExercisePdf = (node, writeTo) => {
     }
   }
 
-  writeTo.push("\n\\stepcounter{ExerciseDisplayNumber}\n\\begin{Exercise}");
+  writeTo.push("\n\\begin{Exercise}");
   if (solution && !label) {
     writeTo.push("\\label{" + labelName + "}");
   }
