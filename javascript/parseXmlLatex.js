@@ -108,9 +108,9 @@ const processTextFunctionsDefaultLatex = {
   },
 
   BLOCKQUOTE: (node, writeTo) => {
-    writeTo.push("\\begin{quote}");
+    writeTo.push("\\begin{Quote}");
     recursiveProcessTextLatex(node.firstChild, writeTo);
-    writeTo.push("\\end{quote}");
+    writeTo.push("\\end{Quote}");
   },
 
   NOINDENT: (node, writeTo) => {
@@ -118,7 +118,7 @@ const processTextFunctionsDefaultLatex = {
   },
 
   EXERCISE_STARTING_WITH_ITEMS: (node, writeTo) => {
-    writeTo.push("\\vspace{-7mm}");
+    writeTo.push("\\vspace{-5mm}");
   },
 
   EXERCISE_FOLLOWED_BY_TEXT: (node, writeTo) => {

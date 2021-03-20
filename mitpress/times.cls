@@ -2487,6 +2487,11 @@ Acknowledgements:}
                 \item[]}
                {\endlist}
 
+\newenvironment{Quote}
+               {\list{}{\rightmargin\leftmargin}%
+                \item[]}
+               {\endlist}
+
 %\def\endequation{\eqno
 %\hbox{\@eqnnum}\hskip\the\rightskip$$\@ignoretrue} 
 
