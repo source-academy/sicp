@@ -38,6 +38,16 @@ export const preamble = `
 \\newboolean{show-links}
 \\setboolean{show-links}{false}
 
+\\hyphenation{ECMA-Script where-by produc-ing}
+
+\\usepackage{etoolbox}
+\\makeatletter
+\\pretocmd{\\@schapter}{\\setcounter{footnote}{0}}{}{}
+\\pretocmd{\\@chapter}{\\setcounter{footnote}{0}}{}{}
+\\makeatother
+
+\\usepackage[margin=10pt,font=small,labelfont=bf,labelsep=quad]{caption}
+
 \\usepackage[
   paper=a4paper,
   layoutsize={7in, 10in},
@@ -90,6 +100,11 @@ export const preamble = `
 \\def\\exercisecodesize{\\fontsize{9}{10pt}\\selectfont}
 \\def\\figurecodesize{\\fontsize{8.7}{10pt}\\selectfont}
 \\def\\footnotecodesize{\\fontsize{8}{9pt}\\selectfont}
+
+\\def\\normaloutputcodesize{\\fontsize{9}{10pt}\\selectfont}
+\\def\\exerciseoutputcodesize{\\fontsize{9}{10pt}\\selectfont}
+\\def\\figureoutputcodesize{\\fontsize{8.7}{10pt}\\selectfont}
+\\def\\footnoteoutputcodesize{\\fontsize{8}{9pt}\\selectfont}
 
 \\usepackage{setspace}
 % \\onehalfspacing
@@ -146,12 +161,25 @@ export const preamble = `
 \\usepackage{graphicx}
 \\graphicspath{ {../static/} }
 
-\\usepackage[answerdelayed]{exercise}
+\\newenvironment{Exercise}{%
+  \\subsubsection*{Exercise~\\theExercise}
+  \\begingroup\\fontsize{9}{10.5pt}\\selectfont
+  }{
+  \\endgroup
+}
+
+\\newcommand{\\listofexercises}{\\textbf{TODO}}
+
+% \\usepackage[answerdelayed]{exercise}
 \\newcounter{ExerciseDisplayNumber}[chapter]
-\\renewcommand{\\theExercise}{\\thechapter.\\arabic{ExerciseDisplayNumber}}
-%\\addtolength{\\ExerciseSkipBefore}{1em}
-\\addtolength{\\Exelabelsep}{12pt}
-\\renewcommand{\\ExerciseHeader}{\\smallskip\\par\\needspace{2\\baselineskip}\\centerline{\\fontsize{8.5}{13}\\usefont{T1}{phv}{b}{n}{\\ExerciseName~\\ExerciseHeaderNB\\ExerciseHeaderTitle \\ExerciseHeaderOrigin}\\smallskip}}
+\\newcommand{\\theExercise}{\\thechapter.\\arabic{ExerciseDisplayNumber}}
+
+%%%% \\usepackage[answerdelayed]{exercise}
+%%%% \\newcounter{ExerciseDisplayNumber}[chapter]
+%%%% \\renewcommand{\\theExercise}{\\thechapter.\\arabic{ExerciseDisplayNumber}}
+%%%% %\\addtolength{\\ExerciseSkipBefore}{1em}
+%%%% \\addtolength{\\Exelabelsep}{12pt}
+%%%% \\renewcommand{\\ExerciseHeader}{\\smallskip\\par\\needspace{2\\baselineskip}\\centerline{\\fontsize{8.5}{13}\\usefont{T1}{phv}{b}{n}{\\ExerciseName~\\ExerciseHeaderNB\\ExerciseHeaderTitle \\ExerciseHeaderOrigin}\\smallskip}}
 
 \\usepackage{listings}
 \\expandafter\\patchcmd\\csname \\string\\lstinline\\endcsname{%
@@ -179,9 +207,8 @@ export const preamble = `
 \\lstset{
    language=JavaScript,
    basicstyle=\\usefont{T1}{lmtt}{m}{n},
-   keywordstyle=\\linespread{1.0}\\usefont{T1}{lmtt}{b}{n},
-   commentstyle=\\linespread{1.0}\\usefont{T1}{ptm}{m}{it},
-   stringstyle=\\linespread{1.0}\\usefont{T1}{lmtt}{m}{n},
+   keywordstyle=\\usefont{T1}{lmtt}{b}{n},
+   commentstyle=\\usefont{T1}{ptm}{m}{it},
    showstringspaces=false,
    showspaces=false,
    deletekeywords={continue},
@@ -198,9 +225,8 @@ export const preamble = `
 \\lstdefinestyle{JavaScriptLatex}{
    language=JavaScript,
    basicstyle=\\normalcodesize\\usefont{T1}{lmtt}{m}{n},
-   keywordstyle=\\linespread{1.0}\\usefont{T1}{lmtt}{b}{n},
-   commentstyle=\\linespread{1.0}\\usefont{T1}{ptm}{m}{it},
-   stringstyle=\\linespread{1.0}\\usefont{T1}{lmtt}{m}{n},
+   keywordstyle=\\usefont{T1}{lmtt}{b}{n},
+   commentstyle=\\usefont{T1}{ptm}{m}{it},
    showstringspaces=false,
    showspaces=false,
    keepspaces=true,
@@ -212,14 +238,13 @@ export const preamble = `
    rulecolor=\\color{LeftBarClickable},
    escapechar=^
 }
-\\lstnewenvironment{JavaScriptLatex}{\\lstset{style=JavaScriptLatex,aboveskip=2.5ex,belowskip=1.8ex}}{}
+\\lstnewenvironment{JavaScriptLatex}{\\lstset{style=JavaScriptLatex,aboveskip=1.8ex,belowskip=1.8ex}}{}
 
 \\lstdefinestyle{JavaScriptLatexSmall}{
    language=JavaScript,
    basicstyle=\\exercisecodesize\\usefont{T1}{lmtt}{m}{n},
-   keywordstyle=\\linespread{1.0}\\usefont{T1}{lmtt}{b}{n},
-   commentstyle=\\linespread{1.0}\\usefont{T1}{ptm}{m}{it},
-   stringstyle=\\linespread{1.0}\\usefont{T1}{lmtt}{m}{n},
+   keywordstyle=\\usefont{T1}{lmtt}{b}{n},
+   commentstyle=\\usefont{T1}{ptm}{m}{it},
    showstringspaces=false,
    showspaces=false,
    keepspaces=true,
@@ -231,14 +256,13 @@ export const preamble = `
    rulecolor=\\color{LeftBarClickable},
    escapechar=^
 }
-\\lstnewenvironment{JavaScriptLatexSmall}{\\lstset{style=JavaScriptLatexSmall,aboveskip=2.5ex,belowskip=1.8ex}}{}
+\\lstnewenvironment{JavaScriptLatexSmall}{\\lstset{style=JavaScriptLatexSmall,aboveskip=1.8ex,belowskip=1.8ex}}{}
 
 \\lstdefinestyle{JavaScriptLatexFootnote}{
    language=JavaScript,
    basicstyle=\\footnotecodesize\\usefont{T1}{lmtt}{m}{n},
-   keywordstyle=\\linespread{1.0}\\usefont{T1}{lmtt}{b}{n},
-   commentstyle=\\linespread{1.0}\\usefont{T1}{ptm}{m}{it},
-   stringstyle=\\linespread{1.0}\\usefont{T1}{lmtt}{m}{n},
+   keywordstyle=\\usefont{T1}{lmtt}{b}{n},
+   commentstyle=\\usefont{T1}{ptm}{m}{it},
    showstringspaces=false,
    showspaces=false,
    keepspaces=true,
@@ -250,14 +274,13 @@ export const preamble = `
    rulecolor=\\color{LeftBarClickable},
    escapechar=^
 }
-\\lstnewenvironment{JavaScriptLatexFootnote}{\\lstset{style=JavaScriptLatexFootnote,aboveskip=2.5ex,belowskip=1.8ex}}{}
+\\lstnewenvironment{JavaScriptLatexFootnote}{\\lstset{style=JavaScriptLatexFootnote,aboveskip=1.8ex,belowskip=1.8ex}}{}
 
 \\lstdefinestyle{JavaScript}{
    language=JavaScript,
    basicstyle=\\normalcodesize\\usefont{T1}{lmtt}{m}{n},
-   keywordstyle=\\linespread{1.0}\\usefont{T1}{lmtt}{b}{n},
-   commentstyle=\\linespread{1.0}\\usefont{T1}{ptm}{m}{it},
-   stringstyle=\\linespread{1.0}\\usefont{T1}{lmtt}{m}{n},
+   keywordstyle=\\usefont{T1}{lmtt}{b}{n},
+   commentstyle=\\usefont{T1}{ptm}{m}{it},
    showstringspaces=false,
    showspaces=false,
    keepspaces=true,
@@ -269,15 +292,14 @@ export const preamble = `
    rulecolor=\\color{LeftBarClickable},
    escapechar=^
 }
-\\lstnewenvironment{JavaScript}{\\lstset{style=JavaScript,aboveskip=2.5ex,belowskip=1.8ex}}{}
-\\lstnewenvironment{JavaScriptClickable}{\\lstset{style=JavaScript,aboveskip=2.5ex,belowskip=1.8ex,escapeinside={/*!}{!*/}}}{}
+\\lstnewenvironment{JavaScript}{\\lstset{style=JavaScript,aboveskip=1.8ex,belowskip=1.8ex}}{}
+\\lstnewenvironment{JavaScriptClickable}{\\lstset{style=JavaScript,aboveskip=1.8ex,belowskip=1.8ex,escapeinside={/*!}{!*/}}}{}
 
 \\lstdefinestyle{JavaScriptSmall}{
    language=JavaScript,
    basicstyle=\\exercisecodesize\\usefont{T1}{lmtt}{m}{n},
-   keywordstyle=\\linespread{1.0}\\usefont{T1}{lmtt}{b}{n},
-   commentstyle=\\linespread{1.0}\\usefont{T1}{ptm}{m}{it},
-   stringstyle=\\linespread{1.0}\\usefont{T1}{lmtt}{m}{n},
+   keywordstyle=\\usefont{T1}{lmtt}{b}{n},
+   commentstyle=\\usefont{T1}{ptm}{m}{it},
    showstringspaces=false,
    showspaces=false,
    keepspaces=true,
@@ -289,15 +311,14 @@ export const preamble = `
    rulecolor=\\color{LeftBarClickable},
    escapechar=^
 }
-\\lstnewenvironment{JavaScriptSmall}{\\lstset{style=JavaScriptSmall,aboveskip=2.5ex,belowskip=1.8ex}}{}
-\\lstnewenvironment{JavaScriptClickableSmall}{\\lstset{style=JavaScriptSmall,aboveskip=2.5ex,belowskip=1.8ex,escapeinside={/*!}{!*/}}}{}
+\\lstnewenvironment{JavaScriptSmall}{\\lstset{style=JavaScriptSmall,aboveskip=1.8ex,belowskip=1.8ex}}{}
+\\lstnewenvironment{JavaScriptClickableSmall}{\\lstset{style=JavaScriptSmall,aboveskip=1.8ex,belowskip=1.8ex,escapeinside={/*!}{!*/}}}{}
 
 \\lstdefinestyle{JavaScriptFootnote}{
    language=JavaScript,
    basicstyle=\\footnotecodesize\\usefont{T1}{lmtt}{m}{n},
-   keywordstyle=\\linespread{1.0}\\usefont{T1}{lmtt}{b}{n},
-   commentstyle=\\linespread{1.0}\\usefont{T1}{ptm}{m}{it},
-   stringstyle=\\linespread{1.0}\\usefont{T1}{lmtt}{m}{n},
+   keywordstyle=\\usefont{T1}{lmtt}{b}{n},
+   commentstyle=\\usefont{T1}{ptm}{m}{it},
    showstringspaces=false,
    showspaces=false,
    keepspaces=true,
@@ -309,13 +330,13 @@ export const preamble = `
    rulecolor=\\color{LeftBarClickable},
    escapechar=^
 }
-\\lstnewenvironment{JavaScriptFootnote}{\\lstset{style=JavaScriptFootnote,aboveskip=2.5ex,belowskip=1.8ex}}{}
-\\lstnewenvironment{JavaScriptClickableFootnote}{\\lstset{style=JavaScriptFootnote,aboveskip=2.5ex,belowskip=1.8ex,escapeinside={/*!}{!*/}}}{}
+\\lstnewenvironment{JavaScriptFootnote}{\\lstset{style=JavaScriptFootnote,aboveskip=1.8ex,belowskip=1.8ex}}{}
+\\lstnewenvironment{JavaScriptClickableFootnote}{\\lstset{style=JavaScriptFootnote,aboveskip=1.8ex,belowskip=1.8ex,escapeinside={/*!}{!*/}}}{}
 
 \\lstdefinestyle{JavaScriptOutput}{
    language=JavaScript,
-   basicstyle=\\linespread{1.0}\\usefont{T1}{lmtt}{m}{sl},
-%   keywordstyle=\\linespread{1.0}\\fontsize{11}{12}\\usefont{T1}{lmtt}{b}{sl},
+   basicstyle=\\normaloutputcodesize\\usefont{T1}{lmtt}{m}{sl},
+%   keywordstyle=\\fontsize{11}{12}\\usefont{T1}{lmtt}{b}{sl},
    showstringspaces=false,
    showspaces=false,
    keepspaces=true,
@@ -330,8 +351,8 @@ export const preamble = `
 }
 \\lstdefinestyle{JavaScriptOutputLatex}{
    language=JavaScript,
-   basicstyle=\\linespread{1.0}\\usefont{T1}{lmtt}{m}{sl},
-%   keywordstyle=\\linespread{1.0}\\fontsize{11}{12}\\usefont{T1}{lmtt}{b}{sl},
+   basicstyle=\\normaloutputcodesize\\usefont{T1}{lmtt}{m}{sl},
+%   keywordstyle=\\fontsize{11}{12}\\usefont{T1}{lmtt}{b}{sl},
    showstringspaces=false,
    showspaces=false,
    keepspaces=true,
@@ -344,16 +365,16 @@ export const preamble = `
    rulecolor=\\color{LeftBarClickable},
    escapechar=^
 }
-\\lstnewenvironment{JavaScriptOutput}{\\lstset{style=JavaScriptOutput,aboveskip=-0.5ex,belowskip=1.8ex}}{}
-\\lstnewenvironment{JavaScriptOutputLatex}{\\lstset{style=JavaScriptOutputLatex,aboveskip=-0.5ex,belowskip=1.8ex}}{}
-\\lstnewenvironment{JavaScriptPrompt}{\\lstset{style=JavaScriptOutput,aboveskip=2.5ex,belowskip=-3.0ex}}{}
-\\lstnewenvironment{JavaScriptPromptLatex}{\\lstset{style=JavaScriptOutputLatex,aboveskip=2.5ex,belowskip=-3.0ex}}{}
-\\lstnewenvironment{JavaScriptLonely}{\\lstset{style=JavaScriptOutput,aboveskip=2.5ex,belowskip=2.5ex}}{}
-\\lstnewenvironment{JavaScriptLonelyLatex}{\\lstset{style=JavaScriptOutputLatex,aboveskip=2.5ex,belowskip=2.5ex}}{}
+\\lstnewenvironment{JavaScriptOutput}{\\lstset{style=JavaScriptOutput,aboveskip=-1.5ex,belowskip=1.8ex}}{}
+\\lstnewenvironment{JavaScriptOutputLatex}{\\lstset{style=JavaScriptOutputLatex,aboveskip=-1.5ex,belowskip=1.8ex}}{}
+\\lstnewenvironment{JavaScriptPrompt}{\\lstset{style=JavaScriptOutput,aboveskip=1.8ex,belowskip=-2.0ex}}{}
+\\lstnewenvironment{JavaScriptPromptLatex}{\\lstset{style=JavaScriptOutputLatex,aboveskip=1.8ex,belowskip=-2.0ex}}{}
+\\lstnewenvironment{JavaScriptLonely}{\\lstset{style=JavaScriptOutput,aboveskip=1.8ex,belowskip=2.5ex}}{}
+\\lstnewenvironment{JavaScriptLonelyLatex}{\\lstset{style=JavaScriptOutputLatex,aboveskip=1.8ex,belowskip=2.5ex}}{}
 
 \\lstdefinestyle{JavaScriptOutputSmall}{
    language=JavaScript,
-   basicstyle=\\exercisecodesize\\linespread{1.0}\\usefont{T1}{lmtt}{m}{sl},
+   basicstyle=\\exercisecodesize\\usefont{T1}{lmtt}{m}{sl},
    showstringspaces=false,
    showspaces=false,
    keepspaces=true,
@@ -368,7 +389,7 @@ export const preamble = `
 }
 \\lstdefinestyle{JavaScriptOutputLatexSmall}{
    language=JavaScript,
-   basicstyle=\\exercisecodesize\\linespread{1.0}\\usefont{T1}{lmtt}{m}{sl},
+   basicstyle=\\exercisecodesize\\usefont{T1}{lmtt}{m}{sl},
    showstringspaces=false,
    showspaces=false,
    keepspaces=true,
@@ -384,14 +405,14 @@ export const preamble = `
 
 \\lstnewenvironment{JavaScriptOutputSmall}{\\lstset{style=JavaScriptOutputSmall,aboveskip=-0.5ex,belowskip=1.8ex}}{}
 \\lstnewenvironment{JavaScriptOutputLatexSmall}{\\lstset{style=JavaScriptOutputLatexSmall,aboveskip=-0.5ex,belowskip=1.8ex}}{}
-\\lstnewenvironment{JavaScriptPromptSmall}{\\lstset{style=JavaScriptSmall,aboveskip=2.5ex,belowskip=-3.0ex}}{}
-\\lstnewenvironment{JavaScriptPromptLatexSmall}{\\lstset{style=JavaScriptOutputLatexSmall,aboveskip=2.5ex,belowskip=-3.0ex}}{}
-\\lstnewenvironment{JavaScriptLonelySmall}{\\lstset{style=JavaScriptOutputSmall,aboveskip=2.5ex,belowskip=2.5ex}}{}
-\\lstnewenvironment{JavaScriptLonelyLatexSmall}{\\lstset{style=JavaScriptOutputLatexSmall,aboveskip=2.5ex,belowskip=2.5ex}}{}
+\\lstnewenvironment{JavaScriptPromptSmall}{\\lstset{style=JavaScriptSmall,aboveskip=1.8ex,belowskip=-3.0ex}}{}
+\\lstnewenvironment{JavaScriptPromptLatexSmall}{\\lstset{style=JavaScriptOutputLatexSmall,aboveskip=1.8ex,belowskip=-3.0ex}}{}
+\\lstnewenvironment{JavaScriptLonelySmall}{\\lstset{style=JavaScriptOutputSmall,aboveskip=1.8ex,belowskip=2.5ex}}{}
+\\lstnewenvironment{JavaScriptLonelyLatexSmall}{\\lstset{style=JavaScriptOutputLatexSmall,aboveskip=1.8ex,belowskip=2.5ex}}{}
 
 \\lstdefinestyle{JavaScriptOutputFootnote}{
    language=JavaScript,
-   basicstyle=\\footnotecodesize\\linespread{1.0}\\usefont{T1}{lmtt}{m}{sl},
+   basicstyle=\\footnotecodesize\\usefont{T1}{lmtt}{m}{sl},
    showstringspaces=false,
    showspaces=false,
    keepspaces=true,
@@ -406,7 +427,7 @@ export const preamble = `
 }
 \\lstdefinestyle{JavaScriptOutputLatexFootnote}{
    language=JavaScript,
-   basicstyle=\\footnotecodesize\\linespread{1.0}\\usefont{T1}{lmtt}{m}{sl},
+   basicstyle=\\footnotecodesize\\usefont{T1}{lmtt}{m}{sl},
    showstringspaces=false,
    showspaces=false,
    keepspaces=true,
@@ -422,10 +443,11 @@ export const preamble = `
 
 \\lstnewenvironment{JavaScriptOutputFootnote}{\\lstset{style=JavaScriptOutputFootnote,aboveskip=-0.5ex,belowskip=1.8ex}}{}
 \\lstnewenvironment{JavaScriptOutputLatexFootnote}{\\lstset{style=JavaScriptOutputLatexFootnote,aboveskip=-0.5ex,belowskip=1.8ex}}{}
-\\lstnewenvironment{JavaScriptPromptFootnote}{\\lstset{style=JavaScriptOutputFootnote,aboveskip=2.5ex,belowskip=-3.0ex}}{}
-\\lstnewenvironment{JavaScriptPromptLatexFootnote}{\\lstset{style=JavaScriptOutputLatexFootnote,aboveskip=2.5ex,belowskip=-3.0ex}}{}
-\\lstnewenvironment{JavaScriptLonelyFootnote}{\\lstset{style=JavaScriptOutputFootnote,aboveskip=2.5ex,belowskip=2.5ex}}{}
-\\lstnewenvironment{JavaScriptLonelyLatexFootnote}{\\lstset{style=JavaScriptOutputLatexFootnote,aboveskip=2.5ex,belowskip=2.5ex}}{}
+\\lstnewenvironment{JavaScriptPromptFootnote}{\\lstset{style=JavaScriptOutputFootnote,aboveskip=1.8ex,belowskip=-3.0ex}}{}
+\\lstnewenvironment{JavaScriptPromptLatexFootnote}{\\lstset{style=JavaScriptOutputLatexFootnote,aboveskip=1.8ex,belowskip=-3.0ex}}{}
+\\lstnewenvironment{JavaScriptLonelyFootnote}{\\lstset{style=JavaScriptOutputFootnote,aboveskip=1.8ex,belowskip=2.5ex}}{}
+\\lstnewenvironment{JavaScriptLonelyLatexFootnote}{\\lstset{style=JavaScriptOutputLatexFootnote,aboveskip=1.8ex,belowskip=2.5ex}}{}
+
 
 \\usepackage{epigraph}
 \\renewcommand{\\textflush}{flushepinormal}

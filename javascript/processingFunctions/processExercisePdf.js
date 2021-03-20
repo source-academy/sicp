@@ -15,9 +15,7 @@ const processExercisePdf = (node, writeTo) => {
     }
   }
 
-  writeTo.push(
-    "\n\\stepcounter{ExerciseDisplayNumber}\n\\begin{Exercise}\\begin{small}"
-  );
+  writeTo.push("\n\\stepcounter{ExerciseDisplayNumber}\n\\begin{Exercise}");
   if (solution && !label) {
     writeTo.push("\\label{" + labelName + "}");
   }
@@ -28,7 +26,7 @@ const processExercisePdf = (node, writeTo) => {
     //  include the following line for a clickable "Solution"
     //  writeTo.push("\\hfill{\\hyperref[" + labelName + "-Answer]{Solution}}\\\\");
   }
-  writeTo.push("\n\\end{small}\\end{Exercise}\n");
+  writeTo.push("\n\n\\end{Exercise}\n");
 
   if (solution) {
     /// TODO: change this format
