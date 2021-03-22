@@ -252,13 +252,14 @@ export const processSnippetPdf = (node, writeTo) => {
       }
 
       if (ancestorHasTag(node, "FOOTNOTE")) {
-        writeTo.push("\n\\begin{JavaScriptClickableFootnote}\n");
+        writeTo.push("\n\\begin{JavaScriptClickableFootnote}");
       } else if (ancestorHasTag(node, "EXERCISE")) {
-        writeTo.push("\n\\begin{JavaScriptClickableSmall}\n");
+        writeTo.push("\n\\begin{JavaScriptClickableSmall}");
       } else {
-        writeTo.push("\n\\begin{JavaScriptClickable}\n");
+        writeTo.push("\n\\begin{JavaScriptClickable}");
       }
 
+      writeTo.push("\n");
       writeTo.push(lines.join("\n"));
 
       if (ancestorHasTag(node, "FOOTNOTE")) {

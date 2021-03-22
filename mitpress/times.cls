@@ -535,7 +535,7 @@ to2pc{\hskip3pt\hrulefill}\hss}\hss}%
 \newdimen\manuSkip
 \manuSkip=23pt
 \renewcommand\normalsize{%
-  \@setfontsize\normalsize{10.5\p@}{13\p@}%
+  \@setfontsize\normalsize{11\p@}{13\p@}%
    \abovedisplayskip 6\p@ %\@plus2\p@ \@minus2\p@
    \abovedisplayshortskip \z@ %\@plus3\p@
    \belowdisplayshortskip 6\p@ %\@plus3\p@ \@minus3\p@

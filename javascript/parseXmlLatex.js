@@ -87,7 +87,6 @@ const processTextFunctionsDefaultLatex = {
     const name = addName(node, writeTo);
     writeTo.push("\\addcontentsline{toc}{chapter}{");
     writeTo.push(name + "}");
-    writeTo.push("\\pagestyle{chapter}\n");
     writeTo.push("\\thispagestyle{chapter-open}\n");
     recursiveProcessTextLatex(node.firstChild, writeTo);
   },
@@ -473,7 +472,6 @@ const processTextFunctionsDefaultLatex = {
   CHAPTER: (node, writeTo) => {
     writeTo.push("\\chapter{");
     addName(node, writeTo);
-    writeTo.push("\\pagestyle{chapter}\n");
     writeTo.push("\\thispagestyle{chapter-open}\n");
     recursiveProcessTextLatex(node.firstChild, writeTo);
   },
@@ -485,7 +483,6 @@ const processTextFunctionsDefaultLatex = {
       writeTo.push("\\section{");
     }
     addName(node, writeTo);
-    writeTo.push("\\pagestyle{section}%\n");
     recursiveProcessTextLatex(node.firstChild, writeTo);
   },
 
@@ -496,7 +493,6 @@ const processTextFunctionsDefaultLatex = {
       writeTo.push("\\subsection{");
     }
     addName(node, writeTo);
-    writeTo.push("\\pagestyle{subsection}%\n");
     recursiveProcessTextLatex(node.firstChild, writeTo);
   },
 

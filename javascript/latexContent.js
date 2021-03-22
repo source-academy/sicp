@@ -53,11 +53,12 @@ export const preamble = `
   layoutsize={7in, 10in},
   layoutoffset={15mm, 15mm},
 %%
-  text={32pc, 49pc},
+  text={30pc, 49pc},
   footskip=28pt,
   headsep=2pc,
-  headheight=12pt,
-  inner=5.5pc,
+  headheight=1pc,
+  inner=6pc,
+  top=6pc,
 %%
   showcrop=true,
   showframe=false %% Turn on to see all text size boxes
@@ -114,56 +115,36 @@ export const preamble = `
 
 \\setcounter{secnumdepth}{5}
 
-\\usepackage{titleps}
-\\newpagestyle{prefaces}{
-  \\setheadrule{0.4pt}
-  \\sethead[\\small\\it\\thepage][][\\small\\it Prefaces]
-          {\\small\\it Prefaces}{}{\\small\\thepage}
-  \\setfoot{}{}{}
-}
-\\newpagestyle{forewords}{
-  \\setheadrule{0.4pt}
-  \\sethead[\\small\\it\\thepage][][\\small\\it Forewords]
-          {\\small\\it Forewords}{}{\\small\\thepage}
-  \\setfoot{}{}{}
-}
-\\newpagestyle{acknowledgements}{
-  \\setheadrule{0.4pt}
-  \\sethead[\\small\\it\\thepage][][\\small\\it Acknowledgements]
-          {\\small\\it Acknowledgements}{}{\\small\\thepage}
-  \\setfoot{}{}{}
-}
-\\newpagestyle{chapter-open}{
-  \\setheadrule{0pt}
-  \\sethead{}{}{}
-  \\setfoot{}{\\small\\thepage}{}
-}
-\\newpagestyle{chapter}{
-  \\setheadrule{0.4pt}
-  \\sethead[\\small\\it\\thepage][][\\small\\it Chapter\\,\\thechapter\\quad\\chaptertitle]
-          {}{}{\\small\\thepage}
-  \\setfoot{}{}{}
-}
-\\newpagestyle{section}{
-  \\setheadrule{0.4pt}
-  \\sethead[\\small\\it\\thepage][][\\small\\it\\thesection\\quad\\chaptertitle]
-          {\\small\\it\\thesection\\quad\\chaptertitle}{}{\\small\\thepage}
-  \\setfoot{}{}{}
-}
-\\newpagestyle{subsection}{
-  \\setheadrule{0.4pt}
-  \\sethead[\\small\\it\\thepage][][\\small\\it\\thesubsection\\quad\\chaptertitle]
-          {\\small\\it\\thesubsection\\quad\\chaptertitle}{}{\\small\\it\\thepage}
-  \\setfoot{}{}{}
+\\usepackage{fancyhdr}
+\\pagestyle{fancy}
+
+\\renewcommand{\\headrulewidth}{0.4pt}
+\\fancyhead[LE,RO]{\\small\\it\\thepage}
+
+\\renewcommand{\\footrulewidth}{0pt}
+\\fancyfoot{}
+
+\\renewcommand{\\chaptermark}[1]{\\markboth{Chapter\\,\\thechapter\\quad{}#1}{}}
+\\renewcommand{\\sectionmark}[1]{\\markright{\\thesection\\quad{}#1}}
+\\renewcommand{\\subsectionmark}[1]{\\markright{\\thesubsection\\quad{}#1}}
+
+\\fancypagestyle{chapter-open}{
+  \\renewcommand{\\headrulewidth}{0pt}
+  \\fancyhead{}
 }
 
+\\fancypagestyle{basic}{
+  \\renewcommand{\\headrulewidth}{0.4pt}
+  \\fancyhead[LE,RO]{\\small\\it\\thepage}
+  \\fancyhead[RE]{\\small\\it\\nouppercase{\\leftmark}}
+  \\fancyhead[LO]{\\small\\it\\nouppercase{\\rightmark}}
+}
 
 \\usepackage{graphicx}
 \\graphicspath{ {../static/} }
 
 \\newenvironment{Exercise}{%
   \\refstepcounter{ExerciseDisplayNumber}
-  \\needspace{5\\baselineskip}
   \\subsubsection*{Exercise~\\theExercise}
   \\begingroup\\fontsize{9}{10.5pt}\\selectfont
   }{
@@ -217,6 +198,12 @@ export const preamble = `
    deletekeywords={continue},
    escapechar=^
 }
+
+\\makeatletter
+\\lst@CCPutMacro
+    \\lst@ProcessOther {"2D}{\\lst@ttfamily{-{}}{-}}
+    \\@empty\\z@\\@empty
+\\makeatother
 
 \\newcommand{\\OptionalPar}[2][]{\\ensuremath{\\text{\\textrm{\\sl #2}}_{#1}}}
 % mhyphen{} in math mode creates hyphen character (META in parseXmlLatex.js)
@@ -538,28 +525,27 @@ ${title}
 }
 \\end{singlespace}
 
-
-\\pagestyle{forewords}
-
+\\pagestyle{basic}
+\\markboth{Foreword}{Foreword}
 \\input{./others/02foreword02.tex}
 
 \\cleardoublepage
-\\pagestyle{prefaces}
-
+\\markboth{Prefaces}{Prefaces}
 \\input{./others/03prefaces03.tex}
 
 \\cleardoublepage
-\\pagestyle{acknowledgements}
-
+\\markboth{Acknowledgements}{Acknowledgements}
 \\input{./others/04acknowledgements04.tex}
+
+\\pagestyle{basic}
 
 `;
 
 export const ending = `
 \\input{./others/06see06.tex}
 
-\\pagestyle{plain}
-
+\\newpage
+\\markboth{}{}
 \\addcontentsline{toc}{chapter}{List Of Exercises}
 \\listofexercises
 
@@ -567,8 +553,12 @@ export const ending = `
 %\\addcontentsline{toc}{chapter}{Solution To Exercises}
 %\\shipoutAnswer
 
+\\newpage
+\\markboth{References}{References}
 \\input{./others/97references97.tex}
 
+\\newpage
+\\markboth{}{}
 \\indexprologue{\\input{./others/98indexpreface98.tex}}
 \\printindex
 

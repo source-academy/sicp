@@ -248,6 +248,7 @@ const processTextFunctionsDefaultLatex = {
     writeTo.push("\\section{");
     addName(node, writeTo);
     writeTo.push("\\pagestyle{section}\n");
+    writeTo.push("\\thispagestyle{section}\n");
     recursiveProcessTextLatex(node.firstChild, writeTo);
   },
 
