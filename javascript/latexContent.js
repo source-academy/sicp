@@ -33,10 +33,15 @@ const title = `\\begin{titlepage}
 `;
 
 export const preamble = `
-\\documentclass[7x10]{../mitpress/times}
+\\documentclass[7x10]{../mitpress/mit}
 
 \\newboolean{show-links}
 \\setboolean{show-links}{false}
+
+\\newenvironment{Quote}
+               {\\list{}{\\rightmargin\\leftmargin}%
+                \\item[]}
+               {\\endlist}
 
 \\hyphenation{ECMA-Script where-by produc-ing}
 
@@ -46,25 +51,25 @@ export const preamble = `
 \\pretocmd{\\@chapter}{\\setcounter{footnote}{0}}{}{}
 \\makeatother
 
-\\usepackage[margin=10pt,font=small,labelfont=bf,labelsep=quad]{caption}
-
 \\usepackage[
-  paper=a4paper,
-  layoutsize={7in, 10in},
-  layoutoffset={15mm, 15mm},
-%%
-  text={30pc, 49pc},
-  footskip=28pt,
-  headsep=2pc,
-  headheight=1pc,
-  inner=6pc,
-  top=6pc,
-%%
-  showcrop=true,
-  showframe=false %% Turn on to see all text size boxes
-  ]{geometry}
+  justification=justified,
+  singlelinecheck=off,
+  labelfont={small,bf},
+  textfont=normalsize,
+  skip=1pc,
+  labelsep=quad
+  ]{caption}
 
 \\raggedbottom
+
+\\addtolength\\headsep{-1pc} 
+
+\\ifxetex
+\\setmonofont[Ligatures=TeX]{Latin Modern Mono}
+\\else
+\\DeclareUnicodeCharacter{1F00}{\\alpha}
+\\usepackage[activate={true,nocompatibility},final,tracking=true,kerning=true,spacing=false,factor=1100,stretch=10,shrink=10]{microtype}
+\\fi
 
 \\usepackage[T1]{fontenc}
 \\usepackage{textcomp}
@@ -74,10 +79,6 @@ export const preamble = `
 %% \\usepackage[bf,big,raggedright,nobottomtitles]{titlesec}
 \\usepackage[british]{babel}
 \\usepackage[multidot]{grffile}
-\\usepackage[activate={true,nocompatibility},final,tracking=true,kerning=true,spacing=false,factor=1100,stretch=10,shrink=10]{microtype}
-
-\\title{Structure and Interpretation of Computer Programs, Second Edition}
-\\author{Harold Abelson and Gerald Jay Sussman with Julie Sussman \\newline adapted to JavaScript by Martin Henz and Tobias Wrigstad}
 
 \\usepackage{adjustbox}
 \\usepackage{amsmath}
@@ -87,8 +88,8 @@ export const preamble = `
 \\usepackage{csquotes}
 \\usepackage[shortlabels]{enumitem}
 \\setlist{noitemsep}
-\\setlist[itemize]{leftmargin=1em}
-\\setlist[itemize,1]{label={--}}
+\\setlist[itemize,1]{label={--},left=0pt .. \\parindent}
+\\setlist[enumerate,1]{left=0pt .. \\parindent}
 \\usepackage{etoolbox}
 \\usepackage{float}
 \\renewcommand{\\topfraction}{0.9}
@@ -98,7 +99,7 @@ export const preamble = `
 \\usepackage{datetime2}
 
 \\def\\normalcodesize{\\fontsize{9.8}{11pt}\\selectfont}
-\\def\\exercisecodesize{\\fontsize{9}{10pt}\\selectfont}
+\\def\\exercisecodesize{\\fontsize{9}{11pt}\\selectfont}
 \\def\\figurecodesize{\\fontsize{8.7}{10pt}\\selectfont}
 \\def\\footnotecodesize{\\fontsize{8}{9pt}\\selectfont}
 
@@ -106,6 +107,8 @@ export const preamble = `
 \\def\\exerciseoutputcodesize{\\fontsize{9}{10pt}\\selectfont}
 \\def\\figureoutputcodesize{\\fontsize{8.7}{10pt}\\selectfont}
 \\def\\footnoteoutputcodesize{\\fontsize{8}{9pt}\\selectfont}
+
+\\newsavebox{\\UnbreakableBox}
 
 \\usepackage{setspace}
 % \\onehalfspacing
@@ -133,20 +136,41 @@ export const preamble = `
   \\fancyhead{}
 }
 
-\\fancypagestyle{basic}{
+\\fancypagestyle{Foreword}{
   \\renewcommand{\\headrulewidth}{0.4pt}
-  \\fancyhead[LE,RO]{\\small\\it\\thepage}
-  \\fancyhead[RE]{\\small\\it\\nouppercase{\\leftmark}}
-  \\fancyhead[LO]{\\small\\it\\nouppercase{\\rightmark}}
+  \\fancyhead[LE,RO]{\\small\\usefont{T1}{ptm}{m}{it}\\thepage}
+  \\fancyhead[RE]{\\small\\usefont{T1}{ptm}{m}{it} Foreword}
+  \\fancyhead[LO]{\\small\\usefont{T1}{ptm}{m}{it} Foreword}
+}
+
+\\fancypagestyle{Prefaces}{
+  \\renewcommand{\\headrulewidth}{0.4pt}
+  \\fancyhead[LE,RO]{\\small\\usefont{T1}{ptm}{m}{it}\\thepage}
+  \\fancyhead[RE]{\\small\\usefont{T1}{ptm}{m}{it} Prefaces}
+  \\fancyhead[LO]{\\small\\usefont{T1}{ptm}{m}{it} Prefaces}
+}
+
+\\fancypagestyle{Acknowledgements}{
+  \\renewcommand{\\headrulewidth}{0.4pt}
+  \\fancyhead[LE,RO]{\\small\\usefont{T1}{ptm}{m}{it}\\thepage}
+  \\fancyhead[RE]{\\small\\usefont{T1}{ptm}{m}{it} Acknowledgements}
+  \\fancyhead[LO]{\\small\\usefont{T1}{ptm}{m}{it} Acknowledgements}
+}
+
+\\fancypagestyle{Main}{
+  \\renewcommand{\\headrulewidth}{0.4pt}
+  \\fancyhead[LE,RO]{\\small\\usefont{T1}{ptm}{m}{it}\\thepage}
+  \\fancyhead[RE]{\\small\\usefont{T1}{ptm}{m}{it}\\nouppercase{\\leftmark}}
+  \\fancyhead[LO]{\\small\\usefont{T1}{ptm}{m}{it}\\nouppercase{\\rightmark}}
 }
 
 \\usepackage{graphicx}
-\\graphicspath{ {../static/} }
+\\graphicspath{{../static/}}
 
 \\newenvironment{Exercise}{%
   \\refstepcounter{ExerciseDisplayNumber}
   \\subsubsection*{Exercise~\\theExercise}
-  \\begingroup\\fontsize{9}{10.5pt}\\selectfont
+  \\begingroup\\small
   }{
   \\endgroup
 }
@@ -182,11 +206,16 @@ export const preamble = `
   %% keywords={const, let, break, case, catch, continue, debugger, default, delete, do, else, finally, for, function, if, in, instanceof, return, switch, this, throw, try, typeof, var, void, while, with},
   morecomment=[l]{//},
   morecomment=[s]{/*}{*/},
+  morestring=[b]\`,
   morestring=[b]',
   morestring=[b]",
   columns=fullflexible,
   sensitive=true
 }
+
+\\newcommand{\\PreBoxCmd}{\\par\\vspace{4pt plus 2pt minus 2pt}\\noindent}
+\\newcommand{\\PostBoxCmd}{\\par\\vspace{6pt plus 2pt minus 2pt}\\noindent}
+\\newcommand{\\MidBoxCmd}{\\par\\noindent}
 
 \\lstset{
    language=JavaScript,
@@ -438,22 +467,21 @@ export const preamble = `
 \\lstnewenvironment{JavaScriptLonelyFootnote}{\\lstset{style=JavaScriptOutputFootnote,aboveskip=1.8ex,belowskip=2.5ex}}{}
 \\lstnewenvironment{JavaScriptLonelyLatexFootnote}{\\lstset{style=JavaScriptOutputLatexFootnote,aboveskip=1.8ex,belowskip=2.5ex}}{}
 
-
 \\usepackage{epigraph}
 \\renewcommand{\\textflush}{flushepinormal}
-% \\makeatletter
-% \\newlength\\interepigraphskip
-% \\setlength\\interepigraphskip{1ex}
-% \\renewcommand\\epigraph[3][\\interepigraphskip]{\\vspace{\\beforeepigraphskip}
-%   {\\epigraphsize\\begin{\\epigraphflush}\\begin{minipage}{\\epigraphwidth}
-%     \\@epitext{#2}\\\\[#1] \\@episource{#3}
-%     \\end{minipage}\\end{\\epigraphflush}
-%     \\vspace{\\afterepigraphskip}}}
-% \\makeatother
+\\makeatletter
+\\newlength\\interepigraphskip
+\\setlength\\interepigraphskip{1ex}
+\\renewcommand\\epigraph[3][\\interepigraphskip]{\\vspace{\\beforeepigraphskip}
+  {\\epigraphsize\\begin{\\epigraphflush}\\begin{minipage}{\\epigraphwidth}
+    \\@epitext{#2}\\\\[#1] \\@episource{#3}
+    \\end{minipage}\\end{\\epigraphflush}
+    \\vspace{\\afterepigraphskip}}}
+\\makeatother
 \\setlength\\epigraphwidth{11cm}
 \\setlength\\epigraphrule{0pt}
 
-\\usepackage[colorlinks=true, urlcolor=blue, linkcolor=blue, citecolor=blue]{hyperref}
+%% \\usepackage[colorlinks=true, urlcolor=blue, linkcolor=blue, citecolor=blue]{hyperref}
 
 \\usepackage[maxfloats=266]{morefloats}
 
@@ -516,8 +544,52 @@ export const preamble = `
 \\renewcommand*{\\index}[1]{\\oldindex{#1}\\ignorespaces\\ignorespacesafterend}
 
 \\begin{document}
+\\renewcommand\\rmdefault{ptm}
+\\renewcommand\\ttdefault{lmtt}
 
-${title}
+\\frontmatter
+
+\\HalfTitle{Structure and Interpretation of Computer Programs, Second Edition --- JavaScript Adaptation}
+
+
+\\halftitlepage
+
+\\Title{Structure and Interpretation of Computer Programs}
+\\Booksubtitle{JavaScript Adaptation}
+
+\\edition{}
+
+\\BookAuthor{Harold Abelson and Gerald Jay Sussman with Julie Sussman \\newline adapted to JavaScript by Martin Henz and Tobias Wrigstad}
+
+\\imprint{The MIT Press\\\\
+Cambridge, Massachusetts\\\\
+London, England}
+
+\\begin{copyrightpage}
+\\textcopyright\\ [YEAR] Massachusetts Institute of Technology
+
+All rights reserved. No part of this book may be reproduced in any form by any electronic or mechanical means (including photocopying, recording, or information storage and retrieval) without permission in writing from the publisher.
+
+This book was set in --------- by ---------. Printed and bound in the United States of America.
+
+Library of Congress Cataloging-in-Publication Data is available.
+
+ISBN:
+
+10\\quad9\\quad8\\quad7\\quad6\\quad5\\quad4\\quad3\\quad2\\quad1
+\\end{copyrightpage}
+
+\\dedication{Dedication text goes here} 
+
+\\begin{epigraphpage}
+\\epigraph{First Epigraph line goes here}{Mention author name if any,
+\\textit{Book Name if any}}
+
+\\epigraph{Second Epigraph line goes here}{Mention author name if any}
+\\end{epigraphpage}
+
+
+\\pagestyle{chapter-open}
 
 \\begin{singlespace}
 {\\hypersetup{linkcolor=black}
@@ -525,19 +597,20 @@ ${title}
 }
 \\end{singlespace}
 
-\\pagestyle{basic}
-\\markboth{Foreword}{Foreword}
+\\pagestyle{Main}
+\\pagestyle{Foreword}
 \\input{./others/02foreword02.tex}
 
 \\cleardoublepage
-\\markboth{Prefaces}{Prefaces}
+\\pagestyle{Prefaces}
 \\input{./others/03prefaces03.tex}
 
 \\cleardoublepage
-\\markboth{Acknowledgements}{Acknowledgements}
+\\pagestyle{Acknowledgements}
 \\input{./others/04acknowledgements04.tex}
 
-\\pagestyle{basic}
+\\mainmatter
+\\pagestyle{Main}
 
 `;
 
@@ -560,8 +633,9 @@ export const ending = `
 \\newpage
 \\markboth{}{}
 \\indexprologue{\\input{./others/98indexpreface98.tex}}
-\\printindex
+% \\printindex
 
 %\\input{./others/99making99.tex}
 
-\\end{document}`;
+\\end{document}
+`;
