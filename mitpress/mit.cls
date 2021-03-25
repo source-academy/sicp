@@ -1262,8 +1262,8 @@ ItalicFont=SyntaxLTStd-Italic,
 \def\printindex#1#2{\@restonecoltrue\if@twocolumn\@restonecolfalse\fi
   \columnseprule \z@ \columnsep 12pt%
   \newpage\startonoddpage %\twocolumn[{\Large\bf #2 \vskip4ex}]
-\begin{multicols*}{2}[\chapter*{#2}\vspace{-10\p@}]%
-  \addcontentsline{toc}{fmbm}{#2}
+\begin{multicols*}{2}[\chapter*{\fontsize{18\p@}{22\p@}\selectfont\sansbold{#2}}\vspace{-10\p@}]%
+  \addcontentsline{toc}{chapter}{#2}
   \@input{#1.ind}\end{multicols*}}
 %%
 \def\theindex{\@mainmatterfalse
@@ -1272,7 +1272,7 @@ ItalicFont=SyntaxLTStd-Italic,
   \columnsep 12pt%\begin{multicols*}{2}[\chapter*{\indexname}] 
                                 %Subject or Author here
   \markboth{\indexname}{\indexname}%
-  \parskip\z@\relax\let\item\idxitem\fontsize{8\p@}{9.5\p@}\selectfont}%
+  \parskip\z@\relax\let\item\idxitem\fontsize{10\p@}{12\p@}\selectfont}%
 \def\idxitem{\par\noindent\raggedright\hangindent20\p@}%
 \def\subitem{\par\noindent\raggedright\hangindent20\p@\hspace*{10\p@}}%
 \def\subsubitem{\par\noindent\raggedright\hangindent20\p@\hspace*{15\p@}}%
@@ -1291,7 +1291,7 @@ ItalicFont=SyntaxLTStd-Italic,
   \def\splitfootnoterule{\kern-3\p@ \hbox to 0.5\textwidth{\hrulefill} \kern3.6\p@}
 
 \AtBeginDocument{\renewcommand\@makefntext[1]{%
-    \fontsize{8\p@}{9.5\p@}\selectfont\def\@textsuperscript{}%\global\baselineskip=9pt%
+    \fontsize{9\p@}{11\p@}\selectfont\def\@textsuperscript{}%\global\baselineskip=9pt%
     \parindent10pt%
     \noindent\ignorespaces%\hspace*{10pt}\ignorespaces
     \hbox{\@makefnmark.}\ignorespaces\hspace{4\p@}\ignorespaces#1}
@@ -1824,7 +1824,7 @@ Chapter \arabic{chapter}}%
 \thickmuskip=3mu%
 }%
 
-\RequirePackage[bookmarks=true,bookmarksnumbered=true,bookmarksopenlevel=1,colorlinks=false,breaklinks,linkcolor=black,citecolor=black,urlcolor=black,hidelinks]{hyperref}%
+\RequirePackage[bookmarks=true,bookmarksnumbered=true,bookmarksopenlevel=1,colorlinks=true,breaklinks,linkcolor=blue,citecolor=magenta,urlcolor=green]{hyperref}% Color links true for debuggning for now
 \ifxetex\relax\else\usepackage{breakurl}\fi%
 %\ifluatex\relax\else\usepackage{breakurl}\fi%
 \urlstyle{rm}%
