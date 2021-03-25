@@ -22,6 +22,8 @@ const tagsToReplace = {
   DOLLAR: "\\$",
   SECT: "§",
 
+  ALLOW_BREAK: "###", // will be replaced in processSnippet depending on rendering target (PDF, HTML, etc.)
+
   EMDASH: "—",
   ENDASH: "–",
 

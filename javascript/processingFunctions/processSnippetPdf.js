@@ -126,7 +126,7 @@ export const processSnippetPdf = (node, writeTo) => {
 
     const codeArr = [];
     recursiveProcessTextLatex(jsSnippet.firstChild, codeArr);
-    const codeStr = codeArr.join("").trim();
+    const codeStr = codeArr.join("").replace(/###\n/g, "").trim();
 
     const codeArr_run = [];
     recursiveProcessPureText(jsRunSnippet.firstChild, codeArr_run);
@@ -141,33 +141,44 @@ export const processSnippetPdf = (node, writeTo) => {
       node.getAttribute("EVAL") === "no" ||
       node.getAttribute("LATEX") === "yes"
     ) {
+      let codeEnv = ancestorHasTag(node, "FOOTNOTE")
+        ? "JavaScript" + LatexString + "Footnote"
+        : ancestorHasTag(node, "EXERCISE")
+        ? "JavaScript" + LatexString + "Small"
+        : "JavaScript" + LatexString;
+
+      const separator =
+        "\\end{" +
+        codeEnv +
+        "}\n" +
+        "\\end{lrbox}" +
+        "\\usebox{\\UnbreakableBox}\\\\[-4pt]" +
+        "\\begin{lrbox}{\\UnbreakableBox}" +
+        "\\begin{" +
+        codeEnv +
+        "}\n";
+
+      writeTo.push("\\PreBoxCmd");
       writeTo.push("\n\\begin{lrbox}{\\UnbreakableBox}");
-
-      if (ancestorHasTag(node, "FOOTNOTE")) {
-        writeTo.push("\n\\begin{JavaScript" + LatexString + "Footnote}\n");
-      } else if (ancestorHasTag(node, "EXERCISE")) {
-        writeTo.push("\n\\begin{JavaScript" + LatexString + "Small}\n");
-      } else {
-        writeTo.push("\n\\begin{JavaScript" + LatexString + "}\n");
-      }
-
-      writeTo.push(codeStr);
-
-      if (ancestorHasTag(node, "FOOTNOTE")) {
-        writeTo.push("\n\\end{JavaScript" + LatexString + "Footnote}\n");
-      } else if (ancestorHasTag(node, "EXERCISE")) {
-        writeTo.push("\n\\end{JavaScript" + LatexString + "Small}\n");
-      } else {
-        writeTo.push("\n\\end{JavaScript" + LatexString + "}\n");
-      }
-
+      writeTo.push("\\begin{" + codeEnv + "}");
+      writeTo.push("\n");
+      writeTo.push(
+        codeArr
+          .join("")
+          .replace(/###\n/g, separator)
+          .replace(/}\nfunction/g, "}\n" + separator + "function")
+          .trim()
+      );
+      writeTo.push("\n");
+      writeTo.push("\\end{" + codeEnv + "}\n");
       writeTo.push("\\end{lrbox}");
+
       const jsOutputSnippet = node.getElementsByTagName("JAVASCRIPT_OUTPUT")[0];
       if (jsOutputSnippet) {
-        writeTo.push("\\PreBoxCmd\\usebox{\\UnbreakableBox}\\MidBoxCmd");
+        writeTo.push("\\usebox{\\UnbreakableBox}\\MidBoxCmd");
         outputAdjacent = true;
       } else {
-        writeTo.push("\\PreBoxCmd\\usebox{\\UnbreakableBox}\\PostBoxCmd");
+        writeTo.push("\\usebox{\\UnbreakableBox}\\PostBoxCmd");
       }
     } else {
       let reqStr = "";
@@ -259,55 +270,45 @@ export const processSnippetPdf = (node, writeTo) => {
 
       // writeTo.push("\n\\marginnote{\\href{" + url + "}{\\ensuremath{\\blacktriangleright}}}[2ex]" + "\\begin{JavaScriptClickable}\n");
 
-      //writeTo.push("\n\n\\noindent\\begin{minipage}{\\linewidth}");
+      let codeEnv = ancestorHasTag(node, "FOOTNOTE")
+        ? "JavaScriptClickableFootnote"
+        : ancestorHasTag(node, "EXERCISE")
+        ? "JavaScriptClickableSmall"
+        : "JavaScriptClickable";
+
+      const separator =
+        "\\end{" +
+        codeEnv +
+        "}\n" +
+        "\\end{lrbox}" +
+        "\\usebox{\\UnbreakableBox}\\\\[-4pt]" +
+        "\\begin{lrbox}{\\UnbreakableBox}" +
+        "\\begin{" +
+        codeEnv +
+        "}\n";
+
+      writeTo.push("\\PreBoxCmd");
       writeTo.push("\n\\begin{lrbox}{\\UnbreakableBox}");
-
-      if (ancestorHasTag(node, "FOOTNOTE")) {
-        writeTo.push("\\begin{JavaScriptClickableFootnote}");
-      } else if (ancestorHasTag(node, "EXERCISE")) {
-        writeTo.push("\\begin{JavaScriptClickableSmall}");
-      } else {
-        writeTo.push("\\begin{JavaScriptClickable}");
-      }
-
+      writeTo.push("\\begin{" + codeEnv + "}");
       writeTo.push("\n");
-      writeTo.push(lines.join("\n"));
+      writeTo.push(
+        lines
+          .join("\n")
+          .replace(/###\n/g, separator)
+          .replace(/}\nfunction/g, "}\n" + separator + "function")
+          .trim()
+      );
       writeTo.push("\n");
-
-      if (ancestorHasTag(node, "FOOTNOTE")) {
-        writeTo.push("\\end{JavaScriptClickableFootnote}\n");
-      } else if (ancestorHasTag(node, "EXERCISE")) {
-        writeTo.push("\\end{JavaScriptClickableSmall}\n");
-      } else {
-        writeTo.push("\\end{JavaScriptClickable}");
-      }
-
+      writeTo.push("\\end{" + codeEnv + "}\n");
       writeTo.push("\\end{lrbox}");
+
       const jsOutputSnippet = node.getElementsByTagName("JAVASCRIPT_OUTPUT")[0];
       if (jsOutputSnippet) {
-        writeTo.push("\\PreBoxCmd\\usebox{\\UnbreakableBox}\\MidBoxCmd");
+        writeTo.push("\\usebox{\\UnbreakableBox}\\MidBoxCmd");
         outputAdjacent = true;
       } else {
-        writeTo.push("\\PreBoxCmd\\usebox{\\UnbreakableBox}\\PostBoxCmd");
+        writeTo.push("\\usebox{\\UnbreakableBox}\\PostBoxCmd");
       }
-
-      //writeTo.push("\\end{minipage}\n");
-
-      // // 6 lines plus rest
-      // writeTo.push(
-      //   "\n\\begin{lrbox}{\\lstbox}\n\\begin{JavaScriptClickable}\n"
-      // );
-      // writeTo.push(chunks[1]);
-      // writeTo.push("\\end{JavaScriptClickable}\n\\end{lrbox}");
-
-      // if (chunks[2]) {
-      //   writeTo.push("\n\\begin{JavaScriptClickable}\n");
-      //   writeTo.push("/*!\\href{" + url + "}{\\usebox\\lstbox}!*/\n");
-      //   writeTo.push(chunks[2]);
-      //   writeTo.push("\n\\end{JavaScriptClickable}");
-      // } else {
-      //   writeTo.push("\n\n\\href{" + url + "}{\\usebox\\lstbox}");
-      // }
     }
   }
 
@@ -342,8 +343,6 @@ export const processSnippetPdf = (node, writeTo) => {
     if (outputAdjacent !== true) writeTo.push("\\PreBoxCmd");
     writeTo.push("\\usebox{\\UnbreakableBox}\\PostBoxCmd");
   }
-
-  //  writeTo.push("\n\n");
 };
 
 export default processSnippetPdf;
