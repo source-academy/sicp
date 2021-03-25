@@ -633,7 +633,7 @@ export const ending = `
 \\newpage
 \\markboth{}{}
 \\indexprologue{\\input{./others/98indexpreface98.tex}}
-% \\printindex
+\\printindex
 
 %\\input{./others/99making99.tex}
 

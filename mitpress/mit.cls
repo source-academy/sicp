@@ -1368,27 +1368,27 @@ Chapter \arabic{chapter}}%
 
 %%%%
 
-\usepackage[natbib,authordate,backend=biber]{biblatex-chicago}%
-\AtEveryBibitem{\global\undef\bbx@lasthash}%
-\setlength{\bibhang}{5\p@}%
-\setlength{\bibitemsep}{3.5\p@}%
-%\setlength{\biblabelsep}{-10\p@}%
-\def\bibfont{\footnotesize}%
-%\setlength{\bibhang}{1cm}
-%%%
-\newlength{\bibleftadd}%
-\setlength{\bibleftadd}{-5\p@}%
-%%
-\defbibenvironment{bibliography}
-  {\vspace{-2\p@}\markboth{\bibname}{\bibname}\list%
-     {}%
-     {\setlength{\topsep}{\z@}\setlength{\leftmargin}{\bibhang}%
-      \setlength{\itemindent}{-\leftmargin}%
-      \addtolength{\leftmargin}{\bibleftadd}%
-      \setlength{\itemsep}{\bibitemsep}%
-      \setlength{\parsep}{\bibparsep}}}
-  {\endlist}
-  {\item}
+%%\usepackage[natbib,authordate,backend=biber]{biblatex-chicago}%
+% \AtEveryBibitem{\global\undef\bbx@lasthash}%
+% \setlength{\bibhang}{5\p@}%
+% \setlength{\bibitemsep}{3.5\p@}%
+% %\setlength{\biblabelsep}{-10\p@}%
+% \def\bibfont{\footnotesize}%
+% %\setlength{\bibhang}{1cm}
+% %%%
+% \newlength{\bibleftadd}%
+% \setlength{\bibleftadd}{-5\p@}%
+% %%
+% \defbibenvironment{bibliography}
+%   {\vspace{-2\p@}\markboth{\bibname}{\bibname}\list%
+%      {}%
+%      {\setlength{\topsep}{\z@}\setlength{\leftmargin}{\bibhang}%
+%       \setlength{\itemindent}{-\leftmargin}%
+%       \addtolength{\leftmargin}{\bibleftadd}%
+%       \setlength{\itemsep}{\bibitemsep}%
+%       \setlength{\parsep}{\bibparsep}}}
+%   {\endlist}
+%   {\item}
 
 %Math parameters
 

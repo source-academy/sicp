@@ -164,8 +164,6 @@ export const processSnippetPdf = (node, writeTo) => {
       writeTo.push("\\end{lrbox}");
       const jsOutputSnippet = node.getElementsByTagName("JAVASCRIPT_OUTPUT")[0];
       if (jsOutputSnippet) {
-        console.log("Found snippet with output");
-        console.log(jsOutputSnippet);
         writeTo.push("\\PreBoxCmd\\usebox{\\UnbreakableBox}\\MidBoxCmd");
         outputAdjacent = true;
       } else {
