@@ -167,20 +167,42 @@ export const preamble = `
 \\usepackage{graphicx}
 \\graphicspath{{../static/}}
 
+% \\usepackage[answerdelayed]{exercise}
+\\newcounter{ExerciseDisplayNumber}[chapter]
+\\newcommand{\\theExercise}{\\thechapter.\\arabic{ExerciseDisplayNumber}}
+\\renewcommand{\\theExerciseDisplayNumber}{\\thechapter.\\arabic{ExerciseDisplayNumber}}
+
 \\newenvironment{Exercise}{%
   \\refstepcounter{ExerciseDisplayNumber}
   \\subsubsection*{Exercise~\\theExercise}
+  \\addcontentsline{loe}{section}{\\protect{\\textbf{\\thechapter.\\arabic{ExerciseDisplayNumber}}}}
   \\begingroup\\small
   }{
   \\endgroup
 }
 
-\\newcommand{\\listofexercises}{\\textbf{TODO}}
+\\newcommand{\\listexercisename}{List of Exercises}
 
-% \\usepackage[answerdelayed]{exercise}
-\\newcounter{ExerciseDisplayNumber}[chapter]
-\\newcommand{\\theExercise}{\\thechapter.\\arabic{ExerciseDisplayNumber}}
-\\renewcommand{\\theExerciseDisplayNumber}{\\thechapter.\\arabic{ExerciseDisplayNumber}}
+\\makeatletter
+\\def\\renewcounter#1{%
+\\@ifundefined{c@#1}
+{\\@latex@error{counter #1 undefined}\\@ehc}%
+\\relax
+\\let\\@ifdefinable\\@rc@ifdefinable
+\\@ifnextchar[{\\@newctr{#1}}{}}
+\\def\\ext@exercise{loe}
+\\newcommand{\\ExerciseLevelInToc}[1]{\\def\\toc@exercise{#1}}
+\\ExerciseLevelInToc{exercise}
+\\newcommand{\\ListOfExerciseInToc}{\\def\\ext@exercise{toc}\\ExerciseLevelInToc{paragraph}}
+\\newcommand\\listofexercises{%
+\\@mkboth{\\MakeUppercase\\listexercisename}%
+{\\MakeUppercase\\listexercisename}%
+\\begin{multicols}{5}
+  \\@starttoc{\\ext@exercise}%
+\\end{multicols}
+}
+\\makeatother
+
 
 %%%% \\usepackage[answerdelayed]{exercise}
 %%%% \\newcounter{ExerciseDisplayNumber}[chapter]
@@ -619,7 +641,9 @@ export const ending = `
 
 \\newpage
 \\markboth{}{}
-\\addcontentsline{toc}{chapter}{List Of Exercises}
+\\chapter*{List of Exercises}
+\\addcontentsline{toc}{chapter}{List of Exercises}
+TODO: group as in SICP 
 \\listofexercises
 
 %\\chapter*{Solution To Exercises}
