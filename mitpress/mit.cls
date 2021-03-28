@@ -101,7 +101,7 @@
 }%
 
 \renewcommand\normalsize{%
-   \@setfontsize\normalsize{11.5 \p@}{13.8\p@}%
+   \@setfontsize\normalsize{11 \p@}{13.8\p@}%
    \abovedisplayskip 8\p@%
    \abovedisplayshortskip \z@%
    \belowdisplayshortskip 4\p@%
@@ -234,8 +234,9 @@ ItalicFont=SyntaxLTStd-Italic,
 \newcommand{\sfbfit}[1]{\slant{15}{\fontsize{9}{13}\selectfont\sansbold{#1}}}%15 degree slant
 
 %%Sansbold definitions
-\newcommand{\sansbold}[1]{\textbf{\textsf{#1}}}%
+\newcommand{\sansbold}[1]{\textbf{{#1}}}%
 %%
+
 
 %
 % Set page layout dimensions
@@ -359,7 +360,7 @@ ItalicFont=SyntaxLTStd-Italic,
 \setlength\columnseprule{0\p@}      % width of rule between two columns
 
 % Footnotes
-\setlength\footnotesep{8\p@}     % space between footnotes
+\setlength\footnotesep{12\p@}     % space between footnotes
 % space between text and footnote
 \setlength{\skip\footins}{18\p@}%
 
@@ -1260,7 +1261,7 @@ ItalicFont=SyntaxLTStd-Italic,
 \def\indexspace{\par \vskip 12\p@\relax}
 \AtBeginDocument{%
 \def\printindex#1#2{\@restonecoltrue\if@twocolumn\@restonecolfalse\fi
-  \columnseprule \z@ \columnsep 12pt%
+  \columnseprule \z@ \columnsep 2pc%
   \newpage\startonoddpage %\twocolumn[{\Large\bf #2 \vskip4ex}]
 \begin{multicols*}{2}[\chapter*{\fontsize{18\p@}{22\p@}\selectfont\sansbold{#2}}\vspace{-10\p@}]%
   \addcontentsline{toc}{chapter}{#2}
@@ -1421,17 +1422,18 @@ Chapter \arabic{chapter}}%
      \leavevmode
      \@tempdima #3\relax
      \advance\leftskip \@tempdima \null\nobreak\hskip -\leftskip
-     {\fontsize{9\p@}{13\p@}\selectfont\sf#4}\nobreak
+     {\fontsize{10\p@}{13\p@}\selectfont\sf#4}\nobreak
      \leaders\hbox{$\m@th \mkern \@dotsep mu\hbox{.}\mkern \@dotsep
         mu$}\hfill
      \nobreak
-     \hb@xt@\@pnumwidth{\hfil\normalcolor\fontsize{9\p@}{13\p@}\selectfont\sf#5}%
+     \hb@xt@\@pnumwidth{\hfil\normalcolor\fontsize{10\p@}{13\p@}\selectfont\sf#5}%
      \par}%
   \fi}
 
 \def\@dottedtocline#1#2#3#4#5{%
   \renewcommand\@dotsep{1000}%
   \ifnum #1>\c@tocdepth \else%
+  \ifnum #1>2 \else\medskip\fi%
     \vskip \z@ %
     {\leftskip #2\relax \rightskip \@tocrmarg \parfillskip -\rightskip%
      \parindent #2\relax\@afterindenttrue%
@@ -1439,12 +1441,12 @@ Chapter \arabic{chapter}}%
      \leavevmode%
      \@tempdima #3\relax%
      \advance\leftskip \@tempdima \null\nobreak\hskip -\leftskip%
-\fontsize{9}{13}\selectfont%
-     {\fontsize{9}{13}\selectfont#4}\nobreak%
+\fontsize{10}{13}\selectfont%
+     {\fontsize{10}{13}\selectfont#4}\nobreak%
      \leaders\hbox{$\m@th \mkern \@dotsep mu\hbox{.}\mkern \@dotsep%
         mu$}\hfill%
      \nobreak%
-     \hb@xt@\@pnumwidth{\hfil\normalcolor\fontsize{9}{13}\selectfont#5}%%
+     \hb@xt@\@pnumwidth{\hfil\normalcolor\fontsize{10}{13}\selectfont#5}%%
      \par}%%
   \fi}%
 
@@ -1481,12 +1483,12 @@ Chapter \arabic{chapter}}%
      \leavevmode
      \@tempdima #3\relax
      \advance\leftskip \@tempdima \null\nobreak\hskip -\leftskip
-\fontsize{9}{13}\selectfont%
-     {\fontsize{9}{13}\selectfont\sansbold{#4}}\nobreak
+\fontsize{10}{13}\selectfont%
+     {\fontsize{10}{13}\selectfont\sansbold{#4}}\nobreak
      \leaders\hbox{$\m@th         \mkern \@dotsep mu\hbox{.}\mkern \@dotsep
         mu$}\hfill
       \nobreak
-     \hb@xt@\@pnumwidth{\hfil\normalcolor{\fontsize{9}{13}\selectfont#5}}%
+     \hb@xt@\@pnumwidth{\hfil\normalcolor{\fontsize{10}{13}\selectfont#5}}%
      \par}%
   \endgroup
   \fi}
@@ -1524,7 +1526,7 @@ Chapter \arabic{chapter}}%
      \@tempdima #3\relax
 \advance\leftskip \@tempdima%%added
      \null\nobreak\hskip -\leftskip
-     {\fontsize{9\p@}{13\p@}\selectfont\sansbold{\uppercase{#4}}}\nobreak
+     {\fontsize{10\p@}{13\p@}\selectfont\sansbold{\uppercase{#4}}}\nobreak
      \leaders\hbox{$\m@th         \mkern \@dotsep mu\hbox{.}\mkern \@dotsep
         mu$}\hfill
      \nobreak
@@ -1544,12 +1546,12 @@ Chapter \arabic{chapter}}%
      \leavevmode%
      \@tempdima #3\relax%
      \advance\leftskip \@tempdima \null\nobreak\hskip -\leftskip%
-\fontsize{9}{13}\selectfont%
-     {\fontsize{9}{13}\selectfont\sf#4}\nobreak%
+\fontsize{10}{13}\selectfont%
+     {\fontsize{10}{13}\selectfont\sf#4}\nobreak%
      \leaders\hbox{$\m@th \mkern \@dotsep mu\hbox{.}\mkern \@dotsep%
         mu$}\hfill%
      \nobreak%
-     \hb@xt@\@pnumwidth{\hfil\normalcolor\fontsize{9}{13}\selectfont\sf#5}%%
+     \hb@xt@\@pnumwidth{\hfil\normalcolor\fontsize{10}{13}\selectfont\sf#5}%%
      \par\vspace{3\p@}}%%
   \fi}%
 
@@ -1600,15 +1602,15 @@ Chapter \arabic{chapter}}%
     }
 \let\l@table\l@figure
 
-\setcounter{tocdepth}{2}%
+\setcounter{tocdepth}{3}%
 
 \newcommand*\l@book[1]{{\vspace{\bigskipamount}\vspace{\medskipamount}\noindent{\large\bfseries #1}}}
 \newcommand*\l@part{\@partdottedtocline{0}{0em}{24pt}}
 \newcommand*\l@fmbm{\@fmbmdottedtocline{0}{24\p@}{0pt}}
 \newcommand*\l@chapter{\@chapterdottedtocline{1}{0pt}{24pt}}
-\newcommand*\l@section{\@dottedtocline{2}{24pt}{24pt}}
+\newcommand*\l@section{\@dottedtocline{2}{24pt}{28pt}}
 \newcommand*\l@contributor{\@contributordottedtocline{2}{24pt}{24pt}}
-\newcommand*\l@subsection{\@dottedtocline{3}{48pt}{30pt}}
+\newcommand*\l@subsection{\@dottedtocline{3}{24pt}{28pt}}
 \newcommand*\l@subsubsection{\@dottedtocline{4}{76.5pt}{35pt}}
 \newcommand*\l@paragraph{\@dottedtocline{5}{114pt}{40pt}}
 \newcommand*\l@subparagraph{\@dottedtocline{5}{154.5pt}{50pt}}
