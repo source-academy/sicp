@@ -1611,6 +1611,7 @@ Chapter \arabic{chapter}}%
 \newcommand*\l@section{\@dottedtocline{2}{24pt}{28pt}}
 \newcommand*\l@contributor{\@contributordottedtocline{2}{24pt}{24pt}}
 \newcommand*\l@subsection{\@dottedtocline{3}{24pt}{28pt}}
+\newcommand*\l@exercise{\@dottedtocline{3}{0pt}{0pt}}
 \newcommand*\l@subsubsection{\@dottedtocline{4}{76.5pt}{35pt}}
 \newcommand*\l@paragraph{\@dottedtocline{5}{114pt}{40pt}}
 \newcommand*\l@subparagraph{\@dottedtocline{5}{154.5pt}{50pt}}

@@ -472,6 +472,7 @@ const processTextFunctionsDefaultLatex = {
   CHAPTER: (node, writeTo) => {
     writeTo.push("\\chapter{");
     addName(node, writeTo);
+    writeTo.push("\\LOE{} %% Insert break in list of Exercises\n");
     writeTo.push("\\thispagestyle{chapter-open}\n");
     recursiveProcessTextLatex(node.firstChild, writeTo);
   },

@@ -175,13 +175,14 @@ export const preamble = `
 \\newenvironment{Exercise}{%
   \\refstepcounter{ExerciseDisplayNumber}
   \\subsubsection*{Exercise~\\theExercise}
-  \\addcontentsline{loe}{section}{\\protect{\\textbf{\\thechapter.\\arabic{ExerciseDisplayNumber}}}}
+  \\addcontentsline{loe}{exercise}{\\protect{\\textbf{\\thechapter.\\arabic{ExerciseDisplayNumber}}}}
   \\begingroup\\small
   }{
   \\endgroup
 }
 
 \\newcommand{\\listexercisename}{List of Exercises}
+\\newcommand{\\LOE}{\\addtocontents{loe}{\\end{multicols}\\begin{multicols}{5}}}
 
 \\makeatletter
 \\def\\renewcounter#1{%
@@ -197,6 +198,7 @@ export const preamble = `
 \\newcommand\\listofexercises{%
 \\@mkboth{\\MakeUppercase\\listexercisename}%
 {\\MakeUppercase\\listexercisename}%
+\\addtolength{\\columnsep}{13mm}
 \\begin{multicols}{5}
   \\@starttoc{\\ext@exercise}%
 \\end{multicols}
@@ -639,13 +641,6 @@ ISBN:
 export const ending = `
 \\input{./others/06see06.tex}
 
-\\newpage
-\\markboth{}{}
-\\chapter*{List of Exercises}
-\\addcontentsline{toc}{chapter}{List of Exercises}
-TODO: group as in SICP 
-\\listofexercises
-
 %\\chapter*{Solution To Exercises}
 %\\addcontentsline{toc}{chapter}{Solution To Exercises}
 %\\shipoutAnswer
@@ -656,8 +651,14 @@ TODO: group as in SICP
 
 \\newpage
 \\markboth{}{}
-\\indexprologue{\\input{./others/98indexpreface98.tex}}
-\\printindex{sicpjs}{Index}
+\\chapter*{List of Exercises}
+\\LOE{}
+\\addcontentsline{toc}{chapter}{List of Exercises}
+\\listofexercises
+
+%\\chapter*{Solution To Exercises}
+%\\addcontentsline{toc}{chapter}{Solution To Exercises}
+%\\shipoutAnswer
 
 %\\input{./others/99making99.tex}
 
