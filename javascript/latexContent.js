@@ -120,6 +120,7 @@ export const preamble = `
 
 \\usepackage{fancyhdr}
 \\pagestyle{fancy}
+\\floatpagestyle{fancy}
 
 \\renewcommand{\\headrulewidth}{0.4pt}
 \\fancyhead[LE,RO]{\\small\\it\\thepage}
