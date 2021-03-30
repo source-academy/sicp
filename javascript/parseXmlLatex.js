@@ -165,11 +165,17 @@ const processTextFunctionsDefaultLatex = {
   },
 
   META: (node, writeTo) => {
+    if (ancestorHasTag(node, "JAVASCRIPT_OUTPUT")) {
+      writeTo.push("^");
+    }
     writeTo.push("$\\mathit{");
     let s = node.firstChild.nodeValue;
     s = s.replace(/-/g, "\\mhyphen{}").replace(/ /g, "\\ ");
     writeTo.push(s);
     writeTo.push("}$");
+    if (ancestorHasTag(node, "JAVASCRIPT_OUTPUT")) {
+      writeTo.push("^");
+    }
   },
 
   METAPHRASE: (node, writeTo) => {
