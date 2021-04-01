@@ -628,7 +628,7 @@ ItalicFont=SyntaxLTStd-Italic,
 \def\@schapter#1{%
   \chaptermark{#1}
   \thispagestyle{plain}
-  \@makeschapterhead{#1}
+  \@makeSSchapterhead{#1}
   \@afterindentfalse
   \@afterheading}
 
@@ -673,13 +673,13 @@ ItalicFont=SyntaxLTStd-Italic,
   \begingroup%
     \parindent\z@\raggedright%
 \null\vspace{-7.5\p@}%
-\vbox to 138\p@{%
+\vbox{%
 \adjustbox{valign=t}{%
 \begin{tabular}[t]{@{}l@{}}%
 \fontsize{31\p@}{31\p@}\selectfont\sansbold{\thechapter}%
 \end{tabular}}\ignorespaces\hspace{21\p@}\ignorespaces%
 \adjustbox{valign=t}{%
-\begin{tabular}[t]{@{}P{270\p@}@{}}%
+\begin{tabular}[t]{@{}P{300\p@}@{}}%
 \noalign{\vskip-1.5\p@}%
     {\fontsize{18\p@}{22\p@}\selectfont\sansbold{#1}\vphantom{y}\par}\\%
 \ifx\@chapterauthor\@empty\relax\else%
@@ -694,6 +694,29 @@ ItalicFont=SyntaxLTStd-Italic,
   \endgroup%
   \@afterindentfalse
   \@afterheading}
+
+\def\@makeSSchapterhead#1{% 
+  \begingroup%
+    \parindent\z@\raggedright%
+\null\vspace{-7.5\p@}%
+\vbox{%
+\adjustbox{valign=t}{%
+\begin{tabular}[t]{@{}P{300\p@}@{}}%
+\noalign{\vskip-1.5\p@}%
+    {\fontsize{18\p@}{22\p@}\selectfont\sansbold{#1}\vphantom{y}\par}\\%
+\ifx\@chapterauthor\@empty\relax\else%
+\noalign{\vskip1\p@}\addcontentsline{toc}{contributor}{\@chapterauthor}\fi%
+ {\fontsize{9\p@}{14\p@}\selectfont\sansbold{\@chapterauthor\vphantom{y}}\par}%
+\end{tabular}}\par%
+%\medskip
+%    {\fontsize{11}{13}\selectfont\centering\@subtitle\par}%
+%\bigskip%
+%    {\fontsize{11}{13}\fontshape{it}\selectfont\centering\@author\par}%
+\vfill}%
+  \endgroup%
+  \@afterindentfalse
+  \@afterheading}
+
 
 \def\abstract{\vskip9pt\bgroup\small\noindent{\sansbold{Abstract.}}\ignorespaces\hspace{9\p@}\ignorespaces}%
 \def\endabstract{\vskip1sp\egroup\vskip9pt}%

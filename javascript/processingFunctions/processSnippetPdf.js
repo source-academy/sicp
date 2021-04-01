@@ -43,6 +43,8 @@ export const setupSnippetsPdf = node => {
   }
 };
 
+let once = false;
+
 const recursiveGetRequires = (name, seen) => {
   if (seen.has(name)) return;
   const snippetEntry = snippetStore[name];
@@ -56,12 +58,27 @@ const recursiveGetRequires = (name, seen) => {
   seen.add(name);
 };
 
+// Check if the next sibling node is an element node
+function nextNodeIsVisibleSnippet(n) {
+  var cursor = n.nextSibling;
+
+  // Skip over all intermediate next nodes
+  if (cursor === undefined || cursor === null) return false;
+  while (cursor.nodeType == 3 && cursor.textContent.trim() === "") {
+    cursor = cursor.nextSibling;
+    if (cursor === undefined || cursor === null) return false;
+  }
+
+  return cursor.nodeName === "SNIPPET" && cursor.getAttribute("HIDE") !== "yes";
+}
+
 export const processSnippetPdf = (node, writeTo) => {
   const LatexString = node.getAttribute("LATEX") === "yes" ? "Latex" : "";
   if (node.getAttribute("HIDE") == "yes") {
     return;
   }
 
+  const followedByOtherSnippet = nextNodeIsVisibleSnippet(node);
   let outputAdjacent = false;
 
   const jsPromptSnippet = node.getElementsByTagName("JAVASCRIPT_PROMPT")[0];
@@ -152,7 +169,7 @@ export const processSnippetPdf = (node, writeTo) => {
         codeEnv +
         "}\n" +
         "\\end{lrbox}" +
-        "\\usebox{\\UnbreakableBox}\\\\[-4pt]" +
+        "\\Usebox{\\UnbreakableBox}\\\\" +
         "\\begin{lrbox}{\\UnbreakableBox}" +
         "\\begin{" +
         codeEnv +
@@ -175,10 +192,15 @@ export const processSnippetPdf = (node, writeTo) => {
 
       const jsOutputSnippet = node.getElementsByTagName("JAVASCRIPT_OUTPUT")[0];
       if (jsOutputSnippet) {
-        writeTo.push("\\usebox{\\UnbreakableBox}\\MidBoxCmd");
+        writeTo.push("\\Usebox{\\UnbreakableBox}\\MidBoxCmd");
         outputAdjacent = true;
       } else {
-        writeTo.push("\\usebox{\\UnbreakableBox}\\PostBoxCmd");
+        writeTo.push("\\Usebox{\\UnbreakableBox}");
+        if (!followedByOtherSnippet) {
+          writeTo.push("\\PostBoxCmd");
+        } else {
+          console.log("adjacent snippets!");
+        }
       }
     } else {
       let reqStr = "";
@@ -281,7 +303,7 @@ export const processSnippetPdf = (node, writeTo) => {
         codeEnv +
         "}\n" +
         "\\end{lrbox}" +
-        "\\usebox{\\UnbreakableBox}\\\\[-4pt]" +
+        "\\Usebox{\\UnbreakableBox}\\\\" +
         "\\begin{lrbox}{\\UnbreakableBox}" +
         "\\begin{" +
         codeEnv +
@@ -304,10 +326,13 @@ export const processSnippetPdf = (node, writeTo) => {
 
       const jsOutputSnippet = node.getElementsByTagName("JAVASCRIPT_OUTPUT")[0];
       if (jsOutputSnippet) {
-        writeTo.push("\\usebox{\\UnbreakableBox}\\MidBoxCmd");
+        writeTo.push("\\Usebox{\\UnbreakableBox}\\MidBoxCmd");
         outputAdjacent = true;
       } else {
-        writeTo.push("\\usebox{\\UnbreakableBox}\\PostBoxCmd");
+        writeTo.push("\\Usebox{\\UnbreakableBox}");
+        if (!followedByOtherSnippet) {
+          writeTo.push("\\PostBoxCmd");
+        }
       }
     }
   }
@@ -340,8 +365,12 @@ export const processSnippetPdf = (node, writeTo) => {
     }
 
     writeTo.push("\\end{lrbox}");
-    if (outputAdjacent !== true) writeTo.push("\\PreBoxCmd");
-    writeTo.push("\\usebox{\\UnbreakableBox}\\PostBoxCmd");
+    if (outputAdjacent !== true) {
+      writeTo.push("\\PreBoxCmd");
+    } else {
+      //writeTo.push("\\nopagebreak");
+    }
+    writeTo.push("\\Usebox{\\UnbreakableBox}\\PostBoxCmd");
   }
 };
 

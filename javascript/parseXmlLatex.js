@@ -458,9 +458,9 @@ const processTextFunctionsDefaultLatex = {
   },
 
   REFERENCE: (node, writeTo) => {
-    writeTo.push("");
+    writeTo.push("\\begin{small}\n");
     recursiveProcessTextLatex(node.firstChild, writeTo);
-    writeTo.push("\\\\[3mm]\n");
+    writeTo.push("\\\\[3mm]\\end{small}\n");
   },
 
   SC: (node, writeTo) => {
@@ -538,9 +538,13 @@ const processTextFunctionsDefaultLatex = {
           "{\\lstinline[breaklines=true, breakatwhitespace=true,mathescape=false]~"
         );
       } else if (getChildrenByTagName(node, "META")[0]) {
-        writeTo.push("{\\lstinline[mathescape=true]~");
+        writeTo.push(
+          "{\\lstinline[mathescape=true,basicstyle=\\usefont{T1}{lmtt}{m}{n}\\fontsize{10.5pt}{13.8pt}\\selectfont,keywordstyle=\\usefont{T1}{lmtt}{b}{n}\\fontsize{10.5pt}{13.8pt}\\selectfont]~"
+        );
       } else {
-        writeTo.push("{\\lstinline[mathescape=false]~");
+        writeTo.push(
+          "{\\lstinline[mathescape=false,basicstyle=\\usefont{T1}{lmtt}{m}{n}\\fontsize{10.5pt}{13.8pt}\\selectfont,keywordstyle=\\usefont{T1}{lmtt}{b}{n}\\fontsize{10.5pt}{13.8pt}\\selectfont]~"
+        );
       }
       recursiveProcessTextLatex(node.firstChild, writeTo, {
         removeNewline: "all",

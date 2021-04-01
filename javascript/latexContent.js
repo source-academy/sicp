@@ -55,14 +55,15 @@ export const preamble = `
   justification=justified,
   singlelinecheck=off,
   labelfont={small,bf},
-  textfont=normalsize,
+  textfont=small,
   skip=1pc,
   labelsep=quad
   ]{caption}
 
 \\raggedbottom
 
-\\addtolength\\headsep{-1pc} 
+\\addtolength\\headsep{-1.5pc} 
+\\addtolength\\textheight{0.5pc} 
 
 \\ifxetex
 \\setmonofont[Ligatures=TeX]{Latin Modern Mono}
@@ -87,8 +88,9 @@ export const preamble = `
 \\usepackage{cprotect}
 \\usepackage{csquotes}
 \\usepackage[shortlabels]{enumitem}
-\\setlist{noitemsep}
-\\setlist[itemize,1]{label={--},left=0pt .. \\parindent}
+\\setlist{itemsep=0.5ex}
+\\setlist[itemize,1]{label={\\textbullet},left=1pt .. 10pt}
+%% \\setlist[itemize,1]{label={\\textbullet},left=7pt .. \\parindent}
 \\setlist[enumerate,1]{left=0pt .. \\parindent}
 \\usepackage{etoolbox}
 \\usepackage{float}
@@ -131,6 +133,13 @@ export const preamble = `
 \\renewcommand{\\chaptermark}[1]{\\markboth{Chapter\\,\\thechapter\\quad{}#1}{}}
 \\renewcommand{\\sectionmark}[1]{\\markright{\\thesection\\quad{}#1}}
 \\renewcommand{\\subsectionmark}[1]{\\markright{\\thesubsection\\quad{}#1}}
+
+\\fancypagestyle{TOC}{
+  \\renewcommand{\\headrulewidth}{0.4pt}
+  \\fancyhead[LE,RO]{\\small\\usefont{T1}{ptm}{m}{it}\\thepage}
+  \\fancyhead[RE]{\\small\\usefont{T1}{ptm}{m}{it} Contents}
+  \\fancyhead[LO]{\\small\\usefont{T1}{ptm}{m}{it} Contents}
+}
 
 \\fancypagestyle{chapter-open}{
   \\renewcommand{\\headrulewidth}{0pt}
@@ -199,7 +208,7 @@ export const preamble = `
 \\newcommand\\listofexercises{%
 \\@mkboth{\\MakeUppercase\\listexercisename}%
 {\\MakeUppercase\\listexercisename}%
-\\addtolength{\\columnsep}{13mm}
+\\addtolength{\\columnsep}{4mm}
 \\begin{multicols}{5}
   \\@starttoc{\\ext@exercise}%
 \\end{multicols}
@@ -226,6 +235,10 @@ export const preamble = `
   \\typeout{Patching of \\string\\lstinline\\space failed!}%
 }
 
+\\newcommand{\\JS}[1]{\\lstinline[mathescape=false,basicstyle=\\usefont{T1}{lmtt}{m}{n}\\fontsize{10.5pt}{13.8pt}\\selectfont,keywordstyle=\\usefont{T1}{lmtt}{b}{n}\\fontsize{10.5pt}{13.8pt}\\selectfont]@#1@}
+\\newcommand{\\JSMathEscape}[1]{\\lstinline[mathescape=true,basicstyle=\\usefont{T1}{lmtt}{m}{n}\\fontsize{10.5pt}{13.8pt}\\selectfont,keywordstyle=\\usefont{T1}{lmtt}{b}{n}\\fontsize{10.5pt}{13.8pt}\\selectfont]@#1@}
+
+
 \\lstdefinelanguage{JavaScript}{
   keywords={function,if,else,return,const,let,break,for,while,true,false,var,null}, %% removing continue for now
   %% keywords={const, let, break, case, catch, continue, debugger, default, delete, do, else, finally, for, function, if, in, instanceof, return, switch, this, throw, try, typeof, var, void, while, with},
@@ -238,9 +251,19 @@ export const preamble = `
   sensitive=true
 }
 
-\\newcommand{\\PreBoxCmd}{\\par\\vspace{4pt plus 2pt minus 2pt}\\noindent}
-\\newcommand{\\PostBoxCmd}{\\par\\vspace{6pt plus 2pt minus 2pt}\\noindent}
-\\newcommand{\\MidBoxCmd}{\\par\\noindent}
+%% \\newcommand{\\PreBoxCmd}{\\par\\vspace{4pt plus 2pt minus 2pt}\\noindent}
+%% \\newcommand{\\PostBoxCmd}{\\par\\vspace{6pt plus 2pt minus 2pt}\\noindent}
+%% \\newcommand{\\MidBoxCmd}{\\par\\noindent}
+
+%% \\newcommand{\\PreBoxCmd}{\\par\\vspace{6pt}\\noindent}
+%% \\newcommand{\\PostBoxCmd}{\\par\\vspace{9pt}\\noindent}
+%% \\newcommand{\\MidBoxCmd}{\\nopagebreak\\par\\noindent}
+%%\\newcommand{\\Usebox}{\\usebox{\\UnbreakableBox}}
+
+\\newcommand{\\PreBoxCmd}{\\par\\bigbreak\\noindent}
+\\newcommand{\\PostBoxCmd}{\\par\\smallskip\\medbreak\\noindent}
+\\newcommand{\\MidBoxCmd}{\\nopagebreak\\par\\noindent}
+\\newcommand{\\Usebox}[1]{\\raisebox{4pt}[\\height]{\\usebox{#1}}}
 
 \\lstset{
    language=JavaScript,
@@ -506,7 +529,7 @@ export const preamble = `
 \\setlength\\epigraphwidth{11cm}
 \\setlength\\epigraphrule{0pt}
 
-%% \\usepackage[colorlinks=true, urlcolor=blue, linkcolor=blue, citecolor=blue]{hyperref}
+%% \\usepackage[colorlinks=true, urlcolor=blue, linkcolor=blue, citecolor=blue]{hyperref} %% colorlinks=false for final build
 
 \\usepackage[maxfloats=266]{morefloats}
 
@@ -562,7 +585,7 @@ export const preamble = `
 \\newcommand{\\dd}[1]{\\textit{#1}}
 \\newcommand\\klammeraffe{@}
 
-\\makeindex
+\\makeindex[\columnsep=2pc]
 
 % to avoid spurious white space around index entries
 \\let\\oldindex\\index
@@ -614,13 +637,11 @@ ISBN:
 \\end{epigraphpage}
 
 
-\\pagestyle{chapter-open}
-
-\\begin{singlespace}
-{\\hypersetup{linkcolor=black}
+%% \\\\hypersetup{linkcolor=black} %% For final build
+\\pagestyle{TOC}
+\\thispagestyle{chapter-open}
 \\tableofcontents{}
-}
-\\end{singlespace}
+\\cleardoublepage
 
 \\pagestyle{Main}
 \\pagestyle{Foreword}
@@ -649,6 +670,11 @@ export const ending = `
 \\newpage
 \\markboth{References}{References}
 \\input{./others/97references97.tex}
+
+\\newpage
+\\markboth{}{}
+\\indexprologue{\\input{./others/98indexpreface98.tex}}
+\\printindex{sicpjs}{Index}
 
 \\newpage
 \\markboth{}{}
