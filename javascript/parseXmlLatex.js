@@ -552,10 +552,7 @@ const processTextFunctionsDefaultLatex = {
       } else {
         writeTo.push("{\\lstinline[mathescape=false]~");
       }
-      recursiveProcessTextLatex(node.firstChild, writeTo, {
-        removeNewline: "all",
-        escapeCurlyBracket: true
-      });
+      recursiveProcessTextLatex(node.firstChild, writeTo);
       writeTo.push("~}");
     }
   },
@@ -570,7 +567,7 @@ const processTextFunctionsDefaultLatex = {
 
   TT: (node, writeTo) => {
     writeTo.push("\\texttt{");
-    recursiveProcessTextLatex(node.firstChild, writeTo, true);
+    recursiveProcessTextLatex(node.firstChild, writeTo);
     writeTo.push("}%\n");
   },
 
