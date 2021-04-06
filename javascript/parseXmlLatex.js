@@ -67,7 +67,11 @@ const processTextFunctionsDefaultLatex = {
     if (ancestorHasTag(node, "SNIPPET")) {
       trimedValue = node.nodeValue;
     } else {
-      trimedValue = node.nodeValue
+      trimedValue = node.nodeValue;
+      if (ancestorHasTag(node, "JAVASCRIPTINLINE")) {
+        trimedValue = trimedValue.replace(/\{/g, "\\{").replace(/\}/g, "\\}");
+      }
+      trimedValue = trimedValue
         .replace(/[\r\n]+/, " ")
         .replace(/\s+/g, " ")
         .replace(/\^/g, "^{}")
