@@ -345,7 +345,7 @@ export const preamble = `\\documentclass[a4paper, 12pt]{book}
 
 \\lstnewenvironment{JavaScriptOutputSmall}{\\lstset{style=JavaScriptOutputSmall,aboveskip=-0.5ex,belowskip=1.8ex}}{}
 \\lstnewenvironment{JavaScriptOutputLatexSmall}{\\lstset{style=JavaScriptOutputLatexSmall,aboveskip=-0.5ex,belowskip=1.8ex}}{}
-\\lstnewenvironment{JavaScriptPromptSmall}{\\lstset{style=JavaScriptSmall,aboveskip=2.5ex,belowskip=-3.0ex}}{}
+\\lstnewenvironment{JavaScriptPromptSmall}{\\lstset{style=JavaScriptOutputSmall,aboveskip=2.5ex,belowskip=-3.0ex}}{}
 \\lstnewenvironment{JavaScriptPromptLatexSmall}{\\lstset{style=JavaScriptOutputLatexSmall,aboveskip=2.5ex,belowskip=-3.0ex}}{}
 \\lstnewenvironment{JavaScriptLonelySmall}{\\lstset{style=JavaScriptOutputSmall,aboveskip=2.5ex,belowskip=2.5ex}}{}
 \\lstnewenvironment{JavaScriptLonelyLatexSmall}{\\lstset{style=JavaScriptOutputLatexSmall,aboveskip=2.5ex,belowskip=2.5ex}}{}
