@@ -1,6 +1,5 @@
 const tagsToReplace = {
   APOS: "'",
-  SPACE: "~",
   WJ: "&#8288;",
   AACUTE_LOWER: "á",
   AACUTE_UPPER: "Á",
@@ -22,10 +21,15 @@ const tagsToReplace = {
   DOLLAR: "\\$",
   SECT: "§",
 
+  ALLOW_BREAK: "###", // will be replaced in processSnippet depending on rendering target (PDF, HTML, etc.)
+
   EMDASH: "—",
   ENDASH: "–",
 
-  BREAK: "\n"
+  BREAK: "\n",
+
+  SPACE: "~",
+  FIXED_SPACE: "{\\tt~}"
 };
 
 export const replaceTagWithSymbol = (node, writeTo) => {

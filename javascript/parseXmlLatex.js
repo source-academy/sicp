@@ -68,7 +68,10 @@ const processTextFunctionsDefaultLatex = {
       trimedValue = node.nodeValue;
     } else {
       trimedValue = node.nodeValue;
-      if (ancestorHasTag(node, "JAVASCRIPTINLINE")) {
+      if (
+        node.parentNode.nodeName === "JAVASCRIPTINLINE" &&
+        node.parentNode.parentNode.nodeName === "CAPTION"
+      ) {
         trimedValue = trimedValue.replace(/\{/g, "\\{").replace(/\}/g, "\\}");
       } else {
         trimedValue = trimedValue.replace(/%/g, "\\%");
@@ -92,6 +95,7 @@ const processTextFunctionsDefaultLatex = {
     const name = addName(node, writeTo);
     writeTo.push("\\addcontentsline{toc}{chapter}{");
     writeTo.push(name + "}");
+    writeTo.push("\\thispagestyle{chapter-open}\n");
     recursiveProcessTextLatex(node.firstChild, writeTo);
   },
   REFERENCES: (node, writeTo) =>
@@ -121,7 +125,7 @@ const processTextFunctionsDefaultLatex = {
   },
 
   EXERCISE_STARTING_WITH_ITEMS: (node, writeTo) => {
-    writeTo.push("\\vspace{-7mm}");
+    // writeTo.push("\\vspace{-5mm}");
   },
 
   EXERCISE_FOLLOWED_BY_TEXT: (node, writeTo) => {
@@ -159,6 +163,7 @@ const processTextFunctionsDefaultLatex = {
 
   FOOTNOTE: (node, writeTo) => {
     writeTo.push("\\cprotect\\footnote{");
+    writeTo.push("\\def\\inlinecodesize{\\fontsize{9pt}{10pt}\\selectfont}");
     recursiveProcessTextLatex(node.firstChild, writeTo);
     writeTo.push("}");
   },
@@ -208,8 +213,8 @@ const processTextFunctionsDefaultLatex = {
     // prepare actual index string
     const indexArr = [];
     recursiveProcessTextLatex(node.firstChild, indexArr);
-    let indexStr = indexArr.join("");
-    let marginStr = indexArr.join("");
+    let indexStr = indexArr.join("").trim();
+    let marginStr = indexArr.join("").trim();
     if (primitive) {
       indexStr +=
         "primitive functions (ECMAScript equivalent in parentheses; those marked \\textit{ns} are not in the ECMAScript standard)";
@@ -468,9 +473,8 @@ const processTextFunctionsDefaultLatex = {
   },
 
   REFERENCE: (node, writeTo) => {
-    writeTo.push("");
+    writeTo.push("\\item\n");
     recursiveProcessTextLatex(node.firstChild, writeTo);
-    writeTo.push("\\\\[3mm]\n");
   },
 
   SC: (node, writeTo) => {
@@ -482,7 +486,8 @@ const processTextFunctionsDefaultLatex = {
   CHAPTER: (node, writeTo) => {
     writeTo.push("\\chapter{");
     addName(node, writeTo);
-    writeTo.push("\\pagestyle{main}%\n");
+    writeTo.push("\\LOE{} %% Insert break in list of Exercises\n");
+    writeTo.push("\\thispagestyle{chapter-open}\n");
     recursiveProcessTextLatex(node.firstChild, writeTo);
   },
 
@@ -493,7 +498,6 @@ const processTextFunctionsDefaultLatex = {
       writeTo.push("\\section{");
     }
     addName(node, writeTo);
-    writeTo.push("\\pagestyle{section}%\n");
     recursiveProcessTextLatex(node.firstChild, writeTo);
   },
 
@@ -504,7 +508,6 @@ const processTextFunctionsDefaultLatex = {
       writeTo.push("\\subsection{");
     }
     addName(node, writeTo);
-    writeTo.push("\\pagestyle{subsection}%\n");
     recursiveProcessTextLatex(node.firstChild, writeTo);
   },
 
@@ -525,9 +528,8 @@ const processTextFunctionsDefaultLatex = {
   },
 
   SUBSUBHEADING: (node, writeTo) => {
-    writeTo.push("{\\noindent\\emph{");
+    writeTo.push("\\subparagraph{");
     addName(node, writeTo);
-    writeTo.push("}\n\n");
     recursiveProcessTextLatex(node.firstChild, writeTo);
   },
 
@@ -546,14 +548,17 @@ const processTextFunctionsDefaultLatex = {
     } else {
       if (node.getAttribute("break")) {
         writeTo.push(
-          "{\\lstinline[breaklines=true, breakatwhitespace=true,mathescape=false]~"
+          "{\\lstinline[breaklines=true,breakatwhitespace=true,mathescape=false]~"
         );
       } else if (getChildrenByTagName(node, "META")[0]) {
-        writeTo.push("{\\lstinline[mathescape=true]~");
+        writeTo.push("{\\JSMathEscape~");
       } else {
-        writeTo.push("{\\lstinline[mathescape=false]~");
+        writeTo.push("{\\JS~");
       }
-      recursiveProcessTextLatex(node.firstChild, writeTo);
+      // recursiveProcessTextLatex(node.firstChild, writeTo, { escapeCurlyBracket: false });
+      recursiveProcessTextLatex(node.firstChild, writeTo, {
+        escapeCurlyBracket: true
+      });
       writeTo.push("~}");
     }
   },

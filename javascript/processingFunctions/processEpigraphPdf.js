@@ -14,7 +14,7 @@ export const processEpigraphPdf = (node, writeTo) => {
   }
 
   if (attribution) {
-    writeTo.push("~}{---");
+    writeTo.push("~}{\\quotationdash{}");
 
     const author = attribution.getElementsByTagName("AUTHOR")[0];
     if (author) {

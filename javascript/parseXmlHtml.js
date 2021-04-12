@@ -407,6 +407,11 @@ const processTextFunctionsDefaultHtml = {
     recursiveProcessTextHtml(node.firstChild, writeTo);
   },
 
+  FIXED_SPACE: (node, writeTo) => {
+    writeTo.push("<kbd>&nbsp;</kbd>");
+    recursiveProcessTextHtml(node.firstChild, writeTo);
+  },
+
   OL: (node, writeTo) => {
     writeTo.push(`<OL type="`);
     writeTo.push(ancestorHasTag(node, "EXERCISE") ? `a">` : `1">`);
