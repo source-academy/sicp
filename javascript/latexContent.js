@@ -69,6 +69,17 @@ export const preamble = `\\documentclass[a4paper, 12pt]{book}
 \\def\\figurecodesize{\\fontsize{8.7}{10pt}\\selectfont}
 \\def\\footnotecodesize{\\fontsize{8}{9pt}\\selectfont}
 
+\\newenvironment{Parsing}{%
+  \\par%
+  \\vspace{12pt}%
+  \\noindent%
+  \\begin{minipage}{1.0\\linewidth}\\vspace*{-0.85\\baselineskip}\\normalcodesize\\begin{eqnarray*}}{%
+                                                         \\end{eqnarray*}%
+                                                       \\end{minipage}%
+                                                       \\par%
+                                                       \\vspace{12pt}%
+                                                       \\noindent}
+
 \\usepackage{setspace}
 \\onehalfspacing
 
