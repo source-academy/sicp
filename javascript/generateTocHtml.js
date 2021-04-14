@@ -76,18 +76,22 @@ export const sortTOC = allFilepath => {
 
     if (filename.match(/foreword/)) {
       sortedFilepath[0] = filename;
+    } else if (filename.match(/prefaces96/)) {
+      sortedFilepath[3] = filename;
+    } else if (filename.match(/prefaces84/)) {
+      sortedFilepath[2] = filename;
     } else if (filename.match(/prefaces/)) {
       sortedFilepath[1] = filename;
     } else if (filename.match(/acknowledgements/)) {
-      sortedFilepath[2] = filename;
+      sortedFilepath[4] = filename;
     } else if (filename.match(/see/)) {
-      sortedFilepath[3] = filename;
+      sortedFilepath[5] = filename;
     } else if (filename.match(/references/)) {
       sortedFilepath[totalFileCount - 2] = filename;
     } else if (filename.match(/making/)) {
       sortedFilepath[totalFileCount - 1] = filename;
     } else {
-      sortedFilepath[i + 4] = filename;
+      sortedFilepath[i + 6] = filename;
     }
   }
 
