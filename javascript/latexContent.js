@@ -32,7 +32,7 @@ const title = `\\begin{titlepage}
 \\pagestyle{main}
 `;
 
-export const preamble = `\\documentclass[a4paper, 12pt]{book}
+export const preamble = `\\documentclass[a4paper, 12pt, fleqn]{book}
 \\usepackage[T1]{fontenc}
 \\usepackage[utf8]{inputenc}
 \\DeclareUnicodeCharacter{1F00}{-}
