@@ -33,6 +33,7 @@ const title = `\\begin{titlepage}
 `;
 
 export const preamble = `\\documentclass[a4paper, 12pt, fleqn]{book}
+\\maxdeadcycles=200
 \\usepackage[T1]{fontenc}
 \\usepackage[utf8]{inputenc}
 \\DeclareUnicodeCharacter{1F00}{-}
