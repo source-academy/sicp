@@ -74,7 +74,12 @@ export const sortTOC = allFilepath => {
   let tail = [];
 
   for (const filename of allFilepath) {
-    if (filename.match(/foreword/) || filename.match(/prefaces/) || filename.match(/acknowledgements/) || filename.match(/see/)) {
+    if (
+      filename.match(/foreword/) ||
+      filename.match(/prefaces/) ||
+      filename.match(/acknowledgements/) ||
+      filename.match(/see/)
+    ) {
       head.push(filename);
     } else if (filename.match(/references/) || filename.match(/making/)) {
       tail.push(filename);
