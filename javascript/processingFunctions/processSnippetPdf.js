@@ -1,5 +1,5 @@
 import { sourceAcademyURL } from "../constants";
-import { ancestorHasTag } from "../utilityFunctions";
+import { ancestorHasTag, getChildrenByTagName } from "../utilityFunctions";
 import lzString from "lz-string";
 import {
   checkLongLineWarning,
@@ -56,12 +56,111 @@ const recursiveGetRequires = (name, seen) => {
   seen.add(name);
 };
 
+// Check if the next sibling node is an element node
+function nextNodeIsVisibleSnippet(n) {
+  var cursor = n.nextSibling;
+
+  // Skip over all intermediate next nodes
+  if (cursor === undefined || cursor === null) return false;
+  while (cursor.nodeType == 3 && cursor.textContent.trim() === "") {
+    cursor = cursor.nextSibling;
+    if (cursor === undefined || cursor === null) return false;
+  }
+
+  return cursor.nodeName === "SNIPPET" && cursor.getAttribute("HIDE") !== "yes";
+}
+
 export const processSnippetPdf = (node, writeTo) => {
+  const LatexString = node.getAttribute("LATEX") === "yes" ? "Latex" : "";
   if (node.getAttribute("HIDE") == "yes") {
     return;
   }
 
+  const indexTags = getChildrenByTagName(node, "INDEX");
+  const processedIndexTags = [];
+  for (let i = 0; indexTags[i]; i++) {
+    processTextLatex(indexTags[i], processedIndexTags);
+  }
+
+  const indexTerms =
+    processedIndexTags.length > 0
+      ? [
+          processedIndexTags
+            .map(s => s.trim())
+            .join("")
+            .replace(/%/g, "")
+            .trim()
+        ]
+      : [];
+
+  const jsPromptSnippet = node.getElementsByTagName("JAVASCRIPT_PROMPT")[0];
+  const jsLonelySnippet = node.getElementsByTagName("JAVASCRIPT_LONELY")[0];
   const jsSnippet = node.getElementsByTagName("JAVASCRIPT")[0];
+  const jsOutputSnippet = node.getElementsByTagName("JAVASCRIPT_OUTPUT")[0];
+
+  if (jsPromptSnippet) {
+    if (ancestorHasTag(node, "FOOTNOTE")) {
+      writeTo.push("\n\\begin{JavaScriptPrompt" + LatexString + "Footnote}");
+    } else if (ancestorHasTag(node, "EXERCISE")) {
+      writeTo.push("\n\\begin{JavaScriptPrompt" + LatexString + "Small}");
+    } else {
+      writeTo.push("\n\\begin{JavaScriptPrompt" + LatexString + "}");
+    }
+
+    const promptArr = [];
+    recursiveProcessTextLatex(jsPromptSnippet.firstChild, promptArr);
+    const promptStr = promptArr.join("").trimRight();
+
+    writeTo.push(promptStr);
+
+    if (ancestorHasTag(node, "FOOTNOTE")) {
+      writeTo.push("\n\\end{JavaScriptPrompt" + LatexString + "Footnote}");
+    } else if (ancestorHasTag(node, "EXERCISE")) {
+      writeTo.push("\n\\end{JavaScriptPrompt" + LatexString + "Small}");
+    } else {
+      writeTo.push("\n\\end{JavaScriptPrompt" + LatexString + "}");
+    }
+
+    if (
+      !(jsLonelySnippet || jsSnippet || jsOutputSnippet) &&
+      indexTerms.length > 0
+    ) {
+      writeTo.push("\\nopagebreak");
+      writeTo.push(indexTerms.pop());
+      writeTo.push("\\nopagebreak%\n");
+    }
+  }
+
+  if (jsLonelySnippet) {
+    if (ancestorHasTag(node, "FOOTNOTE")) {
+      writeTo.push("\n\\begin{JavaScriptLonely" + LatexString + "Footnote}");
+    } else if (ancestorHasTag(node, "EXERCISE")) {
+      writeTo.push("\n\\begin{JavaScriptLonely" + LatexString + "Small}");
+    } else {
+      writeTo.push("\n\\begin{JavaScriptLonely" + LatexString + "}");
+    }
+
+    const lonelyArr = [];
+    recursiveProcessTextLatex(jsLonelySnippet.firstChild, lonelyArr);
+    const lonelyStr = lonelyArr.join("").trimRight();
+
+    writeTo.push(lonelyStr);
+
+    if (ancestorHasTag(node, "FOOTNOTE")) {
+      writeTo.push("\n\\end{JavaScriptLonely" + LatexString + "Footnote}");
+    } else if (ancestorHasTag(node, "EXERCISE")) {
+      writeTo.push("\n\\end{JavaScriptLonelySmall" + LatexString + "}");
+    } else {
+      writeTo.push("\n\\end{JavaScriptLonely" + LatexString + "}");
+    }
+
+    if (!(jsSnippet || jsOutputSnippet) && indexTerms.length > 0) {
+      writeTo.push("\\nopagebreak");
+      writeTo.push(indexTerms.pop());
+      writeTo.push("\\nopagebreak%\n");
+    }
+  }
+
   if (jsSnippet) {
     // JavaScript source for running. Overrides JAVASCRIPT if present.
     let jsRunSnippet = node.getElementsByTagName("JAVASCRIPT_RUN")[0];
@@ -70,7 +169,7 @@ export const processSnippetPdf = (node, writeTo) => {
     }
 
     const codeArr = [];
-    recursiveProcessPureText(jsSnippet.firstChild, codeArr);
+    recursiveProcessTextLatex(jsSnippet.firstChild, codeArr);
     const codeStr = codeArr.join("").trim();
 
     const codeArr_run = [];
@@ -82,19 +181,26 @@ export const processSnippetPdf = (node, writeTo) => {
       checkLongLineWarning(codeStr);
     }
 
-    if (node.getAttribute("EVAL") === "no") {
-      if (ancestorHasTag(node, "EXERCISE")) {
-        writeTo.push("\n\\begin{JavaScriptSmall}\n");
+    if (
+      node.getAttribute("EVAL") === "no" ||
+      node.getAttribute("LATEX") === "yes"
+    ) {
+      if (ancestorHasTag(node, "FOOTNOTE")) {
+        writeTo.push("\n\\begin{JavaScript" + LatexString + "Footnote}\n");
+      } else if (ancestorHasTag(node, "EXERCISE")) {
+        writeTo.push("\n\\begin{JavaScript" + LatexString + "Small}\n");
       } else {
-        writeTo.push("\n\\begin{JavaScript}\n");
+        writeTo.push("\n\\begin{JavaScript" + LatexString + "}\n");
       }
 
       writeTo.push(codeStr);
 
-      if (ancestorHasTag(node, "EXERCISE")) {
-        writeTo.push("\\end{JavaScriptSmall}\n");
+      if (ancestorHasTag(node, "FOOTNOTE")) {
+        writeTo.push("\n\\end{JavaScript" + LatexString + "Footnote}");
+      } else if (ancestorHasTag(node, "EXERCISE")) {
+        writeTo.push("\n\\end{JavaScript" + LatexString + "Small}");
       } else {
-        writeTo.push("\\end{JavaScript}\n");
+        writeTo.push("\n\\end{JavaScript" + LatexString + "}");
       }
     } else {
       let reqStr = "";
@@ -186,7 +292,9 @@ export const processSnippetPdf = (node, writeTo) => {
 
       // writeTo.push("\n\\marginnote{\\href{" + url + "}{\\ensuremath{\\blacktriangleright}}}[2ex]" + "\\begin{JavaScriptClickable}\n");
 
-      if (ancestorHasTag(node, "EXERCISE")) {
+      if (ancestorHasTag(node, "FOOTNOTE")) {
+        writeTo.push("\n\\begin{JavaScriptClickableFootnote}\n");
+      } else if (ancestorHasTag(node, "EXERCISE")) {
         writeTo.push("\n\\begin{JavaScriptClickableSmall}\n");
       } else {
         writeTo.push("\n\\begin{JavaScriptClickable}\n");
@@ -194,12 +302,20 @@ export const processSnippetPdf = (node, writeTo) => {
 
       writeTo.push(lines.join("\n"));
 
-      if (ancestorHasTag(node, "EXERCISE")) {
-        writeTo.push("\\end{JavaScriptClickableSmall}\n");
+      if (ancestorHasTag(node, "FOOTNOTE")) {
+        writeTo.push("\n\\end{JavaScriptClickableFootnote}");
+      } else if (ancestorHasTag(node, "EXERCISE")) {
+        writeTo.push("\n\\end{JavaScriptClickableSmall}");
       } else {
-        writeTo.push("\\end{JavaScriptClickable}\n");
+        writeTo.push("\n\\end{JavaScriptClickable}");
       }
 
+      // Ship out any index terms at this point
+      if (indexTerms.length > 0) {
+        writeTo.push("\\nopagebreak");
+        writeTo.push(indexTerms.pop());
+        writeTo.push("\\nopagebreak%\n");
+      }
       // // 6 lines plus rest
       // writeTo.push(
       //   "\n\\begin{lrbox}{\\lstbox}\n\\begin{JavaScriptClickable}\n"
@@ -218,23 +334,37 @@ export const processSnippetPdf = (node, writeTo) => {
     }
   }
 
-  const jsOutputSnippet = node.getElementsByTagName("JAVASCRIPT_OUTPUT")[0];
-
   if (jsOutputSnippet) {
-    if (ancestorHasTag(node, "EXERCISE")) {
-      writeTo.push("\n\\begin{JavaScriptOutputSmall}\n");
+    if (ancestorHasTag(node, "FOOTNOTE")) {
+      writeTo.push("\n\\begin{JavaScriptOutput" + LatexString + "Footnote}");
+    } else if (ancestorHasTag(node, "EXERCISE")) {
+      writeTo.push("\n\\begin{JavaScriptOutput" + LatexString + "Small}");
     } else {
-      writeTo.push("\n\\begin{JavaScriptOutput}\n");
+      writeTo.push("\n\\begin{JavaScriptOutput" + LatexString + "}");
     }
 
-    writeTo.push(jsOutputSnippet.firstChild.nodeValue.trimRight());
+    const outputArr = [];
+    recursiveProcessTextLatex(jsOutputSnippet.firstChild, outputArr);
+    const outputStr = outputArr.join("").trimRight();
 
-    if (ancestorHasTag(node, "EXERCISE")) {
-      writeTo.push("\\end{JavaScriptOutputSmall}\n");
+    writeTo.push(outputStr);
+
+    if (ancestorHasTag(node, "FOOTNOTE")) {
+      writeTo.push("\n\\end{JavaScriptOutput" + LatexString + "Footnote}");
+    } else if (ancestorHasTag(node, "EXERCISE")) {
+      writeTo.push("\n\\end{JavaScriptOutput" + LatexString + "Small}");
     } else {
-      writeTo.push("\\end{JavaScriptOutput}\n");
+      writeTo.push("\n\\end{JavaScriptOutput" + LatexString + "}");
     }
   }
+
+  // Ship out any remaining index terms at this point
+  if (indexTerms.length > 0) {
+    writeTo.push("\\nopagebreak");
+    writeTo.push(indexTerms.pop());
+    writeTo.push("\\nopagebreak%\n");
+  }
+  writeTo.push("\n");
 
   //  writeTo.push("\n\n");
 };

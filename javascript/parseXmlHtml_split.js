@@ -310,6 +310,7 @@ export const processTextFunctionsHtml = {
         recursiveProcessTextHtml(node.firstChild, writeTo);
       }
       writeTo.push("</kbd>");
+
       return;
     }
     snippet_count += 1;

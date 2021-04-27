@@ -31,10 +31,16 @@ const processExercisePdf = (node, writeTo) => {
   writeTo.push("\n\\end{small}\\end{Exercise}\n");
 
   if (solution) {
-    writeTo.push("\n\\begin{Answer}[ref={" + labelName + "}]\n");
-    recursiveProcessTextLatex(solution.firstChild, writeTo);
-    writeTo.push("\n\\end{Answer}\n");
+    /// TODO: change this format
+    answers.push("\n\\begin{Answer}[ref={" + labelName + "}]\n");
+    recursiveProcessTextLatex(solution.firstChild, answers);
+    answers.push("\n\\end{Answer}\n");
   }
 };
 
 export default processExercisePdf;
+const answers = [];
+
+export const getAnswers = () => {
+  return answers;
+};

@@ -38,6 +38,7 @@ export let tableOfContent = {};
 import { parseXmlJs } from "./parseXmlJs";
 import { setupSnippetsJs } from "./processingFunctions/processSnippetJs";
 import { setupSnippetsEpub } from "./processingFunctions/processSnippetEpub";
+import { getAnswers } from "./processingFunctions/processExercisePdf";
 
 let parseType;
 let version;
@@ -270,7 +271,17 @@ async function main() {
     await recursiveTranslateXml("", "setupSnippet");
     console.log("setup snippets done\n");
 
-    recursiveTranslateXml("", "parseXml");
+    await recursiveTranslateXml("", "parseXml");
+
+    // Dump all the answers somewhere
+    // This must be called efter the recursiveTranslateXml has collected all the answers
+    const answerStream = fs.createWriteStream(
+      path.join(outputDir, "answers.tex")
+    );
+    answerStream.once("open", fd => {
+      answerStream.write(getAnswers().join("\n\n%-----\n\n"));
+      answerStream.end();
+    });
   } else if (parseType == "web") {
     version = process.argv[3];
 

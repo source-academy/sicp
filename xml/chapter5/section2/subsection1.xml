@@ -95,7 +95,7 @@ start(gcd_machine);
 get_register_contents(gcd_machine, "a");	  
       </JAVASCRIPT>
     </SNIPPET>
-    <!--  \indcode*{make-machine} -->
+    <INDEX><DECLARATION>make_machine</DECLARATION></INDEX> 
     <SNIPPET>
       <NAME>make_machine</NAME>
       <REQUIRES>assemble</REQUIRES>
@@ -113,14 +113,14 @@ get_register_contents(gcd_machine, "a");
     machine))
       </SCHEME>
       <JAVASCRIPT>
-function make_machine(register_names, ops, controller_text) {
+function make_machine(register_names, ops, controller) {
     const machine = make_new_machine();
     for_each(register_name => 
-               machine("allocate_register")(register_name), 
+                 machine("allocate_register")(register_name), 
              register_names);
     machine("install_operations")(ops);
     machine("install_instruction_sequence")
-           (assemble(controller_text, machine));
+           (assemble(controller, machine));
     return machine;
 }
       </JAVASCRIPT>
@@ -150,7 +150,7 @@ function make_machine(register_names, ops, controller_text) {
       <JAVASCRIPT><JAVASCRIPTINLINE>make_register</JAVASCRIPTINLINE></JAVASCRIPT>
       </SPLITINLINE> creates a register that
     holds a value that can be accessed or changed:
-    <!--  \indcode*{make-register} -->
+    <INDEX><DECLARATION>make_register</DECLARATION></INDEX> 
     <SNIPPET>
       <NAME>make_register</NAME>
       <EXAMPLE>gcd_machine_complete_example</EXAMPLE>
@@ -170,27 +170,24 @@ function make_register(name) {
     let contents = "*unassigned*";
     function dispatch(message) {
         return message === "get"
-            ? contents
-            : message === "set"
-              ? value => { contents = value; }
-              : error(message, 
-                      "Unknown request in make_register:");
+               ? contents
+               : message === "set"
+               ? value => { contents = value; }
+               : error(message, "unknown request -- make_register");
     }
     return dispatch;
 }
       </JAVASCRIPT>
     </SNIPPET>
-  </TEXT>
 
-  <TEXT>
     The following
     <SPLITINLINE>
       <SCHEME>procedures</SCHEME>
       <JAVASCRIPT>functions</JAVASCRIPT>
     </SPLITINLINE>
     are used to access registers:
-    <!--  \indcode*{get-contents} -->
-    <!--  \indcode*{set-contents!} -->
+    <INDEX><DECLARATION>get_contents</DECLARATION></INDEX> 
+    <INDEX><DECLARATION>set_contents</DECLARATION></INDEX> 
     <SNIPPET>
       <NAME>get_contents</NAME>
       <EXAMPLE>gcd_machine_complete_example</EXAMPLE>
@@ -239,10 +236,103 @@ function set_contents(register, value) {
     <SCHEMEINLINE>pop</SCHEMEINLINE> the top item off the stack
     and return it, and to
     <SCHEMEINLINE>initialize</SCHEMEINLINE> the stack to empty.
-    <!--  \indcode*{make-stack} -->
-    <SNIPPET>
+    <INDEX><DECLARATION>make_stack</DECLARATION></INDEX> 
+    <SNIPPET HIDE="yes">
       <NAME>make_stack</NAME>
       <EXAMPLE>gcd_machine_complete_example</EXAMPLE>
+      <SCHEME>
+(define (make-stack)
+  (let ((s '()))
+    (define (push x)
+      (set! s (cons x s)))
+    (define (pop)
+      (if (null? s)
+          (error "Empty stack - - POP")
+          (let ((top (car s)))
+            (set! s (cdr s))
+            top)))
+    (define (initialize)
+      (set! s '())
+      'done)
+    (define (dispatch message)
+      (cond ((eq? message 'push) push)
+            ((eq? message 'pop) (pop))
+            ((eq? message 'initialize) (initialize))
+            (else (error "Unknown request - - STACK"
+                         message))))
+    dispatch))
+      </SCHEME>
+      <JAVASCRIPT>
+function make_stack() {
+    let stack = null;
+    let frame = null;
+    function push_marker() {
+        frame = pair(stack, frame);
+        return "done";
+    }
+    function pop_marker() {
+        stack = head(frame);
+        frame = tail(frame);
+        return "done";
+    }
+    function push(x) { 
+        stack = pair(x, stack); 
+        return "done";
+    }
+    function pop() {
+        if (is_null(stack)) {
+            error("empty stack -- pop");
+        } else {
+            const top = head(stack);
+            stack = tail(stack);
+            return top;
+        }
+    }
+    function initialize() {
+        stack = null;
+        return "done";
+    }
+    function dispatch(message) {
+        return message === "push"
+               ? push
+               : message === "pop"
+               ? pop()
+               : message === "push_marker"
+               ? push_marker()
+               : message === "pop_marker"
+               ? pop_marker()
+               : message === "initialize"
+               ? initialize()
+               : error(message, "unknown request -- stack");
+    }
+    return dispatch;
+}
+
+function make_push_marker_to_stack_ef(machine, stack, pc) {
+    return () => {
+                   push_marker(stack);
+                   advance_pc(pc);
+                 };
+}
+function make_revert_stack_to_marker_ef(machine, stack, pc) {
+    return () => {
+                   pop_marker(stack);
+                   advance_pc(pc); 
+                 };
+}
+
+function push_marker_to_stack() { return list("push_marker_to_stack"); }
+function revert_stack_to_marker() { return list("revert_stack_to_marker"); }
+
+function pop_marker(stack) {
+    return stack("pop_marker");
+}
+function push_marker(stack) {
+    return stack("push_marker");
+}
+      </JAVASCRIPT>
+    </SNIPPET>
+    <SNIPPET>
       <SCHEME>
 (define (make-stack)
   (let ((s '()))
@@ -274,7 +364,7 @@ function make_stack() {
     }
     function pop() {
         if (is_null(stack)) {
-            error("Empty stack: POP");
+            error("empty stack -- pop");
         } else {
             const top = head(stack);
             stack = tail(stack);
@@ -287,28 +377,26 @@ function make_stack() {
     }
     function dispatch(message) {
         return message === "push"
-            ? push
-            : message === "pop"
-            ? pop()
-            : message === "initialize"
-            ? initialize()
-            : error("Unknown request in stack:", message);
+               ? push
+               : message === "pop"
+               ? pop()
+               : message === "initialize"
+               ? initialize()
+               : error(message, "unknown request -- stack");
     }
     return dispatch;
 }
       </JAVASCRIPT>
     </SNIPPET>
-  </TEXT>
 
-  <TEXT>
     The following
     <SPLITINLINE>
       <SCHEME>procedures</SCHEME>
       <JAVASCRIPT>functions</JAVASCRIPT>
     </SPLITINLINE>
     are used to access stacks:
-    <!--  \indcode*{pop} -->
-    <!--  \indcode*{push} -->
+    <INDEX><DECLARATION>pop</DECLARATION></INDEX> 
+    <INDEX><DECLARATION>push</DECLARATION></INDEX> 
     <SNIPPET>
       <NAME>pop</NAME>
       <EXAMPLE>gcd_machine_complete_example</EXAMPLE>
@@ -330,9 +418,9 @@ function push(stack, value) {
     </SNIPPET>
   </TEXT>
 
-  <SUBHEADING>
+<SUBHEADING>
     <NAME>The basic machine</NAME>
-  </SUBHEADING>
+</SUBHEADING>
 
   <TEXT>
     The
@@ -348,12 +436,12 @@ function push(stack, value) {
     shown in figure<SPACE/><REF NAME="fig:make-new-machine"/>, constructs an
     object whose local state consists of a stack, an initially empty instruction
     sequence, a list of operations that initially contains an operation to 
-    <!-- \indcodeplus{initialize-stack}{operation in register machine}-->
+    <INDEX><USE>initialize_stack</USE> operation in register machine</INDEX>
     initialize the stack, and a 
     <INDEX>register table, in simulator</INDEX>
     <EM>register table</EM> that initially contains two
-    <!-- \indcodeplus{flag}{register}-->
-    <!-- \indcodeplus{pc}{register}-->
+    <INDEX><USE>flag</USE> register</INDEX>
+    <INDEX><USE>pc</USE> register</INDEX>
     registers, named
     <SCHEMEINLINE>flag</SCHEMEINLINE> and
     <SCHEMEINLINE>pc</SCHEMEINLINE>
@@ -416,12 +504,8 @@ function push(stack, value) {
       <JAVASCRIPT>function</JAVASCRIPT>
     </SPLITINLINE>
     of no arguments, called the 
-    <INDEX>instruction execution
-    <SPLITINLINE><SCHEME>procedure</SCHEME>
-    <JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE></INDEX>
-    <INDEX>execution <SPLITINLINE><SCHEME>procedure</SCHEME>
-    <JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
-    <SUBINDEX>in register-machine simulator</SUBINDEX></INDEX>
+    <INDEX>instruction execution <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE></INDEX>
+    <INDEX>execution <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE><SUBINDEX>in register-machine simulator</SUBINDEX></INDEX>
     
     <SPLITINLINE>
       <SCHEME><EM>instruction execution procedure</EM>,</SCHEME>
@@ -435,7 +519,7 @@ function push(stack, value) {
     simulates executing the instruction.  As the simulation runs,
     <SCHEMEINLINE>pc</SCHEMEINLINE> points to the place in the instruction
     sequence beginning with the next instruction to be executed.  
-    <!--  \indcode{execute} -->
+    <INDEX><USE>execute</USE></INDEX> 
     <SPLITINLINE>
       <SCHEME><SCHEMEINLINE>Execute</SCHEMEINLINE></SCHEME>
       <JAVASCRIPT>The function <JAVASCRIPTINLINE>execute</JAVASCRIPTINLINE>
@@ -449,7 +533,6 @@ function push(stack, value) {
     and repeats this cycle until there are no more instructions to execute
     (i.e., until <SCHEMEINLINE>pc</SCHEMEINLINE> points to the end of the
     instruction sequence).
-      <!--  \indcode*{make-new-machine} -->
     <SPLIT>
       <SCHEME>
 	<SNIPPET EVAL="no">
@@ -525,14 +608,14 @@ function make_new_machine() {
             register_table = pair(list(name, make_register(name)),
                                   register_table);
         } else {
-            error(name, "Multiply defined register:");
+            error(name, "multiply defined register");
         }
-        return "register_allocated";
+        return "register allocated";
     }
     function lookup_register(name) {
         const val = assoc(name, register_table);
         return is_undefined(val)
-               ? error(name, "Unknown register:")
+               ? error(name, "unknown register")
                : head(tail(val));
     }
     function execute() {
@@ -545,28 +628,32 @@ function make_new_machine() {
         }
     }
     function dispatch(message) {
+        function start() {
+            set_contents(pc, the_instruction_sequence);
+            return execute();
+        }
         return message === "start"
-            ? () => { set_contents(pc, the_instruction_sequence);
-                      return execute(); }
-            : message === "install_instruction_sequence"
-            ? seq => { the_instruction_sequence = seq; }
-            : message === "allocate_register"
-            ? allocate_register
-            : message === "get_register"
-            ? lookup_register
-            : message === "install_operations"
-            ? ops => { the_ops = append(the_ops, ops); }
-            : message === "stack"
-            ? stack
-            : message === "operations"
-            ? the_ops
-            : error(message, "Unknown request in machine:");
+               ? start()
+               : message === "install_instruction_sequence"
+               ? seq => { the_instruction_sequence = seq; }
+               : message === "allocate_register"
+               ? allocate_register
+               : message === "get_register"
+               ? lookup_register
+               : message === "install_operations"
+               ? ops => { the_ops = append(the_ops, ops); }
+               : message === "stack"
+               ? stack
+               : message === "operations"
+               ? the_ops
+               : error(message, "unknown request -- machine");
     }
     return dispatch;
 }
 	    </JAVASCRIPT>
 	  </SNIPPET>
 	  <CAPTION>
+	    <INDEX><DECLARATION>make_new_machine</DECLARATION></INDEX> 
 	    The <JAVASCRIPTINLINE>make_new_machine</JAVASCRIPTINLINE>
 	    function, which implements the basic machine model.
 	  </CAPTION>
@@ -634,18 +721,19 @@ function make_new_machine() {
   </TEXT>
 
   <TEXT>
-    For convenience, we provide an alternate procedural interface to a
-    machine<APOS/>s <SCHEMEINLINE>start</SCHEMEINLINE> operation,
-    as well as
+    For convenience, we provide an alternate
+    <SPLITINLINE><SCHEME>procedural</SCHEME><JAVASCRIPT></JAVASCRIPT></SPLITINLINE>
+    interface to a machine<APOS/>s
+    <SCHEMEINLINE>start</SCHEMEINLINE> operation, as well as
     <SPLITINLINE>
       <SCHEME>procedures</SCHEME>
       <JAVASCRIPT>functions</JAVASCRIPT>
     </SPLITINLINE>
     to set and examine register contents, as specified at the beginning of
     section<SPACE/><REF NAME="sec:simulator"/>:
-      <!-- \indcodeplus*{start}{register machine}-->
-      <!--  \indcode*{get-register-contents} -->
-      <!--  \indcode*{set-register-contents!} -->
+    <INDEX><DECLARATION>start</DECLARATION> register machine</INDEX>
+    <INDEX><DECLARATION>get_register_contents</DECLARATION></INDEX> 
+    <INDEX><DECLARATION>set_register_contents</DECLARATION></INDEX> 
     <SNIPPET>
       <NAME>start</NAME>
       <EXAMPLE>gcd_machine_complete_example</EXAMPLE>
@@ -662,7 +750,7 @@ function make_new_machine() {
       </SCHEME>
       <JAVASCRIPT>
 function start(machine) {
-    return machine("start")();
+    return machine("start");
 }
 function get_register_contents(machine, register_name) {
     return get_contents(get_register(machine, register_name));
@@ -673,9 +761,7 @@ function set_register_contents(machine, register_name, value) {
 }
       </JAVASCRIPT>
     </SNIPPET>
-  </TEXT>
 
-  <TEXT>
     These
     <SPLITINLINE>
       <SCHEME>procedures</SCHEME>
@@ -689,7 +775,7 @@ function set_register_contents(machine, register_name, value) {
     in sections<SPACE/><REF NAME="sec:assembler"/> and <REF NAME="sec:ex-proc"/>)
     use the following to look up the register with a given name in a given
     machine:
-    <!--  \indcode*{get-register} -->
+    <INDEX><DECLARATION>get_register</DECLARATION></INDEX> 
     <SNIPPET>
       <NAME>get_register</NAME>
       <EXAMPLE>gcd_machine_complete_example</EXAMPLE>
@@ -703,5 +789,6 @@ function get_register(machine, reg_name) {
 }
       </JAVASCRIPT>
     </SNIPPET>
-  </TEXT>
+</TEXT>
 </SUBSECTION>
+

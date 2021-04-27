@@ -19,11 +19,13 @@ const generateChapterIndex = filename => {
   if (filename.match(/foreword/)) {
     chapterIndex = "foreword";
   } else if (filename.match(/prefaces/)) {
-    chapterIndex = "prefaces";
+    chapterIndex = filename.match(/prefaces\d*/g)[0];
   } else if (filename.match(/acknowledgements/)) {
     chapterIndex = "acknowledgements";
   } else if (filename.match(/references/)) {
     chapterIndex = "references";
+  } else if (filename.match(/see/)) {
+    chapterIndex = "see";
   } else if (filename.match(/indexpreface/)) {
     chapterIndex = "index";
   } else if (filename.match(/making/)) {
@@ -66,28 +68,27 @@ export const generateTOC = (doc, tableOfContent, filename) => {
 
 export const sortTOC = allFilepath => {
   allFilepath = allFilepath.sort();
-  let sortedFilepath = [];
-  const totalFileCount = allFilepath.length;
 
-  for (var i = 0; i < totalFileCount; i++) {
-    const filename = allFilepath[i];
+  let head = [];
+  let mid = [];
+  let tail = [];
 
-    if (filename.match(/foreword/)) {
-      sortedFilepath[0] = filename;
-    } else if (filename.match(/prefaces/)) {
-      sortedFilepath[1] = filename;
-    } else if (filename.match(/acknowledgements/)) {
-      sortedFilepath[2] = filename;
-    } else if (filename.match(/references/)) {
-      sortedFilepath[totalFileCount - 2] = filename;
-    } else if (filename.match(/making/)) {
-      sortedFilepath[totalFileCount - 1] = filename;
+  for (const filename of allFilepath) {
+    if (
+      filename.match(/foreword/) ||
+      filename.match(/prefaces/) ||
+      filename.match(/acknowledgements/) ||
+      filename.match(/see/)
+    ) {
+      head.push(filename);
+    } else if (filename.match(/references/) || filename.match(/making/)) {
+      tail.push(filename);
     } else {
-      sortedFilepath[i + 3] = filename;
+      mid.push(filename);
     }
   }
 
-  return sortedFilepath;
+  return head.concat(mid, tail);
 };
 
 export const recursiveProcessTOC = (index, writeTo, option, toIndexFolder) => {
@@ -106,7 +107,7 @@ export const recursiveProcessTOC = (index, writeTo, option, toIndexFolder) => {
   const nextOption = option;
 
   if (index == 0 && option == "sidebar") {
-    writeTo.push(`       
+    writeTo.push(`
         <div class="collapse" id="nav-sidebar" role="tablist" aria-multiselectable="true">
         <!-- insert a dummy entry, to give one extra line of space -->
         <a class="navbar-brand" href="index.html">&nbsp;</a>
@@ -206,7 +207,7 @@ export const recursiveProcessTOC = (index, writeTo, option, toIndexFolder) => {
                   <a href="${toIndexFolder}${chapterIndex}.html">${displayTitle}</a>
                 </h5>
               </div>
-    
+
               <div id="sidebar-collapse-${
                 index + 1
               }" class="collapse" role="tabpanel" aria-labelledby="headingOne">

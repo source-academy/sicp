@@ -21,6 +21,16 @@ const recursiveProcessPureText = (
       value = value.replace(/\{/g, "\\{");
       value = value.replace(/\}/g, "\\}");
     }
+    /// \OptionalPar[n]{...} ===> \textit{...}_{n}
+    value = value.replace(
+      /\\OptionalPar\[(.)\]{(.*?)}/g,
+      "\\ensuremath{\\text{\\textrm{\\sl $2}}_{$1}}"
+    );
+    /// \OptionalPar{...} ===> \textit{...}
+    value = value.replace(
+      /\\OptionalPar{(.*?)}/g,
+      "\\ensuremath{\\text{\\textrm{\\sl $1}}}"
+    );
     writeTo.push(value);
   }
   return recursiveProcessPureText(node.nextSibling, writeTo, options);

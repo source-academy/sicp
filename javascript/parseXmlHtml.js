@@ -48,6 +48,7 @@ const tagsToRemoveDefault = new Set([
   "SCHEME",
   "SOLUTION",
   "INDEX",
+  "CAPTION",
   "NAME",
   "LABEL",
   "CODEINDEX",
@@ -185,6 +186,7 @@ const processTextFunctionsDefaultHtml = {
   },
 
   FIGURE: (node, writeTo) => {
+    recursiveProcessTextHtml(node.firstChild, writeTo);
     processFigureHtml(node, writeTo, chapArrIndex, snippet_count, false);
   },
 
@@ -227,6 +229,20 @@ const processTextFunctionsDefaultHtml = {
   H2: (node, writeTo) => {
     node.nodeName = "h2";
     processTextHtml(node, writeTo);
+  },
+
+  META: (node, writeTo) => {
+    writeTo.push("$");
+    let s = node.firstChild.nodeValue;
+    s = s.replace(/-/g, "$-$").replace(/ /g, "\\ ");
+    writeTo.push(s);
+    writeTo.push("$");
+  },
+
+  METAPHRASE: (node, writeTo) => {
+    writeTo.push("$\\langle{}$<EM>");
+    recursiveProcessTextHtml(node.firstChild, writeTo);
+    writeTo.push("</EM>$\\rangle$");
   },
 
   IMAGE: (node, writeTo) => {
@@ -342,16 +358,35 @@ const processTextFunctionsDefaultHtml = {
     if (node.getAttribute("HIDE") == "yes") {
       return;
     } else if (node.getAttribute("LATEX") == "yes") {
+      const textprompt = getChildrenByTagName(node, "JAVASCRIPT_PROMPT")[0];
+      if (textprompt) {
+        writeTo.push("<kbd class='snippet'>");
+        recursiveProcessTextHtml(textprompt.firstChild, writeTo, {
+          removeNewline: "beginning&end"
+        });
+        writeTo.push("</kbd>");
+      }
+
       writeTo.push("<kbd class='snippet'>");
       const textit = getChildrenByTagName(node, "JAVASCRIPT")[0];
       if (textit) {
-        recursiveProcessPureText(textit.firstChild, writeTo, {
+        recursiveProcessTextHtml(textit.firstChild, writeTo, {
           removeNewline: "beginning&end"
         });
       } else {
         recursiveProcessTextHtml(node.firstChild, writeTo);
       }
       writeTo.push("</kbd>");
+
+      const textoutput = getChildrenByTagName(node, "JAVASCRIPT_OUTPUT")[0];
+      if (textoutput) {
+        writeTo.push("<kbd class='snippet'>");
+        recursiveProcessTextHtml(textoutput.firstChild, writeTo, {
+          removeNewline: "beginning&end"
+        });
+        writeTo.push("</kbd>");
+      }
+
       return;
     }
     snippet_count += 1;
@@ -486,6 +521,7 @@ const processTextFunctionsSplit = {
   },
 
   FIGURE: (node, writeTo) => {
+    recursiveProcessTextHtml(node.firstChild, writeTo);
     processFigureHtml(node, writeTo, chapArrIndex, snippet_count, true);
   },
 
@@ -587,16 +623,35 @@ const processTextFunctionsSplit = {
     if (node.getAttribute("HIDE") == "yes") {
       return;
     } else if (node.getAttribute("LATEX") == "yes") {
+      const textprompt = getChildrenByTagName(node, "JAVASCRIPT_PROMPT")[0];
+      if (textprompt) {
+        writeTo.push("<kbd class='snippet'>");
+        recursiveProcessTextHtml(textprompt.firstChild, writeTo, {
+          removeNewline: "beginning&end"
+        });
+        writeTo.push("</kbd>");
+      }
+
       writeTo.push("<kbd class='snippet'>");
       const textit = getChildrenByTagName(node, "JAVASCRIPT")[0];
       if (textit) {
-        recursiveProcessPureText(textit.firstChild, writeTo, {
+        recursiveProcessTextHtml(textit.firstChild, writeTo, {
           removeNewline: "beginning&end"
         });
       } else {
         recursiveProcessTextHtml(node.firstChild, writeTo);
       }
       writeTo.push("</kbd>");
+
+      const textoutput = getChildrenByTagName(node, "JAVASCRIPT_OUTPUT")[0];
+      if (textoutput) {
+        writeTo.push("<kbd class='snippet'>");
+        recursiveProcessTextHtml(textoutput.firstChild, writeTo, {
+          removeNewline: false
+        });
+        writeTo.push("</kbd>");
+      }
+
       return;
     }
     snippet_count += 1;

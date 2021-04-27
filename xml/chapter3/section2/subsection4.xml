@@ -8,12 +8,9 @@
   </NAME>
 
   <LABEL NAME="sec:env-internal-def"/>
-  <INDEX>block structure
-  <SUBINDEX>environment@in environment model|(</SUBINDEX></INDEX>
-  <INDEX>environment model of evaluation
-  <SUBINDEX>internal definitions|(</SUBINDEX></INDEX>
-  <INDEX>internal definition
-  <SUBINDEX>environment@in environment model|(</SUBINDEX></INDEX>
+  <INDEX>block structure<SUBINDEX><ORDER>environment</ORDER>in environment model<OPEN/></SUBINDEX></INDEX>
+  <INDEX>environment model of evaluation<SUBINDEX>internal declarations<OPEN/></SUBINDEX></INDEX>
+  <INDEX>internal declaration<SUBINDEX><ORDER>environment</ORDER>in environment model<OPEN/></SUBINDEX></INDEX>
 
   <SPLIT>
     <SCHEME>
@@ -21,62 +18,73 @@
     <JAVASCRIPT>
       <TEXT>
 	Section<SPACE/><REF NAME="sec:env-apply-proc"/> describes the application
-	of simple functions according to the environment model, but fails to
-	handle proper blocks that contain contains constant or
-	variable declarations, as the bodies of the functions
-	<JAVASCRIPTINLINE>new_withdraw</JAVASCRIPTINLINE> and 
+	of functions whose bodies do not contain constant, variable, or
+	function declarations, in which case all occurrences of names refer
+	to parameters of surrounding lambda expressions or function declarations
+	or to declarations at the top level.
+	In this section we handle the evaluation of function bodies or other
+	blocks that contain declarations; examples are
+	the bodies of the functions
+	<JAVASCRIPTINLINE>make_withdraw_100</JAVASCRIPTINLINE> and 
 	<JAVASCRIPTINLINE>make_account</JAVASCRIPTINLINE>
-	of section<SPACE/><REF NAME="sec:local-state-variables"/>,
-	in the function <JAVASCRIPTINLINE>make_rand</JAVASCRIPTINLINE> 
-	of section<SPACE/><REF NAME="sec:benefits-of-assignment"/>
-	and in both versions of the factorial function 
-	of section<SPACE/><REF NAME="sec:costs-of-assignment"/>.
-	The declaration of local names within blocks is treated similarly to
-	declarations of global names, as for
-	example the name <JAVASCRIPTINLINE>square</JAVASCRIPTINLINE> in
-	section<SPACE/><REF NAME="sec:env-model-rules"/>. We explained
-	that the names declared in the program are added to the program
-	frame. More precisely, before the program gets evaluated, we identify
-	the names that are declared in the program at top level (outside of any
-	block). These names are all added to the program frame, and then the
-	program gets evaluated with respect to the program environment.
-	Initially, before the program runs, these names refer to a special value
-	<LATEXINLINE>$\textit{unassigned}$</LATEXINLINE>, and any attempt to
-	access the value of a name that refers to
-	<LATEXINLINE>$\textit{unassigned}$</LATEXINLINE> leads to an error.
-	Constant and variable declarations can then be handled like
-	assignments in section<SPACE/><REF NAME="sec:env-local-state"/>.
-      </TEXT>
-      <TEXT>
-	In order to evaluate a block in a given environment, we extend the
-	environment by a new frame that contains all names declared locally
-	(outside of nested blocks) in the block body. These names intially refer
-	to the value <LATEXINLINE>$\textit{unassigned}$</LATEXINLINE>, when the
-	evaluation of the body commences. The evaluation of the local constant
-	and variable declarations then reassigns the names to the left of the
-	<JAVASCRIPTINLINE>=</JAVASCRIPTINLINE> sign, as if the declaration was
-	an assignment.<FOOTNOTE>Equipped with a deeper understanding of the
+	of section<SPACE/><REF NAME="sec:local-state-variables"/>, and
+	the branches of conditional statements introduced in
+	section<SPACE/><REF NAME="sec:lambda"/>.
+	Each block opens a new scope for names declared in the block.
+	In order to evaluate a block in a given environment, we extend that
+	environment by a new frame that contains all names declared directly
+	(that is, outside of nested blocks) in the body of the block and evaluate
+	the body in the newly constructed environment.
+	The names are initially 
+	unassigned, and any attempt to access the value of an unassigned
+	name leads to an error.
+	The evaluation of a constant
+	or variable declaration then assigns the name to the left of the
+	<JAVASCRIPTINLINE>=</JAVASCRIPTINLINE> sign to the result of
+	evaluating the expression to the right, as if the declaration were
+	an assignment.<FOOTNOTE>Equipped with this deeper understanding of the
 	scope of names, we can now explain why the program in
 	footnote<SPACE/><REF NAME="foot:tdz"/> of chapter 1 goes
 	wrong.</FOOTNOTE>
       </TEXT>
+      <TEXT>
+	Equipped with a way to handle declarations within blocks, we can
+	revisit declarations of names at the top level. We stated
+	that the names declared at the top level are added to the program
+	frame. A better explanation is that the whole program is placed in
+	an implicit block, which is evaluated in the global environment.
+	The treatment of blocks described above then handles the top
+	level:
+	the global environment is extended by a frame that contains the
+	bindings of all names declared in the implicit block. That frame is
+	the program frame and the resulting
+	environment is the program environment.
+      </TEXT>
     </JAVASCRIPT>
   </SPLIT>
-  
   <TEXT>
     Section<SPACE/><REF NAME="sec:black-box"/> introduced the idea that
     <SPLITINLINE>
       <SCHEME>procedures</SCHEME>
       <JAVASCRIPT>functions</JAVASCRIPT>
     </SPLITINLINE>
-    can have internal definitions, thus leading to a block structure as in the
+    can have internal
+    <SPLITINLINE>
+      <SCHEME>
+	definitions,
+      </SCHEME>
+      <JAVASCRIPT>
+	declarations,
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    thus leading to a block structure as in the
+    <INDEX><USE>sqrt</USE><SUBINDEX><ORDER>environment</ORDER>in environment model<OPEN/></SUBINDEX></INDEX>
     following
     <SPLITINLINE>
       <SCHEME>procedure</SCHEME>
       <JAVASCRIPT>function</JAVASCRIPT>
     </SPLITINLINE>
     to compute square roots:
-            <!-- \indcode{sqrt}[environment@in environment model|(] -->
     <SNIPPET EVAL="yes">
       <NAME>another_sqrt</NAME>
       <REQUIRES>abs_definition</REQUIRES>
@@ -98,26 +106,31 @@
       </SCHEME>
       <JAVASCRIPT>
 function sqrt(x) {
-    function good_enough(guess) {
+    function is_good_enough(guess) {
         return abs(square(guess) - x) &lt; 0.001;
     }
     function improve(guess) {
         return average(guess, x / guess);
     }
     function sqrt_iter(guess){
-        return good_enough(guess)
-            ? guess
-            : sqrt_iter(improve(guess));
+        return is_good_enough(guess)
+               ? guess
+               : sqrt_iter(improve(guess));
     }
     return sqrt_iter(1);
 }
       </JAVASCRIPT>
     </SNIPPET>
-  </TEXT>
-
-  <TEXT>
     Now we can use the environment model to see why these internal
-    definitions behave as desired.
+    <SPLITINLINE>
+      <SCHEME>
+	definitions
+      </SCHEME>
+      <JAVASCRIPT>
+	declarations
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    behave as desired.
     <SPLITINLINE>
       <SCHEME>
     Figure<SPACE/><REF NAME="fig:sqrt-internal_scheme"/>
@@ -138,7 +151,7 @@ function sqrt(x) {
     </SPLITINLINE>
     <SPLITINLINE>
       <SCHEME><SCHEMEINLINE>good-enough?</SCHEMEINLINE></SCHEME>
-      <JAVASCRIPT><JAVASCRIPTINLINE>good_enough</JAVASCRIPTINLINE></JAVASCRIPT>
+      <JAVASCRIPT><JAVASCRIPTINLINE>is_good_enough</JAVASCRIPTINLINE></JAVASCRIPT>
     </SPLITINLINE>
     has been called for the first time with
     <SCHEMEINLINE>guess</SCHEMEINLINE> equal to<SPACE/>1.
@@ -158,7 +171,7 @@ function sqrt(x) {
           <FIGURE src="img_javascript/ch3-Z-G-12.svg"></FIGURE>
           <CAPTION>
 	    <SCHEMEINLINE>sqrt</SCHEMEINLINE> function with internal
-	    definitions.
+	    declarations.
 	  </CAPTION>
           <LABEL NAME="fig:sqrt-internal"/>
         </FIGURE>
@@ -168,14 +181,20 @@ function sqrt(x) {
 
   <TEXT>
     Observe the structure of the environment.
-    <SPLITINLINE><JAVASCRIPT>The name</JAVASCRIPT></SPLITINLINE>
-    <SCHEMEINLINE>sqrt</SCHEMEINLINE> is a symbol in
-    the
     <SPLITINLINE>
-      <SCHEME>global</SCHEME>
-      <JAVASCRIPT>program</JAVASCRIPT>
+      <SCHEME>
+	<SCHEMEINLINE>Sqrt</SCHEMEINLINE> is a
+	symbol in the
+	global
+	environment that is bound
+      </SCHEME>
+      <JAVASCRIPT>
+      The name
+      <SCHEMEINLINE>sqrt</SCHEMEINLINE> is bound
+      in the program environment
+      </JAVASCRIPT>
     </SPLITINLINE>
-    environment that is bound to a
+    to a
     <SPLITINLINE>
       <SCHEME>procedure</SCHEME>
       <JAVASCRIPT>function</JAVASCRIPT>
@@ -186,7 +205,7 @@ function sqrt(x) {
       <JAVASCRIPT>program</JAVASCRIPT>
     </SPLITINLINE>
     environment.  When <SCHEMEINLINE>sqrt</SCHEMEINLINE> was called, a new
-    environment E1 was formed, subordinate to the
+    environment, E1, was formed, subordinate to the
     <SPLITINLINE>
       <SCHEME>global</SCHEME>
       <JAVASCRIPT>program</JAVASCRIPT>
@@ -215,7 +234,7 @@ function sqrt(x) {
   (&lt; (abs (- (square guess) x)) 0.001))
       </SCHEME>
       <JAVASCRIPT>
-function good_enough(guess) {
+function is_good_enough(guess) {
     return abs(square(guess) - x) &lt; 0.001;
 }
       </JAVASCRIPT>
@@ -228,7 +247,7 @@ function good_enough(guess) {
       </SCHEME>
       <JAVASCRIPT>
 	evaluating this declaration created the function
-	<JAVASCRIPTINLINE>good_enough</JAVASCRIPTINLINE>
+	<JAVASCRIPTINLINE>is_good_enough</JAVASCRIPTINLINE>
 	in the environment<SPACE/>E2.
       </JAVASCRIPT>
     </SPLIT>
@@ -240,10 +259,9 @@ function good_enough(guess) {
 	object whose associated environment is E1.
       </SCHEME>
       <JAVASCRIPT>
-	To<SPACE/>be more precise, the value
-	<LATEXINLINE>$\textit{unassigned}$</LATEXINLINE>
-	for the symbol <JAVASCRIPTINLINE>good_enough</JAVASCRIPTINLINE>
-	in the first frame of E2 was replaced by a function
+	To<SPACE/>be more precise, 
+	the name <JAVASCRIPTINLINE>is_good_enough</JAVASCRIPTINLINE>
+	in the first frame of E2 was bound to a function
 	object whose associated environment is E2.
       </JAVASCRIPT>
     </SPLIT>
@@ -275,7 +293,7 @@ function good_enough(guess) {
     object for 
     <SPLITINLINE>
       <SCHEME><SCHEMEINLINE>good-enough?</SCHEMEINLINE>.</SCHEME>
-      <JAVASCRIPT><JAVASCRIPTINLINE>good_enough</JAVASCRIPTINLINE>.</JAVASCRIPT>
+      <JAVASCRIPT><JAVASCRIPTINLINE>is_good_enough</JAVASCRIPTINLINE>.</JAVASCRIPT>
     </SPLITINLINE>
   </TEXT>
 
@@ -326,7 +344,7 @@ function good_enough(guess) {
     in turn called 
     <SPLITINLINE>
       <SCHEME><SCHEMEINLINE>good-enough?</SCHEMEINLINE></SCHEME>
-      <JAVASCRIPT><JAVASCRIPTINLINE>good_enough</JAVASCRIPTINLINE></JAVASCRIPT>
+      <JAVASCRIPT><JAVASCRIPTINLINE>is_good_enough</JAVASCRIPTINLINE></JAVASCRIPT>
     </SPLITINLINE>
     with the value of <SCHEMEINLINE>guess</SCHEMEINLINE>
     <SPLITINLINE>
@@ -336,7 +354,7 @@ function good_enough(guess) {
       </SCHEME>
       <JAVASCRIPT>
 	(from E3) as the argument for 
-	<JAVASCRIPTINLINE>good_enough</JAVASCRIPTINLINE>.
+	<JAVASCRIPTINLINE>is_good_enough</JAVASCRIPTINLINE>.
       </JAVASCRIPT>
     </SPLITINLINE>
     This set up another environment,
@@ -349,7 +367,7 @@ function good_enough(guess) {
       <JAVASCRIPT>
 	E4, in which
 	<SCHEMEINLINE>guess</SCHEMEINLINE> (the parameter of 
-	<JAVASCRIPTINLINE>good_enough</JAVASCRIPTINLINE>)
+	<JAVASCRIPTINLINE>is_good_enough</JAVASCRIPTINLINE>)
       </JAVASCRIPT>
     </SPLITINLINE>
     is bound to 1. Although 
@@ -360,7 +378,7 @@ function good_enough(guess) {
     and 
     <SPLITINLINE>
       <SCHEME><SCHEMEINLINE>good-enough?</SCHEMEINLINE></SCHEME>
-      <JAVASCRIPT><JAVASCRIPTINLINE>good_enough</JAVASCRIPTINLINE></JAVASCRIPT>
+      <JAVASCRIPT><JAVASCRIPTINLINE>is_good_enough</JAVASCRIPTINLINE></JAVASCRIPT>
     </SPLITINLINE>
     both have a parameter named <SCHEMEINLINE>guess</SCHEMEINLINE>, these are two
     distinct local variables located in different frames.
@@ -375,15 +393,23 @@ function good_enough(guess) {
 	Also, E3 and E4 both have E2 as their enclosing environment, because the 
 	<JAVASCRIPT><JAVASCRIPTINLINE>sqrt_iter</JAVASCRIPTINLINE></JAVASCRIPT>
 	and 
-	<JAVASCRIPTINLINE>good_enough</JAVASCRIPTINLINE>
+	<JAVASCRIPTINLINE>is_good_enough</JAVASCRIPTINLINE> functions
 	both have E2 as their environment part.
       </JAVASCRIPT>
     </SPLIT>
     One consequence of this is that the
-    symbol <SCHEMEINLINE>x</SCHEMEINLINE> that appears in the body of 
+    <SPLITINLINE>
+      <SCHEME>
+	symbol
+      </SCHEME>
+      <JAVASCRIPT>
+	name
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    <SCHEMEINLINE>x</SCHEMEINLINE> that appears in the body of 
     <SPLITINLINE>
       <SCHEME><SCHEMEINLINE>good-enough?</SCHEMEINLINE></SCHEME>
-      <JAVASCRIPT><JAVASCRIPTINLINE>good_enough</JAVASCRIPTINLINE></JAVASCRIPT>
+      <JAVASCRIPT><JAVASCRIPTINLINE>is_good_enough</JAVASCRIPTINLINE></JAVASCRIPT>
     </SPLITINLINE>
     will reference the binding of <SCHEMEINLINE>x</SCHEMEINLINE> that appears in
     E1, namely the value of <SCHEMEINLINE>x</SCHEMEINLINE> with which the
@@ -393,7 +419,7 @@ function good_enough(guess) {
       <JAVASCRIPT>function</JAVASCRIPT>
     </SPLITINLINE>
     was called.
-    <!-- \indcode{sqrt}[environment@in environment model|)] -->
+    <INDEX><USE>sqrt</USE><SUBINDEX><ORDER>environment</ORDER>in environment model<CLOSE/></SUBINDEX></INDEX>
   </TEXT>
 
   <TEXT>
@@ -459,32 +485,40 @@ function good_enough(guess) {
       </LI>
     </UL>
   </TEXT>
-
   <EXERCISE>
-    <INDEX>environment model of evaluation
-    <SUBINDEX>message passing</SUBINDEX></INDEX>
-    <INDEX>message passing<SUBINDEX>environment model and</SUBINDEX></INDEX>
-    <INDEX>bank account</INDEX>
     In section<SPACE/><REF NAME="sec:env-local-state"/> we saw how the
     environment model described the behavior of
     <SPLITINLINE>
       <SCHEME>procedures</SCHEME>
       <JAVASCRIPT>functions</JAVASCRIPT>
     </SPLITINLINE>
-    with local state.  Now we have seen how internal definitions work.
+    with local state.  Now we have seen how internal
+    <SPLITINLINE>
+      <SCHEME>
+	definitions
+      </SCHEME>
+      <JAVASCRIPT>
+	declarations
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    work.
+    <INDEX>environment model of evaluation<SUBINDEX>message passing</SUBINDEX></INDEX>
+    <INDEX>message passing<SUBINDEX>environment model and</SUBINDEX></INDEX>
     A typical message-passing
     <SPLITINLINE>
       <SCHEME>procedure</SCHEME>
       <JAVASCRIPT>function</JAVASCRIPT>
     </SPLITINLINE>
-    contains both of these aspects.  Consider the bank account
+    contains both of these aspects.  Consider the
+    <INDEX>bank account</INDEX>
+    bank account
     <SPLITINLINE>
       <SCHEME>procedure</SCHEME>
       <JAVASCRIPT>function</JAVASCRIPT>
     </SPLITINLINE>
     of section<SPACE/><REF NAME="sec:local-state-variables"/>:
-            <!-- \indcode{make-account}[environment@in environment model] -->
     <SNIPPET EVAL="yes">
+      <INDEX><USE>make_account</USE><SUBINDEX><ORDER>environment</ORDER>in environment model</SUBINDEX><FRAGILE/></INDEX>
       <NAME>another_make_account</NAME>
       <EXAMPLE>another_make_account_example</EXAMPLE>
       <EXPECTED>30</EXPECTED>
@@ -517,13 +551,14 @@ function make_account(balance) {
     }
     function deposit(amount) {
         balance = balance + amount;
+        return balance;  
     }
     function dispatch(m) {
         return m === "withdraw"
                ? withdraw
                : m === "deposit"
-                 ? deposit
-                 : "Unknown request: make_account";
+               ? deposit
+               : "Unknown request: make_account";
     }
     return dispatch;
 }
@@ -561,11 +596,8 @@ const acc2 = make_account(100);
     <LABEL NAME="ex:two-accounts"/>
   </EXERCISE>
 
-  <INDEX>environment model of evaluation|)</INDEX>
-  <INDEX>block structure
-  <SUBINDEX>environment@in environment model|)</SUBINDEX></INDEX>
-  <INDEX>environment model of evaluation
-  <SUBINDEX>internal definitions|)</SUBINDEX></INDEX>
-  <INDEX>internal definition
-  <SUBINDEX>environment@in environment model|)</SUBINDEX></INDEX>
+  <INDEX>environment model of evaluation<CLOSE/></INDEX>
+  <INDEX>block structure<SUBINDEX><ORDER>environment</ORDER>in environment model<CLOSE/></SUBINDEX></INDEX>
+  <INDEX>environment model of evaluation<SUBINDEX>internal declarations<CLOSE/></SUBINDEX></INDEX>
+  <INDEX>internal declaration<SUBINDEX><ORDER>environment</ORDER>in environment model<CLOSE/></SUBINDEX></INDEX>
 </SUBSECTION>
