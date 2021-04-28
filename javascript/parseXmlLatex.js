@@ -68,9 +68,7 @@ const processTextFunctionsDefaultLatex = {
       trimedValue = node.nodeValue;
     } else {
       trimedValue = node.nodeValue;
-      if (ancestorHasTag(node, "JAVASCRIPTINLINE")) {
-        trimedValue = trimedValue.replace(/\{/g, "\\{").replace(/\}/g, "\\}");
-      } else {
+      if (!ancestorHasTag(node, "JAVASCRIPTINLINE")) {
         trimedValue = trimedValue.replace(/%/g, "\\%");
       }
       trimedValue = trimedValue
