@@ -137,8 +137,7 @@ export const preamble = `\\documentclass[a4paper, 12pt, fleqn]{book}
 }
 
 \\lstdefinelanguage{JavaScript}{
-  keywords={function,if,else,return,const,let,break,for,while,true,false,var,null}, %% removing continue for now
-  %% keywords={const, let, break, case, catch, continue, debugger, default, delete, do, else, finally, for, function, if, in, instanceof, return, switch, this, throw, try, typeof, var, void, while, with},
+  keywords={const, let, break, case, catch, const, continue, debugger, default, delete, do, else, false, finally, for, function, if, in, instanceof, let, null, return, switch, this, throw, true, try, typeof, var, void, while, with},
   morecomment=[l]{//},
   morecomment=[s]{/*}{*/},
   morestring=[b]',
