@@ -441,7 +441,7 @@ const processTextFunctionsDefaultLatex = {
   },
 
   TeX: (node, writeTo) => {
-    writeTo.push("\\TeX\\");
+    writeTo.push("\\TeX{}");
   },
 
   MATTERSECTION: (node, writeTo) => {
