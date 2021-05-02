@@ -1937,7 +1937,7 @@ by 1\relax%
 
 
 \usepackage{algorithm} %% 
-\usepackage{algorithmicx}
+%% \usepackage{algorithmicx}
 \usepackage{algpseudocode}
 
 %% Glossary
