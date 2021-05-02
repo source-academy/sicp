@@ -66,21 +66,23 @@ export const preamble = `\\documentclass[7x10]{../mitpress/mit}
 \\addtolength\\headsep{-1.5pc} 
 \\addtolength\\textheight{0.5pc} 
 
-\\ifxetex
-\\setmonofont[Ligatures=TeX]{Latin Modern Mono}
-\\else
-\\DeclareUnicodeCharacter{1F00}{\\alpha}
-\\usepackage[activate={true,nocompatibility},final,tracking=true,kerning=true,spacing=false,factor=1100,stretch=10,shrink=10]{microtype}
-\\fi
-
 \\usepackage[T1]{fontenc}
 \\usepackage{textcomp}
 \\usepackage[utf8]{inputenc}
-\\DeclareUnicodeCharacter{1F00}{-}
 \\usepackage{mathptmx}
 %% \\usepackage[bf,big,raggedright,nobottomtitles]{titlesec}
 \\usepackage[american]{babel}
 \\usepackage[multidot]{grffile}
+
+\\ifxetex
+\\setmonofont[Ligatures=TeX]{Latin Modern Mono}
+\\else
+\\ifdefined\\DeclareUnicodeCharacter
+  \\DeclareUnicodeCharacter{1F00}{-}
+  \\DeclareUnicodeCharacter{1F00}{\\alpha}
+\\fi
+\\usepackage[activate={true,nocompatibility},final,tracking=true,kerning=true,spacing=false,factor=1100,stretch=10,shrink=10]{microtype}
+\\fi
 
 \\usepackage{adjustbox}
 \\usepackage[fleqn]{amsmath}
