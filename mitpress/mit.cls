@@ -1851,7 +1851,7 @@ Chapter \arabic{chapter}}%
 \thickmuskip=3mu%
 }%
 
-\RequirePackage[bookmarks=true,bookmarksnumbered=true,bookmarksopenlevel=1,colorlinks=true,breaklinks,linkcolor=blue,citecolor=magenta,urlcolor=green]{hyperref}% Color links true for debuggning for now
+\RequirePackage[bookmarks=true,bookmarksnumbered=true,bookmarksopenlevel=1,colorlinks=true,breaklinks,linkcolor=blue,citecolor=magenta,urlcolor=blue]{hyperref}% Color links true for debugging for now
 \ifxetex\relax\else\usepackage{breakurl}\fi%
 %\ifluatex\relax\else\usepackage{breakurl}\fi%
 \urlstyle{rm}%
