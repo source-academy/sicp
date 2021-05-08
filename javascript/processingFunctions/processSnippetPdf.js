@@ -69,7 +69,11 @@ function nextNodeIsVisibleSnippet(n) {
     if (cursor === undefined || cursor === null) return false;
   }
 
-  return cursor.nodeName === "SNIPPET" && cursor.getAttribute("HIDE") !== "yes";
+  if (cursor.nodeName === "SNIPPET" && cursor.getAttribute("HIDE") === "yes") {
+    return nextNodeIsVisibleSnippet(cursor);
+  } else {
+    return cursor.nodeName === "SNIPPET";
+  }
 }
 
 export const processSnippetPdf = (node, writeTo) => {
@@ -426,7 +430,7 @@ export const processSnippetPdf = (node, writeTo) => {
       writeTo.push("\\nopagebreak%\n");
     }
     writeTo.push("\\Usebox{\\UnbreakableBox}");
-    if (!skipPostPadding) {
+    if (!followedByOtherSnippet && !skipPostPadding) {
       writeTo.push(postSpace);
     }
   }
