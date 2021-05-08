@@ -109,8 +109,8 @@ export const preamble = `\\documentclass[7x10]{../mitpress/mit}
 \\def\\footnotecodesize{\\fontsize{8}{9pt}\\selectfont}
 
 %% NOTE! the following are redefined (and changed back again) below
-\\def\\inlinecodesize{\\fontsize{10.2pt}{13pt}\\selectfont}
-\\def\\inlineexercisecodesize{\\fontsize{9.2pt}{11pt}\\selectfont}
+\\def\\inlinecodesize{\\fontsize{10.6pt}{13pt}\\selectfont}
+\\def\\inlineexercisecodesize{\\fontsize{9.5pt}{11pt}\\selectfont}
 \\def\\inlinefootnotecodesize{\\fontsize{9pt}{10pt}\\selectfont}
 
 \\def\\normaloutputcodesize{\\fontsize{9.8}{11pt}\\selectfont}
@@ -224,7 +224,7 @@ export const preamble = `\\documentclass[7x10]{../mitpress/mit}
 \\renewcommand{\\theExerciseDisplayNumber}{\\thechapter.\\arabic{ExerciseDisplayNumber}}
 
 \\newenvironment{Exercise}{%
-  \\def\\inlinecodesize{\\fontsize{9.2pt}{11pt}\\selectfont}% Set to inlineexercisecodesize above
+  \\def\\inlinecodesize{\\fontsize{9.5pt}{11pt}\\selectfont}% Set to inlineexercisecodesize above
   \\refstepcounter{ExerciseDisplayNumber}\\needspace{\\baselineskip}%
   \\subsubsection*{Exercise~\\theExercise}
   \\addcontentsline{loe}{exercise}{\\protect{\\textbf{\\thechapter.\\arabic{ExerciseDisplayNumber}}}}
@@ -302,8 +302,8 @@ export const preamble = `\\documentclass[7x10]{../mitpress/mit}
 %% \\newcommand{\\MidBoxCmd}{\\nopagebreak\\par\\noindent}
 %%\\newcommand{\\Usebox}{\\usebox{\\UnbreakableBox}}
 
-\\newcommand{\\PreBoxCmd}{{\\vskip 8pt}\\noindent}
-\\newcommand{\\PostBoxCmd}{{\\vskip 8pt}\\noindent}
+\\newcommand{\\PreBoxCmd}{{\\vskip 0.8em}\\noindent}
+\\newcommand{\\PostBoxCmd}{{\\vskip 0.8em}\\noindent}
 \\newcommand{\\MidBoxCmd}{\\nopagebreak{\\vskip 0pt}\\noindent}
 %% \\newcommand{\\Usebox}[1]{\\raisebox{4pt}[\\height]{\\usebox{#1}}}
 
@@ -764,11 +764,11 @@ export const ending = `
 \\newpage
 \\markboth{}{}
 %% Shrink code size
-\\def\\inlinecodesize{\\fontsize{9.2pt}{11pt}\\selectfont}
+\\def\\inlinecodesize{\\fontsize{9.5pt}{11pt}\\selectfont}
 \\indexprologue{\\input{./others/98indexpreface98.tex}}
 \\printindex{sicpjs}{Index}
 %% Restore code size
-\\def\\inlinecodesize{\\fontsize{10.2pt}{13pt}\\selectfont}
+\\def\\inlinecodesize{\\fontsize{10.6pt}{13pt}\\selectfont}
 
 
 \\newpage
