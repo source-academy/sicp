@@ -23,6 +23,10 @@ import processReferenceHtml from "./processReferenceHtml";
 import processSnippetHtml from "./processSnippetHtml";
 import processSnippetHtmlScheme from "./processSnippetHtml_scheme";
 
+import processExerciseJson from "./processExerciseJson";
+import processFigureJson from "./processFigureJson";
+import processSnippetJson from "./processSnippetJson";
+
 export const processList = (node, writeTo) => {
   if (!node) return;
   if (node.nodeName == "LI") {
@@ -51,6 +55,7 @@ export {
   processEpigraphPdf,
   processFigurePdf,
   processFigureEpub,
+  processFigureJson,
   generateImage,
   processExercisePdf,
   processExerciseEpub,
@@ -61,8 +66,10 @@ export {
   processEpigraphHtml,
   processBlockquoteHtml,
   processExerciseHtml,
+  processExerciseJson,
   processFigureHtml,
   processReferenceHtml,
   processSnippetHtml,
+  processSnippetJson,
   processSnippetHtmlScheme
 };

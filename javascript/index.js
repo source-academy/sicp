@@ -40,6 +40,10 @@ import { setupSnippetsJs } from "./processingFunctions/processSnippetJs";
 import { setupSnippetsEpub } from "./processingFunctions/processSnippetEpub";
 import { getAnswers } from "./processingFunctions/processExercisePdf";
 
+// json (for cadet frontend)
+import { parseXmlJson } from "./parseXmlJson";
+import { setupSnippetsJson } from "./processingFunctions/processSnippetJson";
+
 let parseType;
 let version;
 let outputDir; // depends on parseType
@@ -153,6 +157,40 @@ async function translateXml(filepath, filename, option) {
     });
     return;
   }
+
+  if (parseType == "json") {
+    const relativeFilePath = path.join(
+      filepath,
+      filename.replace(/\.xml$/, "") + ".html"
+    );
+
+    if (option == "generateTOC") {
+      generateTOC(doc, tableOfContent, relativeFilePath);
+      return;
+    } else if (option == "setupSnippet") {
+      //console.log("setting up " + filepath + " " + filename);
+      setupSnippetsJson(doc.documentElement);
+      // setupSnippetsHtml(doc.documentElement);
+      setupReferences(doc.documentElement, relativeFilePath);
+      return;
+    } else if (option == "parseXml") {
+      // parsing over here
+      const jsonObj = [];
+      parseXmlJson(doc, jsonObj, relativeFilePath);
+
+      const outputFile = path.join(
+        outputDir,
+        "/chapters",
+        tableOfContent[relativeFilePath].index + ".json"
+      );
+      const stream = fs.createWriteStream(outputFile);
+      stream.once("open", fd => {
+        stream.write(JSON.stringify(jsonObj));
+        stream.end();
+      });
+    }
+    return;
+  }
 }
 
 // for web version only
@@ -215,7 +253,7 @@ const createMain = () => {
     return;
   }
 
-  if (parseType == "web") {
+  if (parseType == "web" || parseType == "json") {
     if (!fs.existsSync(path.join(outputDir, "/chapters"))) {
       fs.mkdirSync(path.join(outputDir, "/chapters"));
     }
@@ -320,6 +358,22 @@ async function main() {
     await recursiveTranslateXml("", "setupSnippet");
     console.log("setup snippets done\n");
     recursiveTranslateXml("", "parseXml");
+  } else if (parseType == "json") {
+    outputDir = path.join(__dirname, "../json");
+
+    createMain();
+
+    console.log("\ngenerate table of content\n");
+    await recursiveTranslateXml("", "generateTOC");
+    allFilepath = sortTOC(allFilepath);
+    console.log(tableOfContent);
+    createIndexHtml();
+
+    console.log("setup snippets and references\n");
+    await recursiveXmlToHtmlInOrder("setupSnippet");
+    console.log("setup snippets and references done\n");
+
+    recursiveXmlToHtmlInOrder("parseXml");
   }
 }
 
