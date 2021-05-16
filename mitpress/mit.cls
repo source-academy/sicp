@@ -101,7 +101,7 @@
 }%
 
 \renewcommand\normalsize{%
-   \@setfontsize\normalsize{10.5 \p@}{13\p@}%
+   \@setfontsize\normalsize{10.8 \p@}{13\p@}%
    \abovedisplayskip 8\p@%
    \abovedisplayshortskip \z@%
    \belowdisplayshortskip 4\p@%
@@ -111,7 +111,7 @@
 \let\@bls\baselineskip%
 
 \newcommand\small{%
-   \@setfontsize\small{9.7\p@}{12\p@}%
+   \@setfontsize\small{10\p@}{12\p@}%
    \abovedisplayskip 8.5\p@%
    \abovedisplayshortskip \z@%
    \belowdisplayshortskip 4\p@%
