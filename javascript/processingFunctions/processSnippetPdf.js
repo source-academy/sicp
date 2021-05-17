@@ -209,9 +209,11 @@ export const processSnippetPdf = (node, writeTo) => {
       node.getAttribute("EVAL") === "no" ||
       node.getAttribute("LATEX") === "yes"
     ) {
-      let codeEnv = ancestorHasTag(node, "FOOTNOTE")
+      let codeEnv = isSmall
+        ? "JavaScriptSmaller" //"JavaScript" + LatexString + "SmallTwo"
+        : ancestorHasTag(node, "FOOTNOTE")
         ? "JavaScript" + LatexString + "Footnote"
-        : ancestorHasTag(node, "EXERCISE") || isSmall
+        : ancestorHasTag(node, "EXERCISE")
         ? "JavaScript" + LatexString + "Small"
         : "JavaScript" + LatexString;
 
