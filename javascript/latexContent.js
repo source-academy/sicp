@@ -377,6 +377,7 @@ export const preamble = `\\documentclass[7x10]{../mitpress/mit}
    framerule=0.5ex,
    framesep=1em,
    rulecolor=\\color{LeftBarClickable},
+   resetmargins=true,
    escapechar=^
 }
 \\lstnewenvironment{JavaScriptLatexSmall}{\\lstset{style=JavaScriptLatexSmall,aboveskip=1.8ex,belowskip=1.8ex}}{}
@@ -432,6 +433,7 @@ export const preamble = `\\documentclass[7x10]{../mitpress/mit}
    framerule=0.5ex,
    framesep=1em,
    rulecolor=\\color{LeftBarClickable},
+   resetmargins=true,
    escapechar=^
 }
 \\lstnewenvironment{JavaScriptSmall}{\\lstset{style=JavaScriptSmall,aboveskip=1.8ex,belowskip=1.8ex}}{}
@@ -511,6 +513,7 @@ export const preamble = `\\documentclass[7x10]{../mitpress/mit}
    framesep=1em,
    deletekeywords={null},
    rulecolor=\\color{LeftBarClickable},
+   resetmargins=true,
    escapechar=^
 }
 \\lstdefinestyle{JavaScriptOutputLatexSmall}{
@@ -527,6 +530,7 @@ export const preamble = `\\documentclass[7x10]{../mitpress/mit}
    framesep=1em,
    deletekeywords={null},
    rulecolor=\\color{LeftBarClickable},
+   resetmargins=true,
    escapechar=^
 }
 
