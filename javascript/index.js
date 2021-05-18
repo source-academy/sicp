@@ -43,6 +43,7 @@ import { getAnswers } from "./processingFunctions/processExercisePdf";
 // json (for cadet frontend)
 import { parseXmlJson } from "./parseXmlJson";
 import { setupSnippetsJson } from "./processingFunctions/processSnippetJson";
+import { recursiveProcessTOC } from "./generateTocJson";
 
 let parseType;
 let version;
@@ -244,6 +245,21 @@ const createIndexHtml = () => {
   });
 };
 
+// for json version only
+// create toc
+const createTocJson = () => {
+  const tocFilepath = path.join(outputDir, "toc.json");
+
+  const toc = [];
+  const outputToc = recursiveProcessTOC(0, toc);
+
+  const stream = fs.createWriteStream(tocFilepath);
+  stream.once("open", fd => {
+    stream.write(JSON.stringify(toc));
+    stream.end();
+  });
+};
+
 const createMain = () => {
   if (!fs.existsSync(outputDir)) {
     fs.mkdirSync(outputDir);
@@ -368,6 +384,7 @@ async function main() {
     allFilepath = sortTOC(allFilepath);
     console.log(tableOfContent);
     createIndexHtml();
+    createTocJson();
 
     console.log("setup snippets and references\n");
     await recursiveXmlToHtmlInOrder("setupSnippet");
