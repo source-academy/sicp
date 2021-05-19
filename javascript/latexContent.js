@@ -122,8 +122,8 @@ export const preamble = `\\documentclass[7x10]{../mitpress/mit}
   \\par%
   \\vspace{12pt}%
   \\noindent%
-  \\begin{minipage}{1.0\\linewidth}\\vspace*{-0.85\\baselineskip}\\normalcodesize\\begin{eqnarray*}}{%
-                                                         \\end{eqnarray*}%
+  \\begin{minipage}{1.0\\linewidth}\\vspace*{-0.85\\baselineskip}\\normalcodesize\\[\\begin{array}{rcl}}{%
+                                                         \\end{array}\\]%
                                                        \\end{minipage}%
                                                        \\par%
                                                        \\vspace{12pt}%
