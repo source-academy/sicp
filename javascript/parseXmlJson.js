@@ -37,6 +37,7 @@ const tagsToRemoveDefault = new Set([
   "HISTORY",
   "ORDER",
   "SCHEME",
+  "SCHEMEINLINE",
   "SOLUTION",
   "INDEX",
   "CAPTION",
@@ -73,27 +74,19 @@ const preserveTagsDefault = new Set([
 ]);
 
 export const addBodyToObj = (obj, node, body) => {
-  const child = {};
-
-  child["tag"] = node.nodeName;
+  obj["tag"] = node.nodeName;
 
   if (body) {
-    child["body"] = body;
+    obj["body"] = body;
   }
-
-  obj.push(child);
 };
 
 export const addArrayToObj = (obj, node, array) => {
-  const child = {};
-
-  child["tag"] = node.nodeName;
+  obj["tag"] = node.nodeName;
 
   let body = "";
   array.forEach(x => (body += x));
-  child["body"] = body;
-
-  obj.push(child);
+  obj["body"] = body;
 };
 
 const processTextFunctionsDefaultHtml = {
@@ -104,7 +97,10 @@ const processTextFunctionsDefaultHtml = {
   "#text": (node, obj) => {
     // ignore the section/subsection tags at the end of chapter/section files
     if (!node.nodeValue.match(/&(\w|\.|\d)+;/)) {
-      addBodyToObj(obj, node, node.nodeValue);
+      let body = node.nodeValue.replace(/\r?\n|\r/g, " ").replace(/  +/g, ' ');
+      if (body.trim()) {
+        addBodyToObj(obj, node, body);
+      }
     }
   },
 
@@ -181,7 +177,9 @@ const processTextFunctionsDefaultHtml = {
 
   EXERCISE: (node, obj) => {
     exercise_count += 1;
-    processExerciseJson(node, obj, chapArrIndex, exercise_count);
+    const writeTo = [];
+    processExerciseJson(node, writeTo, chapArrIndex, exercise_count);
+    addArrayToObj(obj, node, writeTo);
   },
 
   FIGURE: (node, obj) => {
@@ -209,9 +207,9 @@ const processTextFunctionsDefaultHtml = {
     display_footnote_count += 1;
 
     if (display_footnote_count == 1) {
-      addBodyToObj(obj, node, "<hr>\n");
+      addBodyToObj(obj, node, false);
     }
-
+    
     recursiveProcessText(node.firstChild, obj);
   },
 
@@ -304,17 +302,9 @@ const processTextFunctionsDefaultHtml = {
 
   TEXT: (node, obj) => {
     paragraph_count += 1;
-    // addBodyToObj(obj, node, "<div class='permalink'>");
-    // addBodyToObj(
-    //   obj,
-    //   node,
-    //   "\n<a name='p" + paragraph_count + "' class='permalink'></a>"
-    // );
-    // addBodyToObj(obj, node, "<p>");
+
     addBodyToObj(obj, node, false);
     recursiveProcessText(node.firstChild, obj);
-    // addBodyToObj(obj, node, "</p>");
-    // addBodyToObj(obj, node, "</div>");
   },
 
   REF: (node, obj) => {
@@ -337,8 +327,8 @@ const processTextFunctionsDefaultHtml = {
     recursiveProcessText(name.nextSibling, obj);
   },
 
-  SCHEMEINLINE: (node, obj) =>
-    processTextFunctionsHtml["JAVASCRIPTINLINE"](node, obj),
+  // SCHEMEINLINE: (node, obj) =>
+  //   processTextFunctionsHtml["JAVASCRIPTINLINE"](node, obj),
 
   JAVASCRIPTINLINE: (node, obj) => {
     const writeTo = [];
@@ -362,47 +352,28 @@ const processTextFunctionsDefaultHtml = {
     } else if (node.getAttribute("LATEX") == "yes") {
       const textprompt = getChildrenByTagName(node, "JAVASCRIPT_PROMPT")[0];
       if (textprompt) {
-        recursiveProcessText(textprompt.firstChild, obj, {
-          removeNewline: "beginning&end"
-        });
+        recursiveProcessText(textprompt.firstChild, obj);
       }
 
       const textit = getChildrenByTagName(node, "JAVASCRIPT")[0];
       if (textit) {
-        recursiveProcessText(textit.firstChild, obj, {
-          removeNewline: "beginning&end"
-        });
+        recursiveProcessText(textit.firstChild, obj);
       } else {
         recursiveProcessText(node.firstChild, obj);
       }
 
       const textoutput = getChildrenByTagName(node, "JAVASCRIPT_OUTPUT")[0];
       if (textoutput) {
-        recursiveProcessText(textoutput.firstChild, obj, {
-          removeNewline: "beginning&end"
-        });
+        recursiveProcessText(textoutput.firstChild, obj);
       }
       return;
     }
 
     snippet_count += 1;
-    // addBodyToObj(
-    //   obj,
-    //   node,
-    //   "<div class='snippet' id='javascript_" +
-    //     chapArrIndex +
-    //     "_" +
-    //     snippet_count +
-    //     "_div'>"
-    // );
-    // addBodyToObj(obj, node, "<div class='pre-prettyprint'>");
-    // processSnippetHtml(node, writeTo, false);
-    // writeTo = [];
-    const snippet = { tag: node.nodeName };
-    obj.push(snippet);
-    processSnippetJson(node, snippet);
-    // writeTo.forEach(snippet => addBodyToObj(obj, node, snippet));
-    // addBodyToObj(obj, node, "</div></div>");
+    addBodyToObj(obj, node, false);
+    // const snippet = { tag: node.nodeName };
+    // obj.push(snippet);
+    processSnippetJson(node, obj);
   },
 
   SPACE: (node, obj) => {
@@ -514,7 +485,8 @@ export const processText = (node, obj) => {
   } else {
     const newTag = [];
     if (replaceTagWithSymbol(node, newTag)) {
-      addArrayToObj(obj, node, newTag);
+      obj.nodeName = newTag[0];
+      addBodyToObj(obj, node, false);
       return true;
     } else if (tagsToRemove.has(name)) {
       return true;
@@ -522,11 +494,7 @@ export const processText = (node, obj) => {
       recursiveProcessText(node.firstChild, obj);
       return true;
     } else if (preserveTags.has(name)) {
-      //TODO
-      //addBodyToObj(obj, node, "<" + name + ">");
-      // recursiveProcessText
-      node.firstChild, obj;
-      //addBodyToObj(obj, node, "</" + name + ">");
+      recursiveProcessText(node.firstChild, obj);
       return true;
     }
   }
@@ -534,17 +502,26 @@ export const processText = (node, obj) => {
   return false;
 };
 
-export const recursiveProcessText = (node, obj) => {
+export const recursiveProcessText = (node, obj, sibling=false) => {
   if (!node) return;
 
-  const child = [];
-  processText(node, child);
-  obj.push({ child });
-  return recursiveProcessText(node.nextSibling, obj);
+  if (!sibling) {
+    const child = [];
+    obj["child"] = child;
+    obj = child;
+  }
+
+  const next = {};
+  processText(node, next);
+
+  if (next['tag'] || next['child']) {
+    obj.push(next);
+  }
+
+  return recursiveProcessText(node.nextSibling, obj, true);
 };
 
 export const parseXmlJson = (doc, obj, filename) => {
-  //console.log(allFilepath);
   chapterIndex = tableOfContent[filename].index;
   chapterTitle = tableOfContent[filename].title;
 
@@ -554,8 +531,6 @@ export const parseXmlJson = (doc, obj, filename) => {
     displayTitle = chapterIndex + "\u00A0\u00A0" + chapterTitle;
   }
 
-  //toIndexFolder = tableOfContent[filename].relativePathToMain;
-  //console.log(chapterIndex + " " + chapterTitle);
   paragraph_count = 0;
   footnote_count = 0;
   display_footnote_count = 0;
@@ -566,7 +541,5 @@ export const parseXmlJson = (doc, obj, filename) => {
   chapArrIndex = allFilepath.indexOf(filename);
   console.log(`${chapArrIndex} parsing chapter ${chapterIndex}`);
 
-  // beforeContent(obj);
-  recursiveProcessText(doc.documentElement, obj);
-  // afterContent(obj);
+  recursiveProcessText(doc.documentElement, obj, true);
 };
