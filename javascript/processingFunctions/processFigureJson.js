@@ -1,18 +1,10 @@
 import {
   recursiveProcessText,
-  processText,
-  processTextFunctionsHtml,
-  toIndexFolder
+  processText
 } from "../parseXmlJson";
 import { referenceStore } from "./processReferenceHtml";
 
-export const processFigureJson = (
-  node,
-  writeTo,
-  chapArrIndex,
-  snippet_count,
-  split
-) => {
+export const processFigureJson = (node, obj) => {
   let src = node.getAttribute("src");
   if (!src && node.getElementsByTagName("FIGURE")[0]) {
     src = node.getElementsByTagName("FIGURE")[0].getAttribute("src");
@@ -32,27 +24,28 @@ export const processFigureJson = (
 
   const label = node.getElementsByTagName("LABEL")[0];
 
+  const images = [];
+  obj['images'] = images;
+
   if (src && !label) {
-    writeTo.push(`
-        <img class="${scale_factor}" src="${toIndexFolder}${src}">
-      `);
+    const image = {};
+    image["class"] = scale_factor;
+    image["src"] = src;
+    images.push(image);
     return;
   } else if (!src) {
-    // console.log(node.toString());
-    writeTo.push(`<FIGURE>`);
     const images = node.getElementsByTagName("IMAGE");
     for (let i = 0; i < images.length; i++) {
-      writeTo.push(`
-      <img class="${scale_factor}" src="${toIndexFolder}${images[
-        i
-      ].getAttribute("src")}">
-      `);
+      const image = {};
+      image["class"] = scale_factor;
+      image["src"] = images[i].getAttribute("src");
+      images.push(image);
     }
   }
 
   // get href and displayed name from "referenceStore"
   const referenceName = label.getAttribute("NAME");
-  console.log("reference name is " + referenceName);
+  // console.log("reference name is " + referenceName);
   const href = referenceStore[referenceName]
     ? referenceStore[referenceName].href
     : "";
@@ -62,33 +55,34 @@ export const processFigureJson = (
     : "";
 
   if (src && label) {
-    writeTo.push(`
-    <FIGURE>
-      <img class="${scale_factor}" id="fig_${displayName}" src="${toIndexFolder}${src}">`);
+    const image = {};
+    image["class"] = scale_factor;
+    image["src"] = src;
+    images.push(image);
   }
 
   const snippet = node.getElementsByTagName("SNIPPET")[0];
   if (snippet) {
-    processText(snippet, writeTo);
+    processText(snippet, obj);
   }
 
   const table = node.getElementsByTagName("TABLE")[0];
   if (table) {
-    processText(table, writeTo);
+    processText(table, obj);
   }
 
   const caption = node.getElementsByTagName("CAPTION")[0];
   if (caption) {
-    writeTo.push(`
-      <div class="chapter-text-CAPTION">
-      <b><a class="caption" href="./${href}">Figure ${displayName} </a></b>`);
-    recursiveProcessText(caption.firstChild, writeTo);
-    writeTo.push("</div>");
-  }
+    if (!images[0]) {
+      images.push({});
+    }
 
-  writeTo.push(`
-    </FIGURE>
-  `);
+    const captionBody = {};
+    recursiveProcessText(caption.firstChild, captionBody);
+
+    images[0]["captionHref"] = href;
+    images[0]["captionName"] = "Figure " + displayName + " " + captionBody['child'][0]['body'];
+  }
 };
 
 export default processFigureJson;

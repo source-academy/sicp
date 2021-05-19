@@ -105,12 +105,14 @@ export const recursiveProcessTOC = (index, writeTo) => {
     : `${chapterIndex} ${chapterTitle}`;
 
   if (filename.match(/others/) || filename.match(/subsection/)) {
-    writeTo.push({
-      id: index,
-      hasCaret: false,
-      label: displayTitle,
-      nodeData: chapterIndex
-    });
+    if (!filename.match(/see/)) {
+      writeTo.push({
+        id: index,
+        hasCaret: false,
+        label: displayTitle,
+        nodeData: chapterIndex
+      });
+    }
 
     if (filename.match(/others/) || allFilepath[next].match(/subsection/)) {
       return recursiveProcessTOC(next, writeTo);

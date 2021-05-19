@@ -183,10 +183,9 @@ const processTextFunctionsDefaultHtml = {
   },
 
   FIGURE: (node, obj) => {
-    const writeTo = [];
     recursiveProcessText(node.firstChild, obj);
-    processFigureJson(node, writeTo, chapArrIndex, snippet_count, false);
-    addArrayToObj(obj, node, writeTo);
+    addBodyToObj(obj,node,false);
+    processFigureJson(node, obj);
   },
 
   FOOTNOTE: (node, obj) => {
