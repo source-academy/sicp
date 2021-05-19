@@ -377,6 +377,7 @@ export const preamble = `\\documentclass[7x10]{../mitpress/mit}
    framerule=0.5ex,
    framesep=1em,
    rulecolor=\\color{LeftBarClickable},
+   resetmargins=true,
    escapechar=^
 }
 \\lstnewenvironment{JavaScriptLatexSmall}{\\lstset{style=JavaScriptLatexSmall,aboveskip=1.8ex,belowskip=1.8ex}}{}
@@ -432,6 +433,7 @@ export const preamble = `\\documentclass[7x10]{../mitpress/mit}
    framerule=0.5ex,
    framesep=1em,
    rulecolor=\\color{LeftBarClickable},
+   resetmargins=true,
    escapechar=^
 }
 \\lstnewenvironment{JavaScriptSmall}{\\lstset{style=JavaScriptSmall,aboveskip=1.8ex,belowskip=1.8ex}}{}
@@ -511,6 +513,7 @@ export const preamble = `\\documentclass[7x10]{../mitpress/mit}
    framesep=1em,
    deletekeywords={null},
    rulecolor=\\color{LeftBarClickable},
+   resetmargins=true,
    escapechar=^
 }
 \\lstdefinestyle{JavaScriptOutputLatexSmall}{
@@ -527,6 +530,7 @@ export const preamble = `\\documentclass[7x10]{../mitpress/mit}
    framesep=1em,
    deletekeywords={null},
    rulecolor=\\color{LeftBarClickable},
+   resetmargins=true,
    escapechar=^
 }
 
@@ -576,6 +580,22 @@ export const preamble = `\\documentclass[7x10]{../mitpress/mit}
 \\lstnewenvironment{JavaScriptPromptLatexFootnote}{\\lstset{style=JavaScriptOutputLatexFootnote,aboveskip=1.8ex,belowskip=-3.0ex}}{}
 \\lstnewenvironment{JavaScriptLonelyFootnote}{\\lstset{style=JavaScriptOutputFootnote,aboveskip=1.8ex,belowskip=2.5ex}}{}
 \\lstnewenvironment{JavaScriptLonelyLatexFootnote}{\\lstset{style=JavaScriptOutputLatexFootnote,aboveskip=1.8ex,belowskip=2.5ex}}{}
+
+\\lstdefinestyle{JavaScriptSmaller}{
+   language=JavaScript,
+   basicstyle=\\exercisecodesize\\usefont{T1}{lmtt}{m}{n}, %\\fontsize{8.5}{9.5pt}\\selectfont
+   keywordstyle=\\usefont{T1}{lmtt}{b}{n},
+   commentstyle=\\usefont{T1}{ptm}{m}{it},
+   showstringspaces=false,
+   showspaces=false,
+   keepspaces=true,
+   fontadjust=true,
+   basewidth=0.55em,
+   mathescape=true,
+   resetmargins=true,
+   escapechar=^
+}
+\\lstnewenvironment{JavaScriptSmaller}{\\lstset{style=JavaScriptLatexSmall,aboveskip=1.8ex,belowskip=1.8ex}}{}
 
 \\usepackage{epigraph}
 %\\renewcommand{\\textflush}{flushepinormal} %% Uncomment to get justified epigraphs
