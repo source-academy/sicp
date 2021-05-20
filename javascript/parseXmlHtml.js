@@ -1,6 +1,4 @@
-import path from "path";
 import { getChildrenByTagName, ancestorHasTag } from "./utilityFunctions";
-import { checkIndexBadEndWarning } from "./processingFunctions/warnings.js";
 import { allFilepath, tableOfContent } from "./index.js";
 import {
   html_links_part1,
@@ -187,7 +185,7 @@ const processTextFunctionsDefaultHtml = {
 
   FIGURE: (node, writeTo) => {
     recursiveProcessTextHtml(node.firstChild, writeTo);
-    processFigureHtml(node, writeTo, chapArrIndex, snippet_count, false);
+    processFigureHtml(node, writeTo);
   },
 
   FOOTNOTE: (node, writeTo) => {
@@ -523,11 +521,6 @@ const processTextFunctionsSplit = {
     writeTo.push(`<span style="color:blue">`);
     recursiveProcessTextHtml(node.firstChild, writeTo);
     writeTo.push(`</span>`);
-  },
-
-  FIGURE: (node, writeTo) => {
-    recursiveProcessTextHtml(node.firstChild, writeTo);
-    processFigureHtml(node, writeTo, chapArrIndex, snippet_count, true);
   },
 
   SPLIT: (node, writeTo) => {

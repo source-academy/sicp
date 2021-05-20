@@ -1,5 +1,4 @@
-import { recursiveProcessTextLatex, processTextLatex } from "../parseXmlLatex";
-import { ancestorHasTag } from "../utilityFunctions";
+import { recursiveProcessTextLatex } from "../parseXmlLatex";
 import { processSnippetPdf } from ".";
 import { processTablePdf } from ".";
 
