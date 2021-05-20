@@ -69,7 +69,9 @@ export const processFigurePdf = (node, writeTo) => {
 
   const caption = node.getElementsByTagName("CAPTION")[0];
   if (caption) {
-    writeTo.push("\\caption{");
+    writeTo.push(
+      "\\caption{\\def\\inlinecodesize{\\protect\\inlineexercisecodesize}"
+    );
     recursiveProcessTextLatex(caption.firstChild, writeTo);
     writeTo.push("}\n");
   }
