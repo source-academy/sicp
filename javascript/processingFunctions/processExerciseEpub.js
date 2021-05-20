@@ -1,5 +1,5 @@
-import { recursiveProcessTextLatex, processTextLatex } from "../parseXmlLatex";
-import { getChildrenByTagName, ancestorHasTag } from "../utilityFunctions";
+import { recursiveProcessTextLatex } from "../parseXmlLatex";
+import { getChildrenByTagName } from "../utilityFunctions";
 
 let unlabeledEx = 0;
 const processExerciseEpub = (node, writeTo) => {

@@ -3,7 +3,6 @@ import fse from "fs-extra";
 import util from "util";
 import path from "path";
 
-import xpath from "xpath";
 import { DOMParser as dom } from "xmldom";
 
 const readdir = util.promisify(fs.readdir);
@@ -26,10 +25,7 @@ $postscript_mode = 0;`;
 import { switchTitle } from "./htmlContent";
 import { switchParseFunctionsHtml, parseXmlHtml } from "./parseXmlHtml";
 import { setupSnippetsHtml } from "./processingFunctions/processSnippetHtml";
-import {
-  setupReferences,
-  referenceStore
-} from "./processingFunctions/processReferenceHtml";
+import { setupReferences } from "./processingFunctions/processReferenceHtml";
 import { generateTOC, sortTOC, indexHtml } from "./generateTocHtml";
 export let allFilepath = [];
 export let tableOfContent = {};

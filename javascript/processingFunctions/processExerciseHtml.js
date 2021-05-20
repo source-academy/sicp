@@ -1,5 +1,4 @@
-import { recursiveProcessTextHtml, processTextHtml } from "../parseXmlHtml";
-import { getChildrenByTagName, ancestorHasTag } from "../utilityFunctions";
+import { recursiveProcessTextHtml } from "../parseXmlHtml";
 import { missingExerciseWarning } from "./warnings.js";
 import { referenceStore } from "./processReferenceHtml";
 

@@ -1,16 +1,11 @@
 import { sourceAcademyURL } from "../constants";
 import lzString from "lz-string";
 import {
-  checkLongLineWarning,
   missingRequireWarning,
   missingExampleWarning,
   repeatedNameWarning
 } from "./warnings.js";
-import {
-  chapterIndex,
-  recursiveProcessTextHtml,
-  processTextHtml
-} from "../parseXmlHtml";
+import { chapterIndex } from "../parseXmlHtml";
 import recursiveProcessPureText from "./recursiveProcessPureText";
 
 const snippetStore = {};
