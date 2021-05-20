@@ -51,7 +51,7 @@ export const preamble = `\\documentclass[7x10]{../mitpress/mit}
 \\makeatother
 
 \\usepackage[
-  justification=RaggedRight, % Change to 'justified' once hyphenation is checked
+  justification=justified, %RaggedRight, % Change to 'justified' once hyphenation is checked
   singlelinecheck=off,
   labelfont={small,bf},
   textfont=small,
