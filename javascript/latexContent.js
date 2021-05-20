@@ -127,6 +127,13 @@ export const preamble = `\\documentclass[7x10]{../mitpress/mit}
                                                        \\par%
                                                        \\vspace{12pt}%
                                                        \\noindent}
+\\newenvironment{ParsingNoPostPadding}{%
+  \\par%
+  \\vspace{12pt}%
+  \\noindent%
+  \\begin{minipage}{1.0\\linewidth}\\vspace*{-0.85\\baselineskip}\\normalcodesize\\begin{eqnarray*}}{%
+                                                         \\end{eqnarray*}%
+                                                       \\end{minipage}}
 
 \\newsavebox{\\UnbreakableBox}
 
