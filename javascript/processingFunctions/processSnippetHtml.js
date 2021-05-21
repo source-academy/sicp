@@ -1,16 +1,11 @@
 import { sourceAcademyURL } from "../constants";
 import lzString from "lz-string";
 import {
-  checkLongLineWarning,
   missingRequireWarning,
   missingExampleWarning,
   repeatedNameWarning
 } from "./warnings.js";
-import {
-  chapterIndex,
-  recursiveProcessTextHtml,
-  processTextHtml
-} from "../parseXmlHtml";
+import { chapterIndex } from "../parseXmlHtml";
 import recursiveProcessPureText from "./recursiveProcessPureText";
 
 const snippetStore = {};
@@ -33,7 +28,7 @@ export const setupSnippetsHtml = node => {
       }
       const codeArr = [];
       recursiveProcessPureText(jsRunSnippet.firstChild, codeArr);
-      const codeStr = codeArr.join("").trim();
+      const codeStr = codeArr.join("").replace(/###\n/g, "").trim();
       const requirements = snippet.getElementsByTagName("REQUIRES");
       const requireNames = [];
       for (let i = 0; requirements[i]; i++) {
@@ -93,7 +88,7 @@ export const processSnippetHtml = (node, writeTo, split) => {
 
     const codeArr = [];
     if (jsSnippet) recursiveProcessPureText(jsSnippet.firstChild, codeArr);
-    const codeStr = codeArr.join("").trim();
+    const codeStr = codeArr.join("").replace(/###\n/g, "").trim();
 
     const codeArr_run = [];
     if (jsRunSnippet)

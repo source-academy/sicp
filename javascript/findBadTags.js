@@ -1,9 +1,7 @@
 import fs from "fs";
-import fse from "fs-extra";
 import util from "util";
 import path from "path";
 
-import xpath from "xpath";
 import { DOMParser as dom } from "xmldom";
 
 const readdir = util.promisify(fs.readdir);

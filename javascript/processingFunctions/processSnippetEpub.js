@@ -7,7 +7,6 @@ import {
   missingExampleWarning,
   repeatedNameWarning
 } from "./warnings.js";
-import { recursiveProcessTextLatex, processTextLatex } from "../parseXmlLatex";
 import recursiveProcessPureText from "./recursiveProcessPureText";
 
 const snippetStore = {};
@@ -30,7 +29,7 @@ export const setupSnippetsEpub = node => {
       }
       const codeArr = [];
       recursiveProcessPureText(jsRunSnippet.firstChild, codeArr);
-      const codeStr = codeArr.join("").trim();
+      const codeStr = codeArr.join("").replace(/###\n/g, "").trim();
 
       const requirements = snippet.getElementsByTagName("REQUIRES");
       const requireNames = [];
@@ -71,7 +70,7 @@ export const processSnippetEpub = (node, writeTo) => {
 
     const codeArr = [];
     recursiveProcessPureText(jsSnippet.firstChild, codeArr);
-    const codeStr = codeArr.join("").trim();
+    const codeStr = codeArr.join("").replace(/###\n/g, "").trim();
 
     const codeArr_run = [];
     recursiveProcessPureText(jsRunSnippet.firstChild, codeArr_run);

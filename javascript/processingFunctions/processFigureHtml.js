@@ -1,20 +1,11 @@
 import {
   recursiveProcessTextHtml,
   processTextHtml,
-  processTextFunctionsHtml,
   toIndexFolder
 } from "../parseXmlHtml";
-import { getChildrenByTagName, ancestorHasTag } from "../utilityFunctions";
-import { processSnippetHtml, processSnippetHtmlScheme } from ".";
 import { referenceStore } from "./processReferenceHtml";
 
-export const processFigureHtml = (
-  node,
-  writeTo,
-  chapArrIndex,
-  snippet_count,
-  split
-) => {
+export const processFigureHtml = (node, writeTo) => {
   let src = node.getAttribute("src");
   if (!src && node.getElementsByTagName("FIGURE")[0]) {
     src = node.getElementsByTagName("FIGURE")[0].getAttribute("src");

@@ -1,6 +1,4 @@
-import lzString from "lz-string";
 import {
-  checkLongLineWarning,
   missingRequireWarning,
   missingExampleWarning,
   repeatedNameWarning
@@ -33,7 +31,7 @@ export const setupSnippetsJs = node => {
       const codeArr = [];
       recursiveProcessPureText(jsRunSnippet.firstChild, codeArr);
 
-      const codeStr = codeArr.join("").trim();
+      const codeStr = codeArr.join("").replace(/###\n/g, "").trim();
 
       const requirements = snippet.getElementsByTagName("REQUIRES");
       const requireNames = [];
@@ -86,7 +84,7 @@ export const processSnippetJs = (node, writeTo, fileFormat) => {
     }
     const codeArr = [];
     recursiveProcessPureText(jsSnippet.firstChild, codeArr);
-    const codeStr = codeArr.join("").trim();
+    const codeStr = codeArr.join("").replace(/###\n/g, "").trim();
 
     const codeArr_run = [];
     recursiveProcessPureText(jsRunSnippet.firstChild, codeArr_run);

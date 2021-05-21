@@ -1,9 +1,9 @@
 import replaceTagWithSymbol from "./replaceTagWithSymbol";
-import { getChildrenByTagName, ancestorHasTag } from "../utilityFunctions";
+import { getChildrenByTagName } from "../utilityFunctions";
 import processFileInput from "./processFileInput";
 import recursiveProcessPureText from "./recursiveProcessPureText";
 
-import { recursiveProcessTextLatex, processTextLatex } from "../parseXmlLatex";
+import { recursiveProcessTextLatex } from "../parseXmlLatex";
 import processEpigraphPdf from "./processEpigraphPdf";
 import processExercisePdf from "./processExercisePdf";
 import processExerciseEpub from "./processExerciseEpub";
@@ -14,7 +14,6 @@ import processSnippetEpub from "./processSnippetEpub";
 import processSnippetJs from "./processSnippetJs";
 import processTablePdf from "./processTablePdf";
 
-import { recursiveProcessTextHtml, processTextHtml } from "../parseXmlHtml";
 import processEpigraphHtml from "./processEpigraphHtml";
 import processBlockquoteHtml from "./processBlockquoteHtml";
 import processExerciseHtml from "./processExerciseHtml";
