@@ -52,7 +52,8 @@ const ignoreTagsDefault = new Set([
   "CHAPTERCONTENT",
   "NOBR",
   "SPLIT",
-  "SPLITINLINE"
+  "SPLITINLINE",
+  "JAVASCRIPT"
 ]);
 
 const preserveTagsDefault = new Set([
@@ -255,14 +256,17 @@ const processTextFunctionsDefaultHtml = {
     processTextFunctionsHtml["LATEXINLINE"](node, obj),
   LATEXINLINE: (node, obj) => {
     const writeTo = [];
-    recursiveProcessPureText(node.firstChild, writeTo);
+    recursiveProcessPureText(node.firstChild, writeTo, {
+      removeNewline: "all"
+    });
+
     let math = "";
     writeTo.forEach(x => math += x);
     math = math.trim();
     math = math.replace(/\$/g, "");
     math = math.replace(/^\\\[/, "");
     math = math.replace(/\\\]$/, "");
-    addBodyToObj(jsonObj, node, math);
+    addBodyToObj(obj, node, math);
   },
 
   LaTeX: (node, obj) => {
@@ -354,6 +358,9 @@ const processTextFunctionsDefaultHtml = {
     if (node.getAttribute("HIDE") == "yes") {
       return;
     } else if (node.getAttribute("LATEX") == "yes") {
+      addBodyToObj(obj, node, false);
+      obj['latex'] = true;
+
       const textprompt = getChildrenByTagName(node, "JAVASCRIPT_PROMPT")[0];
       if (textprompt) {
         recursiveProcessText(textprompt.firstChild, obj);
@@ -375,6 +382,7 @@ const processTextFunctionsDefaultHtml = {
 
     snippet_count += 1;
     addBodyToObj(obj, node, false);
+    obj['latex'] = false;
     // const snippet = { tag: node.nodeName };
     // obj.push(snippet);
     processSnippetJson(node, obj);
