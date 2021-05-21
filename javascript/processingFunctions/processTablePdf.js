@@ -1,4 +1,4 @@
-import { recursiveProcessTextLatex, processTextLatex } from "../parseXmlLatex";
+import { recursiveProcessTextLatex } from "../parseXmlLatex";
 
 export const processTable = (node, writeTo) => {
   const firstRow = node.getElementsByTagName("TR")[0];

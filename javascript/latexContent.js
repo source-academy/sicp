@@ -1,5 +1,3 @@
-import { adapters, adapters_with, authors, authors_with } from "constants";
-
 const title = `\\begin{titlepage}
   \\centering
 \\textbf{Generated: \\DTMnow}\\\\[1em]
@@ -53,7 +51,7 @@ export const preamble = `\\documentclass[7x10]{../mitpress/mit}
 \\makeatother
 
 \\usepackage[
-  justification=justified,
+  justification=RaggedRight, % Change to 'justified' once hyphenation is checked
   singlelinecheck=off,
   labelfont={small,bf},
   textfont=small,
@@ -109,7 +107,8 @@ export const preamble = `\\documentclass[7x10]{../mitpress/mit}
 \\def\\footnotecodesize{\\fontsize{8}{9pt}\\selectfont}
 
 %% NOTE! the following are redefined (and changed back again) below
-\\def\\inlinecodesize{\\fontsize{10.6pt}{13pt}\\selectfont}
+\\def\\INLINECODESIZE{\\fontsize{10.6pt}{13pt}\\selectfont}
+\\def\\inlinecodesize{\\protect\\INLINECODESIZE}
 \\def\\inlineexercisecodesize{\\fontsize{9.5pt}{11pt}\\selectfont}
 \\def\\inlinefootnotecodesize{\\fontsize{9pt}{10pt}\\selectfont}
 
@@ -128,6 +127,13 @@ export const preamble = `\\documentclass[7x10]{../mitpress/mit}
                                                        \\par%
                                                        \\vspace{12pt}%
                                                        \\noindent}
+\\newenvironment{ParsingNoPostPadding}{%
+  \\par%
+  \\vspace{12pt}%
+  \\noindent%
+  \\begin{minipage}{1.0\\linewidth}\\vspace*{-0.85\\baselineskip}\\normalcodesize\\begin{eqnarray*}}{%
+                                                         \\end{eqnarray*}%
+                                                       \\end{minipage}}
 
 \\newsavebox{\\UnbreakableBox}
 
@@ -224,7 +230,7 @@ export const preamble = `\\documentclass[7x10]{../mitpress/mit}
 \\renewcommand{\\theExerciseDisplayNumber}{\\thechapter.\\arabic{ExerciseDisplayNumber}}
 
 \\newenvironment{Exercise}{%
-  \\def\\inlinecodesize{\\fontsize{9.5pt}{11pt}\\selectfont}% Set to inlineexercisecodesize above
+  \\def\\inlinecodesize{\\protect\\inlineexercisecodesize}
   \\refstepcounter{ExerciseDisplayNumber}\\needspace{\\baselineskip}%
   \\subsubsection*{Exercise~\\theExercise}
   \\addcontentsline{loe}{exercise}{\\protect{\\textbf{\\thechapter.\\arabic{ExerciseDisplayNumber}}}}
@@ -784,11 +790,11 @@ export const ending = `
 \\newpage
 \\markboth{}{}
 %% Shrink code size
-\\def\\inlinecodesize{\\fontsize{9.5pt}{11pt}\\selectfont}
+\\def\\inlinecodesize{\\protect\\inlineexercisecodesize}
 \\indexprologue{\\input{./others/98indexpreface98.tex}}
 \\printindex{sicpjs}{Index}
 %% Restore code size
-\\def\\inlinecodesize{\\fontsize{10.6pt}{13pt}\\selectfont}
+\\def\\inlinecodesize{\\protect\\INLINECODESIZE}
 
 
 \\newpage

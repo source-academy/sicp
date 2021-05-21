@@ -1,12 +1,7 @@
 import { repeatedRefNameWarning, missingReferenceWarning } from "./warnings.js";
 import { allFilepath, tableOfContent } from "../index.js";
-import {
-  tagsToRemove,
-  toIndexFolder,
-  recursiveProcessTextHtml,
-  processTextHtml
-} from "../parseXmlHtml";
-import { getChildrenByTagName, ancestorHasTag } from "../utilityFunctions";
+import { tagsToRemove } from "../parseXmlHtml";
+import { ancestorHasTag } from "../utilityFunctions";
 
 export const referenceStore = {};
 

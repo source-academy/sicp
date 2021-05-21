@@ -1,6 +1,5 @@
 import path from "path";
 import fs from "fs";
-import util from "util";
 
 import { processSnippetJs } from "./processingFunctions";
 

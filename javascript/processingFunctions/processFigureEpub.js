@@ -1,4 +1,4 @@
-import { recursiveProcessTextLatex, processTextLatex } from "../parseXmlLatex";
+import { recursiveProcessTextLatex } from "../parseXmlLatex";
 
 export const processFigureEpub = (node, writeTo) => {
   writeTo.push("\n\\begin{figure}[H]\n\\centering\n");

@@ -1,7 +1,3 @@
-import { adapters, adapters_with, authors, authors_with } from "constants";
-
-import { write } from "fs-extra";
-
 const shortTitleDefault = `SICP &mdash; JS`;
 const longTitleDefault = `Structure and Interpretation of Computer Programs &mdash; JavaScript Adaptation`;
 let shortTitle = shortTitleDefault;
