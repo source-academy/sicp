@@ -5,9 +5,7 @@ import {
   replaceTagWithSymbol,
   processBlockquoteHtml,
   processEpigraphHtml,
-  processFigureHtml,
   processFigureJson,
-  processExerciseHtml,
   processExerciseJson,
   processReferenceHtml,
   processSnippetJson,
@@ -53,8 +51,7 @@ const ignoreTagsDefault = new Set([
   "CHAPTERCONTENT",
   "NOBR",
   "SPLIT",
-  "SPLITINLINE",
-  "JAVASCRIPT"
+  "SPLITINLINE"
 ]);
 
 const preserveTagsDefault = new Set([
@@ -262,7 +259,13 @@ const processTextFunctionsDefaultHtml = {
   LATEXINLINE: (node, jsonObj) => {
     const writeTo = [];
     recursiveProcessPureText(node.firstChild, writeTo);
-    addArrayToObj(jsonObj, node, writeTo);
+    let math = "";
+    writeTo.forEach(x => math += x);
+    math = math.trim();
+    math = math.replace(/\$/g, "");
+    math = math.replace(/^\\\[/, "");
+    math = math.replace(/\\\]$/, "");
+    addBodyToObj(jsonObj, node, math);
   },
 
   LaTeX: (node, jsonObj) => {
@@ -541,7 +544,9 @@ export const recursiveProcessText = (node, jsonObj) => {
 
   const child = [];
   processText(node, child);
-  jsonObj.push({ child });
+  if (child.length) {
+    jsonObj.push({ child });
+  }
   return recursiveProcessText(node.nextSibling, jsonObj);
 };
 
