@@ -37,6 +37,7 @@ const tagsToRemoveDefault = new Set([
   "HISTORY",
   "ORDER",
   "SCHEME",
+  "SCHEMEINLINE",
   "SOLUTION",
   "INDEX",
   "CAPTION",
@@ -71,48 +72,43 @@ const preserveTagsDefault = new Set([
   "REFERENCE"
 ]);
 
-export const addBodyToObj = (jsonObj, node, body) => {
-  const child = {};
-
-  child["tag"] = node.nodeName;
+export const addBodyToObj = (obj, node, body) => {
+  obj["tag"] = node.nodeName;
 
   if (body) {
-    child["body"] = body;
+    obj["body"] = body;
   }
-
-  jsonObj.push(child);
 };
 
-export const addArrayToObj = (jsonObj, node, array) => {
-  const child = {};
-
-  child["tag"] = node.nodeName;
+export const addArrayToObj = (obj, node, array) => {
+  obj["tag"] = node.nodeName;
 
   let body = "";
   array.forEach(x => (body += x));
-  child["body"] = body;
-
-  jsonObj.push(child);
+  obj["body"] = body;
 };
 
 const processTextFunctionsDefaultHtml = {
-  WEB_ONLY: (node, jsonObj) => {
-    recursiveProcessText(node.firstChild, jsonObj);
+  WEB_ONLY: (node, obj) => {
+    recursiveProcessText(node.firstChild, obj);
   },
 
-  "#text": (node, jsonObj) => {
+  "#text": (node, obj) => {
     // ignore the section/subsection tags at the end of chapter/section files
     if (!node.nodeValue.match(/&(\w|\.|\d)+;/)) {
-      addBodyToObj(jsonObj, node, node.nodeValue);
+      let body = node.nodeValue.replace(/\r?\n|\r/g, " ").replace(/  +/g, ' ');
+      if (body.trim()) {
+        addBodyToObj(obj, node, body);
+      }
     }
   },
 
-  ABOUT: (node, jsonObj) => {
-    addBodyToObj(jsonObj, node, displayTitle);
+  ABOUT: (node, obj) => {
+    addBodyToObj(obj, node, displayTitle);
 
     if (node.getAttribute("WIP") === "yes") {
       addBodyToObj(
-        jsonObj,
+        obj,
         node,
         `<div style="color:red" class="wip-stamp">Note: this section is a work in progress!</div>`
       );
@@ -123,74 +119,75 @@ const processTextFunctionsDefaultHtml = {
       childNode = childNode.nextSibling;
     }
 
-    recursiveProcessText(childNode.nextSibling, jsonObj);
+    recursiveProcessText(childNode.nextSibling, obj);
   },
-  REFERENCES: (node, jsonObj) =>
-    processTextFunctionsHtml["ABOUT"](node, jsonObj),
-  WEBPREFACE: (node, jsonObj) =>
-    processTextFunctionsHtml["ABOUT"](node, jsonObj),
-  MATTER: (node, jsonObj) => processTextFunctionsHtml["ABOUT"](node, jsonObj),
+  REFERENCES: (node, obj) =>
+    processTextFunctionsHtml["ABOUT"](node, obj),
+  WEBPREFACE: (node, obj) =>
+    processTextFunctionsHtml["ABOUT"](node, obj),
+  MATTER: (node, obj) => processTextFunctionsHtml["ABOUT"](node, obj),
 
-  APOS: (node, jsonObj) => {
-    addBodyToObj(jsonObj, node, "'");
-  },
-
-  br: (node, jsonObj) => {
-    addBodyToObj(jsonObj, node, "<br>");
+  APOS: (node, obj) => {
+    addBodyToObj(obj, node, "'");
   },
 
-  BR: (node, jsonObj) => processTextFunctionsHtml["br"](node, jsonObj),
+  br: (node, obj) => {
+    addBodyToObj(obj, node, "<br>");
+  },
 
-  CHAPTER: (node, jsonObj) => {
-    addBodyToObj(jsonObj, node, displayTitle);
+  BR: (node, obj) => processTextFunctionsHtml["br"](node, obj),
+
+  CHAPTER: (node, obj) => {
+    addBodyToObj(obj, node, displayTitle);
 
     if (node.getAttribute("WIP") === "yes") {
       addBodyToObj(
-        jsonObj,
+        obj,
         node,
         `<div style="color:red" class="wip-stamp">Note: this section is a work in progress!</div>`
       );
     }
     const name = getChildrenByTagName(node, "NAME")[0];
-    recursiveProcessText(name.nextSibling, jsonObj);
+    recursiveProcessText(name.nextSibling, obj);
   },
 
-  EM_NO_INDEX: (node, jsonObj) => {
+  EM_NO_INDEX: (node, obj) => {
     node.nodeName = "EM";
-    processText(node, jsonObj);
+    processText(node, obj);
   },
 
-  EPIGRAPH: (node, jsonObj) => {
+  EPIGRAPH: (node, obj) => {
     const writeTo = [];
     processEpigraphHtml(node, writeTo);
-    addArrayToObj(jsonObj, node, writeTo);
+    addArrayToObj(obj, node, writeTo);
   },
 
-  BLOCKQUOTE: (node, jsonObj) => {
+  BLOCKQUOTE: (node, obj) => {
     const writeTo = [];
     processBlockquoteHtml(node, writeTo);
-    addArrayToObj(jsonObj, node, writeTo);
+    addArrayToObj(obj, node, writeTo);
   },
 
-  NOINDENT: (node, jsonObj) => {},
+  NOINDENT: (node, obj) => {},
 
-  EXERCISE_STARTING_WITH_ITEMS: (node, jsonObj) => {},
+  EXERCISE_STARTING_WITH_ITEMS: (node, obj) => {},
 
-  EXERCISE_FOLLOWED_BY_TEXT: (node, jsonObj) => {},
+  EXERCISE_FOLLOWED_BY_TEXT: (node, obj) => {},
 
-  EXERCISE: (node, jsonObj) => {
+  EXERCISE: (node, obj) => {
     exercise_count += 1;
-    processExerciseJson(node, jsonObj, chapArrIndex, exercise_count);
-  },
-
-  FIGURE: (node, jsonObj) => {
     const writeTo = [];
-    recursiveProcessText(node.firstChild, jsonObj);
-    processFigureJson(node, writeTo, chapArrIndex, snippet_count, false);
-    addArrayToObj(jsonObj, node, writeTo);
+    processExerciseJson(node, writeTo, chapArrIndex, exercise_count);
+    addArrayToObj(obj, node, writeTo);
   },
 
-  FOOTNOTE: (node, jsonObj) => {
+  FIGURE: (node, obj) => {
+    recursiveProcessText(node.firstChild, obj);
+    addBodyToObj(obj,node,false);
+    processFigureJson(node, obj);
+  },
+
+  FOOTNOTE: (node, obj) => {
     footnote_count += 1;
     // clone the current FOOTNOTE node and its children
     let cloneNode = node.cloneNode(true);
@@ -204,45 +201,45 @@ const processTextFunctionsDefaultHtml = {
     parent.appendChild(cloneNode);
   },
 
-  DISPLAYFOOTNOTE: (node, jsonObj) => {
+  DISPLAYFOOTNOTE: (node, obj) => {
     display_footnote_count += 1;
 
     if (display_footnote_count == 1) {
-      addBodyToObj(jsonObj, node, "<hr>\n");
+      addBodyToObj(obj, node, false);
     }
-
-    recursiveProcessText(node.firstChild, jsonObj);
+    
+    recursiveProcessText(node.firstChild, obj);
   },
 
-  H2: (node, jsonObj) => {
+  H2: (node, obj) => {
     node.nodeName = "h2";
 
-    processText(node, jsonObj);
+    processText(node, obj);
   },
 
-  META: (node, jsonObj) => {
+  META: (node, obj) => {
     let s = node.firstChild.nodeValue;
     s = s.replace(/-/g, "$-$").replace(/ /g, "\\ ");
-    addBodyToObj(jsonObj, node, "$" + s + "$");
+    addBodyToObj(obj, node, "$" + s + "$");
   },
 
-  METAPHRASE: (node, jsonObj) => {
-    addBodyToObj(jsonObj, node, "$\\langle{}$<EM>");
-    recursiveProcessText(node.firstChild, jsonObj);
-    addBodyToObj(jsonObj, node, "</EM>$\\rangle$");
+  METAPHRASE: (node, obj) => {
+    addBodyToObj(obj, node, "$\\langle{}$<EM>");
+    recursiveProcessText(node.firstChild, obj);
+    addBodyToObj(obj, node, "</EM>$\\rangle$");
   },
 
-  IMAGE: (node, jsonObj) => {
+  IMAGE: (node, obj) => {
     addBodyToObj(
-      jsonObj,
+      obj,
       node,
       `<IMAGE src="${toIndexFolder}${node.getAttribute("src")}"/>`
     );
   },
 
-  LINK: (node, jsonObj) => {
+  LINK: (node, obj) => {
     addBodyToObj(
-      jsonObj,
+      obj,
       node,
       "<a address='" +
         node.getAttribute("address") +
@@ -250,13 +247,13 @@ const processTextFunctionsDefaultHtml = {
         node.getAttribute("address") +
         "'>"
     );
-    recursiveProcessText(node.firstChild, jsonObj);
-    addBodyToObj(jsonObj, node, "</a>");
+    recursiveProcessText(node.firstChild, obj);
+    addBodyToObj(obj, node, "</a>");
   },
 
-  LATEX: (node, jsonObj) =>
-    processTextFunctionsHtml["LATEXINLINE"](node, jsonObj),
-  LATEXINLINE: (node, jsonObj) => {
+  LATEX: (node, obj) =>
+    processTextFunctionsHtml["LATEXINLINE"](node, obj),
+  LATEXINLINE: (node, obj) => {
     const writeTo = [];
     recursiveProcessPureText(node.firstChild, writeTo);
     let math = "";
@@ -268,197 +265,170 @@ const processTextFunctionsDefaultHtml = {
     addBodyToObj(jsonObj, node, math);
   },
 
-  LaTeX: (node, jsonObj) => {
+  LaTeX: (node, obj) => {
     addBodyToObj(
-      jsonObj,
+      obj,
       node,
       `<span class="texhtml" style="font-family: 'CMU Serif', cmr10, LMRoman10-Regular, 'Latin Modern Math', 'Nimbus Roman No9 L', 'Times New Roman', Times, serif;">L<span style="text-transform: uppercase; font-size: 0.75em; vertical-align: 0.25em; margin-left: -0.36em; margin-right: -0.15em; line-height: 1ex;">a</span>T<span style="text-transform: uppercase; vertical-align: -0.5ex; margin-left: -0.1667em; margin-right: -0.125em; line-height: 1ex;">e</span>X</span>`
     );
   },
 
-  TeX: (node, jsonObj) => {
+  TeX: (node, obj) => {
     addBodyToObj(
-      jsonObj,
+      obj,
       node,
       `<span class="texhtml" style="font-family: 'CMU Serif', cmr10, LMRoman10-Regular, 'Latin Modern Math', 'Nimbus Roman No9 L', 'Times New Roman', Times, serif;">T<span style="text-transform: uppercase; vertical-align: -0.5ex; margin-left: -0.1667em; margin-right: -0.125em; line-height: 1ex;">e</span>X</span>`
     );
   },
 
-  MATTERSECTION: (node, jsonObj) => {
+  MATTERSECTION: (node, obj) => {
     heading_count += 1;
     addBodyToObj(
-      jsonObj,
+      obj,
       node,
       `
       <div class='permalink'>
         <a name='h${heading_count}' class='permalink'></a><h1>
     `
     );
-    recursiveProcessText(node.firstChild, jsonObj);
-    addBodyToObj(jsonObj, node, "</h1></div>");
+    recursiveProcessText(node.firstChild, obj);
+    addBodyToObj(obj, node, "</h1></div>");
   },
 
-  NAME: (node, jsonObj) => {
-    recursiveProcessText(node.firstChild, jsonObj);
+  NAME: (node, obj) => {
+    recursiveProcessText(node.firstChild, obj);
   },
 
-  P: (node, jsonObj) => {
+  P: (node, obj) => {
     node.nodeName = "p";
-    processText(node, jsonObj);
+    processText(node, obj);
   },
 
-  TEXT: (node, jsonObj) => {
+  TEXT: (node, obj) => {
     paragraph_count += 1;
-    // addBodyToObj(jsonObj, node, "<div class='permalink'>");
-    // addBodyToObj(
-    //   jsonObj,
-    //   node,
-    //   "\n<a name='p" + paragraph_count + "' class='permalink'></a>"
-    // );
-    // addBodyToObj(jsonObj, node, "<p>");
-    addBodyToObj(jsonObj, node, false);
-    recursiveProcessText(node.firstChild, jsonObj);
-    // addBodyToObj(jsonObj, node, "</p>");
-    // addBodyToObj(jsonObj, node, "</div>");
+
+    addBodyToObj(obj, node, false);
+    recursiveProcessText(node.firstChild, obj);
   },
 
-  REF: (node, jsonObj) => {
+  REF: (node, obj) => {
     const writeTo = [];
     processReferenceHtml(node, writeTo, chapterIndex);
-    addArrayToObj(jsonObj, node, writeTo);
+    addArrayToObj(obj, node, writeTo);
   },
 
-  SECTION: (node, jsonObj) => {
-    addBodyToObj(jsonObj, node, displayTitle);
+  SECTION: (node, obj) => {
+    addBodyToObj(obj, node, displayTitle);
 
     if (node.getAttribute("WIP") === "yes") {
       addBodyToObj(
-        jsonObj,
+        obj,
         node,
         `<div style="color:red" class="wip-stamp">Note: this section is a work in progress!</div>`
       );
     }
     const name = getChildrenByTagName(node, "NAME")[0];
-    recursiveProcessText(name.nextSibling, jsonObj);
+    recursiveProcessText(name.nextSibling, obj);
   },
 
-  SCHEMEINLINE: (node, jsonObj) =>
-    processTextFunctionsHtml["JAVASCRIPTINLINE"](node, jsonObj),
+  // SCHEMEINLINE: (node, obj) =>
+  //   processTextFunctionsHtml["JAVASCRIPTINLINE"](node, obj),
 
-  JAVASCRIPTINLINE: (node, jsonObj) => {
+  JAVASCRIPTINLINE: (node, obj) => {
     const writeTo = [];
     if (ancestorHasTag(node, "NAME")) {
       recursiveProcessPureText(node.firstChild, writeTo, {
         removeNewline: "all"
       });
     } else {
-      // addBodyToObj(jsonObj, node, "<kbd>");
+      // addBodyToObj(obj, node, "<kbd>");
       recursiveProcessPureText(node.firstChild, writeTo, {
         removeNewline: "all"
       });
-      // addBodyToObj(jsonObj, node, "</kbd>");
+      // addBodyToObj(obj, node, "</kbd>");
     }
-    addArrayToObj(jsonObj, node, writeTo);
+    addArrayToObj(obj, node, writeTo);
   },
 
-  SNIPPET: (node, jsonObj) => {
+  SNIPPET: (node, obj) => {
     if (node.getAttribute("HIDE") == "yes") {
       return;
     } else if (node.getAttribute("LATEX") == "yes") {
       const textprompt = getChildrenByTagName(node, "JAVASCRIPT_PROMPT")[0];
       if (textprompt) {
-        recursiveProcessText(textprompt.firstChild, jsonObj, {
-          removeNewline: "beginning&end"
-        });
+        recursiveProcessText(textprompt.firstChild, obj);
       }
 
       const textit = getChildrenByTagName(node, "JAVASCRIPT")[0];
       if (textit) {
-        recursiveProcessText(textit.firstChild, jsonObj, {
-          removeNewline: "beginning&end"
-        });
+        recursiveProcessText(textit.firstChild, obj);
       } else {
-        recursiveProcessText(node.firstChild, jsonObj);
+        recursiveProcessText(node.firstChild, obj);
       }
 
       const textoutput = getChildrenByTagName(node, "JAVASCRIPT_OUTPUT")[0];
       if (textoutput) {
-        recursiveProcessText(textoutput.firstChild, jsonObj, {
-          removeNewline: "beginning&end"
-        });
+        recursiveProcessText(textoutput.firstChild, obj);
       }
       return;
     }
 
     snippet_count += 1;
-    // addBodyToObj(
-    //   jsonObj,
-    //   node,
-    //   "<div class='snippet' id='javascript_" +
-    //     chapArrIndex +
-    //     "_" +
-    //     snippet_count +
-    //     "_div'>"
-    // );
-    // addBodyToObj(jsonObj, node, "<div class='pre-prettyprint'>");
-    // processSnippetHtml(node, writeTo, false);
-    // writeTo = [];
-    const snippet = { tag: node.nodeName };
-    jsonObj.push(snippet);
-    processSnippetJson(node, snippet);
-    // writeTo.forEach(snippet => addBodyToObj(jsonObj, node, snippet));
-    // addBodyToObj(jsonObj, node, "</div></div>");
+    addBodyToObj(obj, node, false);
+    // const snippet = { tag: node.nodeName };
+    // obj.push(snippet);
+    processSnippetJson(node, obj);
   },
 
-  SPACE: (node, jsonObj) => {
-    addBodyToObj(jsonObj, node, "\u00A0");
-    recursiveProcessText(node.firstChild, jsonObj);
+  SPACE: (node, obj) => {
+    addBodyToObj(obj, node, "\u00A0");
+    recursiveProcessText(node.firstChild, obj);
   },
 
-  OL: (node, jsonObj) => {
-    addBodyToObj(jsonObj, node, `<OL type="`);
+  OL: (node, obj) => {
+    addBodyToObj(obj, node, `<OL type="`);
     addBodyToObj(
-      jsonObj,
+      obj,
       node,
       ancestorHasTag(node, "EXERCISE") ? `a">` : `1">`
     );
-    recursiveProcessText(node.firstChild, jsonObj);
-    addBodyToObj(jsonObj, node, "</OL>");
+    recursiveProcessText(node.firstChild, obj);
+    addBodyToObj(obj, node, "</OL>");
   },
 
-  SUBINDEX: (node, jsonObj) => {
+  SUBINDEX: (node, obj) => {
     // should occur only within INDEX
     // also should only exist after stuff in the main index
-    addBodyToObj(jsonObj, node, "!");
+    addBodyToObj(obj, node, "!");
     const order = getChildrenByTagName(node, "ORDER")[0];
     if (order) {
-      recursiveProcessText(order.firstChild, jsonObj);
-      addBodyToObj(jsonObj, node, "@");
+      recursiveProcessText(order.firstChild, obj);
+      addBodyToObj(obj, node, "@");
     }
-    recursiveProcessText(node.firstChild, jsonObj);
+    recursiveProcessText(node.firstChild, obj);
   },
 
-  SUBSECTION: (node, jsonObj) => {
-    addBodyToObj(jsonObj, node, displayTitle);
+  SUBSECTION: (node, obj) => {
+    addBodyToObj(obj, node, displayTitle);
 
     if (node.getAttribute("WIP") === "yes") {
       addBodyToObj(
-        jsonObj,
+        obj,
         node,
         `<div style="color:red" class="wip-stamp">Note: this section is a work in progress!</div>`
       );
     }
     const name = getChildrenByTagName(node, "NAME")[0];
-    recursiveProcessText(name.nextSibling, jsonObj);
+    recursiveProcessText(name.nextSibling, obj);
   },
 
   // e.g. section 4.4.4.4
-  SUBSUBSECTION: (node, jsonObj) => {
+  SUBSUBSECTION: (node, obj) => {
     subsubsection_count += 1;
     heading_count += 1;
     const name = getChildrenByTagName(node, "NAME")[0];
     addBodyToObj(
-      jsonObj,
+      obj,
       node,
       `
       <div class='permalink'>
@@ -467,42 +437,42 @@ const processTextFunctionsDefaultHtml = {
     );
     if (chapterIndex !== "prefaces") {
       addBodyToObj(
-        jsonObj,
+        obj,
         node,
         `${chapterIndex}.${subsubsection_count}\u00A0\u00A0\u00A0`
       );
     }
-    recursiveProcessText(name.firstChild, jsonObj);
-    addBodyToObj(jsonObj, node, "</h1></div>");
-    recursiveProcessText(name.nextSibling, jsonObj);
+    recursiveProcessText(name.firstChild, obj);
+    addBodyToObj(obj, node, "</h1></div>");
+    recursiveProcessText(name.nextSibling, obj);
   },
 
-  SUBHEADING: (node, jsonObj) => {
+  SUBHEADING: (node, obj) => {
     heading_count += 1;
     addBodyToObj(
-      jsonObj,
+      obj,
       node,
       `
       <div class='permalink'>
         <a name='h${heading_count}' class='permalink'></a><h2>
     `
     );
-    recursiveProcessText(node.firstChild, jsonObj);
-    addBodyToObj(jsonObj, node, "</h2></div>");
+    recursiveProcessText(node.firstChild, obj);
+    addBodyToObj(obj, node, "</h2></div>");
   },
 
-  SUBSUBHEADING: (node, jsonObj) => {
+  SUBSUBHEADING: (node, obj) => {
     heading_count += 1;
     addBodyToObj(
-      jsonObj,
+      obj,
       node,
       `
       <div class='permalink'>
         <a name='h${heading_count}' class='permalink'></a><h3>
     `
     );
-    recursiveProcessText(node.firstChild, jsonObj);
-    addBodyToObj(jsonObj, node, "</h3></div>");
+    recursiveProcessText(node.firstChild, obj);
+    addBodyToObj(obj, node, "</h3></div>");
   }
 };
 
@@ -511,27 +481,24 @@ export let tagsToRemove = tagsToRemoveDefault;
 let ignoreTags = ignoreTagsDefault;
 let preserveTags = preserveTagsDefault;
 
-export const processText = (node, jsonObj) => {
+export const processText = (node, obj) => {
   const name = node.nodeName;
   if (processTextFunctionsHtml[name]) {
-    processTextFunctionsHtml[name](node, jsonObj);
+    processTextFunctionsHtml[name](node, obj);
     return true;
   } else {
     const newTag = [];
     if (replaceTagWithSymbol(node, newTag)) {
-      addArrayToObj(jsonObj, node, newTag);
+      obj.nodeName = newTag[0];
+      addBodyToObj(obj, node, false);
       return true;
     } else if (tagsToRemove.has(name)) {
       return true;
     } else if (ignoreTags.has(name)) {
-      recursiveProcessText(node.firstChild, jsonObj);
+      recursiveProcessText(node.firstChild, obj);
       return true;
     } else if (preserveTags.has(name)) {
-      //TODO
-      //addBodyToObj(jsonObj, node, "<" + name + ">");
-      // recursiveProcessText
-      node.firstChild, jsonObj;
-      //addBodyToObj(jsonObj, node, "</" + name + ">");
+      recursiveProcessText(node.firstChild, obj);
       return true;
     }
   }
@@ -539,19 +506,26 @@ export const processText = (node, jsonObj) => {
   return false;
 };
 
-export const recursiveProcessText = (node, jsonObj) => {
+export const recursiveProcessText = (node, obj, sibling=false) => {
   if (!node) return;
 
-  const child = [];
-  processText(node, child);
-  if (child.length) {
-    jsonObj.push({ child });
+  if (!sibling) {
+    const child = [];
+    obj["child"] = child;
+    obj = child;
   }
-  return recursiveProcessText(node.nextSibling, jsonObj);
+
+  const next = {};
+  processText(node, next);
+
+  if (next['tag'] || next['child']) {
+    obj.push(next);
+  }
+
+  return recursiveProcessText(node.nextSibling, obj, true);
 };
 
-export const parseXmlJson = (doc, jsonObj, filename) => {
-  //console.log(allFilepath);
+export const parseXmlJson = (doc, obj, filename) => {
   chapterIndex = tableOfContent[filename].index;
   chapterTitle = tableOfContent[filename].title;
 
@@ -561,8 +535,6 @@ export const parseXmlJson = (doc, jsonObj, filename) => {
     displayTitle = chapterIndex + "\u00A0\u00A0" + chapterTitle;
   }
 
-  //toIndexFolder = tableOfContent[filename].relativePathToMain;
-  //console.log(chapterIndex + " " + chapterTitle);
   paragraph_count = 0;
   footnote_count = 0;
   display_footnote_count = 0;
@@ -573,7 +545,5 @@ export const parseXmlJson = (doc, jsonObj, filename) => {
   chapArrIndex = allFilepath.indexOf(filename);
   console.log(`${chapArrIndex} parsing chapter ${chapterIndex}`);
 
-  // beforeContent(jsonObj);
-  recursiveProcessText(doc.documentElement, jsonObj);
-  // afterContent(jsonObj);
+  recursiveProcessText(doc.documentElement, obj, true);
 };
