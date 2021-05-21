@@ -96,6 +96,9 @@ export const preamble = `\\documentclass[7x10]{../mitpress/mit}
 \\usepackage{etoolbox}
 \\usepackage{float}
 \\renewcommand{\\topfraction}{0.9}
+\\usepackage{caption}
+\\DeclareCaptionLabelSeparator{goldilocks}{\\hspace{7pt}}
+\\captionsetup{labelsep=goldilocks}
 \\usepackage{imakeidx}
 \\usepackage{subcaption}
 \\usepackage{underscore}
