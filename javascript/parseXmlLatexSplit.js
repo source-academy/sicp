@@ -1,5 +1,4 @@
 import { getChildrenByTagName, ancestorHasTag } from "./utilityFunctions";
-import { checkIndexBadEndWarning } from "./processingFunctions/warnings.js";
 
 import {
   replaceTagWithSymbol,
