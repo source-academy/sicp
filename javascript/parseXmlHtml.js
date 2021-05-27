@@ -124,6 +124,11 @@ const processTextFunctionsDefaultHtml = {
     processTextFunctionsHtml["ABOUT"](node, writeTo),
   MATTER: (node, writeTo) => processTextFunctionsHtml["ABOUT"](node, writeTo),
 
+  AMP: (node, writeTo) => {
+    writeTo.push("&amp;");
+    recursiveProcessTextHtml(node.firstChild, writeTo);
+  },
+
   APOS: (node, writeTo) => {
     writeTo.push("'");
   },
