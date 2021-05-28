@@ -127,10 +127,6 @@ const processTextFunctionsDefaultHtml = {
     processTextFunctionsHtml["ABOUT"](node, obj),
   MATTER: (node, obj) => processTextFunctionsHtml["ABOUT"](node, obj),
 
-  APOS: (node, obj) => {
-    addBodyToObj(obj, node, "'");
-  },
-
   br: (node, obj) => {
     addBodyToObj(obj, node, "<br>");
   },

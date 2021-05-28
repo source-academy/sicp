@@ -25,28 +25,24 @@ export const processEpigraphJson = (node, obj) => {
     if (author) {
       const childObj = {};
       recursiveProcessText(author.firstChild, childObj);
-      obj['author'] = childObj;
+      obj['author'] = " " + childObj['child'][0]['body'];
     }
 
     const title = attribution.getElementsByTagName("TITLE")[0];
     if (title) {
       const childObj = {};
       recursiveProcessText(title.firstChild, childObj);
-      obj['title'] = childObj;
+      if (author) {
+        obj['title'] = ",";
+      }
+      obj['title'] += " " + childObj['child'][0]['body'];
     }
 
     const date = attribution.getElementsByTagName("DATE")[0];
     if (date) {
       const childObj = {};
       recursiveProcessText(date.firstChild, childObj);
-      obj['date'] = childObj;
-    }
-
-    const index = attribution.getElementsByTagName("INDEX")[0];
-    if (index) {
-      const childObj = {};
-      processText(index, childObj);
-      obj['index'] = {};
+      obj['date'] = " (" + childObj['child'][0]['body'] + ")";
     }
   }
 };
