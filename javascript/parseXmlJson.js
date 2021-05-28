@@ -170,9 +170,8 @@ const processTextFunctionsDefaultHtml = {
 
   EXERCISE: (node, obj) => {
     exercise_count += 1;
-    // const writeTo = [];
+    addBodyToObj(obj, node, false);
     processExerciseJson(node, obj, chapArrIndex, exercise_count);
-    // addArrayToObj(obj, node, writeTo);
   },
 
   FIGURE: (node, obj) => {
@@ -387,14 +386,12 @@ const processTextFunctionsDefaultHtml = {
   },
 
   OL: (node, obj) => {
-    addBodyToObj(obj, node, `<OL type="`);
     addBodyToObj(
       obj,
       node,
       ancestorHasTag(node, "EXERCISE") ? `a">` : `1">`
     );
     recursiveProcessText(node.firstChild, obj);
-    addBodyToObj(obj, node, "</OL>");
   },
 
   SUBINDEX: (node, obj) => {
@@ -526,7 +523,7 @@ export const recursiveProcessText = (node, obj, prevSibling=false) => {
 
   if (next['tag'] === "#text" && prevSibling['tag'] === "#text") {
     prevSibling['body'] += next['body'];
-    
+
     return recursiveProcessText(node.nextSibling, obj, prevSibling);
   } else if (next['tag'] || next['child']) {
     obj.push(next);
