@@ -4,7 +4,7 @@ import { allFilepath, tableOfContent } from "./index.js";
 import {
   replaceTagWithSymbol,
   processBlockquoteHtml,
-  processEpigraphHtml,
+  processEpigraphJson,
   processFigureJson,
   processExerciseJson,
   processReferenceHtml,
@@ -158,9 +158,7 @@ const processTextFunctionsDefaultHtml = {
   },
 
   EPIGRAPH: (node, obj) => {
-    const writeTo = [];
-    processEpigraphHtml(node, writeTo);
-    addArrayToObj(obj, node, writeTo);
+    processEpigraphJson(node, obj);
   },
 
   BLOCKQUOTE: (node, obj) => {
