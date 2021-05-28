@@ -59,7 +59,6 @@ const ignoreTagsDefault = new Set([
 const preserveTagsDefault = new Set([
   "B",
   "EM",
-  "QUOTE",
   "SC",
   "UL",
   "LI",
@@ -479,6 +478,11 @@ const processTextFunctionsDefaultHtml = {
     );
     recursiveProcessText(node.firstChild, obj);
     addBodyToObj(obj, node, "</h3></div>");
+  },
+
+  QUOTE: (node, obj) => {
+    processText(node.firstChild, obj);
+    obj['body'] = "\"" + obj['body'] + "\"";
   }
 };
 
@@ -495,8 +499,8 @@ export const processText = (node, obj) => {
   } else {
     const newTag = [];
     if (replaceTagWithSymbol(node, newTag)) {
-      obj.nodeName = newTag[0];
-      addBodyToObj(obj, node, false);
+      addBodyToObj(obj, node, newTag[0]);
+      obj['tag'] = "#text";
       return true;
     } else if (tagsToRemove.has(name)) {
       return true;
@@ -512,10 +516,10 @@ export const processText = (node, obj) => {
   return false;
 };
 
-export const recursiveProcessText = (node, obj, sibling=false) => {
+export const recursiveProcessText = (node, obj, prevSibling=false) => {
   if (!node) return;
 
-  if (!sibling) {
+  if (!prevSibling) {
     const child = [];
     obj["child"] = child;
     obj = child;
@@ -524,11 +528,14 @@ export const recursiveProcessText = (node, obj, sibling=false) => {
   const next = {};
   processText(node, next);
 
-  if (next['tag'] || next['child']) {
+  if (next['tag'] === "#text" && prevSibling['tag'] === "#text") {
+    prevSibling['body'] += next['body'];
+    return recursiveProcessText(node.nextSibling, obj, prevSibling);
+  } else if (next['tag'] || next['child']) {
     obj.push(next);
   }
 
-  return recursiveProcessText(node.nextSibling, obj, true);
+  return recursiveProcessText(node.nextSibling, obj, next);
 };
 
 export const parseXmlJson = (doc, obj, filename) => {
