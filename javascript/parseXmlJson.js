@@ -170,9 +170,9 @@ const processTextFunctionsDefaultHtml = {
 
   EXERCISE: (node, obj) => {
     exercise_count += 1;
-    const writeTo = [];
-    processExerciseJson(node, writeTo, chapArrIndex, exercise_count);
-    addArrayToObj(obj, node, writeTo);
+    // const writeTo = [];
+    processExerciseJson(node, obj, chapArrIndex, exercise_count);
+    // addArrayToObj(obj, node, writeTo);
   },
 
   FIGURE: (node, obj) => {
@@ -526,6 +526,7 @@ export const recursiveProcessText = (node, obj, prevSibling=false) => {
 
   if (next['tag'] === "#text" && prevSibling['tag'] === "#text") {
     prevSibling['body'] += next['body'];
+    
     return recursiveProcessText(node.nextSibling, obj, prevSibling);
   } else if (next['tag'] || next['child']) {
     obj.push(next);
