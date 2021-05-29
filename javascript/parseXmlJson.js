@@ -373,8 +373,7 @@ const processTextFunctionsDefaultHtml = {
     snippet_count += 1;
     addBodyToObj(obj, node, false);
     obj['latex'] = false;
-    // const snippet = { tag: node.nodeName };
-    // obj.push(snippet);
+    obj['id'] = snippet_count;
     processSnippetJson(node, obj);
   },
 
