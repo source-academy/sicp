@@ -40,6 +40,7 @@ import { getAnswers } from "./processingFunctions/processExercisePdf";
 import { parseXmlJson } from "./parseXmlJson";
 import { setupSnippetsJson } from "./processingFunctions/processSnippetJson";
 import { recursiveProcessTOC } from "./generateTocJson";
+import { setupReferencesJson } from "./processingFunctions/processReferenceJson";
 
 let parseType;
 let version;
@@ -168,7 +169,7 @@ async function translateXml(filepath, filename, option) {
       //console.log("setting up " + filepath + " " + filename);
       setupSnippetsJson(doc.documentElement);
       // setupSnippetsHtml(doc.documentElement);
-      setupReferences(doc.documentElement, relativeFilePath);
+      setupReferencesJson(doc.documentElement, relativeFilePath);
       return;
     } else if (option == "parseXml") {
       // parsing over here

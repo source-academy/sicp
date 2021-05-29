@@ -26,6 +26,7 @@ import processExerciseJson from "./processExerciseJson";
 import processFigureJson from "./processFigureJson";
 import processSnippetJson from "./processSnippetJson";
 import processEpigraphJson from "./processEpigraphJson";
+import processReferenceJson from "./processReferenceJson";
 
 export const processList = (node, writeTo) => {
   if (!node) return;
@@ -70,6 +71,7 @@ export {
   processExerciseJson,
   processFigureHtml,
   processReferenceHtml,
+  processReferenceJson,
   processSnippetHtml,
   processSnippetJson,
   processSnippetHtmlScheme

@@ -1,6 +1,6 @@
 import { recursiveProcessText } from "../parseXmlJson";
 import { missingExerciseWarning } from "./warnings.js";
-import { referenceStore } from "./processReferenceHtml";
+import { referenceStore } from "./processReferenceJson";
 
 let unlabeledEx = 0;
 const processExerciseHtml = (node, obj, chapArrIndex, exercise_count) => {

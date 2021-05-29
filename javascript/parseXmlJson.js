@@ -7,7 +7,7 @@ import {
   processEpigraphJson,
   processFigureJson,
   processExerciseJson,
-  processReferenceHtml,
+  processReferenceJson,
   processSnippetJson,
   recursiveProcessPureText
 } from "./processingFunctions";
@@ -197,10 +197,9 @@ const processTextFunctionsDefaultHtml = {
   DISPLAYFOOTNOTE: (node, obj) => {
     display_footnote_count += 1;
 
-    if (display_footnote_count == 1) {
-      addBodyToObj(obj, node, false);
-    }
-    
+    addBodyToObj(obj, node, false);
+    obj['id'] = `footnote-${display_footnote_count}`;
+
     recursiveProcessText(node.firstChild, obj);
   },
 
@@ -304,13 +303,12 @@ const processTextFunctionsDefaultHtml = {
     paragraph_count += 1;
 
     addBodyToObj(obj, node, false);
+    obj['id'] = paragraph_count;
     recursiveProcessText(node.firstChild, obj);
   },
 
   REF: (node, obj) => {
-    const writeTo = [];
-    processReferenceHtml(node, writeTo, chapterIndex);
-    addArrayToObj(obj, node, writeTo);
+    processReferenceJson(node, obj, chapterIndex);
   },
 
   SECTION: (node, obj) => {

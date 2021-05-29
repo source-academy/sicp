@@ -58,6 +58,7 @@ export const processFigureJson = (node, obj) => {
     const image = {};
     image["class"] = scale_factor;
     image["src"] = src;
+    image['id'] = `fig_${displayName}`;
     images.push(image);
   }
 
