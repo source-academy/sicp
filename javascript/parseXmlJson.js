@@ -303,7 +303,7 @@ const processTextFunctionsDefaultHtml = {
     paragraph_count += 1;
 
     addBodyToObj(obj, node, false);
-    obj['id'] = paragraph_count;
+    obj['id'] = "p" + paragraph_count;
     recursiveProcessText(node.firstChild, obj);
   },
 
