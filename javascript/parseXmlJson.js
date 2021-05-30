@@ -68,8 +68,7 @@ const preserveTagsDefault = new Set([
   "TABLE",
   "TR",
   "TD",
-  "p",
-  "REFERENCE"
+  "p"
 ]);
 
 export const addBodyToObj = (obj, node, body) => {
@@ -123,6 +122,10 @@ const processTextFunctionsDefaultHtml = {
   },
   REFERENCES: (node, obj) =>
     processTextFunctionsHtml["ABOUT"](node, obj),
+  REFERENCE: (node, obj)  => {
+    addBodyToObj(obj, node, false);
+    recursiveProcessText(node.firstChild, obj);
+  },
   WEBPREFACE: (node, obj) =>
     processTextFunctionsHtml["ABOUT"](node, obj),
   MATTER: (node, obj) => processTextFunctionsHtml["ABOUT"](node, obj),
