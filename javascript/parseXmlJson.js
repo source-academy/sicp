@@ -95,7 +95,7 @@ const processTextFunctionsDefaultHtml = {
   "#text": (node, obj) => {
     // ignore the section/subsection tags at the end of chapter/section files
     if (!node.nodeValue.match(/&(\w|\.|\d)+;/)) {
-      let body = node.nodeValue.replace(/\r?\n|\r/g, " ").replace(/  +/g, ' ');
+      let body = node.nodeValue.replace(/\r?\n|\r/g, " ").replace(/  +/g, " ");
       if (body.trim()) {
         addBodyToObj(obj, node, body);
       }
@@ -120,14 +120,12 @@ const processTextFunctionsDefaultHtml = {
 
     recursiveProcessText(childNode.nextSibling, obj);
   },
-  REFERENCES: (node, obj) =>
-    processTextFunctionsHtml["ABOUT"](node, obj),
-  REFERENCE: (node, obj)  => {
+  REFERENCES: (node, obj) => processTextFunctionsHtml["ABOUT"](node, obj),
+  REFERENCE: (node, obj) => {
     addBodyToObj(obj, node, false);
     recursiveProcessText(node.firstChild, obj);
   },
-  WEBPREFACE: (node, obj) =>
-    processTextFunctionsHtml["ABOUT"](node, obj),
+  WEBPREFACE: (node, obj) => processTextFunctionsHtml["ABOUT"](node, obj),
   MATTER: (node, obj) => processTextFunctionsHtml["ABOUT"](node, obj),
 
   br: (node, obj) => {
@@ -179,7 +177,7 @@ const processTextFunctionsDefaultHtml = {
 
   FIGURE: (node, obj) => {
     recursiveProcessText(node.firstChild, obj);
-    addBodyToObj(obj,node,false);
+    addBodyToObj(obj, node, false);
     processFigureJson(node, obj);
   },
 
@@ -201,7 +199,7 @@ const processTextFunctionsDefaultHtml = {
     display_footnote_count += 1;
 
     addBodyToObj(obj, node, false);
-    obj['id'] = `footnote-${display_footnote_count}`;
+    obj["id"] = `footnote-${display_footnote_count}`;
 
     recursiveProcessText(node.firstChild, obj);
   },
@@ -233,21 +231,12 @@ const processTextFunctionsDefaultHtml = {
   },
 
   LINK: (node, obj) => {
-    addBodyToObj(
-      obj,
-      node,
-      "<a address='" +
-        node.getAttribute("address") +
-        "' href='" +
-        node.getAttribute("address") +
-        "'>"
-    );
+    addBodyToObj(obj, node, node.getAttribute("address"));
+
     recursiveProcessText(node.firstChild, obj);
-    addBodyToObj(obj, node, "</a>");
   },
 
-  LATEX: (node, obj) =>
-    processTextFunctionsHtml["LATEXINLINE"](node, obj),
+  LATEX: (node, obj) => processTextFunctionsHtml["LATEXINLINE"](node, obj),
   LATEXINLINE: (node, obj) => {
     const writeTo = [];
     recursiveProcessPureText(node.firstChild, writeTo, {
@@ -255,7 +244,7 @@ const processTextFunctionsDefaultHtml = {
     });
 
     let math = "";
-    writeTo.forEach(x => math += x);
+    writeTo.forEach(x => (math += x));
     math = math.trim();
     math = math.replace(/\$/g, "");
     math = math.replace(/^\\\[/, "");
@@ -306,7 +295,7 @@ const processTextFunctionsDefaultHtml = {
     paragraph_count += 1;
 
     addBodyToObj(obj, node, false);
-    obj['id'] = "p" + paragraph_count;
+    obj["id"] = "p" + paragraph_count;
     recursiveProcessText(node.firstChild, obj);
   },
 
@@ -352,7 +341,7 @@ const processTextFunctionsDefaultHtml = {
       return;
     } else if (node.getAttribute("LATEX") == "yes") {
       addBodyToObj(obj, node, false);
-      obj['latex'] = true;
+      obj["latex"] = true;
 
       const textprompt = getChildrenByTagName(node, "JAVASCRIPT_PROMPT")[0];
       if (textprompt) {
@@ -375,8 +364,8 @@ const processTextFunctionsDefaultHtml = {
 
     snippet_count += 1;
     addBodyToObj(obj, node, false);
-    obj['latex'] = false;
-    obj['id'] = snippet_count;
+    obj["latex"] = false;
+    obj["id"] = snippet_count;
     processSnippetJson(node, obj);
   },
 
@@ -386,11 +375,7 @@ const processTextFunctionsDefaultHtml = {
   },
 
   OL: (node, obj) => {
-    addBodyToObj(
-      obj,
-      node,
-      ancestorHasTag(node, "EXERCISE") ? `a">` : `1">`
-    );
+    addBodyToObj(obj, node, ancestorHasTag(node, "EXERCISE") ? `a">` : `1">`);
     recursiveProcessText(node.firstChild, obj);
   },
 
@@ -475,7 +460,7 @@ const processTextFunctionsDefaultHtml = {
 
   QUOTE: (node, obj) => {
     processText(node.firstChild, obj);
-    obj['body'] = "\"" + obj['body'] + "\"";
+    obj["body"] = '"' + obj["body"] + '"';
   }
 };
 
@@ -493,7 +478,7 @@ export const processText = (node, obj) => {
     const newTag = [];
     if (replaceTagWithSymbol(node, newTag)) {
       addBodyToObj(obj, node, newTag[0]);
-      obj['tag'] = "#text";
+      obj["tag"] = "#text";
       return true;
     } else if (tagsToRemove.has(name)) {
       return true;
@@ -509,7 +494,7 @@ export const processText = (node, obj) => {
   return false;
 };
 
-export const recursiveProcessText = (node, obj, prevSibling=false) => {
+export const recursiveProcessText = (node, obj, prevSibling = false) => {
   if (!node) return;
 
   if (!prevSibling) {
@@ -521,11 +506,11 @@ export const recursiveProcessText = (node, obj, prevSibling=false) => {
   const next = {};
   processText(node, next);
 
-  if (next['tag'] === "#text" && prevSibling['tag'] === "#text") {
-    prevSibling['body'] += next['body'];
+  if (next["tag"] === "#text" && prevSibling["tag"] === "#text") {
+    prevSibling["body"] += next["body"];
 
     return recursiveProcessText(node.nextSibling, obj, prevSibling);
-  } else if (next['tag'] || next['child']) {
+  } else if (next["tag"] || next["child"]) {
     obj.push(next);
   }
 
