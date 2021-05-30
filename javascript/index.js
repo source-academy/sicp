@@ -178,7 +178,6 @@ async function translateXml(filepath, filename, option) {
 
       const outputFile = path.join(
         outputDir,
-        "/chapters",
         tableOfContent[relativeFilePath].index + ".json"
       );
       const stream = fs.createWriteStream(outputFile);
@@ -212,7 +211,7 @@ async function recursiveTranslateXml(filepath, option) {
   files.forEach(file => {
     if (file.match(/\.xml$/)) {
       // console.log(file + " being processed");
-      if (parseType == "web" && file.match(/indexpreface/)) {
+      if ((parseType == "web" || parseType == "json") && file.match(/indexpreface/)) {
         // remove index section for web textbook
       } else {
         if (option == "generateTOC") {
@@ -262,11 +261,11 @@ const createMain = () => {
     fs.mkdirSync(outputDir);
   }
 
-  if (parseType == "js") {
+  if (parseType == "js" || parseType == "json") {
     return;
   }
 
-  if (parseType == "web" || parseType == "json") {
+  if (parseType == "web") {
     if (!fs.existsSync(path.join(outputDir, "/chapters"))) {
       fs.mkdirSync(path.join(outputDir, "/chapters"));
     }
@@ -380,7 +379,6 @@ async function main() {
     await recursiveTranslateXml("", "generateTOC");
     allFilepath = sortTOC(allFilepath);
     console.log(tableOfContent);
-    createIndexHtml();
     createTocJson();
 
     console.log("setup snippets and references\n");

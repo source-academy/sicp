@@ -9,7 +9,7 @@ LATEX_EPUB="latex_epub"
 GENERATED_HTML_JS="html_js"
 GENERATED_HTML_SPLIT="html_split"
 GENERATED_JS="js_programs"
-GENERATED_JSON="json/chapters"
+GENERATED_JSON="json"
 PDF_FILE="sicpjs.pdf"
 EPUB_FILE="sicpjs.epub"
 
@@ -73,6 +73,7 @@ clean() {
 	rm -rf ${GENERATED_HTML_JS}/*
 	rm -rf ${GENERATED_HTML_SPLIT}/*
 	rm -rf ${GENERATED_JS}/*
+	rm -rf ${GENERATED_JSON}/*
 	rm -f ${ZIP_FILE}
 }
 
