@@ -228,7 +228,7 @@ export const processSnippetJson = (node, snippet) => {
 
       if (reqStr) {
         addToSnippet("program", makeHash(compressed), snippet);
-        addToSnippet("prepend", makeHash(compressedPrepend), snippet);
+        addToSnippet("prepend", compressedPrepend, snippet);
       }
 
       addToSnippet("withoutPrepend", makeHash(compressedWithoutPrepend), snippet);
