@@ -6,9 +6,7 @@ import {
   missingExampleWarning,
   repeatedNameWarning
 } from "./warnings.js";
-import {
-  chapterIndex
-} from "../parseXmlJson";
+import { chapterIndex } from "../parseXmlJson";
 import recursiveProcessPureText from "./recursiveProcessPureText";
 
 const snippetStore = {};
@@ -60,7 +58,7 @@ const recursiveGetRequires = (name, seen) => {
 
 const addToSnippet = (tag, body, snippet) => {
   snippet[tag] = body;
-}
+};
 
 export const processSnippetJson = (node, snippet) => {
   // const writeTo = [];
@@ -73,7 +71,11 @@ export const processSnippetJson = (node, snippet) => {
 
   if (jsPromptSnippet) {
     // writeTo.push("<pre class='prettyprintoutput'>");
-    addToSnippet("body", jsPromptSnippet.firstChild.nodeValue.trimRight(), snippet);
+    addToSnippet(
+      "body",
+      jsPromptSnippet.firstChild.nodeValue.trimRight(),
+      snippet
+    );
     // writeTo.push("</pre>");
   }
 
@@ -81,7 +83,11 @@ export const processSnippetJson = (node, snippet) => {
 
   if (jsLonelySnippet) {
     // writeTo.push("<pre class='prettyprintoutput'>");
-    addToSnippet("body", jsLonelySnippet.firstChild.nodeValue.trimRight(), snippet);
+    addToSnippet(
+      "body",
+      jsLonelySnippet.firstChild.nodeValue.trimRight(),
+      snippet
+    );
     // writeTo.push("</pre>");
   }
 
@@ -184,6 +190,16 @@ export const processSnippetJson = (node, snippet) => {
       const exampleStr = exampleArr.join("");
 
       // make url for source academy link
+      const compressedPrepend = lzString.compressToEncodedURIComponent(reqStr);
+
+      const compressedWithoutPrepend = lzString.compressToEncodedURIComponent(
+        "// SICP JS " +
+          chapterIndex +
+          "\n\n" +
+          codeStr_run +
+          exampleStr
+      );
+
       const compressed = lzString.compressToEncodedURIComponent(
         "// SICP JS " +
           chapterIndex +
@@ -208,20 +224,20 @@ export const processSnippetJson = (node, snippet) => {
       } else {
         ext = "";
       }
-      const url =
-        sourceAcademyURL +
-        "/playground#chap=" +
-        chap +
-        variant +
-        ext +
-        "&prgrm=" +
-        compressed;
+      const makeHash =  (program) => "chap=" + chap + variant + ext + "&prgrm=" + program;
+
+      if (reqStr) {
+        addToSnippet("program", makeHash(compressed), snippet);
+        addToSnippet("prepend", makeHash(compressedPrepend), snippet);
+      }
+
+      addToSnippet("withoutPrepend", makeHash(compressedWithoutPrepend), snippet);
 
       const chunks = (codeStr + "\n").match(
         /^((?:.*?[\r\n]+){1,6})((?:.|\n|\r)*)$/
       );
       // 6 lines plus rest
-      addToSnippet("url", url, snippet);
+      
       // writeTo.push(`onclick="window.open('${url}')">`);
 
       let body = "";
@@ -235,8 +251,8 @@ export const processSnippetJson = (node, snippet) => {
       addToSnippet("body", body, snippet);
 
       // if (chunks[2]) {
-        // addToSnippet("body2", chunks[2], snippet);
-        // writeTo.push(chunks[2]);
+      // addToSnippet("body2", chunks[2], snippet);
+      // writeTo.push(chunks[2]);
       // }
 
       // writeTo.push("</pre>");
@@ -245,7 +261,11 @@ export const processSnippetJson = (node, snippet) => {
 
   if (jsOutputSnippet) {
     // writeTo.push("<pre class='prettyprintoutput'>");
-    addToSnippet("output", jsOutputSnippet.firstChild.nodeValue.trimRight(), snippet);
+    addToSnippet(
+      "output",
+      jsOutputSnippet.firstChild.nodeValue.trimRight(),
+      snippet
+    );
     // writeTo.push(jsOutputSnippet.firstChild.nodeValue.trimRight());
     // writeTo.push("</pre>");
   }
