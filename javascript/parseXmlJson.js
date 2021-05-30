@@ -199,7 +199,7 @@ const processTextFunctionsDefaultHtml = {
     display_footnote_count += 1;
 
     addBodyToObj(obj, node, false);
-    obj["id"] = `footnote-${display_footnote_count}`;
+    obj["id"] = `#footnote-${display_footnote_count}`;
 
     recursiveProcessText(node.firstChild, obj);
   },
@@ -295,7 +295,7 @@ const processTextFunctionsDefaultHtml = {
     paragraph_count += 1;
 
     addBodyToObj(obj, node, false);
-    obj["id"] = "p" + paragraph_count;
+    obj["id"] = "#p" + paragraph_count;
     recursiveProcessText(node.firstChild, obj);
   },
 
