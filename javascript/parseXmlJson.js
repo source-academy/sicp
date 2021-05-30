@@ -254,6 +254,9 @@ const processTextFunctionsDefaultHtml = {
     let math = "";
     writeTo.forEach(x => math += x);
     math = math.trim();
+    math = math.replace(/\$/g, "");
+    math = math.replace(/^\\\[/, "");
+    math = math.replace(/\\\]$/, "");
     addBodyToObj(obj, node, math);
   },
 
