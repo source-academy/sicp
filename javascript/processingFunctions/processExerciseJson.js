@@ -3,7 +3,7 @@ import { missingExerciseWarning } from "./warnings.js";
 import { referenceStore } from "./processReferenceJson";
 
 let unlabeledEx = 0;
-const processExerciseHtml = (node, obj, chapArrIndex, exercise_count) => {
+const processExerciseHtml = (node, obj) => {
   const label = node.getElementsByTagName("LABEL")[0];
   let labelName = "";
   const solution = node.getElementsByTagName("SOLUTION")[0];
@@ -22,36 +22,16 @@ const processExerciseHtml = (node, obj, chapArrIndex, exercise_count) => {
 
   const displayName = referenceStore[labelName].displayName;
 
-  // writeTo.push(`
-  //   <div class="permalink">
-  //   <a name="ex_${displayName}" class="permalink"></a><EXERCISE><b><a class="exercise-number permalink" id="ex_${displayName}">Exercise ${displayName} </a></b>
-  // `);
-
-  obj['title'] = "Exercise " + displayName;
+  obj["title"] = "Exercise " + displayName;
+  obj["id"] = `ex_${displayName}`;
 
   recursiveProcessText(node.firstChild, obj);
 
   if (solution) {
-    // writeTo.push(`
-      // <div class="Solution">
-      // <div class="solution_btn"><button class="btn btn-secondary solution_btn" href="#solution_${chapArrIndex}_${exercise_count}_div" data-toggle="collapse">Solution</button></div>
-      // <div class="solution_content collapse" id="solution_${chapArrIndex}_${exercise_count}_div"><SOLUTION>
-    // `);
     const childObj = {};
     recursiveProcessText(solution.firstChild, childObj);
-    obj['solution'] = childObj['child'];
-    // writeTo.push("</SOLUTION></div></div>");
+    obj["solution"] = childObj["child"];
   }
-  // } else {
-  //   writeTo.push(`
-  //     <div class="Solution">
-  //     <div class="solution_btn"><button class="btn btn-secondary solution_btn" href="#no_solution_${chapArrIndex}_${exercise_count}_div" data-toggle="collapse">Add solution</button></div>
-  //     <div class="solution_content collapse" id="no_solution_${chapArrIndex}_${exercise_count}_div">There is currently no solution available for this exercise. This textbook adaptation is a community effort. Do consider contributing by providing a solution for this exercise, using a Pull Request in <a address="https://github.com/source-academy/sicp" href="https://github.com/source-academy/sicp">Github</a>.</div>
-  //     </div>
-  //   `);
-  // }
-
-  // writeTo.push("\n</EXERCISE></div>\n");
 };
 
 export default processExerciseHtml;
