@@ -193,6 +193,11 @@ const processTextFunctionsDefaultHtml = {
     }
     // append the cloned node as the last elements inside <CHAPTER>/<SECTION> node
     parent.appendChild(cloneNode);
+
+    obj['tag'] = 'FOOTNOTE_REF';
+    obj['id'] = `footnote-link-${footnote_count}`;
+    obj['body'] = `${footnote_count}`;
+    obj['href'] = `/interactive-sicp/${chapterIndex}#footnote-${footnote_count}`;
   },
 
   DISPLAYFOOTNOTE: (node, obj) => {
