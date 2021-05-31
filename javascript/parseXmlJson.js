@@ -37,7 +37,6 @@ const tagsToRemoveDefault = new Set([
   "HISTORY",
   "ORDER",
   "SCHEME",
-  "SCHEMEINLINE",
   "SOLUTION",
   "INDEX",
   "CAPTION",
@@ -60,7 +59,6 @@ const preserveTagsDefault = new Set([
   "B",
   "EM",
   "SC",
-  "UL",
   "LI",
   "SECTIONCONTENT",
   "CITATION",
@@ -105,14 +103,6 @@ const processTextFunctionsDefaultHtml = {
   ABOUT: (node, obj) => {
     addBodyToObj(obj, node, displayTitle);
 
-    if (node.getAttribute("WIP") === "yes") {
-      addBodyToObj(
-        obj,
-        node,
-        `<div style="color:red" class="wip-stamp">Note: this section is a work in progress!</div>`
-      );
-    }
-
     let childNode = node.firstChild;
     while (childNode.nodeName != "NAME") {
       childNode = childNode.nextSibling;
@@ -129,7 +119,8 @@ const processTextFunctionsDefaultHtml = {
   MATTER: (node, obj) => processTextFunctionsHtml["ABOUT"](node, obj),
 
   br: (node, obj) => {
-    addBodyToObj(obj, node, "<br>");
+    addBodyToObj(obj, node, false);
+    obj["tag"] = "BR";
   },
 
   BR: (node, obj) => processTextFunctionsHtml["br"](node, obj),
@@ -137,13 +128,6 @@ const processTextFunctionsDefaultHtml = {
   CHAPTER: (node, obj) => {
     addBodyToObj(obj, node, displayTitle);
 
-    if (node.getAttribute("WIP") === "yes") {
-      addBodyToObj(
-        obj,
-        node,
-        `<div style="color:red" class="wip-stamp">Note: this section is a work in progress!</div>`
-      );
-    }
     const name = getChildrenByTagName(node, "NAME")[0];
     recursiveProcessText(name.nextSibling, obj);
   },
@@ -163,11 +147,11 @@ const processTextFunctionsDefaultHtml = {
     addArrayToObj(obj, node, writeTo);
   },
 
-  NOINDENT: (node, obj) => {},
+  NOINDENT: (_node, _obj) => {},
 
-  EXERCISE_STARTING_WITH_ITEMS: (node, obj) => {},
+  EXERCISE_STARTING_WITH_ITEMS: (_node, _obj) => {},
 
-  EXERCISE_FOLLOWED_BY_TEXT: (node, obj) => {},
+  EXERCISE_FOLLOWED_BY_TEXT: (_node, _obj) => {},
 
   EXERCISE: (node, obj) => {
     exercise_count += 1;
@@ -194,10 +178,12 @@ const processTextFunctionsDefaultHtml = {
     // append the cloned node as the last elements inside <CHAPTER>/<SECTION> node
     parent.appendChild(cloneNode);
 
-    obj['tag'] = 'FOOTNOTE_REF';
-    obj['id'] = `footnote-link-${footnote_count}`;
-    obj['body'] = `${footnote_count}`;
-    obj['href'] = `/interactive-sicp/${chapterIndex}#footnote-${footnote_count}`;
+    obj["tag"] = "FOOTNOTE_REF";
+    obj["id"] = `footnote-link-${footnote_count}`;
+    obj["body"] = `${footnote_count}`;
+    obj[
+      "href"
+    ] = `/interactive-sicp/${chapterIndex}#footnote-${footnote_count}`;
   },
 
   DISPLAYFOOTNOTE: (node, obj) => {
@@ -218,22 +204,15 @@ const processTextFunctionsDefaultHtml = {
 
   META: (node, obj) => {
     let s = node.firstChild.nodeValue;
-    s = s.replace(/-/g, "$-$").replace(/ /g, "\\ ");
-    addBodyToObj(obj, node, "$" + s + "$");
+    s = s.replace(/-/g, "\\text{-}").replace(/ /g, "\\ ");
+    addBodyToObj(obj, node, s);
   },
 
   METAPHRASE: (node, obj) => {
-    addBodyToObj(obj, node, "$\\langle{}$<EM>");
-    recursiveProcessText(node.firstChild, obj);
-    addBodyToObj(obj, node, "</EM>$\\rangle$");
-  },
-
-  IMAGE: (node, obj) => {
-    addBodyToObj(
-      obj,
-      node,
-      `<IMAGE src="${toIndexFolder}${node.getAttribute("src")}"/>`
-    );
+    const childObj = {};
+    recursiveProcessText(node.firstChild, childObj);
+    const arr = childObj['child'].map(x => x['body']);
+    addArrayToObj(obj, node, arr);
   },
 
   LINK: (node, obj) => {
@@ -251,41 +230,22 @@ const processTextFunctionsDefaultHtml = {
 
     let math = "";
     writeTo.forEach(x => (math += x));
+
+    // Remove math delimiters
     math = math.trim();
     math = math.replace(/\$/g, "");
     math = math.replace(/^\\\[/, "");
     math = math.replace(/\\\]$/, "");
+
     addBodyToObj(obj, node, math);
   },
 
   LaTeX: (node, obj) => {
-    addBodyToObj(
-      obj,
-      node,
-      `<span class="texhtml" style="font-family: 'CMU Serif', cmr10, LMRoman10-Regular, 'Latin Modern Math', 'Nimbus Roman No9 L', 'Times New Roman', Times, serif;">L<span style="text-transform: uppercase; font-size: 0.75em; vertical-align: 0.25em; margin-left: -0.36em; margin-right: -0.15em; line-height: 1ex;">a</span>T<span style="text-transform: uppercase; vertical-align: -0.5ex; margin-left: -0.1667em; margin-right: -0.125em; line-height: 1ex;">e</span>X</span>`
-    );
+    addBodyToObj(obj, node, false);
   },
 
   TeX: (node, obj) => {
-    addBodyToObj(
-      obj,
-      node,
-      `<span class="texhtml" style="font-family: 'CMU Serif', cmr10, LMRoman10-Regular, 'Latin Modern Math', 'Nimbus Roman No9 L', 'Times New Roman', Times, serif;">T<span style="text-transform: uppercase; vertical-align: -0.5ex; margin-left: -0.1667em; margin-right: -0.125em; line-height: 1ex;">e</span>X</span>`
-    );
-  },
-
-  MATTERSECTION: (node, obj) => {
-    heading_count += 1;
-    addBodyToObj(
-      obj,
-      node,
-      `
-      <div class='permalink'>
-        <a name='h${heading_count}' class='permalink'></a><h1>
-    `
-    );
-    recursiveProcessText(node.firstChild, obj);
-    addBodyToObj(obj, node, "</h1></div>");
+    addBodyToObj(obj, node, false);
   },
 
   NAME: (node, obj) => {
@@ -309,22 +269,15 @@ const processTextFunctionsDefaultHtml = {
     processReferenceJson(node, obj, chapterIndex);
   },
 
+  SCHEMEINLINE: (node, obj) =>
+    processTextFunctionsHtml["JAVASCRIPTINLINE"](node, obj),
+
   SECTION: (node, obj) => {
     addBodyToObj(obj, node, displayTitle);
 
-    if (node.getAttribute("WIP") === "yes") {
-      addBodyToObj(
-        obj,
-        node,
-        `<div style="color:red" class="wip-stamp">Note: this section is a work in progress!</div>`
-      );
-    }
     const name = getChildrenByTagName(node, "NAME")[0];
     recursiveProcessText(name.nextSibling, obj);
   },
-
-  // SCHEMEINLINE: (node, obj) =>
-  //   processTextFunctionsHtml["JAVASCRIPTINLINE"](node, obj),
 
   JAVASCRIPTINLINE: (node, obj) => {
     const writeTo = [];
@@ -333,13 +286,12 @@ const processTextFunctionsDefaultHtml = {
         removeNewline: "all"
       });
     } else {
-      // addBodyToObj(obj, node, "<kbd>");
       recursiveProcessPureText(node.firstChild, writeTo, {
         removeNewline: "all"
       });
-      // addBodyToObj(obj, node, "</kbd>");
     }
     addArrayToObj(obj, node, writeTo);
+    obj["tag"] = "JAVASCRIPTINLINE";
   },
 
   SNIPPET: (node, obj) => {
@@ -377,11 +329,17 @@ const processTextFunctionsDefaultHtml = {
 
   SPACE: (node, obj) => {
     addBodyToObj(obj, node, "\u00A0");
+    obj["tag"] = "#text";
     recursiveProcessText(node.firstChild, obj);
   },
 
   OL: (node, obj) => {
-    addBodyToObj(obj, node, ancestorHasTag(node, "EXERCISE") ? `a">` : `1">`);
+    addBodyToObj(obj, node, false);
+    recursiveProcessText(node.firstChild, obj);
+  },
+
+  UL: (node, obj) => {
+    addBodyToObj(obj, node, false);
     recursiveProcessText(node.firstChild, obj);
   },
 
@@ -400,13 +358,6 @@ const processTextFunctionsDefaultHtml = {
   SUBSECTION: (node, obj) => {
     addBodyToObj(obj, node, displayTitle);
 
-    if (node.getAttribute("WIP") === "yes") {
-      addBodyToObj(
-        obj,
-        node,
-        `<div style="color:red" class="wip-stamp">Note: this section is a work in progress!</div>`
-      );
-    }
     const name = getChildrenByTagName(node, "NAME")[0];
     recursiveProcessText(name.nextSibling, obj);
   },
@@ -416,52 +367,28 @@ const processTextFunctionsDefaultHtml = {
     subsubsection_count += 1;
     heading_count += 1;
     const name = getChildrenByTagName(node, "NAME")[0];
+
+    obj["id"] = `#sec${chapterIndex}.${subsubsection_count}`;
+
     addBodyToObj(
       obj,
       node,
-      `
-      <div class='permalink'>
-        <a name='sec${chapterIndex}.${subsubsection_count}' class='permalink'></a><h1>
-    `
+      `${chapterIndex}.${subsubsection_count}\u00A0\u00A0\u00A0` + name.firstChild.nodeValue
     );
-    if (chapterIndex !== "prefaces") {
-      addBodyToObj(
-        obj,
-        node,
-        `${chapterIndex}.${subsubsection_count}\u00A0\u00A0\u00A0`
-      );
-    }
-    recursiveProcessText(name.firstChild, obj);
-    addBodyToObj(obj, node, "</h1></div>");
+
     recursiveProcessText(name.nextSibling, obj);
   },
 
   SUBHEADING: (node, obj) => {
     heading_count += 1;
-    addBodyToObj(
-      obj,
-      node,
-      `
-      <div class='permalink'>
-        <a name='h${heading_count}' class='permalink'></a><h2>
-    `
-    );
+    addBodyToObj(obj, node, false);
     recursiveProcessText(node.firstChild, obj);
-    addBodyToObj(obj, node, "</h2></div>");
   },
 
   SUBSUBHEADING: (node, obj) => {
     heading_count += 1;
-    addBodyToObj(
-      obj,
-      node,
-      `
-      <div class='permalink'>
-        <a name='h${heading_count}' class='permalink'></a><h3>
-    `
-    );
+    addBodyToObj(obj, node, false);
     recursiveProcessText(node.firstChild, obj);
-    addBodyToObj(obj, node, "</h3></div>");
   },
 
   QUOTE: (node, obj) => {

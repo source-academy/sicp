@@ -2,7 +2,7 @@ import {
   recursiveProcessText,
   processText
 } from "../parseXmlJson";
-import { referenceStore } from "./processReferenceHtml";
+import { referenceStore } from "./processReferenceJson";
 
 export const processFigureJson = (node, obj) => {
   let src = node.getAttribute("src");
@@ -82,7 +82,8 @@ export const processFigureJson = (node, obj) => {
     recursiveProcessText(caption.firstChild, captionBody);
 
     images[0]["captionHref"] = href;
-    images[0]["captionName"] = "Figure " + displayName + " " + captionBody['child'][0]['body'];
+    images[0]["captionName"] = "Figure " + displayName + " ";
+    images[0]["captionBody"] = captionBody['child'];
   }
 };
 
