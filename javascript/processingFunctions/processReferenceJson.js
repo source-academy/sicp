@@ -142,22 +142,16 @@ export const processReferenceJson = (node, obj, chapterIndex) => {
   const displayName = referenceStore[referenceName].displayName;
   const ref_type = referenceName.split(":")[0];
 
-  if (ref_type == "sec") {
-    obj['tag'] = 'SECTION_REF';
-    obj['id'] = `${chapterIndex}-sec-link-${displayName}`;
-  } else if (ref_type == "fig") {
-    obj['tag'] = 'SECTION_REF';
-    obj['id'] = `${chapterIndex}-fig-link-${displayName}`;
-  } else if (ref_type == "ex") {
-    obj['tag'] = 'EXERCISE_REF';
-    obj['id'] = `${chapterIndex}-ex-link-${displayName}`;
-  } else if (ref_type == "foot") {
-    obj['tag'] = 'FOOTNOTE_REF';
-    obj['id'] = `${chapterIndex}-foot-link-${displayName}`;
+  if (ref_type == "foot") {
+    obj["tag"] = "FOOTNOTE_REF";
+    obj["id"] = `${chapterIndex}-foot-link-${displayName}`;
+  } else {
+    obj["tag"] = "REF";
+    obj["id"] = `${chapterIndex}-ex-link-${displayName}`;
   }
 
-  obj['body'] = displayName;
-  obj['href'] = href;
+  obj["body"] = displayName;
+  obj["href"] = href;
 };
 
 export default processReferenceJson;
