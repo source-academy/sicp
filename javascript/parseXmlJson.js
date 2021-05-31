@@ -52,21 +52,16 @@ const ignoreTagsDefault = new Set([
   "NOBR",
   "SPLIT",
   "SPLITINLINE",
-  "JAVASCRIPT"
+  "JAVASCRIPT",
+  "CITATION",
+  "SECTIONCONTENT",
+  "p"
 ]);
 
 const preserveTagsDefault = new Set([
-  "B",
-  "EM",
-  "SC",
-  "LI",
-  "SECTIONCONTENT",
-  "CITATION",
-  "TT",
   "TABLE",
   "TR",
   "TD",
-  "p"
 ]);
 
 export const addBodyToObj = (obj, node, body) => {
@@ -86,10 +81,25 @@ export const addArrayToObj = (obj, node, array) => {
 };
 
 const processTextFunctionsDefaultHtml = {
+  B: (node, obj) => {
+    addBodyToObj(obj, node, false);
+    recursiveProcessText(node.firstChild, obj);
+  },
+  EM: (node, obj) => {
+    addBodyToObj(obj, node, false);
+    recursiveProcessText(node.firstChild, obj);
+  },
+  LI: (node, obj) => {
+    addBodyToObj(obj, node, false);
+    recursiveProcessText(node.firstChild, obj);
+  },
+  TT: (node, obj) => {
+    addBodyToObj(obj, node, false);
+    recursiveProcessText(node.firstChild, obj);
+  },
   WEB_ONLY: (node, obj) => {
     recursiveProcessText(node.firstChild, obj);
   },
-
   "#text": (node, obj) => {
     // ignore the section/subsection tags at the end of chapter/section files
     if (!node.nodeValue.match(/&(\w|\.|\d)+;/)) {
