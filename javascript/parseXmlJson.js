@@ -224,7 +224,7 @@ const processTextFunctions = {
   META: (node, obj) => {
     let s = node.firstChild.nodeValue;
     s = s.replace(/-/g, "$-$").replace(/ /g, "\\ ");
-    addBodyToObj(obj, node, s);
+    addBodyToObj(obj, node, "$" + s + "$");
   },
 
   METAPHRASE: (node, obj) => {
