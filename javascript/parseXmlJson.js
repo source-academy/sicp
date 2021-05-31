@@ -81,6 +81,10 @@ export const addArrayToObj = (obj, node, array) => {
 };
 
 const processTextFunctionsDefaultHtml = {
+  AMP: (node, obj) => {
+    addBodyToObj(obj, node, "&amp;");
+    obj["tag"] = "#text";
+  },
   B: (node, obj) => {
     addBodyToObj(obj, node, false);
     recursiveProcessText(node.firstChild, obj);
