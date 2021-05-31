@@ -249,12 +249,7 @@ const processTextFunctions = {
 
     let math = "";
     writeTo.forEach(x => (math += x));
-
-    // Remove math delimiters
     math = math.trim();
-    math = math.replace(/\$/g, "");
-    math = math.replace(/^\\\[/, "");
-    math = math.replace(/\\\]$/, "");
 
     addBodyToObj(obj, node, math);
   },
