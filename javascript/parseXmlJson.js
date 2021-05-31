@@ -198,8 +198,9 @@ const processTextFunctionsDefaultHtml = {
   DISPLAYFOOTNOTE: (node, obj) => {
     display_footnote_count += 1;
 
-    addBodyToObj(obj, node, footnote_count);
+    addBodyToObj(obj, node, false);
     obj["id"] = `#footnote-${display_footnote_count}`;
+    obj["count"] = display_footnote_count;
 
     recursiveProcessText(node.firstChild, obj);
   },
