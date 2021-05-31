@@ -223,7 +223,7 @@ const processTextFunctions = {
 
   META: (node, obj) => {
     let s = node.firstChild.nodeValue;
-    s = s.replace(/-/g, "\\text{-}").replace(/ /g, "\\ ");
+    s = s.replace(/-/g, "$-$").replace(/ /g, "\\ ");
     addBodyToObj(obj, node, s);
   },
 
