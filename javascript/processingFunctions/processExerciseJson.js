@@ -23,7 +23,7 @@ const processExerciseHtml = (node, obj) => {
   const displayName = referenceStore[labelName].displayName;
 
   obj["title"] = "Exercise " + displayName;
-  obj["id"] = `ex_${displayName}`;
+  obj["id"] = `#ex_${displayName}`;
 
   recursiveProcessText(node.firstChild, obj);
 
