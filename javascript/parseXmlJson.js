@@ -25,7 +25,7 @@ let displayTitle = "";
 export let chapterIndex = "";
 export let toIndexFolder = "../";
 
-const tagsToRemoveDefault = new Set([
+export const tagsToRemove = new Set([
   "#comment",
   "ATTRIBUTION",
   "AUTHOR",
@@ -37,7 +37,7 @@ const tagsToRemoveDefault = new Set([
   "HISTORY",
   "ORDER",
   "SCHEME",
-  "SOLUTION",
+  "SOLUTION", // SOLUTION tag handled by processSnippet
   "INDEX",
   "CAPTION",
   "NAME",
@@ -45,9 +45,8 @@ const tagsToRemoveDefault = new Set([
   "CODEINDEX",
   "EXPLANATION"
 ]);
-// SOLUTION tag handled by processSnippet
 
-const ignoreTagsDefault = new Set([
+const ignoreTags = new Set([
   "CHAPTERCONTENT",
   "NOBR",
   "SPLIT",
@@ -56,9 +55,6 @@ const ignoreTagsDefault = new Set([
   "CITATION",
   "SECTIONCONTENT",
   "p"
-]);
-
-const preserveTagsDefault = new Set([
 ]);
 
 export const addBodyToObj = (obj, node, body) => {
@@ -77,7 +73,7 @@ export const addArrayToObj = (obj, node, array) => {
   obj["body"] = body;
 };
 
-const processTextFunctionsDefaultHtml = {
+const processTextFunctions = {
   AMP: (node, obj) => {
     addBodyToObj(obj, node, "&amp;");
     obj["tag"] = "#text";
@@ -133,20 +129,20 @@ const processTextFunctionsDefaultHtml = {
 
     recursiveProcessText(childNode.nextSibling, obj);
   },
-  REFERENCES: (node, obj) => processTextFunctionsHtml["ABOUT"](node, obj),
+  REFERENCES: (node, obj) => processTextFunctions["ABOUT"](node, obj),
   REFERENCE: (node, obj) => {
     addBodyToObj(obj, node, false);
     recursiveProcessText(node.firstChild, obj);
   },
-  WEBPREFACE: (node, obj) => processTextFunctionsHtml["ABOUT"](node, obj),
-  MATTER: (node, obj) => processTextFunctionsHtml["ABOUT"](node, obj),
+  WEBPREFACE: (node, obj) => processTextFunctions["ABOUT"](node, obj),
+  MATTER: (node, obj) => processTextFunctions["ABOUT"](node, obj),
 
   br: (node, obj) => {
     addBodyToObj(obj, node, false);
     obj["tag"] = "BR";
   },
 
-  BR: (node, obj) => processTextFunctionsHtml["br"](node, obj),
+  BR: (node, obj) => processTextFunctions["br"](node, obj),
 
   CHAPTER: (node, obj) => {
     addBodyToObj(obj, node, displayTitle);
@@ -234,7 +230,7 @@ const processTextFunctionsDefaultHtml = {
   METAPHRASE: (node, obj) => {
     const childObj = {};
     recursiveProcessText(node.firstChild, childObj);
-    const arr = childObj['child'].map(x => x['body']);
+    const arr = childObj["child"].map(x => x["body"]);
     addArrayToObj(obj, node, arr);
   },
 
@@ -244,7 +240,7 @@ const processTextFunctionsDefaultHtml = {
     recursiveProcessText(node.firstChild, obj);
   },
 
-  LATEX: (node, obj) => processTextFunctionsHtml["LATEXINLINE"](node, obj),
+  LATEX: (node, obj) => processTextFunctions["LATEXINLINE"](node, obj),
   LATEXINLINE: (node, obj) => {
     const writeTo = [];
     recursiveProcessPureText(node.firstChild, writeTo, {
@@ -293,7 +289,7 @@ const processTextFunctionsDefaultHtml = {
   },
 
   SCHEMEINLINE: (node, obj) =>
-    processTextFunctionsHtml["JAVASCRIPTINLINE"](node, obj),
+    processTextFunctions["JAVASCRIPTINLINE"](node, obj),
 
   SECTION: (node, obj) => {
     addBodyToObj(obj, node, displayTitle);
@@ -396,7 +392,8 @@ const processTextFunctionsDefaultHtml = {
     addBodyToObj(
       obj,
       node,
-      `${chapterIndex}.${subsubsection_count}\u00A0\u00A0\u00A0` + name.firstChild.nodeValue
+      `${chapterIndex}.${subsubsection_count}\u00A0\u00A0\u00A0` +
+        name.firstChild.nodeValue
     );
 
     recursiveProcessText(name.nextSibling, obj);
@@ -420,15 +417,10 @@ const processTextFunctionsDefaultHtml = {
   }
 };
 
-let processTextFunctionsHtml = processTextFunctionsDefaultHtml;
-export let tagsToRemove = tagsToRemoveDefault;
-let ignoreTags = ignoreTagsDefault;
-let preserveTags = preserveTagsDefault;
-
 export const processText = (node, obj) => {
   const name = node.nodeName;
-  if (processTextFunctionsHtml[name]) {
-    processTextFunctionsHtml[name](node, obj);
+  if (processTextFunctions[name]) {
+    processTextFunctions[name](node, obj);
     return true;
   } else {
     const newTag = [];
@@ -439,9 +431,6 @@ export const processText = (node, obj) => {
     } else if (tagsToRemove.has(name)) {
       return true;
     } else if (ignoreTags.has(name)) {
-      recursiveProcessText(node.firstChild, obj);
-      return true;
-    } else if (preserveTags.has(name)) {
       recursiveProcessText(node.firstChild, obj);
       return true;
     }
