@@ -93,7 +93,7 @@ const processTextFunctionsDefaultHtml = {
   "#text": (node, obj) => {
     // ignore the section/subsection tags at the end of chapter/section files
     if (!node.nodeValue.match(/&(\w|\.|\d)+;/)) {
-      let body = node.nodeValue.replace(/\r?\n|\r/g, " ").replace(/  +/g, " ");
+      const body = node.nodeValue;
       if (body.trim()) {
         addBodyToObj(obj, node, body);
       }
