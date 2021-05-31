@@ -39,7 +39,7 @@ import { getAnswers } from "./processingFunctions/processExercisePdf";
 // json (for cadet frontend)
 import { parseXmlJson } from "./parseXmlJson";
 import { setupSnippetsJson } from "./processingFunctions/processSnippetJson";
-import { recursiveProcessTOC } from "./generateTocJson";
+import { createTocJson } from "./generateTocJson";
 import { setupReferencesJson } from "./processingFunctions/processReferenceJson";
 
 let parseType;
@@ -211,7 +211,10 @@ async function recursiveTranslateXml(filepath, option) {
   files.forEach(file => {
     if (file.match(/\.xml$/)) {
       // console.log(file + " being processed");
-      if ((parseType == "web" || parseType == "json") && file.match(/indexpreface/)) {
+      if (
+        (parseType == "web" || parseType == "json") &&
+        file.match(/indexpreface/)
+      ) {
         // remove index section for web textbook
       } else {
         if (option == "generateTOC") {
@@ -237,21 +240,6 @@ const createIndexHtml = () => {
   const stream = fs.createWriteStream(indexFilepath);
   stream.once("open", fd => {
     stream.write(writeToIndex.join(""));
-    stream.end();
-  });
-};
-
-// for json version only
-// create toc
-const createTocJson = () => {
-  const tocFilepath = path.join(outputDir, "toc.json");
-
-  const toc = [];
-  const outputToc = recursiveProcessTOC(0, toc);
-
-  const stream = fs.createWriteStream(tocFilepath);
-  stream.once("open", fd => {
-    stream.write(JSON.stringify(toc));
     stream.end();
   });
 };
@@ -379,7 +367,7 @@ async function main() {
     await recursiveTranslateXml("", "generateTOC");
     allFilepath = sortTOC(allFilepath);
     console.log(tableOfContent);
-    createTocJson();
+    createTocJson(outputDir);
 
     console.log("setup snippets and references\n");
     await recursiveXmlToHtmlInOrder("setupSnippet");

@@ -59,9 +59,6 @@ const ignoreTagsDefault = new Set([
 ]);
 
 const preserveTagsDefault = new Set([
-  "TABLE",
-  "TR",
-  "TD",
 ]);
 
 export const addBodyToObj = (obj, node, body) => {
@@ -98,6 +95,18 @@ const processTextFunctionsDefaultHtml = {
     recursiveProcessText(node.firstChild, obj);
   },
   TT: (node, obj) => {
+    addBodyToObj(obj, node, false);
+    recursiveProcessText(node.firstChild, obj);
+  },
+  TABLE: (node, obj) => {
+    addBodyToObj(obj, node, false);
+    recursiveProcessText(node.firstChild, obj);
+  },
+  TR: (node, obj) => {
+    addBodyToObj(obj, node, false);
+    recursiveProcessText(node.firstChild, obj);
+  },
+  TD: (node, obj) => {
     addBodyToObj(obj, node, false);
     recursiveProcessText(node.firstChild, obj);
   },

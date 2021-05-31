@@ -1,97 +1,9 @@
-import { recursiveProcessTextHtml } from "./parseXmlHtml.js";
+import fs from "fs";
+import path from "path";
+
 import { tableOfContent, allFilepath } from "./index.js";
-import { html_links_part1, html_links_part2, indexPage } from "./htmlContent";
 
-// const generateChapterIndex = filename => {
-//   let chapterIndex = "";
-//   if (filename.match(/chapter/)) {
-//     // match the number after string "chapter"
-//     chapterIndex += filename.match(/(?<=chapter)\d+/g)[0];
-//   }
-//   if (filename.match(/section/)) {
-//     // "section"
-//     chapterIndex += "." + filename.match(/(?<=section)\d+/g)[0];
-//   }
-//   if (filename.match(/subsection/)) {
-//     // "subsection"
-//     chapterIndex += "." + filename.match(/(?<=subsection)\d+/g)[0];
-//   }
-//   if (filename.match(/foreword/)) {
-//     chapterIndex = "foreword";
-//   } else if (filename.match(/prefaces/)) {
-//     chapterIndex = filename.match(/prefaces\d*/g)[0];
-//   } else if (filename.match(/acknowledgements/)) {
-//     chapterIndex = "acknowledgements";
-//   } else if (filename.match(/references/)) {
-//     chapterIndex = "references";
-//   } else if (filename.match(/see/)) {
-//     chapterIndex = "see";
-//   } else if (filename.match(/indexpreface/)) {
-//     chapterIndex = "index";
-//   } else if (filename.match(/making/)) {
-//     chapterIndex = "making-of";
-//   }
-//   //console.log(chapterNumber);
-//   return chapterIndex;
-// };
-
-// const truncateTitle = chapterTitle => {
-//   let truncatedTitle = "";
-//   chapterTitle.forEach(item => (truncatedTitle += item));
-//   return truncatedTitle;
-// };
-
-// const recursiveFindTitle = (node, chapterTitle) => {
-//   if (!node) return;
-//   if (node.nodeName == "NAME") {
-//     // using recursiveProcessText function from parseXML.js
-//     recursiveProcessTextHtml(node.firstChild, chapterTitle);
-//   } else {
-//     recursiveFindTitle(node.firstChild, chapterTitle);
-//   }
-//   if (!chapterTitle[0])
-//     return recursiveFindTitle(node.nextSibling, chapterTitle);
-//   return;
-// };
-
-// export const generateTOC = (doc, tableOfContent, filename) => {
-//   const index = generateChapterIndex(filename);
-//   const chapterTitle = [];
-//   recursiveFindTitle(doc.documentElement, chapterTitle);
-//   const title = truncateTitle(chapterTitle);
-//   let relativePathToMain = "";
-//   for (let i = 1; i < filename.split("/").length; i++) {
-//     relativePathToMain += "../";
-//   }
-//   tableOfContent[filename] = { index, title, relativePathToMain };
-// };
-
-// export const sortTOC = allFilepath => {
-//   allFilepath = allFilepath.sort();
-
-//   let head = [];
-//   let mid = [];
-//   let tail = [];
-
-//   for (const filename of allFilepath) {
-//     if (
-//       filename.match(/foreword/) ||
-//       filename.match(/prefaces/) ||
-//       filename.match(/acknowledgements/) ||
-//       filename.match(/see/)
-//     ) {
-//       head.push(filename);
-//     } else if (filename.match(/references/) || filename.match(/making/)) {
-//       tail.push(filename);
-//     } else {
-//       mid.push(filename);
-//     }
-//   }
-
-//   return head.concat(mid, tail);
-// };
-
-export const recursiveProcessTOC = (index, writeTo) => {
+const recursiveProcessTOC = (index, toc, tocNavigation) => {
   if (index >= allFilepath.length) {
     return;
   }
@@ -106,22 +18,24 @@ export const recursiveProcessTOC = (index, writeTo) => {
 
   if (filename.match(/others/) || filename.match(/subsection/)) {
     if (!filename.match(/see/)) {
-      writeTo.push({
+      toc.push({
         id: index,
         hasCaret: false,
         label: displayTitle,
         nodeData: chapterIndex
       });
+
+      tocNavigation.push("/interactive-sicp/" + chapterIndex);
     }
 
     if (filename.match(/others/) || allFilepath[next].match(/subsection/)) {
-      return recursiveProcessTOC(next, writeTo);
+      return recursiveProcessTOC(next, toc, tocNavigation);
     } else {
       return;
     }
   } else {
     const child = [];
-    writeTo.push({
+    toc.push({
       id: index,
       hasCaret: true,
       label: displayTitle,
@@ -129,14 +43,16 @@ export const recursiveProcessTOC = (index, writeTo) => {
       childNodes: child
     });
 
-    recursiveProcessTOC(next, child);
+    tocNavigation.push("/interactive-sicp/" + chapterIndex);
+
+    recursiveProcessTOC(next, child, tocNavigation);
 
     if (filename.match(/section/)) {
       while (allFilepath[next].match(/subsection/)) {
         next++;
       }
       if (allFilepath[next].match(/section/)) {
-        return recursiveProcessTOC(next, writeTo);
+        return recursiveProcessTOC(next, toc, tocNavigation);
       }
 
       return;
@@ -144,41 +60,46 @@ export const recursiveProcessTOC = (index, writeTo) => {
       while (allFilepath[next].match(/section/)) {
         next++;
       }
-      return recursiveProcessTOC(next, writeTo);
+      return recursiveProcessTOC(next, toc, tocNavigation);
     }
   }
 };
 
-// export const indexHtml = writeToIndex => {
-//   //let chapArrIndex = 0;
+export const createTocJson = outputDir => {
+  const toc = [];
+  const tocNavigation = [];
+  recursiveProcessTOC(0, toc, tocNavigation);
 
-//   //console.log(tableOfContent);
-//   writeToIndex.push(html_links_part1);
-//   writeToIndex.push(`
-//     <meta name="description" content="" />
-//         <title>
-//         Structure and Interpretation of Computer Programs, JavaScript Adaptation
-//         </title>
-//     `);
-//   html_links_part2(writeToIndex, "", "js");
+  const tocNavigationOutput = {};
 
-//   // TOC at the sidebar
-//   recursiveProcessTOC(0, writeToIndex, "sidebar", "./chapters/");
-//   writeToIndex.push("</div>\n"); // <div class='collapse'>
+  tocNavigation.forEach(x => (tocNavigationOutput[x] = {}));
 
-//   // index page content
-//   writeToIndex.push(`
-//     <div class="chapter-content">
-//     <div class="chapter-text" >`);
-//   indexPage(writeToIndex);
+  for (let i = 0; i < tocNavigation.length - 1; i++) {
+    const curr = tocNavigation[i];
+    const next = tocNavigation[i + 1];
+    tocNavigationOutput[curr]["next"] = next;
+  }
 
-//   // TOC at index page
-//   writeToIndex.push("<h2>Content</h2>");
-//   writeToIndex.push("\n<div class='nav-index'>");
-//   recursiveProcessTOC(0, writeToIndex, "index", "./chapters/");
-//   writeToIndex.push("</div>\n"); // <div class='nav-index'>
-//   writeToIndex.push("</div>\n"); // <div class="chapter-content">
+  for (let i = 1; i < tocNavigation.length; i++) {
+    const curr = tocNavigation[i];
+    const prev = tocNavigation[i - 1];
+    tocNavigationOutput[curr]["prev"] = prev;
+  }
 
-//   writeToIndex.push("</div>\n"); // <div class="container scroll">
-//   writeToIndex.push("</body></html>");
-// };
+  tocNavigationOutput[tocNavigation[0]]["prev"] = "/interactive-sicp/";
+  tocNavigationOutput["index"] = { next: tocNavigation[0] };
+
+  const tocFilepath = path.join(outputDir, "toc.json");
+  const tocStream = fs.createWriteStream(tocFilepath);
+  tocStream.once("open", fd => {
+    tocStream.write(JSON.stringify(toc));
+    tocStream.end();
+  });
+
+  const tocNavigationFilepath = path.join(outputDir, "toc-navigation.json");
+  const tocNavigationStream = fs.createWriteStream(tocNavigationFilepath);
+  tocNavigationStream.once("open", fd => {
+    tocNavigationStream.write(JSON.stringify(tocNavigationOutput));
+    tocNavigationStream.end();
+  });
+};
