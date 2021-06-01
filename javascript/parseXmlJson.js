@@ -9,7 +9,8 @@ import {
   processExerciseJson,
   processReferenceJson,
   processSnippetJson,
-  recursiveProcessPureText
+  recursiveProcessPureText,
+  recursivelyProcessTextSnippetJson
 } from "./processingFunctions";
 
 let paragraph_count = 0;
@@ -314,22 +315,28 @@ const processTextFunctions = {
       addBodyToObj(obj, node, false);
       obj["latex"] = true;
 
+      const writeTo = [];
+
       const textprompt = getChildrenByTagName(node, "JAVASCRIPT_PROMPT")[0];
       if (textprompt) {
-        recursiveProcessText(textprompt.firstChild, obj);
+        recursivelyProcessTextSnippetJson(textprompt.firstChild, writeTo);
       }
 
       const textit = getChildrenByTagName(node, "JAVASCRIPT")[0];
       if (textit) {
-        recursiveProcessText(textit.firstChild, obj);
+        recursivelyProcessTextSnippetJson(textit.firstChild, writeTo);
       } else {
-        recursiveProcessText(node.firstChild, obj);
+        recursivelyProcessTextSnippetJson(node.firstChild, writeTo);
       }
 
       const textoutput = getChildrenByTagName(node, "JAVASCRIPT_OUTPUT")[0];
       if (textoutput) {
-        recursiveProcessText(textoutput.firstChild, obj);
+        recursivelyProcessTextSnippetJson(textoutput.firstChild, writeTo);
       }
+
+      obj['body'] = "";
+      writeTo.forEach(x => obj['body'] += x);
+
       return;
     }
 

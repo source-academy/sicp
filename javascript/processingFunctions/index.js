@@ -24,7 +24,7 @@ import processSnippetHtmlScheme from "./processSnippetHtml_scheme";
 
 import processExerciseJson from "./processExerciseJson";
 import processFigureJson from "./processFigureJson";
-import processSnippetJson from "./processSnippetJson";
+import { processSnippetJson, recursivelyProcessTextSnippetJson } from "./processSnippetJson";
 import processEpigraphJson from "./processEpigraphJson";
 import processReferenceJson from "./processReferenceJson";
 
@@ -74,5 +74,6 @@ export {
   processReferenceJson,
   processSnippetHtml,
   processSnippetJson,
-  processSnippetHtmlScheme
+  processSnippetHtmlScheme,
+  recursivelyProcessTextSnippetJson
 };
