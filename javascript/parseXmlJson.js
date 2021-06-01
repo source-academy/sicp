@@ -249,7 +249,6 @@ const processTextFunctions = {
 
     let math = "";
     writeTo.forEach(x => (math += x));
-    math = math.trim();
 
     addBodyToObj(obj, node, math);
   },
