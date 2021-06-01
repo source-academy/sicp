@@ -189,7 +189,6 @@ const processTextFunctionsDefaultHtml = {
   },
 
   FIGURE: (node, writeTo) => {
-    recursiveProcessTextHtml(node.firstChild, writeTo);
     processFigureHtml(node, writeTo);
   },
 

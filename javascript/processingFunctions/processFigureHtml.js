@@ -6,42 +6,46 @@ import {
 import { referenceStore } from "./processReferenceHtml";
 
 export const processFigureHtml = (node, writeTo) => {
+  console.log("processing FIGURE");
+  console.log(node);
+
+  // FIGURE can have FIGURE inside; src of image can be
+  // in either the outer or the inner FIGURE
+  // (inner FIGURE should be called IMAGE, but isn't)
+
+  // get src of image; if src is null, there is no image
   let src = node.getAttribute("src");
   if (!src && node.getElementsByTagName("FIGURE")[0]) {
     src = node.getElementsByTagName("FIGURE")[0].getAttribute("src");
   }
 
-  let scale_factor = "scale_factor_0";
-  if (
-    !node.getAttribute("scale_factor") &&
-    node.getElementsByTagName("FIGURE")[0]
+  // get scale_factor, default: 100%
+  let scale_fraction = null;
+  if (node.getAttribute("scale")) {
+    scale_fraction = node.getAttribute("scale");
+  } else if (
+    node.getElementsByTagName("FIGURE") &&
+    node.getElementsByTagName("FIGURE")[0] &&
+    node.getElementsByTagName("FIGURE")[0].getAttribute("scale")
   ) {
-    scale_factor =
-      "scale_factor_" +
-      node.getElementsByTagName("FIGURE")[0].getAttribute("scale_factor");
-  } else {
-    scale_factor = "scale_factor_" + node.getAttribute("scale_factor");
+    scale_fraction = node
+      .getElementsByTagName("FIGURE")[0]
+      .getAttribute("scale");
+  }
+  if (node.getAttribute("web_scale")) {
+    scale_fraction = node.getAttribute("web_scale");
+  } else if (
+    node.getElementsByTagName("FIGURE") &&
+    node.getElementsByTagName("FIGURE")[0] &&
+    node.getElementsByTagName("FIGURE")[0].getAttribute("web_scale")
+  ) {
+    scale_fraction = node
+      .getElementsByTagName("FIGURE")[0]
+      .getAttribute("web_scale");
   }
 
+  // every outer FIGURE must have a LABEL
   const label = node.getElementsByTagName("LABEL")[0];
-
-  if (src && !label) {
-    writeTo.push(`
-        <img class="${scale_factor}" src="${toIndexFolder}${src}">
-      `);
-    return;
-  } else if (!src) {
-    // console.log(node.toString());
-    writeTo.push(`<FIGURE>`);
-    const images = node.getElementsByTagName("IMAGE");
-    for (let i = 0; i < images.length; i++) {
-      writeTo.push(`
-      <img class="${scale_factor}" src="${toIndexFolder}${images[
-        i
-      ].getAttribute("src")}">
-      `);
-    }
-  }
 
   // get href and displayed name from "referenceStore"
   const referenceName = label.getAttribute("NAME");
@@ -54,10 +58,18 @@ export const processFigureHtml = (node, writeTo) => {
     ? referenceStore[referenceName].displayName
     : "";
 
-  if (src && label) {
-    writeTo.push(`
-    <FIGURE>
-      <img class="${scale_factor}" id="fig_${displayName}" src="${toIndexFolder}${src}">`);
+  writeTo.push(`<FIGURE>`);
+
+  if (src) {
+    if (scale_fraction) {
+      const scale_fraction_number = parseFloat(scale_fraction);
+      const scale_percentage = scale_fraction_number * 100;
+      writeTo.push(`
+      <img style="width: ${scale_percentage}%" id="fig_${displayName}" src="${toIndexFolder}${src}">`);
+    } else {
+      writeTo.push(`
+      <img id="fig_${displayName}" src="${toIndexFolder}${src}">`);
+    }
   }
 
   const snippet = node.getElementsByTagName("SNIPPET")[0];
@@ -79,9 +91,7 @@ export const processFigureHtml = (node, writeTo) => {
     writeTo.push("</div>");
   }
 
-  writeTo.push(`
-    </FIGURE>
-  `);
+  writeTo.push(`</FIGURE>`);
 };
 
 export default processFigureHtml;
