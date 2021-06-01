@@ -212,6 +212,9 @@ const processTextFunctions = {
     addBodyToObj(obj, node, false);
     obj["id"] = `#footnote-${display_footnote_count}`;
     obj["count"] = display_footnote_count;
+    obj[
+      "href"
+    ] = `/interactive-sicp/${chapterIndex}#footnote-link-${display_footnote_count}`;
 
     recursiveProcessText(node.firstChild, obj);
   },
@@ -334,8 +337,8 @@ const processTextFunctions = {
         recursivelyProcessTextSnippetJson(textoutput.firstChild, writeTo);
       }
 
-      obj['body'] = "";
-      writeTo.forEach(x => obj['body'] += x);
+      obj["body"] = "";
+      writeTo.forEach(x => (obj["body"] += x));
 
       return;
     }
@@ -403,12 +406,14 @@ const processTextFunctions = {
   SUBHEADING: (node, obj) => {
     heading_count += 1;
     addBodyToObj(obj, node, false);
+    obj["id"] = `#h${heading_count}`;
     recursiveProcessText(node.firstChild, obj);
   },
 
   SUBSUBHEADING: (node, obj) => {
     heading_count += 1;
     addBodyToObj(obj, node, false);
+    obj["id"] = `#h${heading_count}`;
     recursiveProcessText(node.firstChild, obj);
   },
 
