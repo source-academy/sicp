@@ -6,8 +6,8 @@ import {
 import { referenceStore } from "./processReferenceHtml";
 
 export const processFigureHtml = (node, writeTo) => {
-  console.log("processing FIGURE");
-  console.log(node);
+  // console.log("processing FIGURE");
+  // console.log(node);
 
   // FIGURE can have FIGURE inside; src of image can be
   // in either the outer or the inner FIGURE
@@ -49,7 +49,7 @@ export const processFigureHtml = (node, writeTo) => {
 
   // get href and displayed name from "referenceStore"
   const referenceName = label.getAttribute("NAME");
-  console.log("reference name is " + referenceName);
+  // console.log("reference name is " + referenceName);
   const href = referenceStore[referenceName]
     ? referenceStore[referenceName].href
     : "";

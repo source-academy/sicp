@@ -1,89 +1,89 @@
 import {
   recursiveProcessText,
+  recursiveProcess,
   processText
 } from "../parseXmlJson";
 import { referenceStore } from "./processReferenceJson";
 
 export const processFigureJson = (node, obj) => {
+  // FIGURE can have FIGURE inside; src of image can be
+  // in either the outer or the inner FIGURE
+  // (inner FIGURE should be called IMAGE, but isn't)
+
+  // get src of image; if src is null, there is no image
   let src = node.getAttribute("src");
   if (!src && node.getElementsByTagName("FIGURE")[0]) {
     src = node.getElementsByTagName("FIGURE")[0].getAttribute("src");
   }
-
-  let scale_factor = "scale_factor_0";
-  if (
-    !node.getAttribute("scale_factor") &&
-    node.getElementsByTagName("FIGURE")[0]
+  // get scale_factor, default: 100%
+  let scale_fraction = 1;
+  if (node.getAttribute("scale")) {
+    scale_fraction = node.getAttribute("scale");
+  } else if (
+    node.getElementsByTagName("FIGURE") &&
+    node.getElementsByTagName("FIGURE")[0] &&
+    node.getElementsByTagName("FIGURE")[0].getAttribute("scale")
   ) {
-    scale_factor =
-      "scale_factor_" +
-      node.getElementsByTagName("FIGURE")[0].getAttribute("scale_factor");
-  } else {
-    scale_factor = "scale_factor_" + node.getAttribute("scale_factor");
+    scale_fraction = node
+      .getElementsByTagName("FIGURE")[0]
+      .getAttribute("scale");
   }
 
+  if (node.getAttribute("web_scale")) {
+    scale_fraction = node.getAttribute("web_scale");
+  } else if (
+    node.getElementsByTagName("FIGURE") &&
+    node.getElementsByTagName("FIGURE")[0] &&
+    node.getElementsByTagName("FIGURE")[0].getAttribute("web_scale")
+  ) {
+    scale_fraction = node
+      .getElementsByTagName("FIGURE")[0]
+      .getAttribute("web_scale");
+  }
+
+  // every outer FIGURE must have a LABEL
   const label = node.getElementsByTagName("LABEL")[0];
-
-  const images = [];
-  obj['images'] = images;
-
-  if (src && !label) {
-    const image = {};
-    image["class"] = scale_factor;
-    image["src"] = src;
-    images.push(image);
-    return;
-  } else if (!src) {
-    const images = node.getElementsByTagName("IMAGE");
-    for (let i = 0; i < images.length; i++) {
-      const image = {};
-      image["class"] = scale_factor;
-      image["src"] = images[i].getAttribute("src");
-      images.push(image);
-    }
-  }
 
   // get href and displayed name from "referenceStore"
   const referenceName = label.getAttribute("NAME");
-  // console.log("reference name is " + referenceName);
   const href = referenceStore[referenceName]
     ? referenceStore[referenceName].href
     : "";
-  // console.log("lookup successful");
   const displayName = referenceStore[referenceName]
     ? referenceStore[referenceName].displayName
     : "";
 
-  if (src && label) {
-    const image = {};
-    image["class"] = scale_factor;
-    image["src"] = src;
-    image['id'] = `#fig_${displayName}`;
-    images.push(image);
+  if (src) {
+    const scale_fraction_number = parseFloat(scale_fraction);
+    const scale_percentage = scale_fraction_number * 100;
+
+    obj["scale"] = `${scale_percentage}%`;
+    obj["src"] = `${src}`;
+    obj["id"] = `#fig_${displayName}`;
   }
 
   const snippet = node.getElementsByTagName("SNIPPET")[0];
   if (snippet) {
-    processText(snippet, obj);
+    const snippetObj = {};
+    obj["snippet"] = snippetObj;
+    processText(snippet, snippetObj);
   }
 
   const table = node.getElementsByTagName("TABLE")[0];
   if (table) {
-    processText(table, obj);
+    const tableObj = {};
+    obj["table"] = tableObj;
+    processText(table, tableObj);
   }
 
   const caption = node.getElementsByTagName("CAPTION")[0];
   if (caption) {
-    if (!images[0]) {
-      images.push({});
-    }
-
     const captionBody = {};
     recursiveProcessText(caption.firstChild, captionBody);
 
-    images[0]["captionHref"] = href;
-    images[0]["captionName"] = "Figure " + displayName + " ";
-    images[0]["captionBody"] = captionBody['child'];
+    obj["captionHref"] = href;
+    obj["captionName"] = "Figure " + displayName + " ";
+    obj["captionBody"] = captionBody["child"];
   }
 };
 

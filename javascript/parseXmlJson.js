@@ -180,7 +180,6 @@ const processTextFunctions = {
   },
 
   FIGURE: (node, obj) => {
-    recursiveProcessText(node.firstChild, obj);
     addBodyToObj(obj, node, false);
     processFigureJson(node, obj);
   },
