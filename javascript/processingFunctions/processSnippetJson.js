@@ -204,7 +204,6 @@ export const processSnippetJson = (node, snippet) => {
       }
       const exampleStr = exampleArr.join("");
 
-      // make url for source academy link
       const compressedPrepend = lzString.compressToEncodedURIComponent(reqStr);
 
       const compressedWithoutPrepend = lzString.compressToEncodedURIComponent(

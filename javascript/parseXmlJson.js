@@ -24,7 +24,6 @@ let chapArrIndex = 0;
 let chapterTitle = "";
 let displayTitle = "";
 export let chapterIndex = "";
-export let toIndexFolder = "../";
 
 export const tagsToRemove = new Set([
   "#comment",

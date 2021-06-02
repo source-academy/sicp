@@ -172,7 +172,6 @@ async function translateXml(filepath, filename, option) {
       setupReferencesJson(doc.documentElement, relativeFilePath);
       return;
     } else if (option == "parseXml") {
-      // parsing over here
       const jsonObj = [];
       parseXmlJson(doc, jsonObj, relativeFilePath);
 
@@ -366,7 +365,7 @@ async function main() {
     console.log("\ngenerate table of content\n");
     await recursiveTranslateXml("", "generateTOC");
     allFilepath = sortTOC(allFilepath);
-    console.log(tableOfContent);
+    // console.log(tableOfContent);
     createTocJson(outputDir);
 
     console.log("setup snippets and references\n");
