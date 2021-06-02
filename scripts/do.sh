@@ -85,7 +85,8 @@ prepare() {
  	                                      cp -rf ${GENERATED_HTML_SPLIT} ${DOCS}/split )
  	[ ! -d ${GENERATED_JS} ] || ( zip -r ${ZIP_FILE} ${GENERATED_JS}; \
  	                              cp ${ZIP_FILE} ${DOCS} )
-	[ ! -d ${GENERATED_JSON} ] || cp -rf ${GENERATED_JSON}/* ${DOCS}/json
+	[ ! -d ${GENERATED_JSON} ] || ( rm -rf ${DOCS}/json; \
+									 cp -rf ${GENERATED_JSON} ${DOCS}/json )
 }
 
 # install all files in docs_out to official website
