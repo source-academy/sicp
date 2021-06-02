@@ -166,9 +166,7 @@ async function translateXml(filepath, filename, option) {
       generateTOC(doc, tableOfContent, relativeFilePath);
       return;
     } else if (option == "setupSnippet") {
-      //console.log("setting up " + filepath + " " + filename);
       setupSnippetsJson(doc.documentElement);
-      // setupSnippetsHtml(doc.documentElement);
       setupReferencesJson(doc.documentElement, relativeFilePath);
       return;
     } else if (option == "parseXml") {

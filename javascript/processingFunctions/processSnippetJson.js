@@ -31,8 +31,6 @@ export const setupSnippetsJson = node => {
       const requirements = snippet.getElementsByTagName("REQUIRES");
       const requireNames = [];
       for (let i = 0; requirements[i]; i++) {
-        //  console.log("in setupSnippetsHtml: name: " + nameStr);
-        //  console.log("in setupSnippetsHtml: " + requirements[i].firstChild.nodeValue);
         requireNames.push(requirements[i].firstChild.nodeValue);
       }
       snippetStore[nameStr] = { codeStr, requireNames };
