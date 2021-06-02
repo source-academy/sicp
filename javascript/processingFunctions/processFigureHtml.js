@@ -47,6 +47,13 @@ export const processFigureHtml = (node, writeTo) => {
   // every outer FIGURE must have a LABEL
   const label = node.getElementsByTagName("LABEL")[0];
 
+  // handle case where figure does not have label (figure in original sicp)
+  if (src && !label) {
+    writeTo.push(`
+      <img src="${toIndexFolder}${src}">`);
+    return;
+  }
+
   // get href and displayed name from "referenceStore"
   const referenceName = label.getAttribute("NAME");
   // console.log("reference name is " + referenceName);
