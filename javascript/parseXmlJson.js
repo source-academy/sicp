@@ -453,18 +453,43 @@ export const recursiveProcessText = (node, obj, prevSibling = false) => {
     obj = child;
   }
 
-  const next = {};
+  let next = {};
   processText(node, next);
 
-  if (next["tag"] === "#text" && prevSibling["tag"] === "#text") {
-    prevSibling["body"] += next["body"];
-
-    return recursiveProcessText(node.nextSibling, obj, prevSibling);
-  } else if (next["tag"] || next["child"]) {
-    obj.push(next);
+  // remove child array if empty
+  if (next["child"] && next["child"].length === 0) {
+    next["child"] = undefined;
   }
 
-  return recursiveProcessText(node.nextSibling, obj, next);
+  // Join nested child if no tag
+  if (!next["tag"] && next["child"]) {
+    const child = next["child"];
+
+    // handle first element of child
+    if (child[0]["tag"] === "#text" && prevSibling["tag"] === "#text") {
+      prevSibling["body"] += child[0]["body"];
+    } else {
+      obj.push(child[0]);
+      prevSibling = child[0];
+    }
+
+    for (let i = 1; i < next["child"].length; i++) {
+      obj.push(child[i]);
+      prevSibling = child[i];
+    }
+  } else if (next["tag"] === "#text" && prevSibling["tag"] === "#text") {
+    // Join 2 adjacent objects if they are both text
+    prevSibling["body"] += next["body"];
+  } else if (next["tag"] || next["child"]) {
+    obj.push(next);
+
+    prevSibling = next;
+  } else if (!prevSibling) {
+    // no previous sibling
+    prevSibling = next;
+  }
+
+  return recursiveProcessText(node.nextSibling, obj, prevSibling);
 };
 
 export const parseXmlJson = (doc, obj, filename) => {
