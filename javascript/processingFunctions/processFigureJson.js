@@ -57,7 +57,9 @@ export const processFigureJson = (node, obj) => {
     const scale_fraction_number = parseFloat(scale_fraction);
     const scale_percentage = scale_fraction_number * 100;
 
-    obj["scale"] = `${scale_percentage}%`;
+    if (scale_fraction !== 1) {
+      obj["scale"] = `${scale_percentage}%`;
+    }
     obj["src"] = `${src}`;
     obj["id"] = `#fig_${displayName}`;
   }
