@@ -1,8 +1,4 @@
-import {
-  recursiveProcessText,
-  recursiveProcess,
-  processText
-} from "../parseXmlJson";
+import { recursiveProcessTextJson, processTextJson } from "../parseXmlJson";
 import { referenceStore } from "./processReferenceJson";
 
 export const processFigureJson = (node, obj) => {
@@ -68,20 +64,20 @@ export const processFigureJson = (node, obj) => {
   if (snippet) {
     const snippetObj = {};
     obj["snippet"] = snippetObj;
-    processText(snippet, snippetObj);
+    processTextJson(snippet, snippetObj);
   }
 
   const table = node.getElementsByTagName("TABLE")[0];
   if (table) {
     const tableObj = {};
     obj["table"] = tableObj;
-    processText(table, tableObj);
+    processTextJson(table, tableObj);
   }
 
   const caption = node.getElementsByTagName("CAPTION")[0];
   if (caption) {
     const captionBody = {};
-    recursiveProcessText(caption.firstChild, captionBody);
+    recursiveProcessTextJson(caption.firstChild, captionBody);
 
     obj["captionHref"] = href;
     obj["captionName"] = "Figure " + displayName + " ";

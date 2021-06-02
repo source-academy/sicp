@@ -75,41 +75,6 @@ export const addArrayToObj = (obj, node, array) => {
 };
 
 const processTextFunctions = {
-  AMP: (node, obj) => {
-    addBodyToObj(obj, node, "&amp;");
-    obj["tag"] = "#text";
-  },
-  B: (node, obj) => {
-    addBodyToObj(obj, node, false);
-    recursiveProcessText(node.firstChild, obj);
-  },
-  EM: (node, obj) => {
-    addBodyToObj(obj, node, false);
-    recursiveProcessText(node.firstChild, obj);
-  },
-  LI: (node, obj) => {
-    addBodyToObj(obj, node, false);
-    recursiveProcessText(node.firstChild, obj);
-  },
-  TT: (node, obj) => {
-    addBodyToObj(obj, node, false);
-    recursiveProcessText(node.firstChild, obj);
-  },
-  TABLE: (node, obj) => {
-    addBodyToObj(obj, node, false);
-    recursiveProcessText(node.firstChild, obj);
-  },
-  TR: (node, obj) => {
-    addBodyToObj(obj, node, false);
-    recursiveProcessText(node.firstChild, obj);
-  },
-  TD: (node, obj) => {
-    addBodyToObj(obj, node, false);
-    recursiveProcessText(node.firstChild, obj);
-  },
-  WEB_ONLY: (node, obj) => {
-    recursiveProcessText(node.firstChild, obj);
-  },
   "#text": (node, obj) => {
     // ignore the section/subsection tags at the end of chapter/section files
     if (!node.nodeValue.match(/&(\w|\.|\d)+;/)) {
@@ -120,6 +85,50 @@ const processTextFunctions = {
     }
   },
 
+  AMP: (node, obj) => {
+    addBodyToObj(obj, node, "&amp;");
+    obj["tag"] = "#text";
+  },
+
+  B: (node, obj) => {
+    addBodyToObj(obj, node, false);
+    recursiveProcessTextJson(node.firstChild, obj);
+  },
+
+  EM: (node, obj) => {
+    addBodyToObj(obj, node, false);
+    recursiveProcessTextJson(node.firstChild, obj);
+  },
+
+  LI: (node, obj) => {
+    addBodyToObj(obj, node, false);
+    recursiveProcessTextJson(node.firstChild, obj);
+  },
+
+  TT: (node, obj) => {
+    addBodyToObj(obj, node, false);
+    recursiveProcessTextJson(node.firstChild, obj);
+  },
+
+  TABLE: (node, obj) => {
+    addBodyToObj(obj, node, false);
+    recursiveProcessTextJson(node.firstChild, obj);
+  },
+
+  TR: (node, obj) => {
+    addBodyToObj(obj, node, false);
+    recursiveProcessTextJson(node.firstChild, obj);
+  },
+
+  TD: (node, obj) => {
+    addBodyToObj(obj, node, false);
+    recursiveProcessTextJson(node.firstChild, obj);
+  },
+
+  WEB_ONLY: (node, obj) => {
+    recursiveProcessTextJson(node.firstChild, obj);
+  },
+
   ABOUT: (node, obj) => {
     addBodyToObj(obj, node, displayTitle);
 
@@ -128,14 +137,18 @@ const processTextFunctions = {
       childNode = childNode.nextSibling;
     }
 
-    recursiveProcessText(childNode.nextSibling, obj);
+    recursiveProcessTextJson(childNode.nextSibling, obj);
   },
+
   REFERENCES: (node, obj) => processTextFunctions["ABOUT"](node, obj),
+
   REFERENCE: (node, obj) => {
     addBodyToObj(obj, node, false);
-    recursiveProcessText(node.firstChild, obj);
+    recursiveProcessTextJson(node.firstChild, obj);
   },
+
   WEBPREFACE: (node, obj) => processTextFunctions["ABOUT"](node, obj),
+
   MATTER: (node, obj) => processTextFunctions["ABOUT"](node, obj),
 
   br: (node, obj) => {
@@ -149,12 +162,12 @@ const processTextFunctions = {
     addBodyToObj(obj, node, displayTitle);
 
     const name = getChildrenByTagName(node, "NAME")[0];
-    recursiveProcessText(name.nextSibling, obj);
+    recursiveProcessTextJson(name.nextSibling, obj);
   },
 
   EM_NO_INDEX: (node, obj) => {
     node.nodeName = "EM";
-    processText(node, obj);
+    processTextJson(node, obj);
   },
 
   EPIGRAPH: (node, obj) => {
@@ -215,13 +228,13 @@ const processTextFunctions = {
       "href"
     ] = `/interactive-sicp/${chapterIndex}#footnote-link-${display_footnote_count}`;
 
-    recursiveProcessText(node.firstChild, obj);
+    recursiveProcessTextJson(node.firstChild, obj);
   },
 
   H2: (node, obj) => {
     node.nodeName = "h2";
 
-    processText(node, obj);
+    processTextJson(node, obj);
   },
 
   META: (node, obj) => {
@@ -232,7 +245,7 @@ const processTextFunctions = {
 
   METAPHRASE: (node, obj) => {
     const childObj = {};
-    recursiveProcessText(node.firstChild, childObj);
+    recursiveProcessTextJson(node.firstChild, childObj);
     const arr = childObj["child"].map(x => x["body"]);
     addArrayToObj(obj, node, arr);
   },
@@ -240,10 +253,11 @@ const processTextFunctions = {
   LINK: (node, obj) => {
     addBodyToObj(obj, node, node.getAttribute("address"));
 
-    recursiveProcessText(node.firstChild, obj);
+    recursiveProcessTextJson(node.firstChild, obj);
   },
 
   LATEX: (node, obj) => processTextFunctions["LATEXINLINE"](node, obj),
+
   LATEXINLINE: (node, obj) => {
     const writeTo = [];
     recursiveProcessPureText(node.firstChild, writeTo, {
@@ -265,12 +279,12 @@ const processTextFunctions = {
   },
 
   NAME: (node, obj) => {
-    recursiveProcessText(node.firstChild, obj);
+    recursiveProcessTextJson(node.firstChild, obj);
   },
 
   P: (node, obj) => {
     node.nodeName = "p";
-    processText(node, obj);
+    processTextJson(node, obj);
   },
 
   TEXT: (node, obj) => {
@@ -278,7 +292,7 @@ const processTextFunctions = {
 
     addBodyToObj(obj, node, false);
     obj["id"] = "#p" + paragraph_count;
-    recursiveProcessText(node.firstChild, obj);
+    recursiveProcessTextJson(node.firstChild, obj);
   },
 
   REF: (node, obj) => {
@@ -292,7 +306,7 @@ const processTextFunctions = {
     addBodyToObj(obj, node, displayTitle);
 
     const name = getChildrenByTagName(node, "NAME")[0];
-    recursiveProcessText(name.nextSibling, obj);
+    recursiveProcessTextJson(name.nextSibling, obj);
   },
 
   JAVASCRIPTINLINE: (node, obj) => {
@@ -352,17 +366,17 @@ const processTextFunctions = {
   SPACE: (node, obj) => {
     addBodyToObj(obj, node, "\u00A0");
     obj["tag"] = "#text";
-    recursiveProcessText(node.firstChild, obj);
+    recursiveProcessTextJson(node.firstChild, obj);
   },
 
   OL: (node, obj) => {
     addBodyToObj(obj, node, false);
-    recursiveProcessText(node.firstChild, obj);
+    recursiveProcessTextJson(node.firstChild, obj);
   },
 
   UL: (node, obj) => {
     addBodyToObj(obj, node, false);
-    recursiveProcessText(node.firstChild, obj);
+    recursiveProcessTextJson(node.firstChild, obj);
   },
 
   SUBINDEX: (node, obj) => {
@@ -371,17 +385,17 @@ const processTextFunctions = {
     addBodyToObj(obj, node, "!");
     const order = getChildrenByTagName(node, "ORDER")[0];
     if (order) {
-      recursiveProcessText(order.firstChild, obj);
+      recursiveProcessTextJson(order.firstChild, obj);
       addBodyToObj(obj, node, "@");
     }
-    recursiveProcessText(node.firstChild, obj);
+    recursiveProcessTextJson(node.firstChild, obj);
   },
 
   SUBSECTION: (node, obj) => {
     addBodyToObj(obj, node, displayTitle);
 
     const name = getChildrenByTagName(node, "NAME")[0];
-    recursiveProcessText(name.nextSibling, obj);
+    recursiveProcessTextJson(name.nextSibling, obj);
   },
 
   // e.g. section 4.4.4.4
@@ -399,30 +413,30 @@ const processTextFunctions = {
         name.firstChild.nodeValue
     );
 
-    recursiveProcessText(name.nextSibling, obj);
+    recursiveProcessTextJson(name.nextSibling, obj);
   },
 
   SUBHEADING: (node, obj) => {
     heading_count += 1;
     addBodyToObj(obj, node, false);
     obj["id"] = `#h${heading_count}`;
-    recursiveProcessText(node.firstChild, obj);
+    recursiveProcessTextJson(node.firstChild, obj);
   },
 
   SUBSUBHEADING: (node, obj) => {
     heading_count += 1;
     addBodyToObj(obj, node, false);
     obj["id"] = `#h${heading_count}`;
-    recursiveProcessText(node.firstChild, obj);
+    recursiveProcessTextJson(node.firstChild, obj);
   },
 
   QUOTE: (node, obj) => {
-    processText(node.firstChild, obj);
+    processTextJson(node.firstChild, obj);
     obj["body"] = '"' + obj["body"] + '"';
   }
 };
 
-export const processText = (node, obj) => {
+export const processTextJson = (node, obj) => {
   const name = node.nodeName;
   if (processTextFunctions[name]) {
     processTextFunctions[name](node, obj);
@@ -436,7 +450,7 @@ export const processText = (node, obj) => {
     } else if (tagsToRemove.has(name)) {
       return true;
     } else if (ignoreTags.has(name)) {
-      recursiveProcessText(node.firstChild, obj);
+      recursiveProcessTextJson(node.firstChild, obj);
       return true;
     }
   }
@@ -444,9 +458,10 @@ export const processText = (node, obj) => {
   return false;
 };
 
-export const recursiveProcessText = (node, obj, prevSibling = false) => {
+export const recursiveProcessTextJson = (node, obj, prevSibling = false) => {
   if (!node) return;
 
+  // no prevSibling if we are processing the child node
   if (!prevSibling) {
     const child = [];
     obj["child"] = child;
@@ -454,7 +469,7 @@ export const recursiveProcessText = (node, obj, prevSibling = false) => {
   }
 
   let next = {};
-  processText(node, next);
+  processTextJson(node, next);
 
   // remove child array if empty
   if (next["child"] && next["child"].length === 0) {
@@ -489,7 +504,7 @@ export const recursiveProcessText = (node, obj, prevSibling = false) => {
     prevSibling = next;
   }
 
-  return recursiveProcessText(node.nextSibling, obj, prevSibling);
+  return recursiveProcessTextJson(node.nextSibling, obj, prevSibling);
 };
 
 export const parseXmlJson = (doc, obj, filename) => {
@@ -512,5 +527,5 @@ export const parseXmlJson = (doc, obj, filename) => {
   chapArrIndex = allFilepath.indexOf(filename);
   console.log(`${chapArrIndex} parsing chapter ${chapterIndex}`);
 
-  recursiveProcessText(doc.documentElement, obj, true);
+  recursiveProcessTextJson(doc.documentElement, obj, true);
 };

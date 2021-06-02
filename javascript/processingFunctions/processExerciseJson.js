@@ -1,4 +1,4 @@
-import { recursiveProcessText } from "../parseXmlJson";
+import { recursiveProcessTextJson } from "../parseXmlJson";
 import { missingExerciseWarning } from "./warnings.js";
 import { referenceStore } from "./processReferenceJson";
 
@@ -25,11 +25,11 @@ const processExerciseHtml = (node, obj) => {
   obj["title"] = "Exercise " + displayName;
   obj["id"] = `#ex_${displayName}`;
 
-  recursiveProcessText(node.firstChild, obj);
+  recursiveProcessTextJson(node.firstChild, obj);
 
   if (solution) {
     const childObj = {};
-    recursiveProcessText(solution.firstChild, childObj);
+    recursiveProcessTextJson(solution.firstChild, childObj);
     obj["solution"] = childObj["child"];
   }
 };

@@ -1,9 +1,13 @@
-import { recursiveProcessText, processText, addBodyToObj } from "../parseXmlJson";
+import {
+  recursiveProcessTextJson,
+  processTextJson,
+  addBodyToObj
+} from "../parseXmlJson";
 
 export const processEpigraphJson = (node, obj) => {
   addBodyToObj(obj, node, false);
   const childArr = [];
-  obj['child'] = childArr;
+  obj["child"] = childArr;
 
   let child = node.firstChild;
   let attribution = null;
@@ -13,8 +17,8 @@ export const processEpigraphJson = (node, obj) => {
       break;
     } else {
       const childObj = {};
-      processText(child, childObj);
-      if (childObj['tag']) {
+      processTextJson(child, childObj);
+      if (childObj["tag"]) {
         childArr.push(childObj);
       }
     }
@@ -24,25 +28,25 @@ export const processEpigraphJson = (node, obj) => {
     const author = attribution.getElementsByTagName("AUTHOR")[0];
     if (author) {
       const childObj = {};
-      recursiveProcessText(author.firstChild, childObj);
-      obj['author'] = " " + childObj['child'][0]['body'];
+      recursiveProcessTextJson(author.firstChild, childObj);
+      obj["author"] = " " + childObj["child"][0]["body"];
     }
 
     const title = attribution.getElementsByTagName("TITLE")[0];
     if (title) {
       const childObj = {};
-      recursiveProcessText(title.firstChild, childObj);
+      recursiveProcessTextJson(title.firstChild, childObj);
       if (author) {
-        obj['title'] = ",";
+        obj["title"] = ",";
       }
-      obj['title'] += " " + childObj['child'][0]['body'];
+      obj["title"] += " " + childObj["child"][0]["body"];
     }
 
     const date = attribution.getElementsByTagName("DATE")[0];
     if (date) {
       const childObj = {};
-      recursiveProcessText(date.firstChild, childObj);
-      obj['date'] = " (" + childObj['child'][0]['body'] + ")";
+      recursiveProcessTextJson(date.firstChild, childObj);
+      obj["date"] = " (" + childObj["child"][0]["body"] + ")";
     }
   }
 };
