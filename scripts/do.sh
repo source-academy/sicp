@@ -9,6 +9,7 @@ LATEX_EPUB="latex_epub"
 GENERATED_HTML_JS="html_js"
 GENERATED_HTML_SPLIT="html_split"
 GENERATED_JS="js_programs"
+GENERATED_JSON="json"
 PDF_FILE="sicpjs.pdf"
 EPUB_FILE="sicpjs.epub"
 
@@ -72,6 +73,7 @@ clean() {
 	rm -rf ${GENERATED_HTML_JS}/*
 	rm -rf ${GENERATED_HTML_SPLIT}/*
 	rm -rf ${GENERATED_JS}/*
+	rm -rf ${GENERATED_JSON}/*
 	rm -f ${ZIP_FILE}
 }
 
@@ -83,6 +85,8 @@ prepare() {
  	                                      cp -rf ${GENERATED_HTML_SPLIT} ${DOCS}/split )
  	[ ! -d ${GENERATED_JS} ] || ( zip -r ${ZIP_FILE} ${GENERATED_JS}; \
  	                              cp ${ZIP_FILE} ${DOCS} )
+	[ ! -d ${GENERATED_JSON} ] || ( rm -rf ${DOCS}/json; \
+                                    cp -rf ${GENERATED_JSON} ${DOCS}/json )
 }
 
 # install all files in docs_out to official website
