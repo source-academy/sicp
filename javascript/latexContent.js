@@ -727,8 +727,8 @@ ISBN:
 10\\quad9\\quad8\\quad7\\quad6\\quad5\\quad4\\quad3\\quad2\\quad1
 \\end{copyrightpage}
 
-\\dedication{\\hspace{2cm}\\begin{minipage}{7.5cm}\\begin{center}\\normalsize This book is dedicated, in respect and admiration, \\\\[2mm]
-to the spirit that lives in the computer.\\end{center}\\end{minipage}}
+\\dedication{\\hspace{2.5cm}\\normalsize This book is dedicated, in respect and admiration, \\\\[2mm]
+\\hspace{3.45cm}to the spirit that lives in the computer.}
 
 \\begin{epigraphpage}
 \\epigraph{\\hspace{-1.2cm}\\begin{minipage}{11.5cm}\\normalsize\`\`I think it's extraordinarily important that we in computer science keep
