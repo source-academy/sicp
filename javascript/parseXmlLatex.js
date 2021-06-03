@@ -605,14 +605,6 @@ const processTextFunctionsEpub = {
     addName(node, writeTo);
     recursiveProcessTextLatex(node.firstChild, writeTo);
   },
-  JAVASCRIPTINLINE: (node, writeTo) => {
-    writeTo.push("{\\lstinline[mathescape=false, language=JavaScript]~");
-    recursiveProcessPureText(node.firstChild, writeTo, {
-      removeNewline: "all",
-      escapeCurlyBracket: true
-    });
-    writeTo.push("~}%\n");
-  },
   SNIPPET: (node, writeTo) => {
     processSnippetEpub(node, writeTo);
   },
