@@ -363,7 +363,6 @@ async function main() {
     console.log("\ngenerate table of content\n");
     await recursiveTranslateXml("", "generateTOC");
     allFilepath = sortTOC(allFilepath);
-    // console.log(tableOfContent);
     createTocJson(outputDir);
 
     console.log("setup snippets and references\n");

@@ -25,7 +25,7 @@ const recursiveProcessTOC = (index, toc, tocNavigation) => {
         nodeData: chapterIndex
       });
 
-      tocNavigation.push("/interactive-sicp/" + chapterIndex);
+      tocNavigation.push(chapterIndex);
     }
 
     if (filename.match(/others/) || allFilepath[next].match(/subsection/)) {
@@ -43,7 +43,7 @@ const recursiveProcessTOC = (index, toc, tocNavigation) => {
       childNodes: child
     });
 
-    tocNavigation.push("/interactive-sicp/" + chapterIndex);
+    tocNavigation.push(chapterIndex);
 
     recursiveProcessTOC(next, child, tocNavigation);
 
@@ -86,7 +86,7 @@ export const createTocJson = outputDir => {
     tocNavigationOutput[curr]["prev"] = prev;
   }
 
-  tocNavigationOutput[tocNavigation[0]]["prev"] = "/interactive-sicp/";
+  tocNavigationOutput[tocNavigation[0]]["prev"] = "index";
   tocNavigationOutput["index"] = { next: tocNavigation[0] };
 
   const tocFilepath = path.join(outputDir, "toc.json");
