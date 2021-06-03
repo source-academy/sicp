@@ -42,8 +42,7 @@ const tagsToRemove = new Set([
   "OPEN",
   "CLOSE",
   "SCHEME",
-  "SOLUTION",
-  "WEB_ONLY"
+  "SOLUTION"
 ]);
 // SOLUTION tag handled by processSnippet
 
@@ -61,6 +60,8 @@ const processTextFunctionsDefaultLatex = {
   PDF_ONLY: (node, writeTo) => {
     recursiveProcessTextLatex(node.firstChild, writeTo);
   },
+
+  WEB_ONLY: (node, writeTo) => {},
 
   "#text": (node, writeTo) => {
     let trimedValue;
@@ -594,6 +595,12 @@ const processTextFunctionsDefaultLatex = {
 };
 
 const processTextFunctionsEpub = {
+  PDF_ONLY: (node, writeTo) => {},
+
+  WEB_ONLY: (node, writeTo) => {
+    recursiveProcessTextLatex(node.firstChild, writeTo);
+  },
+
   EXERCISE: (node, writeTo) => {
     processExerciseEpub(node, writeTo);
   },
