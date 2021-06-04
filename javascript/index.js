@@ -15,7 +15,7 @@ import {
   recursiveProcessTextLatex
 } from "./parseXmlLatex";
 import { setupSnippetsPdf } from "./processingFunctions/processSnippetPdf";
-import { preamble, ending } from "./latexContent";
+import { preamble, epub_preamble, frontmatter, ending } from "./latexContent";
 const latexmkrcContent = `$pdflatex = "xelatex %O %S";
 $pdf_mode = 1;
 $dvi_mode = 0;
@@ -272,6 +272,10 @@ const createMain = () => {
   const stream = fs.createWriteStream(path.join(outputDir, "sicpjs.tex"));
   stream.once("open", fd => {
     stream.write(preamble);
+    stream.write(frontmatter);
+    if (parseType == "epub") {
+      stream.write(epub_preamble);
+    }
     chaptersFound.forEach(chapter => {
       const pathStr = "./" + chapter + "/" + chapter + ".tex";
       stream.write("\\input{" + pathStr + "}\n");

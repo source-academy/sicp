@@ -21,17 +21,6 @@ export const processFigureHtml = (node, writeTo) => {
 
   // get scale_factor, default: 100%
   let scale_fraction = null;
-  if (node.getAttribute("scale")) {
-    scale_fraction = node.getAttribute("scale");
-  } else if (
-    node.getElementsByTagName("FIGURE") &&
-    node.getElementsByTagName("FIGURE")[0] &&
-    node.getElementsByTagName("FIGURE")[0].getAttribute("scale")
-  ) {
-    scale_fraction = node
-      .getElementsByTagName("FIGURE")[0]
-      .getAttribute("scale");
-  }
   if (node.getAttribute("web_scale")) {
     scale_fraction = node.getAttribute("web_scale");
   } else if (
