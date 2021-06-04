@@ -3,7 +3,6 @@ import { allFilepath, tableOfContent } from "./index.js";
 
 import {
   replaceTagWithSymbol,
-  processBlockquoteHtml,
   processEpigraphJson,
   processFigureJson,
   processExerciseJson,
@@ -174,9 +173,7 @@ const processTextFunctions = {
   },
 
   BLOCKQUOTE: (node, obj) => {
-    const writeTo = [];
-    processBlockquoteHtml(node, writeTo);
-    addArrayToObj(obj, node, writeTo);
+    processEpigraphJson(node, obj);
   },
 
   NOINDENT: (_node, _obj) => {},
