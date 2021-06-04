@@ -15,7 +15,7 @@ import {
   recursiveProcessTextLatex
 } from "./parseXmlLatex";
 import { setupSnippetsPdf } from "./processingFunctions/processSnippetPdf";
-import { preamble, ending } from "./latexContent";
+import { preamble, epub_preamble, frontmatter, ending } from "./latexContent";
 const latexmkrcContent = `$pdflatex = "xelatex %O %S";
 $pdf_mode = 1;
 $dvi_mode = 0;
@@ -35,6 +35,12 @@ import { parseXmlJs } from "./parseXmlJs";
 import { setupSnippetsJs } from "./processingFunctions/processSnippetJs";
 import { setupSnippetsEpub } from "./processingFunctions/processSnippetEpub";
 import { getAnswers } from "./processingFunctions/processExercisePdf";
+
+// json (for cadet frontend)
+import { parseXmlJson } from "./parseXmlJson";
+import { setupSnippetsJson } from "./processingFunctions/processSnippetJson";
+import { createTocJson } from "./generateTocJson";
+import { setupReferencesJson } from "./processingFunctions/processReferenceJson";
 
 let parseType;
 let version;
@@ -149,6 +155,36 @@ async function translateXml(filepath, filename, option) {
     });
     return;
   }
+
+  if (parseType == "json") {
+    const relativeFilePath = path.join(
+      filepath,
+      filename.replace(/\.xml$/, "") + ".html"
+    );
+
+    if (option == "generateTOC") {
+      generateTOC(doc, tableOfContent, relativeFilePath);
+      return;
+    } else if (option == "setupSnippet") {
+      setupSnippetsJson(doc.documentElement);
+      setupReferencesJson(doc.documentElement, relativeFilePath);
+      return;
+    } else if (option == "parseXml") {
+      const jsonObj = [];
+      parseXmlJson(doc, jsonObj, relativeFilePath);
+
+      const outputFile = path.join(
+        outputDir,
+        tableOfContent[relativeFilePath].index + ".json"
+      );
+      const stream = fs.createWriteStream(outputFile);
+      stream.once("open", fd => {
+        stream.write(JSON.stringify(jsonObj));
+        stream.end();
+      });
+    }
+    return;
+  }
 }
 
 // for web version only
@@ -172,7 +208,10 @@ async function recursiveTranslateXml(filepath, option) {
   files.forEach(file => {
     if (file.match(/\.xml$/)) {
       // console.log(file + " being processed");
-      if (parseType == "web" && file.match(/indexpreface/)) {
+      if (
+        (parseType == "web" || parseType == "json") &&
+        file.match(/indexpreface/)
+      ) {
         // remove index section for web textbook
       } else {
         if (option == "generateTOC") {
@@ -207,7 +246,7 @@ const createMain = () => {
     fs.mkdirSync(outputDir);
   }
 
-  if (parseType == "js") {
+  if (parseType == "js" || parseType == "json") {
     return;
   }
 
@@ -233,6 +272,10 @@ const createMain = () => {
   const stream = fs.createWriteStream(path.join(outputDir, "sicpjs.tex"));
   stream.once("open", fd => {
     stream.write(preamble);
+    stream.write(frontmatter);
+    if (parseType == "epub") {
+      stream.write(epub_preamble);
+    }
     chaptersFound.forEach(chapter => {
       const pathStr = "./" + chapter + "/" + chapter + ".tex";
       stream.write("\\input{" + pathStr + "}\n");
@@ -316,6 +359,21 @@ async function main() {
     await recursiveTranslateXml("", "setupSnippet");
     console.log("setup snippets done\n");
     recursiveTranslateXml("", "parseXml");
+  } else if (parseType == "json") {
+    outputDir = path.join(__dirname, "../json");
+
+    createMain();
+
+    console.log("\ngenerate table of content\n");
+    await recursiveTranslateXml("", "generateTOC");
+    allFilepath = sortTOC(allFilepath);
+    createTocJson(outputDir);
+
+    console.log("setup snippets and references\n");
+    await recursiveXmlToHtmlInOrder("setupSnippet");
+    console.log("setup snippets and references done\n");
+
+    recursiveXmlToHtmlInOrder("parseXml");
   }
 }
 

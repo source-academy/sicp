@@ -1,14 +1,7 @@
-import {
-  recursiveProcessTextHtml,
-  processTextHtml,
-  toIndexFolder
-} from "../parseXmlHtml";
-import { referenceStore } from "./processReferenceHtml";
+import { recursiveProcessTextJson, processTextJson } from "../parseXmlJson";
+import { referenceStore } from "./processReferenceJson";
 
-export const processFigureHtml = (node, writeTo) => {
-  // console.log("processing FIGURE");
-  // console.log(node);
-
+export const processFigureJson = (node, obj) => {
   // FIGURE can have FIGURE inside; src of image can be
   // in either the outer or the inner FIGURE
   // (inner FIGURE should be called IMAGE, but isn't)
@@ -18,9 +11,20 @@ export const processFigureHtml = (node, writeTo) => {
   if (!src && node.getElementsByTagName("FIGURE")[0]) {
     src = node.getElementsByTagName("FIGURE")[0].getAttribute("src");
   }
-
   // get scale_factor, default: 100%
-  let scale_fraction = null;
+  let scale_fraction = 1;
+  if (node.getAttribute("scale")) {
+    scale_fraction = node.getAttribute("scale");
+  } else if (
+    node.getElementsByTagName("FIGURE") &&
+    node.getElementsByTagName("FIGURE")[0] &&
+    node.getElementsByTagName("FIGURE")[0].getAttribute("scale")
+  ) {
+    scale_fraction = node
+      .getElementsByTagName("FIGURE")[0]
+      .getAttribute("scale");
+  }
+
   if (node.getAttribute("web_scale")) {
     scale_fraction = node.getAttribute("web_scale");
   } else if (
@@ -36,58 +40,49 @@ export const processFigureHtml = (node, writeTo) => {
   // every outer FIGURE must have a LABEL
   const label = node.getElementsByTagName("LABEL")[0];
 
-  // handle case where figure does not have label (figure in original sicp)
-  if (src && !label) {
-    writeTo.push(`
-      <img src="${toIndexFolder}${src}">`);
-    return;
-  }
-
   // get href and displayed name from "referenceStore"
   const referenceName = label.getAttribute("NAME");
-  // console.log("reference name is " + referenceName);
   const href = referenceStore[referenceName]
     ? referenceStore[referenceName].href
     : "";
-  // console.log("lookup successful");
   const displayName = referenceStore[referenceName]
     ? referenceStore[referenceName].displayName
     : "";
 
-  writeTo.push(`<FIGURE>`);
-
   if (src) {
-    if (scale_fraction) {
-      const scale_fraction_number = parseFloat(scale_fraction);
-      const scale_percentage = scale_fraction_number * 100;
-      writeTo.push(`
-      <img style="width: ${scale_percentage}%" id="fig_${displayName}" src="${toIndexFolder}${src}">`);
-    } else {
-      writeTo.push(`
-      <img id="fig_${displayName}" src="${toIndexFolder}${src}">`);
+    const scale_fraction_number = parseFloat(scale_fraction);
+    const scale_percentage = scale_fraction_number * 100;
+
+    if (scale_fraction !== 1) {
+      obj["scale"] = `${scale_percentage}%`;
     }
+    obj["src"] = `${src}`;
+    obj["id"] = `#fig_${displayName}`;
   }
 
   const snippet = node.getElementsByTagName("SNIPPET")[0];
   if (snippet) {
-    processTextHtml(snippet, writeTo);
+    const snippetObj = {};
+    obj["snippet"] = snippetObj;
+    processTextJson(snippet, snippetObj);
   }
 
   const table = node.getElementsByTagName("TABLE")[0];
   if (table) {
-    processTextHtml(table, writeTo);
+    const tableObj = {};
+    obj["table"] = tableObj;
+    processTextJson(table, tableObj);
   }
 
   const caption = node.getElementsByTagName("CAPTION")[0];
   if (caption) {
-    writeTo.push(`
-      <div class="chapter-text-CAPTION">
-      <b><a class="caption" href="./${href}">Figure ${displayName} </a></b>`);
-    recursiveProcessTextHtml(caption.firstChild, writeTo);
-    writeTo.push("</div>");
-  }
+    const captionBody = {};
+    recursiveProcessTextJson(caption.firstChild, captionBody);
 
-  writeTo.push(`</FIGURE>`);
+    obj["captionHref"] = href;
+    obj["captionName"] = "Figure " + displayName + " ";
+    obj["captionBody"] = captionBody["child"];
+  }
 };
 
-export default processFigureHtml;
+export default processFigureJson;
