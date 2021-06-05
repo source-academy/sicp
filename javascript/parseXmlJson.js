@@ -235,7 +235,7 @@ const processTextFunctions = {
 
   META: (node, obj) => {
     let s = node.firstChild.nodeValue;
-    s = s.replace(/-/g, "$-$").replace(/ /g, "\\ ");
+    s = s.replace(/-/g, "-").replace(/ /g, "\\ ");
     addBodyToObj(obj, node, s);
   },
 
@@ -327,6 +327,7 @@ const processTextFunctions = {
     } else if (node.getAttribute("LATEX") == "yes") {
       addBodyToObj(obj, node, false);
       obj["latex"] = true;
+      obj["eval"] = false;
 
       const writeTo = [];
 
