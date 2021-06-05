@@ -3,7 +3,6 @@ import { allFilepath, tableOfContent } from "./index.js";
 
 import {
   replaceTagWithSymbol,
-  processBlockquoteHtml,
   processEpigraphJson,
   processFigureJson,
   processExerciseJson,
@@ -174,9 +173,7 @@ const processTextFunctions = {
   },
 
   BLOCKQUOTE: (node, obj) => {
-    const writeTo = [];
-    processBlockquoteHtml(node, writeTo);
-    addArrayToObj(obj, node, writeTo);
+    processEpigraphJson(node, obj);
   },
 
   NOINDENT: (_node, _obj) => {},
@@ -250,9 +247,10 @@ const processTextFunctions = {
   },
 
   LINK: (node, obj) => {
-    addBodyToObj(obj, node, node.getAttribute("address"));
-
-    recursiveProcessTextJson(node.firstChild, obj);
+    const writeTo = [];
+    recursiveProcessPureText(node.firstChild, writeTo);
+    addArrayToObj(obj, node, writeTo);
+    obj["href"] = node.getAttribute("address");
   },
 
   LATEX: (node, obj) => processTextFunctions["LATEXINLINE"](node, obj),
