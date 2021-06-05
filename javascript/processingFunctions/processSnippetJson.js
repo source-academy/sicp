@@ -125,7 +125,7 @@ export const processSnippetJson = (node, snippet) => {
     const codeStr_run = codeArr_run.join("").trim();
 
     if (node.getAttribute("EVAL") === "no") {
-      addToSnippet("body", codeStr, snippet);
+      addToSnippet("body", codeStr.trim(), snippet);
     } else {
       addToSnippet("eval", true, snippet);
       let reqStr = "";
@@ -246,7 +246,7 @@ export const processSnippetJson = (node, snippet) => {
         body += chunks[2];
       }
 
-      addToSnippet("body", body, snippet);
+      addToSnippet("body", body.trim(), snippet);
     }
   }
 
