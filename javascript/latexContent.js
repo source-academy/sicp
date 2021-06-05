@@ -801,11 +801,10 @@ export const ending = `
 \\markboth{}{}
 %% Shrink code size
 \\def\\inlinecodesize{\\protect\\inlineexercisecodesize}
-\\indexprologue{\\input{./others/98indexpreface98.tex}}
-\\printindex{sicpjs}{Index}
+%% imakeidx package not working as advertized in our case, so resorting to a hack
+\\printindex{sicpjs}{\\vbox{Index\\vspace{8mm}\\newline \\small \\normalfont Page numbers for JavaScript declarations are in italics.\\newline Page numbers followed by \\textit{n} indicate footnotes.}}
 %% Restore code size
 \\def\\inlinecodesize{\\protect\\INLINECODESIZE}
-
 
 \\newpage
 \\markboth{}{}
