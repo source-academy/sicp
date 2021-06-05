@@ -264,7 +264,7 @@ export const processSnippetJson = (node, snippet) => {
   if (jsOutputSnippet) {
     addToSnippet(
       "output",
-      jsOutputSnippet.firstChild.nodeValue.trimRight(),
+      jsOutputSnippet.firstChild.nodeValue.trim(),
       snippet
     );
   }
