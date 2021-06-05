@@ -246,7 +246,7 @@ export const processSnippetJson = (node, snippet) => {
         body += chunks[2];
       }
 
-      addToSnippet("body", body.trim(), snippet);
+      addToSnippet("body", body.trim() + " ", snippet);
     }
   }
 

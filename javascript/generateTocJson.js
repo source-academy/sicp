@@ -12,17 +12,19 @@ const recursiveProcessTOC = (index, toc, tocNavigation) => {
   const filename = allFilepath[index];
   const chapterIndex = tableOfContent[filename].index;
   const chapterTitle = tableOfContent[filename].title;
-  const displayTitle = chapterIndex.match(/[a-z]+/)
+  let displayTitle = chapterIndex.match(/[a-z]+/)
     ? chapterTitle
     : `${chapterIndex} ${chapterTitle}`;
+
+  displayTitle = displayTitle.replace(/\s\s+/g, " ");
 
   if (filename.match(/others/) || filename.match(/subsection/)) {
     if (!filename.match(/see/)) {
       toc.push({
         id: index,
         hasCaret: false,
-        label: displayTitle,
-        nodeData: chapterIndex
+        label: displayTitle.trim(),
+        nodeData: chapterIndex.trim()
       });
 
       tocNavigation.push(chapterIndex);
@@ -38,8 +40,8 @@ const recursiveProcessTOC = (index, toc, tocNavigation) => {
     toc.push({
       id: index,
       hasCaret: true,
-      label: displayTitle,
-      nodeData: chapterIndex,
+      label: displayTitle.trim(),
+      nodeData: chapterIndex.trim(),
       childNodes: child
     });
 
