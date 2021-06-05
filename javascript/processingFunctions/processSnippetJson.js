@@ -91,24 +91,18 @@ export const processSnippetJson = (node, snippet) => {
     return;
   }
 
+  addToSnippet("eval", false, snippet);
+
   const jsPromptSnippet = node.getElementsByTagName("JAVASCRIPT_PROMPT")[0];
 
   if (jsPromptSnippet) {
-    addToSnippet(
-      "body",
-      jsPromptSnippet.firstChild.nodeValue.trimRight(),
-      snippet
-    );
+    addToSnippet("body", jsPromptSnippet.firstChild.nodeValue.trim(), snippet);
   }
 
   const jsLonelySnippet = node.getElementsByTagName("JAVASCRIPT_LONELY")[0];
 
   if (jsLonelySnippet) {
-    addToSnippet(
-      "body",
-      jsLonelySnippet.firstChild.nodeValue.trimRight(),
-      snippet
-    );
+    addToSnippet("body", jsLonelySnippet.firstChild.nodeValue.trim(), snippet);
   }
 
   const jsSnippet = node.getElementsByTagName("JAVASCRIPT")[0];
@@ -130,15 +124,10 @@ export const processSnippetJson = (node, snippet) => {
       recursiveProcessPureText(jsRunSnippet.firstChild, codeArr_run);
     const codeStr_run = codeArr_run.join("").trim();
 
-    // Do warning for very long lines if no latex
-    if (node.getAttribute("LATEX") !== "yes") {
-      //checkLongLineWarning(codeStr);
-    }
-
     if (node.getAttribute("EVAL") === "no") {
-      addToSnippet("eval", false, snippet);
-      addToSnippet("body", codeStr, snippet);
+      addToSnippet("body", codeStr.trim(), snippet);
     } else {
+      addToSnippet("eval", true, snippet);
       let reqStr = "";
       let reqArr = [];
       const snippetName = node.getElementsByTagName("NAME")[0];
@@ -257,14 +246,14 @@ export const processSnippetJson = (node, snippet) => {
         body += chunks[2];
       }
 
-      addToSnippet("body", body, snippet);
+      addToSnippet("body", body.trim() + " ", snippet);
     }
   }
 
   if (jsOutputSnippet) {
     addToSnippet(
       "output",
-      jsOutputSnippet.firstChild.nodeValue.trimRight(),
+      jsOutputSnippet.firstChild.nodeValue.trim(),
       snippet
     );
   }
