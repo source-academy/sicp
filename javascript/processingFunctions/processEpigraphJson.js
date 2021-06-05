@@ -1,11 +1,7 @@
-import {
-  recursiveProcessTextJson,
-  processTextJson,
-  addBodyToObj
-} from "../parseXmlJson";
+import { recursiveProcessTextJson, processTextJson } from "../parseXmlJson";
 
 export const processEpigraphJson = (node, obj) => {
-  addBodyToObj(obj, node, false);
+  obj["tag"] = "EPIGRAPH";
   const childArr = [];
   obj["child"] = childArr;
 

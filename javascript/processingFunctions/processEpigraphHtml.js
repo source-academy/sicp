@@ -20,7 +20,7 @@ export const processEpigraphHtml = (node, writeTo) => {
     if (author) {
       writeTo.push("<span class='chapter-text-AUTHOR'>");
       recursiveProcessTextHtml(author.firstChild, writeTo);
-      writeTo.push("</span>\n");
+      writeTo.push("</span>");
     }
 
     child = attribution.getElementsByTagName("TITLE")[0];
@@ -32,7 +32,7 @@ export const processEpigraphHtml = (node, writeTo) => {
 
     child = attribution.getElementsByTagName("DATE")[0];
     if (child) {
-      writeTo.push("<span class='chapter-text-DATE'>");
+      writeTo.push("\n<span class='chapter-text-DATE'>");
       recursiveProcessTextHtml(child.firstChild, writeTo);
       writeTo.push("</span>\n");
     }
