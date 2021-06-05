@@ -26,6 +26,7 @@ let display_footnote_count = 0;
 let chapArrIndex = 0;
 let chapterTitle = "";
 let displayTitle = "";
+let pageTitle = "";
 export let chapterIndex = "";
 export let toIndexFolder = "../";
 
@@ -429,9 +430,9 @@ export const recursiveProcessTextHtml = (node, writeTo) => {
 const beforeContent = writeTo => {
   writeTo.push(html_links_part1);
   writeTo.push(`
-  <meta name="description" content="${displayTitle}" />
+  <meta name="description" content="${pageTitle}" />
     <title>
-      ${displayTitle}
+      ${pageTitle}
     </title>
     `);
   html_links_part2(writeTo, toIndexFolder, "split");
@@ -489,6 +490,8 @@ export const parseXmlHtml = (doc, writeTo, filename) => {
   } else {
     displayTitle = chapterIndex + " " + chapterTitle;
   }
+
+  pageTitle = displayTitle + " - SICP JS (comparison edition)";
 
   //toIndexFolder = tableOfContent[filename].relativePathToMain;
   //console.log(chapterIndex + " " + chapterTitle);
