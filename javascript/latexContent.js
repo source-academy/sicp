@@ -685,6 +685,7 @@ export const preamble = `\\documentclass[7x10]{../mitpress/mit}
 \\newcommand{\\dd}[1]{\\textit{#1}}
 \\newcommand\\klammeraffe{@}
 
+\\let\\oldaddcontentsline\\addcontentsline
 \\makeindex[\columnsep=2pc]
 
 % to avoid spurious white space around index entries
@@ -801,8 +802,24 @@ export const ending = `
 \\markboth{}{}
 %% Shrink code size
 \\def\\inlinecodesize{\\protect\\inlineexercisecodesize}
-%% imakeidx package not working as advertized in our case, so resorting to a hack
+
+%% imakeidx package not working as advertized in our case, due to "mit" class file
+%% so we are resorting to the following hack:
+%% (1) create a phantom section for hyperref to link the following table-of-contents
+%%     entry correctly
+%% (2) manually add the table-of-contents line for "Index"
+%% (3) suppress creation of table-of-contents lines by re-declaring addcontentsline
+%%     to be a noop
+%% (4) print the index via "mit" printindex, where the headline is a vbox that 
+%%     contains the desired prologue
+%% (5) restore the original addcontentsline
+
+\\phantomsection
+\\addcontentsline{toc}{chapter}{Index}
+\\renewcommand{\\addcontentsline}[3]{}
 \\printindex{sicpjs}{\\vbox{Index\\vspace{8mm}\\newline \\small \\normalfont Page numbers for JavaScript declarations are in italics.\\newline Page numbers followed by \\textit{n} indicate footnotes.}}
+\\renewcommand{\\addcontentsline}[3]{\\oldaddcontentsline{#1}{#2}{#3}}
+
 %% Restore code size
 \\def\\inlinecodesize{\\protect\\INLINECODESIZE}
 
