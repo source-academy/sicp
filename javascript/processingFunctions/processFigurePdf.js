@@ -58,7 +58,7 @@ export const processFigurePdf = (node, writeTo) => {
   }
 
   const pdfOnly = node.getElementsByTagName("PDF_ONLY")[0];
-  if (pdf_only) {
+  if (pdfOnly) {
     recursiveProcessTextLatex(pdfOnly, writeTo);
   }
 
