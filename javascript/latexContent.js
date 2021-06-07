@@ -739,7 +739,7 @@ ISBN:
 \\hspace{3.45cm}to the spirit that lives in the computer.}
 
 \\begin{epigraphpage}
-\\epigraph{\\hspace{-1.2cm}\\begin{minipage}{11.5cm}\\normalsize\`\`I think it's extraordinarily important that we in computer science keep
+\\epigraph{\\hspace{-1.05cm}\\begin{minipage}{11.5cm}\\normalsize\`\`I think it's extraordinarily important that we in computer science keep
 fun in computing. When it started out, it was an awful lot of fun. Of
 course, the paying customers got shafted every now and then, and after a
 while we began to take their complaints seriously. We began to feel as
