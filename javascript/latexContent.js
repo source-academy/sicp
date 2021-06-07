@@ -103,6 +103,7 @@ export const preamble = `\\documentclass[7x10]{../mitpress/mit}
 \\usepackage{subcaption}
 \\usepackage{underscore}
 \\usepackage{datetime2}
+\\usepackage{emptypage}
 
 \\def\\normalcodesize{\\fontsize{9.8}{11pt}\\selectfont}
 \\def\\exercisecodesize{\\fontsize{9}{11pt}\\selectfont}
@@ -707,8 +708,15 @@ export const frontmatter = `
 
 \\HalfTitle{Structure and Interpretation of Computer Programs, Second Edition --- JavaScript Adaptation}
 
-
 \\halftitlepage
+
+\\begin{seriespage}
+\\seriestitle{Not Industrial Economics}
+\\serieseditor{Not Miriam Smith and Simon Rattle, editors}
+\\title{TODO}
+\\author{TODO}
+\\end{seriespage}
+
 
 \\Title{Structure and Interpretation of Computer Programs}
 \\Booksubtitle{JavaScript Adaptation}
