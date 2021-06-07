@@ -57,6 +57,11 @@ export const processFigurePdf = (node, writeTo) => {
     }
   }
 
+  const pdfOnly = node.getElementsByTagName("PDF_ONLY")[0];
+  if (pdf_only) {
+    recursiveProcessTextLatex(pdfOnly, writeTo);
+  }
+
   const snippet = node.getElementsByTagName("SNIPPET")[0];
   if (snippet) {
     processSnippetPdf(snippet, writeTo);
