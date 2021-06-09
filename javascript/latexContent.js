@@ -817,7 +817,7 @@ export const ending = `
 \\phantomsection
 \\addcontentsline{toc}{chapter}{Index}
 \\renewcommand{\\addcontentsline}[3]{}
-\\printindex{sicpjs}{\\vbox{Index\\vspace{8mm}\\newline \\small \\normalfont Page numbers for JavaScript declarations are in italics.\\newline Page numbers followed by \\textit{n} indicate footnotes.}}
+\\printindex{sicpjs}{\\vbox{Index\\vspace{8mm}\\newline \\small \\normalfont Page numbers for JavaScript declarations are in {\\it italics}.\\newline Page numbers followed by \\textit{n} indicate footnotes.}}
 \\renewcommand{\\addcontentsline}[3]{\\oldaddcontentsline{#1}{#2}{#3}}
 
 %% Restore code size
