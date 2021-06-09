@@ -103,7 +103,6 @@ export const preamble = `\\documentclass[7x10]{../mitpress/mit}
 \\usepackage{subcaption}
 \\usepackage{underscore}
 \\usepackage{datetime2}
-\\usepackage{emptypage}
 
 \\def\\normalcodesize{\\fontsize{9.8}{11pt}\\selectfont}
 \\def\\exercisecodesize{\\fontsize{9}{11pt}\\selectfont}
@@ -708,15 +707,8 @@ export const frontmatter = `
 
 \\HalfTitle{Structure and Interpretation of Computer Programs, Second Edition --- JavaScript Adaptation}
 
+
 \\halftitlepage
-
-\\begin{seriespage}
-\\seriestitle{Not Industrial Economics}
-\\serieseditor{Not Miriam Smith and Simon Rattle, editors}
-\\title{TODO}
-\\author{TODO}
-\\end{seriespage}
-
 
 \\Title{Structure and Interpretation of Computer Programs}
 \\Booksubtitle{JavaScript Adaptation}
@@ -825,7 +817,7 @@ export const ending = `
 \\phantomsection
 \\addcontentsline{toc}{chapter}{Index}
 \\renewcommand{\\addcontentsline}[3]{}
-\\printindex{sicpjs}{\\vbox{Index\\vspace{8mm}\\newline \\small \\normalfont Page numbers for JavaScript declarations are in italics.\\newline Page numbers followed by \\textit{n} indicate footnotes.}}
+\\printindex{sicpjs}{\\vbox{Index\\vspace{8mm}\\newline \\small \\normalfont Page numbers for JavaScript declarations are in {\\it italics}.\\newline Page numbers followed by \\textit{n} indicate footnotes.}}
 \\renewcommand{\\addcontentsline}[3]{\\oldaddcontentsline{#1}{#2}{#3}}
 
 %% Restore code size
