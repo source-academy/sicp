@@ -313,6 +313,7 @@ export const preamble = `\\documentclass[7x10]{../mitpress/mit}
 
 \\newcommand{\\PreBoxCmd}{{\\vskip 0.8em}\\noindent}
 \\newcommand{\\PostBoxCmd}{{\\vskip 0.8em}\\noindent}
+\\newcommand{\\PromptInputOutputSpace}{{\\vskip 0.8em}\\noindent}
 \\newcommand{\\MidBoxCmd}{\\nopagebreak{\\vskip 0pt}\\noindent}
 %% \\newcommand{\\Usebox}[1]{\\raisebox{4pt}[\\height]{\\usebox{#1}}}
 
