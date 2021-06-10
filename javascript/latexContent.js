@@ -707,8 +707,9 @@ export const frontmatter = `
 
 \\HalfTitle{Structure and Interpretation of Computer Programs, Second Edition --- JavaScript Adaptation}
 
-
 \\halftitlepage
+
+\\cleardoublepage
 
 \\Title{Structure and Interpretation of Computer Programs}
 \\Booksubtitle{JavaScript Adaptation}
@@ -780,8 +781,14 @@ you were first led up to it, that you can make it more.''\\end{minipage}}{\\norm
 \\cleardoublepage
 \\pagestyle{Acknowledgements}
 \\input{./others/04acknowledgements04.tex}
+\\input{./others/05acknowledgements05.tex}
 
 \\cleardoublepage
+
+\\HalfTitle{Structure and Interpretation of Computer Programs, Second Edition --- JavaScript Adaptation}
+\\halftitlepage
+\\cleardoublepage
+
 \\mainmatter
 \\pagestyle{Main}
 
@@ -817,7 +824,7 @@ export const ending = `
 \\phantomsection
 \\addcontentsline{toc}{chapter}{Index}
 \\renewcommand{\\addcontentsline}[3]{}
-\\printindex{sicpjs}{\\vbox{Index\\vspace{8mm}\\newline \\small \\normalfont Page numbers for JavaScript declarations are in {\\it italics}.\\newline Page numbers followed by \\textit{n} indicate footnotes.}}
+\\printindex{sicpjs}{\\vbox{Index\\vspace{8mm}\\newline \\small \\normalfont Page numbers for JavaScript declarations are in \\textit{italics}.\\newline Page numbers followed by \\textit{n} indicate footnotes.}}
 \\renewcommand{\\addcontentsline}[3]{\\oldaddcontentsline{#1}{#2}{#3}}
 
 %% Restore code size

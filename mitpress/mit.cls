@@ -701,13 +701,21 @@ ItalicFont=SyntaxLTStd-Italic,
 \null\vspace{-7.5\p@}%
 \vbox{%
 \adjustbox{valign=t}{%
-\begin{tabular}[t]{@{}l@{}}%
+\begin{tabular}[t]{@{}P{350\p@}@{}}%
 \noalign{\vskip-1.5\p@}%
     {\fontsize{18\p@}{22\p@}\selectfont\sansbold{#1}\vphantom{y}\par}\\%
 \ifx\@chapterauthor\@empty\relax\else%
 \noalign{\vskip1\p@}\addcontentsline{toc}{contributor}{\@chapterauthor}\fi%
  {\fontsize{9\p@}{14\p@}\selectfont\sansbold{\@chapterauthor\vphantom{y}}\par}%
 \end{tabular}}\par%
+% \begin{tabular}[t]{@{}l@{}}%
+% %\begin{tabular}[t]{@{}P{300\P}@{}}%
+% \noalign{\vskip-1.5\p@}%
+%     {\fontsize{18\p@}{22\p@}\selectfont\sansbold{#1}\vphantom{y}\par}\\%
+% \ifx\@chapterauthor\@empty\relax\else%
+% \noalign{\vskip1\p@}\addcontentsline{toc}{contributor}{\@chapterauthor}\fi%
+%  {\fontsize{9\p@}{14\p@}\selectfont\sansbold{\@chapterauthor\vphantom{y}}\par}%
+% \end{tabular}}\par%
 %\medskip
 %    {\fontsize{11}{13}\selectfont\centering\@subtitle\par}%
 %\bigskip%
