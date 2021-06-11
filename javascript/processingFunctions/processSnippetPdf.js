@@ -386,7 +386,7 @@ export const processSnippetPdf = (node, writeTo) => {
 
       if (jsOutputSnippet) {
         if (indexTerms.length > 0) writeTo.push(indexTerms.pop());
-        writeTo.push("\\Usebox{\\UnbreakableBox}\\MidBoxCmd");
+        writeTo.push("\\Usebox{\\UnbreakableBox}\\PromptInputOutputSpace");
         outputAdjacent = true;
       } else {
         if (indexTerms.length > 0) writeTo.push(indexTerms.pop());
