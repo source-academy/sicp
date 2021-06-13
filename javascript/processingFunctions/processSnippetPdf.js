@@ -384,13 +384,11 @@ export const processSnippetPdf = (node, writeTo) => {
       writeTo.push("\\end{" + codeEnv + "}\n");
       writeTo.push("\\end{lrbox}");
 
+      if (indexTerms.length > 0) writeTo.push(indexTerms.pop());
+      writeTo.push("\\Usebox{\\UnbreakableBox}");
       if (jsOutputSnippet) {
-        if (indexTerms.length > 0) writeTo.push(indexTerms.pop());
-        writeTo.push("\\Usebox{\\UnbreakableBox}\\PromptInputOutputSpace");
         outputAdjacent = true;
       } else {
-        if (indexTerms.length > 0) writeTo.push(indexTerms.pop());
-        writeTo.push("\\Usebox{\\UnbreakableBox}");
         if (!followedByOtherSnippet && !skipPostPadding) {
           writeTo.push(postSpace);
         }
