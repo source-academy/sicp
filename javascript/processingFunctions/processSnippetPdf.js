@@ -387,6 +387,7 @@ export const processSnippetPdf = (node, writeTo) => {
       if (indexTerms.length > 0) writeTo.push(indexTerms.pop());
       writeTo.push("\\Usebox{\\UnbreakableBox}");
       if (jsOutputSnippet) {
+        writeTo.push("\\InputOutputSpace");
         outputAdjacent = true;
       } else {
         if (!followedByOtherSnippet && !skipPostPadding) {
@@ -394,7 +395,6 @@ export const processSnippetPdf = (node, writeTo) => {
         }
       }
     }
-    writeTo.push("\\InputOutputSpace");
   }
 
   // const jsOutputSnippet = node.getElementsByTagName("JAVASCRIPT_OUTPUT")[0];
