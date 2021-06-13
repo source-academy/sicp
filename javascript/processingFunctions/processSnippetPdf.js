@@ -149,7 +149,8 @@ export const processSnippetPdf = (node, writeTo) => {
     writeTo.push("\\Usebox{\\UnbreakableBox}");
 
     if (jsLonelySnippet || jsSnippet || jsOutputSnippet) {
-      writeTo.push("\\MidBoxCmd");
+      writeTo.push("\\PromptInputSpace");
+      outputAdjacent = true;
     } else {
       writeTo.push("\\PostBoxCmd\n");
     }
@@ -229,7 +230,9 @@ export const processSnippetPdf = (node, writeTo) => {
         codeEnv +
         "}\n";
 
-      writeTo.push(preSpace);
+      if (outputAdjacent !== true) {
+        writeTo.push(preSpace);
+      }
       writeTo.push("\n\\begin{lrbox}{\\UnbreakableBox}");
       writeTo.push("\\begin{" + codeEnv + "}");
       writeTo.push("\n");
@@ -246,7 +249,7 @@ export const processSnippetPdf = (node, writeTo) => {
 
       if (jsOutputSnippet) {
         if (indexTerms.length > 0) writeTo.push(indexTerms.pop());
-        writeTo.push("\\Usebox{\\UnbreakableBox}\\MidBoxCmd");
+        writeTo.push("\\Usebox{\\UnbreakableBox}");
         outputAdjacent = true;
       } else {
         if (indexTerms.length > 0) writeTo.push(indexTerms.pop());
@@ -364,7 +367,9 @@ export const processSnippetPdf = (node, writeTo) => {
         codeEnv +
         "}\n";
 
-      writeTo.push(preSpace);
+      if (outputAdjacent !== true) {
+        writeTo.push(preSpace);
+      }
       writeTo.push("\n\\begin{lrbox}{\\UnbreakableBox}");
       writeTo.push("\\begin{" + codeEnv + "}");
       writeTo.push("\n");
@@ -379,13 +384,11 @@ export const processSnippetPdf = (node, writeTo) => {
       writeTo.push("\\end{" + codeEnv + "}\n");
       writeTo.push("\\end{lrbox}");
 
+      if (indexTerms.length > 0) writeTo.push(indexTerms.pop());
+      writeTo.push("\\Usebox{\\UnbreakableBox}");
       if (jsOutputSnippet) {
-        if (indexTerms.length > 0) writeTo.push(indexTerms.pop());
-        writeTo.push("\\Usebox{\\UnbreakableBox}\\MidBoxCmd");
         outputAdjacent = true;
       } else {
-        if (indexTerms.length > 0) writeTo.push(indexTerms.pop());
-        writeTo.push("\\Usebox{\\UnbreakableBox}");
         if (!followedByOtherSnippet && !skipPostPadding) {
           writeTo.push(postSpace);
         }
@@ -396,7 +399,7 @@ export const processSnippetPdf = (node, writeTo) => {
   // const jsOutputSnippet = node.getElementsByTagName("JAVASCRIPT_OUTPUT")[0];
 
   if (jsOutputSnippet) {
-    writeTo.push("\n\\begin{lrbox}{\\UnbreakableBox}");
+    writeTo.push("\\InputOutputSpace\n\\begin{lrbox}{\\UnbreakableBox}");
 
     if (ancestorHasTag(node, "FOOTNOTE")) {
       writeTo.push("\n\\begin{JavaScriptOutput" + LatexString + "Footnote}");
