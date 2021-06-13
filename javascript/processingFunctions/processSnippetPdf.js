@@ -149,7 +149,7 @@ export const processSnippetPdf = (node, writeTo) => {
     writeTo.push("\\Usebox{\\UnbreakableBox}");
 
     if (jsLonelySnippet || jsSnippet || jsOutputSnippet) {
-      writeTo.push("\\PromptInputOutputSpace");
+      writeTo.push("\\PromptInputSpace");
       outputAdjacent = true;
     } else {
       writeTo.push("\\PostBoxCmd\n");
@@ -249,7 +249,7 @@ export const processSnippetPdf = (node, writeTo) => {
 
       if (jsOutputSnippet) {
         if (indexTerms.length > 0) writeTo.push(indexTerms.pop());
-        writeTo.push("\\Usebox{\\UnbreakableBox}\\PromptInputOutputSpace");
+        writeTo.push("\\Usebox{\\UnbreakableBox}");
         outputAdjacent = true;
       } else {
         if (indexTerms.length > 0) writeTo.push(indexTerms.pop());
@@ -396,6 +396,7 @@ export const processSnippetPdf = (node, writeTo) => {
         }
       }
     }
+    writeTo.push("\\InputOutputSpace");
   }
 
   // const jsOutputSnippet = node.getElementsByTagName("JAVASCRIPT_OUTPUT")[0];
