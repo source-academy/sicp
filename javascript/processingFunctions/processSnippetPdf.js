@@ -399,7 +399,13 @@ export const processSnippetPdf = (node, writeTo) => {
   // const jsOutputSnippet = node.getElementsByTagName("JAVASCRIPT_OUTPUT")[0];
 
   if (jsOutputSnippet) {
-    writeTo.push("\\InputOutputSpace\n\\begin{lrbox}{\\UnbreakableBox}");
+    if (jsPromptSnippet) {
+      writeTo.push("\\InputOutputSpace");
+    } else {
+      writeTo.push("\\InputOutputNoSpace");
+    }
+
+    writeTo.push("\n\\begin{lrbox}{\\UnbreakableBox}");
 
     if (ancestorHasTag(node, "FOOTNOTE")) {
       writeTo.push("\n\\begin{JavaScriptOutput" + LatexString + "Footnote}");
