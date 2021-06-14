@@ -597,7 +597,7 @@ const processTextFunctionsDefaultLatex = {
 const processTextFunctionsEpub = {
   PDF_ONLY: (node, writeTo) => {},
 
-  WEB_ONLY: (node, writeTo) => {
+  EPUB_ONLY: (node, writeTo) => {
     recursiveProcessTextLatex(node.firstChild, writeTo);
   },
 
@@ -626,7 +626,23 @@ const processTextFunctionsEpub = {
     recursiveProcessTextLatex(node.firstChild, writeTo);
   },
   SUBSUBSECTION: (node, writeTo) =>
-    processTextFunctionsEpub["SUBHEADING"](node, writeTo)
+    processTextFunctionsEpub["SUBHEADING"](node, writeTo),
+
+  META: (node, writeTo) => {
+    writeTo.push(node.firstChild.nodeValue);
+  },
+
+  METAPHRASE: (node, writeTo) => {
+    const contentArr = [];
+    recursiveProcessTextLatex(node.firstChild, contentArr);
+    let s = contentArr.join("");
+    s = s.replace(/-/g, "\\mhyphen{}").replace(/ /g, "\\ ");
+    writeTo.push("<" + s + ">");
+  },
+
+  BR: (node, writeTo) => {
+    writeTo.push("\\\\\n\\noindent\n");
+  }
 };
 
 let processTextFunctionsLatex = processTextFunctionsDefaultLatex;

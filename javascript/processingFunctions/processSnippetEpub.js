@@ -7,6 +7,7 @@ import {
   missingExampleWarning,
   repeatedNameWarning
 } from "./warnings.js";
+import { recursiveProcessTextLatex, processTextLatex } from "../parseXmlLatex";
 import recursiveProcessPureText from "./recursiveProcessPureText";
 
 const snippetStore = {};
@@ -69,11 +70,11 @@ export const processSnippetEpub = (node, writeTo) => {
     }
 
     const codeArr = [];
-    recursiveProcessPureText(jsSnippet.firstChild, codeArr);
+    recursiveProcessTextLatex(jsSnippet.firstChild, codeArr);
     const codeStr = codeArr.join("").replace(/###\n/g, "").trim();
 
     const codeArr_run = [];
-    recursiveProcessPureText(jsRunSnippet.firstChild, codeArr_run);
+    recursiveProcessTextLatex(jsRunSnippet.firstChild, codeArr_run);
     const codeStr_run = codeArr_run.join("").trim();
 
     // Do warning for very long lines if no latex
