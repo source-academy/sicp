@@ -9,5 +9,4 @@ export const authors_with = "Julie Sussman";
 
 export const adapters = "Martin Henz and Tobias Wrigstad";
 
-export const adapters_with =
-  "Samuel Fang";
+export const adapters_with = "Samuel Fang";
