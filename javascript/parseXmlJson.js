@@ -242,7 +242,10 @@ const processTextFunctions = {
   METAPHRASE: (node, obj) => {
     const childObj = {};
     recursiveProcessTextJson(node.firstChild, childObj);
-    const arr = childObj["child"].map(x => x["body"]);
+    let arr = [];
+    arr.push("\u3008"); //langle
+    arr = arr.concat(childObj["child"].map(x => x["body"]));
+    arr.push("\u3009"); //rangle
     addArrayToObj(obj, node, arr);
   },
 
