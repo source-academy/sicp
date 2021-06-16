@@ -46,7 +46,7 @@ export const processFigureJson = (node, obj) => {
       obj["scale"] = `${scale_percentage}%`;
     }
     obj["src"] = `${src}`;
-    obj["id"] = `#fig_${displayName}`;
+    obj["id"] = `#fig-${displayName}`;
   }
 
   const snippet = node.getElementsByTagName("SNIPPET")[0];
