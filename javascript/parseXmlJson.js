@@ -72,6 +72,14 @@ export const addArrayToObj = (obj, node, array) => {
   obj["body"] = body;
 };
 
+const processContainer = (node, obj) => {
+  addBodyToObj(obj, node, displayTitle);
+  obj["tag"] = "SECTION";
+
+  const name = getChildrenByTagName(node, "NAME")[0];
+  recursiveProcessTextJson(name.nextSibling, obj);
+};
+
 const processTextFunctions = {
   "#text": (node, obj) => {
     // ignore the section/subsection tags at the end of chapter/section files
@@ -81,6 +89,38 @@ const processTextFunctions = {
         addBodyToObj(obj, node, body);
       }
     }
+  },
+
+  // Container tags: tag containing other elements and a heading
+  SECTION: processContainer,
+
+  CHAPTER: processContainer,
+
+  MATTER: processContainer,
+
+  REFERENCES: processContainer,
+
+  SUBSECTION: processContainer,
+
+  WEBPREFACE: processContainer,
+
+  // e.g. section 4.4.4.4
+  SUBSUBSECTION: (node, obj) => {
+    subsubsection_count += 1;
+    heading_count += 1;
+    const name = getChildrenByTagName(node, "NAME")[0];
+
+    obj["id"] = `#sec${chapterIndex}.${subsubsection_count}`;
+
+    addBodyToObj(
+      obj,
+      node,
+      `${chapterIndex}.${subsubsection_count}\u00A0\u00A0\u00A0` +
+        name.firstChild.nodeValue
+    );
+    obj["tag"] = "SECTION";
+
+    recursiveProcessTextJson(name.nextSibling, obj);
   },
 
   AMP: (node, obj) => {
@@ -127,27 +167,10 @@ const processTextFunctions = {
     recursiveProcessTextJson(node.firstChild, obj);
   },
 
-  ABOUT: (node, obj) => {
-    addBodyToObj(obj, node, displayTitle);
-
-    let childNode = node.firstChild;
-    while (childNode.nodeName != "NAME") {
-      childNode = childNode.nextSibling;
-    }
-
-    recursiveProcessTextJson(childNode.nextSibling, obj);
-  },
-
-  REFERENCES: (node, obj) => processTextFunctions["ABOUT"](node, obj),
-
   REFERENCE: (node, obj) => {
     addBodyToObj(obj, node, false);
     recursiveProcessTextJson(node.firstChild, obj);
   },
-
-  WEBPREFACE: (node, obj) => processTextFunctions["ABOUT"](node, obj),
-
-  MATTER: (node, obj) => processTextFunctions["ABOUT"](node, obj),
 
   br: (node, obj) => {
     addBodyToObj(obj, node, false);
@@ -155,13 +178,6 @@ const processTextFunctions = {
   },
 
   BR: (node, obj) => processTextFunctions["br"](node, obj),
-
-  CHAPTER: (node, obj) => {
-    addBodyToObj(obj, node, displayTitle);
-
-    const name = getChildrenByTagName(node, "NAME")[0];
-    recursiveProcessTextJson(name.nextSibling, obj);
-  },
 
   EM_NO_INDEX: (node, obj) => {
     node.nodeName = "EM";
@@ -242,8 +258,12 @@ const processTextFunctions = {
   METAPHRASE: (node, obj) => {
     const childObj = {};
     recursiveProcessTextJson(node.firstChild, childObj);
-    const arr = childObj["child"].map(x => x["body"]);
+    let arr = [];
+    arr.push("\u3008"); //langle
+    arr = arr.concat(childObj["child"].map(x => x["body"]));
+    arr.push("\u3009"); //rangle
     addArrayToObj(obj, node, arr);
+    obj["tag"] = "#text";
   },
 
   LINK: (node, obj) => {
@@ -298,13 +318,6 @@ const processTextFunctions = {
 
   SCHEMEINLINE: (node, obj) =>
     processTextFunctions["JAVASCRIPTINLINE"](node, obj),
-
-  SECTION: (node, obj) => {
-    addBodyToObj(obj, node, displayTitle);
-
-    const name = getChildrenByTagName(node, "NAME")[0];
-    recursiveProcessTextJson(name.nextSibling, obj);
-  },
 
   JAVASCRIPTINLINE: (node, obj) => {
     const writeTo = [];
@@ -387,31 +400,6 @@ const processTextFunctions = {
       addBodyToObj(obj, node, "@");
     }
     recursiveProcessTextJson(node.firstChild, obj);
-  },
-
-  SUBSECTION: (node, obj) => {
-    addBodyToObj(obj, node, displayTitle);
-
-    const name = getChildrenByTagName(node, "NAME")[0];
-    recursiveProcessTextJson(name.nextSibling, obj);
-  },
-
-  // e.g. section 4.4.4.4
-  SUBSUBSECTION: (node, obj) => {
-    subsubsection_count += 1;
-    heading_count += 1;
-    const name = getChildrenByTagName(node, "NAME")[0];
-
-    obj["id"] = `#sec${chapterIndex}.${subsubsection_count}`;
-
-    addBodyToObj(
-      obj,
-      node,
-      `${chapterIndex}.${subsubsection_count}\u00A0\u00A0\u00A0` +
-        name.firstChild.nodeValue
-    );
-
-    recursiveProcessTextJson(name.nextSibling, obj);
   },
 
   SUBHEADING: (node, obj) => {
