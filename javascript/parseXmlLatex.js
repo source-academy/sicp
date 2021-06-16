@@ -621,7 +621,7 @@ const processTextFunctionsEpub = {
     recursiveProcessTextLatex(node.firstChild, writeTo);
   },
   SUBHEADING: (node, writeTo) => {
-    writeTo.push("\\paragraph{");
+    writeTo.push("\\paragraph*{");
     addName(node, writeTo);
     recursiveProcessTextLatex(node.firstChild, writeTo);
   },
