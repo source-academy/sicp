@@ -41,19 +41,16 @@ export const setupReferencesJson = (node, filename) => {
     footnote.footnote_count = i + 1;
   }
 
-  //console.log("setting up " + chapterIndex);
   const labels = node.getElementsByTagName("LABEL");
 
   for (let i = 0; labels[i]; i++) {
     const label = labels[i];
     const referenceName = label.getAttribute("NAME");
     const ref_type = referenceName.split(":")[0];
-    //const ref_name = referenceName.split(":")[1];
 
     if (ifIgnore(label)) {
       continue;
     }
-    //console.log(referenceName + " processed");
 
     if (referenceStore[referenceName]) {
       console.log(chapterIndex);
@@ -67,7 +64,6 @@ export const setupReferencesJson = (node, filename) => {
       if (ancestorHasTag(label, "SUBSUBSECTION")) {
         subsubsection_count++;
         displayName = `${chapterIndex}.${subsubsection_count}`;
-        // href = `${chapterIndex}.html#sec${chapterIndex}.${subsubsection_count}`;
         href = `/interactive-sicp/${chapterIndex}#subsubsection_${subsubsection_count}`;
       } else {
         displayName = chapterIndex;
@@ -76,7 +72,7 @@ export const setupReferencesJson = (node, filename) => {
     } else if (ref_type == "fig") {
       fig_count++;
       displayName = `${chapter_number}.${fig_count}`;
-      href = `/interactive-sicp/${chapterIndex}#fig_${displayName}`;
+      href = `/interactive-sicp/${chapterIndex}#fig-${displayName}`;
     } else if (ref_type == "foot") {
       // Retrieve count from the parent node, setup before this loop
       foot_count = label.parentNode.footnote_count;
@@ -125,8 +121,7 @@ export const setupReferencesJson = (node, filename) => {
 
     ex_count++;
     const displayName = `${chapter_number}.${ex_count}`;
-    const href = `/interactive-sicp/${chapterIndex}#ex_${displayName}`;
-    //console.log(referenceName + " added");
+    const href = `/interactive-sicp/${chapterIndex}#ex-${displayName}`;
     referenceStore[referenceName] = { href, displayName, chapterIndex };
   }
 };
