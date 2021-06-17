@@ -273,16 +273,28 @@ const processTextFunctions = {
     obj["href"] = node.getAttribute("address");
   },
 
-  LATEX: (node, obj) => processTextFunctions["LATEXINLINE"](node, obj),
-
-  LATEXINLINE: (node, obj) => {
+  LATEX: (node, obj) => {
     const writeTo = [];
     recursiveProcessPureText(node.firstChild, writeTo);
 
     let math = "";
     writeTo.forEach(x => (math += x));
 
-    math = math.replace(/mbox/g, "text"); //replace mbox with text
+    math = math.replace(/mbox/g, "text"); // replace mbox with text
+
+    addBodyToObj(obj, node, math);
+  },
+
+  LATEXINLINE: (node, obj) => {
+    const writeTo = [];
+    recursiveProcessPureText(node.firstChild, writeTo, {
+      removeNewline: "all"
+    });
+
+    let math = "";
+    writeTo.forEach(x => (math += x));
+
+    math = math.replace(/mbox/g, "text"); // replace mbox with text
 
     addBodyToObj(obj, node, math);
   },
