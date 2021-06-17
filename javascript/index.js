@@ -228,15 +228,24 @@ async function recursiveTranslateXml(filepath, option) {
   await Promise.all(promises);
 }
 
-// for web version only
 // create index.html content
-const createIndexHtml = () => {
+// (to recreate non-split Mobile-friendly Web Edition: remove conditional)
+const createIndexHtml = version => {
   const indexFilepath = path.join(outputDir, "index.html");
   const writeToIndex = [];
   indexHtml(writeToIndex);
   const stream = fs.createWriteStream(indexFilepath);
   stream.once("open", fd => {
-    stream.write(writeToIndex.join(""));
+    if (version === "split") {
+      stream.write(writeToIndex.join(""));
+    } else {
+      stream.write(
+        `<!doctype html><html lang="en"><body><A HREF="https://source-academy.github.io/interactive-sicp">Go to Interactive SICP</A><br/><br/><A HREF="oldindex.html">...or go to the old Mobile-friendly Web Edition</A></body></html>`
+      );
+      const oldIndexFilepath = path.join(outputDir, "oldindex.html");
+      const oldStream = fs.createWriteStream(oldIndexFilepath);
+      oldStream.write(writeToIndex.join(""));
+    }
     stream.end();
   });
 };
@@ -343,7 +352,7 @@ async function main() {
     console.log(tableOfContent);
     //console.log(allFilepath);
     //console.log(allFilepath.slice(50));
-    createIndexHtml();
+    createIndexHtml(version);
 
     console.log("setup snippets and references\n");
     await recursiveXmlToHtmlInOrder("setupSnippet");

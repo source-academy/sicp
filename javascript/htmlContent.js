@@ -78,7 +78,7 @@ export const switchTitle = version => {
     </div>
     <div class="title-text-OTHEREDITIONS">
       <span class="title-text-OTHEREDITIONS">
-    <a href="..">Back to web edition</a></span>
+    <a href="https://source-academy.github.io/interactive-sicp">Back to Interactive SICP</a></span>
     </div>`;
   } else if (version == "scheme") {
     // scheme version of the web textbook has yet been developed
@@ -103,6 +103,7 @@ export const html_links_part1 = `<!DOCTYPE html>
     <meta http-equiv="X-UA-Compatible" content="IE=Edge,chrome=1">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
   `;
+
 export const html_links_part2 = (writeTo, toIndexFolder, version) => {
   writeTo.push(`
   <meta name="csrf-param" content="authenticity_token" />
@@ -179,53 +180,6 @@ export const html_links_part2 = (writeTo, toIndexFolder, version) => {
        <span class="navbar-brand-short"><a title="Go back to front page" href="${toIndexFolder}index.html" class="gray">${shortTitle}</a></span>
        <span class="navbar-brand-long" ><a title="Go back to front page" href="${toIndexFolder}index.html" class="gray">${longTitle}</a></span>
 
-       <!-- edit the search engine by visiting: 
-	    https://cse.google.com/cse/setup/basic?cx=015760785273492757659:nc_tznrzlsg 
-	       -->
-       <form class="form-inline ml-auto" id="xxx">
-         <div id="search-box">
-	         <script>
-	           (function() {
-	               var cx = ${
-                   version == "js" || version == undefined
-                     ? '"015760785273492757659:nc_tznrzlsg"'
-                     : '"015760785273492757659:fazfpeg5s9m"'
-                 };
-	               var gcse = document.createElement("script");
-	               gcse.type = "text/javascript";
-	               gcse.async = true;
-	               gcse.src = "https://cse.google.com/cse.js?cx=" + cx;
-	               var s = document.getElementsByTagName("script")[0];
-	               s.parentNode.insertBefore(gcse, s);
-	           })();
-	           window.onload = function()
-	           { 
-	               var searchBox =  document.getElementById("gsc-i-id1");
-	               searchBox.placeholder= ${
-                   version == "js" || version == undefined
-                     ? '"search web edition"'
-                     : '"search comparison edition"'
-                 };
-	               searchBox.title= ${
-                   version == "js" || version == undefined
-                     ? '"search web edition"'
-                     : '"search comparison edition"'
-                 };
-	           }
-	         </script>
-	         <gcse:search></gcse:search>
-         </div>
-       </form>
-       <span class="navbar-brand-short">
-         &nbsp;
-         &nbsp;
-         <a href="https://source-academy.github.io/source/" title="Go to the Source language(s) definition(s)" class="gray">S</a>
-       </span>
-       <span class="navbar-brand-long">
-         &nbsp;
-         &nbsp;
-         <a href="https://source-academy.github.io/source/" title="Go to the Source language(s) definition(s)" class="gray">Source</a>
-       </span>
      </nav>
      
      <div class="container scroll">
@@ -255,7 +209,11 @@ export const indexPage = writeTo => {
     </div>
 
     <div class="title-text-ATTRIBUTION">
-      <span class="title-text-AUTHOR">Martin Henz and Tobias Wrigstad<br/>with Chan Ger Hean, He Xinyue, Liu Hang, Feng Piaopiao, Jolyn Tan and Wang Qian</span><span class="title-text-TITLE">adapters to JavaScript</span>
+      <span class="title-text-AUTHOR">Martin Henz and Tobias Wrigstad<br/>with Julie Sussman</span><span class="title-text-TITLE">adapters to JavaScript</span>
+    </div>
+
+    <div class="title-text-ATTRIBUTION">
+      <span class="title-text-AUTHOR">Chan Ger Hean, He Xinyue, Liu Hang, Feng Piaopiao, Jolyn Tan and Wang Qian</span><span class="title-text-TITLE">developers of Comparison Edition</span>
     </div>
 
     <div class="title-text-LICENCE">
