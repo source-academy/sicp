@@ -277,12 +277,12 @@ const processTextFunctions = {
 
   LATEXINLINE: (node, obj) => {
     const writeTo = [];
-    recursiveProcessPureText(node.firstChild, writeTo, {
-      removeNewline: "all"
-    });
+    recursiveProcessPureText(node.firstChild, writeTo);
 
     let math = "";
     writeTo.forEach(x => (math += x));
+
+    math = math.replace(/mbox/g, "text"); //replace mbox with text
 
     addBodyToObj(obj, node, math);
   },
