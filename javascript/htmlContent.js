@@ -216,7 +216,20 @@ export const indexPage = writeTo => {
       <span class="title-text-AUTHOR">Chan Ger Hean, He Xinyue, Liu Hang, Feng Piaopiao, Jolyn Tan and Wang Qian</span><span class="title-text-TITLE">developers of Comparison Edition</span>
     </div>
 
-    <div class="title-text-LICENCE">
+    `);
+};
+
+export const beforeContentWrapper = `<div id='permalink-msg'>
+<div class='screen'>
+  <div class='alert alert-success'>
+    <strong>Permalink copied!</strong>
+  </div>
+</div>
+</div>
+<div class='chapter-content'>
+`;
+
+export const html_licences = `<div class="title-text-LICENCE">
 <a href="http://creativecommons.org/licenses/by-nc-sa/4.0/" rel="nofollow"><img src="https://licensebuttons.net/l/by-nc-sa/4.0/88x31.png" style="max-width:100%;"></a>
 <p/>
 This work is licensed under a <a href="http://creativecommons.org/licenses/by-nc-sa/4.0/" rel="nofollow">Creative Commons Attribution-NonCommercial-ShareAlike 4.0
@@ -236,16 +249,4 @@ All JavaScript programs in this work are licensed under the
 The final version of this work will be published by The MIT Press under a <a href="http://creativecommons.org/licenses/by-nc-sa/4.0/" rel="nofollow">Creative Commons Attribution-NonCommercial-ShareAlike 4.0
 International License</a>.
      </div>
-
-    `);
-};
-
-export const beforeContentWrapper = `<div id='permalink-msg'>
-<div class='screen'>
-  <div class='alert alert-success'>
-    <strong>Permalink copied!</strong>
-  </div>
-</div>
-</div>
-<div class='chapter-content'>
 `;

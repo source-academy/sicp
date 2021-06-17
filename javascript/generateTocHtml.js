@@ -1,6 +1,11 @@
 import { recursiveProcessTextHtml } from "./parseXmlHtml.js";
 import { tableOfContent, allFilepath } from "./index.js";
-import { html_links_part1, html_links_part2, indexPage } from "./htmlContent";
+import {
+  html_links_part1,
+  html_links_part2,
+  html_licences,
+  indexPage
+} from "./htmlContent";
 
 const generateChapterIndex = filename => {
   let chapterIndex = "";
@@ -269,7 +274,7 @@ export const indexHtml = writeToIndex => {
   recursiveProcessTOC(0, writeToIndex, "index", "./chapters/");
   writeToIndex.push("</div>\n"); // <div class='nav-index'>
   writeToIndex.push("</div>\n"); // <div class="chapter-content">
-
+  writeToIndex.push(html_licences);
   writeToIndex.push("</div>\n"); // <div class="container scroll">
   writeToIndex.push("</body></html>");
 };
