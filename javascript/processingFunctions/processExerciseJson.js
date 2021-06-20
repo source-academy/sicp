@@ -22,6 +22,7 @@ const processExerciseHtml = (node, obj) => {
 
   const displayName = referenceStore[labelName].displayName;
 
+  obj["tag"] = "EXERCISE";
   obj["title"] = "Exercise " + displayName;
   obj["id"] = `#ex-${displayName}`;
 
