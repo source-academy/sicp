@@ -205,7 +205,6 @@ const processTextFunctions = {
 
   EXERCISE: (node, obj) => {
     exercise_count += 1;
-    addBodyToObj(obj, node, false);
     processExerciseJson(node, obj, chapArrIndex, exercise_count);
   },
 
