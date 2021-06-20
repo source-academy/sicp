@@ -128,6 +128,11 @@ const processTextFunctions = {
     obj["tag"] = "#text";
   },
 
+  DOLLAR: (node, obj) => {
+    addBodyToObj(obj, node, "$");
+    obj["tag"] = "#text";
+  },
+
   B: (node, obj) => {
     addBodyToObj(obj, node, false);
     recursiveProcessTextJson(node.firstChild, obj);
