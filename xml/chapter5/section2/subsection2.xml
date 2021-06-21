@@ -59,7 +59,7 @@
       <SCHEME>procedures,</SCHEME>
     <JAVASCRIPT>functions,</JAVASCRIPT></SPLITINLINE>
     the assembler must know what all the labels refer to, so it begins by
-    scanning the <SPLITINLINE><SCHEME>controller text</SCHEME><JAVASCRIPT>controller</JAVASCRIPT></SPLITINLINE> to separate the labels from the
+    scanning the controller <SPLITINLINE><SCHEME>text</SCHEME><JAVASCRIPT>sequence</JAVASCRIPT></SPLITINLINE> to separate the labels from the
     instructions.  As it scans the <SPLITINLINE><SCHEME>text</SCHEME><JAVASCRIPT>controller</JAVASCRIPT></SPLITINLINE>, it constructs both a list of
     instructions and a table that associates each label with a pointer
     into that list.  Then the assembler augments the instruction list by
@@ -78,7 +78,7 @@
       <JAVASCRIPT>function</JAVASCRIPT>
     </SPLITINLINE>
     is the main entry to the assembler. It takes the controller
-    <SPLITINLINE><SCHEME>text</SCHEME></SPLITINLINE> and the
+    <SPLITINLINE><SCHEME>text</SCHEME><JAVASCRIPT>sequence</JAVASCRIPT></SPLITINLINE> and the
     machine model as arguments and returns the instruction sequence to be stored
     in the model.
     <SPLITINLINE>
@@ -205,17 +205,17 @@ function extract_labels(controller, receive) {
     return is_null(controller)
            ? receive(null, null)
            : extract_labels(
-                 tail(controller), 
+                 tail(controller),
                  (insts, labels) => {
                    const next_element = head(controller);
                    return is_string(next_element)
-                          ? receive(insts, 
-                                    pair(make_label_entry(next_element, 
-                                                          insts), 
+                          ? receive(insts,
+                                    pair(make_label_entry(next_element,
+                                                          insts),
                                          labels))
-                          : receive(pair(make_instruction(next_element), 
+                          : receive(pair(make_inst(next_element),
                                          insts),
-                                    labels); 
+                                    labels);
                });
 }
       </JAVASCRIPT>
@@ -288,7 +288,7 @@ function extract_labels(controller) {
         return is_string(next_element)
                ? pair(insts, 
                       pair(make_label_entry(next_element, insts), labels))
-               : pair(pair(make_instruction(next_element), insts), labels);
+               : pair(pair(make_inst(next_element), insts), labels);
     }
 }
   </JAVASCRIPT>
@@ -357,7 +357,7 @@ function assemble(controller, machine) {
       <NAME>update_insts</NAME>
       <REQUIRES>get_register</REQUIRES>
       <REQUIRES>make_execution_function</REQUIRES>
-      <REQUIRES>make_instruction</REQUIRES>
+      <REQUIRES>make_inst</REQUIRES>
       <EXAMPLE>gcd_machine_complete_example</EXAMPLE>
       <SCHEME>
 (define (update-insts! insts labels machine)
@@ -380,10 +380,10 @@ function update_insts(insts, labels, machine) {
     const flag = get_register(machine, "flag");
     const stack = machine("stack");
     const ops = machine("operations");
-    return for_each(inst => set_instruction_execution_fun(
+    return for_each(inst => set_inst_execution_fun(
                                 inst,
                                 make_execution_function(
-                                    instruction_source(inst),
+                                    inst_controller_instruction(inst),
                                     labels, machine, pc,
                                     flag, stack, ops)),
                     insts);
@@ -394,7 +394,8 @@ function update_insts(insts, labels, machine) {
 
   <TEXT>
     The machine instruction data structure simply pairs the
-    instruction <SPLITINLINE><SCHEME>text</SCHEME><JAVASCRIPT>source</JAVASCRIPT></SPLITINLINE> with the corresponding execution
+    <SPLITINLINE><JAVASCRIPT>controller</JAVASCRIPT></SPLITINLINE>
+    instruction <SPLITINLINE><SCHEME>text</SCHEME></SPLITINLINE> with the corresponding execution
     <SPLITINLINE>
       <SCHEME>procedure.</SCHEME>
       <JAVASCRIPT>function.</JAVASCRIPT>
@@ -419,11 +420,11 @@ function update_insts(insts, labels, machine) {
       </JAVASCRIPT>
     </SPLITINLINE>
     <SNIPPET>
-      <INDEX><DECLARATION>make_instruction</DECLARATION></INDEX> 
-      <INDEX><DECLARATION>instruction_source</DECLARATION></INDEX> 
-      <INDEX><DECLARATION>instruction_execution_fun</DECLARATION></INDEX> 
-      <INDEX><DECLARATION>set_instruction_execution_fun</DECLARATION></INDEX> 
-      <NAME>make_instruction</NAME>
+      <INDEX><DECLARATION>make_inst</DECLARATION></INDEX>
+      <INDEX><DECLARATION>inst_controller_instruction</DECLARATION></INDEX>
+      <INDEX><DECLARATION>inst_execution_fun</DECLARATION></INDEX>
+      <INDEX><DECLARATION>set_inst_execution_fun</DECLARATION></INDEX>
+      <NAME>make_inst</NAME>
       <EXAMPLE>gcd_machine_complete_example</EXAMPLE>
       <SCHEME>
 (define (make-instruction text)
@@ -439,22 +440,27 @@ function update_insts(insts, labels, machine) {
   (set-cdr! inst proc))
       </SCHEME>
       <JAVASCRIPT>
-function make_instruction(inst_source) {
-    return pair(inst_source, null);
+function make_inst(inst_controller_instruction) {
+    return pair(inst_controller_instruction, null);
 }
-function instruction_source(inst) {
+function inst_controller_instruction(inst) {
     return head(inst);
 }
-function instruction_execution_fun(inst) {
+function inst_execution_fun(inst) {
     return tail(inst);
 }
-function set_instruction_execution_fun(inst, proc) {
-    set_tail(inst, proc); 
+function set_inst_execution_fun(inst, fun) {
+    set_tail(inst, fun);
 }
       </JAVASCRIPT>
     </SNIPPET>
 
-    Instruction sources are not used by our simulator, but are handy to keep
+    The
+    <SPLITINLINE>
+      <SCHEME>instruction text</SCHEME>
+      <JAVASCRIPT>controller instruction</JAVASCRIPT>
+    </SPLITINLINE>
+    is not used by our simulator, but is handy to keep
     around for debugging (see
     exercise<SPACE/><REF NAME="ex:reg-machine-instruction-trace"/>).
   </TEXT>

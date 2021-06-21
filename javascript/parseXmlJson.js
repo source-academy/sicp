@@ -128,6 +128,11 @@ const processTextFunctions = {
     obj["tag"] = "#text";
   },
 
+  DOLLAR: (node, obj) => {
+    addBodyToObj(obj, node, "$");
+    obj["tag"] = "#text";
+  },
+
   B: (node, obj) => {
     addBodyToObj(obj, node, false);
     recursiveProcessTextJson(node.firstChild, obj);
@@ -200,7 +205,6 @@ const processTextFunctions = {
 
   EXERCISE: (node, obj) => {
     exercise_count += 1;
-    addBodyToObj(obj, node, false);
     processExerciseJson(node, obj, chapArrIndex, exercise_count);
   },
 
