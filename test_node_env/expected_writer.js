@@ -12,4 +12,4 @@ writer2.once('open', function(fd) {
     writer2.end();
 });
 
-let e = new Script(`80`);
+let e = new Script(`[ 'ptr', 108 ]`);

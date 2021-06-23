@@ -13,4 +13,4 @@ writer.once('open', function(fd) {
     writer.end();
 });
 
-let s = new Script(readFileSync("js_programs/chapter1/section2/subsection1/14_fghk_example.js"));
+let s = new Script(readFileSync("js_programs/chapter5/section3/subsection2/01_testing_5_3_2.js"));
