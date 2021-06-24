@@ -64,20 +64,20 @@ export const setupReferencesJson = (node, filename) => {
       if (ancestorHasTag(label, "SUBSUBSECTION")) {
         subsubsection_count++;
         displayName = `${chapterIndex}.${subsubsection_count}`;
-        href = `/sicpjs/${chapterIndex}#subsubsection_${subsubsection_count}`;
+        href = `/interactive-sicp/${chapterIndex}#subsubsection_${subsubsection_count}`;
       } else {
         displayName = chapterIndex;
-        href = `/sicpjs/${chapterIndex}`;
+        href = `/interactive-sicp/${chapterIndex}`;
       }
     } else if (ref_type == "fig") {
       fig_count++;
       displayName = `${chapter_number}.${fig_count}`;
-      href = `/sicpjs/${chapterIndex}#fig-${displayName}`;
+      href = `/interactive-sicp/${chapterIndex}#fig-${displayName}`;
     } else if (ref_type == "foot") {
       // Retrieve count from the parent node, setup before this loop
       foot_count = label.parentNode.footnote_count;
       displayName = foot_count;
-      href = `/sicpjs/${chapterIndex}#footnote-${foot_count}`;
+      href = `/interactive-sicp/${chapterIndex}#footnote-${foot_count}`;
     } else {
       continue;
     }
@@ -121,7 +121,7 @@ export const setupReferencesJson = (node, filename) => {
 
     ex_count++;
     const displayName = `${chapter_number}.${ex_count}`;
-    const href = `/sicpjs/${chapterIndex}#ex-${displayName}`;
+    const href = `/interactive-sicp/${chapterIndex}#ex-${displayName}`;
     referenceStore[referenceName] = { href, displayName, chapterIndex };
   }
 };
