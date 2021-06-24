@@ -1,4 +1,4 @@
-export const sourceAcademyURL = "http://source-academy.github.io";
+export const sourceAcademyURL = "https://sourceacademy.org";
 
 // to change to localhost if required
 // http://localhost:8075

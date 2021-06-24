@@ -231,7 +231,7 @@ const processTextFunctions = {
     obj["body"] = `${footnote_count}`;
     obj[
       "href"
-    ] = `/interactive-sicp/${chapterIndex}#footnote-${footnote_count}`;
+    ] = `/sicpjs/${chapterIndex}#footnote-${footnote_count}`;
   },
 
   DISPLAYFOOTNOTE: (node, obj) => {
@@ -242,7 +242,7 @@ const processTextFunctions = {
     obj["count"] = display_footnote_count;
     obj[
       "href"
-    ] = `/interactive-sicp/${chapterIndex}#footnote-link-${display_footnote_count}`;
+    ] = `/sicpjs/${chapterIndex}#footnote-link-${display_footnote_count}`;
 
     recursiveProcessTextJson(node.firstChild, obj);
   },
