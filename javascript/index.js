@@ -240,7 +240,7 @@ const createIndexHtml = version => {
       stream.write(writeToIndex.join(""));
     } else {
       stream.write(
-        `<!doctype html><html lang="en"><body><A HREF="https://source-academy.github.io/sicpjs">Go to the new <B>Interactive SICP</B></A><br/><br/><A HREF="oldindex.html">...or go to the old Mobile-friendly Web Edition</A></body></html>`
+        `<!doctype html><html lang="en"><body><A HREF="https://sourceacademy.org/sicpjs">Go to the new <B>Interactive SICP</B></A><br/><br/><A HREF="oldindex.html">...or go to the old Mobile-friendly Web Edition</A></body></html>`
       );
       const oldIndexFilepath = path.join(outputDir, "oldindex.html");
       const oldStream = fs.createWriteStream(oldIndexFilepath);
