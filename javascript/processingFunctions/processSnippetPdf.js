@@ -223,7 +223,7 @@ export const processSnippetPdf = (node, writeTo) => {
         codeEnv +
         "}\n" +
         "\\end{lrbox}" +
-        "\\Usebox{\\UnbreakableBox}\\\\" +
+        "\\Usebox{\\UnbreakableBox}\\pagebreak[1]\\\\" +
         midSpace +
         "\\begin{lrbox}{\\UnbreakableBox}" +
         "\\begin{" +
@@ -361,7 +361,7 @@ export const processSnippetPdf = (node, writeTo) => {
         codeEnv +
         "}\n" +
         "\\end{lrbox}" +
-        "\\Usebox{\\UnbreakableBox}\\\\" +
+        "\\Usebox{\\UnbreakableBox}\\pagebreak[1]\\\\" +
         "\\begin{lrbox}{\\UnbreakableBox}" +
         "\\begin{" +
         codeEnv +
