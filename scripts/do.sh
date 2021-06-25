@@ -10,6 +10,7 @@ GENERATED_HTML="html_split"
 GENERATED_JS="js_programs"
 GENERATED_JSON="json"
 PDF_FILE="sicpjs.pdf"
+LOG_FILE="sicpjs.log"
 EPUB_FILE="sicpjs.epub"
 
 # RESOURCES
@@ -62,6 +63,7 @@ clean() {
 
 prepare() {
  	[ ! -f ${LATEX_PDF}/${PDF_FILE} ] || cp ${LATEX_PDF}/${PDF_FILE} ${DOCS}
+ 	[ ! -f ${LATEX_PDF}/${LOG_FILE} ] || cp ${LATEX_PDF}/${LOG_FILE} ${DOCS}
  	[ ! -f ${LATEX_EPUB}/${EPUB_FILE} ] || cp ${LATEX_EPUB}/${EPUB_FILE} ${DOCS}
  	[ ! -f ${GENERATED_HTML}/index.html ] || cp -rf ${GENERATED_HTML}/* ${DOCS}
  	[ ! -d ${GENERATED_JS} ] || ( zip -r ${ZIP_FILE} ${GENERATED_JS}; \
