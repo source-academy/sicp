@@ -12,7 +12,7 @@ export const processFigureJson = (node, obj) => {
     src = node.getElementsByTagName("FIGURE")[0].getAttribute("src");
   }
   // get scale_factor, default: 70%
-  let scale_fraction = 0.70;
+  let scale_fraction = 0.7;
 
   if (node.getAttribute("web_scale")) {
     scale_fraction = node.getAttribute("web_scale");

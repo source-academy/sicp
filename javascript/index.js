@@ -21,7 +21,7 @@ $pdf_mode = 1;
 $dvi_mode = 0;
 $postscript_mode = 0;`;
 
-// html (web version)
+// html (comparison version)
 import { switchTitle } from "./htmlContent";
 import { switchParseFunctionsHtml, parseXmlHtml } from "./parseXmlHtml";
 import { setupSnippetsHtml } from "./processingFunctions/processSnippetHtml";
@@ -187,7 +187,7 @@ async function translateXml(filepath, filename, option) {
   }
 }
 
-// for web version only
+// for comparison version only
 // process files according to allFilepath order after sorting
 async function recursiveXmlToHtmlInOrder(option) {
   for (let i = 0; i < allFilepath.length; i++) {
@@ -236,16 +236,7 @@ const createIndexHtml = version => {
   indexHtml(writeToIndex);
   const stream = fs.createWriteStream(indexFilepath);
   stream.once("open", fd => {
-    if (version === "split") {
-      stream.write(writeToIndex.join(""));
-    } else {
-      stream.write(
-        `<!doctype html><html lang="en"><body><A HREF="https://sourceacademy.org/sicpjs">Go to the new <B>Interactive SICP</B></A><br/><br/><A HREF="oldindex.html">...or go to the old Mobile-friendly Web Edition</A></body></html>`
-      );
-      const oldIndexFilepath = path.join(outputDir, "oldindex.html");
-      const oldStream = fs.createWriteStream(oldIndexFilepath);
-      oldStream.write(writeToIndex.join(""));
-    }
+    stream.write(writeToIndex.join(""));
     stream.end();
   });
 };
@@ -333,10 +324,7 @@ async function main() {
   } else if (parseType == "web") {
     version = process.argv[3];
 
-    if (!version) {
-      version = "js";
-      outputDir = path.join(__dirname, "../html_js");
-    } else if (version == "split") {
+    if (version == "split") {
       outputDir = path.join(__dirname, "../html_split");
     } else if (version == "scheme") {
       outputDir = path.join(__dirname, "../html_scheme");
