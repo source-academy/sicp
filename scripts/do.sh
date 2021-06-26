@@ -14,6 +14,7 @@ LOG_FILE="sicpjs.log"
 EPUB_FILE="sicpjs.epub"
 
 # RESOURCES
+FAVICON="static/assets/sourcepower.ico"
 FONTS="static/fonts"
 CSS="static/css"
 IMAGES="static/images"
@@ -62,6 +63,7 @@ clean() {
 }
 
 prepare() {
+ 	[ ! -f ${FAVICON} ] || cp ${FAVICON} ${DOCS}/favicon.ico
  	[ ! -f ${LATEX_PDF}/${PDF_FILE} ] || cp ${LATEX_PDF}/${PDF_FILE} ${DOCS}
  	[ ! -f ${LATEX_PDF}/${LOG_FILE} ] || cp ${LATEX_PDF}/${LOG_FILE} ${DOCS}
  	[ ! -f ${LATEX_EPUB}/${EPUB_FILE} ] || cp ${LATEX_EPUB}/${EPUB_FILE} ${DOCS}
