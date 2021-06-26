@@ -115,7 +115,7 @@ export const html_links_part2 = (writeTo, toIndexFolder, version) => {
     <link href="https://fonts.googleapis.com/css?family=Droid+Sans|Droid+Serif" rel="stylesheet">
     <link rel="stylesheet" media="all" href="${toIndexFolder}assets/stylesheet.css" />
 
-   <link rel="shortcut icon" type="image/x-icon" href="${toIndexFolder}assets/favicon.ico" />
+   <link rel="shortcut icon" type="image/x-icon" href="${toIndexFolder}assets/sourcepower.ico" />
 
 <!--    <link rel="shortcut icon" type="image/png" href="${toIndexFolder}images/lambda.png" /> -->
 
