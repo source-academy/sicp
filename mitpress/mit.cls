@@ -275,7 +275,7 @@ ItalicFont=SyntaxLTStd-Italic,
 \fi                                       %    line on the page
 
 \ifsevenbyten
-\setlength\textheight{45\baselineskip} % 45 lines on a full page,
+\setlength\textheight{588\p@} % 45 lines on a full page,
 \addtolength\textheight{\topskip}      %    including the first
 \fi                                       %    line on the page
 

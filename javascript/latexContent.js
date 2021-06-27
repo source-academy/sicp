@@ -61,8 +61,10 @@ export const preamble = `\\documentclass[7x10]{../mitpress/mit}
 
 \\raggedbottom
 
-\\addtolength\\headsep{-1.5pc} 
-\\addtolength\\textheight{0.5pc} 
+%%% NOTE: all the vertical heights of the document is controlled here
+\\setlength\\headsep{1pc}
+\\setlength\\headheight{1pc}
+\\setlength\\textheight{50pc}
 
 \\usepackage[T1]{fontenc}
 \\usepackage{textcomp}
