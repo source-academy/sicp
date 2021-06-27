@@ -225,9 +225,13 @@ export const processSnippetJson = (node, snippet) => {
         "chap=" + chap + variant + ext + "&prgrm=" + program;
 
       if (reqStr) {
-        addToSnippet("program", makeHash(compressed), snippet);
         addToSnippet("prepend", compressedPrepend, snippet);
+        addToSnippet("prependLength", reqStr.split('\n').length, snippet);
+      } else {
+        addToSnippet("prependLength", 0, snippet);
       }
+
+      addToSnippet("program", makeHash(compressed), snippet);
 
       addToSnippet(
         "withoutPrepend",
