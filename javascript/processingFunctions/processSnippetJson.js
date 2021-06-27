@@ -226,7 +226,7 @@ export const processSnippetJson = (node, snippet) => {
 
       if (reqStr) {
         addToSnippet("prepend", compressedPrepend, snippet);
-        addToSnippet("prependLength", reqStr.split('\n').length, snippet);
+        addToSnippet("prependLength", reqStr.split("\n").length, snippet);
       } else {
         addToSnippet("prependLength", 0, snippet);
       }
