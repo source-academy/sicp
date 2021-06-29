@@ -124,7 +124,7 @@ export const preamble = `\\documentclass[7x10]{../mitpress/mit}
   \\par%
   \\vspace{1.2em}%
   \\noindent%
-  \\begin{minipage}{1.0\\linewidth}\\vspace*{-0.85\\baselineskip}\\normalcodesize\\noindent\\hspace{-0.55em}\\begin{math}\\begin{array}{rcl}}{%
+  \\begin{minipage}{1.0\\linewidth}\\vspace*{-0.85\\baselineskip}\\normalcodesize\\noindent\\begin{math}\\begin{array}{@{}rcl}}{%
                                                          \\end{array}\\end{math}%
                                                        \\end{minipage}%
                                                        \\par%
@@ -134,7 +134,7 @@ export const preamble = `\\documentclass[7x10]{../mitpress/mit}
   \\par%
   \\vspace{1.2em}%
   \\noindent%
-  \\begin{minipage}{1.0\\linewidth}\\vspace*{-0.85\\baselineskip}\\normalcodesize\\noindent\\hspace{-0.55em}\\begin{math}\\begin{array}{rcl}}{%
+  \\begin{minipage}{1.0\\linewidth}\\vspace*{-0.85\\baselineskip}\\normalcodesize\\noindent\\begin{math}\\begin{array}{@{}rcl}}{%
                                                          \\end{array}\\end{math}%
                                                        \\end{minipage}
                                                        \\par%
