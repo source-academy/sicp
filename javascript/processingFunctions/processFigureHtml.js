@@ -21,8 +21,18 @@ export const processFigureHtml = (node, writeTo) => {
 
   // get scale_factor, default: 100%
   let scale_fraction = null;
-  if (node.getAttribute("web_scale")) {
+  if (node.getAttribute("split_scale")) {
+    scale_fraction = node.getAttribute("split_scale");
+  } else if (node.getAttribute("web_scale")) {
     scale_fraction = node.getAttribute("web_scale");
+  } else if (
+    node.getElementsByTagName("FIGURE") &&
+    node.getElementsByTagName("FIGURE")[0] &&
+    node.getElementsByTagName("FIGURE")[0].getAttribute("split_scale")
+  ) {
+    scale_fraction = node
+      .getElementsByTagName("FIGURE")[0]
+      .getAttribute("split_scale");
   } else if (
     node.getElementsByTagName("FIGURE") &&
     node.getElementsByTagName("FIGURE")[0] &&
