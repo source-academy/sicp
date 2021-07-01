@@ -363,7 +363,7 @@ const processTextFunctionsDefaultHtml = {
     } else if (node.getAttribute("LATEX") == "yes") {
       const textprompt = getChildrenByTagName(node, "JAVASCRIPT_PROMPT")[0];
       if (textprompt) {
-        writeTo.push("<kbd class='snippet'>");
+        writeTo.push("<kbd class='snippet-prompt'>");
         recursiveProcessTextHtml(textprompt.firstChild, writeTo, {
           removeNewline: "beginning&end"
         });
@@ -383,7 +383,7 @@ const processTextFunctionsDefaultHtml = {
 
       const textoutput = getChildrenByTagName(node, "JAVASCRIPT_OUTPUT")[0];
       if (textoutput) {
-        writeTo.push("<kbd class='snippet'>");
+        writeTo.push("<kbd class='snippet-output'>");
         recursiveProcessTextHtml(textoutput.firstChild, writeTo, {
           removeNewline: "beginning&end"
         });
@@ -649,7 +649,7 @@ const processTextFunctionsSplit = {
       writeTo.push(`<span style="color:green">`);
       if (scheme_prompt) {
         writeTo.push(`<span style="color:green">`);
-        writeTo.push("<kbd class='snippet'>");
+        writeTo.push("<kbd class='snippet-prompt'>");
         recursiveProcessTextHtml(scheme_prompt.firstChild, writeTo, {
           removeNewline: "beginning&end"
         });
@@ -666,7 +666,7 @@ const processTextFunctionsSplit = {
         writeTo.push(`</span>`);
       }
       if (scheme_output) {
-        writeTo.push("<kbd class='snippet'>");
+        writeTo.push("<kbd class='snippet-output'>");
         recursiveProcessTextHtml(scheme_output.firstChild, writeTo, {
           removeNewline: "beginning&end"
         });
@@ -678,7 +678,7 @@ const processTextFunctionsSplit = {
             <td>`);
       writeTo.push(`<span style="color:blue">`);
       if (js_prompt) {
-        writeTo.push("<kbd class='snippet'>");
+        writeTo.push("<kbd class='snippet-prompt'>");
         recursiveProcessTextHtml(js_prompt.firstChild, writeTo, {
           removeNewline: "beginning&end"
         });
@@ -692,7 +692,7 @@ const processTextFunctionsSplit = {
         writeTo.push("</kbd>");
       }
       if (js_output) {
-        writeTo.push("<kbd class='snippet'>");
+        writeTo.push("<kbd class='snippet-output'>");
         recursiveProcessTextHtml(js_output.firstChild, writeTo, {
           removeNewline: "beginning&end"
         });
@@ -704,7 +704,7 @@ const processTextFunctionsSplit = {
     } else if (scheme_prompt || scheme || scheme_output) {
       writeTo.push(`<span style="color:green">`);
       if (scheme_prompt) {
-        writeTo.push("<kbd class='snippet'>");
+        writeTo.push("<kbd class='snippet-prompt'>");
         recursiveProcessTextHtml(scheme_prompt.firstChild, writeTo, {
           removeNewline: "beginning&end"
         });
@@ -718,7 +718,7 @@ const processTextFunctionsSplit = {
         writeTo.push("</kbd>");
       }
       if (scheme_output) {
-        writeTo.push("<kbd class='snippet'>");
+        writeTo.push("<kbd class='snippet-output'>");
         recursiveProcessTextHtml(scheme_output.firstChild, writeTo, {
           removeNewline: "beginning&end"
         });
@@ -728,7 +728,7 @@ const processTextFunctionsSplit = {
     } else if (js || js_output || js_prompt) {
       writeTo.push(`<span style="color:blue">`);
       if (js_prompt) {
-        writeTo.push("<kbd class='snippet'>");
+        writeTo.push("<kbd class='snippet-prompt'>");
         recursiveProcessTextHtml(js_prompt.firstChild, writeTo, {
           removeNewline: "beginning&end"
         });
@@ -742,7 +742,7 @@ const processTextFunctionsSplit = {
         writeTo.push("</kbd>");
       }
       if (js_output) {
-        writeTo.push("<kbd class='snippet'>");
+        writeTo.push("<kbd class='snippet-output'>");
         recursiveProcessTextHtml(js_output.firstChild, writeTo, {
           removeNewline: "beginning&end"
         });
