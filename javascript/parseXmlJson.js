@@ -289,13 +289,13 @@ const processTextFunctions = {
   LATEXINLINE: (node, obj) => processLatex(node, obj, true),
 
   LaTeX: (_node, obj) => {
-    obj['tag'] = "LATEX";
-    obj['body'] = "$\\LaTeX$";
+    obj["tag"] = "LATEX";
+    obj["body"] = "$\\LaTeX$";
   },
 
   TeX: (_node, obj) => {
-    obj['tag'] = "LATEX";
-    obj['body'] = "$\\TeX$";
+    obj["tag"] = "LATEX";
+    obj["body"] = "$\\TeX$";
   },
 
   NAME: (node, obj) => {
