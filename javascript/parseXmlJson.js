@@ -80,15 +80,34 @@ const processContainer = (node, obj) => {
   recursiveProcessTextJson(name.nextSibling, obj);
 };
 
+const processText = (body, obj) => {
+  obj["body"] = body;
+  obj["tag"] = "#text";
+};
+
 const processTextFunctions = {
+  // Text tags: tag that is parsed as text
   "#text": (node, obj) => {
     // ignore the section/subsection tags at the end of chapter/section files
     if (!node.nodeValue.match(/&(\w|\.|\d)+;/)) {
       const body = node.nodeValue;
       if (body.trim()) {
-        addBodyToObj(obj, node, body);
+        processText(body, obj);
       }
     }
+  },
+
+  AMP: (_node, obj) => {
+    processText("&amp;", obj);
+  },
+
+  DOLLAR: (_node, obj) => {
+    processText("$", obj);
+  },
+
+  SPACE: (node, obj) => {
+    processText("\u00A0", obj);
+    recursiveProcessTextJson(node.firstChild, obj);
   },
 
   // Container tags: tag containing other elements and a heading
@@ -121,16 +140,6 @@ const processTextFunctions = {
     obj["tag"] = "SECTION";
 
     recursiveProcessTextJson(name.nextSibling, obj);
-  },
-
-  AMP: (node, obj) => {
-    addBodyToObj(obj, node, "&amp;");
-    obj["tag"] = "#text";
-  },
-
-  DOLLAR: (node, obj) => {
-    addBodyToObj(obj, node, "$");
-    obj["tag"] = "#text";
   },
 
   B: (node, obj) => {
@@ -386,12 +395,6 @@ const processTextFunctions = {
     obj["latex"] = false;
     obj["id"] = snippet_count;
     processSnippetJson(node, obj);
-  },
-
-  SPACE: (node, obj) => {
-    addBodyToObj(obj, node, "\u00A0");
-    obj["tag"] = "#text";
-    recursiveProcessTextJson(node.firstChild, obj);
   },
 
   OL: (node, obj) => {
