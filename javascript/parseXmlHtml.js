@@ -499,9 +499,9 @@ const processTextFunctionsDefaultHtml = {
 
 const processTextFunctionsSplit = {
   WEB_ONLY: (node, writeTo) => {
-    writeTo.push("<div class='webonly'>");
+    writeTo.push("<span class='webonly'>");
     recursiveProcessTextHtml(node.firstChild, writeTo);
-    writeTo.push("</div>");
+    writeTo.push("</span>");
   },
 
   PDF_ONLY: (node, writeTo) => {},
