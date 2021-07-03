@@ -196,7 +196,7 @@ const processTextFunctions = {
     parent.appendChild(cloneNode);
 
     obj["tag"] = "FOOTNOTE_REF";
-    obj["id"] = `footnote-link-${footnote_count}`;
+    obj["id"] = `#footnote-link-${footnote_count}`;
     obj["body"] = `${footnote_count}`;
     obj["href"] = `/sicpjs/${chapterIndex}#footnote-${footnote_count}`;
   },

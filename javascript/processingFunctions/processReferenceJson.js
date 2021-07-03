@@ -140,15 +140,8 @@ export const processReferenceJson = (node, obj, chapterIndex) => {
   if (ref_type == "foot") {
     obj["tag"] = "FOOTNOTE_REF";
     obj["id"] = `${chapterIndex}-foot-link-${displayName}`;
-  } else if (ref_type == "ex") {
+  } else {
     obj["tag"] = "REF";
-    obj["id"] = `${chapterIndex}-ex-link-${displayName}`;
-  } else if (ref_type == "fig") {
-    obj["tag"] = "REF";
-    obj["id"] = `${chapterIndex}-fig-link-${displayName}`;
-  } else if (ref_type == "sec") {
-    obj["tag"] = "REF";
-    obj["id"] = `${chapterIndex}-sec-link-${displayName}`;
   }
 
   obj["body"] = displayName;
