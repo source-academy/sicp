@@ -76,14 +76,6 @@ export const addArrayToObj = (obj, node, array) => {
   obj["body"] = body;
 };
 
-const processContainer = (node, obj) => {
-  addBodyToObj(obj, node, displayTitle);
-  obj["tag"] = "SECTION";
-
-  const name = getChildrenByTagName(node, "NAME")[0];
-  recursiveProcessTextJson(name.nextSibling, obj);
-};
-
 const processText = (body, obj) => {
   obj["body"] = body;
   obj["tag"] = "#text";
@@ -137,38 +129,6 @@ const processTextFunctions = {
   SPACE: (node, obj) => {
     processText("\u00A0", obj);
     recursiveProcessTextJson(node.firstChild, obj);
-  },
-
-  // Container tags: tag containing other elements and a heading
-  SECTION: processContainer,
-
-  CHAPTER: processContainer,
-
-  MATTER: processContainer,
-
-  REFERENCES: processContainer,
-
-  SUBSECTION: processContainer,
-
-  WEBPREFACE: processContainer,
-
-  // e.g. section 4.4.4.4
-  SUBSUBSECTION: (node, obj) => {
-    subsubsection_count += 1;
-    heading_count += 1;
-    const name = getChildrenByTagName(node, "NAME")[0];
-
-    obj["id"] = `#sec${chapterIndex}.${subsubsection_count}`;
-
-    addBodyToObj(
-      obj,
-      node,
-      `${chapterIndex}.${subsubsection_count}\u00A0\u00A0\u00A0` +
-        name.firstChild.nodeValue
-    );
-    obj["tag"] = "SECTION";
-
-    recursiveProcessTextJson(name.nextSibling, obj);
   },
 
   // Tags with children and no body
@@ -440,6 +400,27 @@ export const recursiveProcessTextJson = (node, obj, prevSibling = false) => {
     obj = child;
   }
 
+  // handle subsubsection seperately
+  if (node.nodeName === "SUBSUBSECTION") {
+    subsubsection_count += 1;
+    heading_count += 1;
+
+    const name = getChildrenByTagName(node, "NAME")[0];
+
+    const title = {
+      id: `#sec${chapterIndex}.${subsubsection_count}`,
+      tag: "TITLE",
+      body:
+        `${chapterIndex}.${subsubsection_count}\u00A0\u00A0\u00A0` +
+        name.firstChild.nodeValue
+    };
+
+    obj.push(title);
+
+    recursiveProcessTextJson(name.nextSibling, obj, title);
+    return recursiveProcessTextJson(node.nextSibling, obj, true);
+  }
+
   let next = {};
   processTextJson(node, next);
 
@@ -479,7 +460,7 @@ export const recursiveProcessTextJson = (node, obj, prevSibling = false) => {
   return recursiveProcessTextJson(node.nextSibling, obj, prevSibling);
 };
 
-export const parseXmlJson = (doc, obj, filename) => {
+export const parseXmlJson = (doc, arr, filename) => {
   chapterIndex = tableOfContent[filename].index;
   chapterTitle = tableOfContent[filename].title;
 
@@ -499,5 +480,16 @@ export const parseXmlJson = (doc, obj, filename) => {
   chapArrIndex = allFilepath.indexOf(filename);
   console.log(`${chapArrIndex} parsing chapter ${chapterIndex}`);
 
-  recursiveProcessTextJson(doc.documentElement, obj, true);
+  // Add section title
+  const title = {
+    id: `/sicpjs/${chapterIndex}`,
+    tag: "TITLE",
+    body: displayTitle.trim()
+  };
+  arr.push(title);
+
+  const name = getChildrenByTagName(doc.documentElement, "NAME")[0];
+  if (name) {
+    recursiveProcessTextJson(name.nextSibling, arr, title);
+  }
 };
