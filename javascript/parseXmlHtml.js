@@ -130,6 +130,11 @@ const processTextFunctionsDefaultHtml = {
     recursiveProcessTextHtml(node.firstChild, writeTo);
   },
 
+  SHARP: (node, writeTo) => {
+    writeTo.push("#");
+    recursiveProcessTextHtml(node.firstChild, writeTo);
+  },
+
   APOS: (node, writeTo) => {
     writeTo.push("'");
   },
