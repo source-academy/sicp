@@ -75,7 +75,9 @@ const processTextFunctionsDefaultLatex = {
       ) {
         trimedValue = trimedValue.replace(/\{/g, "\\{").replace(/\}/g, "\\}");
       } else {
-        trimedValue = trimedValue.replace(/%/g, "\\%");
+        if (node.parentNode.nodeName !== "JAVASCRIPTINLINE") {
+          trimedValue = trimedValue.replace(/%/g, "\\%");
+        }
       }
       trimedValue = trimedValue
         .replace(/[\r\n]+/, " ")
