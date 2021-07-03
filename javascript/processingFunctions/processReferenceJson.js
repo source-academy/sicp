@@ -23,7 +23,6 @@ const ifIgnore = node => {
 };
 
 export const setupReferencesJson = (node, filename) => {
-  const chapArrIndex = allFilepath.indexOf(filename);
   const chapterIndex = tableOfContent[filename].index;
 
   subsubsection_count = 0;
