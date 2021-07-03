@@ -42,7 +42,10 @@ export const tagsToRemove = new Set([
   "NAME",
   "LABEL",
   "CODEINDEX",
-  "EXPLANATION"
+  "EXPLANATION",
+  "NOINDENT",
+  "EXERCISE_STARTING_WITH_ITEMS",
+  "EXERCISE_FOLLOWED_BY_TEXT"
 ]);
 
 const ignoreTags = new Set([
@@ -53,7 +56,8 @@ const ignoreTags = new Set([
   "JAVASCRIPT",
   "CITATION",
   "SECTIONCONTENT",
-  "p"
+  "p",
+  "WEB_ONLY"
 ]);
 
 export const addBodyToObj = (obj, node, body) => {
@@ -80,15 +84,59 @@ const processContainer = (node, obj) => {
   recursiveProcessTextJson(name.nextSibling, obj);
 };
 
+const processText = (body, obj) => {
+  obj["body"] = body;
+  obj["tag"] = "#text";
+};
+
+const processTagWithChildren = (node, obj) => {
+  obj["tag"] = node.nodeName;
+  recursiveProcessTextJson(node.firstChild, obj);
+};
+
+const processLatex = (node, obj, inline) => {
+  const writeTo = [];
+
+  if (inline) {
+    recursiveProcessPureText(node.firstChild, writeTo, {
+      removeNewline: "all"
+    });
+  } else {
+    recursiveProcessPureText(node.firstChild, writeTo);
+  }
+
+  let math = "";
+  writeTo.forEach(x => (math += x));
+
+  math = math.replace(/mbox/g, "text"); // replace mbox with text
+
+  obj["body"] = math;
+  obj["tag"] = "LATEX";
+};
+
 const processTextFunctions = {
+  // Text tags: tag that is parsed as text
   "#text": (node, obj) => {
     // ignore the section/subsection tags at the end of chapter/section files
     if (!node.nodeValue.match(/&(\w|\.|\d)+;/)) {
       const body = node.nodeValue;
       if (body.trim()) {
-        addBodyToObj(obj, node, body);
+        processText(body, obj);
       }
     }
+  },
+
+  AMP: (_node, obj) => {
+    processText("&amp;", obj);
+  },
+
+  DOLLAR: (_node, obj) => {
+    processText("$", obj);
+  },
+
+  SPACE: (node, obj) => {
+    processText("\u00A0", obj);
+    recursiveProcessTextJson(node.firstChild, obj);
   },
 
   // Container tags: tag containing other elements and a heading
@@ -123,59 +171,26 @@ const processTextFunctions = {
     recursiveProcessTextJson(name.nextSibling, obj);
   },
 
-  AMP: (node, obj) => {
-    addBodyToObj(obj, node, "&amp;");
-    obj["tag"] = "#text";
-  },
+  // Tags with children and no body
+  B: processTagWithChildren,
 
-  DOLLAR: (node, obj) => {
-    addBodyToObj(obj, node, "$");
-    obj["tag"] = "#text";
-  },
+  EM: processTagWithChildren,
 
-  B: (node, obj) => {
-    addBodyToObj(obj, node, false);
-    recursiveProcessTextJson(node.firstChild, obj);
-  },
+  LI: processTagWithChildren,
 
-  EM: (node, obj) => {
-    addBodyToObj(obj, node, false);
-    recursiveProcessTextJson(node.firstChild, obj);
-  },
+  TT: processTagWithChildren,
 
-  LI: (node, obj) => {
-    addBodyToObj(obj, node, false);
-    recursiveProcessTextJson(node.firstChild, obj);
-  },
+  TABLE: processTagWithChildren,
 
-  TT: (node, obj) => {
-    addBodyToObj(obj, node, false);
-    recursiveProcessTextJson(node.firstChild, obj);
-  },
+  TR: processTagWithChildren,
 
-  TABLE: (node, obj) => {
-    addBodyToObj(obj, node, false);
-    recursiveProcessTextJson(node.firstChild, obj);
-  },
+  TD: processTagWithChildren,
 
-  TR: (node, obj) => {
-    addBodyToObj(obj, node, false);
-    recursiveProcessTextJson(node.firstChild, obj);
-  },
+  REFERENCE: processTagWithChildren,
 
-  TD: (node, obj) => {
-    addBodyToObj(obj, node, false);
-    recursiveProcessTextJson(node.firstChild, obj);
-  },
+  OL: processTagWithChildren,
 
-  WEB_ONLY: (node, obj) => {
-    recursiveProcessTextJson(node.firstChild, obj);
-  },
-
-  REFERENCE: (node, obj) => {
-    addBodyToObj(obj, node, false);
-    recursiveProcessTextJson(node.firstChild, obj);
-  },
+  UL: processTagWithChildren,
 
   br: (node, obj) => {
     addBodyToObj(obj, node, false);
@@ -196,12 +211,6 @@ const processTextFunctions = {
   BLOCKQUOTE: (node, obj) => {
     processEpigraphJson(node, obj);
   },
-
-  NOINDENT: (_node, _obj) => {},
-
-  EXERCISE_STARTING_WITH_ITEMS: (_node, _obj) => {},
-
-  EXERCISE_FOLLOWED_BY_TEXT: (_node, _obj) => {},
 
   EXERCISE: (node, obj) => {
     exercise_count += 1;
@@ -275,38 +284,18 @@ const processTextFunctions = {
     obj["href"] = node.getAttribute("address");
   },
 
-  LATEX: (node, obj) => {
-    const writeTo = [];
-    recursiveProcessPureText(node.firstChild, writeTo);
+  LATEX: (node, obj) => processLatex(node, obj, false),
 
-    let math = "";
-    writeTo.forEach(x => (math += x));
+  LATEXINLINE: (node, obj) => processLatex(node, obj, true),
 
-    math = math.replace(/mbox/g, "text"); // replace mbox with text
-
-    addBodyToObj(obj, node, math);
+  LaTeX: (_node, obj) => {
+    obj["tag"] = "LATEX";
+    obj["body"] = "$\\LaTeX$";
   },
 
-  LATEXINLINE: (node, obj) => {
-    const writeTo = [];
-    recursiveProcessPureText(node.firstChild, writeTo, {
-      removeNewline: "all"
-    });
-
-    let math = "";
-    writeTo.forEach(x => (math += x));
-
-    math = math.replace(/mbox/g, "text"); // replace mbox with text
-
-    addBodyToObj(obj, node, math);
-  },
-
-  LaTeX: (node, obj) => {
-    addBodyToObj(obj, node, false);
-  },
-
-  TeX: (node, obj) => {
-    addBodyToObj(obj, node, false);
+  TeX: (_node, obj) => {
+    obj["tag"] = "LATEX";
+    obj["body"] = "$\\TeX$";
   },
 
   NAME: (node, obj) => {
@@ -388,22 +377,6 @@ const processTextFunctions = {
     processSnippetJson(node, obj);
   },
 
-  SPACE: (node, obj) => {
-    addBodyToObj(obj, node, "\u00A0");
-    obj["tag"] = "#text";
-    recursiveProcessTextJson(node.firstChild, obj);
-  },
-
-  OL: (node, obj) => {
-    addBodyToObj(obj, node, false);
-    recursiveProcessTextJson(node.firstChild, obj);
-  },
-
-  UL: (node, obj) => {
-    addBodyToObj(obj, node, false);
-    recursiveProcessTextJson(node.firstChild, obj);
-  },
-
   SUBINDEX: (node, obj) => {
     // should occur only within INDEX
     // also should only exist after stuff in the main index
@@ -444,13 +417,12 @@ export const processTextJson = (node, obj) => {
   } else {
     const newTag = [];
     if (replaceTagWithSymbol(node, newTag)) {
-      addBodyToObj(obj, node, newTag[0]);
-      obj["tag"] = "#text";
-      return true;
-    } else if (tagsToRemove.has(name)) {
+      processText(newTag[0], obj);
       return true;
     } else if (ignoreTags.has(name)) {
       recursiveProcessTextJson(node.firstChild, obj);
+      return true;
+    } else if (tagsToRemove.has(name)) {
       return true;
     }
   }

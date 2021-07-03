@@ -99,12 +99,6 @@ export const processSnippetJson = (node, snippet) => {
     addToSnippet("body", jsPromptSnippet.firstChild.nodeValue.trim(), snippet);
   }
 
-  const jsLonelySnippet = node.getElementsByTagName("JAVASCRIPT_LONELY")[0];
-
-  if (jsLonelySnippet) {
-    addToSnippet("body", jsLonelySnippet.firstChild.nodeValue.trim(), snippet);
-  }
-
   const jsSnippet = node.getElementsByTagName("JAVASCRIPT")[0];
   const jsOutputSnippet = node.getElementsByTagName("JAVASCRIPT_OUTPUT")[0];
 
@@ -191,12 +185,6 @@ export const processSnippetJson = (node, snippet) => {
       }
       const exampleStr = exampleArr.join("");
 
-      const compressedPrepend = lzString.compressToEncodedURIComponent(reqStr);
-
-      const compressedWithoutPrepend = lzString.compressToEncodedURIComponent(
-        "// SICP JS " + chapterIndex + "\n\n" + codeStr_run + exampleStr
-      );
-
       const compressed = lzString.compressToEncodedURIComponent(
         "// SICP JS " +
           chapterIndex +
@@ -225,19 +213,12 @@ export const processSnippetJson = (node, snippet) => {
         "chap=" + chap + variant + ext + "&prgrm=" + program;
 
       if (reqStr) {
-        addToSnippet("prepend", compressedPrepend, snippet);
         addToSnippet("prependLength", reqStr.split("\n").length, snippet);
       } else {
         addToSnippet("prependLength", 0, snippet);
       }
 
       addToSnippet("program", makeHash(compressed), snippet);
-
-      addToSnippet(
-        "withoutPrepend",
-        makeHash(compressedWithoutPrepend),
-        snippet
-      );
 
       const chunks = (codeStr + "\n").match(
         /^((?:.*?[\r\n]+){1,6})((?:.|\n|\r)*)$/
