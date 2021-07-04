@@ -123,7 +123,7 @@
 }
 
 \newcommand\footnotesize{%
-   \@setfontsize\footnotesize{9\p@}{11\p@}%
+   \@setfontsize\footnotesize{9.5\p@}{11\p@}%
    \abovedisplayskip 6\p@%
    \abovedisplayshortskip \z@%
    \belowdisplayshortskip 3\p@%
