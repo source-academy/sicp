@@ -114,8 +114,8 @@ export const preamble = `\\documentclass[7x10]{../mitpress/mit}
 %% NOTE! the following are redefined (and changed back again) below
 \\def\\INLINECODESIZE{\\fontsize{10.6pt}{13pt}\\selectfont}
 \\def\\inlinecodesize{\\protect\\INLINECODESIZE}
-\\def\\inlineexercisecodesize{\\fontsize{9.5pt}{11pt}\\selectfont}
-\\def\\inlinefootnotecodesize{\\fontsize{9pt}{10pt}\\selectfont}
+\\def\\inlineexercisecodesize{\\fontsize{9.5pt}{12pt}\\selectfont}
+\\def\\inlinefootnotecodesize{\\fontsize{9pt}{11pt}\\selectfont}
 
 \\def\\normaloutputcodesize{\\fontsize{9.8}{11pt}\\selectfont}
 \\def\\exerciseoutputcodesize{\\fontsize{9}{10pt}\\selectfont}

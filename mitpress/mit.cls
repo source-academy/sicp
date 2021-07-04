@@ -123,7 +123,7 @@
 }
 
 \newcommand\footnotesize{%
-   \@setfontsize\footnotesize{9\p@}{10.5\p@}%
+   \@setfontsize\footnotesize{9\p@}{11\p@}%
    \abovedisplayskip 6\p@%
    \abovedisplayshortskip \z@%
    \belowdisplayshortskip 3\p@%
@@ -1311,12 +1311,12 @@ ItalicFont=SyntaxLTStd-Italic,
 \usepackage[splitrule]{footmisc}%
   \def\splitfootnoterule{\kern-3\p@ \hbox to 0.5\textwidth{\hrulefill} \kern3.6\p@}
 
-\AtBeginDocument{\renewcommand\@makefntext[1]{%
-    \fontsize{9\p@}{11\p@}\selectfont\def\@textsuperscript{}%\global\baselineskip=9pt%
-    \parindent10pt%
-    \noindent\ignorespaces%\hspace*{10pt}\ignorespaces
-    \hbox{\@makefnmark.}\ignorespaces\hspace{4\p@}\ignorespaces#1}
-}%
+% \AtBeginDocument{\renewcommand\@makefntext[1]{%
+%     \fontsize{9.5\p@}{11.3\p@}\selectfont\def\@textsuperscript{}%\global\baselineskip=9pt%
+%     \parindent10pt%
+%     \noindent\ignorespaces%\hspace*{10pt}\ignorespaces
+%     \hbox{\@makefnmark.}\ignorespaces\hspace{4\p@}\ignorespaces#1}
+% }%
 \def\@makefnmark{\hbox{\smash{\@textsuperscript{\normalfont\@thefnmark}}}}
 
 %%End Note Definition%%%
