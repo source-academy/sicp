@@ -172,6 +172,35 @@ export const html_links_part2 = (writeTo, toIndexFolder, version) => {
        <button id="btn" class="navbar-toggler collapsed" type="button" data-toggle="collapse" data-target="#nav-sidebar" aria-controls="nav-sidebar" aria-expanded="false" aria-label="Toggle navigation" title="navigation">
          <span class="navbar-toggler-icon"></span>
        </button>
+       <span class="toolt">Legend<span class="toolttext">
+    <div class="title-text-ALSO">
+      <span class="title-text-ALSO">Color highlighting:</span><BR/>
+    </div>
+    <div class="title-text-OTHEREDITIONS">
+      <span class="title-text-OTHEREDITIONS">
+      <span style="color:black">Unchanged █</span>
+      </span>
+    </div>
+    <div class="title-text-OTHEREDITIONS">
+      <span class="title-text-OTHEREDITIONS">
+      <span style="color:green">Original █</span>
+      </span>
+    </div>
+    <div class="title-text-OTHEREDITIONS">
+      <span class="title-text-OTHEREDITIONS">
+      <span style="color:blue">Javascript █</span>
+      </span>
+    </div>
+    <div class="title-text-OTHEREDITIONS">
+      <span class="title-text-OTHEREDITIONS">
+      <span style="color:grey">Explanation █</span>
+      </span>
+    </div>
+    <div class="title-text-OTHEREDITIONS">
+      <span class="title-text-OTHEREDITIONS">
+      <span style="color:red">Web-only █</span>
+    </div>
+</span></span>
        <span class="navbar-brand-short"><a title="Go back to front page" href="${toIndexFolder}index.html" class="gray">${shortTitle}</a></span>
        <span class="navbar-brand-long" ><a title="Go back to front page" href="${toIndexFolder}index.html" class="gray">${longTitle}</a></span>
 
