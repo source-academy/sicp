@@ -504,7 +504,11 @@ const processTextFunctionsDefaultHtml = {
 
 const processTextFunctionsSplit = {
   WEB_ONLY: (node, writeTo) => {
-    writeTo.push("<span class='webonly'>");
+    if (node.getAttribute("DIFFERENT_TEXT") == "yes") {
+      writeTo.push("<span class='webonly'>");
+    } else {
+      writeTo.push("<span style='color:blue'>");
+    }
     recursiveProcessTextHtml(node.firstChild, writeTo);
     writeTo.push("</span>");
   },
