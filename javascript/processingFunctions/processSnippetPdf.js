@@ -108,9 +108,14 @@ export const processSnippetPdf = (node, writeTo) => {
   const followedByOtherSnippet = nextNodeIsVisibleSnippet(node);
   let outputAdjacent = false;
 
+  const inFootnote = ancestorHasTag(node, "FOOTNOTE");
   const inFigure = ancestorHasTag(node, "FIGURE");
-  const preSpace = inFigure ? "" : "\\PreBoxCmd";
-  const postSpace = inFigure ? "" : "\\PostBoxCmd%\n";
+  const preSpace = inFigure ? "" : inFootnote ? "\\PreBoxCmdFn" : "\\PreBoxCmd";
+  const postSpace = inFigure
+    ? ""
+    : inFootnote
+    ? "\\PostBoxCmdFn%\n"
+    : "\\PostBoxCmd%\n";
   const midSpace = inFigure ? "\\smallskip" : "";
 
   const jsPromptSnippet = node.getElementsByTagName("JAVASCRIPT_PROMPT")[0];

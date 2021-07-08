@@ -330,6 +330,8 @@ export const preamble = `\\documentclass[7x10]{../mitpress/mit}
 
 \\newcommand{\\PreBoxCmd}{{\\vskip 0.8em}\\noindent}
 \\newcommand{\\PostBoxCmd}{{\\vskip 0.6em}\\noindent}
+\\newcommand{\\PreBoxCmdFn}{\\nopagebreak{\\vskip 0.4em}\\noindent}
+\\newcommand{\\PostBoxCmdFn}{\\nopagebreak{\\vskip 0.2em}\\noindent}
 \\newcommand{\\PromptInputSpace}{\\nopagebreak\\par\\noindent}
 \\newcommand{\\InputOutputSpace}{\\nopagebreak{\\vskip 0.8em}\\noindent}
 \\newcommand{\\InputOutputNoSpace}{\\nopagebreak{\\vskip 0.0em}\\noindent}
