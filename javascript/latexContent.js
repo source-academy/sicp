@@ -31,7 +31,8 @@ const title = `\\begin{titlepage}
 `;
 
 export const preamble = `\\documentclass[7x10]{../mitpress/mit}
-
+% use: option nocrop for final build
+% also remember: hyperref below: colorlinks=false for final build
 \\synctex=1
 
 \\newboolean{show-links}
