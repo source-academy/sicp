@@ -19,7 +19,7 @@ International License][cc-by-nc-sa].
 All JavaScript and Scheme programs that appear in SICP and SICP JS are licensed under the 
 [GNU General Public License Version 3][gpl3].
 
-[![GPL 3][apache2-image]][apache2]
+[![GPL 3][apache2-image | width=100]][apache2]
 All JavaScript and TypeScript programs that generate the SICP (JS) versions are licensed
 under the 
 [Apache License Version 2][apache2].
