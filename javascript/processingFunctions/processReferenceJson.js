@@ -35,7 +35,9 @@ export const setupReferencesJson = (node, filename) => {
 
   //Enumerate all footnotes in the subsection
   let footnotes = node.getElementsByTagName("FOOTNOTE");
-  footnotes = Array.from(footnotes).filter(footnote => !ancestorHasTag(footnote, "SCHEME"));
+  footnotes = Array.from(footnotes).filter(
+    footnote => !ancestorHasTag(footnote, "SCHEME")
+  );
   for (let i = 0; footnotes[i]; ++i) {
     const footnote = footnotes[i];
     footnote.footnote_count = i + 1;
