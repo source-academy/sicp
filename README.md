@@ -16,8 +16,13 @@ This work is licensed under a [Creative Commons Attribution-NonCommercial-ShareA
 International License][cc-by-nc-sa].
 
 [![GPL 3][gpl3-image]][gpl3]
-All JavaScript and Scheme programs in this work are licensed under the 
+All JavaScript and Scheme programs that appear in SICP and SICP JS are licensed under the 
 [GNU General Public License Version 3][gpl3].
+
+[![GPL 3][apache2-image]][apache2]
+All JavaScript and TypeScript programs that generate the SICP (JS) versions are licensed
+under the 
+[Apache License Version 2][apache2].
 
 [cc-by-sa]: http://creativecommons.org/licenses/by-sa/4.0/
 [cc-by-sa-image]: https://licensebuttons.net/l/by-sa/4.0/88x31.png
@@ -25,5 +30,6 @@ All JavaScript and Scheme programs in this work are licensed under the
 [cc-by-nc-sa-image]: https://licensebuttons.net/l/by-nc-sa/4.0/88x31.png
 [gpl3]: https://www.gnu.org/licenses/gpl-3.0.en.html
 [gpl3-image]: https://upload.wikimedia.org/wikipedia/commons/thumb/7/79/License_icon-gpl.svg/50px-License_icon-gpl.svg.png
-
+[apache2]: https://www.apache.org/licenses/LICENSE-2.0.txt
+[apache2-image]: https://upload.wikimedia.org/wikipedia/commons/thumb/d/db/Apache_Software_Foundation_Logo_%282016%29.svg/1920px-Apache_Software_Foundation_Logo_%282016%29.svg.png
 
