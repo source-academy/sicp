@@ -31,5 +31,5 @@ under the
 [gpl3]: https://www.gnu.org/licenses/gpl-3.0.en.html
 [gpl3-image]: https://upload.wikimedia.org/wikipedia/commons/thumb/7/79/License_icon-gpl.svg/50px-License_icon-gpl.svg.png
 [apache2]: https://www.apache.org/licenses/LICENSE-2.0.txt
-[apache2-image]: https://upload.wikimedia.org/wikipedia/commons/thumb/d/db/Apache_Software_Foundation_Logo_%282016%29.svg/1920px-Apache_Software_Foundation_Logo_%282016%29.svg.png
+[apache2-image]: https://www.apache.org/img/support-apache.jpg
 
