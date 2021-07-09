@@ -1,5 +1,5 @@
 import { repeatedRefNameWarning, missingReferenceWarning } from "./warnings.js";
-import { allFilepath, tableOfContent } from "../index.js";
+import { tableOfContent } from "../index.js";
 import { tagsToRemove } from "../parseXmlJson";
 import { ancestorHasTag } from "../utilityFunctions";
 
@@ -34,7 +34,8 @@ export const setupReferencesJson = (node, filename) => {
   }
 
   //Enumerate all footnotes in the subsection
-  const footnotes = node.getElementsByTagName("FOOTNOTE");
+  let footnotes = node.getElementsByTagName("FOOTNOTE");
+  footnotes = Array.from(footnotes).filter(footnote => !ancestorHasTag(footnote, "SCHEME"));
   for (let i = 0; footnotes[i]; ++i) {
     const footnote = footnotes[i];
     footnote.footnote_count = i + 1;
