@@ -244,8 +244,8 @@ export const processSnippetPdf = (node, writeTo) => {
       writeTo.push(
         codeArr
           .join("")
-          .replace(/###\n/g, separator)
           .replace(/}\nfunction/g, "}\n" + separator + "function")
+          .replace(/\n###\n/g, separator)
           .trim()
       );
       writeTo.push("\n");
@@ -381,8 +381,8 @@ export const processSnippetPdf = (node, writeTo) => {
       writeTo.push(
         lines
           .join("\n")
-          .replace(/###\n/g, separator)
           .replace(/}\nfunction/g, "}\n" + separator + "function")
+          .replace(/\n###\n/g, separator)
           .trim()
       );
       writeTo.push("\n");
