@@ -146,6 +146,8 @@ export const preamble = `\\documentclass[7x10]{../mitpress/mit}
 
 \\newsavebox{\\UnbreakableBox}
 
+\\newcommand{\\PSIZ}{\\textcolor{red}{~\\the\\baselineskip~}}
+
 \\usepackage{setspace}
 % \\onehalfspacing
 
@@ -239,13 +241,13 @@ export const preamble = `\\documentclass[7x10]{../mitpress/mit}
 \\renewcommand{\\theExerciseDisplayNumber}{\\thechapter.\\arabic{ExerciseDisplayNumber}}
 
 \\newenvironment{Exercise}{%
-  \\def\\inlinecodesize{\\protect\\inlineexercisecodesize}
-  \\refstepcounter{ExerciseDisplayNumber}\\needspace{\\baselineskip}%
-  \\subsubsection*{Exercise~\\theExercise}
-  \\addcontentsline{loe}{exercise}{\\protect{\\textbf{\\thechapter.\\arabic{ExerciseDisplayNumber}}}}
+  \\def\\inlinecodesize{\\protect\\inlineexercisecodesize}%
+  \\refstepcounter{ExerciseDisplayNumber}%\\needspace{\\baselineskip}%
+  \\subsubsection*{Exercise~\\theExercise}%
+  \\addcontentsline{loe}{exercise}{\\protect{\\textbf{\\thechapter.\\arabic{ExerciseDisplayNumber}}}}%
   \\begingroup\\small
   }{
-  \\endgroup
+  \\par\\endgroup
 }
 
 \\newcommand{\\listexercisename}{List of Exercises}
