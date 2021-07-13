@@ -263,7 +263,7 @@ const processTextFunctionsDefaultLatex = {
     processTextFunctionsLatex["JAVASCRIPTINLINE"](node, writeTo),
   JAVASCRIPTINLINE: (node, writeTo) => {
     writeTo.push("{\\lstinline[mathescape=true]$");
-    recursiveProcessPureText(node.firstChild, writeTo, {
+    recursiveProcessPureText(node.firstChild.data.replace(/@/g, ""), writeTo, {
       removeNewline: "all"
     });
     writeTo.push("$}");
