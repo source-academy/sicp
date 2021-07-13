@@ -1,5 +1,7 @@
 import { getChildrenByTagName, ancestorHasTag } from "./utilityFunctions";
 
+import { parseType } from "./index";
+
 import {
   replaceTagWithSymbol,
   processEpigraphPdf,
@@ -555,12 +557,20 @@ const processTextFunctionsDefaultLatex = {
         );
       } else if (getChildrenByTagName(node, "META")[0]) {
         writeTo.push("{\\JSMathEscape~");
-      } /*else if (
+      } else if (
         node.firstChild.data &&
         node.firstChild.data.search("@") >= 0
       ) {
-        writeTo.push("{\\JSBreak~");
-      }*/ else {
+        if (parseType === "pdf") {
+          writeTo.push("{\\JSBreak~");
+        } else {
+          node.firstChild.setAttribute(
+            "data",
+            node.firstChild.data.replace(/_@/g, "_")
+          );
+          writeTo.push("{\\JS~");
+        }
+      } else {
         writeTo.push("{\\JS~");
       }
       // recursiveProcessTextLatex(node.firstChild, writeTo, { escapeCurlyBracket: false });

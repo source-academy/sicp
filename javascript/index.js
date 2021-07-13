@@ -42,7 +42,7 @@ import { setupSnippetsJson } from "./processingFunctions/processSnippetJson";
 import { createTocJson } from "./generateTocJson";
 import { setupReferencesJson } from "./processingFunctions/processReferenceJson";
 
-let parseType;
+export let parseType;
 let version;
 let outputDir; // depends on parseType
 const inputDir = path.join(__dirname, "../xml");
