@@ -555,12 +555,12 @@ const processTextFunctionsDefaultLatex = {
         );
       } else if (getChildrenByTagName(node, "META")[0]) {
         writeTo.push("{\\JSMathEscape~");
-      } else if (
+      /*} else if (
         node.firstChild.data &&
         node.firstChild.data.search("@") >= 0
       ) {
         writeTo.push("{\\JSBreak~");
-      } else {
+      }*/ else {
         writeTo.push("{\\JS~");
       }
       // recursiveProcessTextLatex(node.firstChild, writeTo, { escapeCurlyBracket: false });
