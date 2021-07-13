@@ -349,27 +349,21 @@ const processTextFunctionsDefaultHtml = {
     processTextFunctionsHtml["JAVASCRIPTINLINE"](node, writeTo),
 
   JAVASCRIPTINLINE: (node, writeTo) => {
-    if (ancestorHasTag(node, "NAME")) {
-      recursiveProcessPureText(
-        node.firstChild.data
-          ? node.firstChild.data.replace(/@/g, "")
-          : node.firstChild,
-        writeTo,
-        {
-          removeNewline: "all"
-        }
+    if (node.firstChild.data && node.firstChild.data.search("@") >= 0) {
+      node.firstChild.setAttribute(
+        "data",
+        node.firstChild.data.replace(/_@/g, "_")
       );
+    }
+    if (ancestorHasTag(node, "NAME")) {
+      recursiveProcessPureText(node.firstChild, writeTo, {
+        removeNewline: "all"
+      });
     } else {
       writeTo.push("<kbd>");
-      recursiveProcessPureText(
-        node.firstChild.data
-          ? node.firstChild.data.replace(/@/g, "")
-          : node.firstChild,
-        writeTo,
-        {
-          removeNewline: "all"
-        }
-      );
+      recursiveProcessPureText(node.firstChild, writeTo, {
+        removeNewline: "all"
+      });
       writeTo.push("</kbd>");
     }
   },
