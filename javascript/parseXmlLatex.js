@@ -555,8 +555,6 @@ const processTextFunctionsDefaultLatex = {
         );
       } else if (getChildrenByTagName(node, "META")[0]) {
         writeTo.push("{\\JSMathEscape~");
-      } else if (node.firstChild.data.search("@") >= 0) {
-        writeTo.push("{\\JSBreak~");
       } else {
         writeTo.push("{\\JS~");
       }
