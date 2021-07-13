@@ -128,7 +128,7 @@ export const setupReferencesJson = (node, filename) => {
   }
 };
 
-export const processReferenceJson = (node, obj, chapterIndex) => {
+export const processReferenceJson = (node, obj) => {
   const referenceName = node.getAttribute("NAME");
   if (!referenceStore[referenceName]) {
     missingReferenceWarning(referenceName);
@@ -137,15 +137,8 @@ export const processReferenceJson = (node, obj, chapterIndex) => {
 
   const href = referenceStore[referenceName].href;
   const displayName = referenceStore[referenceName].displayName;
-  const ref_type = referenceName.split(":")[0];
 
-  if (ref_type == "foot") {
-    obj["tag"] = "FOOTNOTE_REF";
-    obj["id"] = `${chapterIndex}-foot-link-${displayName}`;
-  } else {
-    obj["tag"] = "REF";
-  }
-
+  obj["tag"] = "REF";
   obj["body"] = displayName;
   obj["href"] = href;
 };
