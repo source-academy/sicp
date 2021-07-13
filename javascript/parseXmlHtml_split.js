@@ -291,7 +291,15 @@ export const processTextFunctionsHtml = {
 
   JAVASCRIPTINLINE: (node, writeTo) => {
     writeTo.push("<kbd>");
-    recursiveProcessPureText(node.firstChild, writeTo, { removeNewline: true });
+    recursiveProcessPureText(
+      node.firstChild.data
+        ? node.firstChild.data.replace(/@/g, "")
+        : node.firstChild,
+      writeTo,
+      {
+        removeNewline: true
+      }
+    );
     writeTo.push("</kbd>");
   },
 

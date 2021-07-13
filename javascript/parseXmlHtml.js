@@ -350,14 +350,26 @@ const processTextFunctionsDefaultHtml = {
 
   JAVASCRIPTINLINE: (node, writeTo) => {
     if (ancestorHasTag(node, "NAME")) {
-      recursiveProcessPureText(node.firstChild, writeTo, {
-        removeNewline: "all"
-      });
+      recursiveProcessPureText(
+        node.firstChild.data
+          ? node.firstChild.data.replace(/@/g, "")
+          : node.firstChild,
+        writeTo,
+        {
+          removeNewline: "all"
+        }
+      );
     } else {
       writeTo.push("<kbd>");
-      recursiveProcessPureText(node.firstChild, writeTo, {
-        removeNewline: "all"
-      });
+      recursiveProcessPureText(
+        node.firstChild.data
+          ? node.firstChild.data.replace(/@/g, "")
+          : node.firstChild,
+        writeTo,
+        {
+          removeNewline: "all"
+        }
+      );
       writeTo.push("</kbd>");
     }
   },

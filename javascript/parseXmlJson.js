@@ -285,13 +285,25 @@ const processTextFunctions = {
   JAVASCRIPTINLINE: (node, obj) => {
     const writeTo = [];
     if (ancestorHasTag(node, "NAME")) {
-      recursiveProcessPureText(node.firstChild, writeTo, {
-        removeNewline: "all"
-      });
+      recursiveProcessPureText(
+        node.firstChild.data
+          ? node.firstChild.data.replace(/@/g, "")
+          : node.firstChild,
+        writeTo,
+        {
+          removeNewline: "all"
+        }
+      );
     } else {
-      recursiveProcessPureText(node.firstChild, writeTo, {
-        removeNewline: "all"
-      });
+      recursiveProcessPureText(
+        node.firstChild.data
+          ? node.firstChild.data.replace(/@/g, "")
+          : node.firstChild,
+        writeTo,
+        {
+          removeNewline: "all"
+        }
+      );
     }
     addArrayToObj(obj, node, writeTo);
     obj["tag"] = "JAVASCRIPTINLINE";
