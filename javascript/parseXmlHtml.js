@@ -349,7 +349,11 @@ const processTextFunctionsDefaultHtml = {
     processTextFunctionsHtml["JAVASCRIPTINLINE"](node, writeTo),
 
   JAVASCRIPTINLINE: (node, writeTo) => {
-    if (node.firstChild.data && node.firstChild.data.search("@") >= 0) {
+    if (
+      node.firstChild &&
+      node.firstChild.data &&
+      node.firstChild.data.search("@") >= 0
+    ) {
       if (node.firstChild.setAttribute) {
         node.firstChild.setAttribute(
           "data",
