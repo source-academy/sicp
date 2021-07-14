@@ -564,12 +564,11 @@ const processTextFunctionsDefaultLatex = {
         if (parseType === "pdf") {
           writeTo.push("{\\JSBreak~");
         } else {
-          if (node.firstChild.setAttribute) {
-            node.firstChild.setAttribute(
-              "data",
-              node.firstChild.data.replace(/_@/g, "_")
-            );
-          }
+          node.firstChild.data = node.firstChild.data.replace(/_@/g, "_");
+          node.firstChild.nodeValue = node.firstChild.nodeValue.replace(
+            /_@/g,
+            "_"
+          );
           writeTo.push("{\\JS~");
         }
       } else {
