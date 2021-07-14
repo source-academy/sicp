@@ -283,27 +283,22 @@ const processTextFunctions = {
     processTextFunctions["JAVASCRIPTINLINE"](node, obj),
 
   JAVASCRIPTINLINE: (node, obj) => {
+    if (node.firstChild.data && node.firstChild.data.search("@") >= 0) {
+      node.firstChild.setAttribute(
+        "data",
+        node.firstChild.data.replace(/_@/g, "_")
+      );
+    }
+
     const writeTo = [];
     if (ancestorHasTag(node, "NAME")) {
-      recursiveProcessPureText(
-        node.firstChild.data
-          ? node.firstChild.data.replace(/@/g, "")
-          : node.firstChild,
-        writeTo,
-        {
-          removeNewline: "all"
-        }
-      );
+      recursiveProcessPureText(node.firstChild, writeTo, {
+        removeNewline: "all"
+      });
     } else {
-      recursiveProcessPureText(
-        node.firstChild.data
-          ? node.firstChild.data.replace(/@/g, "")
-          : node.firstChild,
-        writeTo,
-        {
-          removeNewline: "all"
-        }
-      );
+      recursiveProcessPureText(node.firstChild, writeTo, {
+        removeNewline: "all"
+      });
     }
     addArrayToObj(obj, node, writeTo);
     obj["tag"] = "JAVASCRIPTINLINE";

@@ -290,16 +290,17 @@ export const processTextFunctionsHtml = {
     processTextFunctionsHtml["JAVASCRIPTINLINE"](node, writeTo),
 
   JAVASCRIPTINLINE: (node, writeTo) => {
+    if (node.firstChild.data && node.firstChild.data.search("@") >= 0) {
+      node.firstChild.setAttribute(
+        "data",
+        node.firstChild.data.replace(/_@/g, "_")
+      );
+    }
+
     writeTo.push("<kbd>");
-    recursiveProcessPureText(
-      node.firstChild.data
-        ? node.firstChild.data.replace(/@/g, "")
-        : node.firstChild,
-      writeTo,
-      {
-        removeNewline: true
-      }
-    );
+    recursiveProcessPureText(node.firstChild, writeTo, {
+      removeNewline: true
+    });
     writeTo.push("</kbd>");
   },
 
