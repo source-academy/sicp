@@ -290,13 +290,13 @@ export const processTextFunctionsHtml = {
     processTextFunctionsHtml["JAVASCRIPTINLINE"](node, writeTo),
 
   JAVASCRIPTINLINE: (node, writeTo) => {
-    if (node.firstChild.data && node.firstChild.data.search("@") >= 0) {
-      if (node.firstChild.setAttribute) {
-        node.firstChild.setAttribute(
-          "data",
-          node.firstChild.data.replace(/_@/g, "_")
-        );
-      }
+    if (
+      node.firstChild &&
+      node.firstChild.data &&
+      node.firstChild.data.search("@") >= 0
+    ) {
+      node.firstChild.data = node.firstChild.data.replace(/_@/g, "_");
+      node.firstChild.nodeValue = node.firstChild.nodeValue.replace(/_@/g, "_");
     }
 
     writeTo.push("<kbd>");

@@ -262,14 +262,15 @@ const processTextFunctionsDefaultLatex = {
   SCHEMEINLINE: (node, writeTo) =>
     processTextFunctionsLatex["JAVASCRIPTINLINE"](node, writeTo),
   JAVASCRIPTINLINE: (node, writeTo) => {
-    if (node.firstChild.data && node.firstChild.data.search("@") >= 0) {
-      if (node.firstChild.setAttribute) {
-        node.firstChild.setAttribute(
-          "data",
-          node.firstChild.data.replace(/_@/g, "_")
-        );
-      }
+    if (
+      node.firstChild &&
+      node.firstChild.data &&
+      node.firstChild.data.search("@") >= 0
+    ) {
+      node.firstChild.data = node.firstChild.data.replace(/_@/g, "_");
+      node.firstChild.nodeValue = node.firstChild.nodeValue.replace(/_@/g, "_");
     }
+
     writeTo.push("{\\lstinline[mathescape=true]$");
     recursiveProcessPureText(node.firstChild, writeTo, {
       removeNewline: "all"

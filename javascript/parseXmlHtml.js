@@ -354,12 +354,8 @@ const processTextFunctionsDefaultHtml = {
       node.firstChild.data &&
       node.firstChild.data.search("@") >= 0
     ) {
-      if (node.firstChild.setAttribute) {
-        node.firstChild.setAttribute(
-          "data",
-          node.firstChild.data.replace(/_@/g, "_")
-        );
-      }
+      node.firstChild.data = node.firstChild.data.replace(/_@/g, "_");
+      node.firstChild.nodeValue = node.firstChild.nodeValue.replace(/_@/g, "_");
     }
     if (ancestorHasTag(node, "NAME")) {
       recursiveProcessPureText(node.firstChild, writeTo, {
