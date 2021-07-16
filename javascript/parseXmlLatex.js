@@ -169,7 +169,9 @@ const processTextFunctionsDefaultLatex = {
   FOOTNOTE: (node, writeTo) => {
     writeTo.push("\\cprotect\\footnote{");
     writeTo.push("\\def\\inlinecodesize{\\fontsize{9pt}{10pt}\\selectfont}");
-    recursiveProcessTextLatex(node.firstChild, writeTo);
+    const contentArr = [];
+    recursiveProcessTextLatex(node.firstChild, contentArr);
+    writeTo.push(contentArr.join("").trim());
     writeTo.push("}");
   },
 
