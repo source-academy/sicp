@@ -198,7 +198,10 @@ const processTextFunctionsDefaultLatex = {
     const contentArr = [];
     recursiveProcessTextLatex(node.firstChild, contentArr);
     let s = contentArr.join("");
-    s = s.replace(/-/g, "\\mhyphen{}").replace(/ /g, "\\ ");
+    s = s
+      .replace(/-/g, "\\mhyphen{}")
+      .replace(/, /g, ",\\,")
+      .replace(/ /g, "\\,\\:");
     writeTo.push(s);
     writeTo.push("}\\rangle$");
   },
