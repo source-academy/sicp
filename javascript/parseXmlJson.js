@@ -293,15 +293,10 @@ const processTextFunctions = {
     }
 
     const writeTo = [];
-    if (ancestorHasTag(node, "NAME")) {
-      recursiveProcessPureText(node.firstChild, writeTo, {
-        removeNewline: "all"
-      });
-    } else {
-      recursiveProcessPureText(node.firstChild, writeTo, {
-        removeNewline: "all"
-      });
-    }
+    recursiveProcessPureText(node.firstChild, writeTo, {
+      removeNewline: "all"
+    });
+
     addArrayToObj(obj, node, writeTo);
     obj["tag"] = "JAVASCRIPTINLINE";
   },
