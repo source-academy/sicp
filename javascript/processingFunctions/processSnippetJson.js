@@ -110,12 +110,13 @@ export const processSnippetJson = (node, snippet) => {
     }
 
     const codeArr = [];
-    if (jsSnippet) recursiveProcessPureText(jsSnippet.firstChild, codeArr);
+    recursiveProcessPureText(jsSnippet.firstChild, codeArr);
     const codeStr = codeArr.join("").trim();
 
     const codeArr_run = [];
-    if (jsRunSnippet)
+    if (jsRunSnippet) {
       recursiveProcessPureText(jsRunSnippet.firstChild, codeArr_run);
+    }
     const codeStr_run = codeArr_run.join("").trim();
 
     if (node.getAttribute("EVAL") === "no") {
