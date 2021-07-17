@@ -110,16 +110,20 @@ export const processSnippetJson = (node, snippet) => {
     }
 
     const codeArr = [];
-    if (jsSnippet) recursiveProcessPureText(jsSnippet.firstChild, codeArr);
-    const codeStr = codeArr.join("").trim();
+    recursiveProcessPureText(jsSnippet.firstChild, codeArr);
+    let codeStr = codeArr.join("");
+    // Remove newline from beginning and end
+    codeStr = codeStr.replace(/^[\r\n]+/g, "");
+    codeStr = codeStr.replace(/[\r\n\s]+$/g, "");
 
     const codeArr_run = [];
-    if (jsRunSnippet)
+    if (jsRunSnippet) {
       recursiveProcessPureText(jsRunSnippet.firstChild, codeArr_run);
+    }
     const codeStr_run = codeArr_run.join("").trim();
 
     if (node.getAttribute("EVAL") === "no") {
-      addToSnippet("body", codeStr.trim(), snippet);
+      addToSnippet("body", codeStr, snippet);
     } else {
       addToSnippet("eval", true, snippet);
       let reqStr = "";
