@@ -43,7 +43,7 @@ export const preamble = `\\documentclass[7x10]{../mitpress/mit}
                 \\item[]\\hspace*{-1ex}}
                {\\endlist}
 
-\\hyphenation{ECMA-Script where-by produc-ing con-clu-sion in-for-ma-tion sec-tion}
+\\hyphenation{ECMA-Script where-by produc-ing con-clu-sion in-for-ma-tion sec-tion fig-ure}
 
 \\usepackage{etoolbox}
 \\makeatletter
