@@ -200,7 +200,11 @@ export const processSnippetPdf = (node, writeTo) => {
 
     const codeArr = [];
     recursiveProcessTextLatex(jsSnippet.firstChild, codeArr);
-    const codeStr = codeArr.join("").replace(/###\n/g, "").trim();
+    const codeStr = codeArr
+      .join("")
+      // .replace(/@xxx\n/g, "")
+      // .replace(/@yyy\n/g, "")
+      .trim();
 
     const codeArr_run = [];
     recursiveProcessPureText(jsRunSnippet.firstChild, codeArr_run);
@@ -245,7 +249,8 @@ export const processSnippetPdf = (node, writeTo) => {
         codeArr
           .join("")
           .replace(/}\nfunction/g, "}\n" + separator + "function")
-          .replace(/\n###\n/g, separator)
+          .replace(/\n@xxx\n/g, separator)
+          .replace(/\n@yyy\n/g, separator) // smallskip should allow page breaks
           .trim()
       );
       writeTo.push("\n");
@@ -372,6 +377,17 @@ export const processSnippetPdf = (node, writeTo) => {
         codeEnv +
         "}\n";
 
+      const separator2 =
+        "\\end{" +
+        codeEnv +
+        "}\n" +
+        "\\end{lrbox}" +
+        "\\pagebreak[0]\\Usebox{\\UnbreakableBox}\\\\" +
+        "\\begin{lrbox}{\\UnbreakableBox}" +
+        "\\begin{" +
+        codeEnv +
+        "}\n";
+
       if (outputAdjacent !== true) {
         writeTo.push(preSpace);
       }
@@ -382,7 +398,8 @@ export const processSnippetPdf = (node, writeTo) => {
         lines
           .join("\n")
           .replace(/}\nfunction/g, "}\n" + separator + "function")
-          .replace(/\n###\n/g, separator)
+          .replace(/\n@yyy\n/g, separator2)
+          .replace(/\n@xxx\n/g, separator)
           .trim()
       );
       writeTo.push("\n");
