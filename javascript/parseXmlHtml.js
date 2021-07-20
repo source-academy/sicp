@@ -51,7 +51,8 @@ const tagsToRemoveDefault = new Set([
   "NAME",
   "LABEL",
   "CODEINDEX",
-  "EXPLANATION"
+  "EXPLANATION",
+  "HYP"
 ]);
 // SOLUTION tag handled by processSnippet
 

@@ -30,7 +30,8 @@ const tagsToRemove = new Set([
   "EM_NO_INDEX",
   "ORDER",
   "SOLUTION",
-  "WEB_ONLY"
+  "WEB_ONLY",
+  "HYP"
 ]);
 // SOLUTION tag handled by processSnippet
 

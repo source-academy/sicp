@@ -45,7 +45,8 @@ export const tagsToRemove = new Set([
   "EXPLANATION",
   "NOINDENT",
   "EXERCISE_STARTING_WITH_ITEMS",
-  "EXERCISE_FOLLOWED_BY_TEXT"
+  "EXERCISE_FOLLOWED_BY_TEXT",
+  "HYP"
 ]);
 
 const ignoreTags = new Set([
