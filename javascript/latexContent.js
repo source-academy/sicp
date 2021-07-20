@@ -345,6 +345,12 @@ export const preamble = `\\documentclass[7x10]{../mitpress/mit}
 \\setlength{\\fboxsep}{0pt}
 \\setlength{\\fboxrule}{0.1pt}
 
+\\newenvironment{ABSOLUTELYNOPAGEBREAK}
+  {\\par\\nobreak\\vfil\\penalty0\\vfilneg
+   \\vtop\\bgroup}
+  {\\par\\xdef\\tpd{\\the\\prevdepth}\\egroup
+   \\prevdepth=\\tpd}
+
 \\lstset{
    language=JavaScript,
    basicstyle=\\usefont{T1}{lmtt}{m}{n},
