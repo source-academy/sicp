@@ -63,6 +63,10 @@ const processTextFunctionsDefaultLatex = {
     recursiveProcessTextLatex(node.firstChild, writeTo);
   },
 
+  HYP: (node, writeTo) => {
+    writeTo.push("-");
+  },
+
   WEB_ONLY: (node, writeTo) => {},
 
   "#text": (node, writeTo) => {

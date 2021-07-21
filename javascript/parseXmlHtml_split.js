@@ -44,7 +44,8 @@ export const tagsToRemove = new Set([
   "SOLUTION",
   "INDEX",
   "NAME",
-  "LABEL"
+  "LABEL",
+  "HYP"
 ]);
 // SOLUTION tag handled by processSnippet
 
