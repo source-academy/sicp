@@ -1,6 +1,10 @@
 #! /usr/bin/env bash
 
-OUT_WRITER="test_node_env/index.js"
+cd test_node_env
+npm update sicp
+cd ..
+
+OUT_WRITER="test_node_env/result_writer.js"
 EXP_WRITER="test_node_env/expected_writer.js"
 
 # must use BSD awk
@@ -50,7 +54,7 @@ test_source() {
 			node $EXP_WRITER
 
 			# Compare outputs
-			DIFF=$(diff test_node_env/out.txt test_node_env/expected.txt)
+			DIFF=$(diff test_node_env/result.txt test_node_env/expected.txt)
 
 			if [ "$DIFF" = "" ]
 			then passed=$(($passed+1)); echo "${green}PASS"

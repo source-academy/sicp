@@ -3,7 +3,7 @@ import 'sicp';
 import { readFileSync, createWriteStream } from 'fs';
 "use strict";
 
-let writer = createWriteStream("test_node_env/out.txt");
+let writer = createWriteStream("test_node_env/result.txt");
 writer.once('open', function(fd) {
     let r = s.runInThisContext();
     if (typeof r !== 'undefined') {
@@ -14,4 +14,4 @@ writer.once('open', function(fd) {
     writer.end();
 });
 
-let s = new Script(readFileSync("js_programs/chapter5/section3/subsection2/01_testing_5_3_2.js"));
+let s = new Script(readFileSync("js_programs/chapter1/section3/subsection4/27_compose_definition_solution.js"));
