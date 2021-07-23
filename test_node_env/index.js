@@ -1,6 +1,7 @@
 import { Script } from 'vm';
 import 'sicp';
 import { readFileSync, createWriteStream } from 'fs';
+"use strict";
 
 let writer = createWriteStream("test_node_env/out.txt");
 writer.once('open', function(fd) {
