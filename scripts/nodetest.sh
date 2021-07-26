@@ -41,17 +41,10 @@ test_source() {
         if [[ "$EXPECTED" != "'all threads terminated'" ]]
         then
             echo "${normal}$1, expecting: $(cat $1 | tail -1 | cut -c14-)"
-            # Detele the last line of a writers
-            sed -i '' -e '$ d' $OUT_WRITER
-            sed -i '' -e '$ d' $EXP_WRITER
-            
-            # Append the new last line of a writers
-            echo "let s = new Script(readFileSync(\"$1\"));" >> $OUT_WRITER
-            echo "let e = new Script(\`$EXPECTED\`);" >> $EXP_WRITER
             
             # Run the writters
-            node --stack_size=8000 $OUT_WRITER
-            node $EXP_WRITER
+            node --stack_size=8000 $OUT_WRITER $1
+            node $EXP_WRITER $EXPECTED
             
             # Compare outputs
             DIFF=$(diff test_node_env/result.txt test_node_env/expected.txt)

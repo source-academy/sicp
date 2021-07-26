@@ -2,6 +2,9 @@ import { Script } from 'vm';
 import { createWriteStream } from 'fs';
 
 let writer2 = createWriteStream("test_node_env/expected.txt");
+const args = process.argv.slice(2);
+const expected = args[0];
+
 writer2.once('open', function(fd) {
     let r = e.runInNewContext();
     if (typeof r !== 'undefined') {
@@ -12,4 +15,4 @@ writer2.once('open', function(fd) {
     writer2.end();
 });
 
-let e = new Script(`[ 'ptr', 108 ]`);
+let e = new Script(expected);
