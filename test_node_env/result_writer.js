@@ -14,4 +14,4 @@ writer.once('open', function(fd) {
     writer.end();
 });
 
-let s = new Script(readFileSync("js_programs/chapter1/section3/subsection4/27_compose_definition_solution.js"));
+let s = new Script(readFileSync("js_programs/chapter5/section3/subsection2/01_testing_5_3_2.js"));
