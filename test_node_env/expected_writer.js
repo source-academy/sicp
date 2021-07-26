@@ -1,5 +1,5 @@
 import { Script } from 'vm';
-import { readFileSync, createWriteStream } from 'fs';
+import { createWriteStream } from 'fs';
 
 let writer2 = createWriteStream("test_node_env/expected.txt");
 writer2.once('open', function(fd) {
@@ -12,4 +12,4 @@ writer2.once('open', function(fd) {
     writer2.end();
 });
 
-let e = new Script(`80`);
+let e = new Script(`49`);
