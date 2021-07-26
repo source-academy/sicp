@@ -42,9 +42,9 @@ test_source() {
         then
             echo "${normal}$1, expecting: $(cat $1 | tail -1 | cut -c14-)"
             
-            # Run the writters
-            node --stack_size=8000 $OUT_WRITER $1
-            node $EXP_WRITER $EXPECTED
+            # Run the writers
+            node --stack_size=8000 $OUT_WRITER "$1"
+            node $EXP_WRITER "$EXPECTED"
             
             # Compare outputs
             DIFF=$(diff test_node_env/result.txt test_node_env/expected.txt)
