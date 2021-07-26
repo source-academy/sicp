@@ -22,7 +22,7 @@ const generateChapterIndex = filename => {
     chapterIndex += "." + filename.match(/(?<=subsection)\d+/g)[0];
   }
   if (filename.match(/foreword/)) {
-    chapterIndex = "foreword";
+    chapterIndex = filename.match(/foreword\d*/g)[0];
   } else if (filename.match(/prefaces/)) {
     chapterIndex = filename.match(/prefaces\d*/g)[0];
   } else if (filename.match(/acknowledgements/)) {

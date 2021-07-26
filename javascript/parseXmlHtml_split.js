@@ -44,7 +44,8 @@ export const tagsToRemove = new Set([
   "SOLUTION",
   "INDEX",
   "NAME",
-  "LABEL"
+  "LABEL",
+  "HYP"
 ]);
 // SOLUTION tag handled by processSnippet
 
@@ -290,8 +291,19 @@ export const processTextFunctionsHtml = {
     processTextFunctionsHtml["JAVASCRIPTINLINE"](node, writeTo),
 
   JAVASCRIPTINLINE: (node, writeTo) => {
+    if (
+      node.firstChild &&
+      node.firstChild.data &&
+      node.firstChild.data.search("@") >= 0
+    ) {
+      node.firstChild.data = node.firstChild.data.replace(/_@/g, "_");
+      node.firstChild.nodeValue = node.firstChild.nodeValue.replace(/_@/g, "_");
+    }
+
     writeTo.push("<kbd>");
-    recursiveProcessPureText(node.firstChild, writeTo, { removeNewline: true });
+    recursiveProcessPureText(node.firstChild, writeTo, {
+      removeNewline: true
+    });
     writeTo.push("</kbd>");
   },
 

@@ -19,9 +19,11 @@ const tagsToReplace = {
   ELLIPSIS: "…",
   AMP: "\\&",
   DOLLAR: "\\$",
+  SHARP: "\\#",
   SECT: "§",
 
-  ALLOW_BREAK: "###", // will be replaced in processSnippet depending on rendering target (PDF, HTML, etc.)
+  SHORT_SPACE: "@xxx", // will be replaced in processSnippet depending on rendering target (PDF, HTML, etc.)
+  SHORT_SPACE_AND_ALLOW_BREAK: "@yyy", // will be replaced in processSnippet depending on rendering target (PDF, HTML, etc.)
 
   EMDASH: "—",
   ENDASH: "–",

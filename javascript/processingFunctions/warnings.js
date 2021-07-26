@@ -10,9 +10,9 @@ export const checkIndexBadEndWarning = indexStr => {
 export const checkLongLineWarning = str => {
   const lines = str.split("\n");
   for (const line of lines) {
-    if (line.length > 72) {
+    if (line.length > 75) {
       console.log(
-        "WARNING, line is too long (>72 chars) and will overflow the page:\n" +
+        "WARNING, line is too long (>75 chars) and will overflow the page:\n" +
           line +
           "\n"
       );

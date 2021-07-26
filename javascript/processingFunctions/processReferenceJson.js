@@ -1,5 +1,5 @@
 import { repeatedRefNameWarning, missingReferenceWarning } from "./warnings.js";
-import { allFilepath, tableOfContent } from "../index.js";
+import { tableOfContent } from "../index.js";
 import { tagsToRemove } from "../parseXmlJson";
 import { ancestorHasTag } from "../utilityFunctions";
 
@@ -23,7 +23,6 @@ const ifIgnore = node => {
 };
 
 export const setupReferencesJson = (node, filename) => {
-  const chapArrIndex = allFilepath.indexOf(filename);
   const chapterIndex = tableOfContent[filename].index;
 
   subsubsection_count = 0;
@@ -35,7 +34,10 @@ export const setupReferencesJson = (node, filename) => {
   }
 
   //Enumerate all footnotes in the subsection
-  const footnotes = node.getElementsByTagName("FOOTNOTE");
+  let footnotes = node.getElementsByTagName("FOOTNOTE");
+  footnotes = Array.from(footnotes).filter(
+    footnote => !ancestorHasTag(footnote, "SCHEME")
+  );
   for (let i = 0; footnotes[i]; ++i) {
     const footnote = footnotes[i];
     footnote.footnote_count = i + 1;
@@ -64,20 +66,20 @@ export const setupReferencesJson = (node, filename) => {
       if (ancestorHasTag(label, "SUBSUBSECTION")) {
         subsubsection_count++;
         displayName = `${chapterIndex}.${subsubsection_count}`;
-        href = `/interactive-sicp/${chapterIndex}#subsubsection_${subsubsection_count}`;
+        href = `/sicpjs/${chapterIndex}#subsubsection_${subsubsection_count}`;
       } else {
         displayName = chapterIndex;
-        href = `/interactive-sicp/${chapterIndex}`;
+        href = `/sicpjs/${chapterIndex}`;
       }
     } else if (ref_type == "fig") {
       fig_count++;
       displayName = `${chapter_number}.${fig_count}`;
-      href = `/interactive-sicp/${chapterIndex}#fig-${displayName}`;
+      href = `/sicpjs/${chapterIndex}#fig-${displayName}`;
     } else if (ref_type == "foot") {
       // Retrieve count from the parent node, setup before this loop
       foot_count = label.parentNode.footnote_count;
       displayName = foot_count;
-      href = `/interactive-sicp/${chapterIndex}#footnote-${foot_count}`;
+      href = `/sicpjs/${chapterIndex}#footnote-${foot_count}`;
     } else {
       continue;
     }
@@ -121,12 +123,12 @@ export const setupReferencesJson = (node, filename) => {
 
     ex_count++;
     const displayName = `${chapter_number}.${ex_count}`;
-    const href = `/interactive-sicp/${chapterIndex}#ex-${displayName}`;
+    const href = `/sicpjs/${chapterIndex}#ex-${displayName}`;
     referenceStore[referenceName] = { href, displayName, chapterIndex };
   }
 };
 
-export const processReferenceJson = (node, obj, chapterIndex) => {
+export const processReferenceJson = (node, obj) => {
   const referenceName = node.getAttribute("NAME");
   if (!referenceStore[referenceName]) {
     missingReferenceWarning(referenceName);
@@ -135,16 +137,8 @@ export const processReferenceJson = (node, obj, chapterIndex) => {
 
   const href = referenceStore[referenceName].href;
   const displayName = referenceStore[referenceName].displayName;
-  const ref_type = referenceName.split(":")[0];
 
-  if (ref_type == "foot") {
-    obj["tag"] = "FOOTNOTE_REF";
-    obj["id"] = `${chapterIndex}-foot-link-${displayName}`;
-  } else {
-    obj["tag"] = "REF";
-    obj["id"] = `${chapterIndex}-ex-link-${displayName}`;
-  }
-
+  obj["tag"] = "REF";
   obj["body"] = displayName;
   obj["href"] = href;
 };

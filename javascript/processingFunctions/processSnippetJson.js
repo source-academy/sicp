@@ -99,12 +99,6 @@ export const processSnippetJson = (node, snippet) => {
     addToSnippet("body", jsPromptSnippet.firstChild.nodeValue.trim(), snippet);
   }
 
-  const jsLonelySnippet = node.getElementsByTagName("JAVASCRIPT_LONELY")[0];
-
-  if (jsLonelySnippet) {
-    addToSnippet("body", jsLonelySnippet.firstChild.nodeValue.trim(), snippet);
-  }
-
   const jsSnippet = node.getElementsByTagName("JAVASCRIPT")[0];
   const jsOutputSnippet = node.getElementsByTagName("JAVASCRIPT_OUTPUT")[0];
 
@@ -116,16 +110,20 @@ export const processSnippetJson = (node, snippet) => {
     }
 
     const codeArr = [];
-    if (jsSnippet) recursiveProcessPureText(jsSnippet.firstChild, codeArr);
-    const codeStr = codeArr.join("").trim();
+    recursiveProcessPureText(jsSnippet.firstChild, codeArr);
+    let codeStr = codeArr.join("");
+    // Remove newline from beginning and end
+    codeStr = codeStr.replace(/^[\r\n]+/g, "");
+    codeStr = codeStr.replace(/[\r\n\s]+$/g, "");
 
     const codeArr_run = [];
-    if (jsRunSnippet)
+    if (jsRunSnippet) {
       recursiveProcessPureText(jsRunSnippet.firstChild, codeArr_run);
+    }
     const codeStr_run = codeArr_run.join("").trim();
 
     if (node.getAttribute("EVAL") === "no") {
-      addToSnippet("body", codeStr.trim(), snippet);
+      addToSnippet("body", codeStr, snippet);
     } else {
       addToSnippet("eval", true, snippet);
       let reqStr = "";
@@ -191,12 +189,6 @@ export const processSnippetJson = (node, snippet) => {
       }
       const exampleStr = exampleArr.join("");
 
-      const compressedPrepend = lzString.compressToEncodedURIComponent(reqStr);
-
-      const compressedWithoutPrepend = lzString.compressToEncodedURIComponent(
-        "// SICP JS " + chapterIndex + "\n\n" + codeStr_run + exampleStr
-      );
-
       const compressed = lzString.compressToEncodedURIComponent(
         "// SICP JS " +
           chapterIndex +
@@ -225,15 +217,12 @@ export const processSnippetJson = (node, snippet) => {
         "chap=" + chap + variant + ext + "&prgrm=" + program;
 
       if (reqStr) {
-        addToSnippet("program", makeHash(compressed), snippet);
-        addToSnippet("prepend", compressedPrepend, snippet);
+        addToSnippet("prependLength", reqStr.split("\n").length, snippet);
+      } else {
+        addToSnippet("prependLength", 0, snippet);
       }
 
-      addToSnippet(
-        "withoutPrepend",
-        makeHash(compressedWithoutPrepend),
-        snippet
-      );
+      addToSnippet("program", makeHash(compressed), snippet);
 
       const chunks = (codeStr + "\n").match(
         /^((?:.*?[\r\n]+){1,6})((?:.|\n|\r)*)$/

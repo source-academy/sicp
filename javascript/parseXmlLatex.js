@@ -1,5 +1,7 @@
 import { getChildrenByTagName, ancestorHasTag } from "./utilityFunctions";
 
+import { parseType } from "./index";
+
 import {
   replaceTagWithSymbol,
   processEpigraphPdf,
@@ -61,6 +63,10 @@ const processTextFunctionsDefaultLatex = {
     recursiveProcessTextLatex(node.firstChild, writeTo);
   },
 
+  HYP: (node, writeTo) => {
+    writeTo.push("-");
+  },
+
   WEB_ONLY: (node, writeTo) => {},
 
   "#text": (node, writeTo) => {
@@ -75,7 +81,9 @@ const processTextFunctionsDefaultLatex = {
       ) {
         trimedValue = trimedValue.replace(/\{/g, "\\{").replace(/\}/g, "\\}");
       } else {
-        trimedValue = trimedValue.replace(/%/g, "\\%");
+        if (node.parentNode.nodeName !== "JAVASCRIPTINLINE") {
+          trimedValue = trimedValue.replace(/%/g, "\\%");
+        }
       }
       trimedValue = trimedValue
         .replace(/[\r\n]+/, " ")
@@ -165,7 +173,9 @@ const processTextFunctionsDefaultLatex = {
   FOOTNOTE: (node, writeTo) => {
     writeTo.push("\\cprotect\\footnote{");
     writeTo.push("\\def\\inlinecodesize{\\fontsize{9pt}{10pt}\\selectfont}");
-    recursiveProcessTextLatex(node.firstChild, writeTo);
+    const contentArr = [];
+    recursiveProcessTextLatex(node.firstChild, contentArr);
+    writeTo.push(contentArr.join("").trim());
     writeTo.push("}");
   },
 
@@ -194,7 +204,10 @@ const processTextFunctionsDefaultLatex = {
     const contentArr = [];
     recursiveProcessTextLatex(node.firstChild, contentArr);
     let s = contentArr.join("");
-    s = s.replace(/-/g, "\\mhyphen{}").replace(/ /g, "\\ ");
+    s = s
+      .replace(/-/g, "\\mhyphen{}")
+      .replace(/, /g, ",\\,")
+      .replace(/ /g, "\\,\\:");
     writeTo.push(s);
     writeTo.push("}\\rangle$");
   },
@@ -553,6 +566,20 @@ const processTextFunctionsDefaultLatex = {
         );
       } else if (getChildrenByTagName(node, "META")[0]) {
         writeTo.push("{\\JSMathEscape~");
+      } else if (
+        node.firstChild.data &&
+        node.firstChild.data.search("@") >= 0
+      ) {
+        if (parseType === "pdf") {
+          writeTo.push("{\\JSBreak~");
+        } else {
+          node.firstChild.data = node.firstChild.data.replace(/_@/g, "_");
+          node.firstChild.nodeValue = node.firstChild.nodeValue.replace(
+            /_@/g,
+            "_"
+          );
+          writeTo.push("{\\JS~");
+        }
       } else {
         writeTo.push("{\\JS~");
       }

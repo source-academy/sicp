@@ -99,16 +99,16 @@
       <INDEX><DECLARATION>compile_linkage</DECLARATION></INDEX>
       <NAME>compile_linkage</NAME>
       <SCHEME>
-      (define (compile-linkage linkage)
-      (cond ((eq? linkage 'return)
-            (make-instruction-sequence '(continue) '()
-            '((goto (reg continue)))))
-            ((eq? linkage 'next)
-            (empty-instruction-sequence))
-            (else
-            (make-instruction-sequence '() '()
-            ` ((goto (label ,linkage)))))))
-      </SCHEME>nn
+(define (compile-linkage linkage)
+  (cond ((eq? linkage 'return)
+         (make-instruction-sequence '(continue) '()
+          '((goto (reg continue)))))
+        ((eq? linkage 'next)
+         (empty-instruction-sequence))
+        (else
+         (make-instruction-sequence '() '()
+          `((goto (label ,linkage)))))))
+      </SCHEME>
       <JAVASCRIPT>
 function compile_linkage(linkage) {
     return linkage === "return"
@@ -141,10 +141,10 @@ function compile_linkage(linkage) {
       <INDEX><DECLARATION>end_with_linkage</DECLARATION></INDEX>
       <NAME>end_with_linkage</NAME>
       <SCHEME>
-      (define (end-with-linkage linkage instruction-sequence)
-      (preserving '(continue)
-      instruction-sequence
-      (compile-linkage linkage)))
+(define (end-with-linkage linkage instruction-sequence)
+  (preserving '(continue)
+   instruction-sequence
+   (compile-linkage linkage)))
       </SCHEME>
       <JAVASCRIPT>
 function end_with_linkage(linkage, instruction_sequence) {
@@ -205,23 +205,23 @@ function end_with_linkage(linkage, instruction_sequence) {
       <INDEX><DECLARATION>compile_name</DECLARATION></INDEX>
       <NAME>compile_literal</NAME>
       <SCHEME>
-      (define (compile-self-evaluating exp target linkage)
-      (end-with-linkage linkage
-      (make-instruction-sequence '() (list target)
-      `((assign ,target (const ,exp))))))
+(define (compile-self-evaluating exp target linkage)
+  (end-with-linkage linkage
+   (make-instruction-sequence '() (list target)
+    `((assign ,target (const ,exp))))))
 
-      (define (compile-quoted exp target linkage)
-      (end-with-linkage linkage
-      (make-instruction-sequence '() (list target)
-      `((assign ,target (const ,(text-of-quotation exp)))))))
+(define (compile-quoted exp target linkage)
+  (end-with-linkage linkage
+   (make-instruction-sequence '() (list target)
+    `((assign ,target (const ,(text-of-quotation exp)))))))
 
-      (define (compile-variable exp target linkage)
-      (end-with-linkage linkage
-      (make-instruction-sequence '(env) (list target)
-      `((assign ,target
-            (op lookup-variable-value)
-            (const ,exp)
-            (reg env))))))
+(define (compile-variable exp target linkage)
+  (end-with-linkage linkage
+   (make-instruction-sequence '(env) (list target)
+    `((assign ,target
+              (op lookup-variable-value)
+              (const ,exp)
+              (reg env))))))
       </SCHEME>
       <JAVASCRIPT>
 function compile_literal(component, target, linkage) {
@@ -230,7 +230,6 @@ function compile_literal(component, target, linkage) {
                make_instruction_sequence(null, list(target),
                    list(assign(target, constant(literal)))));
 }
-
 function compile_name(component, target, linkage) {
     const symbol = symbol_of_name(component);
     return end_with_linkage(linkage,
@@ -337,62 +336,61 @@ function compile_name(component, target, linkage) {
       <INDEX><DECLARATION>compile_declaration</DECLARATION></INDEX>
       <NAME>compile_assignment</NAME>
       <SCHEME>
-      (define (compile-assignment exp target linkage)
-      (let ((var (assignment-variable exp))
-            (get-value-code
-            (compile (assignment-value exp) 'val 'next)))
-      (end-with-linkage linkage
-      (preserving '(env)
+(define (compile-assignment exp target linkage)
+  (let ((var (assignment-variable exp))
+        (get-value-code
+         (compile (assignment-value exp) 'val 'next)))
+    (end-with-linkage linkage
+     (preserving '(env)
       get-value-code
       (make-instruction-sequence '(env val) (list target)
-      `((perform (op set-variable-value!)
-            (const ,var)
-            (reg val)
-            (reg env))
-            (assign ,target (const ok))))))))
+       `((perform (op set-variable-value!)
+                  (const ,var)
+                  (reg val)
+                  (reg env))
+         (assign ,target (const ok))))))))
 
-      (define (compile-definition exp target linkage)
-      (let ((var (definition-variable exp))
-            (get-value-code
-            (compile (definition-value exp) 'val 'next)))
-      (end-with-linkage linkage
-      (preserving '(env)
+(define (compile-definition exp target linkage)
+  (let ((var (definition-variable exp))
+        (get-value-code
+         (compile (definition-value exp) 'val 'next)))
+    (end-with-linkage linkage
+     (preserving '(env)
       get-value-code
       (make-instruction-sequence '(env val) (list target)
-      `((perform (op define-variable!)
-            (const ,var)
-            (reg val)
-            (reg env))
-            (assign ,target (const ok))))))))
+       `((perform (op define-variable!)
+                  (const ,var)
+                  (reg val)
+                  (reg env))
+         (assign ,target (const ok))))))))
       </SCHEME>
       <JAVASCRIPT>
 function compile_assignment(component, target, linkage) {
-    const symbol = assignment_symbol(component);
-    const value_code = 
-        compile(assignment_value_expression(component), "val", "next");
-    return compile_assignment_returning(
-               symbol, value_code, target, linkage, reg("val"));
+  const symbol = assignment_symbol(component);
+  const value_code = 
+    compile(assignment_value_expression(component), "val", "next");
+  return compile_assignment_returning(
+           symbol, value_code, target, linkage, reg("val"));
 }
-
 function compile_declaration(component, target, linkage) {
-    const symbol = declaration_symbol(component);
-    const value_code = 
-        compile(declaration_value_expression(component), "val", "next");
-    return compile_assignment_returning(
-               symbol, value_code, target, linkage, constant(undefined));
+  const symbol = declaration_symbol(component);
+  const value_code = 
+    compile(declaration_value_expression(component), "val", "next");
+  return compile_assignment_returning(
+           symbol, value_code, target, linkage, constant(undefined));
 }
-
 function compile_assignment_returning(symbol, value_code, target,
                                       linkage, return_val) {
-    return end_with_linkage(linkage,
-               preserving(list("env"),
-                   value_code,
-                   make_instruction_sequence(list("env", "val"), list(target),
-                       list(perform(list(op("assign_symbol_value"),
-                                         constant(symbol),
-                                         reg("val"),
-                                         reg("env"))),
-                            assign(target, return_val)))));
+  return end_with_linkage(linkage,
+           preserving(list("env"),
+             value_code,
+             make_instruction_sequence(list("env", "val"),
+                                       list(target),
+               list(perform(list(op("assign_symbol_value"),
+                            constant(symbol),
+                            reg("val"),
+                            reg("env"))),
+                    assign(target, return_val)))));
 }
       </JAVASCRIPT>
     </SNIPPET>
@@ -446,16 +444,16 @@ function compile_assignment_returning(symbol, value_code, target,
     compiled with a given target and linkage has the form
     <SNIPPET EVAL="no" LATEX="yes">
       <SCHEME>
-      ^compilation of predicate, target^ val^, linkage^ next
-      (test (op false?) (reg val))
-      (branch (label false-branch))
-      true-branch
-      ^compilation of consequent with given target and given linkage or^ after-if
-      false-branch
-      ^compilation of alternative with given target and linkage^
-      after-if
+ $\langle compilation\ of\ predicate,\ target$ val$,\ linkage$ next$\rangle$
+ (test (op false?) (reg val))
+ (branch (label false-branch))
+true-branch
+ $\langle compilation\ of\ consequent\ with\ given\ target\ and\ given\ linkage or$ after-if$\rangle$
+false-branch
+ $\langle compilation\ of\ alternative\ with\ given\ target\ and\ linkage\rangle$
+after-if
       </SCHEME>
-      <JAVASCRIPT>
+      <JAVASCRIPT LATEX="yes">
 <METAPHRASE>compilation of predicate, target <JAVASCRIPTINLINE>val</JAVASCRIPTINLINE>, linkage <JAVASCRIPTINLINE>"next"</JAVASCRIPTINLINE></METAPHRASE>
   test(list(op("is_falsy"), reg("val"))),
   branch(label("false_branch")),
@@ -527,37 +525,35 @@ function compile_assignment_returning(symbol, value_code, target,
 	The function
 	<JAVASCRIPTINLINE>make_label</JAVASCRIPTINLINE>
       </JAVASCRIPT>
-    </SPLITINLINE>
-    can be implemented similarly to the generation of unique variable names in
-    the query language, as follows:
-    <SPLITINLINE>
+    </SPLITINLINE><SPLITINLINE>
       <SCHEME>
 	<INDEX>character strings<SUBINDEX>primitive procedures for</SUBINDEX></INDEX>
       </SCHEME>
     </SPLITINLINE>
-    <SNIPPET EVAL="no">
+    can be implemented similarly to the generation of unique variable names in
+    the query language, as follows:<!--
+ --><SNIPPET EVAL="no">
       <INDEX><DECLARATION>make_label</DECLARATION></INDEX>
       <NAME>make_label</NAME>
       <SCHEME>
-        (define label-counter 0)
+(define label-counter 0)
 
-        (define (new-label-number)
-        (set! label-counter (+ 1 label-counter))
-        label-counter)
+(define (new-label-number)
+  (set! label-counter (+ 1 label-counter))
+  label-counter)
 
-        (define (make-label name)
-        (string-&gt;symbol
-        (string-append (symbol-&gt;string name)
-              (number-&gt;string (new-label-number)))))
+(define (make-label name)
+  (string-&gt;symbol
+    (string-append (symbol-&gt;string name)
+                   (number-&gt;string (new-label-number)))))
       </SCHEME>
       <JAVASCRIPT>
 let label_counter = 0;
-
+<SHORT_SPACE/>
 function new_label_number() {
     label_counter = label_counter + 1;
     return label_counter;
 }
-
 function make_label(string) {
     return string + stringify(new_label_number());
 }
@@ -591,52 +587,53 @@ function make_label(string) {
       <INDEX><DECLARATION>compile_conditional</DECLARATION></INDEX>
       <NAME>compile_conditional</NAME>
       <SCHEME>
-      (define (compile-if exp target linkage)
-      (let ((t-branch (make-label 'true-branch))
-            (f-branch (make-label 'false-branch))
-            (after-if (make-label 'after-if)))
-      (let ((consequent-linkage
-            (if (eq? linkage 'next) after-if linkage)))
+(define (compile-if exp target linkage)
+  (let ((t-branch (make-label 'true-branch))
+        (f-branch (make-label 'false-branch))
+        (after-if (make-label 'after-if)))
+    (let ((consequent-linkage
+           (if (eq? linkage 'next) after-if linkage)))
       (let ((p-code (compile (if-predicate exp) 'val 'next))
             (c-code
-            (compile
-            (if-consequent exp) target consequent-linkage))
+             (compile
+              (if-consequent exp) target consequent-linkage))
             (a-code
-            (compile (if-alternative exp) target linkage)))
-            (preserving '(env continue)
-            p-code
-            (append-instruction-sequences
-            (make-instruction-sequence '(val) '()
-            `((test (op false?) (reg val))
-            (branch (label ,f-branch))))
-            (parallel-instruction-sequences
-            (append-instruction-sequences t-branch c-code)
-            (append-instruction-sequences f-branch a-code))
-            after-if))))))
+             (compile (if-alternative exp) target linkage)))
+        (preserving '(env continue)
+         p-code
+         (append-instruction-sequences
+          (make-instruction-sequence '(val) '()
+           `((test (op false?) (reg val))
+             (branch (label ,f-branch))))
+          (parallel-instruction-sequences
+           (append-instruction-sequences t-branch c-code)
+           (append-instruction-sequences f-branch a-code))
+          after-if))))))
       </SCHEME>
       <JAVASCRIPT>
 function compile_conditional(component, target, linkage) {
-    const t_branch = make_label("true_branch");
-    const f_branch = make_label("false_branch");
-    const after_cond = make_label("after_cond");
-    const consequent_linkage =
-            linkage === "next" ? after_cond : linkage;
-    const p_code = compile(conditional_predicate(component), "val", "next");
-    const c_code = compile(conditional_consequent(component),
+  const t_branch = make_label("true_branch");
+  const f_branch = make_label("false_branch");
+  const after_cond = make_label("after_cond");
+  const consequent_linkage =
+          linkage === "next" ? after_cond : linkage;
+  const p_code = compile(conditional_predicate(component),
+                         "val", "next");
+  const c_code = compile(conditional_consequent(component),
                          target, consequent_linkage);
-    const a_code = compile(conditional_alternative(component),
+  const a_code = compile(conditional_alternative(component),
                          target, linkage);
-    return preserving(list("env", "continue"),
-               p_code,
-               append_instruction_sequences(
-                   make_instruction_sequence(list("val"), null,
-                       list(test(list(op("is_falsy"), reg("val"))),
-                            branch(label(f_branch)))),
-                   append_instruction_sequences(
-                       parallel_instruction_sequences(
-                           append_instruction_sequences(t_branch, c_code),
-                           append_instruction_sequences(f_branch, a_code)),
-                       after_cond)));
+  return preserving(list("env", "continue"),
+           p_code,
+           append_instruction_sequences(
+             make_instruction_sequence(list("val"), null,
+               list(test(list(op("is_falsy"), reg("val"))),
+                    branch(label(f_branch)))),
+             append_instruction_sequences(
+               parallel_instruction_sequences(
+                 append_instruction_sequences(t_branch, c_code),
+                 append_instruction_sequences(f_branch, a_code)),
+               after_cond)));
 }
       </JAVASCRIPT>
     </SNIPPET>
@@ -765,22 +762,25 @@ function compile_conditional(component, target, linkage) {
     <INDEX><DECLARATION>compile_sequence</DECLARATION></INDEX>
     <NAME>compile_sequence</NAME>
     <SCHEME>
-      (define (compile-sequence seq target linkage)
-      (if (last-exp? seq)
+(define (compile-sequence seq target linkage)
+  (if (last-exp? seq)
       (compile (first-exp seq) target linkage)
       (preserving '(env continue)
-      (compile (first-exp seq) target 'next)
-      (compile-sequence (rest-exps seq) target linkage))))
+       (compile (first-exp seq) target 'next)
+       (compile-sequence (rest-exps seq) target linkage))))
     </SCHEME>
     <JAVASCRIPT>
 function compile_sequence(seq, target, linkage) {
     return is_empty_sequence(seq)
            ? empty_instruction_sequence()
-           : is_last_statement(seq) || is_return_statement(first_statement(seq))
-           ? compile(first_statement(seq), target, linkage)
+           : is_last_statement(seq) ||
+                 is_return_statement(first_statement(seq))
+           ? compile(first_statement(seq), 
+                     target, linkage)
            : preserving(list("env"),
                  compile(first_statement(seq), target, "next"),
-                 compile_sequence(rest_statements(seq), target, linkage));
+                 compile_sequence(rest_statements(seq), 
+                                  target, linkage));
 }
     </JAVASCRIPT>
   </SNIPPET>
@@ -816,7 +816,7 @@ function compile_sequence(seq, target, linkage) {
 	<INDEX>compiler for JavaScript<SUBINDEX>blocks</SUBINDEX></INDEX>
 	block is compiled by prepending an <JAVASCRIPTINLINE>assign</JAVASCRIPTINLINE> instruction to the compiled
 	body of the block. The assignment extends the current environment with bindings
-	of the declared names of the block to the value
+	of the names declared in the block to the value
 	<JAVASCRIPTINLINE>"*unassigned*"</JAVASCRIPTINLINE>. This operation
 	both needs and modifies the <JAVASCRIPTINLINE>env</JAVASCRIPTINLINE> register.
 	<SNIPPET EVAL="no" POSTPADDING="no">
@@ -839,8 +839,10 @@ function compile_block(stmt, target, linkage) {
 	  </JAVASCRIPT>
 	</SNIPPET>
       </TEXT>
+    </JAVASCRIPT>
+  </SPLIT>
 
-      <SUBHEADING>
+  <SUBHEADING>
 	<NAME>Compiling
 	<SPLITINLINE>
 	  <SCHEME>
@@ -864,8 +866,8 @@ function compile_block(stmt, target, linkage) {
 	The object code for a lambda expression must have the form
 	<SNIPPET EVAL="no" LATEX="yes">
 	  <SCHEME>
-      ^construct procedure object and assign it to target register^
-      ^linkage^
+$\langle construct\ procedure\ object\ and\ assign\ it\ to\ target\ register\rangle$
+$\langle linkage\rangle$
 	  </SCHEME>
 	  <JAVASCRIPT>
 <METAPHRASE>construct function object and assign it to target register</METAPHRASE>
@@ -916,10 +918,10 @@ function compile_block(stmt, target, linkage) {
 	body.  The object code thus has the form
 	<SNIPPET EVAL="no" LATEX="yes">
 	  <SCHEME>
-      ^construct procedure object and assign it to target register^
-      ^code for given linkage <EM>or</EM>^ (goto (label after-lambda))
-      ^compilation of procedure body^
-      after-lambda
+ $\langle construct\ procedure\ object\ and\ assign\ it\ to\ target\ register\rangle$
+ $\langle code\ for\ given\ linkage\rangle\ or$ (goto (label after-lambda))
+ $\langle compilation\ of\ procedure\ body\rangle$
+after-lambda
 	  </SCHEME>
 	  <JAVASCRIPT>
 <METAPHRASE>construct function object and assign it to target register</METAPHRASE>
@@ -980,15 +982,15 @@ function compile_block(stmt, target, linkage) {
 	  <INDEX><DECLARATION>compiled_function_env</DECLARATION></INDEX>
 	  <NAME>make_compiled_function</NAME>
 	  <SCHEME>
-        (define (make-compiled-procedure entry env)
-        (list 'compiled-procedure entry env))
+(define (make-compiled-procedure entry env)
+  (list 'compiled-procedure entry env))
 
-        (define (compiled-procedure? proc)
-        (tagged-list? proc 'compiled-procedure))
+(define (compiled-procedure? proc)
+  (tagged-list? proc 'compiled-procedure))
 
-        (define (compiled-procedure-entry c-proc) (cadr c-proc))
+(define (compiled-procedure-entry c-proc) (cadr c-proc))
 
-        (define (compiled-procedure-env c-proc) (caddr c-proc))
+(define (compiled-procedure-env c-proc) (caddr c-proc))
 	  </SCHEME>
 	  <JAVASCRIPT>
 function make_compiled_function(entry, env) {
@@ -1010,21 +1012,21 @@ function compiled_function_env(c_fun) {
 	  <INDEX><DECLARATION>compile_lambda_expression</DECLARATION></INDEX>
 	  <NAME>compile_lambda</NAME>
 	  <SCHEME>
-      (define (compile-lambda exp target linkage)
-      (let ((proc-entry (make-label 'entry))
-            (after-lambda (make-label 'after-lambda)))
-      (let ((lambda-linkage
-            (if (eq? linkage 'next) after-lambda linkage)))
+(define (compile-lambda exp target linkage)
+  (let ((proc-entry (make-label 'entry))
+        (after-lambda (make-label 'after-lambda)))
+    (let ((lambda-linkage
+           (if (eq? linkage 'next) after-lambda linkage)))
       (append-instruction-sequences
-      (tack-on-instruction-sequence
-            (end-with-linkage lambda-linkage
-            (make-instruction-sequence '(env) (list target)
-            `((assign ,target
-            (op make-compiled-procedure)
-            (label ,proc-entry)
-            (reg env)))))
-            (compile-lambda-body exp proc-entry))
-      after-lambda))))
+       (tack-on-instruction-sequence
+        (end-with-linkage lambda-linkage
+         (make-instruction-sequence '(env) (list target)
+          `((assign ,target
+                    (op make-compiled-procedure)
+                    (label ,proc-entry)
+                    (reg env)))))
+        (compile-lambda-body exp proc-entry))
+       after-lambda))))
 	  </SCHEME>
 	  <JAVASCRIPT>
 function compile_lambda_expression(exp, target, linkage) {
@@ -1035,11 +1037,12 @@ function compile_lambda_expression(exp, target, linkage) {
     return append_instruction_sequences(
                tack_on_instruction_sequence(
                    end_with_linkage(lambda_linkage,
-                       make_instruction_sequence(list("env"), list(target),
+                       make_instruction_sequence(list("env"),
+                                                 list(target),
                            list(assign(target,
-                                       list(op("make_compiled_function"),
-                                            label(fun_entry),
-                                            reg("env")))))),
+                                    list(op("make_compiled_function"),
+                                         label(fun_entry),
+                                         reg("env")))))),
                    compile_lambda_body(exp, fun_entry)),
                after_lambda);
 }
@@ -1056,7 +1059,7 @@ function compile_lambda_expression(exp, target, linkage) {
 	<SPLITINLINE>
 	  <SCHEME><SCHEMEINLINE>tack-on-instruction-sequence</SCHEMEINLINE></SCHEME>
 	  <JAVASCRIPT>
-	    <JAVASCRIPTINLINE>tack_on_instruction_sequence</JAVASCRIPTINLINE>
+	    <JAVASCRIPTINLINE>tack_@on_@instruction_@sequence</JAVASCRIPTINLINE>
 	  </JAVASCRIPT>
 	</SPLITINLINE>
 	(section<SPACE/><REF NAME="sec:combining-instruction-sequences"/>) rather
@@ -1065,7 +1068,7 @@ function compile_lambda_expression(exp, target, linkage) {
 	  <SCHEME><SCHEMEINLINE>append-instruction-sequences</SCHEMEINLINE>
 	  </SCHEME>
 	  <JAVASCRIPT>
-	    <JAVASCRIPTINLINE>append_instruction_sequences</JAVASCRIPTINLINE>
+	    <JAVASCRIPTINLINE>append_@instruction_@sequences</JAVASCRIPTINLINE>
 	  </JAVASCRIPT>
 	</SPLITINLINE>
 	to append the
@@ -1161,26 +1164,25 @@ function compile_lambda_expression(exp, target, linkage) {
 	  <NAME>compile_lambda_body</NAME>
 	  <REQUIRES>append_return_undefined</REQUIRES>
 	  <SCHEME>
-      (define (compile-lambda-body exp proc-entry)
-      (let ((formals (lambda-parameters exp)))
-      (append-instruction-sequences
-      (make-instruction-sequence '(env proc argl) '(env)
+(define (compile-lambda-body exp proc-entry)
+  (let ((formals (lambda-parameters exp)))
+    (append-instruction-sequences
+     (make-instruction-sequence '(env proc argl) '(env)
       `(,proc-entry
-            (assign env
-                    (op compiled-procedure-env)
-                    (reg proc))
-            (assign env
-                    (op extend-environment)
-                    (const ,formals)
-                    (reg argl)
-                    (reg env))))
-      (compile-sequence (lambda-body exp) 'val 'return))))
+        (assign env (op compiled-procedure-env) (reg proc))
+        (assign env
+                (op extend-environment)
+                (const ,formals)
+                (reg argl)
+                (reg env))))
+     (compile-sequence (lambda-body exp) 'val 'return))))
 	  </SCHEME>
 	  <JAVASCRIPT>
 function compile_lambda_body(exp, fun_entry) {
     const params  = lambda_parameter_symbols(exp);
     return append_instruction_sequences(
-        make_instruction_sequence(list("env", "fun", "argl"), list("env"),
+        make_instruction_sequence(list("env", "fun", "argl"),
+                                  list("env"),
             list(fun_entry,
                  assign("env",
                         list(op("compiled_function_env"),
@@ -1190,7 +1192,8 @@ function compile_lambda_body(exp, fun_entry) {
                              constant(params),
                              reg("argl"),
                              reg("env"))))),
-        compile(append_return_undefined(lambda_body(exp)), "val", "next"));
+        compile(append_return_undefined(lambda_body(exp)),
+                "val", "next"));
 }
 	  </JAVASCRIPT>
 	</SNIPPET>
@@ -1199,11 +1202,11 @@ function compile_lambda_body(exp, fun_entry) {
       <SPLIT>
 	<JAVASCRIPT>
 	  <TEXT>
-	    To ensure that every function ends by executing a return statement,
-	    <JAVASCRIPTINLINE>compile_lambda_body</JAVASCRIPTINLINE>
+	    To ensure that all functions end by executing a return statement,
+	    <JAVASCRIPTINLINE>compile_@lambda_@body</JAVASCRIPTINLINE>
 	    appends a return statement whose return expression is the literal
 	    <JAVASCRIPTINLINE>undefined</JAVASCRIPTINLINE>
-	    to the lambda body. To do so, it uses the function <JAVASCRIPTINLINE>append_return_undefined</JAVASCRIPTINLINE>,
+	    to the lambda body. To do so, it uses the function <JAVASCRIPTINLINE>append_@return_@undefined</JAVASCRIPTINLINE>,
 	    which constructs the parser<APOS/>s tagged-list representation (from section<SPACE/><REF NAME="sec:representing-expressions"/>) of a 
 	    sequence consisting of the body and a <JAVASCRIPTINLINE>return undefined;</JAVASCRIPTINLINE> statement.
 	    <SNIPPET EVAL="no">
@@ -1228,8 +1231,6 @@ function append_return_undefined(body) {
 	    to handle insertion of return statements.
 	    <LABEL NAME="sec:append_return_undefined"/>
 	  </TEXT>
-	</JAVASCRIPT>
-      </SPLIT>
 
       <EXERCISE>
 	<LABEL NAME="ex:dead-code"/>
@@ -1247,11 +1248,7 @@ function append_return_undefined(body) {
 	  call to <JAVASCRIPTINLINE>run_forever()</JAVASCRIPTINLINE> in exercise<SPACE/><REF NAME="ex:halting-theorem"/>?
 	</TEXT>
       </EXERCISE>
-    </JAVASCRIPT>
-  </SPLIT>
 
-  <SPLIT>
-    <JAVASCRIPT>
       <EXERCISE>
         The current design of <JAVASCRIPTINLINE>append_return_undefined</JAVASCRIPTINLINE>
         is very simplistic: it always appends a
@@ -1266,33 +1263,33 @@ function append_return_undefined(body) {
         and any (non-return) statements for
         <LATEXINLINE>$s_1$</LATEXINLINE> and
 	<LATEXINLINE>$s_2$</LATEXINLINE>.
-        In <JAVASCRIPTINLINE>t1</JAVASCRIPTINLINE>, a return statement should be
+        In <JAVASCRIPTINLINE>t</JAVASCRIPTINLINE>, a return statement should be
 	added either at both <JAVASCRIPTINLINE>(*)</JAVASCRIPTINLINE>'s or just at
 	<JAVASCRIPTINLINE>(**)</JAVASCRIPTINLINE>.
-        In <JAVASCRIPTINLINE>t2</JAVASCRIPTINLINE> and
-	<JAVASCRIPTINLINE>t4</JAVASCRIPTINLINE>, a return statement should be added
+        In <JAVASCRIPTINLINE>w</JAVASCRIPTINLINE> and
+	<JAVASCRIPTINLINE>h</JAVASCRIPTINLINE>, a return statement should be added
 	at one of the <JAVASCRIPTINLINE>(*)</JAVASCRIPTINLINE>'s.
-        In <JAVASCRIPTINLINE>t3</JAVASCRIPTINLINE>, no return statement should be added.
+        In <JAVASCRIPTINLINE>m</JAVASCRIPTINLINE>, no return statement should be added.
 	<SNIPPET EVAL="no" LATEX="yes" POSTPADDING="no">
 	  <JAVASCRIPT>
-function t1(b) {    function t2(b) {    function t3(b) {    function t4(b1, b2) {
-    if (b) {            if (b) {            if (b) {            if (b1) {
-        $s_1~~$                 return $e_1;~$          return $e_1;~$          return $e_1$;
-        (*)                                                     } else {
-    } else {            } else {            } else {                if (b2) {
-        $s_2~~$                 $s_1~~$                 return $e_2$;              $s_1$
-        (*)                 (*)                                         (*)
-    }                   }                   }                       } else {
-    (**)                (*)                                             return $e_2$;
-}                   }                   }                           }
-                                                                    (*)
-                                                                }
-                                                                (*)
-                                                            }
+function t(b) {   function w(b) {    function m(b) {    function h(b1, b2) {
+   if (b) {          if (b) {           if (b) {           if (b1) {
+      $s_1~~$              return $e_1;~$         return $e_1;~$         return $e_1$;
+      (*)                                                  } else {
+   } else {          } else {           } else {              if (b2) {
+      $s_2~~$               $s_1~~$               return $e_2$;             $s_1$
+      (*)               (*)                                      (*)
+   }                 }                  }                     } else {
+   (**)              (*)                                         return $e_2$;
+}                 }                  }                        }
+                                                              (*)
+                                                           }
+                                                           (*)
+                                                        }
 	  </JAVASCRIPT>
 	</SNIPPET>
 	<LABEL NAME="ex:append_return_undefined"/>
       </EXERCISE>
-    </JAVASCRIPT>
-  </SPLIT>
+	</JAVASCRIPT>
+      </SPLIT>
 </SUBSECTION>

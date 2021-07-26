@@ -31,7 +31,8 @@ const title = `\\begin{titlepage}
 `;
 
 export const preamble = `\\documentclass[7x10]{../mitpress/mit}
-
+% use: option nocrop for final build
+% also remember: hyperref below: colorlinks=false for final build
 \\synctex=1
 
 \\newboolean{show-links}
@@ -42,7 +43,7 @@ export const preamble = `\\documentclass[7x10]{../mitpress/mit}
                 \\item[]\\hspace*{-1ex}}
                {\\endlist}
 
-\\hyphenation{ECMA-Script where-by produc-ing}
+\\hyphenation{ECMA-Script where-by produc-ing con-clu-sion in-for-ma-tion sec-tion fig-ure}
 
 \\usepackage{etoolbox}
 \\makeatletter
@@ -61,8 +62,10 @@ export const preamble = `\\documentclass[7x10]{../mitpress/mit}
 
 \\raggedbottom
 
-\\addtolength\\headsep{-1.5pc} 
-\\addtolength\\textheight{0.5pc} 
+%%% NOTE: all the vertical heights of the document is controlled here
+\\setlength\\headsep{1pc}
+\\setlength\\headheight{1pc}
+\\setlength\\textheight{50pc}
 
 \\usepackage[T1]{fontenc}
 \\usepackage{textcomp}
@@ -112,8 +115,8 @@ export const preamble = `\\documentclass[7x10]{../mitpress/mit}
 %% NOTE! the following are redefined (and changed back again) below
 \\def\\INLINECODESIZE{\\fontsize{10.6pt}{13pt}\\selectfont}
 \\def\\inlinecodesize{\\protect\\INLINECODESIZE}
-\\def\\inlineexercisecodesize{\\fontsize{9.5pt}{11pt}\\selectfont}
-\\def\\inlinefootnotecodesize{\\fontsize{9pt}{10pt}\\selectfont}
+\\def\\inlineexercisecodesize{\\fontsize{9.5pt}{12pt}\\selectfont}
+\\def\\inlinefootnotecodesize{\\fontsize{9pt}{11pt}\\selectfont}
 
 \\def\\normaloutputcodesize{\\fontsize{9.8}{11pt}\\selectfont}
 \\def\\exerciseoutputcodesize{\\fontsize{9}{10pt}\\selectfont}
@@ -122,23 +125,28 @@ export const preamble = `\\documentclass[7x10]{../mitpress/mit}
 
 \\newenvironment{Parsing}{%
   \\par%
-  \\vspace{0.6em}%
+  \\vspace{1.2em}%
   \\noindent%
-  \\begin{minipage}{1.0\\linewidth}\\vspace*{-0.85\\baselineskip}\\normalcodesize\\[\\begin{array}{rcl}}{%
-                                                         \\end{array}\\]%
+  \\begin{minipage}{1.0\\linewidth}\\vspace*{-0.85\\baselineskip}\\normalcodesize\\noindent\\begin{math}\\begin{array}{@{}rcl}}{%
+                                                         \\end{array}\\end{math}%
                                                        \\end{minipage}%
                                                        \\par%
-                                                       \\vspace{0.6em}%
+                                                       \\vspace{0.0em}%
                                                        \\noindent}
 \\newenvironment{ParsingNoPostPadding}{%
   \\par%
-  \\vspace{0.6em}%
+  \\vspace{1.2em}%
   \\noindent%
-  \\begin{minipage}{1.0\\linewidth}\\vspace*{-0.85\\baselineskip}\\normalcodesize\\begin{eqnarray*}}{%
-                                                         \\end{eqnarray*}%
-                                                       \\end{minipage}}
+  \\begin{minipage}{1.0\\linewidth}\\vspace*{-0.85\\baselineskip}\\normalcodesize\\noindent\\begin{math}\\begin{array}{@{}rcl}}{%
+                                                         \\end{array}\\end{math}%
+                                                       \\end{minipage}
+                                                       \\par%
+                                                       \\vspace{-1.8em}%
+                                                      \\noindent}
 
 \\newsavebox{\\UnbreakableBox}
+
+\\newcommand{\\PSIZ}{\\textcolor{red}{~\\the\\baselineskip~}}
 
 \\usepackage{setspace}
 % \\onehalfspacing
@@ -233,13 +241,13 @@ export const preamble = `\\documentclass[7x10]{../mitpress/mit}
 \\renewcommand{\\theExerciseDisplayNumber}{\\thechapter.\\arabic{ExerciseDisplayNumber}}
 
 \\newenvironment{Exercise}{%
-  \\def\\inlinecodesize{\\protect\\inlineexercisecodesize}
-  \\refstepcounter{ExerciseDisplayNumber}\\needspace{\\baselineskip}%
-  \\subsubsection*{Exercise~\\theExercise}
-  \\addcontentsline{loe}{exercise}{\\protect{\\textbf{\\thechapter.\\arabic{ExerciseDisplayNumber}}}}
+  \\def\\inlinecodesize{\\protect\\inlineexercisecodesize}%
+  \\refstepcounter{ExerciseDisplayNumber}%\\needspace{\\baselineskip}%
+  \\subsubsection*{Exercise~\\theExercise}%
+  \\addcontentsline{loe}{exercise}{\\protect{\\textbf{\\thechapter.\\arabic{ExerciseDisplayNumber}}}}%
   \\begingroup\\small
   }{
-  \\endgroup
+  \\par\\endgroup
 }
 
 \\newcommand{\\listexercisename}{List of Exercises}
@@ -288,6 +296,7 @@ export const preamble = `\\documentclass[7x10]{../mitpress/mit}
 
 \\newcommand{\\JS}{\\lstinline[mathescape=false,basicstyle=\\usefont{T1}{lmtt}{m}{n}\\protect\\inlinecodesize,keywordstyle=\\usefont{T1}{lmtt}{b}{n}\\protect\\inlinecodesize]}
 \\newcommand{\\JSMathEscape}{\\lstinline[mathescape=true,basicstyle=\\usefont{T1}{lmtt}{m}{n}\\protect\\inlinecodesize,keywordstyle=\\usefont{T1}{lmtt}{b}{n}\\protect\\inlinecodesize]}
+\\newcommand{\\JSBreak}{\\lstinline[mathescape=true,literate={@}{}{0\\discretionary{}{}{}},basicstyle=\\usefont{T1}{lmtt}{m}{n}\\protect\\inlinecodesize,keywordstyle=\\usefont{T1}{lmtt}{b}{n}\\protect\\inlinecodesize]}
 
 
 \\lstdefinelanguage{JavaScript}{
@@ -311,29 +320,36 @@ export const preamble = `\\documentclass[7x10]{../mitpress/mit}
 %% \\newcommand{\\MidBoxCmd}{\\nopagebreak\\par\\noindent}
 %%\\newcommand{\\Usebox}{\\usebox{\\UnbreakableBox}}
 
+%%%% \\newcommand{\\PreBoxCmd}{{\\vskip 0.6em}\\noindent}
+%%%% \\newcommand{\\PostBoxCmd}{{\\vskip 0.8em}\\noindent}
+%%%% \\newcommand{\\PromptInputSpace}{\\par\\noindent}
+%%%% % \\newcommand{\\PromptInputSpace}{\\nopagebreak{\\vskip -0.15em}\\noindent}
+%%%% \\newcommand{\\InputOutputSpace}{\\nopagebreak{\\vskip 0.8em}\\noindent}
+%%%% \\newcommand{\\InputOutputNoSpace}{\\nopagebreak{\\vskip 0.0em}\\noindent}
+%%%% \\newcommand{\\MidBoxCmd}{\\nopagebreak{\\vskip 0pt}\\noindent}
+%%%% 
+%%%% \\newcommand{\\Usebox}[1]{\\raisebox{1ex}[\\height]{\\usebox{\\UnbreakableBox}}}
+%%%% %% \\newcommand{\\Usebox}[1]{\\raisebox{0.5ex}[\\height]{\\fbox{\\usebox{#1}}}} %% UNCOMMENT TO SEE BOXES AROUND ALL SNIPPETS
+
 \\newcommand{\\PreBoxCmd}{{\\vskip 0.8em}\\noindent}
-\\newcommand{\\PostBoxCmd}{{\\vskip 0.8em}\\noindent}
-%% \\newcommand{\\PromptInputSpace}{{\\vskip 0.25em}\\noindent}
-\\newcommand{\\PromptInputSpace}{{\\vskip -0.15em}\\noindent}
-\\newcommand{\\InputOutputSpace}{{\\vskip 0.8em}\\noindent}
-\\newcommand{\\InputOutputNoSpace}{{\\vskip 0.0em}\\noindent}
+\\newcommand{\\PostBoxCmd}{{\\vskip 0.6em}\\noindent}
+\\newcommand{\\PreBoxCmdFn}{\\nopagebreak{\\vskip 0.4em}\\noindent}
+\\newcommand{\\PostBoxCmdFn}{\\nopagebreak{\\vskip 0.2em}\\noindent}
+\\newcommand{\\PromptInputSpace}{\\nopagebreak\\par\\noindent}
+\\newcommand{\\InputOutputSpace}{\\nopagebreak{\\vskip 0.8em}\\noindent}
+\\newcommand{\\InputOutputNoSpace}{\\nopagebreak{\\vskip 0.0em}\\noindent}
 \\newcommand{\\MidBoxCmd}{\\nopagebreak{\\vskip 0pt}\\noindent}
-%% \\newcommand{\\Usebox}[1]{\\raisebox{4pt}[\\height]{\\usebox{#1}}}
 
-\\newcommand{\\Usebox}[1]{{\\PrintBox{#1}}}
-
-\\newlength{\\myhh}
-\\newlength{\\mydd}
-\\newcommand{\\PrintBox}[1]{%
-  \\settoheight{\\myhh}{\\usebox{#1}}%
-  \\addtolength{\\myhh}{-3pt}%
-  \\settodepth{\\mydd}{\\usebox{#1}}%
-  \\addtolength{\\mydd}{-1pt}%
-  {\\raisebox{1pt}[\\myhh][\\mydd]{\\usebox{\\UnbreakableBox}}}}%\\fbox
-
+\\newcommand{\\Usebox}[1]{{\\raisebox{0.75ex}[\\height][\\dimexpr\\depth-0.55ex\\relax]{\\usebox{\\UnbreakableBox}}}} 
 
 \\setlength{\\fboxsep}{0pt}
 \\setlength{\\fboxrule}{0.1pt}
+
+\\newenvironment{ABSOLUTELYNOPAGEBREAK}
+  {\\par\\nobreak\\vfil\\penalty0\\vfilneg
+   \\vtop\\bgroup}
+  {\\par\\xdef\\tpd{\\the\\prevdepth}\\egroup
+   \\prevdepth=\\tpd}
 
 \\lstset{
    language=JavaScript,
@@ -374,7 +390,7 @@ export const preamble = `\\documentclass[7x10]{../mitpress/mit}
    rulecolor=\\color{LeftBarClickable},
    escapechar=^
 }
-\\lstnewenvironment{JavaScriptLatex}{\\lstset{style=JavaScriptLatex,aboveskip=1.8ex,belowskip=1.8ex}}{}
+\\lstnewenvironment{JavaScriptLatex}{\\lstset{style=JavaScriptLatex}}{}
 
 \\lstdefinestyle{JavaScriptLatexSmall}{
    language=JavaScript,
@@ -393,7 +409,7 @@ export const preamble = `\\documentclass[7x10]{../mitpress/mit}
    resetmargins=true,
    escapechar=^
 }
-\\lstnewenvironment{JavaScriptLatexSmall}{\\lstset{style=JavaScriptLatexSmall,aboveskip=1.8ex,belowskip=1.8ex}}{}
+\\lstnewenvironment{JavaScriptLatexSmall}{\\lstset{style=JavaScriptLatexSmall}}{}
 
 \\lstdefinestyle{JavaScriptLatexFootnote}{
    language=JavaScript,
@@ -411,7 +427,7 @@ export const preamble = `\\documentclass[7x10]{../mitpress/mit}
    rulecolor=\\color{LeftBarClickable},
    escapechar=^
 }
-\\lstnewenvironment{JavaScriptLatexFootnote}{\\lstset{style=JavaScriptLatexFootnote,aboveskip=1.8ex,belowskip=1.8ex}}{}
+\\lstnewenvironment{JavaScriptLatexFootnote}{\\lstset{style=JavaScriptLatexFootnote}}{}
 
 \\lstdefinestyle{JavaScript}{
    language=JavaScript,
@@ -429,8 +445,8 @@ export const preamble = `\\documentclass[7x10]{../mitpress/mit}
    rulecolor=\\color{LeftBarClickable},
    escapechar=^
 }
-\\lstnewenvironment{JavaScript}{\\lstset{style=JavaScript,aboveskip=1.8ex,belowskip=1.8ex}}{}
-\\lstnewenvironment{JavaScriptClickable}{\\lstset{style=JavaScript,aboveskip=1.8ex,belowskip=1.8ex,escapeinside={/*!}{!*/}}}{}
+\\lstnewenvironment{JavaScript}{\\lstset{style=JavaScript}}{}
+\\lstnewenvironment{JavaScriptClickable}{\\lstset{style=JavaScript,escapeinside={/*!}{!*/}}}{}
 
 \\lstdefinestyle{JavaScriptSmall}{
    language=JavaScript,
@@ -449,8 +465,8 @@ export const preamble = `\\documentclass[7x10]{../mitpress/mit}
    resetmargins=true,
    escapechar=^
 }
-\\lstnewenvironment{JavaScriptSmall}{\\lstset{style=JavaScriptSmall,aboveskip=1.8ex,belowskip=1.8ex}}{}
-\\lstnewenvironment{JavaScriptClickableSmall}{\\lstset{style=JavaScriptSmall,aboveskip=1.8ex,belowskip=1.8ex,escapeinside={/*!}{!*/}}}{}
+\\lstnewenvironment{JavaScriptSmall}{\\lstset{style=JavaScriptSmall}}{}
+\\lstnewenvironment{JavaScriptClickableSmall}{\\lstset{style=JavaScriptSmall,escapeinside={/*!}{!*/}}}{}
 
 \\lstdefinestyle{JavaScriptFootnote}{
    language=JavaScript,
@@ -468,8 +484,8 @@ export const preamble = `\\documentclass[7x10]{../mitpress/mit}
    rulecolor=\\color{LeftBarClickable},
    escapechar=^
 }
-\\lstnewenvironment{JavaScriptFootnote}{\\lstset{style=JavaScriptFootnote,aboveskip=1.8ex,belowskip=1.8ex}}{}
-\\lstnewenvironment{JavaScriptClickableFootnote}{\\lstset{style=JavaScriptFootnote,aboveskip=1.8ex,belowskip=1.8ex,escapeinside={/*!}{!*/}}}{}
+\\lstnewenvironment{JavaScriptFootnote}{\\lstset{style=JavaScriptFootnote}}{}
+\\lstnewenvironment{JavaScriptClickableFootnote}{\\lstset{style=JavaScriptFootnote,escapeinside={/*!}{!*/}}}{}
 
 \\lstdefinestyle{JavaScriptOutput}{
    language=JavaScript,
@@ -505,12 +521,28 @@ export const preamble = `\\documentclass[7x10]{../mitpress/mit}
    rulecolor=\\color{LeftBarClickable},
    escapechar=^
 }
-\\lstnewenvironment{JavaScriptOutput}{\\lstset{style=JavaScriptOutput,aboveskip=-1.5ex,belowskip=1.8ex}}{}
-\\lstnewenvironment{JavaScriptOutputLatex}{\\lstset{style=JavaScriptOutputLatex,aboveskip=-1.5ex,belowskip=1.8ex}}{}
-\\lstnewenvironment{JavaScriptPrompt}{\\lstset{style=JavaScriptOutput,aboveskip=1.8ex,belowskip=-2.0ex}}{}
-\\lstnewenvironment{JavaScriptPromptLatex}{\\lstset{style=JavaScriptOutputLatex,aboveskip=1.8ex,belowskip=-2.0ex}}{}
-\\lstnewenvironment{JavaScriptLonely}{\\lstset{style=JavaScriptOutput,aboveskip=1.8ex,belowskip=2.5ex}}{}
-\\lstnewenvironment{JavaScriptLonelyLatex}{\\lstset{style=JavaScriptOutputLatex,aboveskip=1.8ex,belowskip=2.5ex}}{}
+
+\\lstnewenvironment{JavaScriptOutput}{\\lstset{style=JavaScriptOutput}}{}
+\\lstnewenvironment{JavaScriptOutputLatex}{\\lstset{style=JavaScriptOutputLatex}}{}
+\\lstnewenvironment{JavaScriptPrompt}{\\lstset{style=JavaScriptOutput}}{}
+\\lstnewenvironment{JavaScriptPromptLatex}{\\lstset{style=JavaScriptOutputLatex}}{}
+\\lstnewenvironment{JavaScriptLonely}{\\lstset{style=JavaScriptOutput,aboveskip=1ex,belowskip=1ex}}{}
+\\lstnewenvironment{JavaScriptLonelyLatex}{\\lstset{style=JavaScriptOutputLatex,aboveskip=1ex,belowskip=1ex}}{}
+
+\\lstnewenvironment{JavaScriptOutputSmall}{\\lstset{style=JavaScriptOutputSmall}}{}
+\\lstnewenvironment{JavaScriptOutputLatexSmall}{\\lstset{style=JavaScriptOutputLatexSmall}}{}
+\\lstnewenvironment{JavaScriptPromptSmall}{\\lstset{style=JavaScriptOutputSmall}}{}
+\\lstnewenvironment{JavaScriptPromptLatexSmall}{\\lstset{style=JavaScriptOutputLatexSmall}}{}
+\\lstnewenvironment{JavaScriptLonelySmall}{\\lstset{style=JavaScriptOutputSmall,aboveskip=1ex,belowskip=1ex}}{}
+\\lstnewenvironment{JavaScriptLonelyLatexSmall}{\\lstset{style=JavaScriptOutputLatexSmall,aboveskip=1ex,belowskip=1ex}}{}
+
+\\lstnewenvironment{JavaScriptOutputFootnote}{\\lstset{style=JavaScriptOutputFootnote}}{}
+\\lstnewenvironment{JavaScriptOutputLatexFootnote}{\\lstset{style=JavaScriptOutputLatexFootnote}}{}
+\\lstnewenvironment{JavaScriptPromptFootnote}{\\lstset{style=JavaScriptOutputFootnote}}{}
+\\lstnewenvironment{JavaScriptPromptLatexFootnote}{\\lstset{style=JavaScriptOutputLatexFootnote}}{}
+\\lstnewenvironment{JavaScriptLonelyFootnote}{\\lstset{style=JavaScriptOutputFootnote,aboveskip=1ex,belowskip=1ex}}{}
+\\lstnewenvironment{JavaScriptLonelyLatexFootnote}{\\lstset{style=JavaScriptOutputLatexFootnote,aboveskip=1ex,belowskip=1ex}}{}
+
 
 \\lstdefinestyle{JavaScriptOutputSmall}{
    language=JavaScript,
@@ -547,13 +579,6 @@ export const preamble = `\\documentclass[7x10]{../mitpress/mit}
    escapechar=^
 }
 
-\\lstnewenvironment{JavaScriptOutputSmall}{\\lstset{style=JavaScriptOutputSmall,aboveskip=-0.5ex,belowskip=1.8ex}}{}
-\\lstnewenvironment{JavaScriptOutputLatexSmall}{\\lstset{style=JavaScriptOutputLatexSmall,aboveskip=-0.5ex,belowskip=1.8ex}}{}
-\\lstnewenvironment{JavaScriptPromptSmall}{\\lstset{style=JavaScriptOutputSmall,aboveskip=1.8ex,belowskip=-3.0ex}}{}
-\\lstnewenvironment{JavaScriptPromptLatexSmall}{\\lstset{style=JavaScriptOutputLatexSmall,aboveskip=1.8ex,belowskip=-3.0ex}}{}
-\\lstnewenvironment{JavaScriptLonelySmall}{\\lstset{style=JavaScriptOutputSmall,aboveskip=1.8ex,belowskip=2.5ex}}{}
-\\lstnewenvironment{JavaScriptLonelyLatexSmall}{\\lstset{style=JavaScriptOutputLatexSmall,aboveskip=1.8ex,belowskip=2.5ex}}{}
-
 \\lstdefinestyle{JavaScriptOutputFootnote}{
    language=JavaScript,
    basicstyle=\\footnotecodesize\\usefont{T1}{lmtt}{m}{sl},
@@ -587,13 +612,6 @@ export const preamble = `\\documentclass[7x10]{../mitpress/mit}
    escapechar=^
 }
 
-\\lstnewenvironment{JavaScriptOutputFootnote}{\\lstset{style=JavaScriptOutputFootnote,aboveskip=-0.5ex,belowskip=1.8ex}}{}
-\\lstnewenvironment{JavaScriptOutputLatexFootnote}{\\lstset{style=JavaScriptOutputLatexFootnote,aboveskip=-0.5ex,belowskip=1.8ex}}{}
-\\lstnewenvironment{JavaScriptPromptFootnote}{\\lstset{style=JavaScriptOutputFootnote,aboveskip=1.8ex,belowskip=-3.0ex}}{}
-\\lstnewenvironment{JavaScriptPromptLatexFootnote}{\\lstset{style=JavaScriptOutputLatexFootnote,aboveskip=1.8ex,belowskip=-3.0ex}}{}
-\\lstnewenvironment{JavaScriptLonelyFootnote}{\\lstset{style=JavaScriptOutputFootnote,aboveskip=1.8ex,belowskip=2.5ex}}{}
-\\lstnewenvironment{JavaScriptLonelyLatexFootnote}{\\lstset{style=JavaScriptOutputLatexFootnote,aboveskip=1.8ex,belowskip=2.5ex}}{}
-
 \\lstdefinestyle{JavaScriptSmaller}{
    language=JavaScript,
    basicstyle=\\exercisecodesize\\usefont{T1}{lmtt}{m}{n}, %\\fontsize{8.5}{9.5pt}\\selectfont
@@ -608,7 +626,7 @@ export const preamble = `\\documentclass[7x10]{../mitpress/mit}
    resetmargins=true,
    escapechar=^
 }
-\\lstnewenvironment{JavaScriptSmaller}{\\lstset{style=JavaScriptLatexSmall,aboveskip=1.8ex,belowskip=1.8ex}}{}
+\\lstnewenvironment{JavaScriptSmaller}{\\lstset{style=JavaScriptLatexSmall}}{}
 
 \\usepackage{epigraph}
 %\\renewcommand{\\textflush}{flushepinormal} %% Uncomment to get justified epigraphs
@@ -695,6 +713,7 @@ export const preamble = `\\documentclass[7x10]{../mitpress/mit}
 % to avoid spurious white space around index entries
 \\let\\oldindex\\index
 \\renewcommand*{\\index}[1]{\\oldindex{#1}\\ignorespaces\\ignorespacesafterend}
+
 `;
 
 export const epub_preamble = `

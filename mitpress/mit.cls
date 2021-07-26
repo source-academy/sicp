@@ -123,7 +123,7 @@
 }
 
 \newcommand\footnotesize{%
-   \@setfontsize\footnotesize{9\p@}{10.5\p@}%
+   \@setfontsize\footnotesize{9.5\p@}{11\p@}%
    \abovedisplayskip 6\p@%
    \abovedisplayshortskip \z@%
    \belowdisplayshortskip 3\p@%
@@ -275,7 +275,7 @@ ItalicFont=SyntaxLTStd-Italic,
 \fi                                       %    line on the page
 
 \ifsevenbyten
-\setlength\textheight{45\baselineskip} % 45 lines on a full page,
+\setlength\textheight{588\p@} % 45 lines on a full page,
 \addtolength\textheight{\topskip}      %    including the first
 \fi                                       %    line on the page
 
@@ -1312,7 +1312,8 @@ ItalicFont=SyntaxLTStd-Italic,
   \def\splitfootnoterule{\kern-3\p@ \hbox to 0.5\textwidth{\hrulefill} \kern3.6\p@}
 
 \AtBeginDocument{\renewcommand\@makefntext[1]{%
-    \fontsize{9\p@}{11\p@}\selectfont\def\@textsuperscript{}%\global\baselineskip=9pt%
+    %\fontsize{9.5\p@}{11.3\p@}\selectfont
+    \def\@textsuperscript{}%\global\baselineskip=9pt%
     \parindent10pt%
     \noindent\ignorespaces%\hspace*{10pt}\ignorespaces
     \hbox{\@makefnmark.}\ignorespaces\hspace{4\p@}\ignorespaces#1}

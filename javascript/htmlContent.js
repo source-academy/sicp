@@ -73,12 +73,7 @@ export const switchTitle = version => {
     </div>
     <div class="title-text-OTHEREDITIONS">
       <span class="title-text-OTHEREDITIONS">
-      <span style="color:orange">Print-only (may have LaTeX) █</span>
-      </span>
-    </div>
-    <div class="title-text-OTHEREDITIONS">
-      <span class="title-text-OTHEREDITIONS">
-    <a href="https://source-academy.github.io/interactive-sicp">Back to Interactive SICP</a></span>
+    <a href="https://sourceacademy.org/sicpjs">SICP JS in Source Academy</a></span>
     </div>`;
   } else if (version == "scheme") {
     // scheme version of the web textbook has yet been developed
@@ -115,7 +110,7 @@ export const html_links_part2 = (writeTo, toIndexFolder, version) => {
     <link href="https://fonts.googleapis.com/css?family=Droid+Sans|Droid+Serif" rel="stylesheet">
     <link rel="stylesheet" media="all" href="${toIndexFolder}assets/stylesheet.css" />
 
-   <link rel="shortcut icon" type="image/x-icon" href="${toIndexFolder}assets/favicon.ico" />
+   <link rel="shortcut icon" type="image/x-icon" href="${toIndexFolder}assets/sourcepower.ico" />
 
 <!--    <link rel="shortcut icon" type="image/png" href="${toIndexFolder}images/lambda.png" /> -->
 
@@ -177,6 +172,35 @@ export const html_links_part2 = (writeTo, toIndexFolder, version) => {
        <button id="btn" class="navbar-toggler collapsed" type="button" data-toggle="collapse" data-target="#nav-sidebar" aria-controls="nav-sidebar" aria-expanded="false" aria-label="Toggle navigation" title="navigation">
          <span class="navbar-toggler-icon"></span>
        </button>
+       <span class="toolt">Legend<span class="toolttext">
+    <div class="title-text-ALSO">
+      <span class="title-text-ALSO">Color highlighting:</span><BR/>
+    </div>
+    <div class="title-text-OTHEREDITIONS">
+      <span class="title-text-OTHEREDITIONS">
+      <span style="color:black">Unchanged █</span>
+      </span>
+    </div>
+    <div class="title-text-OTHEREDITIONS">
+      <span class="title-text-OTHEREDITIONS">
+      <span style="color:green">Original █</span>
+      </span>
+    </div>
+    <div class="title-text-OTHEREDITIONS">
+      <span class="title-text-OTHEREDITIONS">
+      <span style="color:blue">Javascript █</span>
+      </span>
+    </div>
+    <div class="title-text-OTHEREDITIONS">
+      <span class="title-text-OTHEREDITIONS">
+      <span style="color:grey">Explanation █</span>
+      </span>
+    </div>
+    <div class="title-text-OTHEREDITIONS">
+      <span class="title-text-OTHEREDITIONS">
+      <span style="color:red">Web-only █</span>
+    </div>
+</span></span>
        <span class="navbar-brand-short"><a title="Go back to front page" href="${toIndexFolder}index.html" class="gray">${shortTitle}</a></span>
        <span class="navbar-brand-long" ><a title="Go back to front page" href="${toIndexFolder}index.html" class="gray">${longTitle}</a></span>
 

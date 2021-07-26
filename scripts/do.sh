@@ -6,14 +6,16 @@ DOCS="docs_out"
 # temp folders for different editions
 LATEX_PDF="latex_pdf"
 LATEX_EPUB="latex_epub"
-GENERATED_HTML_JS="html_js"
-GENERATED_HTML_SPLIT="html_split"
+GENERATED_HTML="html_split"
 GENERATED_JS="js_programs"
 GENERATED_JSON="json"
 PDF_FILE="sicpjs.pdf"
+LOG_FILE="sicpjs.log"
 EPUB_FILE="sicpjs.epub"
 
 # RESOURCES
+FAVICON="static/assets/sourcepower.ico"
+STYLESHEET="static/assets/sourcepower.ico"
 FONTS="static/fonts"
 CSS="static/css"
 IMAGES="static/images"
@@ -27,31 +29,16 @@ main() {
 
     if [ "$1" == "pdf" ]; then
 	pdf
-    elif [ "$1" == "doublespace" ]; then
-	doublespace
     elif [ "$1" == "clean" ]; then
 	clean
     elif [ "$1" == "epub" ]; then
 	epub
-    elif [ "$1" == "golive" ]; then
-	golive
     elif [ "$1" == "prepare" ]; then
 	prepare
-    elif [ "$1" == "staging" ]; then
-	staging
-    elif [ "$1" == "via" ]; then
-	via
     else
         echo "Please run this command from the git root directory."
         false  # exit 1
     fi
-}
-
-doublespace() {
-	yarn process pdf; yarn process pdf; \
-	cd ${LATEX_PDF}; \
-	cat sicpjs.tex | sed 's/onehalfspacing/doublespacing/' > sicpjs_doublespace.tex; 
-	latexmk -silent -pdf -pdflatex="pdflatex --synctex=1" -f ${OUTPUT_FILE}_doublespace
 }
 
 pdf() {
@@ -70,43 +57,23 @@ clean() {
 	rm -rf ${DOCS}/*
 	rm -rf ${LATEX_PDF}/*
 	rm -rf ${LATEX_EPUB}/*
-	rm -rf ${GENERATED_HTML_JS}/*
-	rm -rf ${GENERATED_HTML_SPLIT}/*
+	rm -rf ${GENERATED_HTML}/*
 	rm -rf ${GENERATED_JS}/*
 	rm -rf ${GENERATED_JSON}/*
 	rm -f ${ZIP_FILE}
 }
 
 prepare() {
+ 	[ ! -f ${FAVICON} ] || cp ${FAVICON} ${DOCS}/favicon.ico
+ 	[ ! -f ${STYLESHEET} ] || cp ${STYLESHEET} ${DOCS}/assets/stylesheet.css
  	[ ! -f ${LATEX_PDF}/${PDF_FILE} ] || cp ${LATEX_PDF}/${PDF_FILE} ${DOCS}
+ 	[ ! -f ${LATEX_PDF}/${LOG_FILE} ] || cp ${LATEX_PDF}/${LOG_FILE} ${DOCS}
  	[ ! -f ${LATEX_EPUB}/${EPUB_FILE} ] || cp ${LATEX_EPUB}/${EPUB_FILE} ${DOCS}
- 	[ ! -f ${GENERATED_HTML_JS}/index.html ] || cp -rf ${GENERATED_HTML_JS}/* ${DOCS}
- 	[ ! -d ${GENERATED_HTML_SPLIT} ] || ( rm -rf ${DOCS}/split; \
- 	                                      cp -rf ${GENERATED_HTML_SPLIT} ${DOCS}/split )
+ 	[ ! -f ${GENERATED_HTML}/index.html ] || cp -rf ${GENERATED_HTML}/* ${DOCS}
  	[ ! -d ${GENERATED_JS} ] || ( zip -r ${ZIP_FILE} ${GENERATED_JS}; \
  	                              cp ${ZIP_FILE} ${DOCS} )
 	[ ! -d ${GENERATED_JSON} ] || ( rm -rf ${DOCS}/json; \
                                     cp -rf ${GENERATED_JSON} ${DOCS}/json )
-}
-
-# install all files in docs_out to official website
-golive() {
- 	cd ${DOCS}; scp -p -r * sicp@web1.comp.nus.edu.sg:public_html; \
- 	echo "check the website and make sure everything works: https://sicp.comp.nus.edu.sg"
-}
-
-# install all files in docs_out to staging folder of official website
-staging() {
- 	cd ${DOCS}; scp -p -r * sicp@web1.comp.nus.edu.sg:public_html/staging; \
- 	echo "check that everything works: https://sicp.comp.nus.edu.sg/staging"
-}
-
-# install all files in docs_out to henz@suna, and copy from there to
-# the official website
-via() {
- 	cd ${DOCS}; scp -p -r * henz@suna.comp.nus.edu.sg:sicp; \
- 	echo "next: ssh henz@suna.comp.nus.edu.sg"; \
- 	echo "finally: cd sicp; scp -p -r * sicp@web1.comp.nus.edu.sg:public_html"
 }
 
 main $1

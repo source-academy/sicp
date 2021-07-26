@@ -11,6 +11,7 @@
 
   <INDEX>metacircular evaluator for JavaScript<SUBINDEX>component representation<OPEN/></SUBINDEX></INDEX>
   <INDEX>metacircular evaluator for JavaScript<SUBINDEX>syntax of evaluated language<OPEN/></SUBINDEX></INDEX>
+  <INDEX>parsing JavaScript<OPEN/></INDEX>
 
   <SPLIT>
     <JAVASCRIPT>
@@ -27,7 +28,7 @@
 	the evaluator. In this example, the program parts
 	<JAVASCRIPTINLINE>"size = 2"</JAVASCRIPTINLINE> and
 	<JAVASCRIPTINLINE>"5 * size"</JAVASCRIPTINLINE> look similar, but carry
-	very different meaning. Abstract syntax functions such as
+	very different meanings. Abstract syntax functions such as
 	<JAVASCRIPTINLINE>declaration_value_expression</JAVASCRIPTINLINE> would be
 	difficult
 	and error-prone to implement by examining the program text.
@@ -53,7 +54,8 @@ parse("const size = 2; 5 * size;");
 	<SNIPPET EVAL="no">
 	  <JAVASCRIPT>
 list("sequence",
-     list(list("constant_declaration", list("name", "size"), list("literal", 2)),
+     list(list("constant_declaration",
+               list("name", "size"), list("literal", 2)),
           list("binary_operator_combination", "*",
                list("literal", 5), list("name", "size"))))
 	  </JAVASCRIPT>
@@ -124,7 +126,7 @@ list("sequence",
     <JAVASCRIPT>
       <TEXT>
         <FIGURE>
-          <FIGURE web_scale="0.8" scale="0.59" src="img_javascript/ch4-parse-abstraction.svg"></FIGURE>
+          <FIGURE split_scale="1"  web_scale="0.8" scale="0.65" src="img_javascript/ch4-parse-abstraction.svg"></FIGURE>
           <CAPTION>Syntax abstraction in the evaluator.</CAPTION>
           <LABEL NAME="fig:parse-abstraction"/>
         </FIGURE>
@@ -188,7 +190,7 @@ list("sequence",
 	      <NAME>quoted</NAME>
 	      <SCHEME>
 (define (quoted? exp)
-  (tagged-list? exp \&apos;quote))
+  (tagged-list? exp 'quote))
 
 (define (text-of-quotation exp) (cadr exp))
 	      </SCHEME>
@@ -215,7 +217,7 @@ list("sequence",
 	      <NAME>assignment</NAME>
 	      <SCHEME>
 (define (assignment? exp)
-  (tagged-list? exp \&apos;set!))
+  (tagged-list? exp 'set!))
 
 (define (assignment-variable exp) (cadr exp))
 
@@ -228,14 +230,14 @@ list("sequence",
 	    Definitions have the form
 	    <SNIPPET EVAL="no">
 	      <SCHEME>
-(define ^var^ ^value^)
+(define var value)
 	      </SCHEME>
 	    </SNIPPET>
 	    or the form
 	    <SNIPPET EVAL="no">
 	      <SCHEME>
-(define (^var^ ^parameter$_{1}$^ ^$\ldots$^ ^parameter$_{n}$^)
-  ^body^)
+(define (var parameter$_{1}$ $\ldots$ parameter$_{n}$)
+  body)
 	      </SCHEME>
 	    </SNIPPET>
 	    The latter form (standard
@@ -245,9 +247,9 @@ list("sequence",
 	    syntactic sugar for
 	    <SNIPPET EVAL="no">
 	      <SCHEME>
-(define ^var^
-  (lambda (^parameter$_{1}$^ ^$\ldots$^ ^parameter$_{n}$^)
-    ^body^))
+(define var
+  (lambda (parameter$_{1}$ $\ldots$ parameter$_{n}$)
+    body))
 	      </SCHEME>
 	    </SNIPPET>
 	    The corresponding syntax
@@ -257,7 +259,7 @@ list("sequence",
 	      <NAME>definition_scheme</NAME>
 	      <SCHEME>
 (define (definition? exp)
-  (tagged-list? exp \&apos;define))
+  (tagged-list? exp 'define))
 
 (define (definition-variable exp)
   (if (symbol? (cadr exp))
@@ -279,13 +281,13 @@ list("sequence",
 	    <SNIPPET PAGE="370">
 	      <NAME>lambda</NAME>
 	      <SCHEME>
-(define (lambda? exp) (tagged-list? exp \&apos;lambda))
+(define (lambda? exp) (tagged-list? exp 'lambda))
 
 (define (lambda-parameters exp) (cadr exp))
 (define (lambda-body exp) (cddr exp))
 
 (define (make-lambda parameters body)
-  (cons \&apos;lambda (cons parameters body)))
+  (cons 'lambda (cons parameters body)))
 	      </SCHEME>
 	    </SNIPPET>
 	    We also provide a constructor for
@@ -318,7 +320,7 @@ list("sequence",
 	  <SNIPPET PAGE="371">
 	    <NAME>if</NAME>
 	    <SCHEME>
-(define (if? exp) (tagged-list? exp \&apos;if))
+(define (if? exp) (tagged-list? exp 'if))
 
 (define (if-predicate exp) (cadr exp))
 
@@ -327,10 +329,10 @@ list("sequence",
 (define (if-alternative exp)
   (if (not (null? (cdddr exp)))
       (cadddr exp)
-      \&apos;false))
+      'false))
 
 (define (make-if predicate consequent alternative)
-  (list \&apos;if predicate consequent alternative))
+  (list 'if predicate consequent alternative))
 	    </SCHEME>
 	  </SNIPPET>
 	  We also provide a constructor for <SCHEMEINLINE>if</SCHEMEINLINE> expressions,
@@ -362,7 +364,7 @@ list("sequence",
 	    <SNIPPET PAGE="371">
 	      <NAME>begin</NAME>
 	      <SCHEME>
-(define (begin? exp) (tagged-list? exp \&apos;begin))
+(define (begin? exp) (tagged-list? exp 'begin))
 
 (define (begin-actions exp) (cdr exp))
 
@@ -384,7 +386,7 @@ list("sequence",
         ((last-exp? seq) (first-exp seq))
         (else (make-begin seq))))
 
-(define (make-begin seq) (cons \&apos;begin seq))
+(define (make-begin seq) (cons 'begin seq))
 	      </SCHEME>
 	    </SNIPPET>
           </LI>
@@ -412,6 +414,8 @@ list("sequence",
     </SCHEME>
     <JAVASCRIPT>
 
+  <INDEX>parsing JavaScript<CLOSE/></INDEX>
+
   <SUBHEADING>
     <NAME>Literal expression</NAME>
   </SUBHEADING>
@@ -430,28 +434,30 @@ list("sequence",
 	the actual value.
 	<WEB_ONLY>
 	  <LATEX>
-	    \begin{eqnarray*}
-	    \ll \mathit{literal}\textit{-}\mathit{expression} \gg &amp; = &amp;
+	    \[
+      \begin{align*}
+	    \ll\ \mathit{literal}\textit{-}\mathit{expression}\ \gg &amp; = 
 	    \texttt{list("literal", }\mathit{value}\texttt{)}
-	    \end{eqnarray*}
+	    \end{align*}
+      \]
 	  </LATEX>
 	  where <META>value</META> is
 	  the JavaScript value represented by the
 	  <META>literal-expression</META> string.
-	  Here <LATEXINLINE>$\ll$</LATEXINLINE><META>literal-expression</META><LATEXINLINE>$\gg$</LATEXINLINE> denotes the
+	  Here <LATEXINLINE>$\ll\ $</LATEXINLINE><META>literal-expression</META><LATEXINLINE>$\ \gg$</LATEXINLINE> denotes the
 	  result of parsing the string <META>literal-expression</META>.
 	</WEB_ONLY>
 	<PDF_ONLY>
 	  <LATEX>
 	    \begin{Parsing}
-	    \ll \mathit{literal}\mhyphen\mathit{expression} \gg &amp; = &amp;
+	    \ll\ \mathit{literal}\mhyphen\mathit{expression}\ \gg &amp; = &amp;
 	    \texttt{list("literal", }\mathit{value}\texttt{)}
 	    \end{Parsing}%
 	  </LATEX>
 	  where <META>value</META> is
 	  the JavaScript value represented by the
 	  <META>literal-expression</META> string.
-	  Here <LATEXINLINE>$\ll\mathit{literal}\mhyphen\mathit{expression}\gg$</LATEXINLINE> denotes the
+	  Here <LATEXINLINE>$\ll\ \mathit{literal}\mhyphen\mathit{expression}\ \gg$</LATEXINLINE> denotes the
 	  result of parsing the string <META>literal-expression</META>.
 	</PDF_ONLY>
 	<SNIPPET>
@@ -585,10 +591,12 @@ function make_literal(value) {
     element and the string representing the name as second element.
     <WEB_ONLY>
 	<LATEX>
-	  \begin{eqnarray*}
-	  \ll \mathit{name} \gg &amp; = &amp;
+    \[
+	  \begin{align*}
+	  \ll\ \mathit{name}\ \gg &amp; = 
 	  \texttt{list("name", }\mathit{symbol}\texttt{)}
-	  \end{eqnarray*}
+	  \end{align*}
+    \]
 	</LATEX>
 	where <META>symbol</META> is a string
 	that contains the characters that make up the
@@ -597,7 +605,7 @@ function make_literal(value) {
     <PDF_ONLY>
 	<LATEX>
 	  \begin{Parsing}
-	  \ll \mathit{name} \gg &amp; = &amp;
+	  \ll\ \mathit{name}\ \gg &amp; = &amp;
 	  \texttt{list("name", }\mathit{symbol}\texttt{)}
 	  \end{Parsing}%
 	</LATEX>
@@ -669,17 +677,16 @@ function make_name(symbol) {
     between the two kinds of components:
     <WEB_ONLY>
 	<LATEX>
-	  \begin{eqnarray*}
-	  \ll \mathit{expression}\texttt{;} \gg &amp; = &amp;
-	  \ll \mathit{expression} \gg
-	  \end{eqnarray*}
+	  \[
+    \ll\ \mathit{expression}\texttt{;}\ \gg {=} \ll\ \mathit{expression}\ \gg
+    \]
 	</LATEX>
     </WEB_ONLY>
     <PDF_ONLY>
 	<LATEX>
 	  \begin{ParsingNoPostPadding}
-	  \ll \mathit{expression}\texttt{;} \gg &amp; = &amp;
-	  \ll \mathit{expression} \gg
+	  \ll\ \mathit{expression}\texttt{;}\ \gg &amp; = &amp;
+	  \ll\ \mathit{expression}\ \gg
 	  \end{ParsingNoPostPadding}
 	</LATEX>
     </PDF_ONLY>
@@ -697,42 +704,43 @@ function make_name(symbol) {
     are parsed as follows:
     <WEB_ONLY>
 	<LATEX>
-	  \begin{eqnarray*}
-&amp;	  \ll \mathit{fun}\textit{-}\mathit{expr}\texttt{(}\mathit{arg}\textit{-}\mathit{expr}_1\texttt{, }\ldots\texttt{, } \mathit{arg}\textit{-}\mathit{expr}_n \texttt{)} \gg \\
-&amp;	  = \\
-&amp;	  \texttt{list("application",}\,\ll\mathit{fun}\textit{-}\mathit{expr}\gg\texttt{,\,list(} \ll \mathit{arg}\textit{-}\mathit{expr}_1 \gg \texttt{,\,}\ldots\texttt{,\,} \ll \mathit{arg}\textit{-}\mathit{expr}_n \gg \texttt{))}
-	  \end{eqnarray*}
+    \[
+    \ll\ \mathit{fun}\textit{-}\mathit{expr}\texttt{(}\mathit{arg}\textit{-}\mathit{expr}_1\texttt{, }\ldots\texttt{, } \mathit{arg}\textit{-}\mathit{expr}_n \texttt{)}\ \gg \\
+    = \\
+    \texttt{list("application",} \ll\ \mathit{fun}\textit{-}\mathit{expr}\gg\texttt{, list(} \ll\ \mathit{arg}\textit{-}\mathit{expr}_1\;\gg \texttt{, }\ldots\texttt{, } \ll\ \mathit{arg}\textit{-}\mathit{expr}_n\;\gg \texttt{))}
+    \]
 	</LATEX>
     </WEB_ONLY>
     <PDF_ONLY>
 	<SNIPPET LATEX="yes" EVAL="no">
 	  <JAVASCRIPT>
-$\ll$ <META>fun-expr</META>(<META>arg-expr</META>$_1$, $\ldots$, <META>arg-expr</META>$_n$) $\gg$ = 
+$\ll\ $<META>fun-expr</META>(<META>arg-expr</META>$_1$, $\ldots$, <META>arg-expr</META>$_n$)$\ \gg$ = 
      list("application", 
-          $\ll$ <META>fun-expr</META> $\gg$,
-          list($\ll$ <META>arg-expr</META>$_1$ $\gg$, $\ldots$, $\ll$ <META>arg-expr</META>$_n$ $\gg$))
+          $\ll\ $<META>fun-expr</META>$\ \gg$,
+          list($\ll\ $<META>arg-expr</META>$_1\;\gg$, $\ldots$, $\ll\ $<META>arg-expr</META>$_n\;\gg$))
 	  </JAVASCRIPT>
 	</SNIPPET>
 <!-- 	<LATEX> -->
 <!-- 	  \begin{Parsing} -->
-<!-- &amp;	  \ll \mathit{fun}\mhyphen{}\mathit{expr}\texttt{(}\mathit{arg}\mhyphen{}\mathit{expr}_1\texttt{, }\ldots\texttt{, } \mathit{arg}\mhyphen{}\mathit{expr}_n \texttt{)} \gg \\[-1mm] -->
+<!-- &amp;	  \ll\ \mathit{fun}\mhyphen{}\mathit{expr}\texttt{(}\mathit{arg}\mhyphen{}\mathit{expr}_1\texttt{, }\ldots\texttt{, } \mathit{arg}\mhyphen{}\mathit{expr}_n \texttt{)}\ \gg \\[-1mm] -->
 <!-- &amp;	  = \\[-1mm] -->
-<!-- &amp;	  \texttt{list("application",}\ \ll \mathit{fun}\mhyphen{}\mathit{expr} \gg \texttt{, list(} \ll \mathit{arg}\mhyphen{}\mathit{expr}_1 \gg \texttt{, }\ldots\texttt{, } \ll \mathit{arg}\mhyphen{}\mathit{expr}_n \gg \texttt{))} -->
+<!-- &amp;	  \texttt{list("application",}\ \ll\ \mathit{fun}\mhyphen{}\mathit{expr}\ \gg \texttt{, list(} \ll\ \mathit{arg}\mhyphen{}\mathit{expr}_1\;\gg \texttt{, }\ldots\texttt{, } \ll\ \mathit{arg}\mhyphen{}\mathit{expr}_n\;\gg \texttt{))} -->
 <!-- 	  \end{Parsing}% -->
 <!-- 	</LATEX> -->
-    </PDF_ONLY>The syntax predicate is
-	<INDEX><USE>is_application</USE></INDEX>
-	<JAVASCRIPTINLINE>is_application</JAVASCRIPTINLINE>
-	and the selectors are
-	<INDEX><USE>function_expression</USE></INDEX>
-	<INDEX><USE>arg_expressions</USE></INDEX>
-	<JAVASCRIPTINLINE>function_expression</JAVASCRIPTINLINE> and
-	<JAVASCRIPTINLINE>arg_expressions</JAVASCRIPTINLINE>.
-	    <SNIPPET PAGE="372" HIDE="yes" POSTPADDING="no">
-	      <NAME>application</NAME>
-	      <REQUIRES>tagged_list</REQUIRES>
-	      <EXAMPLE>application_example</EXAMPLE>
-	      <JAVASCRIPT>
+    </PDF_ONLY>
+    We declare
+    <INDEX><USE>is_application</USE></INDEX>
+    <JAVASCRIPTINLINE>is_application</JAVASCRIPTINLINE>
+    as the syntax predicate and
+    <INDEX><USE>function_expression</USE></INDEX>
+    <INDEX><USE>arg_expressions</USE></INDEX>
+    <JAVASCRIPTINLINE>function_expression</JAVASCRIPTINLINE> and
+    <JAVASCRIPTINLINE>arg_expressions</JAVASCRIPTINLINE> as the selectors.
+    <SNIPPET PAGE="372" HIDE="yes" POSTPADDING="no">
+      <NAME>application</NAME>
+      <REQUIRES>tagged_list</REQUIRES>
+      <EXAMPLE>application_example</EXAMPLE>
+      <JAVASCRIPT>
 function is_application(component) {
    return is_tagged_list(component, "application");
 }
@@ -742,11 +750,11 @@ function function_expression(component) {
 function arg_expressions(component) {
    return head(tail(tail(component)));
 }
-	      </JAVASCRIPT>
-	    </SNIPPET>
-	    <SNIPPET PAGE="366" HIDE="yes">
-	      <NAME>application_example</NAME>
-	      <JAVASCRIPT>
+      </JAVASCRIPT>
+    </SNIPPET>
+    <SNIPPET PAGE="366" HIDE="yes">
+      <NAME>application_example</NAME>
+      <JAVASCRIPT>
 const my_application = parse("math_pow(3, 4);");
 display(is_application(my_application));
 display(function_expression(my_application));
@@ -754,22 +762,23 @@ const my_expressions = arg_expressions(my_application);
 display(no_arg_expressions(my_expressions));
 display(first_arg_expression(my_expressions));
 display(rest_arg_expressions(my_expressions));
-	      </JAVASCRIPT>
-	    </SNIPPET>
-	    We add a constructor for function applications, to be used by
-	    <JAVASCRIPTINLINE>operator_combination_to_application</JAVASCRIPTINLINE>:	    
-	    <SNIPPET PAGE="369" POSTPADDING="no">
-	      <INDEX><DECLARATION>make_application</DECLARATION></INDEX>
-	      <NAME>make_application</NAME>
-	      <REQUIRES>variable</REQUIRES>
-	      <EXAMPLE>variable_example</EXAMPLE>
-	      <REQUIRES>tagged_list</REQUIRES>
-	      <JAVASCRIPT>
+      </JAVASCRIPT>
+    </SNIPPET>
+    We add a constructor for function applications, to be used by
+    <JAVASCRIPTINLINE>operator_combination_to_application</JAVASCRIPTINLINE>:
+    <SNIPPET PAGE="369" POSTPADDING="no">
+      <INDEX><DECLARATION>make_application</DECLARATION></INDEX>
+      <NAME>make_application</NAME>
+      <REQUIRES>variable</REQUIRES>
+      <EXAMPLE>variable_example</EXAMPLE>
+      <REQUIRES>tagged_list</REQUIRES>
+      <JAVASCRIPT>
 function make_application(function_expression, argument_expressions) {
-    return list("application", function_expression, argument_expressions);
+    return list("application",
+                function_expression, argument_expressions);
 }
-	      </JAVASCRIPT>
-	    </SNIPPET>
+      </JAVASCRIPT>
+    </SNIPPET>
   </TEXT>
 
   <SUBHEADING>
@@ -786,14 +795,14 @@ function make_application(function_expression, argument_expressions) {
       <WEB_ONLY>
     <BLOCKQUOTE>
 	<LATEX>
-$\ll \mathit{predicate}\ \texttt{?}\ \mathit{consequent}\textit{-}\mathit{expression}\ \texttt{:}\ \mathit{alternative}\textit{-}\mathit{expression}   \gg\ \ = $
+$\ll\ \mathit{predicate}\ \texttt{?}\ \mathit{consequent}\textit{-}\mathit{expression}\ \texttt{:}\ \mathit{alternative}\textit{-}\mathit{expression}\ \gg\ \ = $
 	</LATEX>
 	<SNIPPET LATEX="yes" EVAL="no">
 	  <JAVASCRIPT>
 list("conditional_expression", 
-     $\ll$ <META>predicate</META> $\gg$,
-     $\ll$ <META>consequent-expression</META> $\gg$,
-     $\ll$ <META>alternative-expression</META> $\gg$)
+     $\ll\ $<META>predicate</META>$\ \gg$,
+     $\ll\ $<META>consequent-expression</META>$\ \gg$,
+     $\ll\ $<META>alternative-expression</META>$\ \gg$)
 	  </JAVASCRIPT>
 	</SNIPPET>
     </BLOCKQUOTE>
@@ -801,11 +810,11 @@ list("conditional_expression",
 	<PDF_ONLY>
 	<SNIPPET LATEX="yes" EVAL="no">
 	  <JAVASCRIPT>
-    $\ll$ <META>predicate</META> ? <META>consequent-expression</META> : <META>alternative-expression</META> $\gg$ =
+    $\ll\ $<META>predicate</META> ? <META>consequent-expression</META> : <META>alternative-expression</META>$\ \gg$ =
         list("conditional_expression", 
-             $\ll$ <META>predicate</META> $\gg$,
-             $\ll$ <META>consequent-expression</META> $\gg$,
-             $\ll$ <META>alternative-expression</META> $\gg$)
+             $\ll\ $<META>predicate</META>$\ \gg$,
+             $\ll\ $<META>consequent-expression</META>$\ \gg$,
+             $\ll\ $<META>alternative-expression</META>$\ \gg$)
 	  </JAVASCRIPT>
 	</SNIPPET>
 	</PDF_ONLY>
@@ -813,14 +822,14 @@ list("conditional_expression",
       <WEB_ONLY>
     <BLOCKQUOTE>
 	<LATEX>
-$\ll \textbf{if}\ \texttt{(} \mathit{predicate} \texttt{)}\ \mathit{consequent}\textit{-}\mathit{block}\ \textbf{else}\ \mathit{alternative}\textit{-}\mathit{block} \gg\ \ =$
+$\ll\ \textbf{if}\ \texttt{(} \mathit{predicate} \texttt{)}\ \mathit{consequent}\textit{-}\mathit{block}\ \textbf{else}\ \mathit{alternative}\textit{-}\mathit{block}\ \gg\ \ =$
 	</LATEX>
 	<SNIPPET LATEX="yes" EVAL="no">
 	  <JAVASCRIPT>
 list("conditional_statement", 
-     $\ll$ <META>predicate</META> $\gg$,
-     $\ll$ <META>consequent-block</META> $\gg$,
-     $\ll$ <META>alternative-block</META> $\gg$)
+     $\ll\ $<META>predicate</META>$\ \gg$,
+     $\ll\ $<META>consequent-block</META>$\ \gg$,
+     $\ll\ $<META>alternative-block</META>$\ \gg$)
 	  </JAVASCRIPT>
 	</SNIPPET>
     </BLOCKQUOTE>
@@ -828,26 +837,25 @@ list("conditional_statement",
       <PDF_ONLY>
 	<SNIPPET LATEX="yes" EVAL="no">
 	  <JAVASCRIPT>
-    $\ll$ if (<META>predicate</META>) <META>consequent-block</META> else <META>alternative-block</META> $\gg$ =
+    $\ll\ $if (<META>predicate</META>) <META>consequent-block</META> else <META>alternative-block</META>$\ \gg$ =
         list("conditional_statement", 
-             $\ll$ <META>predicate</META> $\gg$,
-             $\ll$ <META>consequent-block</META> $\gg$,
-             $\ll$ <META>alternative-block</META> $\gg$)
+             $\ll\ $<META>predicate</META>$\ \gg$,
+             $\ll\ $<META>consequent-block</META>$\ \gg$,
+             $\ll\ $<META>alternative-block</META>$\ \gg$)
 	  </JAVASCRIPT>
 	</SNIPPET>
       </PDF_ONLY>
-	The selectors 
-	<INDEX><USE>conditional_predicate</USE></INDEX>
-	<JAVASCRIPTINLINE>conditional_predicate</JAVASCRIPTINLINE>,
-	<INDEX><USE>conditional_consequent</USE></INDEX>
-	<JAVASCRIPTINLINE>conditional_consequent</JAVASCRIPTINLINE>, and
-	<INDEX><USE>conditional_alternative</USE></INDEX>
-	<JAVASCRIPTINLINE>conditional_alternative</JAVASCRIPTINLINE>
-	can be applied to both kinds
-	of conditionals, and the syntax predicate
-	<INDEX><USE>is_conditional</USE></INDEX>
-	<JAVASCRIPTINLINE>is_conditional</JAVASCRIPTINLINE>
-	returns true for both.
+      The syntax predicate
+      <INDEX><USE>is_conditional</USE></INDEX>
+      <JAVASCRIPTINLINE>is_conditional</JAVASCRIPTINLINE>
+      returns true for both kinds of conditionals, and the selectors
+      <INDEX><USE>conditional_predicate</USE></INDEX>
+      <JAVASCRIPTINLINE>conditional_predicate</JAVASCRIPTINLINE>,
+      <INDEX><USE>conditional_consequent</USE></INDEX>
+      <JAVASCRIPTINLINE>conditional_consequent</JAVASCRIPTINLINE>, and
+      <INDEX><USE>conditional_alternative</USE></INDEX>
+      <JAVASCRIPTINLINE>conditional_alternative</JAVASCRIPTINLINE>
+      can be applied to both kinds.
 	    <SNIPPET PAGE="371" HIDE="yes">
 	      <NAME>if</NAME>
 	      <REQUIRES>tagged_list</REQUIRES>
@@ -903,38 +911,38 @@ conditional_alternative(my_cond_expr);
     return expression is the body of the lambda expression.
     <WEB_ONLY>
     <LATEX>
-\begin{eqnarray*}      
-&amp; \ll \texttt{(}\mathit{name}_1\texttt{, }\ldots\texttt{, } \mathit{name}_n \texttt{) =&gt;}\ \mathit{expression} \gg \\
-&amp; = \\
-&amp; \ll \texttt{(}\mathit{name}_1\texttt{, }\ldots\texttt{, } \mathit{name}_n \texttt{) =&gt; \{}\ \textbf{return} \ \mathit{expression}\texttt{;}\ \texttt{\}} \gg
-\end{eqnarray*}
+\[
+ \ll\ \texttt{(}\mathit{name}_1\texttt{, }\ldots\texttt{, } \mathit{name}_n \texttt{) =&gt;}\ \mathit{expression}\ \gg \\
+ = \\
+ \ll\ \texttt{(}\mathit{name}_1\texttt{, }\ldots\texttt{, } \mathit{name}_n \texttt{) =&gt; \{}\ \textbf{return} \ \mathit{expression}\texttt{;}\ \texttt{\}}\ \gg
+\]
 	</LATEX>
     </WEB_ONLY>
     <PDF_ONLY>
 	<SNIPPET LATEX="yes" EVAL="no">
 	  <JAVASCRIPT>
-$\ll$ (<META>name</META>$_1$, $\ldots$, <META>name</META>$_n$) => <META>expression</META> $\gg$ = 
-    $\ll$ (<META>name</META>$_1$, $\ldots$, <META>name</META>$_n$) => { return <META>expression</META>; } $\gg$
+$\ll\ $(<META>name</META>$_1$, $\ldots$, <META>name</META>$_n$) => <META>expression</META>$\ \gg$ = 
+    $\ll\ $(<META>name</META>$_1$, $\ldots$, <META>name</META>$_n$) => { return <META>expression</META>; }$\ \gg$
 	  </JAVASCRIPT>
 	</SNIPPET>
 <!--     <LATEX> -->
 <!-- \begin{Parsing}       -->
-<!-- &amp; \ll \texttt{(}\mathit{name}_1\texttt{, }\ldots\texttt{, } \mathit{name}_n \texttt{) =&gt;}\ \mathit{expression} \gg \\[-1mm] -->
+<!-- &amp; \ll\ \texttt{(}\mathit{name}_1\texttt{, }\ldots\texttt{, } \mathit{name}_n \texttt{) =&gt;}\ \mathit{expression}\ \gg \\[-1mm] -->
 <!-- &amp; = \\[-1mm] -->
-<!-- &amp; \ll \texttt{(}\mathit{name}_1\texttt{, }\ldots\texttt{, } \mathit{name}_n \texttt{) =&gt; \{}\ \textbf{\texttt{return}} \ \mathit{expression}\texttt{;}\ \texttt{\}} \gg -->
+<!-- &amp; \ll\ \texttt{(}\mathit{name}_1\texttt{, }\ldots\texttt{, } \mathit{name}_n \texttt{) =&gt; \{}\ \textbf{\texttt{return}} \ \mathit{expression}\texttt{;}\ \texttt{\}}\ \gg -->
 <!-- \end{Parsing}% -->
 <!-- 	</LATEX> -->
     </PDF_ONLY>A lambda expression whose body is a block is parsed as follows:
 		<WEB_ONLY>
 	      <BLOCKQUOTE>
 	      <LATEX>
-$\ll \texttt{(}\mathit{name}_1\texttt{, }\ldots\texttt{, } \mathit{name}_n \texttt{) =&gt;}\ \mathit{block} \gg\ \ =$
+$\ll\ \texttt{(}\mathit{name}_1\texttt{, }\ldots\texttt{, } \mathit{name}_n \texttt{) =&gt;}\ \mathit{block}\ \gg\ \ =$
 	</LATEX>
 	<SNIPPET LATEX="yes" EVAL="no">
 	  <JAVASCRIPT>
 list("lambda_expression",
-     list($\ll name_1 \gg$, $\ldots$, $\ll name_n \gg$),
-     $\ll block \gg$)
+     list($\ll\ name_1\;\gg$, $\ldots$, $\ll\ name_n\;\gg$),
+     $\ll\ block\ \gg$)
 	  </JAVASCRIPT>
 	</SNIPPET>
 	      </BLOCKQUOTE>
@@ -942,17 +950,17 @@ list("lambda_expression",
 		<PDF_ONLY>
 	<SNIPPET LATEX="yes" EVAL="no">
 	  <JAVASCRIPT>
-$\ll$ (<META>name</META>$_1$, $\ldots$, <META>name</META>$_n$) => <META>block</META> $\gg$ = 
+$\ll\ $(<META>name</META>$_1$, $\ldots$, <META>name</META>$_n$) => <META>block</META>$\ \gg$ = 
      list("lambda_expression", 
-          list($\ll$ <META>name</META>$_1$ $\gg$, $\ldots$, $\ll$ <META>name</META>$_n$ $\gg$), 
-          $\ll$ <META>block</META> $\gg$)
+          list($\ll\ $<META>name</META>$_1\;\gg$, $\ldots$, $\ll\ $<META>name</META>$_n\;\gg$), 
+          $\ll\ $<META>block</META>$\ \gg$)
 	  </JAVASCRIPT>
 	</SNIPPET>
 <!-- 	      <LATEX> -->
 <!-- \begin{Parsing} -->
-<!-- &amp; \ll \texttt{(}\mathit{name}_1\texttt{, }\ldots\texttt{, } \mathit{name}_n \texttt{) =>}\ \mathit{block} \gg \\[-1mm] -->
+<!-- &amp; \ll\ \texttt{(}\mathit{name}_1\texttt{, }\ldots\texttt{, } \mathit{name}_n \texttt{) =>}\ \mathit{block}\ \gg \\[-1mm] -->
 <!-- &amp; = \\[-1mm] -->
-<!-- &amp; \texttt{list("lambda_expression", list(}\ll \texttt{name}_1 \gg\texttt{,}\, \ldots\texttt{,} \ll \texttt{name}_n \gg\texttt{),}\, \ll \mathit{block} \gg\texttt{)} -->
+<!-- &amp; \texttt{list("lambda_expression", list(}\ll\ \texttt{name}_1\;\gg\texttt{,}\, \ldots\texttt{,} \ll\ \texttt{name}_n\;\gg\texttt{),}\, \ll\ \mathit{block}\ \gg\texttt{)} -->
 <!-- \end{Parsing}% -->
 <!-- </LATEX> -->
 </PDF_ONLY>
@@ -998,8 +1006,9 @@ display(lambda_parameter_symbols(my_lambda));
 display(lambda_body(my_lambda));
 	      </JAVASCRIPT>
 	    </SNIPPET>
-	    We add a constructor for lambda expressions, to be used by
-	    <JAVASCRIPTINLINE>function_decl_to_constant_decl</JAVASCRIPTINLINE>:
+	    The function
+	    <JAVASCRIPTINLINE>function_decl_to_constant_decl</JAVASCRIPTINLINE>
+	    needs a constructor for lambda expressions:
 	    <SNIPPET PAGE="369" POSTPADDING="no">
 	      <INDEX><DECLARATION>make_lambda_expression</DECLARATION></INDEX>
 	      <NAME>make_lambda_expression</NAME>
@@ -1024,32 +1033,32 @@ function make_lambda_expression(parameters, body) {
     <INDEX><PARSING/><SUBINDEX><ORDER>sequence of statements</ORDER>sequence of statements</SUBINDEX></INDEX>
     <INDEX>sequence of statements<SUBINDEX>parsing of</SUBINDEX></INDEX>
     packages a sequence of statements into a
-    single statement. A sequence of statements is parsed as follows:
+    single statement. A<SPACE/>sequence of statements is parsed as follows:
     <WEB_ONLY>
     <LATEX>
-	  \begin{eqnarray*}
-&amp;	  \ll \mathit{statement}_1 \cdots \mathit{statement}_n   \gg \\
-&amp;	  = \\
-&amp;	  \texttt{list("sequence", list(}
-\ll \mathit{statement}_1 \gg \texttt{, } \ldots \texttt{, }
-\ll \mathit{statement}_n \gg \texttt{))}
-	  \end{eqnarray*}
+\[
+\ll\ \mathit{statement}_1 \cdots \mathit{statement}_n\;\gg \\
+= \\
+\texttt{list("sequence", list(}
+\ll\ \mathit{statement}_1\;\gg \texttt{, } \ldots \texttt{, }
+\ll\ \mathit{statement}_n\;\gg \texttt{))}
+\]
     </LATEX>
     </WEB_ONLY>
     <PDF_ONLY>
 	<SNIPPET LATEX="yes" EVAL="no">
 	  <JAVASCRIPT>
-$\ll$ <META>statement</META>$_1$ $\cdots$ <META>statement</META>$_n$ $\gg$ = 
-     list("sequence", list($\ll$ <META>statement</META>$_1$ $\gg$, $\ldots$, $\ll$ <META>statement</META>$_n$ $\gg$))
+$\ll\ $<META>statement</META>$_1$ $\cdots$ <META>statement</META>$_n\;\gg$ = 
+     list("sequence", list($\ll\ $<META>statement</META>$_1\;\gg$, $\ldots$, $\ll\ $<META>statement</META>$_n\;\gg$))
 	  </JAVASCRIPT>
 	</SNIPPET>
 <!--           <LATEX> -->
 <!-- 	  \begin{Parsing} -->
-<!-- &amp;	  \ll \mathit{statement}_1 \cdots \mathit{statement}_n   \gg \\[-1mm] -->
+<!-- &amp;	  \ll\ \mathit{statement}_1 \cdots \mathit{statement}_n\;\gg \\[-1mm] -->
 <!-- &amp;	  = \\[-1mm] -->
 <!-- &amp;	  \texttt{list("sequence", list(} -->
-<!-- \ll \mathit{statement}_1 \gg \texttt{, } \ldots \texttt{, } -->
-<!-- \ll \mathit{statement}_n \gg \texttt{))} -->
+<!-- \ll\ \mathit{statement}_1\;\gg \texttt{, } \ldots \texttt{, } -->
+<!-- \ll\ \mathit{statement}_n\;\gg \texttt{))} -->
 <!-- 	  \end{Parsing}% -->
 <!--     </LATEX> -->
     </PDF_ONLY>
@@ -1060,12 +1069,12 @@ $\ll$ <META>statement</META>$_1$ $\cdots$ <META>statement</META>$_n$ $\gg$ =
     We retrieve the first of a list of statements using
     <JAVASCRIPTINLINE>first_statement</JAVASCRIPTINLINE> and
     the remaining statements using
-    <JAVASCRIPTINLINE>rest_statements</JAVASCRIPTINLINE>, and test
-    whether the list is empty or contains only one element using
-    the predicates 
-    <JAVASCRIPTINLINE>is_empty_sequence</JAVASCRIPTINLINE> and 
-    <JAVASCRIPTINLINE>is_last_statement</JAVASCRIPTINLINE>,
-    respectively.<FOOTNOTE>These
+    <JAVASCRIPTINLINE>rest_statements</JAVASCRIPTINLINE>. We test
+    whether the list is empty using the predicate
+    <JAVASCRIPTINLINE>is_empty_sequence</JAVASCRIPTINLINE> and
+    whether it contains only one element
+    using the predicate
+    <JAVASCRIPTINLINE>is_last_statement</JAVASCRIPTINLINE>.<FOOTNOTE>These
     selectors for a list of statements are not intended
     as a data abstraction.
     They are introduced as mnemonic names for the
@@ -1158,24 +1167,26 @@ list_ref(rest_statements(my_actions), 1);
     these decisions.</FOOTNOTE>
     <WEB_ONLY>
     <LATEX>
-	  \begin{eqnarray*}
-	  \ll \texttt{\{}\ \mathit{statements}\ \texttt{\}} \gg
-	  &amp; = &amp;
-	  \texttt{list("block",}\ \ll \mathit{statements} \gg \texttt{)}
-	  \end{eqnarray*}
+    \[
+	  \begin{align*}
+	  \ll\ \texttt{\{}\ \mathit{statements}\ \texttt{\}}\ \gg
+	  &amp; =
+	  \texttt{list("block",}\ \ll\ \mathit{statements}\ \gg \texttt{)}
+	  \end{align*}
+    \]
 	  </LATEX>
     </WEB_ONLY>
     <PDF_ONLY>
     <LATEX>
 	  \begin{Parsing}
-	  \ll \texttt{\{}\ \mathit{statements}\ \texttt{\}} \gg
+	  \ll\ \texttt{\{}\ \mathit{statements}\ \texttt{\}}\ \gg
 	  &amp; = &amp;
-	  \texttt{list("block",}\ \ll \mathit{statements} \gg \texttt{)}
+	  \texttt{list("block",}\ \ll\ \mathit{statements}\ \gg \texttt{)}
 	  \end{Parsing}%
 	  </LATEX>
     </PDF_ONLY>
 	Here <META>statements</META> refers to a sequence of
-	statements.
+	statements, as shown above.
 	The syntax predicate is
 	<INDEX><USE>is_block</USE></INDEX>
 	<JAVASCRIPTINLINE>is_block</JAVASCRIPTINLINE>
@@ -1227,26 +1238,28 @@ display(block_body(my_block));
     are parsed as follows:
     <WEB_ONLY>
 	<LATEX>
-	  \begin{eqnarray*}
-	  \ll \textbf{return}\ \mathit{expression} \texttt{;} \gg
-	  &amp; = &amp;
-	  \texttt{list("return_statement",}\ \ll \mathit{expression} \gg \texttt{)}
-	  \end{eqnarray*}
+    \[
+	  \begin{align*}
+	  \ll\ \textbf{return}\ \mathit{expression} \texttt{;}\ \gg
+	  &amp; =
+	  \texttt{list("return\_statement",}\ \ll\ \mathit{expression}\ \gg \texttt{)}
+	  \end{align*}
+    \]
 	</LATEX>
     </WEB_ONLY>
     <PDF_ONLY>
 	<LATEX>
 	  \begin{Parsing}
-	  \ll \textbf{\texttt{return}}\ \mathit{expression} \texttt{;} \gg
+	  \ll\ \textbf{\texttt{return}}\ \mathit{expression} \texttt{;}\ \gg
 	  &amp; = &amp;
-	  \texttt{list("return_statement",}\ \ll \mathit{expression} \gg \texttt{)}
+	  \texttt{list("return_statement",}\ \ll\ \mathit{expression}\ \gg \texttt{)}
 	  \end{Parsing}%
 	</LATEX>
     </PDF_ONLY>
-    The syntax predicate is
+    The syntax predicate and selector are, respectively,
     <INDEX><USE>is_return_statement</USE></INDEX>
     <JAVASCRIPTINLINE>is_return_statement</JAVASCRIPTINLINE>
-    and the selector is
+    and
     <INDEX><USE>return_expression</USE></INDEX>
     <JAVASCRIPTINLINE>return_expression</JAVASCRIPTINLINE>.
 	    <SNIPPET PAGE="366" HIDE="yes">
@@ -1284,17 +1297,19 @@ list_ref(my_return, 1);
     are parsed as follows:
     <WEB_ONLY>
 	<LATEX>
-	  \begin{eqnarray*}
-	  \ll \mathit{name}\ \ \texttt{=}\ \ \mathit{expression} \gg &amp; = &amp;
-	  \texttt{list("assignment", }\ll \mathit{name}\gg \texttt{, }\ll \mathit{expression} \gg \texttt{)}
-	  \end{eqnarray*}
+    \[
+	  \begin{align*}
+	  \ll\ \mathit{name}\ \ \texttt{=}\ \ \mathit{expression}\ \gg &amp; = 
+	  \texttt{list("assignment", }\ll\ \mathit{name}\gg \texttt{, }\ll\ \mathit{expression}\ \gg \texttt{)}
+	  \end{align*}
+    \]
 	</LATEX>
     </WEB_ONLY>
     <PDF_ONLY>
 	<LATEX>
 	  \begin{Parsing}
-	  \ll \mathit{name}\ \ \texttt{=}\ \ \mathit{expression} \gg &amp; = &amp;
-	  \texttt{list("assignment", }\ll \mathit{name}\gg \texttt{, }\ll \mathit{expression} \gg \texttt{)}
+	  \ll\;\mathit{name} \ \texttt{=}\  \mathit{expression}\;\gg &amp; = &amp;
+	  \texttt{list("assignment",}\ \ll\;\mathit{name}\;\gg \texttt{, }\ll\;\mathit{expression}\;\gg \texttt{)}
 	  \end{Parsing}%
 	</LATEX>
     </PDF_ONLY>
@@ -1360,34 +1375,34 @@ assignment_value_expression(my_assignment_statement);
       are parsed as follows:
       <WEB_ONLY>
 	<LATEX>
-	  \begin{eqnarray*}
-&amp;  \ll \textbf{const}\ \mathit{name}\ \ \texttt{=}\ \ \mathit{expression}\texttt{;} \gg \\
-&amp; = \\
-&amp; \texttt{list("constant_declaration", } \ll \mathit{name} \gg \texttt{, }\ll \mathit{expression} \gg \texttt{)}\\[3mm]
-&amp;  \ll \textbf{let}\ \mathit{name} \ \ \texttt{=}\ \ \mathit{expression}\texttt{;} \gg \\
-&amp; = \\
-&amp; \texttt{list("variable_declaration", } \ll \mathit{name} \gg \texttt{, }\ll \mathit{expression} \gg \texttt{)}
-	  \end{eqnarray*}
+\[
+  \ll\ \textbf{const}\ \mathit{name}\ \ \texttt{=}\ \ \mathit{expression}\texttt{;}\ \gg \\
+  = \\
+  \texttt{list("constant\_declaration", } \ll\ \mathit{name}\ \gg \texttt{, }\ll\ \mathit{expression}\ \gg \texttt{)}\\[3mm]
+  \ll\ \textbf{let}\ \mathit{name} \ \ \texttt{=}\ \ \mathit{expression}\texttt{;}\ \gg \\
+  = \\
+  \texttt{list("variable\_declaration", } \ll\ \mathit{name}\ \gg \texttt{, }\ll\ \mathit{expression}\ \gg \texttt{)}
+\]
 	</LATEX>
       </WEB_ONLY>
       <PDF_ONLY>
 	<SNIPPET LATEX="yes" EVAL="no">
 	  <JAVASCRIPT>
-$\ll$ const <META>name</META> = <META>expression</META>; $\gg$ = 
-     list("constant_declaration", $\ll$ <META>name</META> $\gg$, $\ll$ <META>expression</META> $\gg$)
+$\ll\ $const <META>name</META> = <META>expression</META>;$\ \gg$ = 
+     list("constant_declaration", $\ll\ $<META>name</META>$\ \gg$, $\ll\ $<META>expression</META>$\ \gg$)
 
-$\ll$ let <META>name</META> = <META>expression</META>; $\gg$ = 
-     list("variable_declaration", $\ll$ <META>name</META> $\gg$, $\ll$ <META>expression</META> $\gg$)
+$\ll\ $let <META>name</META> = <META>expression</META>;$\ \gg$ = 
+     list("variable_declaration", $\ll\ $<META>name</META>$\ \gg$, $\ll\ $<META>expression</META>$\ \gg$)
 	  </JAVASCRIPT>
 	</SNIPPET>
 <!-- 	<LATEX> -->
 <!-- 	  \begin{Parsing} -->
-<!-- &amp;  \ll \textbf{\texttt{const}}\ \mathit{name}\ \ \texttt{=}\ \ \mathit{expression}\texttt{;} \gg \\[-1mm] -->
+<!-- &amp;  \ll\ \textbf{\texttt{const}}\ \mathit{name}\ \ \texttt{=}\ \ \mathit{expression}\texttt{;}\ \gg \\[-1mm] -->
 <!-- &amp; = \\[-1mm] -->
-<!-- &amp; \texttt{list("constant_declaration", } \ll \mathit{name} \gg \texttt{, }\ll \mathit{expression} \gg \texttt{)}\\[3mm] -->
-<!-- &amp;  \ll \textbf{\texttt{let}}\ \mathit{name} \ \ \texttt{=}\ \ \mathit{expression}\texttt{;} \gg \\[-1mm] -->
+<!-- &amp; \texttt{list("constant_declaration", } \ll\ \mathit{name}\ \gg \texttt{, }\ll\ \mathit{expression}\ \gg \texttt{)}\\[3mm] -->
+<!-- &amp;  \ll\ \textbf{\texttt{let}}\ \mathit{name} \ \ \texttt{=}\ \ \mathit{expression}\texttt{;}\ \gg \\[-1mm] -->
 <!-- &amp; = \\[-1mm] -->
-<!-- &amp; \texttt{list("variable_declaration", } \ll \mathit{name} \gg \texttt{, }\ll \mathit{expression} \gg \texttt{)} -->
+<!-- &amp; \texttt{list("variable_declaration", } \ll\ \mathit{name}\ \gg \texttt{, }\ll\ \mathit{expression}\ \gg \texttt{)} -->
 <!-- 	  \end{Parsing}% -->
 <!-- 	</LATEX> -->
       </PDF_ONLY>
@@ -1410,8 +1425,9 @@ function declaration_value_expression(component) {
 }
 	      </JAVASCRIPT>
 	</SNIPPET>
-	We also declare a constructor for constant declarations, to be used by
-	<JAVASCRIPTINLINE>function_decl_to_constant_decl</JAVASCRIPTINLINE>:
+	The function
+	<JAVASCRIPTINLINE>function_decl_to_constant_decl</JAVASCRIPTINLINE>
+	needs a constructor for constant declarations:
 	<SNIPPET PAGE="370">
 	  <INDEX><DECLARATION>make_constant_declaration</DECLARATION></INDEX>
 	      <NAME>make_constant_declaration</NAME>
@@ -1433,14 +1449,14 @@ function make_constant_declaration(name, value_expression) {
 	  <WEB_ONLY>
 	<BLOCKQUOTE>
 	      <LATEX>
-$\ll \textbf{function}\ \mathit{name} \texttt{(}\mathit{name}_1\texttt{, }\ldots\texttt{, } \mathit{name}_n \texttt{)} \ \mathit{block} \ \gg\ \ =$ 
+$\ll\ \textbf{function}\ \mathit{name} \texttt{(}\mathit{name}_1\texttt{, }\ldots\texttt{, } \mathit{name}_n \texttt{)} \ \mathit{block}\ \gg\ \ =$ 
 	</LATEX>
 	<SNIPPET LATEX="yes" EVAL="no">
 	  <JAVASCRIPT>
 list("function_declaration",
-     $\ll$ <META>name</META> $\gg$,
-     list($\ll$ <META>name</META>$_1 \gg$, $\ldots$, $\ll$ <META>name</META>$_n \gg$),
-     $\ll$ <META>block</META> $\gg$)
+     $\ll\ $<META>name</META>$\ \gg$,
+     list($\ll\ $<META>name</META>$_1\;\gg$, $\ldots$, $\ll\ $<META>name</META>$_n\;\gg$),
+     $\ll\ $<META>block</META>$\ \gg$)
 	  </JAVASCRIPT>
 	</SNIPPET>
 	</BLOCKQUOTE>
@@ -1448,18 +1464,19 @@ list("function_declaration",
 	  <PDF_ONLY>
 	<SNIPPET LATEX="yes" EVAL="no">
 	  <JAVASCRIPT>
-$\ll$ function <META>name</META>(<META>name</META>$_1$, $\ldots$ <META>name</META>$_n$) <META>block</META> $\gg$ =
+$\ll\ $function <META>name</META>(<META>name</META>$_1$, $\ldots$ <META>name</META>$_n$) <META>block</META>$\ \gg$ =
     list("function_declaration",
-         $\ll$ <META>name</META> $\gg$,
-         list($\ll$ <META>name</META>$_1 \gg$, $\ldots$, $\ll$ <META>name</META>$_n \gg$),
-         $\ll$ <META>block</META> $\gg$)
+         $\ll\ $<META>name</META>$\ \gg$,
+         list($\ll\ $<META>name</META>$_1\;\gg$, $\ldots$, $\ll\ $<META>name</META>$_n\;\gg$),
+         $\ll\ $<META>block</META>$\ \gg$)
 	  </JAVASCRIPT>
 	</SNIPPET>
 	  </PDF_ONLY>
-     The syntax predicate for function declarations is
+     The syntax predicate
       <INDEX><USE>is_function_declaration</USE></INDEX>
-     <JAVASCRIPTINLINE>is_function_declaration</JAVASCRIPTINLINE> and
-     the selectors are
+      <JAVASCRIPTINLINE>is_function_declaration</JAVASCRIPTINLINE>
+      recognizes these.
+      The selectors are
       <INDEX><USE>function_declaration_name</USE></INDEX>
      <JAVASCRIPTINLINE>function_declaration_name</JAVASCRIPTINLINE>,
       <INDEX><USE>function_declaration_parameters</USE></INDEX>
@@ -1576,12 +1593,12 @@ display(declaration_value_expression(my_declaration_statement));
 	  <NAME>cond</NAME>
 	  <REQUIRES>sequence_exp</REQUIRES>
 	  <SCHEME>
-(define (cond? exp) (tagged-list? exp \&apos;cond))
+(define (cond? exp) (tagged-list? exp 'cond))
 
 (define (cond-clauses exp) (cdr exp))
 
 (define (cond-else-clause? clause)
-  (eq? (cond-predicate clause) \&apos;else))
+  (eq? (cond-predicate clause) 'else))
 
 (define (cond-predicate clause) (car clause))
 
@@ -1592,13 +1609,13 @@ display(declaration_value_expression(my_declaration_statement));
 
 (define (expand-clauses clauses)
   (if (null? clauses)
-      \&apos;false                          ; no else clause
+      'false                          ; no else clause
       (let ((first (car clauses))
             (rest (cdr clauses)))
         (if (cond-else-clause? first)
             (if (null? rest)
                 (sequence->exp (cond-actions first))
-                (error "ELSE clause isn\&apos;t last - - COND->IF"
+                (error "ELSE clause isn't last - - COND->IF"
                        clauses))
             (make-if (cond-predicate first)
                      (sequence->exp (cond-actions first))
@@ -1660,7 +1677,7 @@ display(declaration_value_expression(my_declaration_statement));
 	<JAVASCRIPTINLINE>evaluate</JAVASCRIPTINLINE>
 	transforms into a constant declaration whose
 	value expression is a lambda expression.<FOOTNOTE>In 
-	    actual JavaScript, there are two differences between the two
+	    actual JavaScript, there are subtle differences between the two
 	    forms; see footnote<SPACE/><REF NAME="foot:function-decl-vs-lambda"/>
 	    in chapter 1.
 	    Exercise<SPACE/><REF NAME="ex:hoisting"/> addresses these differences.
@@ -1715,29 +1732,29 @@ function function_decl_to_constant_decl(component) {
 	in the tagged-list representation:
 	<WEB_ONLY>
 	    <LATEX>
-	      \begin{eqnarray*}
-	      &amp; \ll \mathit{unary}\textit{-}\mathit{operator}\ \ \mathit{expression} \gg \\
-	      &amp; = \\
-	      &amp; \texttt{list("unary_operator_combination", "}\mathit{unary}\textit{-}\mathit{operator}\texttt{"},\ 
-              \texttt{list(}\ll \mathit{expression} \gg \texttt{))}
-	      \end{eqnarray*}
+	      \[
+	          \ll\ \mathit{unary}\textit{-}\mathit{operator}\ \ \mathit{expression}\ \gg \\
+	          = \\
+	          \texttt{list("unary\_operator\_combination", "}\mathit{unary}\textit{-}\mathit{operator}\texttt{"},\ 
+            \texttt{list(}\ll\ \mathit{expression}\ \gg \texttt{))}
+	      \]
 	    </LATEX>
 	</WEB_ONLY>
 	<PDF_ONLY>
 	<SNIPPET LATEX="yes" EVAL="no">
 	  <JAVASCRIPT>
-$\ll$ <META>unary-operator</META> <META>expression</META> $\gg$ = 
+$\ll\ $<META>unary-operator</META> <META>expression</META>$\ \gg$ = 
      list("unary_operator_combination", 
           "<META>unary-operator</META>", 
-          list($\ll$ <META>expression</META> $\gg$))
+          list($\ll\ $<META>expression</META>$\ \gg$))
 	  </JAVASCRIPT>
 	</SNIPPET>
 	    <!-- <LATEX> -->
 	    <!--   \begin{Parsing} -->
-	    <!--   &amp; \ll \mathit{unary}\mhyphen{}\mathit{operator}\ \ \mathit{expression} \gg \\[-1mm] -->
+	    <!--   &amp; \ll\ \mathit{unary}\mhyphen{}\mathit{operator}\ \ \mathit{expression}\ \gg \\[-1mm] -->
 	    <!--   &amp; = \\[-1mm] -->
 	    <!--   &amp; \texttt{list("unary_operator_combination", "}\mathit{unary}\mhyphen{}\mathit{operator}\texttt{"},\  -->
-      <!--         \texttt{list(}\ll \mathit{expression} \gg \texttt{))} -->
+      <!--         \texttt{list(}\ll\ \mathit{expression}\ \gg \texttt{))} -->
 	    <!--   \end{Parsing}% -->
 	    <!-- </LATEX> -->
 	</PDF_ONLY>
@@ -1746,29 +1763,29 @@ $\ll$ <META>unary-operator</META> <META>expression</META> $\gg$ =
     <JAVASCRIPTINLINE>-unary</JAVASCRIPTINLINE> (for numeric negation), and
     <WEB_ONLY>
 	    <LATEX>
-	      \begin{eqnarray*}
-	      &amp; \ll \mathit{expression}_1\ \mathit{binary}\textit{-}\mathit{operator}\ \ \mathit{expression}_2 \gg \\
-	      &amp; = \\
-	      &amp; \texttt{list("binary_operator_combination", "}\mathit{binary}\textit{-}\mathit{operator}\texttt{"},\ 
-              \texttt{list(}\ll \mathit{expression}_1 \gg\texttt{,}\ \ll \mathit{expression}_2 \gg \texttt{))}
-	      \end{eqnarray*}
+	      \[
+	          \ll\ \mathit{expression}_1\ \mathit{binary}\textit{-}\mathit{operator}\ \ \mathit{expression}_2\;\gg \\
+	          = \\
+	          \texttt{list("binary\_operator\_combination", "}\mathit{binary}\textit{-}\mathit{operator}\texttt{"},\\ 
+            \texttt{list(}\ll\ \mathit{expression}_1\;\gg\texttt{,}\ \ll\ \mathit{expression}_2\;\gg \texttt{))}
+	      \]
 	    </LATEX>
     </WEB_ONLY>
     <PDF_ONLY>
 	<SNIPPET LATEX="yes" EVAL="no">
 	  <JAVASCRIPT>
-$\ll$ <META>expression</META>$_1$ <META>binary-operator</META> <META>expression</META>$_2$ $\gg$ = 
+$\ll\ $<META>expression</META>$_1$ <META>binary-operator</META> <META>expression</META>$_2\;\gg$ = 
      list("binary_operator_combination", 
           "<META>binary-operator</META>", 
-          list($\ll$ <META>expression</META>$_1$ $\gg$, $\ll$ <META>expression</META>$_2$ $\gg$))
+          list($\ll\ $<META>expression</META>$_1\;\gg$, $\ll\ $<META>expression</META>$_2\;\gg$))
 	  </JAVASCRIPT>
 	</SNIPPET>
 	    <!-- <LATEX> -->
 	    <!--   \begin{Parsing} -->
-	    <!--   &amp; \ll \mathit{expression}_1\ \mathit{binary}\mhyphen{}\mathit{operator}\ \ \mathit{expression}_2 \gg \\[-1mm] -->
+	    <!--   &amp; \ll\ \mathit{expression}_1\ \mathit{binary}\mhyphen{}\mathit{operator}\ \ \mathit{expression}_2\;\gg \\[-1mm] -->
 	    <!--   &amp; = \\[-1mm] -->
 	    <!--   &amp; \texttt{list("binary_operator_combination", "}\mathit{binary}\mhyphen{}\mathit{operator}\texttt{"},\  -->
-      <!--         \texttt{list(}\ll \mathit{expression}_1\texttt{,}\ \mathit{expression}_2 \gg \texttt{))} -->
+      <!--         \texttt{list(}\ll\ \mathit{expression}_1\texttt{,}\ \mathit{expression}_2\;\gg \texttt{))} -->
 	    <!--   \end{Parsing}% -->
 	    <!-- </LATEX> -->
     </PDF_ONLY>
@@ -1784,10 +1801,11 @@ $\ll$ <META>expression</META>$_1$ <META>binary-operator</META> <META>expression<
     <JAVASCRIPTINLINE>&lt;</JAVASCRIPTINLINE>,
     <JAVASCRIPTINLINE>&gt;=</JAVASCRIPTINLINE> or
     <JAVASCRIPTINLINE>&lt;=</JAVASCRIPTINLINE>.
-     The syntax predicates and selectors are
+     The syntax predicates are
      <JAVASCRIPTINLINE>is_operator_combination</JAVASCRIPTINLINE>,
-     <JAVASCRIPTINLINE>is_unary_operator_combination</JAVASCRIPTINLINE>,
+     <JAVASCRIPTINLINE>is_unary_operator_combination</JAVASCRIPTINLINE>, and
      <JAVASCRIPTINLINE>is_binary_operator_combination</JAVASCRIPTINLINE>,
+     and the selectors are
      <JAVASCRIPTINLINE>operator_symbol</JAVASCRIPTINLINE>,
      <JAVASCRIPTINLINE>first_operand</JAVASCRIPTINLINE>, and
      <JAVASCRIPTINLINE>second_operand</JAVASCRIPTINLINE>.
@@ -1815,14 +1833,16 @@ function second_operand(component) {
 }
 	  </JAVASCRIPT>
 	</SNIPPET>
-	The evaluator uses 
+      </TEXT>
+      <TEXT>
+	The evaluator uses
 	<JAVASCRIPTINLINE>operator_combination_to_application</JAVASCRIPTINLINE>
 	to transform an
 	<INDEX>operator combination<SUBINDEX>as function application</SUBINDEX></INDEX>
 	<INDEX>operator combination<SUBINDEX><ORDER>derived</ORDER>as derived component</SUBINDEX></INDEX>
 	<INDEX>derived components<SUBINDEX>operator combination</SUBINDEX></INDEX>
 	operator combination into a function application whose
-	function expression is the name of the operator.
+	function expression is the name of the operator:
 	<SNIPPET PAGE="373">
 	  <INDEX><DECLARATION>operator_combination_to_application</DECLARATION></INDEX>
 	  <NAME>operator_combination_to_application</NAME>
@@ -1840,7 +1860,6 @@ function operator_combination_to_application(component) {
 }
 	  </JAVASCRIPT>
 	</SNIPPET>
-	
       </TEXT>
       <TEXT>
 	Components (such as function declarations and operator combinations) that we
@@ -2028,9 +2047,9 @@ function operator_combination_to_application(component) {
 	<INDEX>metacircular evaluator for JavaScript<SUBINDEX><USE>&amp;&amp;</USE> (logical conjunction)</SUBINDEX></INDEX>
 	<INDEX>metacircular evaluator for JavaScript<SUBINDEX>{\tt "|"|} (logical disjunction)</SUBINDEX></INDEX>
 	<INDEX><USE>&amp;&amp;</USE> (logical conjunction)<ORDER>;1</ORDER><SUBINDEX>implementing in metacircular evaluator</SUBINDEX></INDEX>
+	<INDEX><USE>&amp;&amp;</USE> (logical conjunction)<ORDER>;1</ORDER><SUBINDEX><ORDER>derived</ORDER>as derived component</SUBINDEX></INDEX>
 	<INDEX>{\tt "|"|} (logical disjunction)<ORDER>;2</ORDER><SUBINDEX>implementing in metacircular evaluator</SUBINDEX></INDEX>
-	<INDEX>logical and<SUBINDEX><ORDER>derived</ORDER>as derived component</SUBINDEX></INDEX>
-	<INDEX>logical or<SUBINDEX><ORDER>derived</ORDER>as derived component</SUBINDEX></INDEX>
+	<INDEX>{\tt "|"|} (logical disjunction)<ORDER>;2</ORDER><SUBINDEX><ORDER>derived</ORDER>as derived component</SUBINDEX></INDEX>
 	logical composition operations
 	<JAVASCRIPTINLINE>&amp;&amp;</JAVASCRIPTINLINE>
 	and
@@ -2088,23 +2107,23 @@ function operator_combination_to_application(component) {
 	  <PDF_ONLY>
 	<SNIPPET LATEX="yes" EVAL="no">
 	  <JAVASCRIPT>
-    $\ll$ <META>expression</META>$_1$ <META>logical-operation</META> <META>expression</META>$_2$ $\gg$ = 
+    $\ll\ $<META>expression</META>$_1$ <META>logical-operation</META> <META>expression</META>$_2\;\gg$ = 
     list("logical_composition",
          "$logical$-$operation$",
-         list($\ll$ <META>expression</META>$_1 \gg$, $\ll$ <META>expression</META>$_2 \gg$))
+         list($\ll\ $<META>expression</META>$_1\;\gg$, $\ll\ $<META>expression</META>$_2\;\gg$))
 	  </JAVASCRIPT>
 	</SNIPPET>
 	  </PDF_ONLY>
 	  <WEB_ONLY>
 	<BLOCKQUOTE>
 	<LATEX>
-	  $\ll \mathit{expression}_1\ \ \mathit{logical}\textit{-}\mathit{operation}\ \ \mathit{expression}_2 \gg \ \ = $
+	  $\ll\ \mathit{expression}_1\ \ \mathit{logical}\textit{-}\mathit{operation}\ \ \mathit{expression}_2\;\gg \ \ = $
 	</LATEX>
 	<SNIPPET LATEX="yes" EVAL="no">
 	  <JAVASCRIPT>
 list("logical_composition",
      "$logical$-$operation$",
-     list($\ll$ <META>expression</META>$_1 \gg$, $\ll$ <META>expression</META>$_2 \gg$))
+     list($\ll\ $<META>expression</META>$_1\;\gg$, $\ll\ $<META>expression</META>$_2\;\gg$))
 	  </JAVASCRIPT>
 	</SNIPPET>
     </BLOCKQUOTE>
@@ -2155,18 +2174,18 @@ list("logical_composition",
 	<LABEL NAME="ex:extended-cond"/>
       </SCHEME>
       <JAVASCRIPT>
+	<LABEL NAME="ex:directly"/>
 	<OL>
 	  <LI>
 	    In JavaScript, lambda expressions must not have
 	    <INDEX>parameters<SUBINDEX>duplicate, preventing in metacircular evaluator</SUBINDEX><FRAGILE/></INDEX>
 	    <INDEX>duplicate parameters<SUBINDEX>preventing in metacircular evaluator</SUBINDEX><FRAGILE/></INDEX>
 	    <INDEX>metacircular evaluator for JavaScript<SUBINDEX>preventing duplicate parameters</SUBINDEX><FRAGILE/></INDEX>
-	    duplicate parameters. The
-	    <JAVASCRIPTINLINE>evaluate</JAVASCRIPTINLINE> function in
+	    duplicate parameters. The evaluator in
 	    section<SPACE/><REF NAME="sec:core-of-evaluator"/> does not check for this.
 	    <UL>
 	      <LI>
-		Modify <JAVASCRIPTINLINE>evaluate</JAVASCRIPTINLINE> so
+		Modify the evaluator so
 		that any attempt to apply a function with duplicate parameters
 		signals an error.
 	      </LI>
@@ -2182,13 +2201,13 @@ list("logical_composition",
 	    of these two approaches would you prefer? Why?
 	  </LI>
 	  <LI>
-	    The names declared in the body of a lambda expression must be
+	    In JavaScript, the parameters of a lambda expression must be distinct from
 	    <INDEX>metacircular evaluator for JavaScript<SUBINDEX>parameters distinct from local names</SUBINDEX><FRAGILE/></INDEX>
 	    <INDEX>parameters<SUBINDEX>distinct from local names</SUBINDEX><FRAGILE/></INDEX>
-	    <INDEX>internal declaration<SUBINDEX>names distinct from parameter</SUBINDEX><FRAGILE/></INDEX>
-	    distinct from the names of
-	    the parameters of the lambda expression. Use your preferred approach
-	    above to check for this as well.
+	    <INDEX>internal declaration<SUBINDEX>names distinct from parameters</SUBINDEX><FRAGILE/></INDEX>
+	    the names declared <EM>directly</EM> in the body block of the lambda expression,
+	    as opposed to in an inner block.
+	    Use your preferred approach above to check for this as well.
           </LI>
         </OL>
       </JAVASCRIPT>
@@ -2203,18 +2222,18 @@ list("logical_composition",
 	because
 	<SNIPPET EVAL="no">
 	  <SCHEME>
-(let ((^var$_{1}$^ ^exp$_{1}$^) ^$\ldots$^ (^var$_{n}$^ ^exp$_{n}$^))
-  ^body^)
+(let ((var$_{1}$ exp$_{1}$) $\ldots$ (var$_{n}$ exp$_{n}$))
+  body)
 	  </SCHEME>
 	</SNIPPET>
 	is equivalent to
 	<SNIPPET EVAL="no">
 	  <SCHEME>
-((lambda (^var$_{1}$^ ^$\ldots$^ ^var$_{n}$^)
-   ^body^)
- ^exp$_{1}$^
- ^$\vdots$^
- ^exp$_{n}$^)
+((lambda (var$_{1}$ $\ldots$ var$_{n}$)
+   body)
+ exp$_{1}$
+ $\vdots$
+ exp$_{n}$)
 	  </SCHEME>
 	</SNIPPET>
 	Implement a syntactic transformation
@@ -2321,9 +2340,9 @@ display(1);
 	  <LI>
 	    Assuming that
 	    <JAVASCRIPTINLINE>parse</JAVASCRIPTINLINE> implements your
-	    new rule, write a function
+	    new rule, write a
 	    <JAVASCRIPTINLINE>let_star_to_nested_let</JAVASCRIPTINLINE>
-	    that transforms any occurrence of 
+	    function that transforms any occurrence of
 	    <JAVASCRIPTINLINE>let*</JAVASCRIPTINLINE> in a given program as
 	    described above. We could
 	    then evaluate a program <JAVASCRIPTINLINE>p</JAVASCRIPTINLINE> in the
@@ -2333,9 +2352,9 @@ display(1);
 	  <LI>
 	    As an alternative, consider implementing
 	    <JAVASCRIPTINLINE>let*</JAVASCRIPTINLINE> by
-	    adding to the dispatch in
-	    <JAVASCRIPTINLINE>evaluate</JAVASCRIPTINLINE> a clause that will
-	    recognize the new syntactic form and call a function
+	    adding to
+	    <JAVASCRIPTINLINE>evaluate</JAVASCRIPTINLINE> a clause that
+	    recognizes the new syntactic form and calls a function
 	    <JAVASCRIPTINLINE>eval_let_star_declaration</JAVASCRIPTINLINE>.
 	    Why does this approach not work?
 	  </LI>
@@ -2357,7 +2376,7 @@ display(1);
 	<SCHEMEINLINE>let</SCHEMEINLINE> that has the form
 	<SNIPPET>
 	  <SCHEME>
-(let ^var^ ^bindings^ ^body^)
+(let var bindings body)
 	  </SCHEME>
 	</SNIPPET>
 	The <LATEXINLINE>bindings</LATEXINLINE> and
@@ -2410,42 +2429,57 @@ while (<META>predicate</META>) { <META>body</META> }
 	the whole while loop again.
 	Once the <META>predicate</META> evaluates
 	to false, the
-	while loop terminates. Using
-	this syntax, we can compute the greatest common divisor
-	of two numbers using the following function:
-	<SNIPPET HIDE="yes">
-	  <NAME>gcd_with_loop_example</NAME>
-	  <JAVASCRIPT>
-gcd(42, 12);
-	  </JAVASCRIPT>
-	</SNIPPET>
-	<SNIPPET>
-	  <NAME>gcd_with_loop</NAME>
-	  <EXAMPLE>gcd_with_loop_example</EXAMPLE>
-	  <EXPECTED>6</EXPECTED>
-	  <JAVASCRIPT>
-function gcd(a, b) {
-    while (a !== b) {
-        if (a &gt; b) {
-            a = a - b;
+	while loop terminates.
+	<TEXT>
+	  For example, recall the imperative-style version of the iterative
+	  factorial function from section<SPACE/><REF NAME="sec:costs-of-assignment"/>:
+	  <SNIPPET EVAL="yes">
+	    <NAME>factorial_imperative_2</NAME>
+	    <EXAMPLE>factorial_example</EXAMPLE>
+	    <EXPECTED>120</EXPECTED>
+	    <JAVASCRIPT>
+function factorial(n) {
+    let product = 1;
+    let counter = 1;
+    function iter() {
+        if (counter &gt; n) {
+            return product;
         } else {
-            b = b - a;
-        }	  
+            product = counter * product;
+            counter = counter + 1;
+            return iter();
+        }
     }
-    return a;	
+    return iter();
+}
+      </JAVASCRIPT>
+    </SNIPPET>
+	  We can formulate the same algorithm using a while loop as follows:
+	<SNIPPET>
+	  <INDEX><DECLARATION>factorial</DECLARATION><SUBINDEX>with while loop</SUBINDEX></INDEX>
+	  <NAME>factorial_with_loop</NAME>
+	  <JAVASCRIPT>
+function factorial(n) {
+    let product = 1;
+    let counter = 1;
+    while (counter &lt;= n) {
+        product = counter * product;
+        counter = counter + 1;
+    }
+    return product;
 }
 	  </JAVASCRIPT>
 	</SNIPPET>
-	while loops are parsed as follows:
+	While loops are parsed as follows:
 	  <WEB_ONLY>
 	<BLOCKQUOTE>
 	<LATEX>
-	  $\ll \textbf{while} \ \texttt{(}\ \mathit{predicate}\ \texttt{)}\ \mathit{block}  \gg \ \ =$ 
+	  $\ll\ \textbf{while} \ \texttt{(}\ \mathit{predicate}\ \texttt{)}\ \mathit{block}\ \gg \ \ =$ 
 	</LATEX>
 	  <SNIPPET LATEX="yes" EVAL="no">
 	  <JAVASCRIPT>
-    $\ll$ while (<META>predicate</META>) <META>block</META> $\gg$ =
-        list("while_loop", $\ll$ <META>predicate</META> $\gg$, $\ll$ <META>block</META> $\gg$)
+    $\ll\ $while (<META>predicate</META>) <META>block</META>$\ \gg$ =
+        list("while_loop", $\ll\ $<META>predicate</META>$\ \gg$, $\ll\ $<META>block</META>$\ \gg$)
 	  </JAVASCRIPT>
 	</SNIPPET>
     </BLOCKQUOTE>
@@ -2453,12 +2487,13 @@ function gcd(a, b) {
 	  <PDF_ONLY>
 	    <SNIPPET LATEX="yes" EVAL="no">
 	      <JAVASCRIPT>
-    $\ll$ while (<META>predicate</META>) <META>block</META> $\gg$ =
-        list("while_loop", $\ll$ <META>predicate</META> $\gg$, $\ll$ <META>block</META> $\gg$)
+    $\ll\ $while (<META>predicate</META>) <META>block</META>$\ \gg$ =
+        list("while_loop", $\ll\ $<META>predicate</META>$\ \gg$, $\ll\ $<META>block</META>$\ \gg$)
 	      </JAVASCRIPT>
 	    </SNIPPET>
     </PDF_ONLY>
-    <OL>
+	</TEXT>
+	<OL>
 	  <LI>
 	    Declare a syntax predicate and selectors to handle
 	    while loops.
@@ -2469,41 +2504,26 @@ function gcd(a, b) {
 	    body<EMDASH/>each represented by a
 	    function of no arguments<EMDASH/>and simulates the behavior of the
 	    while loop. The
-	    <JAVASCRIPTINLINE>gcd</JAVASCRIPTINLINE> function would then
+	    <JAVASCRIPTINLINE>factorial</JAVASCRIPTINLINE> function would then
 	    look as follows:
 	    <SNIPPET>
-	      <NAME>gcd_with_while_loop_function</NAME>
+	      <NAME>factorial_with_while_loop_function</NAME>
 	      <JAVASCRIPT>
-function gcd(a, b) {
-    while_loop( () =&gt; a !== b,
-                () =&gt; {  if (a &gt; b) {
-                             a = a - b;
-                         } else {
-                             b = b - a;
-                         }	  
-                      }
-              );
-    return a;	
+function factorial(n) {
+    let product = 1;
+    let counter = 1;
+    while_loop(() =&gt; counter &lt;= n,
+               () =&gt; {
+                   product = counter * product;
+                   counter = counter + 1;
+               });
+    return product;
 }
 	      </JAVASCRIPT>
-	      <JAVASCRIPT_RUN>
-// while_loop to be written by students
-function gcd(a, b) {
-    while_loop( () =&gt; a !== b,
-                () =&gt; {  if (a &gt; b) {
-                             a = a - b;
-                         } else {
-                             b = b - a;
-                         }
-                      }
-              );
-    return a;
-}
-	      </JAVASCRIPT_RUN>
 	    </SNIPPET>
-	    Make sure that your function
-	    <JAVASCRIPTINLINE>while_loop</JAVASCRIPTINLINE> generates an
-	    iterative process (see
+	    Your function
+	    <JAVASCRIPTINLINE>while_loop</JAVASCRIPTINLINE> should generate
+	    an iterative process (see
 	    section<SPACE/><REF NAME="sec:recursion-and-iteration"/>).
 	  </LI>
 	  <LI>
@@ -2538,7 +2558,7 @@ function gcd(a, b) {
 	    <INDEX>syntactic forms<SUBINDEX>continue statement</SUBINDEX></INDEX>
 	    <INDEX><ORDER>continue</ORDER>\textbf{\texttt{continue}} (keyword)</INDEX>
 	    <INDEX>keywords<SUBINDEX><ORDER>continue</ORDER>\textbf{\texttt{continue}}</SUBINDEX></INDEX>
-	    <WEB_ONLY><JAVASCRIPTINLINE>continue</JAVASCRIPTINLINE></WEB_ONLY><PDF_ONLY><LATEXINLINE>\textbf{\texttt{continue}}</LATEXINLINE></PDF_ONLY><JAVASCRIPTINLINE>;</JAVASCRIPTINLINE> statement that terminates
+	    <WEB_ONLY><JAVASCRIPTINLINE>continue;</JAVASCRIPTINLINE></WEB_ONLY><PDF_ONLY><LATEXINLINE>\textbf{\texttt{continue}}</LATEXINLINE><JAVASCRIPTINLINE>;</JAVASCRIPTINLINE></PDF_ONLY>statement that terminates
 	    only the loop iteration in which it is evaluated, and continues with
 	    evaluating the
 	    while loop predicate.
@@ -2548,9 +2568,9 @@ function gcd(a, b) {
     </SPLIT>
   </EXERCISE>
   
-  <EXERCISE>
-    <SPLIT>
-      <SCHEME>
+  <SPLIT>
+    <SCHEME>
+      <EXERCISE>
 	Many languages support a variety of iteration constructs, such as
   	<INDEX>metacircular evaluator for Scheme<SUBINDEX>special forms (additional)</SUBINDEX></INDEX>
 	<INDEX>looping constructs<SUBINDEX>implementing in metacircular evaluator</SUBINDEX></INDEX>
@@ -2562,131 +2582,9 @@ function gcd(a, b) {
 	other hand, such constructs are often convenient.  Design some iteration
 	constructs, give examples of their use, and show how to implement them
 	as derived expressions.
-      </SCHEME>
-      <JAVASCRIPT>
-	<LABEL NAME="ex:for_loops"/>      
-	Another kind of loop available in JavaScript is the
-	<INDEX>for loop, implementing in metacircular evaluator</INDEX>
-	<INDEX>metacircular evaluator for JavaScript<SUBINDEX>syntactic forms (additional)</SUBINDEX></INDEX>
-	<INDEX>metacircular evaluator for JavaScript<SUBINDEX>for loop</SUBINDEX></INDEX>
-	<INDEX>syntactic forms<SUBINDEX>for loop</SUBINDEX></INDEX>
-	<INDEX><USE>for</USE> (keyword)</INDEX>
-	<INDEX>keywords<SUBINDEX><ORDER>for</ORDER><USE>for</USE></SUBINDEX></INDEX>
-	<EM>for loop</EM>, which combines
-	an initialization, a predicate, an update statement, and a body in a single
-	construct. As for the while
-	loop, the body is repeatedly executed as long as the predicate holds. After
-	every execution, the update statement is evaluated. Here is a function
-	that reverses a list, using a for
-	loop. 
-	<SNIPPET HIDE="yes">
-	  <NAME>reverse_with_loop_example</NAME>
-	  <JAVASCRIPT>
-reverse(list(1, 2, 3));
-	  </JAVASCRIPT>
-	</SNIPPET>
-	<SNIPPET>
-	  <NAME>reverse_with_loop</NAME>
-	  <EXAMPLE>reverse_with_loop_example</EXAMPLE>
-	  <EXPECTED>[ 3, [ 2, [ 1, null ] ] ]</EXPECTED>
-	  <JAVASCRIPT>
-function reverse(xs) {
-    let result = null;
-    for (let current = xs; ! is_null(current); current = tail(current)) {
-        result = pair(head(current), result);
-    }
-    return result;
-}
-	  </JAVASCRIPT>
-	</SNIPPET>
-	for loops are parsed as follows:
-	  <WEB_ONLY>
-	<BLOCKQUOTE>
-	<LATEX>
-	  $\ll \textbf{for} \ \texttt{(}\ \mathit{init}\textit{-}\mathit{statement}\texttt{; } \mathit{predicate}\texttt{; }\mathit{update}\textit{-}\mathit{statement}\texttt{)}\ \mathit{block}  \gg \ \ =$ 
-	</LATEX>
-	  <SNIPPET LATEX="yes" EVAL="no">
-	  <JAVASCRIPT>
-list("for_loop", $\ll$ <META>init-statement</META> $\gg$, $\ll$ <META>predicate</META> $\gg$, $\ll$ <META>update-statement</META> $\gg$, $\ll$ <META>block</META> $\gg$)
-	  </JAVASCRIPT>
-	</SNIPPET>
-    </BLOCKQUOTE>
-	  </WEB_ONLY>
-	  <PDF_ONLY>
-	  <SNIPPET LATEX="yes" EVAL="no">
-	  <JAVASCRIPT>
-    $\ll$ for (<META>init-statement</META>; <META>predicate</META>; <META>update-statement</META>) <META>block</META> $\gg$ = 
-    list("for_loop", 
-         $\ll$ <META>init-statement</META> $\gg$, 
-         $\ll$ <META>predicate</META> $\gg$, 
-         $\ll$ <META>update-statement</META> $\gg$, 
-         $\ll$ <META>block</META> $\gg$)
-	  </JAVASCRIPT>
-	</SNIPPET>
-	  </PDF_ONLY>
-    where <META>init-statement</META> is either an assignment or a
-    variable declaration and <META>update-statement</META> is an assignment.
-	<OL>
-	  <LI>
-	    Declare a syntax predicate and selectors to handle for loops.
-	  </LI>
-	  <LI>
-	    Following the approach for while
-	    loops in exercise<SPACE/><REF NAME="ex:while_loop"/>, first implement
-	    a function <JAVASCRIPTINLINE>for_loop</JAVASCRIPTINLINE> that takes
-	    as arguments four functions of no arguments and simulates the
-	    behavior of the for loop. Then
-	    install for loops as a
-	    derived component by defining a transformation function
-	    <JAVASCRIPTINLINE>for_to_application</JAVASCRIPTINLINE> 
-	    that makes use of your function
-	    <JAVASCRIPTINLINE>for_loop</JAVASCRIPTINLINE>. Finally,
-	    install for loops directly
-	    in the evaluator, using a function
-	    <JAVASCRIPTINLINE>eval_for</JAVASCRIPTINLINE>.
-	  </LI>
-	  <LI>
-	    Assume that you have solved
-	    exercise<SPACE/><REF NAME="ex:while_loop"/>. Would this allow
-	    for an elegant way to install
-	    for loops in the evaluator?
-	  </LI>
-	  <LI>
-	    Eva Lu Ator tries to combine for loops
-	    with lambda expressions in the following program.
-	    <SNIPPET>
-	      <NAME>reverse_with_loop_2</NAME>
-	      <JAVASCRIPT>
-function reverse_functions(xs) {
-    let result = null;
-    for (let curr = xs; ! is_null(curr); curr = tail(curr)) {
-        result = pair(() =&gt; head(curr), result);
-    }
-    return result;
-}
-	      </JAVASCRIPT>
-	    </SNIPPET>
-	    To her surprise, all functions in the list returned by
-	    <JAVASCRIPTINLINE>reverse_functions</JAVASCRIPTINLINE> are useless:
-	    They apply <JAVASCRIPTINLINE>head</JAVASCRIPTINLINE> to
-	    <JAVASCRIPTINLINE>null</JAVASCRIPTINLINE> and thus give an error,
-	    because after execution of the for loop, the value of the variable
-	    <JAVASCRIPTINLINE>curr</JAVASCRIPTINLINE> is
-	    <JAVASCRIPTINLINE>null</JAVASCRIPTINLINE>.
-	    Alyssa P. Hacker proposes to give each iteration 
-	    of any for loop with a declaration
-	    of a variable its own <QUOTE>instance</QUOTE> of the variable.
-	    Modify your solution to part (b) to follow Alyssa's approach, and
-	    verify that Eva's program now works as expected.
-	  </LI>
-	  <LI>
-	    The designers of JavaScript decided to follow Alyssa's approach. Discuss 
-	    this decision.
-	  </LI>
-	</OL>
-      </JAVASCRIPT>
-    </SPLIT>
-  </EXERCISE>
+      </EXERCISE>
+    </SCHEME>
+  </SPLIT>
 
   <EXERCISE>
     <LABEL NAME="ex:value_producing"/>
@@ -2710,12 +2608,12 @@ function reverse_functions(xs) {
 	section<SPACE/><REF NAME="sec:core-of-evaluator"/>,
 	this exercise addresses the question of what should be the result of
 	<INDEX>value<SUBINDEX>of a program</SUBINDEX></INDEX>
+	<INDEX>program<SUBINDEX>value of</SUBINDEX></INDEX>
 	<INDEX>statement<SUBINDEX>value-producing and non-value-producing</SUBINDEX></INDEX>
 	<INDEX>metacircular evaluator for JavaScript<SUBINDEX>value of program at top level</SUBINDEX></INDEX>
-	evaluating a JavaScript program containing sequences,
-	declarations, blocks, expression statements, and conditional
-	statements <EM>outside of</EM> any function
-	body.
+	evaluating a JavaScript program that consists of a sequence of
+	statements (declarations, blocks, expression statements, and conditional
+	statements) <EM>outside of</EM> any function body.
 	<TEXT>
 	For such a program, JavaScript
 	statically
@@ -2758,8 +2656,7 @@ function reverse_functions(xs) {
 	    </SNIPPET>
 	  </LI>
 	  <LI>
-	    Modify the <JAVASCRIPTINLINE>evaluate</JAVASCRIPTINLINE>
-	    function of the previous section to adhere to this
+	    Modify the evaluator to adhere to this
 	    specification.
 	  </LI>
 	</OL>
