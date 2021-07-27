@@ -14,9 +14,7 @@ export const processEpigraphJson = (node, obj) => {
     } else {
       const childObj = {};
       processTextJson(child, childObj);
-      if (childObj["tag"]) {
-        childArr.push(childObj);
-      }
+      childArr.push(childObj);
     }
   }
 
