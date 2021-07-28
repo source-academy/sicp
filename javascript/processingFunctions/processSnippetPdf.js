@@ -423,7 +423,7 @@ export const processSnippetPdf = (node, writeTo) => {
   if (jsOutputSnippet) {
     if (jsPromptSnippet) {
       writeTo.push("\\InputOutputSpace");
-    } else {
+    } else if (jsPromptSnippet || jsLonelySnippet || jsSnippet) {
       writeTo.push("\\InputOutputNoSpace");
     }
 
