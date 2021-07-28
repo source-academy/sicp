@@ -4,6 +4,9 @@ import { readFileSync, createWriteStream } from 'fs';
 "use strict";
 
 let writer = createWriteStream("test_node_env/result.txt");
+const args = process.argv.slice(2);
+const programPath = args[0];
+
 writer.once('open', function(fd) {
     let r = s.runInThisContext();
     if (typeof r !== 'undefined') {
@@ -14,4 +17,4 @@ writer.once('open', function(fd) {
     writer.end();
 });
 
-let s = new Script(readFileSync("js_programs/chapter5/section3/subsection2/01_testing_5_3_2.js"));
+let s = new Script(readFileSync(programPath));
