@@ -665,13 +665,28 @@ function compile_function_call(target, linkage) {
   </SUBHEADING>
 
   <TEXT>
-    The code that handles
     <SPLITINLINE>
-      <SCHEME>procedure</SCHEME>
-      <JAVASCRIPT>function</JAVASCRIPT>
+      <SCHEME>The code that handles procedure</SCHEME>
+      <JAVASCRIPT>The handling of function</JAVASCRIPT>
     </SPLITINLINE>
-    application is the most subtle part of the compiler<SPLITINLINE><SCHEME>, even though the
-    instruction sequences it generates are very short</SCHEME></SPLITINLINE>.  A compiled
+    application
+    <SPLITINLINE>
+      <SCHEME>
+      </SCHEME>
+      <JAVASCRIPT>
+        and return
+      </JAVASCRIPT>
+      </SPLITINLINE>
+      is the most subtle part of the
+      <SPLITINLINE>
+        <SCHEME>
+          compiler, even though the instruction sequences it generates are very short.
+        </SCHEME>
+        <JAVASCRIPT>
+          compiler.
+        </JAVASCRIPT>
+      </SPLITINLINE>
+      A compiled
     <SPLITINLINE>
       <SCHEME>procedure</SCHEME>
       <JAVASCRIPT>function</JAVASCRIPT>
@@ -687,84 +702,76 @@ function compile_function_call(target, linkage) {
       <SCHEME>procedure</SCHEME>
       <JAVASCRIPT>function</JAVASCRIPT>
     </SPLITINLINE>
-    starts.  The code at this entry point computes a result in
-    <SCHEMEINLINE>val</SCHEMEINLINE> and returns by executing the instruction
+    starts. The code at this entry point computes a result in
+    <SCHEMEINLINE>val</SCHEMEINLINE>
     <SPLITINLINE>
-      <SCHEME><SCHEMEINLINE>(goto (reg continue))</SCHEMEINLINE>.</SCHEME>
-      <JAVASCRIPT><JAVASCRIPTINLINE>go_to(reg("continue"))</JAVASCRIPTINLINE> after
-      having reverted the stack using the marker to the state expected by the label 
-      in
-      <JAVASCRIPTINLINE>continue</JAVASCRIPTINLINE>, which was set up at the
-      beginning of the function call.
-      </JAVASCRIPT>
+      <SCHEME>and returns by executing the instruction <SCHEMEINLINE>(goto (reg continue))</SCHEMEINLINE>.</SCHEME>
+      <JAVASCRIPT>and ends by executing the instructions from a compiled return statement.</JAVASCRIPT>
     </SPLITINLINE>
   </TEXT>
   <SPLIT>
     <JAVASCRIPT>
-  <TEXT>
-The compiler generates instructions that correspond to
-the behavior of the explicit-control evaluator: the function<APOS/>s
-continuation is saved to the stack followed by a marker which
-allows reverting the stack to the state right before the call,
-with the continuation of the function on top. If the target of
-a function call is not <JAVASCRIPTINLINE>val</JAVASCRIPTINLINE>, 
-we generate a new entry
-point that assigns from <JAVASCRIPTINLINE>val</JAVASCRIPTINLINE> to the target register before jumping
-to the function<APOS/>s continuation (stored in <JAVASCRIPTINLINE>continue</JAVASCRIPTINLINE>), and make this
-intermediate step the continuation of the function.
-</TEXT>
-  <TEXT>
-Compiling a return statement will generate code for reverting the
-stack and restoring and jumping to <JAVASCRIPTINLINE>continue</JAVASCRIPTINLINE>. Because we
-append a <JAVASCRIPTINLINE>return undefined;</JAVASCRIPTINLINE> to all function bodies, 
-every function call eventually results in the execution of
-instructions leading to a corresponding return (unless the function enters an infinite loop).<FOOTNOTE>
-        Because the execution of a function body always ends with a return statement<EMDASH/>either
-        a return statement written by the programmer or one
-        inserted by the compiler returning <JAVASCRIPTINLINE>undefined</JAVASCRIPTINLINE><EMDASH/>we
-        have eliminated the need for the
-        <JAVASCRIPTINLINE>return_undefined</JAVASCRIPTINLINE> entry point from
-	section<SPACE/><REF NAME="sec:eceval"/> for compiled-function calls.
-        </FOOTNOTE>
-</TEXT>
-  <TEXT>
-In summary, the code for applying a compiled function has the following form
-    <SNIPPET EVAL="no" LATEX="yes">
-      <JAVASCRIPT>
-save("continue"),
-push_marker_to_stack(),
-<METAPHRASE>lookup the function's entry point and jump to it</METAPHRASE>
-      </JAVASCRIPT>
-    </SNIPPET>
-and the code for returning from a compiled function (due to a return statement) has the following form
-    <SNIPPET EVAL="no" LATEX="yes">
-      <JAVASCRIPT>
-revert_stack_to_marker(),
-restore("continue"),
-<METAPHRASE>compute the return value</METAPHRASE>
-go_to(reg("continue"))
-      </JAVASCRIPT>
-    </SNIPPET>
-</TEXT>
-    </JAVASCRIPT>
+      <TEXT>
+        The code for a compiled-function application uses the
+        stack in the same way as the explicit-control evaluator
+        (section<SPACE/><REF NAME="sec:procedure-application"/>):
+        before jumping to the compiled function's entry point, it
+        saves the continuation of the function call to the stack,
+        followed by a mark that allows reverting the stack to the
+        state right before the call with the continuation on top.
+      </TEXT>
+      <SNIPPET EVAL="no" LATEX="yes">
+        <JAVASCRIPT>
+$\texttt{ }\texttt{ }$// set up for return from function
+  save("continue"),
+  push_marker_to_stack(),
+  // jump to the function's entry point
+  assign("val", list(op("compiled_function_entry"), reg("fun"))),
+  go_to(reg("val")),
+        </JAVASCRIPT>
+      </SNIPPET>
+      <TEXT>
+        Compiling a return statement (with
+        <JAVASCRIPTINLINE>compile_return_statement</JAVASCRIPTINLINE>)
+        generates corresponding code for reverting the stack and restoring
+        and jumping to <JAVASCRIPTINLINE>continue</JAVASCRIPTINLINE>.
+        <SNIPPET EVAL="no" LATEX="yes">
+          <JAVASCRIPT>
+$\texttt{ }\texttt{ }$revert_stack_to_marker(),
+  restore("continue"),
+  <METAPHRASE>evaluate the return expression and store the result in <JAVASCRIPTINLINE>val</JAVASCRIPTINLINE></METAPHRASE>
+  go_to(reg("continue")), // $\texttt{"return"}$-linkage code
+         </JAVASCRIPT>
+       </SNIPPET>
+       Unless a function enters an infinite loop,
+       it will end by executing the above return code,
+       resulting from either a return statement in the program
+       or one inserted by <JAVASCRIPTINLINE>compile_@lambda_@body</JAVASCRIPTINLINE>
+       to return <JAVASCRIPTINLINE>undefined</JAVASCRIPTINLINE>.<FOOTNOTE>
+       Because the execution of a function body always ends with a return,
+       there is no need here for a mechanism like the <JAVASCRIPTINLINE>return_@undefined</JAVASCRIPTINLINE>
+       entry point from section<SPACE/><REF NAME="sec:procedure-application"/>.</FOOTNOTE>
+     </TEXT>
+   </JAVASCRIPT>
   </SPLIT>
-<TEXT>
-    Thus, we might expect the code for a
-    <SPLITINLINE>
-      <SCHEME>compiled-procedure</SCHEME>
-      <JAVASCRIPT>compiled-function</JAVASCRIPT>
-    </SPLITINLINE>
-    application (to be generated by
-    <SPLITINLINE>
-      <SCHEME><SCHEMEINLINE>compile-proc-appl</SCHEMEINLINE>)</SCHEME>
-      <JAVASCRIPT><JAVASCRIPTINLINE>compile_fun_appl</JAVASCRIPTINLINE>)
+  <TEXT>
+    <SPLIT>
+      <SCHEME>
+        Thus, we might expect the code for a
+        <SCHEME>compiled-procedure</SCHEME> application (to be
+        generated by
+        <SCHEMEINLINE>compile-proc-appl</SCHEMEINLINE>) with a
+        given target and linkage to look like this if the linkage
+        is a <SCHEME>label</SCHEME>:
+      </SCHEME>
+      <JAVASCRIPT>
+        Straightforward code for a compiled-function application with a
+        given target and linkage would set up <JAVASCRIPTINLINE>continue</JAVASCRIPTINLINE> to make the function
+        return to a local label instead of to the final linkage,
+        to copy the function value to the target register if necessary.
+        It would look like this if the linkage is a label:
       </JAVASCRIPT>
-    </SPLITINLINE>
-    with a given target and linkage to look like this if the linkage is a
-    <SPLITINLINE>
-      <SCHEME>label</SCHEME>
-      <JAVASCRIPT>label:</JAVASCRIPT>
-    </SPLITINLINE>
+    </SPLIT>
     <SNIPPET EVAL="no" LATEX="yes">
       <SCHEME>
  (assign continue (label proc-return))
@@ -774,24 +781,26 @@ proc-return
  (assign $target$ (reg val)) ; included if target is not $\texttt{val}$
  (goto (label $\langle linkage\rangle$))  ; linkage code
       </SCHEME>
-      <JAVASCRIPT latex="yes"><!-- The $\texttt{ }\texttt{ }$ below is a hack to ensure the leading spaces are not consumed-->
-$\texttt{ }\texttt{ }$assign("continue", label("fun_return")),
-  save("continue"),
-  push_marker_to_stack(),
+      <JAVASCRIPT>
+$\texttt{ }\texttt{ }$assign("continue", label("fun_return")), // where function should return to
+  save("continue"),       // will be restored by the function
+  push_marker_to_stack(), // allows the function to revert stack to find $\texttt{fun_return}$
   assign("val", list(op("compiled_function_entry"), reg("fun"))),
-  go_to(reg("val")), $\;\,$    // function body will end with $\texttt{go\char`_to(reg("continue"))}$
-"fun_return",                  
-  assign(<META>target</META>, reg("val")), // included if target is not $\texttt{val}$
-  go_to(label(<META>linkage</META>)),      // linkage code
+  go_to(reg("val")),    // eventually reverts stack, restores and jumps to $\texttt{continue}$
+"fun_return",             // the function returns to here
+  assign($\mathit{target}$, reg("val")), // included if target is not $\texttt{val}$
+  go_to(label(<META>linkage</META>)),   // linkage code
       </JAVASCRIPT>
     </SNIPPET>
-    or like this if the linkage is
+    or like
     <SPLITINLINE>
       <SCHEME>
-	<SCHEMEINLINE>return.</SCHEMEINLINE>
+        this if the linkage is <SCHEMEINLINE>return</SCHEMEINLINE>.
       </SCHEME>
       <JAVASCRIPT>
-	<JAVASCRIPTINLINE>"return"</JAVASCRIPTINLINE>:
+        this<EMDASH/>saving the caller<APOS/>s continuation at the start in
+        order to restore and go to it at the
+        end<EMDASH/>if the linkage is <SCHEMEINLINE>"return"</SCHEMEINLINE> (that is, if the application is in a return statement):
       </JAVASCRIPT>
     </SPLITINLINE>
     <SNIPPET EVAL="no" LATEX="yes">
@@ -805,17 +814,17 @@ proc-return
  (restore continue)
  (goto (reg continue))      ; linkage code
       </SCHEME>
-      <JAVASCRIPT latex="yes"><!-- The $\texttt{ }\texttt{ }$ below is a hack to ensure the leading spaces are not consumed-->
-$\texttt{ }\texttt{ }$save("continue"),
-  assign("continue", label("fun_return")),
-  save("continue"),
-  push_marker_to_stack(),
+      <JAVASCRIPT>
+$\texttt{ }\texttt{ }$save("continue"),       // save the caller's continuation
+  assign("continue", label("fun_return")), // where function should return to
+  save("continue"),       // will be restored by the function
+  push_marker_to_stack(), // allows the function to revert stack to find $\texttt{fun_return}$
   assign("val", list(op("compiled_function_entry"), reg("fun"))),
-  go_to(reg("val")),     // function body will end with $\texttt{go\char`_to(reg("continue"))}$
-"fun_return",
-  assign(<META>target</META>, reg("val")), // included if target is not $\texttt{val}$
-  restore("continue"),
-  go_to(reg("continue")),    // linkage code
+  go_to(reg("val")),    // eventually reverts stack, restores and jumps to $\texttt{continue}$
+"fun_return",             // the function returns to here
+  assign($\mathit{target}$, reg("val")), // included if target is not $\texttt{val}$
+  restore("continue"),    // restore the caller's continuation
+  go_to(reg("continue")), // linkage code
       </JAVASCRIPT>
     </SNIPPET>
     This code sets up <SCHEMEINLINE>continue</SCHEMEINLINE> so that the
@@ -829,7 +838,7 @@ $\texttt{ }\texttt{ }$save("continue"),
         <SCHEMEINLINE>proc-return</SCHEMEINLINE>
       </SCHEME>
       <JAVASCRIPT>
-        <JAVASCRIPTINLINE>fun_return</JAVASCRIPTINLINE>
+        <JAVASCRIPTINLINE>fun_@return</JAVASCRIPTINLINE>
       </JAVASCRIPT>
     </SPLITINLINE>
     and jumps to the
@@ -837,10 +846,10 @@ $\texttt{ }\texttt{ }$save("continue"),
       <SCHEME>procedure<APOS/>s</SCHEME>
       <JAVASCRIPT>function<APOS/>s</JAVASCRIPT>
     </SPLITINLINE>
-    entry point.  The code at
+    entry point. The code at
     <SPLITINLINE>
       <SCHEME><SCHEMEINLINE>proc-return</SCHEMEINLINE></SCHEME>
-      <JAVASCRIPT><JAVASCRIPTINLINE>fun_return</JAVASCRIPTINLINE></JAVASCRIPT>
+      <JAVASCRIPT><JAVASCRIPTINLINE>fun_@return</JAVASCRIPTINLINE></JAVASCRIPT>
     </SPLITINLINE>
     transfers the
     <SPLITINLINE>
@@ -864,7 +873,7 @@ $\texttt{ }\texttt{ }$save("continue"),
       <SCHEME><SCHEMEINLINE>compile-procedure-call</SCHEMEINLINE>
       </SCHEME>
       <JAVASCRIPT>
-	<JAVASCRIPTINLINE>compile_function_call</JAVASCRIPTINLINE>
+	<JAVASCRIPTINLINE>compile_@function_@call</JAVASCRIPTINLINE>
       </JAVASCRIPT>
     </SPLITINLINE>
     replaces a
@@ -883,28 +892,33 @@ $\texttt{ }\texttt{ }$save("continue"),
       <SCHEMEINLINE>after-call</SCHEMEINLINE></SCHEME>
       <JAVASCRIPT>
 	compound-function branch by an
-      <JAVASCRIPTINLINE>after_call</JAVASCRIPTINLINE></JAVASCRIPT>
+      <JAVASCRIPTINLINE>after_@call</JAVASCRIPTINLINE></JAVASCRIPT>
     </SPLITINLINE>
     label.)
 
     <SPLIT>
       <JAVASCRIPT>
-        Before looking up the function entry point and jumping to it, we 
+        Before jumping to the function's entry point, we
         save <JAVASCRIPTINLINE>continue</JAVASCRIPTINLINE> and
-        call <JAVASCRIPTINLINE>push_marker_to_stack()</JAVASCRIPTINLINE> to enable 
-        the function to return to the intended location in the program with the expected stack. The
-        corresponding
-        <JAVASCRIPTINLINE>revert_stack_to_mark()</JAVASCRIPTINLINE> and
-        restoring of <JAVASCRIPTINLINE>continue</JAVASCRIPTINLINE> are 
-        generated by <JAVASCRIPTINLINE>compile_return_statement</JAVASCRIPTINLINE> for each return statement in the body of the
-        function. As compiling a function call does not involve compilation of the called function 
-        we must generate the
-        <JAVASCRIPTINLINE>save</JAVASCRIPTINLINE> and <JAVASCRIPTINLINE>restore</JAVASCRIPTINLINE> of 
-        <JAVASCRIPTINLINE>continue</JAVASCRIPTINLINE> explicitly, and cannot rely on
-        a mechanism such as
-	      <JAVASCRIPTINLINE>preserving</JAVASCRIPTINLINE>.
+        execute <JAVASCRIPTINLINE>push_@marker_@to_@stack()</JAVASCRIPTINLINE> to enable
+        the function to return to the intended location in the program with the expected stack. Matching
+        <JAVASCRIPTINLINE>revert_@stack_@to_@marker()</JAVASCRIPTINLINE> and
+        <JAVASCRIPTINLINE>restore("continue")</JAVASCRIPTINLINE> instructions
+        are generated by <JAVASCRIPTINLINE>compile_@return_@statement</JAVASCRIPTINLINE> for each return statement in the body of the
+        function.<FOOTNOTE>Elsewhere in the compiler, all saves and restores of registers
+were generated by <JAVASCRIPTINLINE>preserving</JAVASCRIPTINLINE>
+to preserve a register's value across a sequence of instructions
+by saving it before those instructions and restoring it
+after<EMDASH/>for example over the evaluation of the predicate of a
+conditional. But this mechanism cannot generate instructions to
+save and restore <JAVASCRIPTINLINE>continue</JAVASCRIPTINLINE> for a function application and the
+corresponding return, because these are compiled separately and
+are not contiguous. Instead, these saves and restores must be
+explicitly generated by <JAVASCRIPTINLINE>compile_@fun_@appl</JAVASCRIPTINLINE> and
+<JAVASCRIPTINLINE>compile_@return_@statement</JAVASCRIPTINLINE>.</FOOTNOTE>
       </JAVASCRIPT>
     </SPLIT>
+  </TEXT>
 
   <TEXT>
     <SPLITINLINE>
@@ -982,10 +996,7 @@ $\texttt{ }\texttt{ }$save("continue"),
       <JAVASCRIPT>function</JAVASCRIPT>
     </SPLITINLINE>
     will
-    <SPLITINLINE>
-      <SCHEME><QUOTE>return</QUOTE></SCHEME>
-      <JAVASCRIPT>jump</JAVASCRIPT>
-    </SPLITINLINE>
+    <QUOTE>return</QUOTE>
     directly to the place specified by the caller<APOS/>s linkage:
     <SNIPPET EVAL="no" LATEX="yes">
       <SCHEME>
@@ -1028,7 +1039,7 @@ go_to(reg("val")),
     at
     <SPLITINLINE>
       <SCHEME><SCHEMEINLINE>proc-return</SCHEMEINLINE></SCHEME>
-      <JAVASCRIPT><JAVASCRIPTINLINE>fun_return</JAVASCRIPTINLINE>
+      <JAVASCRIPT><JAVASCRIPTINLINE>fun_@return</JAVASCRIPTINLINE>
       </JAVASCRIPT>
     </SPLITINLINE>
     above.)
@@ -1089,13 +1100,10 @@ go_to(reg("val")),
     at
     <SPLITINLINE>
       <SCHEME><SCHEMEINLINE>proc-return</SCHEMEINLINE></SCHEME>
-      <JAVASCRIPT><JAVASCRIPTINLINE>fun_return</JAVASCRIPTINLINE>
+      <JAVASCRIPT><JAVASCRIPTINLINE>fun_@return</JAVASCRIPTINLINE>
       </JAVASCRIPT>
     </SPLITINLINE>
     would have gone.)
-    <SPLITINLINE><JAVASCRIPT>In this case, it suffices to save the 
-<JAVASCRIPTINLINE>continue</JAVASCRIPTINLINE> register and push a
-marker to the stack.</JAVASCRIPT></SPLITINLINE>
     <SNIPPET EVAL="no">
       <SCHEME>
       (assign val (op compiled-procedure-entry) (reg proc))
@@ -1131,19 +1139,12 @@ go_to(reg("val")),
       <SCHEME>final step in a procedure</SCHEME>
       <JAVASCRIPT>return expression in a function</JAVASCRIPT>
     </SPLITINLINE>
-    body does a direct transfer, without saving any information on the stack.
+    body does a direct transfer, without saving
     <SPLITINLINE>
-      <JAVASCRIPT>
-        As in the explicit-control evaluator, an explicit return is needed for tail
-        recursion. A function call as the last thing evaluated in a function
-	but not in a return statement always gives rise
-	to a deferred operation, because the value
-	<JAVASCRIPTINLINE>undefined</JAVASCRIPTINLINE> needs to be returned
-	instead of the value of that function call.
-      </JAVASCRIPT>
+      <SCHEME>any information on the stack.</SCHEME>
+      <JAVASCRIPT>unnecessary information on the stack.</JAVASCRIPT>
     </SPLITINLINE>
   </TEXT>
-
   <TEXT>
     Suppose instead that we had handled the case of a
     <SPLITINLINE>
@@ -1154,13 +1155,22 @@ go_to(reg("val")),
     linkage of <SPLITINLINE><SCHEME>return</SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>"return"</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE> and a target of
     <SCHEMEINLINE>val</SCHEMEINLINE> in the same way as for a
     non-<SCHEMEINLINE>val</SCHEMEINLINE> target. This would destroy tail
-    recursion. Our system would still give the same value for any
+    recursion. Our system would still
+    <SPLITINLINE>
+      <SCHEME>
+        give
+      </SCHEME>
+      <JAVASCRIPT>
+	      return
+      </JAVASCRIPT>
+      the same value for any
+    </SPLITINLINE>
     <SPLITINLINE>
       <SCHEME>
 	expression.
       </SCHEME>
       <JAVASCRIPT>
-	component.
+	function call.
       </JAVASCRIPT>
     </SPLITINLINE>
     But each time we called a
@@ -1170,13 +1180,7 @@ go_to(reg("val")),
     </SPLITINLINE>
     we would save
     <SCHEMEINLINE>continue</SCHEMEINLINE> 
-    <SPLITINLINE>
-      <SCHEME>and return after the call to undo the (useless) save. These extra </SCHEME>
-      <JAVASCRIPT>
-        twice<EMDASH/>the final continuation of the function plus the intermediate <JAVASCRIPTINLINE>fun_return</JAVASCRIPTINLINE> entry point that assigns <JAVASCRIPTINLINE>val</JAVASCRIPTINLINE> to the appropriate target register before jumping to <JAVASCRIPTINLINE>continue</JAVASCRIPTINLINE>.
-        As a return statement would only restore the last of these saves before computing the return value, these
-      </JAVASCRIPT>
-    </SPLITINLINE>
+      and return after the call to undo the (useless) save. These extra
     saves would accumulate during a nest of
     <SPLITINLINE>
       <SCHEME>procedure</SCHEME>
@@ -1263,7 +1267,7 @@ go_to(reg("val")),
   <TEXT>
     <SPLITINLINE>
       <SCHEME><SCHEMEINLINE>Compile-proc-appl</SCHEMEINLINE></SCHEME>
-      <JAVASCRIPT>The function <JAVASCRIPTINLINE>compile_fun_appl</JAVASCRIPTINLINE>
+      <JAVASCRIPT>The function <JAVASCRIPTINLINE>compile_@fun_@appl</JAVASCRIPTINLINE>
       </JAVASCRIPT>
     </SPLITINLINE>
     generates the above
@@ -1388,17 +1392,15 @@ function compile_fun_appl(target, linkage) {
 }
       </JAVASCRIPT>
     </SNIPPET>
-  </TEXT>
-
   <INDEX>compiler for JavaScript<SUBINDEX><SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE> applications<CLOSE/></SUBINDEX></INDEX>
   <INDEX>compiler for JavaScript<SUBINDEX>combinations<CLOSE/></SUBINDEX></INDEX>
-</TEXT>
+  </TEXT>
 
   <SPLIT>
     <JAVASCRIPT>
       <SUBHEADING>
-	<NAME> 
-	  Compiling return statements
+        <NAME>
+          Compiling return statements
         </NAME>
       </SUBHEADING>
       <TEXT>
@@ -1415,12 +1417,12 @@ go_to(reg("continue"))
         </SNIPPET>
         The reverting of the stack using the marker and the subsequent restoring
         of <JAVASCRIPTINLINE>continue</JAVASCRIPTINLINE> correspond to the
-        instructions generated by <JAVASCRIPTINLINE>compile_fun_appl</JAVASCRIPTINLINE>
+        instructions generated by <JAVASCRIPTINLINE>compile_@fun_@appl</JAVASCRIPTINLINE>
         to save <JAVASCRIPTINLINE>continue</JAVASCRIPTINLINE> and mark the stack.
         The final jump to <JAVASCRIPTINLINE>continue</JAVASCRIPTINLINE> is
         generated by the use of the <JAVASCRIPTINLINE>"return"</JAVASCRIPTINLINE>
         linkage when compiling the return expression.
-        The function <JAVASCRIPTINLINE>compile_return_statement</JAVASCRIPTINLINE>
+        The function <JAVASCRIPTINLINE>compile_@return_@statement</JAVASCRIPTINLINE>
         is different from all other code generators in that it ignores the target 
         and linkage arguments<EMDASH/>it always compiles the return expression with
         target <JAVASCRIPTINLINE>val</JAVASCRIPTINLINE> and linkage 
@@ -1437,8 +1439,8 @@ function compile_return_statement(stmt, target, linkage) {
                compile(return_expression(stmt), "val", "return"));
 }
 	   </JAVASCRIPT>
-	 </SNIPPET>
-       </TEXT>
-    </JAVASCRIPT>
-  </SPLIT>
+  	 </SNIPPET>
+         </TEXT>
+      </JAVASCRIPT>
+    </SPLIT>
 </SUBSECTION>
