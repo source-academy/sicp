@@ -248,7 +248,7 @@ export const processSnippetPdf = (node, writeTo) => {
       writeTo.push(
         codeArr
           .join("")
-          .replace(/}\nfunction/g, "}\n" + separator + "function")
+          .replace(/^}\nfunction/g, "}\n" + separator + "function")
           .replace(/\n@xxx\n/g, separator)
           .replace(/\n@yyy\n/g, separator) // smallskip should allow page breaks
           .trim()
