@@ -8,6 +8,7 @@ const args = process.argv.slice(2);
 const programPath = args[0];
 
 writer.once('open', function(fd) {
+    let s = new Script(readFileSync(programPath));
     let r = s.runInThisContext();
     if (typeof r !== 'undefined') {
         writer.write(JSON.stringify(r));
@@ -16,5 +17,3 @@ writer.once('open', function(fd) {
     }
     writer.end();
 });
-
-let s = new Script(readFileSync(programPath));

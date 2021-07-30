@@ -47,7 +47,7 @@ test_source() {
             node $EXP_WRITER "$EXPECTED"
             
             # Compare outputs
-            DIFF=$(diff test_node_env/result.txt test_node_env/expected.txt)
+            DIFF=$(diff test_node_env/result.txt test_node_env/expect.txt)
             
             if [ "$DIFF" = "" ]
             then passed=$(($passed+1)); echo "${green}PASS"
