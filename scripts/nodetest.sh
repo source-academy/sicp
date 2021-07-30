@@ -28,7 +28,7 @@ failed=0
 
 test_source() {
     if [ $3 ];  then
-       variant=$3
+        variant=$3
     else
         variant=$DEFAULT_VARIANT
     fi
