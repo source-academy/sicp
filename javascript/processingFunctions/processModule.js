@@ -13,8 +13,6 @@ const runeModuleImports = [
   "show"
 ];
 
-const used = [];
-
 const processRuneModule = snippet => {
   let imports = [];
 
@@ -22,7 +20,6 @@ const processRuneModule = snippet => {
     const keyword = runeModuleImports[i];
     if (new RegExp(`[^\\w]*${keyword}[^\\w]`).test(snippet)) {
       imports.push(keyword);
-      used.push(keyword);
     }
   }
 
