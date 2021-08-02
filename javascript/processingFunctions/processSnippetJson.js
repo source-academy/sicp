@@ -6,7 +6,7 @@ import {
 } from "./warnings.js";
 import { chapterIndex } from "../parseXmlJson";
 import recursiveProcessPureText from "./recursiveProcessPureText";
-import { processRuneModule } from "./processModule.js";
+import { processRuneModule } from "./processModuleImports.js";
 
 const snippetStore = {};
 
