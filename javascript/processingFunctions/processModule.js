@@ -24,7 +24,7 @@ const processRuneModule = snippet => {
   }
 
   if (imports.length) {
-    return `import {${imports.join(", ")}} from 'rune';`;
+    return `import { ${imports.join(", ")} } from 'rune';`;
   } else {
     return "";
   }
