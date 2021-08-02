@@ -32,7 +32,8 @@ const title = `\\begin{titlepage}
 
 export const preamble = `\\documentclass[7x10]{../mitpress/mit}
 % use: option nocrop for final build
-% also remember: hyperref below: colorlinks=false for final build
+% also remember: hyperref in mitpress/mit.cls: switch to black/black/black (line 1851)
+
 \\synctex=1
 
 \\newboolean{show-links}
@@ -645,8 +646,6 @@ export const preamble = `\\documentclass[7x10]{../mitpress/mit}
 \\setlength\\epigraphwidth{11cm}
 \\setlength\\epigraphrule{0pt}
 \\newcommand{\\quotationdash}{---} %% the purist can look for a "quotation dash" instead
-
-%% \\usepackage[colorlinks=true, urlcolor=blue, linkcolor=blue, citecolor=blue]{hyperref} %% colorlinks=false for final build
 
 \\usepackage{xcolor}
 
