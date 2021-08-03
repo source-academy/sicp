@@ -45,7 +45,20 @@ export const tagsToRemove = new Set([
   "INDEX",
   "NAME",
   "LABEL",
-  "HYP"
+  "SOFT_HYP",
+  "WATCH",
+  "KEEP_TOGETHER",
+  "START_KEEP_TOGETHER",
+  "STOP_KEEP_TOGETHER",
+  "NOBREAK",
+  "SHRINK_PARAGRAPH",
+  "STRETCH_PARAGRAPH",
+  "DONT_BREAK_PAGE",
+  "DO_BREAK_PAGE",
+  "FORCE_PAGE_BREAK_AND_FILL",
+  "FILBREAK",
+  "LONG_PAGE",
+  "SHORT_PAGE"
 ]);
 // SOLUTION tag handled by processSnippet
 

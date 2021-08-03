@@ -123,6 +123,72 @@ const processTextFunctionsDefaultLatex = {
     writeTo.push("\\newline\\noindent%\n");
   },
 
+  SOFT_HYP: (node, writeTo) => {
+    writeTo.push("\\-");
+  },
+
+  WATCH: (node, writeTo) => {
+    writeTo.push("\\marginalstar{}");
+  },
+
+  KEEP_TOGETHER: (node, writeTo) => {
+    writeTo.push("\\interlinepenalty=10000 ");
+  },
+
+  START_KEEP_TOGETHER: (node, writeTo) => {
+    writeTo.push("\\vbox{");
+  },
+
+  STOP_KEEP_TOGETHER: (node, writeTo) => {
+    writeTo.push("}");
+  },
+
+  NOBREAK: (node, writeTo) => {
+    writeTo.push("\\nobreak{}");
+  },
+
+  SHRINK_PARAGRAPH: (node, writeTo) => {
+    let lines = node.getAttribute("lines") ? node.getAttribute("lines") : "4";
+    writeTo.push("\\looseness=-" + lines + " ");
+  },
+
+  STRETCH_PARAGRAPH: (node, writeTo) => {
+    let lines = node.getAttribute("lines") ? node.getAttribute("lines") : "4";
+    writeTo.push("\\looseness=" + lines + " ");
+  },
+
+  DONT_BREAK_PAGE: (node, writeTo) => {
+    let strength = node.getAttribute("strength")
+      ? node.getAttribute("strength")
+      : "4";
+    writeTo.push("\\nopagebreak[" + strength + "]");
+  },
+
+  DO_BREAK_PAGE: (node, writeTo) => {
+    let strength = node.getAttribute("strength")
+      ? node.getAttribute("strength")
+      : "4";
+    writeTo.push("\\pagebreak[" + strength + "]");
+  },
+
+  FORCE_PAGE_BREAK_AND_FILL: (node, writeTo) => {
+    writeTo.push("\\clearpage{}");
+  },
+
+  FILBREAK: (node, writeTo) => {
+    writeTo.push("\\filbreak{}");
+  },
+
+  LONG_PAGE: (node, writeTo) => {
+    let lines = node.getAttribute("lines") ? node.getAttribute("lines") : "1";
+    writeTo.push("\\enlargethispage{" + lines + "\\baselineskip}");
+  },
+
+  SHORT_PAGE: (node, writeTo) => {
+    let lines = node.getAttribute("lines") ? node.getAttribute("lines") : "1";
+    writeTo.push("\\enlargethispage{-" + lines + "\\baselineskip}");
+  },
+
   BLOCKQUOTE: (node, writeTo) => {
     writeTo.push("\\begin{quote}");
     recursiveProcessTextLatex(node.firstChild, writeTo);

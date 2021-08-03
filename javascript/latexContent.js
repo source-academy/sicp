@@ -124,6 +124,12 @@ export const preamble = `\\documentclass[7x10]{../mitpress/mit}
 \\def\\figureoutputcodesize{\\fontsize{8.7}{10pt}\\selectfont}
 \\def\\footnoteoutputcodesize{\\fontsize{8}{9pt}\\selectfont}
 
+\\newcommand{\\strutdepth}{\\dp\\strutbox}
+\\newcommand{\\marginalstar}{\\strut\\vadjust{\\kern-\\strutdepth\\specialstar}}
+\\newcommand{\\specialstar}{\\vtop to \\strutdepth{
+            \\baselineskip\\strutdepth
+            \\vss\\llap{\\textcolor{red}{*}\\quad\\quad}\\null}}
+
 \\newenvironment{Parsing}{%
   \\par%
   \\vspace{1.2em}%

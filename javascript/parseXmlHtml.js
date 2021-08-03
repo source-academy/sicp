@@ -52,7 +52,22 @@ const tagsToRemoveDefault = new Set([
   "LABEL",
   "CODEINDEX",
   "EXPLANATION",
-  "HYP"
+  "SHORT_SPACE",
+  "SHORT_SPACE_AND_ALLOW_BREAK",
+  "SOFT_HYP",
+  "WATCH",
+  "KEEP_TOGETHER",
+  "START_KEEP_TOGETHER",
+  "STOP_KEEP_TOGETHER",
+  "NOBREAK",
+  "SHRINK_PARAGRAPH",
+  "STRETCH_PARAGRAPH",
+  "DONT_BREAK_PAGE",
+  "DO_BREAK_PAGE",
+  "FORCE_PAGE_BREAK_AND_FILL",
+  "FILBREAK",
+  "LONG_PAGE",
+  "SHORT_PAGE"
 ]);
 // SOLUTION tag handled by processSnippet
 
