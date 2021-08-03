@@ -4,6 +4,7 @@ import {
   repeatedNameWarning
 } from "./warnings.js";
 import recursiveProcessPureText from "./recursiveProcessPureText";
+import { processRuneModule } from "./processModuleImports.js";
 
 const snippetStore = {};
 
@@ -153,6 +154,12 @@ export const processSnippetJs = (node, writeTo, fileFormat) => {
       }
     }
     const exampleStr = exampleArr.join("") + "\n";
+
+    let ext = node.getAttribute("EXT");
+
+    if (ext === "RUNES") {
+      writeTo.push(processRuneModule(reqStr + " " + codeStr_run + exampleStr) + "\n\n");
+    }
 
     if (fileFormat == "js") {
       writeTo.push(reqStr);

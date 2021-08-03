@@ -6,6 +6,7 @@ import {
 } from "./warnings.js";
 import { chapterIndex } from "../parseXmlJson";
 import recursiveProcessPureText from "./recursiveProcessPureText";
+import { processRuneModule } from "./processModuleImports.js";
 
 const snippetStore = {};
 
@@ -189,35 +190,45 @@ export const processSnippetJson = (node, snippet) => {
       }
       const exampleStr = exampleArr.join("");
 
-      const compressed = lzString.compressToEncodedURIComponent(
-        "// SICP JS " +
-          chapterIndex +
-          reqStr +
-          "\n\n" +
-          codeStr_run +
-          exampleStr
-      );
       const current_chap = chapterIndex.substring(0, 1);
       const explicit_chap = node.getAttribute("CHAP");
       const implicit_chap = explicit_chap ? explicit_chap : current_chap;
       const chap = implicit_chap === "5" ? "4" : implicit_chap;
       let variant = node.getAttribute("VARIANT");
       let ext = node.getAttribute("EXT");
+      let importStatement = "";
+
       if (variant) {
         variant = "&variant=" + variant;
       } else {
         variant = "";
       }
-      if (ext) {
-        ext = "&ext=" + ext;
-      } else {
-        ext = "";
+
+      if (ext === "RUNES") {
+        importStatement = "\n\n" + processRuneModule(
+          reqStr + " " + codeStr_run + exampleStr
+        );
       }
+
+      const compressed = lzString.compressToEncodedURIComponent(
+        "// SICP JS " +
+          chapterIndex +
+          importStatement +
+          reqStr +
+          "\n\n" +
+          codeStr_run +
+          exampleStr
+      );
+
       const makeHash = program =>
-        "chap=" + chap + variant + ext + "&prgrm=" + program;
+        "chap=" + chap + variant + "&prgrm=" + program;
 
       if (reqStr) {
-        addToSnippet("prependLength", reqStr.split("\n").length, snippet);
+        let prependLength = reqStr.split("\n").length;
+        if (importStatement) {
+          prependLength += 2;
+        }
+        addToSnippet("prependLength", prependLength, snippet);
       } else {
         addToSnippet("prependLength", 0, snippet);
       }

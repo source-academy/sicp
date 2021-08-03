@@ -7,6 +7,7 @@ import {
 } from "./warnings.js";
 import { chapterIndex } from "../parseXmlHtml";
 import recursiveProcessPureText from "./recursiveProcessPureText";
+import { processRuneModule } from "./processModuleImports.js";
 
 const snippetStore = {};
 
@@ -181,37 +182,42 @@ export const processSnippetHtml = (node, writeTo, split) => {
       }
       const exampleStr = exampleArr.join("");
 
-      // make url for source academy link
-      const compressed = lzString.compressToEncodedURIComponent(
-        "// SICP JS " +
-          chapterIndex +
-          reqStr +
-          "\n\n" +
-          codeStr_run +
-          exampleStr
-      );
       const current_chap = chapterIndex.substring(0, 1);
       const explicit_chap = node.getAttribute("CHAP");
       const implicit_chap = explicit_chap ? explicit_chap : current_chap;
       const chap = implicit_chap === "5" ? "4" : implicit_chap;
       let variant = node.getAttribute("VARIANT");
       let ext = node.getAttribute("EXT");
+      let importStatement = "";
+
       if (variant) {
         variant = "&variant=" + variant;
       } else {
         variant = "";
       }
-      if (ext) {
-        ext = "&ext=" + ext;
-      } else {
-        ext = "";
+
+      if (ext === "RUNES") {
+        importStatement = "\n\n" + processRuneModule(
+          reqStr + " " + codeStr_run + exampleStr
+        );
       }
+
+      // make url for source academy link
+      const compressed = lzString.compressToEncodedURIComponent(
+        "// SICP JS " +
+          chapterIndex +
+          importStatement +
+          reqStr +
+          "\n\n" +
+          codeStr_run +
+          exampleStr
+      );
+
       const url =
         sourceAcademyURL +
         "/playground#chap=" +
         chap +
         variant +
-        ext +
         "&prgrm=" +
         compressed;
 
