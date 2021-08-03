@@ -158,7 +158,9 @@ export const processSnippetJs = (node, writeTo, fileFormat) => {
     let ext = node.getAttribute("EXT");
 
     if (ext === "RUNES") {
-      writeTo.push(processRuneModule(reqStr + " " + codeStr_run + exampleStr) + "\n\n");
+      writeTo.push(
+        processRuneModule(reqStr + " " + codeStr_run + exampleStr) + "\n\n"
+      );
     }
 
     if (fileFormat == "js") {

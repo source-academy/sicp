@@ -205,9 +205,8 @@ export const processSnippetJson = (node, snippet) => {
       }
 
       if (ext === "RUNES") {
-        importStatement = "\n\n" + processRuneModule(
-          reqStr + " " + codeStr_run + exampleStr
-        );
+        importStatement =
+          "\n\n" + processRuneModule(reqStr + " " + codeStr_run + exampleStr);
       }
 
       const compressed = lzString.compressToEncodedURIComponent(

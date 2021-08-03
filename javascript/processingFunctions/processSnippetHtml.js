@@ -197,9 +197,8 @@ export const processSnippetHtml = (node, writeTo, split) => {
       }
 
       if (ext === "RUNES") {
-        importStatement = "\n\n" + processRuneModule(
-          reqStr + " " + codeStr_run + exampleStr
-        );
+        importStatement =
+          "\n\n" + processRuneModule(reqStr + " " + codeStr_run + exampleStr);
       }
 
       // make url for source academy link
