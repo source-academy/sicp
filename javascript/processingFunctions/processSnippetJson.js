@@ -28,7 +28,11 @@ export const setupSnippetsJson = node => {
       }
       const codeArr = [];
       recursiveProcessPureText(jsRunSnippet.firstChild, codeArr);
-      const codeStr = codeArr.join("").trim();
+      const codeStr = codeArr
+        .join("")
+        .replace(/@xxx\n/g, "")
+        .replace(/@yyy\n/g, "")
+        .trim();
       const requirements = snippet.getElementsByTagName("REQUIRES");
       const requireNames = [];
       for (let i = 0; requirements[i]; i++) {
