@@ -1421,7 +1421,8 @@ Chapter \arabic{chapter}}%
 
 \def\@mathmargin{1.5pc}
 \vbadness=9999
-\tolerance=9999
+\tolerance=500
+\hyphenpenalty=200
 \doublehyphendemerits=10000
 \doublehyphendemerits 640000   % corresponds to badness 800
 \finalhyphendemerits  1000000  % corresponds to badness 1000
