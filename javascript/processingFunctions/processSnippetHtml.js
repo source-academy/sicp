@@ -31,8 +31,8 @@ export const setupSnippetsHtml = node => {
       recursiveProcessPureText(jsRunSnippet.firstChild, codeArr);
       const codeStr = codeArr
         .join("")
-        .replace(/@xxx\n/g, "")
-        .replace(/@yyy\n/g, "")
+        .replace(/@xxx[\n\t]*/g, "\n")
+        .replace(/@yyy[\n\t]*/g, "\n")
         .trim();
       const requirements = snippet.getElementsByTagName("REQUIRES");
       const requireNames = [];
@@ -95,14 +95,18 @@ export const processSnippetHtml = (node, writeTo, split) => {
     if (jsSnippet) recursiveProcessPureText(jsSnippet.firstChild, codeArr);
     const codeStr = codeArr
       .join("")
-      .replace(/@xxx\n/g, "")
-      .replace(/@yyy\n/g, "")
+      .replace(/@xxx[\n\t]*/g, "\n")
+      .replace(/@yyy[\n\t]*/g, "\n")
       .trim();
 
     const codeArr_run = [];
     if (jsRunSnippet)
       recursiveProcessPureText(jsRunSnippet.firstChild, codeArr_run);
-    const codeStr_run = codeArr_run.join("").trim();
+    const codeStr_run = codeArr_run
+      .join("")
+      .replace(/@xxx[\n\t]*/g, "\n")
+      .replace(/@yyy[\n\t]*/g, "\n")
+      .trim();
 
     // Do warning for very long lines if no latex
     if (node.getAttribute("LATEX") !== "yes") {

@@ -30,9 +30,10 @@ export const setupSnippetsJson = node => {
       recursiveProcessPureText(jsRunSnippet.firstChild, codeArr);
       const codeStr = codeArr
         .join("")
-        .replace(/@xxx\n/g, "")
-        .replace(/@yyy\n/g, "")
+        .replace(/@xxx[\n\t]*/g, "\n")
+        .replace(/@yyy[\n\t]*/g, "\n")
         .trim();
+
       const requirements = snippet.getElementsByTagName("REQUIRES");
       const requireNames = [];
       for (let i = 0; requirements[i]; i++) {
@@ -84,6 +85,7 @@ export const recursivelyProcessTextSnippetJson = (node, writeTo) => {
     recursivelyProcessTextSnippetJson(node.firstChild, writeTo);
   } else if (name === "#comment" || name === "ALLOW_BREAK") {
     return;
+  } else if (name === "SHORT_SPACE" || name === "SHORT_SPACE_AND_ALLOW_BREAK") {
   } else {
     console.log(`processSnippetJson: UNRECOGNISED TAG ${name}\n\n`);
   }
@@ -116,7 +118,12 @@ export const processSnippetJson = (node, snippet) => {
 
     const codeArr = [];
     recursiveProcessPureText(jsSnippet.firstChild, codeArr);
-    let codeStr = codeArr.join("");
+    let codeStr = codeArr
+      .join("")
+      .replace(/@xxx[\n\t]*/g, "\n")
+      .replace(/@yyy[\n\t]*/g, "\n")
+      .trim();
+
     // Remove newline from beginning and end
     codeStr = codeStr.replace(/^[\r\n]+/g, "");
     codeStr = codeStr.replace(/[\r\n\s]+$/g, "");
@@ -125,7 +132,11 @@ export const processSnippetJson = (node, snippet) => {
     if (jsRunSnippet) {
       recursiveProcessPureText(jsRunSnippet.firstChild, codeArr_run);
     }
-    const codeStr_run = codeArr_run.join("").trim();
+    const codeStr_run = codeArr_run
+      .join("")
+      .replace(/@xxx[\n\t]*/g, "\n")
+      .replace(/@yyy[\n\t]*/g, "\n")
+      .trim();
 
     if (node.getAttribute("EVAL") === "no") {
       addToSnippet("body", codeStr, snippet);

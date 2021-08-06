@@ -34,8 +34,8 @@ export const setupSnippetsJs = node => {
 
       const codeStr = codeArr
         .join("")
-        .replace(/@xxx\n/g, "")
-        .replace(/@yyy\n/g, "")
+        .replace(/@xxx[\n\t]*/g, "\n")
+        .replace(/@yyy[\n\t]*/g, "\n")
         .trim();
 
       const requirements = snippet.getElementsByTagName("REQUIRES");
@@ -89,15 +89,14 @@ export const processSnippetJs = (node, writeTo, fileFormat) => {
     }
     const codeArr = [];
     recursiveProcessPureText(jsSnippet.firstChild, codeArr);
-    const codeStr = codeArr
-      .join("")
-      .replace(/@xxx\n/g, "")
-      .replace(/@yyy\n/g, "")
-      .trim();
 
     const codeArr_run = [];
     recursiveProcessPureText(jsRunSnippet.firstChild, codeArr_run);
-    const codeStr_run = codeArr_run.join("").trim();
+    const codeStr_run = codeArr_run
+      .join("")
+      .replace(/@xxx[\n\t]*/g, "\n")
+      .replace(/@yyy[\n\t]*/g, "\n")
+      .trim();
 
     let reqStr = "";
     let reqArr = [];
