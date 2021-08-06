@@ -86,6 +86,7 @@ export const recursivelyProcessTextSnippetJson = (node, writeTo) => {
   } else if (name === "#comment" || name === "ALLOW_BREAK") {
     return;
   } else if (name === "SHORT_SPACE" || name === "SHORT_SPACE_AND_ALLOW_BREAK") {
+    writeTo.push("\n");
   } else {
     console.log(`processSnippetJson: UNRECOGNISED TAG ${name}\n\n`);
   }

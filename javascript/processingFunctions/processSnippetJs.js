@@ -87,8 +87,6 @@ export const processSnippetJs = (node, writeTo, fileFormat) => {
         jsRunSnippet = jsSnippet;
       }
     }
-    const codeArr = [];
-    recursiveProcessPureText(jsSnippet.firstChild, codeArr);
 
     const codeArr_run = [];
     recursiveProcessPureText(jsRunSnippet.firstChild, codeArr_run);
