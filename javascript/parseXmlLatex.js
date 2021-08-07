@@ -637,12 +637,21 @@ const processTextFunctionsDefaultLatex = {
         node.firstChild.data.search("@") >= 0
       ) {
         if (parseType === "pdf") {
-          writeTo.push("{\\JSBreak~");
+          if (node.firstChild.data.indexOf("$") === -1) {
+            writeTo.push("{\\JSBreak~");
+          } else {
+            writeTo.push("{\\JSBreakNoEscape~");
+          }
         } else {
           node.firstChild.data = node.firstChild.data.replace(/_@/g, "_");
           node.firstChild.nodeValue = node.firstChild.nodeValue.replace(
             /_@/g,
             "_"
+          );
+          node.firstChild.data = node.firstChild.data.replace(/@/g, "");
+          node.firstChild.nodeValue = node.firstChild.nodeValue.replace(
+            /@/g,
+            ""
           );
           writeTo.push("{\\JS~");
         }

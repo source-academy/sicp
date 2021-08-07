@@ -304,6 +304,7 @@ export const preamble = `\\documentclass[7x10]{../mitpress/mit}
 \\newcommand{\\JS}{\\lstinline[mathescape=false,basicstyle=\\usefont{T1}{lmtt}{m}{n}\\protect\\inlinecodesize,keywordstyle=\\usefont{T1}{lmtt}{b}{n}\\protect\\inlinecodesize]}
 \\newcommand{\\JSMathEscape}{\\lstinline[mathescape=true,basicstyle=\\usefont{T1}{lmtt}{m}{n}\\protect\\inlinecodesize,keywordstyle=\\usefont{T1}{lmtt}{b}{n}\\protect\\inlinecodesize]}
 \\newcommand{\\JSBreak}{\\lstinline[mathescape=true,literate={@}{}{0\\discretionary{}{}{}},basicstyle=\\usefont{T1}{lmtt}{m}{n}\\protect\\inlinecodesize,keywordstyle=\\usefont{T1}{lmtt}{b}{n}\\protect\\inlinecodesize]}
+\\newcommand{\\JSBreakNoEscape}{\\lstinline[mathescape=false,literate={@}{}{0\\discretionary{}{}{}},basicstyle=\\usefont{T1}{lmtt}{m}{n}\\protect\\inlinecodesize,keywordstyle=\\usefont{T1}{lmtt}{b}{n}\\protect\\inlinecodesize]}
 
 
 \\lstdefinelanguage{JavaScript}{
