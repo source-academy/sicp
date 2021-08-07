@@ -39,7 +39,7 @@ const tagsToReplacePdf = {
   SHORT_SPACE_AND_ALLOW_BREAK: "@yyy" // will be replaced in processSnippet
 };
 
-export const replaceTagWithSymbol = (node, writeTo, type) => {
+export const replaceTagWithSymbol = (node, writeTo, type = "default") => {
   const name = node.nodeName;
   let tagsToReplace;
 
