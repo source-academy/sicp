@@ -9,7 +9,10 @@ const recursiveProcessPureText = (
 ) => {
   if (!node) return;
 
-  if (!replaceTagWithSymbol(node, writeTo, options.type) && node.nodeName === "#text") {
+  if (
+    !replaceTagWithSymbol(node, writeTo, options.type) &&
+    node.nodeName === "#text"
+  ) {
     let value = node.nodeValue;
     if (options.removeNewline == "beginning&end") {
       value = value.replace(/^[\r\n]+/g, "");

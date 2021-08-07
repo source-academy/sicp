@@ -31,9 +31,7 @@ export const setupSnippetsEpub = node => {
       recursiveProcessPureText(jsRunSnippet.firstChild, codeArr, {
         type: "epub"
       });
-      const codeStr = codeArr
-        .join("")
-        .trim();
+      const codeStr = codeArr.join("").trim();
 
       const requirements = snippet.getElementsByTagName("REQUIRES");
       const requireNames = [];
@@ -74,9 +72,7 @@ export const processSnippetEpub = (node, writeTo) => {
 
     const codeArr = [];
     recursiveProcessPureText(jsSnippet.firstChild, codeArr);
-    const codeStr = codeArr
-      .join("")
-      .trim();
+    const codeStr = codeArr.join("").trim();
 
     const codeArr_run = [];
     recursiveProcessPureText(jsRunSnippet.firstChild, codeArr_run);

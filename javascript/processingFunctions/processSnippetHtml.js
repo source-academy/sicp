@@ -29,9 +29,7 @@ export const setupSnippetsHtml = node => {
       }
       const codeArr = [];
       recursiveProcessPureText(jsRunSnippet.firstChild, codeArr);
-      const codeStr = codeArr
-        .join("")
-        .trim();
+      const codeStr = codeArr.join("").trim();
       const requirements = snippet.getElementsByTagName("REQUIRES");
       const requireNames = [];
       for (let i = 0; requirements[i]; i++) {
@@ -91,16 +89,12 @@ export const processSnippetHtml = (node, writeTo, split) => {
 
     const codeArr = [];
     if (jsSnippet) recursiveProcessPureText(jsSnippet.firstChild, codeArr);
-    const codeStr = codeArr
-      .join("")
-      .trim();
+    const codeStr = codeArr.join("").trim();
 
     const codeArr_run = [];
     if (jsRunSnippet)
       recursiveProcessPureText(jsRunSnippet.firstChild, codeArr_run);
-    const codeStr_run = codeArr_run
-      .join("")
-      .trim();
+    const codeStr_run = codeArr_run.join("").trim();
 
     // Do warning for very long lines if no latex
     if (node.getAttribute("LATEX") !== "yes") {

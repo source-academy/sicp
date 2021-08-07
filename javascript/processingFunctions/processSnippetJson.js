@@ -28,9 +28,7 @@ export const setupSnippetsJson = node => {
       }
       const codeArr = [];
       recursiveProcessPureText(jsRunSnippet.firstChild, codeArr);
-      const codeStr = codeArr
-        .join("")
-        .trim();
+      const codeStr = codeArr.join("").trim();
 
       const requirements = snippet.getElementsByTagName("REQUIRES");
       const requireNames = [];
@@ -117,9 +115,7 @@ export const processSnippetJson = (node, snippet) => {
 
     const codeArr = [];
     recursiveProcessPureText(jsSnippet.firstChild, codeArr);
-    let codeStr = codeArr
-      .join("")
-      .trim();
+    let codeStr = codeArr.join("").trim();
 
     // Remove newline from beginning and end
     codeStr = codeStr.replace(/^[\r\n]+/g, "");
@@ -129,9 +125,7 @@ export const processSnippetJson = (node, snippet) => {
     if (jsRunSnippet) {
       recursiveProcessPureText(jsRunSnippet.firstChild, codeArr_run);
     }
-    const codeStr_run = codeArr_run
-      .join("")
-      .trim();
+    const codeStr_run = codeArr_run.join("").trim();
 
     if (node.getAttribute("EVAL") === "no") {
       addToSnippet("body", codeStr, snippet);
