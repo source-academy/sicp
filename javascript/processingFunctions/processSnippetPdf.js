@@ -29,7 +29,9 @@ export const setupSnippetsPdf = node => {
         return;
       }
       const codeArr = [];
-      recursiveProcessPureText(jsRunSnippet.firstChild, codeArr);
+      recursiveProcessPureText(jsRunSnippet.firstChild, codeArr, {
+        type: "pdf"
+      });
       const codeStr = codeArr.join("").trim();
 
       const requirements = snippet.getElementsByTagName("REQUIRES");
@@ -207,7 +209,9 @@ export const processSnippetPdf = (node, writeTo) => {
       .trim();
 
     const codeArr_run = [];
-    recursiveProcessPureText(jsRunSnippet.firstChild, codeArr_run);
+    recursiveProcessPureText(jsRunSnippet.firstChild, codeArr_run, {
+      type: "pdf"
+    });
     const codeStr_run = codeArr_run.join("").trim();
 
     // Do warning for very long lines if no latex

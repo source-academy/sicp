@@ -30,8 +30,6 @@ export const setupSnippetsJson = node => {
       recursiveProcessPureText(jsRunSnippet.firstChild, codeArr);
       const codeStr = codeArr
         .join("")
-        .replace(/@xxx[\n\t]*/g, "\n")
-        .replace(/@yyy[\n\t]*/g, "\n")
         .trim();
 
       const requirements = snippet.getElementsByTagName("REQUIRES");
@@ -121,8 +119,6 @@ export const processSnippetJson = (node, snippet) => {
     recursiveProcessPureText(jsSnippet.firstChild, codeArr);
     let codeStr = codeArr
       .join("")
-      .replace(/@xxx[\n\t]*/g, "\n")
-      .replace(/@yyy[\n\t]*/g, "\n")
       .trim();
 
     // Remove newline from beginning and end
@@ -135,8 +131,6 @@ export const processSnippetJson = (node, snippet) => {
     }
     const codeStr_run = codeArr_run
       .join("")
-      .replace(/@xxx[\n\t]*/g, "\n")
-      .replace(/@yyy[\n\t]*/g, "\n")
       .trim();
 
     if (node.getAttribute("EVAL") === "no") {

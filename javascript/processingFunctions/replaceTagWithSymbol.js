@@ -1,4 +1,4 @@
-const tagsToReplace = {
+const tagsToReplaceDefault = {
   APOS: "'",
   WJ: "&#8288;",
   AACUTE_LOWER: "á",
@@ -22,8 +22,8 @@ const tagsToReplace = {
   SHARP: "\\#",
   SECT: "§",
 
-  SHORT_SPACE: "@xxx", // will be replaced in processSnippet depending on rendering target (PDF, HTML, etc.)
-  SHORT_SPACE_AND_ALLOW_BREAK: "@yyy", // will be replaced in processSnippet depending on rendering target (PDF, HTML, etc.)
+  SHORT_SPACE: "",
+  SHORT_SPACE_AND_ALLOW_BREAK: "",
 
   EMDASH: "—",
   ENDASH: "–",
@@ -34,8 +34,23 @@ const tagsToReplace = {
   FIXED_SPACE: "{\\tt~}"
 };
 
-export const replaceTagWithSymbol = (node, writeTo) => {
+const tagsToReplacePdf = {
+  SHORT_SPACE: "@xxx", // will be replaced in processSnippet
+  SHORT_SPACE_AND_ALLOW_BREAK: "@yyy" // will be replaced in processSnippet
+};
+
+export const replaceTagWithSymbol = (node, writeTo, type) => {
   const name = node.nodeName;
+  let tagsToReplace;
+
+  switch (type) {
+    case "pdf":
+      tagsToReplace = { ...tagsToReplaceDefault, ...tagsToReplacePdf };
+      break;
+    default:
+      tagsToReplace = tagsToReplaceDefault;
+  }
+
   if (tagsToReplace[name]) {
     writeTo.push(tagsToReplace[name]);
     return true;
