@@ -518,7 +518,7 @@ const processTextFunctionsDefaultLatex = {
   LATEX: (node, writeTo) =>
     processTextFunctionsLatex["LATEXINLINE"](node, writeTo),
   LATEXINLINE: (node, writeTo) => {
-    recursiveProcessPureText(node.firstChild, writeTo);
+    recursiveProcessPureText(node.firstChild, writeTo, { type: parseType });
   },
 
   LaTeX: (node, writeTo) => {
@@ -623,7 +623,7 @@ const processTextFunctionsDefaultLatex = {
   JAVASCRIPTINLINE: (node, writeTo) => {
     if (ancestorHasTag(node, "METAPHRASE")) {
       writeTo.push("}$");
-      recursiveProcessPureText(node.firstChild, writeTo);
+      recursiveProcessPureText(node.firstChild, writeTo, { type: parseType });
       writeTo.push("$\\mathit{");
     } else {
       if (node.getAttribute("break")) {
@@ -751,7 +751,10 @@ export const processTextLatex = (node, writeTo) => {
     processTextFunctionsLatex[name](node, writeTo);
     return true;
   } else {
-    if (replaceTagWithSymbol(node, writeTo) || tagsToRemove.has(name)) {
+    if (
+      replaceTagWithSymbol(node, writeTo, parseType) ||
+      tagsToRemove.has(name)
+    ) {
       return true;
     } else if (ignoreTags.has(name)) {
       recursiveProcessTextLatex(node.firstChild, writeTo);

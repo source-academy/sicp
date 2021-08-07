@@ -32,11 +32,7 @@ export const setupSnippetsJs = node => {
       const codeArr = [];
       recursiveProcessPureText(jsRunSnippet.firstChild, codeArr);
 
-      const codeStr = codeArr
-        .join("")
-        .replace(/@xxx\n/g, "")
-        .replace(/@yyy\n/g, "")
-        .trim();
+      const codeStr = codeArr.join("").trim();
 
       const requirements = snippet.getElementsByTagName("REQUIRES");
       const requireNames = [];
@@ -87,13 +83,6 @@ export const processSnippetJs = (node, writeTo, fileFormat) => {
         jsRunSnippet = jsSnippet;
       }
     }
-    const codeArr = [];
-    recursiveProcessPureText(jsSnippet.firstChild, codeArr);
-    const codeStr = codeArr
-      .join("")
-      .replace(/@xxx\n/g, "")
-      .replace(/@yyy\n/g, "")
-      .trim();
 
     const codeArr_run = [];
     recursiveProcessPureText(jsRunSnippet.firstChild, codeArr_run);
