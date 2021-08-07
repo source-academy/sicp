@@ -93,8 +93,6 @@ export const processSnippetHtml = (node, writeTo, split) => {
     if (jsSnippet) recursiveProcessPureText(jsSnippet.firstChild, codeArr);
     const codeStr = codeArr
       .join("")
-      .replace(/@xxx[\n\t]*/g, "\n")
-      .replace(/@yyy[\n\t]*/g, "\n")
       .trim();
 
     const codeArr_run = [];
