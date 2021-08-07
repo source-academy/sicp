@@ -283,6 +283,8 @@ const processTextFunctionsDefaultLatex = {
     ) {
       node.firstChild.data = node.firstChild.data.replace(/_@/g, "_");
       node.firstChild.nodeValue = node.firstChild.nodeValue.replace(/_@/g, "_");
+      node.firstChild.data = node.firstChild.data.replace(/@/g, "");
+      node.firstChild.nodeValue = node.firstChild.nodeValue.replace(/@/g, "");
     }
 
     writeTo.push("{\\lstinline[mathescape=true]$");
