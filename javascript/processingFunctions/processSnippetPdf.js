@@ -425,7 +425,7 @@ export const processSnippetPdf = (node, writeTo) => {
   // const jsOutputSnippet = node.getElementsByTagName("JAVASCRIPT_OUTPUT")[0];
 
   if (jsOutputSnippet) {
-    if (jsPromptSnippet) {
+    if (jsPromptSnippet && !jsSnippet) {
       writeTo.push("\\InputOutputSpace");
     } else if (jsPromptSnippet || jsLonelySnippet || jsSnippet) {
       writeTo.push("\\InputOutputNoSpace");
