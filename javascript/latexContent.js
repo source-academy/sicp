@@ -96,7 +96,7 @@ export const preamble = `\\documentclass[7x10]{../mitpress/mit}
 \\setlist{itemsep=0.5ex}
 \\setlist[itemize,1]{label={\\textbullet},left=1pt .. 10pt}
 %% \\setlist[itemize,1]{label={\\textbullet},left=7pt .. \\parindent}
-\\setlist[enumerate,1]{left=-3pt .. \\parindent}
+\\setlist[enumerate,1]{left=0pt .. \\parindent}
 \\usepackage{emptypage}
 \\usepackage{float}
 \\renewcommand{\\topfraction}{0.9}
