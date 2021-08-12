@@ -177,6 +177,7 @@ export const preamble = `\\documentclass[7x10]{../mitpress/mit}
 \\renewcommand{\\chaptermark}[1]{\\markboth{Chapter\\,\\thechapter\\quad{}#1}{}}
 \\renewcommand{\\sectionmark}[1]{\\markright{\\thesection\\quad{}#1}}
 \\renewcommand{\\subsectionmark}[1]{\\markright{\\thesubsection\\quad{}#1}}
+\\renewcommand{\\subsubsectionmark}[1]{\\markright{\\thesubsubsection\\quad{}#1}}
 
 \\fancypagestyle{TOC}{
   \\renewcommand{\\headrulewidth}{0.4pt}
