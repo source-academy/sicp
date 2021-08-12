@@ -243,6 +243,18 @@ export const processSnippetPdf = (node, writeTo) => {
         codeEnv +
         "}\n";
 
+      const separator2 =
+        "\\end{" +
+        codeEnv +
+        "}\n" +
+        "\\end{lrbox}" +
+        "\\Usebox{\\UnbreakableBox}\\\\" +
+        "\\pagebreak[0]" +
+        "\\begin{lrbox}{\\UnbreakableBox}" +
+        "\\begin{" +
+        codeEnv +
+        "}\n";
+
       if (outputAdjacent !== true) {
         writeTo.push(preSpace);
       }
@@ -254,7 +266,7 @@ export const processSnippetPdf = (node, writeTo) => {
           .join("")
           .replace(/\n}\nfunction/g, "\n}\n" + separator + "function")
           .replace(/\n@xxx\s*\n/g, separator)
-          .replace(/\n@yyy\n/g, separator) // smallskip should allow page breaks
+          .replace(/\n@yyy\n/g, separator2) // smallskip should allow page breaks
           .trim()
       );
       writeTo.push("\n");
