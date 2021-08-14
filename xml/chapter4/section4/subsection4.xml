@@ -99,20 +99,24 @@ const output_prompt = "Query results:";
 
 function query_driver_loop() {
     const input = user_read(input_prompt) + ";";
-    const expression = parse(input);
-    const query = query_syntax_process(expression);
-    if (is_assertion(query)) {
-        add_rule_or_assertion(assertion_body(query));
-        display("Assertion added to data base.");
+    if (is_null(input)) {
+        display("evaluator terminated");
     } else {
-        display(output_prompt);
-        display_stream(
-            stream_map(
-                frame =>
-                  unparse(instantiate_expression(expression, frame)),
-                evaluate_query(query, singleton_stream(null))));
+	const expression = parse(input);
+        const query = query_syntax_process(expression);
+        if (is_assertion(query)) {
+            add_rule_or_assertion(assertion_body(query));
+            display("Assertion added to data base.");
+        } else {
+            display(output_prompt);
+            display_stream(
+                stream_map(
+                    frame =>
+                      unparse(instantiate_expression(expression, frame)),
+                    evaluate_query(query, singleton_stream(null))));
+        }
+        return query_driver_loop();
     }
-    return query_driver_loop();
 }
 	</JAVASCRIPT>
 	<JAVASCRIPT_RUN>
@@ -736,10 +740,10 @@ put("or", "evaluate_query", disjoin);
 (put 'not 'qeval negate)
 	</SCHEME>
 	<JAVASCRIPT>
-function negate(args, frame_stream) {
+function negate(exps, frame_stream) {
     return stream_flatmap(
                frame =>
-                 is_null(evaluate_query(negated_query(args),
+                 is_null(evaluate_query(negated_query(exps),
                                         singleton_stream(frame)))
                  ? singleton_stream(frame)
                  : null,
@@ -757,9 +761,9 @@ put("not", "evaluate_query", negate);
 	  <SCHEMEINLINE>Lisp-value</SCHEMEINLINE>
 	</SCHEME>
 	<JAVASCRIPT>
-	  The function
+	  A
 	  <INDEX><USE>javascript_value</USE> (query language)<SUBINDEX>evaluation of</SUBINDEX></INDEX>
-	  <JAVASCRIPTINLINE>javascript_value</JAVASCRIPTINLINE>
+	  <JAVASCRIPTINLINE>javascript_value</JAVASCRIPTINLINE> query
 	</JAVASCRIPT>
       </SPLITINLINE>
       is a filter similar to <SCHEMEINLINE>not</SCHEMEINLINE>.
@@ -819,11 +823,11 @@ r           frame
         (put 'lisp-value 'qeval lisp-value)
 	  </SCHEME>
 	  <JAVASCRIPT>
-function javascript_value(args, frame_stream) {
+function javascript_value(exps, frame_stream) {
   return stream_flatmap(
              frame =>
                evaluate(instantiate_expression(
-                            javascript_expression(args), frame),
+                            javascript_predicate(exps), frame),
                         the_global_environment)
                ? singleton_stream(frame)
                : null,
@@ -972,16 +976,11 @@ put("always_true", "evaluate_query", always_true);
       </SPLITINLINE>
       (section<SPACE/><REF NAME="sec:query-db"/>) to get a stream of all the
       assertions in the data base that should be checked for a match against the
-      <SPLITINLINE>
-	<JAVASCRIPT>
-	  given
-	</JAVASCRIPT>
-      </SPLITINLINE>
       pattern and the frame.  The reason for
       <SPLITINLINE>
 	<SCHEME><SCHEMEINLINE>fetch-assertions</SCHEMEINLINE>
 	</SCHEME>
-	<JAVASCRIPT><JAVASCRIPTINLINE>fetch_assertions</JAVASCRIPTINLINE>
+	<JAVASCRIPT><JAVASCRIPTINLINE>fetch_@assertions</JAVASCRIPTINLINE>
 	</JAVASCRIPT>
       </SPLITINLINE>
       here is that we can often apply simple tests that will eliminate many of
@@ -1027,7 +1026,16 @@ function find_assertions(pattern, frame) {
 	  The function <JAVASCRIPTINLINE>check_an_assertion</JAVASCRIPTINLINE>
 	</JAVASCRIPT>
       </SPLITINLINE>
-      takes as arguments a data object (assertion), a pattern, and a frame and
+      takes as arguments a data object
+      <SPLITINLINE>
+	<SCHEME>
+	  (assertion),       
+	</SCHEME>
+	<JAVASCRIPT>
+	  (an assertion),
+	</JAVASCRIPT>
+      </SPLITINLINE>
+      a pattern, and a frame and
       returns either a one-element stream containing the extended frame or
       <SPLITINLINE>
 	<SCHEME><SCHEMEINLINE>the-empty-stream</SCHEMEINLINE>
@@ -1617,7 +1625,16 @@ function rename_variables_in(rule) {
 	  <JAVASCRIPTINLINE>pattern_match</JAVASCRIPTINLINE>,
 	</JAVASCRIPT>
       </SPLITINLINE>
-      except that there is extra code (marked
+      except that there is
+      <SPLITINLINE>
+	<SCHEME>
+	  extra code
+	</SCHEME>
+	<JAVASCRIPT>
+	  an extra clause
+	</JAVASCRIPT>
+      </SPLITINLINE>
+      (marked
       <QUOTE><SCHEMEINLINE>***</SCHEMEINLINE></QUOTE> below) to handle
       the case where the object on the right side of the match is a variable.
       <SNIPPET>
@@ -2117,93 +2134,39 @@ function depends_on(expression, variable, frame) {
 	  Then, 
 	  in addition to storing all assertions in one big stream,
 	  we store all assertions whose
-	  <SPLITINLINE>
-	    <SCHEME><SCHEMEINLINE>car</SCHEMEINLINE>s</SCHEME>
-	    <JAVASCRIPT>heads</JAVASCRIPT>
-	  </SPLITINLINE>
-	  are
-	  <SPLITINLINE>
-	    <SCHEME>constant symbols</SCHEME>
-	    <JAVASCRIPT>strings</JAVASCRIPT>
-	  </SPLITINLINE>
-	  in separate streams, in a table indexed by the
-	  <SPLITINLINE>
-	    <SCHEME>symbol.</SCHEME>
-	    <JAVASCRIPT>string.</JAVASCRIPT>
-	  </SPLITINLINE>
-	  To fetch an assertion that may match a pattern, we
-	  <SPLITINLINE>
-	    <SCHEME>
-	      first
-	    </SCHEME>
-	  </SPLITINLINE>
-	  check
-	  to see if the
-	  <SPLITINLINE>
-	    <SCHEME><SCHEMEINLINE>car</SCHEMEINLINE></SCHEME>
-	    <JAVASCRIPT>head</JAVASCRIPT>
-	  </SPLITINLINE>
-	  of the pattern is a
-	  <SPLITINLINE>
-	    <SCHEME>constant symbol.</SCHEME>
-	    <JAVASCRIPT>string.</JAVASCRIPT>
-	  </SPLITINLINE>
-	  If so, we return (to be tested using
-	  the matcher) all the stored assertions that have the same
-	  <SPLITINLINE>
-	    <SCHEME><SCHEMEINLINE>car</SCHEMEINLINE>.</SCHEME>
-	    <JAVASCRIPT>head.</JAVASCRIPT>
-	  </SPLITINLINE>
+	  <SCHEMEINLINE>car</SCHEMEINLINE>s
+	  are constant symbols in separate streams, in a table indexed by the
+	  symbol. To fetch an assertion that may match a pattern, we first
+	  check to see if the
+	  <SCHEMEINLINE>car</SCHEMEINLINE>
+	  of the pattern is a constant symbol. If so, we return (to be tested
+	  using the matcher) all the stored assertions that have the same
+	  <SCHEMEINLINE>car</SCHEMEINLINE>.
 	  If the pattern<APOS/>s
-	  <SPLITINLINE><SCHEME><SCHEMEINLINE>car</SCHEMEINLINE></SCHEME>
-	  <JAVASCRIPT>head</JAVASCRIPT>
-	  </SPLITINLINE>
-	  is not a
-	  <SPLITINLINE>
-	    <SCHEME>constant symbol,</SCHEME>
-	    <JAVASCRIPT>string,</JAVASCRIPT>
-	  </SPLITINLINE>
-	  we return all the stored assertions.
-	  Cleverer
-	  methods could also take advantage of information in the frame, or try also
-	  to optimize the case where the
-	  <SPLITINLINE>
-	    <SCHEME><SCHEMEINLINE>car</SCHEMEINLINE></SCHEME>
-	    <JAVASCRIPT>head</JAVASCRIPT>
-	  </SPLITINLINE>
-	  of the pattern is not a
-	  <SPLITINLINE>
-	    <SCHEME>constant symbol.</SCHEME>
-	    <JAVASCRIPT>string.</JAVASCRIPT>
-	  </SPLITINLINE>
-	  We avoid building our criteria
-	  for indexing (using the
-	  <SPLITINLINE>
-	    <SCHEME><SCHEMEINLINE>car</SCHEMEINLINE>,</SCHEME>
-	    <JAVASCRIPT>head,</JAVASCRIPT>
-	  </SPLITINLINE>
-	  handling only the case of
-	  <SPLITINLINE>
-	    <SCHEME>constant symbols)</SCHEME>
-	    <JAVASCRIPT>strings)</JAVASCRIPT>
-	  </SPLITINLINE>
-	  into the program; instead
-	  we call on predicates and selectors that embody our criteria.
+	  <SCHEMEINLINE>car</SCHEMEINLINE>
+	  is not a constant symbol, we return all the stored assertions.
+	  Cleverer methods could also take advantage of information in the
+	  frame, or try also to optimize the case where the
+	  <SCHEMEINLINE>car</SCHEMEINLINE>
+	  of the pattern is not a constant symbol.
+	  We avoid building our criteria for indexing (using the
+	  <SCHEMEINLINE>car</SCHEMEINLINE>,
+	  handling only the case of constant symbols) into the program;
+	  instead we call on predicates and selectors that embody our
+	  criteria.
 	</SCHEME>
 	<JAVASCRIPT>
 	  We store the assertions 
-	  in separate streams, in a table indexed by the
-	  string that is the head of the assertion.
+	  in separate streams, one for each kind of information, in a table
+	  indexed by the kind.
 	  To fetch an assertion that may match a pattern, we
 	  return (to be tested using
 	  the matcher) all the stored assertions that have the same
-	  head.
-	  Cleverer
+	  head (the same kind of information). Cleverer
 	  methods could also take advantage of information in the frame.
-	  We avoid building our criteria
-	  for indexing 
-	  into the program; instead
-	  we call on predicates and selectors that embody our criteria.
+	  We avoid building our criteria for indexing into the program;
+	  instead we call on predicates and selectors that embody our
+	  criteria.
 	</JAVASCRIPT>
       </SPLITINLINE>
       <SNIPPET>
@@ -2749,19 +2712,12 @@ unparse(parse('job($x, list("computer", "wizard"));'));
 	    </JAVASCRIPT_OUTPUT>
 	  </SNIPPET>
 	  In the query processor, we assumed a
-	  <SPLITINLINE>
-	    <SCHEME>
-	      more appropriate,
-	      query-language-specific,
-	    </SCHEME>
-	    <JAVASCRIPT>
-	      query-language-specific
-	    </JAVASCRIPT>
-	  </SPLITINLINE>
+	  more appropriate,
+	  query-language-specific,
 	  representation of assertions, rules, and queries.
 	  The function
-	  <JAVASCRIPTINLINE>query_syntax_process</JAVASCRIPTINLINE> transforms
-	  the syntax representation into that representation. 
+	  <JAVASCRIPTINLINE>query_@syntax_@process</JAVASCRIPTINLINE>
+	  transforms the syntax representation into that representation. 
 	  Using the same example,
 	  <SNIPPET EVAL="no">
 	    <JAVASCRIPT>
@@ -2815,7 +2771,7 @@ list("job", list("name", "$x"), list("computer", "wizard"))
 	returns a string containing only the character of the given string
 	at the given position.<FOOTNOTE>The actual way to get the string that
 	contains the first
-	character from of a string <JAVASCRIPTINLINE>s</JAVASCRIPTINLINE> in JavaScript is
+	character of a string <JAVASCRIPTINLINE>s</JAVASCRIPTINLINE> in JavaScript is
 	<JAVASCRIPTINLINE>s.charAt(0)</JAVASCRIPTINLINE>.
       </FOOTNOTE>
       <SNIPPET EVAL="no">
@@ -2855,7 +2811,6 @@ function new_rule_application_id() {
     rule_counter = rule_counter + 1;
     return rule_counter;
 }
-
 function make_new_variable(variable, rule_application_id) {
     return make_name(symbol_of_name(variable) + "_" +
                      stringify(rule_application_id));
@@ -2890,7 +2845,7 @@ function make_new_variable(variable, rule_application_id) {
 	  of section<SPACE/><REF NAME="sec:query-unify"/> 
 	  can operate directly on the intended pairs and
 	  lists rather than on the syntax representation generated by the parser.
-	  The (one-element) argument list of a 
+	  The (one-element) <QUOTE>argument</QUOTE> list of a 
 	  <JAVASCRIPTINLINE>javascript_value</JAVASCRIPTINLINE>
 	  syntactic form remains unprocessed, as explained below.
 	  A variable remains unchanged, and
@@ -2902,24 +2857,24 @@ function make_new_variable(variable, rule_application_id) {
 	    <EXAMPLE>append_to_form_example_5</EXAMPLE>
 	    <JAVASCRIPT>
 function query_syntax_process(exp) {
-  if (is_application(exp)) {
-    const function_symbol = symbol_of_name(function_expression(exp));
-    if (function_symbol === "javascript_value") {
-      return pair(function_symbol, arg_expressions(exp));
-    } else {
-      const processed_args = map(query_syntax_process,
-                                 arg_expressions(exp));
-      return function_symbol === "pair"
-             ? pair(head(processed_args), head(tail(processed_args)))
-             : function_symbol === "list"
-             ? processed_args
-             : pair(function_symbol, processed_args);
-    }
-  } else if (is_variable(exp)) {
-    return exp;
-  } else { // exp is literal
-    return literal_value(exp);
-  }
+   if (is_application(exp)) {
+     const function_symbol = symbol_of_name(function_expression(exp));
+     if (function_symbol === "javascript_value") {
+       return pair(function_symbol, arg_expressions(exp));
+     } else {
+       const processed_args = map(query_syntax_process,
+                                  arg_expressions(exp));
+       return function_symbol === "pair"
+              ? pair(head(processed_args), head(tail(processed_args)))
+              : function_symbol === "list"
+              ? processed_args
+              : pair(function_symbol, processed_args);
+     }
+   } else if (is_variable(exp)) {
+     return exp;
+   } else { // exp is literal
+     return literal_value(exp);
+   }
 }
 	    </JAVASCRIPT>
 	  </SNIPPET>
@@ -2935,7 +2890,7 @@ function query_syntax_process(exp) {
 	  the original syntax representation coming from
 	  <JAVASCRIPTINLINE>parse</JAVASCRIPTINLINE>
 	  needs to remain intact in the query-language-specific representation
-	  of the argument expression.
+	  of the expression.
 	  In this example
 	  of section<SPACE/><REF NAME="sec:deductive-info-retrieval"/>
 	  <SNIPPET EVAL="no">
@@ -2962,7 +2917,7 @@ list("and",
 	  <JAVASCRIPTINLINE>javascript_value</JAVASCRIPTINLINE> in
 	  section<SPACE/><REF NAME="sec:query-eval"/> calls
 	  <JAVASCRIPTINLINE>instantiate</JAVASCRIPTINLINE> on the embedded JavaScript syntax
-	  representation of the <JAVASCRIPTINLINE>"&gt;"</JAVASCRIPTINLINE> expression to
+	  representation of <JAVASCRIPTINLINE>$amount &gt; 50000</JAVASCRIPTINLINE> to
 	  replace the variable
 	  <JAVASCRIPTINLINE>list("name", "$amount")</JAVASCRIPTINLINE> by a literal,
 	  for example <JAVASCRIPTINLINE>list("literal", 70000)</JAVASCRIPTINLINE>, that represents
@@ -3091,7 +3046,8 @@ first_answer('append_to_form(x, y, list("a", "b", "c", "d"))');
 job($x, list("computer", "wizard"))
 	    </JAVASCRIPT>
 	  </SNIPPET>
-	  whose JavaScript syntax representation is given above, is
+	  whose JavaScript syntax representation is given
+	  at the beginning of section<SPACE/><REF NAME="sec:query-driver"/>, is
 	  processed by the driver loop.
 	  Let's say a frame <LATEXINLINE>$g$</LATEXINLINE> of the result stream
 	  binds the variable 
@@ -3355,7 +3311,7 @@ function contents(exp) {
     <TEXT>
       The following functions, used by
       <JAVASCRIPTINLINE>query_driver_loop</JAVASCRIPTINLINE>      
-      (section<SPACE/><REF NAME="sec:query-driver"/>),
+      (in section<SPACE/><REF NAME="sec:query-driver"/>),
       specify that rules and assertions are added to the data base by an
       <JAVASCRIPTINLINE>assert</JAVASCRIPTINLINE> command, which the function
       <JAVASCRIPTINLINE>query_syntax_process</JAVASCRIPTINLINE> transforms
@@ -3390,7 +3346,7 @@ function assertion_body(exp) { return head(contents(exp)); }
 	<INDEX><DECLARATION>first_disjunct</DECLARATION></INDEX>
 	<INDEX><DECLARATION>rest_disjuncts</DECLARATION></INDEX>
 	<INDEX><DECLARATION>negated_query</DECLARATION></INDEX>
-	<INDEX><DECLARATION>javascript_expression</DECLARATION></INDEX>
+	<INDEX><DECLARATION>javascript_predicate</DECLARATION></INDEX>
 	<NAME>is_empty_conjunction</NAME>
 	<EXAMPLE>append_to_form_example_5</EXAMPLE>
 	<JAVASCRIPT>
@@ -3408,7 +3364,7 @@ function rest_disjuncts(exps) { return tail(exps); }
 
 function negated_query(exps) { return head(exps); }
 
-function javascript_expression(exps) { return head(exps); }
+function javascript_predicate(exps) { return head(exps); }
 	</JAVASCRIPT>
       </SNIPPET>
     </TEXT>
