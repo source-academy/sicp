@@ -33,6 +33,9 @@ const title = `\\begin{titlepage}
 export const preamble = `\\documentclass[7x10]{../mitpress/mit}
 % use: option nocrop for final build
 % also remember: hyperref in mitpress/mit.cls: switch to black/black/black (line 1851)
+%
+% for index proofreading: edit parseXmlLatex.js
+% change: const indexAnnotations = true;
 
 \\synctex=1
 
