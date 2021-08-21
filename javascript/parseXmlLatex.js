@@ -542,10 +542,18 @@ const processTextFunctionsDefaultLatex = {
     writeTo.push("\n\n");
   },
 
-  QUOTE: (node, writeTo) => {
-    writeTo.push("``");
+QUOTE: (node, writeTo) => {
+    if (ancestorHasTag(node, "QUOTE")) {
+	writeTo.push("`");
+    } else {
+	writeTo.push("``");
+    }
     recursiveProcessTextLatex(node.firstChild, writeTo);
-    writeTo.push("''");
+    if (ancestorHasTag(node, "QUOTE")) {
+	writeTo.push("'");
+    } else {
+	writeTo.push("''");
+    }
   },
 
   REF: (node, writeTo) => {
