@@ -756,11 +756,44 @@ Cambridge, Massachusetts\\\\
 London, England}
 
 \\begin{copyrightpage}
-\\textcopyright\\ [YEAR] Massachusetts Institute of Technology
+\\includegraphics[width=3.5mm]{{img\\string_original/}cc.png}
+This book is derived
+from the book \\emph{Structure and Interpretation of Computer
+Programs, Second Edition} (SICP) published by the
+Massachusetts Institute of Technology (MIT) in 1996 under the
+Creative Commons Attribution-ShareAlike 4.0 license (CC BY-SA), and
+published here by MIT under the same CC BY-SA license.
 
-All rights reserved. No part of this book may be reproduced in any form by any electronic or mechanical means (including photocopying, recording, or information storage and retrieval) without permission in writing from the publisher.
+\\includegraphics[width=3.5mm]{{img\\string_original/}cc.png}
+The figures are derived
+from figures published by Andres Raba
+under the Creative Commons Attribution-ShareAlike 4.0 license (CC BY-SA)
+and published here by MIT under the same CC BY-SA license.
 
-This book was set in --------- by ---------. Printed and bound in the United States of America.
+\\includegraphics[width=3.5mm]{{img\\string_original/}gnu.png}
+The JavaScript programs are derived
+from the Scheme programs
+published by MIT under the GNU General Public License v2.0 in SICP 
+and published here by MIT under the GNU General Public License v3.0.
+
+\\includegraphics[width=9mm]{{img\\string_original/}apache.png}
+The adapters formatted the \\LaTeX\\ sources of SICP
+in XML, added the adaptation to the XML, compiled the adaptation 
+from XML to \\LaTeX\\ 
+with JavaScript programs using \\texttt{Node.js}, and compiled
+the \\LaTeX\\ 
+to PDF using \\texttt{pdfTeX}\\ (\\TeX\\ Live 2020). These programs 
+and ancillary scripts are
+published by the Source Academy organization at 
+\\url{https://github.com/source-academy} under the Apache License 2.0.
+
+The original image of MIT founder William Barton Rogers is 
+reprinted in section 2.2.4 with the permission of the MIT Museum.
+
+The cover image is adapted from \\emph{Le Moyen Age et la Renaissance},  
+Paris, 1848--1851.
+
+Printed and bound in the United States of America.
 
 Library of Congress Cataloging-in-Publication Data is available.
 
