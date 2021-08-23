@@ -382,8 +382,25 @@ const processTextFunctions = {
   },
 
   QUOTE: (node, obj) => {
-    processTextJson(node.firstChild, obj);
-    obj["body"] = '"' + obj["body"] + '"';
+    const doubleQuotationMark = {
+      body: '"',
+      tag: "#text"
+    };
+
+    const singleQuotationMark = {
+      body: "'",
+      tag: "#text"
+    };
+
+    recursiveProcessTextJson(node.firstChild, obj);
+
+    if (ancestorHasTag(node, "QUOTE")) {
+      obj["child"].unshift(singleQuotationMark);
+      obj["child"].push(singleQuotationMark);
+    } else {
+      obj["child"].unshift(doubleQuotationMark);
+      obj["child"].push(doubleQuotationMark);
+    }
   }
 };
 
