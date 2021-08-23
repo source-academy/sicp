@@ -756,36 +756,43 @@ Cambridge, Massachusetts\\\\
 London, England}
 
 \\begin{copyrightpage}
-\\includegraphics[width=3.5mm]{{img\\string_original/}cc.png}
-This book is derived
+\\copyright\\ 2022 Massachusetts Institute of Technology
+
+This book is published by The MIT Press under
+a Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International License
+(CC BY-NC-SA).
+To view a copy of this license, visit
+\\url{http://creativecommons.org/licenses/by-nc-sa/4.0/}.
+
+\\vspace{3mm}
+
+\\centerline{\\includegraphics[width=24mm]{{img\\string_original/}BY-NC-SA.png}}
+
+The text of this book is derived
 from the book \\emph{Structure and Interpretation of Computer
-Programs, Second Edition} (SICP) published by the
-Massachusetts Institute of Technology (MIT) in 1996 under the
-Creative Commons Attribution-ShareAlike 4.0 license (CC BY-SA), and
-published here by MIT under the same CC BY-SA license.
-
-\\includegraphics[width=3.5mm]{{img\\string_original/}cc.png}
+Programs, Second Edition}, 1996, (SICP) and is subject to
+a Creative Commons Attribution-ShareAlike 4.0 International License
+(CC BY-SA). A comparison edition available at 
+\\url{http://sicp.sourceacademy.org} indicates the changes that were made 
+to the text.
 The figures are derived
-from figures published by Andres Raba
-under the Creative Commons Attribution-ShareAlike 4.0 license (CC BY-SA)
-and published here by MIT under the same CC BY-SA license.
+from figures created by Andres Raba in 2015 and are also subject to
+CC BY-SA.
+To view a copy of this license, visit
+\\url{http://creativecommons.org/licenses/by-sa/4.0/}.
 
-\\includegraphics[width=3.5mm]{{img\\string_original/}gnu.png}
-The JavaScript programs are derived
-from the Scheme programs
-published by MIT under the GNU General Public License v2.0 in SICP 
-and published here by MIT under the GNU General Public License v3.0.
+\\vspace{3mm}
 
-\\includegraphics[width=9mm]{{img\\string_original/}apache.png}
-The adapters formatted the \\LaTeX\\ sources of SICP
-in XML, added the adaptation to the XML, compiled the adaptation 
-from XML to \\LaTeX\\ 
-with JavaScript programs using \\texttt{Node.js}, and compiled
-the \\LaTeX\\ 
-to PDF using \\texttt{pdfTeX}\\ (\\TeX\\ Live 2020). These programs 
-and ancillary scripts are
-published by the Source Academy organization at 
-\\url{https://github.com/source-academy} under the Apache License 2.0.
+\\centerline{\\includegraphics[width=24mm]{{img\\string_original/}BY-SA.png}}
+
+The JavaScript programs in this book are derived
+from the Scheme programs in SICP and are subject to
+the GNU General Public License v3.0. To view a copy of this license,
+visit \\url{https://www.gnu.org/licenses/gpl-3.0.html}.
+
+\\vspace{3mm}
+
+\\centerline{\\includegraphics[width=24mm]{{img\\string_original/}gpl-v3.pdf}}
 
 The original image of MIT founder William Barton Rogers is 
 reprinted in section 2.2.4 with the permission of the MIT Museum.
@@ -793,7 +800,9 @@ reprinted in section 2.2.4 with the permission of the MIT Museum.
 The cover image is adapted from \\emph{Le Moyen Age et la Renaissance},  
 Paris, 1848--1851.
 
-Printed and bound in the United States of America.
+This book was set in Times by the authors using the \\LaTeX\\ typesetting system 
+and ancillary scripts (see \\url{https://github.com/source-academy/sicp}), and
+was printed and bound in the United States of America.
 
 Library of Congress Cataloging-in-Publication Data is available.
 
