@@ -11,6 +11,7 @@ GENERATED_JS="js_programs"
 GENERATED_JSON="json"
 PDF_FILE="sicpjs.pdf"
 LOG_FILE="sicpjs.log"
+ILG_FILE="sicpjs.ilg"
 EPUB_FILE="sicpjs.epub"
 
 # RESOURCES
@@ -68,6 +69,7 @@ prepare() {
  	[ ! -f ${STYLESHEET} ] || cp ${STYLESHEET} ${DOCS}/assets/stylesheet.css
  	[ ! -f ${LATEX_PDF}/${PDF_FILE} ] || cp ${LATEX_PDF}/${PDF_FILE} ${DOCS}
  	[ ! -f ${LATEX_PDF}/${LOG_FILE} ] || cp ${LATEX_PDF}/${LOG_FILE} ${DOCS}
+	[ ! -f ${LATEX_PDF}/${ILG_FILE} ] || cp ${LATEX_PDF}/${ILG_FILE} ${DOCS}
  	[ ! -f ${LATEX_EPUB}/${EPUB_FILE} ] || cp ${LATEX_EPUB}/${EPUB_FILE} ${DOCS}
  	[ ! -f ${GENERATED_HTML}/index.html ] || cp -rf ${GENERATED_HTML}/* ${DOCS}
  	[ ! -d ${GENERATED_JS} ] || ( zip -r ${ZIP_FILE} ${GENERATED_JS}; \
