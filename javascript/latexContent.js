@@ -3,15 +3,16 @@ const title = `\\begin{titlepage}
 \\textbf{Generated: \\DTMnow}\\\\[1em]
   \\includegraphics[width=0.6\\textwidth]{./sicp.png}\\par
   {\\LARGE\\bfseries Structure and Interpretation of Computer
-  Programs, Second Edition\\\\}
+  Programs\\\\}
   {\\LARGE\\bfseries JavaScript Adaptation\\par}
   \\vspace{0.5cm}
   \\begin{flushright}
   {\\Large Harold Abelson and Gerald Jay Sussman \\\\}
-  {\\large with Julie Sussman \\par}
   \\vspace{0.5cm}
   {\\textit{adapted to JavaScript by}\\par}
   {\\Large Martin Henz and Tobias Wrigstad \\\\}
+  \\vspace{0.5cm}
+  {\\Large with Julie Sussman \\par}
   \\end{flushright}
 
   \\vspace{0.2cm}
@@ -738,18 +739,31 @@ export const frontmatter = `
 
 \\frontmatter
 
-\\HalfTitle{Structure and Interpretation of Computer Programs, Second Edition --- JavaScript Adaptation}
+\\HalfTitle{Structure and Interpretation of Computer Programs
+\\begin{minipage}{12cm}
+\\vspace{3.5mm}
+\\normalsize JavaScript Adaptation
+\\end{minipage}
+}
 
 \\halftitlepage
 
 \\cleardoublepage
 
 \\Title{Structure and Interpretation of Computer Programs}
-\\Booksubtitle{JavaScript Adaptation}
 
-\\edition{}
+\\edition{JavaScript Adaptation}
 
-\\BookAuthor{Harold Abelson and Gerald Jay Sussman with Julie Sussman \\newline adapted to JavaScript by Martin Henz and Tobias Wrigstad}
+\\BookAuthor{Harold Abelson and Gerald Jay Sussman
+\\begin{minipage}{12cm}
+\\vspace{3.5mm}
+adapted to JavaScript by Martin Henz and Tobias Wrigstad
+\\end{minipage}
+\\begin{minipage}{12cm}
+\\vspace{3.5mm}
+with Julie Sussman
+\\end{minipage}
+}
 
 \\imprint{The MIT Press\\\\
 Cambridge, Massachusetts\\\\
@@ -764,9 +778,11 @@ a Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International Licens
 To view a copy of this license, visit
 \\url{http://creativecommons.org/licenses/by-nc-sa/4.0/}.
 
-\\vspace{3mm}
+\\vspace{2mm}
 
 \\centerline{\\includegraphics[width=24mm]{{img\\string_original/}BY-NC-SA.png}}
+
+\\vspace{3mm}
 
 The text of this book is derived
 from the book \\emph{Structure and Interpretation of Computer
@@ -781,18 +797,22 @@ CC BY-SA.
 To view a copy of this license, visit
 \\url{http://creativecommons.org/licenses/by-sa/4.0/}.
 
-\\vspace{3mm}
+\\vspace{2mm}
 
 \\centerline{\\includegraphics[width=24mm]{{img\\string_original/}BY-SA.png}}
+
+\\vspace{3mm}
 
 The JavaScript programs in this book are derived
 from the Scheme programs in SICP and are subject to
 the GNU General Public License v3.0. To view a copy of this license,
 visit \\url{https://www.gnu.org/licenses/gpl-3.0.html}.
 
-\\vspace{3mm}
+\\vspace{2mm}
 
 \\centerline{\\includegraphics[width=24mm]{{img\\string_original/}gpl-v3.pdf}}
+
+\\vspace{3mm}
 
 The original image of MIT founder William Barton Rogers is 
 reprinted in section 2.2.4 with the permission of the MIT Museum.
@@ -860,7 +880,7 @@ you were first led up to it, that you can make it more.''\\end{minipage}}{\\norm
 
 \\cleardoublepage
 
-\\HalfTitle{Structure and Interpretation of Computer Programs, Second Edition --- JavaScript Adaptation}
+\\HalfTitle{Structure and Interpretation of Computer Programs --- JavaScript Adaptation}
 \\halftitlepage
 \\cleardoublepage
 
