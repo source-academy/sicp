@@ -201,8 +201,6 @@ const processTextFunctionsDefaultHtml = {
 
   NOINDENT: (node, writeTo) => {},
 
-  EXERCISE_STARTING_WITH_ITEMS: (node, writeTo) => {},
-
   EXERCISE_FOLLOWED_BY_TEXT: (node, writeTo) => {},
 
   EXERCISE: (node, writeTo) => {

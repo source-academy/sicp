@@ -199,10 +199,6 @@ const processTextFunctionsDefaultLatex = {
     writeTo.push("\\noindent ");
   },
 
-  EXERCISE_STARTING_WITH_ITEMS: (node, writeTo) => {
-    // writeTo.push("\\vspace{-5mm}");
-  },
-
   EXERCISE_FOLLOWED_BY_TEXT: (node, writeTo) => {
     writeTo.push("\\vspace{5mm}");
   },

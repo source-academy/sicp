@@ -44,7 +44,6 @@ export const tagsToRemove = new Set([
   "CODEINDEX",
   "EXPLANATION",
   "NOINDENT",
-  "EXERCISE_STARTING_WITH_ITEMS",
   "EXERCISE_FOLLOWED_BY_TEXT",
   "SOFT_HYP",
   "WATCH",

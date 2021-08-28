@@ -74,7 +74,6 @@ export const preserveTags = new Set([
   "B",
   "BLOCKQUOTE",
   "NOINDENT",
-  "EXERCISE_STARTING_WITH_ITEMS",
   "EXERCISE_FOLLOWED_BY_TEXT",
   "EM",
   "QUOTE",
