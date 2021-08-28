@@ -12,12 +12,10 @@ https://github.com/source-academy/sicp/wiki
 ## Licenses
 
 [![CC BY-SA 4.0][cc-by-sa-image]][cc-by-sa] 
-The text of SICP JS is licensed by the authors and adapters under a [Creative Commons Attribution-ShareAlike 4.0
-International License][cc-by-sa].
+The text of SICP JS is derived from the book *Structure and Interpretation of Computer Programs*, Second Edition, 1996, (SICP) and is licensed by the authors and adapters under a [Creative Commons Attribution-ShareAlike 4.0 International License](cc-by-sa) (CC BY-SA). A [comparison edition](http://sicp.sourceacademy.org) indicates the changes that were made to the text. The figures are derived from figures created by Andres Raba in 2015 and are also subject to CC BY-SA.
 
 [![GPL 3][gpl3-image]][gpl3]
-All JavaScript and Scheme programs that appear in SICP and SICP JS are licensed under the 
-[GNU General Public License Version 3][gpl3].
+The JavaScript programs in SICP JS are derived from the Scheme programs in SICP and are subject to the [GNU General Public License v3.0](gpl3]. 
 
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 All JavaScript and TypeScript programs that generate the SICP (JS) versions are licensed
