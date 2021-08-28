@@ -44,7 +44,7 @@ pdf() {
 	yarn process pdf; yarn process pdf; \
         cd ${LATEX_PDF}; \
         cp -f ../mitpress/crop.sty .; \
-	latexmk -silent -pdf -pdflatex="pdflatex --synctex=1" -f ${OUTPUT_FILE}
+	latexmk -verbose -pdf -r ../scripts/latexmkrc -pdflatex="pdflatex --synctex=1" -f ${OUTPUT_FILE}
 }
 
 epub() {
