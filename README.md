@@ -11,9 +11,9 @@ https://github.com/source-academy/sicp/wiki
 
 ## Licenses
 
-[![CC BY-NC-SA 4.0][cc-by-nc-sa-image]][cc-by-nc-sa] 
-The text of SICP JS is licensed under a [Creative Commons Attribution-NonCommercial-ShareAlike 4.0
-International License][cc-by-nc-sa].
+[![CC BY-SA 4.0][cc-by-sa-image]][cc-by-sa] 
+The text of SICP JS is licensed under a [Creative Commons Attribution-ShareAlike 4.0
+International License][cc-by-sa].
 
 [![GPL 3][gpl3-image]][gpl3]
 All JavaScript and Scheme programs that appear in SICP and SICP JS are licensed under the 
