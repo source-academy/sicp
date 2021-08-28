@@ -4,6 +4,7 @@ import processFileInput from "./processFileInput";
 import recursiveProcessPureText from "./recursiveProcessPureText";
 
 import { recursiveProcessTextLatex } from "../parseXmlLatex";
+import processAttributionPdf from "./processAttributionPdf";
 import processEpigraphPdf from "./processEpigraphPdf";
 import processExercisePdf from "./processExercisePdf";
 import processExerciseEpub from "./processExerciseEpub";
@@ -56,6 +57,7 @@ export {
   replaceTagWithSymbol,
   processFileInput,
   recursiveProcessPureText,
+  processAttributionPdf,
   processEpigraphPdf,
   processFigurePdf,
   processFigureEpub,

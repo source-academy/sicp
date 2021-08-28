@@ -195,6 +195,11 @@ const processTextFunctionsDefaultHtml = {
     processEpigraphHtml(node, writeTo);
   },
 
+  // Tobias: signature is alias for epigraph in the HTML version
+  SIGNATURE: (node, writeTo) => {
+    processEpigraphHtml(node, writeTo);
+  },
+
   BLOCKQUOTE: (node, writeTo) => {
     processBlockquoteHtml(node, writeTo);
   },
