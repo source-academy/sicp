@@ -814,8 +814,8 @@ visit \\url{https://www.gnu.org/licenses/gpl-3.0.html}.
 
 \\vspace{3mm}
 
-The original image of MIT founder William Barton Rogers is 
-reprinted in section 2.2.4 with the permission of the MIT Museum.
+The original image of MIT founder William Barton Rogers
+in section 2.2.4 is courtesy the MIT Museum.
 
 The cover image is adapted from \\emph{Le Moyen Age et la Renaissance},  
 Paris, 1848--1851.
