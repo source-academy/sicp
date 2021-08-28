@@ -222,7 +222,7 @@ const processTextFunctionsDefaultLatex = {
   },
 
   SIGNATURE: (node, writeTo) => {
-    writeTo.push("\\bigskip\n\\begin{flushleft}");
+    writeTo.push("\\medskip\n\\begin{flushleft}");
     for (let child = node.firstChild; child; child = child.nextSibling) {
       if (child.nodeName == "ATTRIBUTION") {
         processAttributionPdf(node, writeTo);
