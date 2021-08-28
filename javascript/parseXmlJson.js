@@ -177,6 +177,8 @@ const processTextFunctions = {
     processTextJson(node, obj);
   },
 
+  SIGNATURE: (node, obj) => processTextFunctions["EPIGRAPH"](node, obj),
+
   EPIGRAPH: (node, obj) => {
     processEpigraphJson(node, obj);
   },
