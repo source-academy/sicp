@@ -5,6 +5,7 @@ import { parseType } from "./index";
 import {
   replaceTagWithSymbol,
   processEpigraphPdf,
+  processAttributionPdf,
   processFigurePdf,
   processFigureEpub,
   generateImage,
@@ -218,6 +219,17 @@ const processTextFunctionsDefaultLatex = {
     writeTo.push("{\\em ");
     recursiveProcessTextLatex(node.firstChild, writeTo);
     writeTo.push("}");
+  },
+
+  SIGNATURE: (node, writeTo) => {
+    writeTo.push("\\bigskip\n\\begin{flushleft}");
+    for (let child = node.firstChild; child; child = child.nextSibling) {
+      if (child.nodeName == "ATTRIBUTION") {
+        processAttributionPdf(node, writeTo);
+        break;
+      }
+    }
+    writeTo.push("\\end{flushleft}");
   },
 
   EPIGRAPH: (node, writeTo) => {

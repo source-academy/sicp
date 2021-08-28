@@ -171,6 +171,11 @@ export const processTextFunctionsHtml = {
     processEpigraphHtml(node, writeTo);
   },
 
+  // Tobias: signature is alias for epigraph in the HTML version
+  SIGNATURE: (node, writeTo) => {
+    processEpigraphHtml(node, writeTo);
+  },
+
   EXERCISE: (node, writeTo) => {
     exercise_count += 1;
     processExerciseHtml(node, writeTo, chapArrIndex, exercise_count);
