@@ -826,7 +826,7 @@ was printed and bound in the United States of America.
 
 Library of Congress Cataloging-in-Publication Data is available.
 
-ISBN:
+ISBN: 9780262543231
 
 10\\quad9\\quad8\\quad7\\quad6\\quad5\\quad4\\quad3\\quad2\\quad1
 \\end{copyrightpage}
@@ -880,7 +880,12 @@ you were first led up to it, that you can make it more.''\\end{minipage}}{\\norm
 
 \\cleardoublepage
 
-\\HalfTitle{Structure and Interpretation of Computer Programs --- JavaScript Adaptation}
+\\HalfTitle{Structure and Interpretation of Computer Programs
+\\begin{minipage}{12cm}
+\\vspace{3.5mm}
+\\normalsize JavaScript Adaptation
+\\end{minipage}
+}
 \\halftitlepage
 \\cleardoublepage
 
