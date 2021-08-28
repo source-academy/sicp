@@ -12,7 +12,7 @@ https://github.com/source-academy/sicp/wiki
 ## Licenses
 
 [![CC BY-SA 4.0][cc-by-sa-image]][cc-by-sa] 
-The text of SICP JS is licensed under a [Creative Commons Attribution-ShareAlike 4.0
+The text of SICP JS is licensed by the authors and adapters under a [Creative Commons Attribution-ShareAlike 4.0
 International License][cc-by-sa].
 
 [![GPL 3][gpl3-image]][gpl3]
