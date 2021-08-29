@@ -370,6 +370,8 @@ const processTextFunctionsDefaultLatex = {
       margintext += "\\indexmarginpar{" + prefix + marginStr + "}";
       inlinetext += "\\indexinline{" + prefix + marginStr + "}";
     } else {
+      writeTo.push(indexStr.replace(/-/g, " "));
+      writeTo.push("@");
       margintext += "\\indexmarginpar{" + prefix + marginStr + "}";
       inlinetext += "\\indexinline{" + prefix + marginStr + "}";
     }
@@ -451,6 +453,8 @@ const processTextFunctionsDefaultLatex = {
         margintext += "\\subindexmarginpar{" + prefix + subIndexStr + "}";
         inlinetext += "\\subindexinline{" + prefix + subIndexStr + "}";
       } else {
+        writeTo.push(subIndexStr.replace(/-/g, " "));
+        writeTo.push("@");
         margintext += "\\subindexmarginpar{" + prefix + subIndexStr + "}";
         inlinetext += "\\subindexinline{" + prefix + subIndexStr + "}";
       }
