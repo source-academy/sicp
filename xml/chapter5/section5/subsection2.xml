@@ -268,69 +268,48 @@ function compile_name(component, target, linkage) {
     </SPLITINLINE>
     are handled much as they are in the
     interpreter.
-    We recursively generate code that computes the value to be
-    <SPLITINLINE>
-      <SCHEME>assigned to the variable,</SCHEME>
-    <JAVASCRIPT>associated with the symbol,</JAVASCRIPT></SPLITINLINE>
-    and
-    <SPLITINLINE>
-      <JAVASCRIPT>
-	use <JAVASCRIPTINLINE>compile_assignment_declaration</JAVASCRIPTINLINE> to
-      </JAVASCRIPT>
-    </SPLITINLINE>
-    append to it a two-instruction sequence that
     <SPLITINLINE>
       <SCHEME>
-        actually sets or defines the variable
+        We recursively generate code that computes the value to be
+        assigned to the variable, and append to it a
+        two-instruction sequence that actually sets or defines the
+        variable and assigns the value of the whole expression
+        (the symbol <SCHEMEINLINE>ok</SCHEMEINLINE>) to the target
+        register. The recursive compilation has target
+        <SCHEMEINLINE>val</SCHEMEINLINE> and linkage
+        <SCHEMEINLINE>next</SCHEMEINLINE> so that the code will
+        put its result into <SCHEMEINLINE>val</SCHEMEINLINE> and
+        continue with the code that is appended after it. The
+        appending is done preserving
+        <SCHEMEINLINE>env</SCHEMEINLINE>, since the environment is
+        needed for setting or defining the variable and the code
+        for the variable value could be the compilation of a
+        complex expression that might modify the registers in
+        arbitrary ways.
       </SCHEME>
       <JAVASCRIPT>
-        updates the value associated with the symbol in the environment
+        The function <JAVASCRIPTINLINE>compile_assignment_declaration</JAVASCRIPTINLINE>
+        recursively generates code that computes the value to be
+        associated with the symbol, appends to it a two-instruction
+        sequence that updates the value associated with the symbol
+        in the environment, and assigns the value of the whole component
+        (the <JAVASCRIPTINLINE>final_value</JAVASCRIPTINLINE>) to the
+        target register. For an assignment, the
+        <JAVASCRIPTINLINE>final_value</JAVASCRIPTINLINE> is the
+        assigned value, and for a declaration it is <JAVASCRIPTINLINE>undefined</JAVASCRIPTINLINE>.
+
+        The recursive compilation has target
+        <JAVASCRIPTINLINE>val</JAVASCRIPTINLINE> and linkage
+        <JAVASCRIPTINLINE>"next"</JAVASCRIPTINLINE> so that the code
+        will put its result into <JAVASCRIPTINLINE>val</JAVASCRIPTINLINE>
+        and continue with the code that is appended after it. The
+        appending is done preserving <JAVASCRIPTINLINE>env</JAVASCRIPTINLINE>,
+        since the environment is needed for updating the symbol<ENDASH/>value
+        association and the code for computing the value could be the compilation
+        of a complex expression that might modify the registers in
+        arbitrary ways.
       </JAVASCRIPT>
     </SPLITINLINE>
-    and assigns the
-    value of the whole
-    <SPLITINLINE>
-      <SCHEME>expression</SCHEME>
-      <JAVASCRIPT>component</JAVASCRIPT>
-    </SPLITINLINE>
-    <SPLITINLINE>
-      <SCHEME>
-	(the symbol <SCHEMEINLINE>ok</SCHEMEINLINE>)
-      </SCHEME>
-    </SPLITINLINE>
-    to the target register.  The recursive compilation has target
-    <SCHEMEINLINE>val</SCHEMEINLINE> and linkage
-    <SPLITINLINE>
-      <SCHEME>
-	<SCHEMEINLINE>next</SCHEMEINLINE>
-      </SCHEME>
-      <JAVASCRIPT>
-	<JAVASCRIPTINLINE>"next"</JAVASCRIPTINLINE>
-      </JAVASCRIPT>
-    </SPLITINLINE>
-    so that the code will put its result into
-    <SCHEMEINLINE>val</SCHEMEINLINE> and continue with the code that is appended
-    after it.  The appending is done preserving <SCHEMEINLINE>env</SCHEMEINLINE>,
-    since the environment is needed for
-    <SPLITINLINE>
-      <SCHEME>setting or defining the variable</SCHEME>
-      <JAVASCRIPT>updating the symbol<ENDASH/><PDF_ONLY>\linebreak[0]</PDF_ONLY>value association</JAVASCRIPT>
-    </SPLITINLINE>
-    and the code for
-    <SPLITINLINE>
-      <SCHEME>the variable</SCHEME>
-      <JAVASCRIPT>computing the</JAVASCRIPT>
-    </SPLITINLINE>
-    value could be the compilation of a complex expression
-    that might modify the registers in arbitrary ways.
-    <SPLIT>
-      <JAVASCRIPT>
-	The parameter <JAVASCRIPTINLINE>final_value</JAVASCRIPTINLINE>
-        of <JAVASCRIPTINLINE>compile_assignment_declaration</JAVASCRIPTINLINE>
-	lets declarations return <JAVASCRIPTINLINE>undefined</JAVASCRIPTINLINE> and assignments
-	return the assigned value.
-      </JAVASCRIPT>
-    </SPLIT>
     <SNIPPET EVAL="no">
       <INDEX><DECLARATION>compile_assignment</DECLARATION></INDEX>
       <INDEX><DECLARATION>compile_declaration</DECLARATION></INDEX>
@@ -384,9 +363,10 @@ function compile_declaration(component, target, linkage) {
 function compile_assignment_declaration(
              symbol, value_expression, final_value,
              target, linkage) {
+  const get_value_code = compile(value_expression, "val", "next");
   return end_with_linkage(linkage,
            preserving(list("env"),
-             compile(value_expression, "val", "next"),
+             get_value_code,
              make_instruction_sequence(list("env", "val"),
                                        list(target),
                list(perform(list(op("assign_symbol_value"),
@@ -404,7 +384,7 @@ function compile_assignment_declaration(
     <SCHEMEINLINE>val</SCHEMEINLINE>, because the
     <SPLITINLINE>
       <SCHEME><SCHEMEINLINE>get-value-code</SCHEMEINLINE></SCHEME>
-      <JAVASCRIPT><JAVASCRIPTINLINE>value_code</JAVASCRIPTINLINE>
+      <JAVASCRIPT><JAVASCRIPTINLINE>get_value_code</JAVASCRIPTINLINE> 
       </JAVASCRIPT>
     </SPLITINLINE>
     is designed to explicitly place its result in
@@ -414,7 +394,7 @@ function compile_assignment_declaration(
     <SCHEMEINLINE>val</SCHEMEINLINE> to be restored right after the
     <SPLITINLINE>
       <SCHEME><SCHEMEINLINE>get-value-code</SCHEMEINLINE></SCHEME>
-      <JAVASCRIPT><JAVASCRIPTINLINE>value_code</JAVASCRIPTINLINE>
+      <JAVASCRIPT><JAVASCRIPTINLINE>get_value_code</JAVASCRIPTINLINE>
       </JAVASCRIPT>
     </SPLITINLINE>
     is run.)
