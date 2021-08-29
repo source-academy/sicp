@@ -339,6 +339,14 @@ const processTextFunctionsDefaultLatex = {
         // ORDER overrides
         recursiveProcessTextLatex(order.firstChild, writeTo);
       } else {
+        declaration.firstChild.data = declaration.firstChild.data.replace(
+          /_/g,
+          " "
+        );
+        declaration.firstChild.nodeValue = declaration.firstChild.nodeValue.replace(
+          /_/g,
+          " "
+        );
         recursiveProcessTextLatex(declaration.firstChild, writeTo);
       }
       writeTo.push("@");
@@ -349,6 +357,8 @@ const processTextFunctionsDefaultLatex = {
         // ORDER overrides
         recursiveProcessTextLatex(order.firstChild, writeTo);
       } else {
+        use.firstChild.data = use.firstChild.data.replace(/_/g, " ");
+        use.firstChild.nodeValue = use.firstChild.nodeValue.replace(/_/g, " ");
         recursiveProcessTextLatex(use.firstChild, writeTo);
       }
       writeTo.push("@");
@@ -405,6 +415,14 @@ const processTextFunctionsDefaultLatex = {
           // ORDER overrides
           recursiveProcessTextLatex(order.firstChild, writeTo);
         } else {
+          declaration.firstChild.data = declaration.firstChild.data.replace(
+            /_/g,
+            " "
+          );
+          declaration.firstChild.nodeValue = declaration.firstChild.nodeValue.replace(
+            /_/g,
+            " "
+          );
           recursiveProcessTextLatex(declaration.firstChild, writeTo);
         }
         writeTo.push("@");
@@ -417,6 +435,11 @@ const processTextFunctionsDefaultLatex = {
           // ORDER overrides
           recursiveProcessTextLatex(order.firstChild, writeTo);
         } else {
+          use.firstChild.data = use.firstChild.data.replace(/_/g, " ");
+          use.firstChild.nodeValue = use.firstChild.nodeValue.replace(
+            /_/g,
+            " "
+          );
           recursiveProcessTextLatex(use.firstChild, writeTo);
         }
         writeTo.push("@");
