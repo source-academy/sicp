@@ -869,7 +869,7 @@ you were first led up to it, that you can make it more.''\\end{minipage}}{\\norm
 \\pagestyle{Preface}
 \\input{./others/03prefaces03.tex}
 %% \\pagestyle{Preface1996}
-%% \\input{./others/03prefaces96.tex}
+\\input{./others/03prefaces96.tex}
 %% \\pagestyle{Preface1984}
 %% \\input{./others/03prefaces84.tex}
 
