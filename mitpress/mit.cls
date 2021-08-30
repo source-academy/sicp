@@ -1850,10 +1850,10 @@ Chapter \arabic{chapter}}%
 }%
 
 % Colors blue/magenta/blue for debugging
-\RequirePackage[bookmarks=true,bookmarksnumbered=true,bookmarksopenlevel=1,colorlinks=true,breaklinks,linkcolor=blue,citecolor=magenta,urlcolor=blue]{hyperref}
+% \RequirePackage[bookmarks=true,bookmarksnumbered=true,bookmarksopenlevel=1,colorlinks=true,breaklinks,linkcolor=blue,citecolor=magenta,urlcolor=blue]{hyperref}
 
 % Colors black/black/black for final print
-%\RequirePackage[bookmarks=true,bookmarksnumbered=true,bookmarksopenlevel=1,colorlinks=true,breaklinks,linkcolor=black,citecolor=black,urlcolor=black]{hyperref}
+\RequirePackage[bookmarks=true,bookmarksnumbered=true,bookmarksopenlevel=1,colorlinks=true,breaklinks,linkcolor=black,citecolor=black,urlcolor=black]{hyperref}
 
 \ifxetex\relax\else\usepackage{breakurl}\fi%
 %\ifluatex\relax\else\usepackage{breakurl}\fi%
