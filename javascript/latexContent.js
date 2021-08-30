@@ -212,15 +212,15 @@ export const preamble = `\\documentclass[7x10]{../mitpress/mit}
 \\fancypagestyle{Preface}{
   \\renewcommand{\\headrulewidth}{0.4pt}
   \\fancyhead[LE,RO]{\\small\\usefont{T1}{ptm}{m}{it}\\thepage}
-  \\fancyhead[RE]{\\small\\usefont{T1}{ptm}{m}{it} Prefaces}
-  \\fancyhead[LO]{\\small\\usefont{T1}{ptm}{m}{it} Prefaces}
+  \\fancyhead[RE]{\\small\\usefont{T1}{ptm}{m}{it} Preface}
+  \\fancyhead[LO]{\\small\\usefont{T1}{ptm}{m}{it} Preface}
 }
 
 \\fancypagestyle{Preface1996}{
   \\renewcommand{\\headrulewidth}{0.4pt}
   \\fancyhead[LE,RO]{\\small\\usefont{T1}{ptm}{m}{it}\\thepage}
-  \\fancyhead[RE]{\\small\\usefont{T1}{ptm}{m}{it} Preface to SICP, 1996}
-  \\fancyhead[LO]{\\small\\usefont{T1}{ptm}{m}{it} Preface to SICP, 1996}
+  \\fancyhead[RE]{\\small\\usefont{T1}{ptm}{m}{it} Prefaces to SICP}
+  \\fancyhead[LO]{\\small\\usefont{T1}{ptm}{m}{it} Prefaces to SICP}
 }
 
 \\fancypagestyle{Preface1984}{
@@ -868,7 +868,7 @@ you were first led up to it, that you can make it more.''\\end{minipage}}{\\norm
 \\cleardoublepage
 \\pagestyle{Preface}
 \\input{./others/03prefaces03.tex}
-%% \\pagestyle{Preface1996}
+\\pagestyle{Preface1996}
 \\input{./others/03prefaces96.tex}
 %% \\pagestyle{Preface1984}
 %% \\input{./others/03prefaces84.tex}
