@@ -198,8 +198,8 @@ export const preamble = `\\documentclass[7x10]{../mitpress/mit}
 \\fancypagestyle{Foreword}{
   \\renewcommand{\\headrulewidth}{0.4pt}
   \\fancyhead[LE,RO]{\\small\\usefont{T1}{ptm}{m}{it}\\thepage}
-  \\fancyhead[RE]{\\small\\usefont{T1}{ptm}{m}{it} Foreword}
-  \\fancyhead[LO]{\\small\\usefont{T1}{ptm}{m}{it} Foreword}
+  \\fancyhead[RE]{\\small\\usefont{T1}{ptm}{m}{it} Forewords}
+  \\fancyhead[LO]{\\small\\usefont{T1}{ptm}{m}{it} Forewords}
 }
 
 \\fancypagestyle{Foreword1984}{
@@ -212,8 +212,8 @@ export const preamble = `\\documentclass[7x10]{../mitpress/mit}
 \\fancypagestyle{Preface}{
   \\renewcommand{\\headrulewidth}{0.4pt}
   \\fancyhead[LE,RO]{\\small\\usefont{T1}{ptm}{m}{it}\\thepage}
-  \\fancyhead[RE]{\\small\\usefont{T1}{ptm}{m}{it} Preface}
-  \\fancyhead[LO]{\\small\\usefont{T1}{ptm}{m}{it} Preface}
+  \\fancyhead[RE]{\\small\\usefont{T1}{ptm}{m}{it} Prefaces}
+  \\fancyhead[LO]{\\small\\usefont{T1}{ptm}{m}{it} Prefaces}
 }
 
 \\fancypagestyle{Preface1996}{
@@ -868,15 +868,15 @@ you were first led up to it, that you can make it more.''\\end{minipage}}{\\norm
 \\cleardoublepage
 \\pagestyle{Preface}
 \\input{./others/03prefaces03.tex}
-\\pagestyle{Preface1996}
-\\input{./others/03prefaces96.tex}
-\\pagestyle{Preface1984}
-\\input{./others/03prefaces84.tex}
+%% \\pagestyle{Preface1996}
+%% \\input{./others/03prefaces96.tex}
+%% \\pagestyle{Preface1984}
+%% \\input{./others/03prefaces84.tex}
 
 \\cleardoublepage
 \\pagestyle{Acknowledgements}
 \\input{./others/04acknowledgements04.tex}
-\\input{./others/05acknowledgements05.tex}
+%% \\input{./others/05acknowledgements05.tex}
 
 \\cleardoublepage
 
