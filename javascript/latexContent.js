@@ -786,7 +786,7 @@ To view a copy of this license, visit
 
 The text of this book is derived
 from the book \\emph{Structure and Interpretation of Computer
-Programs, Second Edition}, 1996, (SICP2e) and is subject to
+Programs, Second Edition}, 1996, (SICP) and is subject to
 a Creative Commons Attribution-ShareAlike 4.0 International License
 (CC BY-SA). A comparison edition available at 
 \\url{http://sicp.sourceacademy.org} indicates the changes that were made 
@@ -804,7 +804,7 @@ To view a copy of this license, visit
 \\vspace{3mm}
 
 The JavaScript programs in this book are derived
-from the Scheme programs in SICP2e and are subject to
+from the Scheme programs in SICP and are subject to
 the GNU General Public License v3.0. To view a copy of this license,
 visit \\url{https://www.gnu.org/licenses/gpl-3.0.html}.
 
