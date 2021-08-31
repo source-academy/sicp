@@ -4,7 +4,7 @@ const title = `\\begin{titlepage}
   \\includegraphics[width=0.6\\textwidth]{./sicp.png}\\par
   {\\LARGE\\bfseries Structure and Interpretation of Computer
   Programs\\\\}
-  {\\LARGE\\bfseries JavaScript Adaptation\\par}
+  {\\LARGE\\bfseries JavaScript Edition\\par}
   \\vspace{0.5cm}
   \\begin{flushright}
   {\\Large Harold Abelson and Gerald Jay Sussman \\\\}
@@ -742,7 +742,7 @@ export const frontmatter = `
 \\HalfTitle{Structure and Interpretation of Computer Programs
 \\begin{minipage}{12cm}
 \\vspace{3.5mm}
-\\normalsize JavaScript Adaptation
+\\normalsize JavaScript Edition
 \\end{minipage}
 }
 
@@ -752,7 +752,7 @@ export const frontmatter = `
 
 \\Title{Structure and Interpretation of Computer Programs}
 
-\\edition{JavaScript Adaptation}
+\\edition{JavaScript Edition}
 
 \\BookAuthor{Harold Abelson and Gerald Jay Sussman
 \\begin{minipage}{12cm}
@@ -883,7 +883,7 @@ you were first led up to it, that you can make it more.''\\end{minipage}}{\\norm
 \\HalfTitle{Structure and Interpretation of Computer Programs
 \\begin{minipage}{12cm}
 \\vspace{3.5mm}
-\\normalsize JavaScript Adaptation
+\\normalsize JavaScript Edition
 \\end{minipage}
 }
 \\halftitlepage
