@@ -1,5 +1,5 @@
 const shortTitleDefault = `SICP &mdash; JS`;
-const longTitleDefault = `Structure and Interpretation of Computer Programs &mdash; JavaScript Adaptation`;
+const longTitleDefault = `Structure and Interpretation of Computer Programs &mdash; JavaScript Edition`;
 let shortTitle = shortTitleDefault;
 let longTitle = longTitleDefault;
 let this_edition = `
