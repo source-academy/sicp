@@ -18,7 +18,7 @@ The [print edition of SICP JS](https://mitpress.mit.edu/books/structure-and-inte
 The text of SICP JS is derived from the book *Structure and Interpretation of Computer Programs*, Second Edition, 1996, (SICP) by Harold Abelson and Gerald Jay Sussman, and is licensed by these original authors and by the adapters Martin Henz and Tobias Wrigstad under a [Creative Commons Attribution-ShareAlike 4.0 International License](cc-by-sa) (CC BY-SA). A [comparison edition](http://sicp.sourceacademy.org) indicates the changes that were made to SICP for the JavaScript edition. The figures are derived from figures created by Andres Raba in 2015 and are also subject to CC BY-SA.
 
 [![GPL 3][gpl3-image]][gpl3]
-The JavaScript programs in SICP JS are derived from the Scheme programs in SICP and are subject to the [GNU General Public License v3.0](gpl3]. 
+The JavaScript programs in SICP JS are derived from the Scheme programs in SICP and are subject to the [GNU General Public License v3.0](gpl3). 
 
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 All JavaScript and TypeScript programs that generate the SICP (JS) versions are licensed
