@@ -4,7 +4,7 @@ This repository contains processing scripts and sources for the textbook SICP JS
 https://sourceacademy.org/sicpjs
 
 More info is in the "About" section (it is at the end of the SICP JS web edition):
-https://sicp.sourceacademy.org/chapters/making-of.html
+https://sourceacademy.org/sicpjs/making-of
 
 Details for developers in the wiki:
 https://github.com/source-academy/sicp/wiki
