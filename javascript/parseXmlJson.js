@@ -383,24 +383,24 @@ const processTextFunctions = {
   },
 
   QUOTE: (node, obj) => {
-    const doubleQuotationMark = {
+    const createDoubleQuotationMark = () => ({
       body: '"',
       tag: "#text"
-    };
+    });
 
-    const singleQuotationMark = {
+    const createSingleQuotationMark = () => ({
       body: "'",
       tag: "#text"
-    };
+    });
 
     recursiveProcessTextJson(node.firstChild, obj);
 
     if (ancestorHasTag(node, "QUOTE")) {
-      obj["child"].unshift(singleQuotationMark);
-      obj["child"].push(singleQuotationMark);
+      obj["child"].unshift(createSingleQuotationMark());
+      obj["child"].push(createSingleQuotationMark());
     } else {
-      obj["child"].unshift(doubleQuotationMark);
-      obj["child"].push(doubleQuotationMark);
+      obj["child"].unshift(createDoubleQuotationMark());
+      obj["child"].push(createDoubleQuotationMark());
     }
   }
 };
