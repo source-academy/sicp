@@ -346,6 +346,17 @@ const processTextFunctions = {
       obj["body"] = "";
       writeTo.forEach(x => (obj["body"] += x));
 
+      // Test for underscores within /texttt{}
+      const regexp = /\\texttt{[a-zA-Z]+_[a-zA-Z_]+}/g;
+      const matches = [...obj["body"].matchAll(regexp)];
+      if (matches.length) {
+        for (const match of matches) {
+          const matchStr = match[0].toString();
+          const newStr = matchStr.replace(/_/g, "\\_")
+          obj["body"] = obj["body"].replace(matchStr, newStr)
+        }
+      }
+
       return;
     }
 
