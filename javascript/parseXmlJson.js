@@ -352,8 +352,8 @@ const processTextFunctions = {
       if (matches.length) {
         for (const match of matches) {
           const matchStr = match[0].toString();
-          const newStr = matchStr.replace(/_/g, "\\_")
-          obj["body"] = obj["body"].replace(matchStr, newStr)
+          const newStr = matchStr.replace(/_/g, "\\_");
+          obj["body"] = obj["body"].replace(matchStr, newStr);
         }
       }
 
