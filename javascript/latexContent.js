@@ -371,7 +371,8 @@ export const preamble = `\\documentclass[7x10]{../mitpress/mit}
    commentstyle=\\usefont{T1}{ptm}{m}{it},
    showstringspaces=false,
    showspaces=false,
-   escapechar=^
+   escapechar=^,
+   upquote=true
 }
 
 \\makeatletter
