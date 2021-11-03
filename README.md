@@ -3,9 +3,9 @@
 This repository contains processing scripts and sources for the textbook SICP JS: *Structure and Interpretation of Computer Programs, JavaScript Edition* (SICP JS). See [Preface](https://sourceacademy.org/sicpjs/prefaces03) for background.
 
 Available versions: 
-* [Print version](https://mitpress.mit.edu/books/structure-and-interpretation-computer-programs-1): scheduled for publication in 2022
+* [Print version](https://mitpress.mit.edu/books/structure-and-interpretation-computer-programs-1) scheduled for publication in 2022
 * [Interactive SICP JS](https://sourceacademy.org/sicpjs)
-* [Comparison version](http://sicp.sourceacademy.org): Scheme vs JavaScript
+* [Comparison version](http://sicp.sourceacademy.org) Scheme vs JavaScript
 
 You can read more [About the SICP JS Project](https://sourceacademy.org/sicpjs/making-of) in the online version.
 
