@@ -7,9 +7,9 @@ Available versions:
 * [Interactive SICP JS](https://sourceacademy.org/sicpjs)
 * [Comparison version](http://sicp.sourceacademy.org) Scheme vs JavaScript
 
-You can read more [About the SICP JS Project](https://sourceacademy.org/sicpjs/making-of) in Interactive SICP JS.
+Details how to generate these versions are in the [repo wiki](https://github.com/source-academy/sicp/wiki).
 
-Details for developers are available in the [repo wiki](https://github.com/source-academy/sicp/wiki).
+Check out our [Resources for Learners, Educators and Researchers](https://about.sourceacademy.org/), and read more [About the SICP JS Project](https://sourceacademy.org/sicpjs/making-of) in Interactive SICP JS.
 
 ## Licenses
 
