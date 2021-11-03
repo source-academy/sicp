@@ -1,13 +1,10 @@
 # SICP JavaScript Edition
 
-This repository contains processing scripts and sources for the textbook SICP JS: *Structure and Interpretation of Computer Programs, JavaScript Edition* (SICP JS). See Preface of JavaScript edition for background:
-https://sourceacademy.org/sicpjs
+This repository contains processing scripts and sources for the textbook SICP JS: *Structure and Interpretation of Computer Programs, JavaScript Edition* (SICP JS). See [Preface of JavaScript edition](https://sourceacademy.org/sicpjs/prefaces03) for background.
 
-More info is in the "About" section (it is at the end of the SICP JS web edition):
-https://sourceacademy.org/sicpjs/making-of
+You can read more [About the SICP JS Project](https://sourceacademy.org/sicpjs/making-of).
 
-Details for developers in the wiki:
-https://github.com/source-academy/sicp/wiki
+Details for developers are available in the [repo wiki](https://github.com/source-academy/sicp/wiki).
 
 ## Licenses
 
