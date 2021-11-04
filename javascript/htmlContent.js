@@ -73,7 +73,7 @@ export const switchTitle = version => {
     </div>
     <div class="title-text-OTHEREDITIONS">
       <span class="title-text-OTHEREDITIONS">
-    <a href="https://sourceacademy.org/sicpjs">SICP JS in Source Academy</a></span>
+    <a href="https://sourceacademy.org/sicpjs">Interactive SICP JS</a></span>
     </div>`;
   } else if (version == "scheme") {
     // scheme version of the web textbook has yet been developed
