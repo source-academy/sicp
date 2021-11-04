@@ -253,7 +253,7 @@ export const indexHtml = writeToIndex => {
   writeToIndex.push(`
     <meta name="description" content="" />
         <title>
-        Structure and Interpretation of Computer Programs, JavaScript Edition
+        Structure and Interpretation of Computer Programs, Comparison Edition
         </title>
     `);
   html_links_part2(writeToIndex, "", "js");

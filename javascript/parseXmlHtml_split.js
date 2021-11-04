@@ -522,7 +522,7 @@ export const parseXmlHtml = (doc, writeTo, filename) => {
     displayTitle = chapterIndex + " " + chapterTitle;
   }
 
-  pageTitle = displayTitle + " - SICP JS (comparison edition)";
+  pageTitle = displayTitle + " - SICP Comparison Edition";
 
   //toIndexFolder = tableOfContent[filename].relativePathToMain;
   //console.log(chapterIndex + " " + chapterTitle);

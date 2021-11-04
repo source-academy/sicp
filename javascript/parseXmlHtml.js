@@ -814,7 +814,7 @@ export const switchParseFunctionsHtml = version => {
       // the second object overwrites the first one
     };
   } else if (version == "scheme") {
-    console.log("generate sicp schceme web textook");
+    console.log("generate sicp scheme web textbook");
   }
 };
 
@@ -906,7 +906,7 @@ export const parseXmlHtml = (doc, writeTo, filename) => {
     displayTitle = chapterIndex + "&nbsp;&nbsp;" + chapterTitle;
   }
 
-  pageTitle = displayTitle + " - SICP JS";
+  pageTitle = displayTitle + " - SICP Comparison Edition";
 
   //toIndexFolder = tableOfContent[filename].relativePathToMain;
   //console.log(chapterIndex + " " + chapterTitle);
