@@ -24,6 +24,7 @@ const tagsToReplaceDefault = {
 
   SHORT_SPACE: "",
   SHORT_SPACE_AND_ALLOW_BREAK: "",
+  ALLOW_BREAK: "",
 
   EMDASH: "—",
   ENDASH: "–",
@@ -36,7 +37,8 @@ const tagsToReplaceDefault = {
 
 const tagsToReplacePdf = {
   SHORT_SPACE: "@xxx", // will be replaced in processSnippet
-  SHORT_SPACE_AND_ALLOW_BREAK: "@yyy" // will be replaced in processSnippet
+  SHORT_SPACE_AND_ALLOW_BREAK: "@yyy", // will be replaced in processSnippet
+  ALLOW_BREAK: "@yyy" // ok to alias short_space_and_allow_break because the short space is implicit in the splitting of code boxes for now
 };
 
 export const replaceTagWithSymbol = (node, writeTo, type = "default") => {

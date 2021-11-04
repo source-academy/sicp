@@ -124,6 +124,10 @@ export const processSnippetPdf = (node, writeTo) => {
   const jsLonelySnippet = node.getElementsByTagName("JAVASCRIPT_LONELY")[0];
   const jsSnippet = node.getElementsByTagName("JAVASCRIPT")[0];
   const jsOutputSnippet = node.getElementsByTagName("JAVASCRIPT_OUTPUT")[0];
+  const allowBreakAfter =
+    jsSnippet && jsSnippet.getAttribute("BREAK_AFTER") === "yes"
+      ? "\\pagebreak"
+      : "";
 
   if (jsPromptSnippet) {
     writeTo.push(preSpace);
@@ -237,6 +241,7 @@ export const processSnippetPdf = (node, writeTo) => {
         "}\n" +
         "\\end{lrbox}" +
         "\\Usebox{\\UnbreakableBox}\\\\" +
+        allowBreakAfter +
         midSpace +
         "\\begin{lrbox}{\\UnbreakableBox}" +
         "\\begin{" +
@@ -275,11 +280,11 @@ export const processSnippetPdf = (node, writeTo) => {
 
       if (jsOutputSnippet) {
         if (indexTerms.length > 0) writeTo.push(indexTerms.pop());
-        writeTo.push("\\Usebox{\\UnbreakableBox}");
+        writeTo.push("\\Usebox{\\UnbreakableBox}" + allowBreakAfter);
         outputAdjacent = true;
       } else {
         if (indexTerms.length > 0) writeTo.push(indexTerms.pop());
-        writeTo.push("\\Usebox{\\UnbreakableBox}");
+        writeTo.push("\\Usebox{\\UnbreakableBox}" + allowBreakAfter);
         if (!followedByOtherSnippet && !skipPostPadding) {
           writeTo.push(postSpace);
         } else {
