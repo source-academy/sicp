@@ -779,11 +779,11 @@ a Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International Licens
 To view a copy of this license, visit
 \\url{http://creativecommons.org/licenses/by-nc-sa/4.0/}.
 
-\\vspace{2mm}
+\\vspace{1mm}
 
 \\centerline{\\includegraphics[width=24mm]{{img\\string_original/}BY-NC-SA.png}}
 
-\\vspace{3mm}
+\\vspace{-1mm}
 
 The text of this book is derived
 from the book \\emph{Structure and Interpretation of Computer
@@ -798,22 +798,22 @@ CC BY-SA.
 To view a copy of this license, visit
 \\url{http://creativecommons.org/licenses/by-sa/4.0/}.
 
-\\vspace{2mm}
+\\vspace{1mm}
 
 \\centerline{\\includegraphics[width=24mm]{{img\\string_original/}BY-SA.png}}
 
-\\vspace{3mm}
+\\vspace{-1mm}
 
 The JavaScript programs in this book are derived
 from the Scheme programs in SICP and are subject to
 the GNU General Public License v3.0. To view a copy of this license,
 visit \\url{https://www.gnu.org/licenses/gpl-3.0.html}.
 
-\\vspace{2mm}
+\\vspace{1mm}
 
-\\centerline{\\includegraphics[width=24mm]{{img\\string_original/}gpl-v3.pdf}}
+\\centerline{\\includegraphics[width=27mm]{{img\\string_original/}gpl-v3.pdf}}
 
-\\vspace{3mm}
+\\vspace{-1mm}
 
 The original image of MIT founder William Barton Rogers
 in section 2.2.4 is courtesy MIT Museum.
@@ -825,9 +825,18 @@ This book was set in Times by the authors using the \\LaTeX\\ typesetting system
 and ancillary scripts (see \\url{https://github.com/source-academy/sicp}), and
 was printed and bound in the United States of America.
 
-Library of Congress Cataloging-in-Publication Data is available.
+Library of Congress Cataloging-in-Publication Data
 
-ISBN: 9780262543231
+Names: Abelson, Harold, author. | Sussman, Gerald Jay, author. | Henz, Martin, adapter. | Wrigstad, Tobias, \\\\
+\\hspace{1em}adapter. | Sussman, Julie, other.\\\\
+Title: Structure and interpretation of computer programs / Harold Abelson and Gerald Jay Sussman; adapted\\\\
+\\hspace{1em}to JavaScript by Martin Henz and Tobias Wrigstad; with Julie Sussman.\\\\
+Description: Javascript edition. | Cambridge : The MIT Press, [2022] | Series: MIT electrical engineering and\\\\
+\\hspace{1em}computer science series | Includes bibliographical references and index.\\\\
+Identifiers: LCCN 2021047249 | ISBN 9780262543231 (paperback)\\\\
+Subjects: LCSH: Computer programming. | JavaScript (Computer program language)\\\\
+Classification: LCC QA76.6 .A255 2022 | DDC 005.13--dc23 LC record available at\\\\
+\\hspace{1em}\\url{https://lccn.loc.gov/2021047249}
 
 10\\quad9\\quad8\\quad7\\quad6\\quad5\\quad4\\quad3\\quad2\\quad1
 \\end{copyrightpage}
