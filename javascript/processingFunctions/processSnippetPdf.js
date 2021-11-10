@@ -111,6 +111,7 @@ export const processSnippetPdf = (node, writeTo) => {
   let outputAdjacent = false;
 
   const inFootnote = ancestorHasTag(node, "FOOTNOTE");
+  const inList = ancestorHasTag(node, "OL");
   const inFigure = ancestorHasTag(node, "FIGURE");
   const preSpace = inFigure ? "" : inFootnote ? "\\PreBoxCmdFn" : "\\PreBoxCmd";
   const postSpace = inFigure
@@ -160,7 +161,12 @@ export const processSnippetPdf = (node, writeTo) => {
     writeTo.push("\\Usebox{\\UnbreakableBox}");
 
     if (jsLonelySnippet || jsSnippet || jsOutputSnippet) {
-      writeTo.push("\\PromptInputSpace");
+      if (inList) {
+        /// writeTo.push("****\\\\");
+        writeTo.push("\\\\"); // FIXME: when we remove the use of \par from PromptInputSpace this edge case goes away
+      } else {
+        writeTo.push("\\PromptInputSpace");
+      }
       outputAdjacent = true;
     } else {
       writeTo.push("\\PostBoxCmd\n");
