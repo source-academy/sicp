@@ -595,6 +595,10 @@ const processTextFunctionsDefaultLatex = {
     writeTo.push("\\ref{" + node.getAttribute("NAME") + "}");
   },
 
+  PAGEREF: (node, writeTo) => {
+    writeTo.push("\\pageref{" + node.getAttribute("NAME") + "}");
+  },
+
   REFERENCE: (node, writeTo) => {
     writeTo.push("\\item\n");
     recursiveProcessTextLatex(node.firstChild, writeTo);

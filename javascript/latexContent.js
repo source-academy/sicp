@@ -771,6 +771,8 @@ Cambridge, Massachusetts\\\\
 London, England}
 
 \\begin{copyrightpage}
+\\footnotesize
+\\vspace{-13em}
 \\copyright\\ 2022 Massachusetts Institute of Technology
 
 This book is published by The MIT Press under
