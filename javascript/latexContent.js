@@ -772,7 +772,7 @@ London, England}
 
 \\begin{copyrightpage}
 \\footnotesize
-\\vspace{-13em}
+\\vspace{-9em}
 \\copyright\\ 2022 Massachusetts Institute of Technology
 
 This book is published by The MIT Press under
@@ -829,16 +829,16 @@ was printed and bound in the United States of America.
 
 Library of Congress Cataloging-in-Publication Data
 
-Names: Abelson, Harold, author. | Sussman, Gerald Jay, author. | Henz, Martin, adapter. | Wrigstad, Tobias, \\\\
-\\hspace{1em}adapter. | Sussman, Julie, other.\\\\
-Title: Structure and interpretation of computer programs / Harold Abelson and Gerald Jay Sussman; adapted\\\\
-\\hspace{1em}to JavaScript by Martin Henz and Tobias Wrigstad; with Julie Sussman.\\\\
-Description: Javascript edition. | Cambridge : The MIT Press, [2022] | Series: MIT electrical engineering and\\\\
-\\hspace{1em}computer science series | Includes bibliographical references and index.\\\\
+Names: Abelson, Harold, author. | Sussman, Gerald Jay, author. | Henz, Martin, adapter. | \\\\
+\\hspace{1em}Wrigstad, Tobias, adapter. | Sussman, Julie, other.\\\\
+Title: Structure and interpretation of computer programs / Harold Abelson and Gerald Jay\\\\
+\\hspace{1em} Sussman; adapted to JavaScript by Martin Henz and Tobias Wrigstad; with Julie Sussman.\\\\
+Description: Javascript edition. | Cambridge : The MIT Press, [2022] | Series: MIT electrical\\\\
+\\hspace{1em} engineering and computer science series | Includes bibliographical references and index.\\\\
 Identifiers: LCCN 2021047249 | ISBN 9780262543231 (paperback)\\\\
 Subjects: LCSH: Computer programming. | JavaScript (Computer program language)\\\\
-Classification: LCC QA76.6 .A255 2022 | DDC 005.13--dc23 LC record available at\\\\
-\\hspace{1em}\\url{https://lccn.loc.gov/2021047249}
+Classification: LCC QA76.6 .A255 2022 | DDC 005.13--dc23\\\\
+LC record available at \\hspace{1em}\\url{https://lccn.loc.gov/2021047249}
 
 10\\quad9\\quad8\\quad7\\quad6\\quad5\\quad4\\quad3\\quad2\\quad1
 \\end{copyrightpage}
