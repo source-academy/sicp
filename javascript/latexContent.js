@@ -838,7 +838,7 @@ Description: Javascript edition. | Cambridge : The MIT Press, [2022] | Series: M
 Identifiers: LCCN 2021047249 | ISBN 9780262543231 (paperback)\\\\
 Subjects: LCSH: Computer programming. | JavaScript (Computer program language)\\\\
 Classification: LCC QA76.6 .A255 2022 | DDC 005.13--dc23\\\\
-LC record available at \\hspace{1em}\\url{https://lccn.loc.gov/2021047249}
+LC record available at \\url{https://lccn.loc.gov/2021047249}
 
 10\\quad9\\quad8\\quad7\\quad6\\quad5\\quad4\\quad3\\quad2\\quad1
 \\end{copyrightpage}
