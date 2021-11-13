@@ -55,6 +55,7 @@ export const preamble = `\\documentclass[7x10]{../mitpress/mit}
 \\pretocmd{\\@schapter}{\\setcounter{footnote}{0}}{}{}
 \\pretocmd{\\@chapter}{\\setcounter{footnote}{0}}{}{}
 \\newcommand\\thefontsize{~\\f@size pt}
+\\renewcommand{\\@pnumwidth}{4em}
 \\makeatother
 
 \\usepackage[
