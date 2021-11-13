@@ -54,6 +54,7 @@ export const preamble = `\\documentclass[7x10]{../mitpress/mit}
 \\makeatletter
 \\pretocmd{\\@schapter}{\\setcounter{footnote}{0}}{}{}
 \\pretocmd{\\@chapter}{\\setcounter{footnote}{0}}{}{}
+\\newcommand\\thefontsize{~\\f@size pt}
 \\makeatother
 
 \\usepackage[
@@ -740,10 +741,10 @@ export const frontmatter = `
 
 \\frontmatter
 
-\\HalfTitle{Structure and Interpretation of Computer Programs
+\\HalfTitle{\\fontsize{18}{21.6}\\selectfont Structure and Interpretation\\newline of Computer Programs
 \\begin{minipage}{12cm}
 \\vspace{3.5mm}
-\\normalsize JavaScript Edition
+\\normalsize{\\Large JavaScript Edition}
 \\end{minipage}
 }
 
@@ -751,9 +752,9 @@ export const frontmatter = `
 
 \\cleardoublepage
 
-\\Title{Structure and Interpretation of Computer Programs}
+\\Title{\\fontsize{18}{21.6}\\selectfont Structure and Interpretation\\newline of Computer Programs}
 
-\\edition{JavaScript Edition}
+\\edition{\\Large JavaScript Edition}
 
 \\BookAuthor{Harold Abelson and Gerald Jay Sussman
 \\begin{minipage}{12cm}
