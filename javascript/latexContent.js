@@ -38,6 +38,10 @@ export const preamble = `\\documentclass[7x10]{../mitpress/mit}
 % for index proofreading: edit parseXmlLatex.js
 % change: const indexAnnotations = true;
 
+% This switches build to use final.ind for indexing
+\\UseHandEditedIndex{}
+% Note: latexmk still builds a new index but the file does not use it
+
 \\synctex=1
 
 \\newboolean{show-links}
