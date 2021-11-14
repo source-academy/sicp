@@ -741,10 +741,10 @@ export const frontmatter = `
 
 \\frontmatter
 
-\\HalfTitle{Structure and Interpretation of Computer Programs
+\\HalfTitle{\\fontsize{16}{20}\\selectfont Structure and Interpretation of Computer Programs
 \\begin{minipage}{12cm}
 \\vspace{3.5mm}
-\\normalsize JavaScript Edition
+\\normalsize {\\fontsize{13}{18}\\selectfont JavaScript Edition}
 \\end{minipage}
 }
 
@@ -752,11 +752,11 @@ export const frontmatter = `
 
 \\cleardoublepage
 
-\\Title{Structure and Interpretation of Computer Programs}
+\\Title{\\fontsize{16}{20}\\selectfont Structure and Interpretation of Computer Programs}
 
-\\edition{JavaScript Edition}
+\\edition{\\fontsize{13}{18}\\selectfont JavaScript Edition}
 
-\\BookAuthor{Harold Abelson and Gerald Jay Sussman
+\\BookAuthor{\\fontsize{13}{18}\\selectfont Harold Abelson and Gerald Jay Sussman
 \\begin{minipage}{12cm}
 \\vspace{3.5mm}
 adapted to JavaScript by Martin Henz and Tobias Wrigstad
@@ -893,10 +893,10 @@ you were first led up to it, that you can make it more.''\\end{minipage}}{\\norm
 
 \\cleardoublepage
 
-\\HalfTitle{Structure and Interpretation of Computer Programs
+\\HalfTitle{\\fontsize{16}{20}\\selectfont Structure and Interpretation of Computer Programs
 \\begin{minipage}{12cm}
 \\vspace{3.5mm}
-\\normalsize JavaScript Edition
+\\normalsize {\\fontsize{13}{18}\\selectfont JavaScript Edition}
 \\end{minipage}
 }
 \\halftitlepage
