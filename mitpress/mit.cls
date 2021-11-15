@@ -1266,6 +1266,10 @@ ItalicFont=SyntaxLTStd-Italic,
 
 \RequirePackage{multicol}
 
+\newif\if@HandEditedIndex
+\def\UseHandEditedIndex{\@HandEditedIndextrue}
+
+
 \newif\if@restonecol
 \def\theindex{\@mainmatterfalse
 %  \addcontentsline{toc}{chapter}{Index}
@@ -1285,7 +1289,7 @@ ItalicFont=SyntaxLTStd-Italic,
   \newpage\startonoddpage %\twocolumn[{\Large\bf #2 \vskip4ex}]
 \begin{multicols*}{2}[\chapter*{\fontsize{18\p@}{22\p@}\selectfont\sansbold{#2}}\vspace{-10\p@}]%
   \addcontentsline{toc}{chapter}{#2}
-  \@input{#1.ind}\end{multicols*}}
+  \if@HandEditedIndex\@input{hand-paginated.ind}\else\@input{#1.ind}\fi\end{multicols*}}
 %%
 \def\theindex{\@mainmatterfalse
 %  \addcontentsline{toc}{chapter}{Index}
