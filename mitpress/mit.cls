@@ -1289,7 +1289,7 @@ ItalicFont=SyntaxLTStd-Italic,
   \newpage\startonoddpage %\twocolumn[{\Large\bf #2 \vskip4ex}]
 \begin{multicols*}{2}[\chapter*{\fontsize{18\p@}{22\p@}\selectfont\sansbold{#2}}\vspace{-10\p@}]%
   \addcontentsline{toc}{chapter}{#2}
-  \if@HandEditedIndex\@input{final.ind}\else\@input{#1.ind}\fi\end{multicols*}}
+  \if@HandEditedIndex\@input{hand-paginated.ind}\else\@input{#1.ind}\fi\end{multicols*}}
 %%
 \def\theindex{\@mainmatterfalse
 %  \addcontentsline{toc}{chapter}{Index}
