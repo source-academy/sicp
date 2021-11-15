@@ -369,6 +369,11 @@ export const preamble = `\\documentclass[7x10]{../mitpress/mit}
   {\\par\\xdef\\tpd{\\the\\prevdepth}\\egroup
    \\prevdepth=\\tpd}
 
+\\newcommand{\\ShortPage}[1]{\\enlargethispage{-#1\\baselineskip}}
+\\newcommand{\\LongPage}[1]{\\enlargethispage{#1\\baselineskip}}
+\\newcommand{\\DoBreakPage}{\\columnbreak}
+\\newcommand{\\DontBreakPage}{\\nopagebreak}
+
 \\lstset{
    language=JavaScript,
    basicstyle=\\usefont{T1}{lmtt}{m}{n},
