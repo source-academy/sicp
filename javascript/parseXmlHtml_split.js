@@ -1,4 +1,4 @@
-import { getChildrenByTagName } from "./utilityFunctions";
+import { getChildrenByTagName, ancestorHasTag } from "./utilityFunctions";
 import { allFilepath, tableOfContent } from "./index.js";
 import {
   html_links_part1,
@@ -282,7 +282,11 @@ export const processTextFunctionsHtml = {
         <div class='permalink'>
         <a name='top' class='permalink'> 
     `);
-    writeTo.push(displayTitle);
+      if (ancestorHasTag(node, "MATTER") {
+	  recursiveProcessTextHtml(node.getChildrenByTagName(node, "NAME")[0].firstChild, writeTo);	  
+      } else {
+	  writeTo.push(displayTitle);
+      }
     writeTo.push(`
         </a>
         </div>

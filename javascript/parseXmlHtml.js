@@ -345,7 +345,11 @@ const processTextFunctionsDefaultHtml = {
         <div class='permalink'>
         <a name='top' class='permalink'> 
     `);
-    writeTo.push(displayTitle);
+      if (ancestorHasTag(node, "MATTER")) {
+	  recursiveProcessTextHtml(getChildrenByTagName(node, "NAME")[0].firstChild, writeTo);	  
+      } else {
+	  writeTo.push(displayTitle);
+      }
     writeTo.push(`
         </a>
         </div>
