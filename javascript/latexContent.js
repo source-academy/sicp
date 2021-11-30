@@ -203,8 +203,8 @@ export const preamble = `\\documentclass[7x10]{../mitpress/mit}
 \\fancypagestyle{Foreword}{
   \\renewcommand{\\headrulewidth}{0.4pt}
   \\fancyhead[LE,RO]{\\small\\usefont{T1}{ptm}{m}{it}\\thepage}
-  \\fancyhead[RE]{\\small\\usefont{T1}{ptm}{m}{it} Forewords}
-  \\fancyhead[LO]{\\small\\usefont{T1}{ptm}{m}{it} Forewords}
+  \\fancyhead[RE]{\\small\\usefont{T1}{ptm}{m}{it} Foreword}
+  \\fancyhead[LO]{\\small\\usefont{T1}{ptm}{m}{it} Foreword}
 }
 
 \\fancypagestyle{Foreword1984}{
@@ -224,15 +224,15 @@ export const preamble = `\\documentclass[7x10]{../mitpress/mit}
 \\fancypagestyle{Preface1996}{
   \\renewcommand{\\headrulewidth}{0.4pt}
   \\fancyhead[LE,RO]{\\small\\usefont{T1}{ptm}{m}{it}\\thepage}
-  \\fancyhead[RE]{\\small\\usefont{T1}{ptm}{m}{it} Prefaces to SICP}
-  \\fancyhead[LO]{\\small\\usefont{T1}{ptm}{m}{it} Prefaces to SICP}
+  \\fancyhead[RE]{\\small\\usefont{T1}{ptm}{m}{it} Prefaces to SICP, 1996 \\& 1984}
+  \\fancyhead[LO]{\\small\\usefont{T1}{ptm}{m}{it} Prefaces to SICP, 1996 \\& 1984}
 }
 
 \\fancypagestyle{Preface1984}{
   \\renewcommand{\\headrulewidth}{0.4pt}
   \\fancyhead[LE,RO]{\\small\\usefont{T1}{ptm}{m}{it}\\thepage}
-  \\fancyhead[RE]{\\small\\usefont{T1}{ptm}{m}{it} Preface to SICP, 1984}
-  \\fancyhead[LO]{\\small\\usefont{T1}{ptm}{m}{it} Preface to SICP, 1984}
+  \\fancyhead[RE]{\\small\\usefont{T1}{ptm}{m}{it} Preface to SICP, 1996 \\& 1984}
+  \\fancyhead[LO]{\\small\\usefont{T1}{ptm}{m}{it} Preface to SICP, 1996 \\& 1984}
 }
 
 \\fancypagestyle{Acknowledgements}{
@@ -884,6 +884,8 @@ you were first led up to it, that you can make it more.''\\end{minipage}}{\\norm
 \\pagestyle{Main}
 \\pagestyle{Foreword}
 \\input{./others/02foreword02.tex}
+
+\\cleardoublepage
 \\pagestyle{Foreword1984}
 \\input{./others/02foreword84.tex}
 
