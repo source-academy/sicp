@@ -343,10 +343,8 @@ const processTextFunctionsDefaultLatex = {
           /_/g,
           " "
         );
-        declaration.firstChild.nodeValue = declaration.firstChild.nodeValue.replace(
-          /_/g,
-          " "
-        );
+        declaration.firstChild.nodeValue =
+          declaration.firstChild.nodeValue.replace(/_/g, " ");
         recursiveProcessTextLatex(declaration.firstChild, writeTo);
       }
       writeTo.push("@");
@@ -421,10 +419,8 @@ const processTextFunctionsDefaultLatex = {
             /_/g,
             " "
           );
-          declaration.firstChild.nodeValue = declaration.firstChild.nodeValue.replace(
-            /_/g,
-            " "
-          );
+          declaration.firstChild.nodeValue =
+            declaration.firstChild.nodeValue.replace(/_/g, " ");
           recursiveProcessTextLatex(declaration.firstChild, writeTo);
         }
         writeTo.push("@");

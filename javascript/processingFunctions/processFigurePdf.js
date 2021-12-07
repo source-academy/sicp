@@ -38,7 +38,7 @@ export const processFigurePdf = (node, writeTo) => {
 
   writeTo.push(
     "\\begin{figure}" +
-    "[tp]" + // (ancestorHasTag(node, "EXERCISE") ? "[H]" : "[tp]") +
+      "[tp]" + // (ancestorHasTag(node, "EXERCISE") ? "[H]" : "[tp]") +
       "\n" +
       (center ? "\\centering " : "")
   );
