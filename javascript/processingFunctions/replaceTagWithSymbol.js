@@ -32,7 +32,9 @@ const tagsToReplaceDefault = {
   BREAK: "\n",
 
   SPACE: "~",
-  FIXED_SPACE: "{\\tt~}"
+  FIXED_SPACE: "{\\tt~}",
+
+  BREAKINGNONSPACE: "{\\hspace{0pt}}"
 };
 
 const tagsToReplacePdf = {
