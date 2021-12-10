@@ -31,8 +31,8 @@ const title = `\\begin{titlepage}
 \\pagestyle{chapter-open}
 `;
 
-export const preamble = `\\documentclass[7x10]{../mitpress/mit}
-% use: option nocrop for final build
+export const preamble = `\\documentclass[nocrop,7x10]{../mitpress/mit}
+% use: option nocrop to remove cropmarks
 % also remember: hyperref in mitpress/mit.cls: switch to black/black/black (line 1851)
 %
 % for index proofreading: edit parseXmlLatex.js
