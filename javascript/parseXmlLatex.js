@@ -27,7 +27,6 @@ const indexAnnotations = false;
 const tagsToRemove = new Set([
   "#comment",
   "COMMENT",
-  "CHANGE",
   "EDIT",
   "FRAGILE",
   "EXCLUDE",
@@ -45,6 +44,7 @@ const tagsToRemove = new Set([
   "OPEN",
   "CLOSE",
   "SCHEME",
+  "WEB_ONLY",
   "SOLUTION"
 ]);
 // SOLUTION tag handled by processSnippet
@@ -56,20 +56,11 @@ const ignoreTags = new Set([
   "SECTIONCONTENT",
   "span",
   "SPLIT",
-  "SPLITINLINE"
+  "SPLITINLINE",
+  "PDF_ONLY"
 ]);
 
 const processTextFunctionsDefaultLatex = {
-  PDF_ONLY: (node, writeTo) => {
-    recursiveProcessTextLatex(node.firstChild, writeTo);
-  },
-
-  HYP: (node, writeTo) => {
-    writeTo.push("-");
-  },
-
-  WEB_ONLY: (node, writeTo) => {},
-
   "#text": (node, writeTo) => {
     let trimedValue;
     if (ancestorHasTag(node, "SNIPPET")) {
