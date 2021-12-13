@@ -56,7 +56,6 @@ const ignoreTags = new Set([
   "SECTIONCONTENT",
   "span",
   "SPLIT",
-  "SPLITINLINE",
   "PDF_ONLY"
 ]);
 
@@ -89,6 +88,16 @@ const processTextFunctionsDefaultLatex = {
     }
     // if (!trimedValue.match(/^\s*$/)) {
     // }
+  },
+
+  SPLITINLINE: (node, writeTo) => {
+    if (getChildrenByTagName(node, "JAVASCRIPTINLINE")[0]) {
+      console.error("remove 'INLINE' from tag JAVASCRIPTINLINE");
+    }
+    if (getChildrenByTagName(node, "SCHEMEINLINE")[0]) {
+      console.error("remove 'INLINE' from tag SCHEMEINLINE");
+    }
+    recursiveProcessTextLatex(node.firstChild, writeTo);
   },
 
   ABOUT: (node, writeTo) => {
