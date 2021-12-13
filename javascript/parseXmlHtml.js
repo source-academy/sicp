@@ -51,7 +51,6 @@ const tagsToRemoveDefault = new Set([
   "NAME",
   "LABEL",
   "CODEINDEX",
-  "EXPLANATION",
   "SHORT_SPACE",
   "SHORT_SPACE_AND_ALLOW_BREAK",
   "SOFT_HYP",
@@ -59,7 +58,6 @@ const tagsToRemoveDefault = new Set([
   "KEEP_TOGETHER",
   "START_KEEP_TOGETHER",
   "STOP_KEEP_TOGETHER",
-  "NOBREAK",
   "SHRINK_PARAGRAPH",
   "STRETCH_PARAGRAPH",
   "DONT_BREAK_PAGE",
@@ -73,7 +71,6 @@ const tagsToRemoveDefault = new Set([
 
 const ignoreTagsDefault = new Set([
   "CHAPTERCONTENT",
-  "NOBR",
   "SPLIT",
   "SPLITINLINE",
   "JAVASCRIPT"
@@ -548,8 +545,6 @@ const processTextFunctionsSplit = {
     recursiveProcessTextHtml(node.firstChild, writeTo);
     writeTo.push("</span>");
   },
-
-  PDF_ONLY: (node, writeTo) => {},
 
   COMMENT: (node, writeTo) => {
     writeTo.push("<span class='comment'>");

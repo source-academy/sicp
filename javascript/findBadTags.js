@@ -60,7 +60,6 @@ const validTags = new Set([
   // ignoreTags (treat tag as meaningless wrapper)
   "CHAPTERCONTENT",
   "JAVASCRIPT",
-  "NOBR",
   "SECTIONCONTENT",
   "span",
   "SPLIT",

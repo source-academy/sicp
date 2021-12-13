@@ -50,7 +50,6 @@ export const tagsToRemove = new Set([
   "KEEP_TOGETHER",
   "START_KEEP_TOGETHER",
   "STOP_KEEP_TOGETHER",
-  "NOBREAK",
   "SHRINK_PARAGRAPH",
   "STRETCH_PARAGRAPH",
   "DONT_BREAK_PAGE",
@@ -63,7 +62,6 @@ export const tagsToRemove = new Set([
 
 const ignoreTags = new Set([
   "CHAPTERCONTENT",
-  "NOBR",
   "SPLIT",
   "SPLITINLINE",
   "JAVASCRIPT",

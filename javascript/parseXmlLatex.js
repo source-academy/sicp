@@ -52,7 +52,6 @@ const tagsToRemove = new Set([
 const ignoreTags = new Set([
   "CHAPTERCONTENT",
   "JAVASCRIPT",
-  "NOBR",
   "SECTIONCONTENT",
   "span",
   "SPLIT",
@@ -142,10 +141,6 @@ const processTextFunctionsDefaultLatex = {
 
   STOP_KEEP_TOGETHER: (node, writeTo) => {
     writeTo.push("}");
-  },
-
-  NOBREAK: (node, writeTo) => {
-    writeTo.push("\\nobreak{}");
   },
 
   SHRINK_PARAGRAPH: (node, writeTo) => {

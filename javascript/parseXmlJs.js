@@ -22,7 +22,6 @@ const tagsToRemove = new Set([
 
 const ignoreTags = new Set([
   "CHAPTERCONTENT",
-  "NOBR",
   "span",
   "SPLITINLINE",
   "JAVASCRIPT"
