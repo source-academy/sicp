@@ -252,7 +252,6 @@ export const preamble = `\\documentclass[nocrop,7x10]{../mitpress/mit}
 \\usepackage{graphicx}
 \\graphicspath{{../static/}}
 
-% \\usepackage[answerdelayed]{exercise}
 \\newcounter{ExerciseDisplayNumber}[chapter]
 \\newcommand{\\theExercise}{\\thechapter.\\arabic{ExerciseDisplayNumber}}
 \\renewcommand{\\theExerciseDisplayNumber}{\\thechapter.\\arabic{ExerciseDisplayNumber}}
@@ -960,12 +959,6 @@ export const ending = `
 \\LOE{}
 \\addcontentsline{toc}{chapter}{List of Exercises}
 \\listofexercises
-
-%\\chapter*{Solution To Exercises}
-%\\addcontentsline{toc}{chapter}{Solution To Exercises}
-%\\shipoutAnswer
-
-%\\input{./others/99making99.tex}
 
 \\end{document}
 `;
