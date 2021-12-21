@@ -1,5 +1,8 @@
 #! /usr/bin/env bash
 
+# hand-paginated index file for LaTeX => PDF
+HAND_PAGINATED="hand-paginated.ind"
+
 # DOCS is the local target folder, before deployment
 DOCS="docs_out"
 
@@ -54,7 +57,9 @@ epub() {
 
 clean() {
 	rm -rf ${DOCS}/*
+	mv ${LATEX_PDF}/${HAND_PAGINATED} .
 	rm -rf ${LATEX_PDF}/*
+	mv ${HAND_PAGINATED} ${LATEX_PDF}
 	rm -rf ${LATEX_EPUB}/*
 	rm -rf ${GENERATED_HTML}/*
 	rm -rf ${GENERATED_JS}/*
