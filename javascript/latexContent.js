@@ -1,36 +1,3 @@
-const title = `\\begin{titlepage}
-  \\centering
-\\textbf{Generated: \\DTMnow}\\\\[1em]
-  \\includegraphics[width=0.6\\textwidth]{./sicp.png}\\par
-  {\\LARGE\\bfseries Structure and Interpretation of Computer
-  Programs\\\\}
-  {\\LARGE\\bfseries JavaScript Edition\\par}
-  \\vspace{0.5cm}
-  \\begin{flushright}
-  {\\Large Harold Abelson and Gerald Jay Sussman \\\\}
-  \\vspace{0.5cm}
-  {\\textit{adapted to JavaScript by}\\par}
-  {\\Large Martin Henz and Tobias Wrigstad \\\\}
-  \\vspace{0.5cm}
-  {\\Large with Julie Sussman \\par}
-  \\end{flushright}
-
-  \\vspace{0.2cm}
-  {\\small This work is licensed under a 
-\\href{https://creativecommons.org/licenses/by-nc-sa/4.0/}{Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International License}.}
-
-  \\vspace{0.1cm}
-{\\small All JavaScript programs in this work are licensed under the 
-\\href{https://www.gnu.org/licenses/gpl-3.0.en.html}{GNU General Public License Version 3}.}
-
-  \\vspace{0.1cm}
-  {\\small The final version of this work will be published by The MIT Press under a 
-\\href{https://creativecommons.org/licenses/by-nc-sa/4.0/}{Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International License}.}
-
-\\end{titlepage}
-\\pagestyle{chapter-open}
-`;
-
 export const preamble = `\\documentclass[nocrop,7x10]{../mitpress/mit}
 % use: option nocrop to remove cropmarks
 % also remember: hyperref in mitpress/mit.cls: switch to black/black/black (line 1851)
