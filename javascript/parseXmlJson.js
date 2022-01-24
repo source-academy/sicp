@@ -411,6 +411,17 @@ const processTextFunctions = {
       obj["child"].unshift(createDoubleQuotationMark());
       obj["child"].push(createDoubleQuotationMark());
     }
+  },
+
+  SECTION: (node, obj) => {
+    heading_count += 1;
+    addBodyToObj(obj, node, false);
+    obj["tag"] = "SUBHEADING";
+    obj["id"] = `#h${heading_count}`;
+    const name = {};
+    obj["child"] = [name];
+
+    processTextJson(getChildrenByTagName(node, "NAME")[0], name);
   }
 };
 
@@ -534,7 +545,30 @@ export const parseXmlJson = (doc, arr, filename) => {
   arr.push(title);
 
   const name = getChildrenByTagName(doc.documentElement, "NAME")[0];
-  if (name) {
+
+  if (chapterIndex == "prefaces96") {
+    const sections = getChildrenByTagName(doc.documentElement, "SECTION");
+
+    const preface96Title = {};
+    processTextJson(sections[0], preface96Title);
+    const preface96 = []
+    recursiveProcessTextJson(getChildrenByTagName(sections[0], "NAME")[0].nextSibling, preface96, title);
+
+    const preface84Title = {};
+    processTextJson(sections[1], preface84Title); 
+    const preface84 = []
+    recursiveProcessTextJson(sections[1].nextSibling, preface84, title);
+
+    arr.push(preface96Title);
+    for (let i = 0; i < preface96.length; i++) {
+      arr.push(preface96[i]);
+    }
+    arr.push(preface84Title);
+    console.log(preface84.length);
+    for (let i = 0; i < preface84.length; i++) {
+      arr.push(preface84[i]);
+    }
+  } else if (name) {
     recursiveProcessTextJson(name.nextSibling, arr, title);
   }
 };
