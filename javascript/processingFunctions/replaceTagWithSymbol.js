@@ -32,7 +32,7 @@ const tagsToReplaceDefault = {
   BREAK: "\n",
 
   SPACE: "&nbsp;",
-  FIXED_SPACE: "&nbsp;",
+  FIXED_SPACE: " ",
 
   BREAKINGNONSPACE: "{\\hspace{0pt}}"
 };
