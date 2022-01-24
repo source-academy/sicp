@@ -18,7 +18,7 @@ const tagsToReplaceDefault = {
   CCEDIL_LOWER: "ç",
   ELLIPSIS: "…",
   AMP: "\\&",
-  DOLLAR: "\\$",
+  DOLLAR: "$",
   SHARP: "\\#",
   SECT: "§",
 
@@ -31,13 +31,16 @@ const tagsToReplaceDefault = {
 
   BREAK: "\n",
 
-  SPACE: "~",
-  FIXED_SPACE: "{\\tt~}",
+  SPACE: "&nbsp;",
+  FIXED_SPACE: "&nbsp;",
 
   BREAKINGNONSPACE: "{\\hspace{0pt}}"
 };
 
 const tagsToReplacePdf = {
+  DOLLAR: "\\$",
+  SPACE: "~",
+  FIXED_SPACE: "{\\tt~}",
   SHORT_SPACE: "@xxx", // will be replaced in processSnippet
   SHORT_SPACE_AND_ALLOW_BREAK: "@yyy", // will be replaced in processSnippet
   ALLOW_BREAK: "@yyy" // ok to alias short_space_and_allow_break because the short space is implicit in the splitting of code boxes for now

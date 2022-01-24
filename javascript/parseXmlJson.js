@@ -133,15 +133,6 @@ const processTextFunctions = {
     processText("&amp;", obj);
   },
 
-  DOLLAR: (_node, obj) => {
-    processText("$", obj);
-  },
-
-  SPACE: (node, obj) => {
-    processText("\u00A0", obj);
-    recursiveProcessTextJson(node.firstChild, obj);
-  },
-
   // Tags with children and no body
   B: processTagWithChildren,
 
