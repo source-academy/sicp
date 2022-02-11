@@ -63,7 +63,10 @@ export const setupReferences = (node, filename) => {
 
     let href;
     let displayName;
-    if (ref_type == "sec") {
+    if (ref_type == "chap") {
+      displayName = chapterIndex;
+      href = `${chapterIndex}.html`;
+    } else if (ref_type == "sec") {
       if (ancestorHasTag(label, "SUBSUBSECTION")) {
         subsubsection_count++;
         displayName = `${chapterIndex}.${subsubsection_count}`;

@@ -542,12 +542,16 @@ export const parseXmlJson = (doc, arr, filename) => {
 
     const preface96Title = {};
     processTextJson(sections[0], preface96Title);
-    const preface96 = []
-    recursiveProcessTextJson(getChildrenByTagName(sections[0], "NAME")[0].nextSibling, preface96, title);
+    const preface96 = [];
+    recursiveProcessTextJson(
+      getChildrenByTagName(sections[0], "NAME")[0].nextSibling,
+      preface96,
+      title
+    );
 
     const preface84Title = {};
-    processTextJson(sections[1], preface84Title); 
-    const preface84 = []
+    processTextJson(sections[1], preface84Title);
+    const preface84 = [];
     recursiveProcessTextJson(sections[1].nextSibling, preface84, title);
 
     arr.push(preface96Title);
