@@ -146,7 +146,11 @@ export const processReferenceHtml = (node, writeTo, chapterIndex) => {
 
   writeTo.push(`<REF NAME="${referenceName}">`);
 
-  if (ref_type == "sec") {
+  if (ref_type == "chap") {
+    writeTo.push(
+      `<a class="superscript" id="${chapterIndex}-chap-link-${displayName}" href="./${href}">${displayName}</a></REF>`
+    );
+  } else if (ref_type == "sec") {
     writeTo.push(
       `<a class="superscript" id="${chapterIndex}-sec-link-${displayName}" href="./${href}">${displayName}</a></REF>`
     );
