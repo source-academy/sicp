@@ -34,7 +34,6 @@ const recursiveProcessTOC = (index, toc, tocNavigation, sitemap) => {
       tocNavigation.push(chapterIndex);
 
       sitemap.push(chapterIndex);
-	
     }
 
     if (filename.match(/others/) || allFilepath[next].match(/subsection/)) {
@@ -117,27 +116,32 @@ export const createTocJson = outputDir => {
 
   const sitemapFilepath = path.join(outputDir, "sitemap.xml");
   const sitemapStream = fs.createWriteStream(sitemapFilepath);
-    sitemapStream.once("open", fd => {
+  sitemapStream.once("open", fd => {
+    const today = new Date();
 
-      const today = new Date();
-	
-      sitemapStream.write(`<?xml version="1.0" encoding="UTF-8"?>\n` +
-	                  `<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n`);
-	    
-      for (const s in sitemap) {
-          sitemapStream.write("  <url>\n    <loc>");
-	  sitemapStream.write(sourceAcademyURL + "/sicpjs/");
-	  sitemapStream.write(sitemap[s]);
-			      sitemapStream.write("</loc>\n    <lastmod>" +
-						  today.getFullYear() + "-" +
-						  (today.getMonth() + 1) + "-" +
-						  today.getDate() +
-						  "</lastmod>\n");
-          sitemapStream.write("  </url>\n");
-      }
+    sitemapStream.write(
+      `<?xml version="1.0" encoding="UTF-8"?>\n` +
+        `<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n`
+    );
 
-	sitemapStream.write("</urlset>\n");
+    for (const s in sitemap) {
+      sitemapStream.write("  <url>\n    <loc>");
+      sitemapStream.write(sourceAcademyURL + "/sicpjs/");
+      sitemapStream.write(sitemap[s]);
+      sitemapStream.write(
+        "</loc>\n    <lastmod>" +
+          today.getFullYear() +
+          "-" +
+          (today.getMonth() + 1) +
+          "-" +
+          today.getDate() +
+          "</lastmod>\n"
+      );
+      sitemapStream.write("  </url>\n");
+    }
 
-      sitemapStream.end();
+    sitemapStream.write("</urlset>\n");
+
+    sitemapStream.end();
   });
 };
