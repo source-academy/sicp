@@ -50,10 +50,6 @@ export const setupReferencesJson = (node, filename) => {
     const referenceName = label.getAttribute("NAME");
     const ref_type = referenceName.split(":")[0];
 
-    if (ifIgnore(label)) {
-      continue;
-    }
-
     if (referenceStore[referenceName]) {
       console.log(chapterIndex);
       repeatedRefNameWarning(referenceName);
