@@ -337,7 +337,7 @@ async function main() {
     console.log("\ngenerate table of content\n");
     await recursiveTranslateXml("", "generateTOC");
     allFilepath = sortTOC(allFilepath);
-    console.log(tableOfContent);
+    //console.log(tableOfContent);
     //console.log(allFilepath);
     //console.log(allFilepath.slice(50));
     createIndexHtml(version);
