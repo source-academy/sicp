@@ -33,7 +33,7 @@ let pageTitle = "";
 export let chapterIndex = "";
 export let toIndexFolder = "../";
 
-const tagsToRemoveDefault = new Set([
+export const tagsToRemove = new Set([
   "#comment",
   "ATTRIBUTION",
   "AUTHOR",
@@ -44,7 +44,6 @@ const tagsToRemoveDefault = new Set([
   "EXCLUDE",
   "HISTORY",
   "ORDER",
-  "SCHEME",
   "SOLUTION",
   "INDEX",
   "CAPTION",
@@ -62,6 +61,7 @@ const tagsToRemoveDefault = new Set([
   "STRETCH_PARAGRAPH",
   "DONT_BREAK_PAGE",
   "DO_BREAK_PAGE",
+  "ALLOW_BREAK",
   "FORCE_PAGE_BREAK_AND_FILL",
   "FILBREAK",
   "LONG_PAGE",
@@ -69,14 +69,15 @@ const tagsToRemoveDefault = new Set([
 ]);
 // SOLUTION tag handled by processSnippet
 
-const ignoreTagsDefault = new Set([
+const ignoreTags = new Set([
   "CHAPTERCONTENT",
   "SPLIT",
   "SPLITINLINE",
-  "JAVASCRIPT"
+  "JAVASCRIPT",
+  "WEB_ONLY"
 ]);
 
-const preserveTagsDefault = new Set([
+const preserveTags = new Set([
   "B",
   "EM",
   "QUOTE",
@@ -93,11 +94,7 @@ const preserveTagsDefault = new Set([
   "REFERENCE"
 ]);
 
-const processTextFunctionsDefaultHtml = {
-  WEB_ONLY: (node, writeTo) => {
-    recursiveProcessTextHtml(node.firstChild, writeTo);
-  },
-
+let processTextFunctionsHtml = {
   "#text": (node, writeTo) => {
     // ignore the section/subsection tags at the end of chapter/section files
     if (!node.nodeValue.match(/&(\w|\.|\d)+;/)) {
@@ -793,25 +790,11 @@ const processTextFunctionsSplit = {
   }
 };
 
-let processTextFunctionsHtml = processTextFunctionsDefaultHtml;
-export let tagsToRemove = tagsToRemoveDefault;
-let ignoreTags = ignoreTagsDefault;
-let preserveTags = preserveTagsDefault;
-
 export const switchParseFunctionsHtml = version => {
-  if (version == "js") {
-    console.log("generate sicp.js web textbook");
-    tagsToRemove = tagsToRemoveDefault;
-    ignoreTags = ignoreTagsDefault;
-    preserveTags = preserveTagsDefault;
-    processTextFunctionsHtml = processTextFunctionsDefaultHtml;
-  } else if (version == "split") {
+  if (version == "split") {
     console.log("generate split version of web textbook");
-    tagsToRemove.delete("SCHEME");
-    tagsToRemove.delete("SPLIT");
-    ignoreTags.delete("JAVASCRIPT");
     processTextFunctionsHtml = {
-      ...processTextFunctionsDefaultHtml,
+      ...processTextFunctionsHtml,
       ...processTextFunctionsSplit
       // the second object overwrites the first one
     };
