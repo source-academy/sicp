@@ -128,13 +128,17 @@ export const createTocJson = outputDir => {
       sitemapStream.write("  <url>\n    <loc>");
       sitemapStream.write(sourceAcademyURL + "/sicpjs/");
       sitemapStream.write(sitemap[s]);
+      const month = today.getMonth() + 1;
+      const date = today.getDate();
       sitemapStream.write(
         "</loc>\n    <lastmod>" +
           today.getFullYear() +
           "-" +
-          (today.getMonth() + 1) +
+          (month < 10 ? "0" : "") +
+          month +
           "-" +
-          today.getDate() +
+          (date < 10 ? "0" : "") +
+          date +
           "</lastmod>\n"
       );
       sitemapStream.write("  </url>\n");
