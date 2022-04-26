@@ -342,7 +342,7 @@ export const preamble = `\\documentclass[nocrop,7x10]{../mitpress/mit}
 
 \\lstset{
    language=JavaScript,
-   basicstyle=\\usefont{T1}{lmtt}{m}{n},
+   basicstyle=\\usefont{T1}{lmtt}{l}{n},
    keywordstyle=\\usefont{T1}{lmtt}{b}{n},
    commentstyle=\\usefont{T1}{ptm}{m}{it},
    showstringspaces=false,
@@ -366,7 +366,7 @@ export const preamble = `\\documentclass[nocrop,7x10]{../mitpress/mit}
 
 \\lstdefinestyle{JavaScriptLatex}{
    language=JavaScript,
-   basicstyle=\\normalcodesize\\usefont{T1}{lmtt}{m}{n},
+   basicstyle=\\normalcodesize\\usefont{T1}{lmtt}{l}{n},
    keywordstyle=\\usefont{T1}{lmtt}{b}{n},
    commentstyle=\\usefont{T1}{ptm}{m}{it},
    showstringspaces=false,
@@ -384,7 +384,7 @@ export const preamble = `\\documentclass[nocrop,7x10]{../mitpress/mit}
 
 \\lstdefinestyle{JavaScriptLatexSmall}{
    language=JavaScript,
-   basicstyle=\\exercisecodesize\\usefont{T1}{lmtt}{m}{n},
+   basicstyle=\\exercisecodesize\\usefont{T1}{lmtt}{l}{n},
    keywordstyle=\\usefont{T1}{lmtt}{b}{n},
    commentstyle=\\usefont{T1}{ptm}{m}{it},
    showstringspaces=false,
@@ -403,7 +403,7 @@ export const preamble = `\\documentclass[nocrop,7x10]{../mitpress/mit}
 
 \\lstdefinestyle{JavaScriptLatexFootnote}{
    language=JavaScript,
-   basicstyle=\\footnotecodesize\\usefont{T1}{lmtt}{m}{n},
+   basicstyle=\\footnotecodesize\\usefont{T1}{lmtt}{l}{n},
    keywordstyle=\\usefont{T1}{lmtt}{b}{n},
    commentstyle=\\usefont{T1}{ptm}{m}{it},
    showstringspaces=false,
@@ -421,7 +421,7 @@ export const preamble = `\\documentclass[nocrop,7x10]{../mitpress/mit}
 
 \\lstdefinestyle{JavaScript}{
    language=JavaScript,
-   basicstyle=\\normalcodesize\\usefont{T1}{lmtt}{m}{n},
+   basicstyle=\\normalcodesize\\usefont{T1}{lmtt}{l}{n},
    keywordstyle=\\usefont{T1}{lmtt}{b}{n},
    commentstyle=\\usefont{T1}{ptm}{m}{it},
    showstringspaces=false,
@@ -440,7 +440,7 @@ export const preamble = `\\documentclass[nocrop,7x10]{../mitpress/mit}
 
 \\lstdefinestyle{JavaScriptSmall}{
    language=JavaScript,
-   basicstyle=\\exercisecodesize\\usefont{T1}{lmtt}{m}{n},
+   basicstyle=\\exercisecodesize\\usefont{T1}{lmtt}{l}{n},
    keywordstyle=\\usefont{T1}{lmtt}{b}{n},
    commentstyle=\\usefont{T1}{ptm}{m}{it},
    showstringspaces=false,
@@ -460,7 +460,7 @@ export const preamble = `\\documentclass[nocrop,7x10]{../mitpress/mit}
 
 \\lstdefinestyle{JavaScriptFootnote}{
    language=JavaScript,
-   basicstyle=\\footnotecodesize\\usefont{T1}{lmtt}{m}{n},
+   basicstyle=\\footnotecodesize\\usefont{T1}{lmtt}{l}{n},
    keywordstyle=\\usefont{T1}{lmtt}{b}{n},
    commentstyle=\\usefont{T1}{ptm}{m}{it},
    showstringspaces=false,
@@ -604,7 +604,7 @@ export const preamble = `\\documentclass[nocrop,7x10]{../mitpress/mit}
 
 \\lstdefinestyle{JavaScriptSmaller}{
    language=JavaScript,
-   basicstyle=\\exercisecodesize\\usefont{T1}{lmtt}{m}{n}, %\\fontsize{8.5}{9.5pt}\\selectfont
+   basicstyle=\\exercisecodesize\\usefont{T1}{lmtt}{l}{n}, %\\fontsize{8.5}{9.5pt}\\selectfont
    keywordstyle=\\usefont{T1}{lmtt}{b}{n},
    commentstyle=\\usefont{T1}{ptm}{m}{it},
    showstringspaces=false,
