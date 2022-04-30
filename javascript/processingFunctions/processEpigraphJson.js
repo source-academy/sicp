@@ -36,8 +36,7 @@ export const processEpigraphJson = (node, obj) => {
       if (childObj["child"][0]["body"]) {
         obj["title"] = childObj["child"][0]["body"];
       } else {
-        childObj["tag"] = "TEXT";
-        obj["title"] = childObj;
+        obj["title"] = childObj["child"][0]["child"][0]["body"];
       }
     }
 
