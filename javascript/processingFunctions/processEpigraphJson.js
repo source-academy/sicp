@@ -1,4 +1,5 @@
 import { recursiveProcessTextJson, processTextJson } from "../parseXmlJson";
+import { recursiveProcessTextHtml } from "../parseXmlHtml";
 
 export const processEpigraphJson = (node, obj) => {
   obj["tag"] = "EPIGRAPH";
@@ -20,23 +21,26 @@ export const processEpigraphJson = (node, obj) => {
 
   if (attribution) {
     const author = attribution.getElementsByTagName("AUTHOR")[0];
+    const title = attribution.getElementsByTagName("TITLE")[0];
+    const date = attribution.getElementsByTagName("DATE")[0];
+
     if (author) {
       const childObj = {};
       recursiveProcessTextJson(author.firstChild, childObj);
-      obj["author"] = " " + childObj["child"][0]["body"];
+      obj["author"] = " " + childObj["child"][0]["body"] + (title ? ", " : "");
     }
 
-    const title = attribution.getElementsByTagName("TITLE")[0];
     if (title) {
       const childObj = {};
       recursiveProcessTextJson(title.firstChild, childObj);
-      if (author) {
-        obj["title"] = ",";
+      if (childObj["child"][0]["body"]) {
+        obj["title"] = childObj["child"][0]["body"];
+      } else {
+        childObj["tag"] = "TEXT";
+        obj["title"] = childObj;
       }
-      obj["title"] += " " + childObj["child"][0]["body"];
     }
 
-    const date = attribution.getElementsByTagName("DATE")[0];
     if (date) {
       const childObj = {};
       recursiveProcessTextJson(date.firstChild, childObj);
