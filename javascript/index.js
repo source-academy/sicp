@@ -9,13 +9,13 @@ const readdir = util.promisify(fs.readdir);
 const open = util.promisify(fs.open);
 const readFile = util.promisify(fs.readFile);
 
-// latex (pdf & epub version)
+// latex (pdf version)
 import {
   switchParseFunctionsLatex,
   recursiveProcessTextLatex
 } from "./parseXmlLatex";
 import { setupSnippetsPdf } from "./processingFunctions/processSnippetPdf";
-import { preamble, epub_preamble, frontmatter, ending } from "./latexContent";
+import { preamble, frontmatter, ending } from "./latexContent";
 const latexmkrcContent = `$pdflatex = "xelatex %O %S";
 $pdf_mode = 1;
 $dvi_mode = 0;
@@ -30,10 +30,9 @@ import { generateTOC, sortTOC, indexHtml } from "./generateTocHtml";
 export let allFilepath = [];
 export let tableOfContent = {};
 
-// js (javascrirpt programs)
+// js (javascript programs)
 import { parseXmlJs } from "./parseXmlJs";
 import { setupSnippetsJs } from "./processingFunctions/processSnippetJs";
-import { setupSnippetsEpub } from "./processingFunctions/processSnippetEpub";
 import { getAnswers } from "./processingFunctions/processExercisePdf";
 
 // json (for cadet frontend)
@@ -72,10 +71,9 @@ async function translateXml(filepath, filename, option) {
   const doc = new dom().parseFromString(data);
   const writeTo = [];
 
-  if (parseType == "pdf" || parseType == "epub") {
+  if (parseType == "pdf") {
     if (option == "setupSnippet") {
       setupSnippetsPdf(doc.documentElement);
-      setupSnippetsEpub(doc.documentElement);
       return;
     }
     console.log(path.join(filepath, filename));
@@ -273,9 +271,6 @@ const createMain = () => {
   stream.once("open", fd => {
     stream.write(preamble);
     stream.write(frontmatter);
-    if (parseType == "epub") {
-      stream.write(epub_preamble);
-    }
     chaptersFound.forEach(chapter => {
       const pathStr = "./" + chapter + "/" + chapter + ".tex";
       stream.write("\\input{" + pathStr + "}\n");
@@ -295,13 +290,8 @@ const createMain = () => {
 
 async function main() {
   parseType = process.argv[2];
-  if (parseType == "pdf" || parseType == "epub") {
-    if (parseType == "pdf") {
-      outputDir = path.join(__dirname, "../latex_pdf");
-    }
-    if (parseType == "epub") {
-      outputDir = path.join(__dirname, "../latex_epub");
-    }
+  if (parseType == "pdf") {
+    outputDir = path.join(__dirname, "../latex_pdf");
 
     switchParseFunctionsLatex(parseType);
     createMain();

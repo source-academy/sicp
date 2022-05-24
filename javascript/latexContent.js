@@ -704,11 +704,6 @@ export const preamble = `\\documentclass[nocrop,7x10]{../mitpress/mit}
 
 `;
 
-export const epub_preamble = `
-\\newcommand{\\Big}{\\ensuremath{}}   % ignore Big for now
-\\newcommand{\\mhyphen}{\\ensuremath{-}}   % a first approximation of math hyphen
-`;
-
 export const frontmatter = `
 \\begin{document}
 \\renewcommand\\rmdefault{ptm}

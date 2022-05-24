@@ -7,11 +7,8 @@ import { recursiveProcessTextLatex } from "../parseXmlLatex";
 import processAttributionPdf from "./processAttributionPdf";
 import processEpigraphPdf from "./processEpigraphPdf";
 import processExercisePdf from "./processExercisePdf";
-import processExerciseEpub from "./processExerciseEpub";
 import processFigurePdf, { generateImage } from "./processFigurePdf";
-import processFigureEpub from "./processFigureEpub";
 import processSnippetPdf from "./processSnippetPdf";
-import processSnippetEpub from "./processSnippetEpub";
 import processSnippetJs from "./processSnippetJs";
 import processTablePdf from "./processTablePdf";
 
@@ -60,13 +57,10 @@ export {
   processAttributionPdf,
   processEpigraphPdf,
   processFigurePdf,
-  processFigureEpub,
   processFigureJson,
   generateImage,
   processExercisePdf,
-  processExerciseEpub,
   processSnippetPdf,
-  processSnippetEpub,
   processSnippetJs,
   processTablePdf,
   processEpigraphHtml,

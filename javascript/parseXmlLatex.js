@@ -7,13 +7,10 @@ import {
   processEpigraphPdf,
   processAttributionPdf,
   processFigurePdf,
-  processFigureEpub,
   generateImage,
   processExercisePdf,
-  processExerciseEpub,
   processFileInput,
   processSnippetPdf,
-  processSnippetEpub,
   processTablePdf,
   recursiveProcessPureText,
   processList,
@@ -734,53 +731,10 @@ const processTextFunctionsDefaultLatex = {
   }
 };
 
-const processTextFunctionsEpub = {
-  PDF_ONLY: (node, writeTo) => {},
-
-  WEB_ONLY: (node, writeTo) => {
-    recursiveProcessTextLatex(node.firstChild, writeTo);
-  },
-
-  EXERCISE: (node, writeTo) => {
-    processExerciseEpub(node, writeTo);
-  },
-  FIGURE: (node, writeTo) => {
-    processFigureEpub(node, writeTo);
-  },
-  SECTION: (node, writeTo) => {
-    writeTo.push("\\section{");
-    addName(node, writeTo);
-    recursiveProcessTextLatex(node.firstChild, writeTo);
-  },
-  SNIPPET: (node, writeTo) => {
-    processSnippetEpub(node, writeTo);
-  },
-  SUBSECTION: (node, writeTo) => {
-    writeTo.push("\\subsection{");
-    addName(node, writeTo);
-    recursiveProcessTextLatex(node.firstChild, writeTo);
-  },
-  SUBHEADING: (node, writeTo) => {
-    writeTo.push("\\paragraph{");
-    addName(node, writeTo);
-    recursiveProcessTextLatex(node.firstChild, writeTo);
-  },
-  SUBSUBSECTION: (node, writeTo) =>
-    processTextFunctionsEpub["SUBHEADING"](node, writeTo)
-};
-
 let processTextFunctionsLatex = processTextFunctionsDefaultLatex;
 
 export const switchParseFunctionsLatex = parseType => {
-  if (parseType == "pdf") {
-    processTextFunctionsLatex = processTextFunctionsDefaultLatex;
-  } else if (parseType == "epub") {
-    console.log("using parsetype epub");
-    processTextFunctionsLatex = {
-      ...processTextFunctionsDefaultLatex,
-      ...processTextFunctionsEpub
-    };
-  }
+  processTextFunctionsLatex = processTextFunctionsDefaultLatex;
 };
 
 export const processTextLatex = (node, writeTo) => {
