@@ -58,7 +58,9 @@ export const setupReferencesJson = (node, filename) => {
 
     let href;
     let displayName;
-    if (ref_type == "chap") {
+    if (ancestorHasTag(label, "SCHEME")) {
+      continue;
+    } else if (ref_type == "chap") {
       displayName = chapterIndex;
       href = `/sicpjs/${chapterIndex}`;
     } else if (ref_type == "sec") {
