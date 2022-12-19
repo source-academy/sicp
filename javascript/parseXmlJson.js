@@ -36,7 +36,7 @@ export const tagsToRemove = new Set([
   "HISTORY",
   "ORDER",
   "SCHEME",
-  "SOLUTION", // SOLUTION tag handled by processSnippet
+  "SOLUTION", // SOLUTION tag handled by processExerciseJson
   "INDEX",
   "CAPTION",
   "NAME",
