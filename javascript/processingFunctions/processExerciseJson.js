@@ -3,7 +3,7 @@ import { missingExerciseWarning } from "./warnings.js";
 import { referenceStore } from "./processReferenceJson";
 
 let unlabeledEx = 0;
-const processExerciseHtml = (node, obj) => {
+const processExerciseJson = (node, obj) => {
   const label = node.getElementsByTagName("LABEL")[0];
   let labelName = "";
   const solution = node.getElementsByTagName("SOLUTION")[0];
@@ -35,4 +35,4 @@ const processExerciseHtml = (node, obj) => {
   }
 };
 
-export default processExerciseHtml;
+export default processExerciseJson;
