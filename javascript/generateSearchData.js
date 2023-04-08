@@ -1,5 +1,7 @@
 import { getChildrenByTagName, ancestorHasTag } from "./utilityFunctions";
 import { allFilepath, tableOfContent } from "./index.js";
+import path from "path";
+import fs from "fs";
 
 import {
   replaceTagWithSymbol,
@@ -11,10 +13,6 @@ import {
   recursiveProcessPureText,
   recursivelyProcessTextSnippetJson
 } from "./processingFunctions";
-
-import {
-  generateSearchData
-} from "./generateSearchData";
 
 let paragraph_count = 0;
 let heading_count = 0;
@@ -41,7 +39,7 @@ export const tagsToRemove = new Set([
   "ORDER",
   "SCHEME",
   "SOLUTION", // SOLUTION tag handled by processExerciseJson
-  "INDEX",
+  //"INDEX",
   "CAPTION",
   "NAME",
   "LABEL",
@@ -74,6 +72,213 @@ const ignoreTags = new Set([
   "p",
   "WEB_ONLY"
 ]);
+export const trieTree = {};
+export const trieTreeText = {};
+export const writeSearchData = () => {
+  const outputDir = path.join(__dirname, "../json");
+  
+  const outputFile = path.join(outputDir, "searchData.json");
+  const searchData = {};
+  searchData['textbook']=textBook;
+  searchData['indexSearch'] = trieTree;
+  searchData['userSearch'] = trieTreeText;
+
+  fs.writeFile(outputFile, JSON.stringify(searchData), (err) => {
+    if (err) {
+      console.error(err);
+    } else {
+      console.log(`SearchData object written to ${outputFile}`);
+    }
+  });
+
+}
+
+
+var index = [];
+var count = 0;
+var globalTitle;
+var globalExerciseID = [];
+var sectionExerciseArrayIndex = [];
+var sectionExerciseIndexCount = 0;
+var textBook = {};
+function reportErrors() {
+          console.log("ERROR");
+          console.log("ERROR");
+          console.log("ERROR");
+          console.log("ERROR");
+          }
+function maintainTextTrie(arr) {
+  function add2(word,idarray) {
+    if(idarray == null || idarray[0] == null || idarray[1]==null || idarray[0].includes("footnote")||idarray[1].includes("footnote")){
+      return;
+    }
+    //console.log(idarray[1]);
+    let current = trieTreeText;
+    for (let j = 0; j < word.length; j++) {
+      let char = word[j];
+      if (!current.hasOwnProperty(char)) {
+        current[char] = {};
+       }
+
+      current = current[char];
+    }
+
+    if (!current.value) {
+        current.value = [];
+      }
+
+      if (!current.value.some(array => array[0] === idarray[0]&&array[1] === idarray[1] && array[2] === idarray[2])) {
+      current.value.push(idarray);
+   }
+  }
+  const tem = {};
+  const sectionId = arr[0]['id'];
+  textBook[sectionId] = tem;
+
+  for(let i=1; i<arr.length; i++) {
+    if(arr[i].tag = "TEXT" && arr[i].child) {
+      const sentences = {};
+      const paragraphId = arr[i]['id'];
+      tem[paragraphId]=sentences;
+      const childs = arr[i]["child"];
+      for(let j=0; j< childs.length; j++) {
+        if(childs[j].tag != '#text') {
+          continue;
+        }
+        let line = childs[j]["body"];
+         line = line.replace(/\n|\t/g, ""); 
+         line = line.replace(/[^\w\s]/g, "");
+         line = line.replace(/\s+/g," ").trim();
+         sentences[j]=line;
+         line = line.toLowerCase();
+         let words = line.split(" ");
+         for(let k =0; k<words.length; k++) {
+          const word = words[k];
+          
+          add2(word,[sectionId,paragraphId,j]);
+        
+         }
+         
+      }
+    }
+   }
+  }
+
+function maintainIndexTrie() {
+  function add(obj,trie) {
+    let current = trie;
+
+    if(obj["parse"] == null ||obj["parse"]["value"] == null) {
+      if(obj["parse"]["DECLARATION"]) {
+        obj["parse"]["value"] = obj["parse"]["DECLARATION"]["value"];
+      } else if(obj["parse"]["JAVASCRIPTINLINE"]) {
+        obj["parse"]["value"] = obj["parse"]["JAVASCRIPTINLINE"]["value"];
+      }
+        else if(obj["parse"]["USE"]) {
+        obj["parse"]["value"] = obj["parse"]["USE"]["value"];
+      } else if(obj["parse"]["FUNCTION"]) {
+        obj["parse"]["value"] = "FUNCTION";
+      } else if(obj["parse"]["OPERATOR"]) {
+        obj["parse"]["value"] = "OPERATOR";
+      } else if(obj["parse"]["PRIMITIVE"]) {
+        obj["parse"]["value"] = "PRIMITIVE";
+      } else if(obj["parse"]["PARSING"]) {
+        obj["parse"]["value"] = "PARSING";
+      } else {
+      //console.log(obj);
+      return;
+      }
+    }
+
+    var index = obj["parse"]["value"];
+
+    for(let i=0; i<index.length; i++) {
+      let char = index[i];
+      char = char.toLowerCase();
+      
+      if (!current.hasOwnProperty(char)) {
+        current[char] = {};
+      }
+      current = current[char];
+    }
+    if (!current.value) {
+        current.value = {'value':index,'pureIndex':[], "subIndex":[]};
+      }
+    
+
+    if(obj["parse"]["SUBINDEX"]) {
+      if(obj["parse"]["SUBINDEX"]["value"] === undefined) {
+
+      if(obj["parse"]["SUBINDEX"]["DECLARATION"]) {
+        obj["parse"]["SUBINDEX"]["value"] = obj["parse"]["SUBINDEX"]["DECLARATION"]["value"];
+      } else if(obj["parse"]["SUBINDEX"]["ORDER"]) {
+        obj["parse"]["SUBINDEX"]["value"] = obj["parse"]["SUBINDEX"]["ORDER"]["value"];
+      } else if(obj["parse"]["SUBINDEX"]["JAVASCRIPTINLINE"]) {
+        obj["parse"]["SUBINDEX"]["value"] = obj["parse"]["SUBINDEX"]["JAVASCRIPTINLINE"]["value"];
+      }
+        else if(obj["parse"]["SUBINDEX"]["USE"]) {
+        obj["parse"]["SUBINDEX"]["value"] = obj["parse"]["SUBINDEX"]["USE"]["value"];
+      } else if(obj["parse"]["SUBINDEX"]["SPLITINLINE"]) {
+        obj["parse"]["SUBINDEX"]["value"] = obj["parse"]["SUBINDEX"]["SPLITINLINE"]["value"];
+      } 
+        else {
+      current.value.pureIndex.push(obj["parentId"]);
+      }
+      }
+      if(obj["parse"]["SUBINDEX"]["value"] === undefined) {
+        //console.log(obj);
+        return;
+      }
+
+
+      let toAdd ={};
+      toAdd["value"]=obj["parse"]["SUBINDEX"]["value"];
+      toAdd["id"]=obj["parentId"];
+
+      if(obj["parse"]["ORDER"]) {
+        toAdd["order"] = obj["parse"]["ORDER"]["value"];
+      }
+      else{
+        toAdd["order"] = obj["parse"]["SUBINDEX"]["value"];
+      }
+      if(!current.value.subIndex.find(obj => obj.value === toAdd.value && obj.id[0] === toAdd.id[0] && obj.id[1] === toAdd.id[1])) {
+        current.value.subIndex.push(toAdd);
+        for(let i=0; i<current.value.subIndex.length; i++) {
+          //console.log(current.value.subIndex[i]["order"].toString.localeCompare("gh"));
+        current.value.subIndex.sort((a,b)=>a["order"].localeCompare(b.order));   
+      }   
+    }}
+    else {
+        current.value.pureIndex.push(obj["parentId"]);
+    }
+  }
+  let len = index.length;
+    let j = 0;
+    for(let i=0; i<len; i++) {
+      if(index[i]["Exercise"] == true) {
+        index[i]["parentId"][1] = globalExerciseID[j];
+        if(j >= globalExerciseID.length) {
+          //reportErrors();
+        }
+        //console.log(globalExerciseID[j] + "   " + globalExerciseID + "  " + j )
+        j++;
+      } 
+    }
+    /*
+    if(j!=globalExerciseID.length) {
+     reportErrors();
+    } */
+    //index.push(globalExerciseID);
+    //arr.push(index);
+    const len2 = index.length;
+    for(let i=0; i<len; i++) {
+      add(index[i], trieTree)
+    }
+    index = [];
+    sectionExerciseIndexCount=0;
+    globalExerciseID=[];
+    sectionExerciseArrayIndex=[];
+}
 
 export const addBodyToObj = (obj, node, body) => {
   obj["tag"] = node.nodeName;
@@ -183,6 +388,33 @@ const processTextFunctions = {
   EXERCISE: (node, obj) => {
     exercise_count += 1;
     processExerciseJson(node, obj, chapArrIndex, exercise_count);
+    let id = obj["id"];
+    addExerciseIds(node, id);
+    function addExerciseIds(node, id) {
+      if(node.nodeName == "#text") {
+        return;
+      }
+      if(node.nodeName == "INDEX") {
+        globalExerciseID.push(id);
+        return;
+      }
+      if(node.nodeName == "Exercise") {
+        return;
+      }
+      if(tagsToRemove.has(node.nodeName)) {
+        return;
+      }
+    var childs = node.childNodes;
+    if(childs == null) {
+      return;
+    }
+    var len = childs.length;
+    for(let i=0; i<len; i++) {
+      let c = childs[i];
+      addExerciseIds(c,id); 
+    }
+  }
+
   },
 
   FIGURE: (node, obj) => {
@@ -359,6 +591,76 @@ const processTextFunctions = {
     obj["id"] = snippet_count;
     processSnippetJson(node, obj);
   },
+  INDEX: (node, obj) => {
+    var tem = {};
+    var parse = {};
+   tem["Exercise"] = false;
+   tem["parentId"] = [globalTitle, generateID(node,tem)];
+   tem["parse"] = parse;
+   generateValue(node,parse);
+   index.push(tem);
+  function generateID(node,tem) {
+      if(! node.parentNode) {
+        //console.log(node);
+        return;
+      }
+      var n = node.parentNode.nodeName;
+       if(n == "DISPLAYFOOTNOTE") {
+      return `#footnote-${display_footnote_count}`; 
+    }
+    else if(n == "SUBSECTION") {
+      return`#sec${chapterIndex}.${subsubsection_count}`; 
+    }
+    else if(n == "EXERCISE") {
+      sectionExerciseIndexCount++;
+      tem["Exercise"] = true;
+      return sectionExerciseIndexCount - 1;
+    }
+     else if(n == "TEXT") {
+      return "#p" + paragraph_count;
+    }
+    else if(n == "SUBSUBSECTION") {
+      return `#sec${chapterIndex}.${subsubsection_count}`;
+    }
+    else if(n == "SECTION") {
+     return `#h${heading_count}`;
+    }
+    else if(n == "EPIGRAPH") {
+     return "EPIGRAPH";
+    }
+    else {
+      //console.log(n + "and the new type of the parentNode is" +node.parentNode.parentNode.nodeName );
+      return generateID(node.parentNode, tem); 
+    }
+    }
+  function generateValue(node, ob) {
+      if(node.nodeName == "#text") {
+        ob["value"] = node.nodeValue;
+        return;
+      }
+      if(node.nodeValue && node.nodeValue != "#text") {
+        //console.log(node.nodeName);
+        ob["value"] = node.nodeValue;
+        return;
+      }
+      
+     var childs = node.childNodes;
+     const len = childs.length;
+     for(let i = 0; i < len; i++) {
+      var c = childs[i];
+      if(c.nodeName == "#text") {
+        if(!ob["value"]) {
+          ob["value"]="";
+        }
+        ob["value"] += c.nodeValue;
+        continue;
+      }
+      ob[c.nodeName] = {};
+      generateValue(c,ob[c.nodeName]);
+    } 
+
+    }      
+  }, /*
 
   SUBINDEX: (node, obj) => {
     // should occur only within INDEX
@@ -370,7 +672,7 @@ const processTextFunctions = {
       addBodyToObj(obj, node, "@");
     }
     recursiveProcessTextJson(node.firstChild, obj);
-  },
+  },*/
 
   SUBHEADING: (node, obj) => {
     heading_count += 1;
@@ -420,6 +722,8 @@ const processTextFunctions = {
   }
 };
 
+
+
 export const processTextJson = (node, obj) => {
   const name = node.nodeName;
   if (processTextFunctions[name]) {
@@ -437,7 +741,7 @@ export const processTextJson = (node, obj) => {
       return true;
     }
   }
-  console.log("WARNING Unrecognised Tag:\n" + node.toString() + "\n");
+  //console.log("WARNING Unrecognised Tag:\n" + node.toString() + "\n");
   return false;
 };
 
@@ -471,6 +775,8 @@ export const recursiveProcessTextJson = (node, obj, prevSibling = false) => {
     recursiveProcessTextJson(name.nextSibling, obj, title);
     return recursiveProcessTextJson(node.nextSibling, obj, true);
   }
+
+
 
   let next = {};
   processTextJson(node, next);
@@ -511,7 +817,10 @@ export const recursiveProcessTextJson = (node, obj, prevSibling = false) => {
   return recursiveProcessTextJson(node.nextSibling, obj, prevSibling);
 };
 
-export const parseXmlJson = (doc, arr, filename) => {
+var c = 0
+export const generateSearchData = (doc, filename) => {
+  const arr = [];
+
   chapterIndex = tableOfContent[filename].index;
   chapterTitle = tableOfContent[filename].title;
 
@@ -529,7 +838,7 @@ export const parseXmlJson = (doc, arr, filename) => {
   snippet_count = 0;
   exercise_count = 0;
   chapArrIndex = allFilepath.indexOf(filename);
-  console.log(`${chapArrIndex} parsing chapter ${chapterIndex}`);
+  console.log(`${chapArrIndex} parsing search data for chapter ${chapterIndex}`);
 
   // Add section title
   const title = {
@@ -537,10 +846,12 @@ export const parseXmlJson = (doc, arr, filename) => {
     tag: "TITLE",
     body: displayTitle.trim()
   };
+  globalTitle = `/sicpjs/${chapterIndex}`;
+  //globaleE = chapArrIndex.charAt(0);
   arr.push(title);
 
   const name = getChildrenByTagName(doc.documentElement, "NAME")[0];
-
+  
   if (chapterIndex == "prefaces96") {
     const sections = getChildrenByTagName(doc.documentElement, "SECTION");
 
@@ -569,8 +880,10 @@ export const parseXmlJson = (doc, arr, filename) => {
     }
   } else if (name) {
     recursiveProcessTextJson(name.nextSibling, arr, title);
+    maintainIndexTrie();
+    maintainTextTrie(arr);
+    if(chapterIndex == 'making-of') {
+      writeSearchData();
+    }
   }
-
-  generateSearchData(doc, filename);
-
 };
