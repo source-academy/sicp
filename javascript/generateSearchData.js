@@ -146,12 +146,10 @@ function maintainTextTrie(arr) {
           continue;
         }
         let line = childs[j]["body"];
-         line = line.replace(/\n|\t/g, ""); 
-         line = line.replace(/[^\w\s]/g, "");
-         line = line.replace(/\s+/g," ").trim();
+         line = line.trim().replace(/\s+/g," ");
          sentences[j]=line;
-         line = line.toLowerCase();
-         let words = line.split(" ");
+         line = line.toLowerCase().replace(/[^a-z0-9" "]/gi, "");
+         let words = line.split(" ").filter(a => a != "" && a != '\"');
          for(let k =0; k<words.length; k++) {
           const word = words[k];
           
