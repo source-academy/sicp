@@ -16,8 +16,8 @@ export const setupSnippetsPdf = node => {
   const snippets = node.getElementsByTagName("SNIPPET");
   for (let i = 0; snippets[i]; i++) {
     const snippet = snippets[i];
-    const jsSnippet = snippet.getElementsByTagName("JAVASCRIPT")[0];
-    let jsRunSnippet = snippet.getElementsByTagName("JAVASCRIPT_RUN")[0];
+    const jsSnippet = snippet.getElementsByTagName("PYTHON")[0];
+    let jsRunSnippet = snippet.getElementsByTagName("PYTHON_RUN")[0];
     if (!jsRunSnippet) {
       jsRunSnippet = jsSnippet;
     }
@@ -121,10 +121,10 @@ export const processSnippetPdf = (node, writeTo) => {
     : "\\PostBoxCmd%\n";
   const midSpace = inFigure ? "\\smallskip" : "";
 
-  const jsPromptSnippet = node.getElementsByTagName("JAVASCRIPT_PROMPT")[0];
-  const jsLonelySnippet = node.getElementsByTagName("JAVASCRIPT_LONELY")[0];
-  const jsSnippet = node.getElementsByTagName("JAVASCRIPT")[0];
-  const jsOutputSnippet = node.getElementsByTagName("JAVASCRIPT_OUTPUT")[0];
+  const jsPromptSnippet = node.getElementsByTagName("PYTHON_PROMPT")[0];
+  const jsLonelySnippet = node.getElementsByTagName("PYTHON_LONELY")[0];
+  const jsSnippet = node.getElementsByTagName("PYTHON")[0];
+  const jsOutputSnippet = node.getElementsByTagName("PYTHON_OUTPUT")[0];
   const allowBreakAfter =
     jsSnippet && jsSnippet.getAttribute("BREAK_AFTER") === "yes"
       ? "\\pagebreak"
@@ -205,7 +205,7 @@ export const processSnippetPdf = (node, writeTo) => {
 
   if (jsSnippet) {
     // JavaScript source for running. Overrides JAVASCRIPT if present.
-    let jsRunSnippet = node.getElementsByTagName("JAVASCRIPT_RUN")[0];
+    let jsRunSnippet = node.getElementsByTagName("PYTHON_RUN")[0];
     if (!jsRunSnippet) {
       jsRunSnippet = jsSnippet;
     }
@@ -445,7 +445,7 @@ export const processSnippetPdf = (node, writeTo) => {
     }
   }
 
-  // const jsOutputSnippet = node.getElementsByTagName("JAVASCRIPT_OUTPUT")[0];
+  // const jsOutputSnippet = node.getElementsByTagName("PYTHON_OUTPUT")[0];
 
   if (jsOutputSnippet) {
     if (jsPromptSnippet) {

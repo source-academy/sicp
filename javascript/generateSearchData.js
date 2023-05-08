@@ -66,7 +66,7 @@ const ignoreTags = new Set([
   "CHAPTERCONTENT",
   "SPLIT",
   "SPLITINLINE",
-  "JAVASCRIPT",
+  "PYTHON",
   "CITATION",
   "SECTIONCONTENT",
   "p",
@@ -169,8 +169,8 @@ function maintainIndexTrie() {
     if(obj["parse"] == null ||obj["parse"]["value"] == null) {
       if(obj["parse"]["DECLARATION"]) {
         obj["parse"]["value"] = obj["parse"]["DECLARATION"]["value"];
-      } else if(obj["parse"]["JAVASCRIPTINLINE"]) {
-        obj["parse"]["value"] = obj["parse"]["JAVASCRIPTINLINE"]["value"];
+      } else if(obj["parse"]["PYTHONINLINE"]) {
+        obj["parse"]["value"] = obj["parse"]["PYTHONINLINE"]["value"];
       }
         else if(obj["parse"]["USE"]) {
         obj["parse"]["value"] = obj["parse"]["USE"]["value"];
@@ -211,8 +211,8 @@ function maintainIndexTrie() {
         obj["parse"]["SUBINDEX"]["value"] = obj["parse"]["SUBINDEX"]["DECLARATION"]["value"];
       } else if(obj["parse"]["SUBINDEX"]["ORDER"]) {
         obj["parse"]["SUBINDEX"]["value"] = obj["parse"]["SUBINDEX"]["ORDER"]["value"];
-      } else if(obj["parse"]["SUBINDEX"]["JAVASCRIPTINLINE"]) {
-        obj["parse"]["SUBINDEX"]["value"] = obj["parse"]["SUBINDEX"]["JAVASCRIPTINLINE"]["value"];
+      } else if(obj["parse"]["SUBINDEX"]["PYTHONINLINE"]) {
+        obj["parse"]["SUBINDEX"]["value"] = obj["parse"]["SUBINDEX"]["PYTHONINLINE"]["value"];
       }
         else if(obj["parse"]["SUBINDEX"]["USE"]) {
         obj["parse"]["SUBINDEX"]["value"] = obj["parse"]["SUBINDEX"]["USE"]["value"];
@@ -518,9 +518,9 @@ const processTextFunctions = {
   },
 
   SCHEMEINLINE: (node, obj) =>
-    processTextFunctions["JAVASCRIPTINLINE"](node, obj),
+    processTextFunctions["PYTHONINLINE"](node, obj),
 
-  JAVASCRIPTINLINE: (node, obj) => {
+  PYTHONINLINE: (node, obj) => {
     if (
       node.firstChild &&
       node.firstChild.data &&
@@ -536,7 +536,7 @@ const processTextFunctions = {
     });
 
     addArrayToObj(obj, node, writeTo);
-    obj["tag"] = "JAVASCRIPTINLINE";
+    obj["tag"] = "PYTHONINLINE";
   },
 
   SNIPPET: (node, obj) => {
@@ -549,19 +549,19 @@ const processTextFunctions = {
 
       const writeTo = [];
 
-      const textprompt = getChildrenByTagName(node, "JAVASCRIPT_PROMPT")[0];
+      const textprompt = getChildrenByTagName(node, "PYTHON_PROMPT")[0];
       if (textprompt) {
         recursivelyProcessTextSnippetJson(textprompt.firstChild, writeTo);
       }
 
-      const textit = getChildrenByTagName(node, "JAVASCRIPT")[0];
+      const textit = getChildrenByTagName(node, "PYTHON")[0];
       if (textit) {
         recursivelyProcessTextSnippetJson(textit.firstChild, writeTo);
       } else {
         recursivelyProcessTextSnippetJson(node.firstChild, writeTo);
       }
 
-      const textoutput = getChildrenByTagName(node, "JAVASCRIPT_OUTPUT")[0];
+      const textoutput = getChildrenByTagName(node, "PYTHON_OUTPUT")[0];
       if (textoutput) {
         recursivelyProcessTextSnippetJson(textoutput.firstChild, writeTo);
       }

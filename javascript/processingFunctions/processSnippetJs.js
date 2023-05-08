@@ -12,9 +12,9 @@ export const setupSnippetsJs = node => {
   const snippets = node.getElementsByTagName("SNIPPET");
   for (let i = 0; snippets[i]; i++) {
     const snippet = snippets[i];
-    const jsSnippet = snippet.getElementsByTagName("JAVASCRIPT")[0];
-    let jsRunSnippet = snippet.getElementsByTagName("JAVASCRIPT_RUN")[0];
-    let jsTestSnippet = snippet.getElementsByTagName("JAVASCRIPT_TEST")[0];
+    const jsSnippet = snippet.getElementsByTagName("PYTHON")[0];
+    let jsRunSnippet = snippet.getElementsByTagName("PYTHON_RUN")[0];
+    let jsTestSnippet = snippet.getElementsByTagName("PYTHON_TEST")[0];
     if (jsTestSnippet) {
       jsRunSnippet = jsTestSnippet;
     } else {
@@ -60,7 +60,7 @@ const recursiveGetRequires = (name, seen) => {
 };
 
 export const processSnippetJs = (node, writeTo, fileFormat) => {
-  const jsSnippet = node.getElementsByTagName("JAVASCRIPT")[0];
+  const jsSnippet = node.getElementsByTagName("PYTHON")[0];
   if (jsSnippet) {
     if (node.getAttribute("CHAP") || node.getAttribute("VARIANT")) {
       writeTo.push("// ");
@@ -74,8 +74,8 @@ export const processSnippetJs = (node, writeTo, fileFormat) => {
     }
 
     // JavaScript source for running. Overrides JAVASCRIPT if present.
-    let jsRunSnippet = node.getElementsByTagName("JAVASCRIPT_RUN")[0];
-    let jsTestSnippet = node.getElementsByTagName("JAVASCRIPT_TEST")[0];
+    let jsRunSnippet = node.getElementsByTagName("PYTHON_RUN")[0];
+    let jsTestSnippet = node.getElementsByTagName("PYTHON_TEST")[0];
     if (jsTestSnippet) {
       jsRunSnippet = jsTestSnippet;
     } else {

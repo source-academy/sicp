@@ -24,7 +24,7 @@ const ignoreTags = new Set([
   "CHAPTERCONTENT",
   "span",
   "SPLITINLINE",
-  "JAVASCRIPT"
+  "PYTHON"
 ]);
 
 const preserveTags = new Set([

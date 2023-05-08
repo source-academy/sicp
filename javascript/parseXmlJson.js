@@ -68,7 +68,7 @@ const ignoreTags = new Set([
   "CHAPTERCONTENT",
   "SPLIT",
   "SPLITINLINE",
-  "JAVASCRIPT",
+  "PYTHON",
   "CITATION",
   "SECTIONCONTENT",
   "p",
@@ -288,9 +288,9 @@ const processTextFunctions = {
   },
 
   SCHEMEINLINE: (node, obj) =>
-    processTextFunctions["JAVASCRIPTINLINE"](node, obj),
+    processTextFunctions["PYTHONINLINE"](node, obj),
 
-  JAVASCRIPTINLINE: (node, obj) => {
+  PYTHONINLINE: (node, obj) => {
     if (
       node.firstChild &&
       node.firstChild.data &&
@@ -306,7 +306,7 @@ const processTextFunctions = {
     });
 
     addArrayToObj(obj, node, writeTo);
-    obj["tag"] = "JAVASCRIPTINLINE";
+    obj["tag"] = "PYTHONINLINE";
   },
 
   SNIPPET: (node, obj) => {
@@ -319,19 +319,19 @@ const processTextFunctions = {
 
       const writeTo = [];
 
-      const textprompt = getChildrenByTagName(node, "JAVASCRIPT_PROMPT")[0];
+      const textprompt = getChildrenByTagName(node, "PYTHON_PROMPT")[0];
       if (textprompt) {
         recursivelyProcessTextSnippetJson(textprompt.firstChild, writeTo);
       }
 
-      const textit = getChildrenByTagName(node, "JAVASCRIPT")[0];
+      const textit = getChildrenByTagName(node, "PYTHON")[0];
       if (textit) {
         recursivelyProcessTextSnippetJson(textit.firstChild, writeTo);
       } else {
         recursivelyProcessTextSnippetJson(node.firstChild, writeTo);
       }
 
-      const textoutput = getChildrenByTagName(node, "JAVASCRIPT_OUTPUT")[0];
+      const textoutput = getChildrenByTagName(node, "PYTHON_OUTPUT")[0];
       if (textoutput) {
         recursivelyProcessTextSnippetJson(textoutput.firstChild, writeTo);
       }

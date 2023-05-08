@@ -48,7 +48,7 @@ const tagsToRemove = new Set([
 
 const ignoreTags = new Set([
   "CHAPTERCONTENT",
-  "JAVASCRIPT",
+  "PYTHON",
   "SECTIONCONTENT",
   "span",
   "SPLIT",
@@ -63,12 +63,12 @@ const processTextFunctionsDefaultLatex = {
     } else {
       trimedValue = node.nodeValue;
       if (
-        node.parentNode.nodeName === "JAVASCRIPTINLINE" &&
+        node.parentNode.nodeName === "PYTHONINLINE" &&
         node.parentNode.parentNode.nodeName === "CAPTION"
       ) {
         trimedValue = trimedValue.replace(/\{/g, "\\{").replace(/\}/g, "\\}");
       } else {
-        if (node.parentNode.nodeName !== "JAVASCRIPTINLINE") {
+        if (node.parentNode.nodeName !== "PYTHONINLINE") {
           trimedValue = trimedValue.replace(/%/g, "\\%");
         }
       }
@@ -87,8 +87,8 @@ const processTextFunctionsDefaultLatex = {
   },
 
   SPLITINLINE: (node, writeTo) => {
-    if (getChildrenByTagName(node, "JAVASCRIPTINLINE")[0]) {
-      console.error("remove 'INLINE' from tag JAVASCRIPTINLINE");
+    if (getChildrenByTagName(node, "PYTHONINLINE")[0]) {
+      console.error("remove 'INLINE' from tag PYTHONINLINE");
     }
     if (getChildrenByTagName(node, "SCHEMEINLINE")[0]) {
       console.error("remove 'INLINE' from tag SCHEMEINLINE");
@@ -252,7 +252,7 @@ const processTextFunctionsDefaultLatex = {
   },
 
   META: (node, writeTo) => {
-    if (ancestorHasTag(node, "JAVASCRIPT_OUTPUT")) {
+    if (ancestorHasTag(node, "PYTHON_OUTPUT")) {
       writeTo.push("^");
     }
     writeTo.push("$\\mathit{");
@@ -260,7 +260,7 @@ const processTextFunctionsDefaultLatex = {
     s = s.replace(/-/g, "\\mhyphen{}").replace(/ /g, "\\ ");
     writeTo.push(s);
     writeTo.push("}$");
-    if (ancestorHasTag(node, "JAVASCRIPT_OUTPUT")) {
+    if (ancestorHasTag(node, "PYTHON_OUTPUT")) {
       writeTo.push("^");
     }
   },
@@ -649,13 +649,13 @@ const processTextFunctionsDefaultLatex = {
   },
 
   SCHEMEINLINE: (node, writeTo) =>
-    processTextFunctionsLatex["JAVASCRIPTINLINE"](node, writeTo),
+    processTextFunctionsLatex["PYTHONINLINE"](node, writeTo),
   DECLARATION: (node, writeTo) =>
-    processTextFunctionsLatex["JAVASCRIPTINLINE"](node, writeTo),
+    processTextFunctionsLatex["PYTHONINLINE"](node, writeTo),
   USE: (node, writeTo) =>
-    processTextFunctionsLatex["JAVASCRIPTINLINE"](node, writeTo),
+    processTextFunctionsLatex["PYTHONINLINE"](node, writeTo),
   ECMA: (node, writeTo) => {},
-  JAVASCRIPTINLINE: (node, writeTo) => {
+  PYTHONINLINE: (node, writeTo) => {
     if (ancestorHasTag(node, "METAPHRASE")) {
       writeTo.push("}$");
       recursiveProcessPureText(node.firstChild, writeTo, { type: parseType });
