@@ -284,11 +284,11 @@ export const preamble = `\\documentclass[nocrop,7x10]{../mitpress/mit}
 
 
 \\lstdefinelanguage{JavaScript}{
-  keywords={def,if,else,elif,return,break,for,while,True,False,None}, %% removing continue for now
+  keywords={function,if,else,return,const,let,break,for,while,true,false,var,null}, %% removing continue for now
   %% keywords={const, let, break, case, catch, continue, debugger, default, delete, do, else, finally, for, function, if, in, instanceof, return, switch, this, throw, try, typeof, var, void, while, with},
-  morecomment=[l]{#},
-  %% morecomment=[s]{/*}{*/},
-  morestring=[b]{"""},
+  morecomment=[l]{//},
+  morecomment=[s]{/*}{*/},
+  morestring=[b]\`,
   morestring=[b]',
   morestring=[b]",
   columns=fullflexible,
