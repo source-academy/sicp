@@ -226,7 +226,7 @@ const writeFailureMessage = (key, searchResult) => {
     failedTests.push(`${key}: result is ${searchResult}, expected occuer number is: ${indexSearchTestCase[key]}`);
 }
 
-export function testIndexSearch() {
+export async function testIndexSearch() {
     for (const [key, value] of Object.entries(indexSearchTestCase)) {
         const result = search(key, indexTrie);
         //console.log(result);
@@ -245,6 +245,27 @@ export function testIndexSearch() {
     
     console.log(autoComplete("||", indexTrie));
     console.log(search("|| (logical disjunction)", indexTrie));
+
+    async function testURLs() {
+        console.log("Testing urls");
+        for (const [key, urlArray] of Object.entries(urls)) {
+            for (const url of urlArray) {
+                try {
+                  const response = await fetch(url);
+            
+                  if (!response.ok) {
+                    console.log(key + ": " + url + " is not working");
+                  }
+      
+                } catch (error) {
+                  console.error(key + ": " + url + " is not working");
+                }
+              }
+        }
+        console.log("Done testing urls");       
+    }
+      
+    await testURLs();
 
     fs.writeFileSync("failedTests.txt", failedTests.join("\n"));
     fs.writeFileSync("urls.txt", JSON.stringify(urls));
