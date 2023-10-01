@@ -3,8 +3,7 @@
 
 
 /* todos and issues: 
-have not test urls, and urls for exercise can be impoved, currently point to the closest paragraph
-what is the mechanism for link to snippet and latex? propably need to modify the frontend
+ propably need to modify the frontend to enable link to snippets
 works fine for things like <= (numeric comparison operator), but not for || (logical disjunction); could not test for " (double quote)
 did not process the "seexml" file, so no see also in index
 did not process the latex, roman, italic, etc.
@@ -167,6 +166,7 @@ averager (constraint), 261 (ex. 3.33)
 
 // I include 2 out of the 5 columns of all the index with A here.
 
+// manually tested the exercise urls to accumulate and accumulate_n, they are correct
 import { indexTrie, search, getUrl, autoComplete } from "./searchRewrite"
 import fs from "fs";
 

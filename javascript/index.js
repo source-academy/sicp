@@ -365,7 +365,7 @@ async function main() {
     await recursiveXmlToHtmlInOrder("parseXml");
     writeRewritedSearchData();
     // this is meant to be temp; also, will remove the original "generateSearchData" after the updation at the frontend is completed.
-    testIndexSearch();
+    //testIndexSearch();
   }
 }
 
