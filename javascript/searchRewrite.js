@@ -130,6 +130,8 @@ const processingFunctions = {
   
     UL: 1,
 };
+// this list is dependent on the implementation of parseXmlJson and frontend
+// so why parsing json at frontend? why not send html to frontend which will then only need to care
 
 const indexParsers = {
     // plain text nodes
@@ -297,7 +299,7 @@ export const writeRewritedSearchData = () => {
     buildTextTrie();
 
     const searchData = {indexTrie, textTrie, idToContentMap};
-    fs.writeFile("rewritedSearchData.json", JSON.stringify(searchData), (err) => {
+    fs.writeFile("json/rewritedSearchData.json", JSON.stringify(searchData), (err) => {
         if (err) {
             console.log(err);
         }

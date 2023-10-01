@@ -37,6 +37,7 @@ import { getAnswers } from "./processingFunctions/processExercisePdf";
 
 // json (for cadet frontend)
 import { parseXmlJson } from "./parseXmlJson";
+import {writeRewritedSearchData} from "./searchRewrite";
 import { setupSnippetsJson } from "./processingFunctions/processSnippetJson";
 import { createTocJson } from "./generateTocJson";
 import { setupReferencesJson } from "./processingFunctions/processReferenceJson";
@@ -360,7 +361,8 @@ async function main() {
     await recursiveXmlToHtmlInOrder("setupSnippet");
     console.log("setup snippets and references done\n");
 
-    recursiveXmlToHtmlInOrder("parseXml");
+    await recursiveXmlToHtmlInOrder("parseXml");
+    writeRewritedSearchData();
   }
 }
 

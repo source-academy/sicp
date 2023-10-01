@@ -16,6 +16,8 @@ import {
   generateSearchData
 } from "./generateSearchData";
 
+import {parseAndInsertToIndexTrie, parseAndInsertToIdToContentMap} from "./searchRewrite";
+
 let paragraph_count = 0;
 let heading_count = 0;
 let footnote_count = 0;
@@ -121,6 +123,30 @@ const processLatex = (node, obj, inline) => {
   obj["tag"] = "LATEX";
 };
 
+const tagsWithIds = {
+  TITLE: () => subsubsection_count>0? `#sec${chapterIndex}.${subsubsection_count}` :"",
+  TEXT:() => "#p" + paragraph_count,
+  SUBHEADING: () => `#h${heading_count}`,
+  SUBSUBHEADING: () => `#h${heading_count}`,
+  SECTION: () => `#h${heading_count}`,
+  FOOTNOTE: () => `#footnote-link-${footnote_count}`,
+  DISPLAYFOOTNOTE: () => `#footnote-${display_footnote_count}`,
+  SNIPPET: () => `{snippet_count}`,
+  //todo, fix this
+  EXERCISE: () => `#ex-1.${exercise_count}`,
+  DISPLAYFOOTNOTE: () => `#footnote-${display_footnote_count}`,
+};
+const findParentID = (node) => {
+  let parent = node.parentNode;
+  while (parent) {
+    if(tagsWithIds[parent.nodeName]) {
+      return `${chapterIndex}` + tagsWithIds[parent.nodeName]();
+    } else {
+      parent = parent.parentNode;
+    }
+  }
+}
+
 const processTextFunctions = {
   // Text tags: tag that is parsed as text
   "#text": (node, obj) => {
@@ -131,6 +157,10 @@ const processTextFunctions = {
         processText(body, obj);
       }
     }
+  },
+  INDEX: (node, obj) => {
+    const id = findParentID(node);
+    parseAndInsertToIndexTrie(node, {id});
   },
 
   AMP: (_node, obj) => {
@@ -571,6 +601,7 @@ export const parseXmlJson = (doc, arr, filename) => {
     recursiveProcessTextJson(name.nextSibling, arr, title);
   }
 
+  parseAndInsertToIdToContentMap(arr,chapterIndex);
   generateSearchData(doc, filename);
 
 };
