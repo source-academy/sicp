@@ -340,6 +340,8 @@ const processTextFunctions = {
   },
 
   SNIPPET: (node, obj) => {
+    const indexNodes = node.getElementsByTagName("INDEX");
+
     if (node.getAttribute("HIDE") == "yes") {
       return;
     } else if (node.getAttribute("LATEX") == "yes") {
@@ -379,6 +381,10 @@ const processTextFunctions = {
           obj["body"] = obj["body"].replace(matchStr, newStr);
         }
       }
+  
+      for (let i = 0; i < indexNodes.length; i++) {
+        processTextJson(indexNodes[i], {});
+      }
 
       return;
     }
@@ -388,6 +394,9 @@ const processTextFunctions = {
     obj["latex"] = false;
     obj["id"] = snippet_count;
     processSnippetJson(node, obj);
+    for (let i = 0; i < indexNodes.length; i++) {
+      processTextJson(indexNodes[i], {});
+    }
   },
 
   SUBINDEX: (node, obj) => {
