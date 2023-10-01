@@ -131,7 +131,7 @@ const tagsWithIds = {
   SECTION: () => `#h${heading_count}`,
   FOOTNOTE: () => `#footnote-link-${footnote_count}`,
   DISPLAYFOOTNOTE: () => `#footnote-${display_footnote_count}`,
-  SNIPPET: () => `{snippet_count}`,
+  SNIPPET: () => `${snippet_count}`,
   //todo, fix this
   EXERCISE: () => `#ex-1.${exercise_count}`,
   DISPLAYFOOTNOTE: () => `#footnote-${display_footnote_count}`,

@@ -3,6 +3,7 @@
 
 
 /* known issues: 
+what is the mechanism for link to snippet and latex? propably need to modify the frontend
 did not process the "seexml" file, so no see also in index
 did not process the latex, roman, italic, etc.
 */
@@ -164,7 +165,7 @@ averager (constraint), 261 (ex. 3.33)
 
 // I include 2 out of the 5 columns of all the index with A here.
 
-import { indexTrie, search } from "./searchRewrite"
+import { indexTrie, search, getUrl, autoComplete } from "./searchRewrite"
 import fs from "fs";
 
 const indexSearchTestCase = {
@@ -179,7 +180,7 @@ const indexSearchTestCase = {
     "accumulate": 3,
     "accumulate_n": 1,
     "accumulator": 2,
-    "Ackermann’s function": 1,
+    "Ackermann's function": 1,
     "acquire a mutex": 1,
     "actions, in register machine": 2,
     "actual_value": 1,
@@ -212,12 +213,13 @@ const indexSearchTestCase = {
     "administrative assistant, importance of": 1,
     "advance_pc": 1,
     "after_delay": 2,
-    "A’h-mose": 1,
+    "A'h-mose": 1,
     "algebraic expression": 7,
     "algebraic specification for data": 1,
 }
 
 const failedTests = [];
+const urls = {};
 const writeFailureMessage = (key, searchResult) => {
     failedTests.push(`${key}: result is ${searchResult}, expected occuer number is: ${indexSearchTestCase[key]}`);
 }
@@ -231,12 +233,16 @@ export function testIndexSearch() {
             writeFailureMessage(key, "null");
             continue;
         }
+        
+        urls[key] = result.map(getUrl);
+
         if (result.length < value) {
             writeFailureMessage(key, result.length);
             continue;
         }
     }
-    
+
     fs.writeFileSync("failedTests.txt", failedTests.join("\n"));
+    fs.writeFileSync("urls.txt", JSON.stringify(urls));
 }
 
