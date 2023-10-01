@@ -36,6 +36,7 @@ import { setupSnippetsJs } from "./processingFunctions/processSnippetJs";
 import { getAnswers } from "./processingFunctions/processExercisePdf";
 
 // json (for cadet frontend)
+import {testIndexSearch} from "./searchRewriteTest";
 import { parseXmlJson } from "./parseXmlJson";
 import {writeRewritedSearchData} from "./searchRewrite";
 import { setupSnippetsJson } from "./processingFunctions/processSnippetJson";
@@ -363,6 +364,7 @@ async function main() {
 
     await recursiveXmlToHtmlInOrder("parseXml");
     writeRewritedSearchData();
+    testIndexSearch();
   }
 }
 
