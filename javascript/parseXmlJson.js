@@ -12,6 +12,8 @@ import {
   recursivelyProcessTextSnippetJson
 } from "./processingFunctions";
 
+import {getIdForExerciseJson} from "./processingFunctions/processExerciseJson";
+
 import {
   generateSearchData
 } from "./generateSearchData";
@@ -122,18 +124,19 @@ const processLatex = (node, obj, inline) => {
   obj["body"] = math;
   obj["tag"] = "LATEX";
 };
-
+let latest_exercise_json_id = undefined;
 const tagsWithIds = {
-  TITLE: () => subsubsection_count>0? `#sec${chapterIndex}.${subsubsection_count}` :"",
+  "#document": () => "",
+  SUBSUBSECTION: () => subsubsection_count>0? `#sec${chapterIndex}.${subsubsection_count}` :"",
   TEXT:() => "#p" + paragraph_count,
   SUBHEADING: () => `#h${heading_count}`,
   SUBSUBHEADING: () => `#h${heading_count}`,
   SECTION: () => `#h${heading_count}`,
   FOOTNOTE: () => `#footnote-link-${footnote_count}`,
   DISPLAYFOOTNOTE: () => `#footnote-${display_footnote_count}`,
-  SNIPPET: () => `${snippet_count}`,
-  //todo, fix this
-  EXERCISE: () => `#ex-1.${exercise_count}`,
+  //SNIPPET: () => `${snippet_count}`,
+  
+  EXERCISE: () => latest_exercise_json_id,
   DISPLAYFOOTNOTE: () => `#footnote-${display_footnote_count}`,
 };
 const findParentID = (node) => {
@@ -211,6 +214,7 @@ const processTextFunctions = {
   },
 
   EXERCISE: (node, obj) => {
+    latest_exercise_json_id = getIdForExerciseJson(node);
     exercise_count += 1;
     processExerciseJson(node, obj, chapArrIndex, exercise_count);
   },
@@ -559,7 +563,8 @@ export const parseXmlJson = (doc, arr, filename) => {
   } else {
     displayTitle = chapterIndex + "\u00A0\u00A0" + chapterTitle;
   }
-
+  
+  latest_exercise_json_id = undefined;
   paragraph_count = 0;
   footnote_count = 0;
   display_footnote_count = 0;

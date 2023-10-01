@@ -2,8 +2,10 @@
 // this file is meant to be temporary
 
 
-/* known issues: 
+/* todos and issues: 
+have not test urls, and urls for exercise can be impoved, currently point to the closest paragraph
 what is the mechanism for link to snippet and latex? propably need to modify the frontend
+works fine for things like <= (numeric comparison operator), but not for || (logical disjunction); could not test for " (double quote)
 did not process the "seexml" file, so no see also in index
 did not process the latex, roman, italic, etc.
 */
@@ -224,7 +226,6 @@ const writeFailureMessage = (key, searchResult) => {
     failedTests.push(`${key}: result is ${searchResult}, expected occuer number is: ${indexSearchTestCase[key]}`);
 }
 
-
 export function testIndexSearch() {
     for (const [key, value] of Object.entries(indexSearchTestCase)) {
         const result = search(key, indexTrie);
@@ -239,8 +240,11 @@ export function testIndexSearch() {
         if (result.length < value) {
             writeFailureMessage(key, result.length);
             continue;
-        }
+        }  
     }
+    
+    console.log(autoComplete("||", indexTrie));
+    console.log(search("|| (logical disjunction)", indexTrie));
 
     fs.writeFileSync("failedTests.txt", failedTests.join("\n"));
     fs.writeFileSync("urls.txt", JSON.stringify(urls));

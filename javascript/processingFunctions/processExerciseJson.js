@@ -35,4 +35,23 @@ const processExerciseJson = (node, obj) => {
   }
 };
 
+export const getIdForExerciseJson = (node) => {
+  const label = node.getElementsByTagName("LABEL")[0];
+  let labelName = "";
+
+  if (!label) {
+    labelName = "ex:unlabeled" + unlabeledEx;
+  } else {
+    labelName = label.getAttribute("NAME");
+  }
+
+  if (!referenceStore[labelName]) {
+    missingExerciseWarning(labelName);
+    return undefined;
+  }
+   
+  const displayName = referenceStore[labelName].displayName;
+  return `#ex-${displayName}`;
+}
+
 export default processExerciseJson;

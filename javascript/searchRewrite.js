@@ -270,7 +270,7 @@ export const parseAndInsertToIdToContentMap = (json,chapterIndex, idStack = []) 
         return;
     }
 
-    if(json.id) {
+    if(json.id && json.tag !== "SNIPPET") {
         const id = chapterIndex + json.id;
         idStack.push(id);
         idToContentMap[id] = "";
