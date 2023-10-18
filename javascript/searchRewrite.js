@@ -79,62 +79,7 @@ const parseIndexSearchEntryTo = (node, json) => {
     }
 };
 
-// currently not used, a map of all the tags in json, good reference
-const processingFunctions = {
-    '#text': 1,
-  
-    B: 1,
-    BR: 1,
-  
-    DISPLAYFOOTNOTE: 1,
-  
-    EM: 1,
-  
-    EPIGRAPH: 1,
-  
-    EXERCISE: 1,
-  
-    FIGURE: 1,
-  
-    FOOTNOTE_REF: 1,
-  
-    JAVASCRIPTINLINE: 1,
-  
-    LATEX: 1,
-  
-    LI: 1,
-  
-    LINK: 1,
-  
-    META: 1,
-  
-    OL: 1,
-  
-    REF: 1,
-  
-    REFERENCE: 1,
-  
-    SNIPPET: 1,
-  
-    SUBHEADING: 1,
-  
-    SUBSUBHEADING: 1,
-  
-    TABLE: 1,
-  
-    TEXT: 1,
-  
-    TITLE:1,
-  
-    TT: 1,
-  
-    UL: 1,
-};
-// this list is dependent on the implementation of parseXmlJson and frontend
-// so why parsing json at frontend? why not send html to frontend which will then only need to care
-
 const indexParsers = {
-    // plain text nodes
      "#text": (node,json) => {
         json["text"] += node.nodeValue;
     },
@@ -259,41 +204,61 @@ const indexParsers = {
 
 export const parseAndInsertToIndexTrie = (node, json) => {
     parseIndexSearchEntryTo(node, json);
-    insert(json.text, json, indexTrie);
+    const frontEndDisplayable = {}
+    frontEndDisplayable["id"] = json.id;
+    // build text for front end display, build prefix, main text and subindex text seperately
+    let chapterId = json.id.split("#")[0];
+    const num = chapterId.split(".").length;
+    if(num === 1) {
+        chapterId = "    " + chapterId;
+    } else if (num === 2) {
+        chapterId = "  " + chapterId;
+    }
+    frontEndDisplayable["text"] = chapterId + ": " + json.text;
+    if(json.SUBINDEX) {
+        frontEndDisplayable["text"] += ` :: ${json.SUBINDEX.text}`;
+        if(json.SUBINDEX.ORDER) {
+            frontEndDisplayable["order"] = json.SUBINDEX.ORDER;
+        }
+    }
+
+    insert(json.text, frontEndDisplayable, indexTrie);
 }
 
-export const parseAndInsertToIdToContentMap = (json,chapterIndex, idStack = []) => {
+export const parseAndInsertToIdToContentMap = (json,chapterIndex, parentID =chapterIndex) => {
     if(Array.isArray(json)) {
         for (let i = 0; i < json.length; i++) {
-        parseAndInsertToIdToContentMap(json[i],chapterIndex,idStack);
+        parseAndInsertToIdToContentMap(json[i],chapterIndex,parentID);
         }
         return;
     }
 
     if(json.id && json.tag !== "SNIPPET") {
-        const id = chapterIndex + json.id;
-        idStack.push(id);
+        const id = json.id.includes(chapterIndex)? chapterIndex: chapterIndex + json.id;
+        parentID = id;
         idToContentMap[id] = "";
     }
     if(json.body) {
-        idToContentMap[idStack[idStack.length-1]] += json.body;
+        idToContentMap[parentID] += json.body;
     }
     if(json.child) {
-        parseAndInsertToIdToContentMap(json.child,chapterIndex,idStack);
-    }
-    if(json.id) {
-        idStack.pop();
+        parseAndInsertToIdToContentMap(json.child,chapterIndex,parentID);
     }
 }
 
 const buildTextTrie = () => {
+    console.log("enter buildTextTrie")
     for (const [key, value] of Object.entries(idToContentMap)) {
-        const words = value.trim().replace(/\s+/g," ").toLowerCase().replace(/\n/gi, "").split(" ").filter(a => a != "" && a != '\"');
-        for (const word of words) {
-            insert(word, key, textTrie);
+        const temp = value.match(/\b\w+\b/g);
+        if(temp === null) {
+            // some json node does not have text content, there id is stored, but no text value, so we skip them here
+            continue;
         }
+        const words = Array.from(new Set(temp.map(word => word.toLowerCase())));
+        words.map(word => insert(word, key, textTrie));
+        
     }
-}
+    }
 
 export const writeRewritedSearchData = () => {
     buildTextTrie();
