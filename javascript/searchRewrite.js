@@ -202,9 +202,25 @@ const indexParsers = {
     },  
 };
 
+const maintainOpenClose = (json, writeTo) => {
+    if(json.OPEN) {
+        writeTo["text"] += " (begin of range)";
+        if(!writeTo["id"].includes("#")) {
+            writeTo["id"] += "#begin";
+        }
+    }
+
+    if(json.CLOSE) {
+        writeTo["text"] += " (end of range)";
+        if(!writeTo["id"].includes("#")) {
+            writeTo["id"] += "#end";
+        }
+    }
+}
+
 export const parseAndInsertToIndexTrie = (node, json) => {
     parseIndexSearchEntryTo(node, json);
-    const frontEndDisplayable = {}
+    const frontEndDisplayable = {text:"", order:"", id:"", hasSubindex: false};
     frontEndDisplayable["id"] = json.id;
     // build text for front end display, build prefix, main text and subindex text seperately
     let chapterId = json.id.split("#")[0];
@@ -216,12 +232,17 @@ export const parseAndInsertToIndexTrie = (node, json) => {
     }
     frontEndDisplayable["text"] = chapterId + ": " + json.text;
     if(json.SUBINDEX) {
+        frontEndDisplayable["hasSubindex"] = true;
         frontEndDisplayable["text"] += ` :: ${json.SUBINDEX.text}`;
         if(json.SUBINDEX.ORDER) {
             frontEndDisplayable["order"] = json.SUBINDEX.ORDER;
+        } else {
+            frontEndDisplayable["order"] = json.SUBINDEX.text;
         }
+        
+        maintainOpenClose(json.SUBINDEX, frontEndDisplayable);
     }
-
+    maintainOpenClose(json, frontEndDisplayable);
     insert(json.text, frontEndDisplayable, indexTrie);
 }
 
