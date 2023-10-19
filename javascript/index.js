@@ -36,7 +36,9 @@ import { setupSnippetsJs } from "./processingFunctions/processSnippetJs";
 import { getAnswers } from "./processingFunctions/processExercisePdf";
 
 // json (for cadet frontend)
+import {testIndexSearch} from "./searchRewriteTest";
 import { parseXmlJson } from "./parseXmlJson";
+import {writeRewritedSearchData} from "./searchRewrite";
 import { setupSnippetsJson } from "./processingFunctions/processSnippetJson";
 import { createTocJson } from "./generateTocJson";
 import { setupReferencesJson } from "./processingFunctions/processReferenceJson";
@@ -360,7 +362,10 @@ async function main() {
     await recursiveXmlToHtmlInOrder("setupSnippet");
     console.log("setup snippets and references done\n");
 
-    recursiveXmlToHtmlInOrder("parseXml");
+    await recursiveXmlToHtmlInOrder("parseXml");
+    writeRewritedSearchData();
+    // this is meant to be temp; also, will remove the original "generateSearchData" after the updation at the frontend is completed.
+    //testIndexSearch();
   }
 }
 
