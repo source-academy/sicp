@@ -35,7 +35,7 @@ const processExerciseJson = (node, obj) => {
   }
 };
 
-export const getIdForExerciseJson = (node) => {
+export const getIdForExerciseJson = node => {
   const label = node.getElementsByTagName("LABEL")[0];
   let labelName = "";
 
@@ -49,9 +49,9 @@ export const getIdForExerciseJson = (node) => {
     missingExerciseWarning(labelName);
     return undefined;
   }
-   
+
   const displayName = referenceStore[labelName].displayName;
   return `#ex-${displayName}`;
-}
+};
 
 export default processExerciseJson;

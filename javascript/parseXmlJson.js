@@ -12,13 +12,14 @@ import {
   recursivelyProcessTextSnippetJson
 } from "./processingFunctions";
 
-import {getIdForExerciseJson} from "./processingFunctions/processExerciseJson";
+import { getIdForExerciseJson } from "./processingFunctions/processExerciseJson";
+
+import { generateSearchData } from "./generateSearchData";
 
 import {
-  generateSearchData
-} from "./generateSearchData";
-
-import {parseAndInsertToIndexTrie, parseAndInsertToIdToContentMap} from "./searchRewrite";
+  parseAndInsertToIndexTrie,
+  parseAndInsertToIdToContentMap
+} from "./searchRewrite";
 
 let paragraph_count = 0;
 let heading_count = 0;
@@ -127,28 +128,29 @@ const processLatex = (node, obj, inline) => {
 let latest_exercise_json_id = undefined;
 const tagsWithIds = {
   "#document": () => "",
-  SUBSUBSECTION: () => subsubsection_count>0? `#sec${chapterIndex}.${subsubsection_count}` :"",
-  TEXT:() => "#p" + paragraph_count,
+  SUBSUBSECTION: () =>
+    subsubsection_count > 0 ? `#sec${chapterIndex}.${subsubsection_count}` : "",
+  TEXT: () => "#p" + paragraph_count,
   SUBHEADING: () => `#h${heading_count}`,
   SUBSUBHEADING: () => `#h${heading_count}`,
   SECTION: () => `#h${heading_count}`,
   FOOTNOTE: () => `#footnote-link-${footnote_count}`,
   DISPLAYFOOTNOTE: () => `#footnote-${display_footnote_count}`,
   //SNIPPET: () => `${snippet_count}`,
-  
+
   EXERCISE: () => latest_exercise_json_id,
-  DISPLAYFOOTNOTE: () => `#footnote-${display_footnote_count}`,
+  DISPLAYFOOTNOTE: () => `#footnote-${display_footnote_count}`
 };
-const findParentID = (node) => {
+const findParentID = node => {
   let parent = node.parentNode;
   while (parent) {
-    if(tagsWithIds[parent.nodeName]) {
+    if (tagsWithIds[parent.nodeName]) {
       return `${chapterIndex}` + tagsWithIds[parent.nodeName]();
     } else {
       parent = parent.parentNode;
     }
   }
-}
+};
 
 const processTextFunctions = {
   // Text tags: tag that is parsed as text
@@ -163,7 +165,7 @@ const processTextFunctions = {
   },
   INDEX: (node, obj) => {
     const id = findParentID(node);
-    parseAndInsertToIndexTrie(node, {id});
+    parseAndInsertToIndexTrie(node, { id });
   },
 
   AMP: (_node, obj) => {
@@ -385,7 +387,7 @@ const processTextFunctions = {
           obj["body"] = obj["body"].replace(matchStr, newStr);
         }
       }
-  
+
       for (let i = 0; i < indexNodes.length; i++) {
         processTextJson(indexNodes[i], {});
       }
@@ -563,7 +565,7 @@ export const parseXmlJson = (doc, arr, filename) => {
   } else {
     displayTitle = chapterIndex + "\u00A0\u00A0" + chapterTitle;
   }
-  
+
   latest_exercise_json_id = undefined;
   paragraph_count = 0;
   footnote_count = 0;
@@ -615,7 +617,6 @@ export const parseXmlJson = (doc, arr, filename) => {
     recursiveProcessTextJson(name.nextSibling, arr, title);
   }
 
-  parseAndInsertToIdToContentMap(arr,chapterIndex);
+  parseAndInsertToIdToContentMap(arr, chapterIndex);
   generateSearchData(doc, filename);
-
 };
