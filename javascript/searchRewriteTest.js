@@ -1,7 +1,6 @@
 // do not know why, I can not run yarn test on my device which leads to binding error.
 // this file is meant to be temporary
 
-
 /* todos and issues: 
  propably need to modify the frontend to enable link to snippets
 works fine for things like <= (numeric comparison operator), but not for || (logical disjunction); could not test for " (double quote)
@@ -167,107 +166,107 @@ averager (constraint), 261 (ex. 3.33)
 // I include 2 out of the 5 columns of all the index with A here.
 
 // manually tested the exercise urls to accumulate and accumulate_n, they are correct
-import { indexTrie, search, getUrl, autoComplete } from "./searchRewrite"
+import { indexTrie, search, getUrl, autoComplete } from "./searchRewrite";
 import fs from "fs";
 
 const indexSearchTestCase = {
-   "abs": 1,
-   "absolute value": 1,
-    "abstract data": 1,
-    "abstraction": 6,
-    "abstraction barriers": 8,
-    "abstract models for data": 1,
-    "abstract syntax": 2,
-    "accelerated_sequence": 1,
-    "accumulate": 3,
-    "accumulate_n": 1,
-    "accumulator": 2,
-    "Ackermann's function": 1,
-    "acquire a mutex": 1,
-    "actions, in register machine": 2,
-    "actual_value": 1,
-    "Ada": 1,
-    "Adams, Norman I., IV": 1,
-    "add (generic)": 1,
-    "add_action": 2,
-    "add_complex": 1,
-    "add_complex_to_javascript_num": 1,
-    "addend": 1,
-    "adder (primitive constraint)": 1,
-    "adder": 3,
-    "add_interval": 1,
-    "additivity": 5,
-    "add_lists": 1,
-    "add_poly": 1,
-    "add_rat": 1,
-    "address": 1,
-    "address arithmetic": 1,
-    "add_rule_or_assertion": 1,
-    "add_streams": 1,
-    "add_terms": 1,
-    "add_to_agenda": 2,
-    "add_vect": 1,
-    "adjoin_arg": 1,
-    "adjoining to a list with pair": 1,
-    "adjoin_set": 5,
-    "adjoin_term": 2,
-    "Adleman, Leonard": 1,
-    "administrative assistant, importance of": 1,
-    "advance_pc": 1,
-    "after_delay": 2,
-    "A'h-mose": 1,
-    "algebraic expression": 7,
-    "algebraic specification for data": 1,
-}
+  abs: 1,
+  "absolute value": 1,
+  "abstract data": 1,
+  abstraction: 6,
+  "abstraction barriers": 8,
+  "abstract models for data": 1,
+  "abstract syntax": 2,
+  accelerated_sequence: 1,
+  accumulate: 3,
+  accumulate_n: 1,
+  accumulator: 2,
+  "Ackermann's function": 1,
+  "acquire a mutex": 1,
+  "actions, in register machine": 2,
+  actual_value: 1,
+  Ada: 1,
+  "Adams, Norman I., IV": 1,
+  "add (generic)": 1,
+  add_action: 2,
+  add_complex: 1,
+  add_complex_to_javascript_num: 1,
+  addend: 1,
+  "adder (primitive constraint)": 1,
+  adder: 3,
+  add_interval: 1,
+  additivity: 5,
+  add_lists: 1,
+  add_poly: 1,
+  add_rat: 1,
+  address: 1,
+  "address arithmetic": 1,
+  add_rule_or_assertion: 1,
+  add_streams: 1,
+  add_terms: 1,
+  add_to_agenda: 2,
+  add_vect: 1,
+  adjoin_arg: 1,
+  "adjoining to a list with pair": 1,
+  adjoin_set: 5,
+  adjoin_term: 2,
+  "Adleman, Leonard": 1,
+  "administrative assistant, importance of": 1,
+  advance_pc: 1,
+  after_delay: 2,
+  "A'h-mose": 1,
+  "algebraic expression": 7,
+  "algebraic specification for data": 1
+};
 
 const failedTests = [];
 const urls = {};
 const writeFailureMessage = (key, searchResult) => {
-    failedTests.push(`${key}: result is ${searchResult}, expected occuer number is: ${indexSearchTestCase[key]}`);
-}
+  failedTests.push(
+    `${key}: result is ${searchResult}, expected occuer number is: ${indexSearchTestCase[key]}`
+  );
+};
 
 export async function testIndexSearch() {
-    for (const [key, value] of Object.entries(indexSearchTestCase)) {
-        const result = search(key, indexTrie);
-        //console.log(result);
-        if (result === null) {
-            writeFailureMessage(key, "null");
-            continue;
-        }
-        
-        urls[key] = result.map(getUrl);
-
-        if (result.length < value) {
-            writeFailureMessage(key, result.length);
-            continue;
-        }  
+  for (const [key, value] of Object.entries(indexSearchTestCase)) {
+    const result = search(key, indexTrie);
+    //console.log(result);
+    if (result === null) {
+      writeFailureMessage(key, "null");
+      continue;
     }
-    
-    console.log(autoComplete("||", indexTrie));
-    console.log(search("|| (logical disjunction)", indexTrie));
 
-    async function testURLs() {
-        console.log("Testing urls");
-        for (const [key, urlArray] of Object.entries(urls)) {
-            for (const url of urlArray) {
-                try {
-                  const response = await fetch(url);
-            
-                  if (!response.ok) {
-                    console.log(key + ": " + url + " is not working");
-                  }
-      
-                } catch (error) {
-                  console.error(key + ": " + url + " is not working");
-                }
-              }
-        }
-        console.log("Done testing urls");       
+    urls[key] = result.map(getUrl);
+
+    if (result.length < value) {
+      writeFailureMessage(key, result.length);
+      continue;
     }
-      
-    await testURLs();
+  }
 
-    fs.writeFileSync("failedTests.txt", failedTests.join("\n"));
-    fs.writeFileSync("urls.txt", JSON.stringify(urls));
+  console.log(autoComplete("||", indexTrie));
+  console.log(search("|| (logical disjunction)", indexTrie));
+
+  async function testURLs() {
+    console.log("Testing urls");
+    for (const [key, urlArray] of Object.entries(urls)) {
+      for (const url of urlArray) {
+        try {
+          const response = await fetch(url);
+
+          if (!response.ok) {
+            console.log(key + ": " + url + " is not working");
+          }
+        } catch (error) {
+          console.error(key + ": " + url + " is not working");
+        }
+      }
+    }
+    console.log("Done testing urls");
+  }
+
+  await testURLs();
+
+  fs.writeFileSync("failedTests.txt", failedTests.join("\n"));
+  fs.writeFileSync("urls.txt", JSON.stringify(urls));
 }
-
