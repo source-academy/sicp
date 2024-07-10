@@ -887,7 +887,7 @@ export const ending = `
 %\\shipoutAnswer
 
 \\newpage
-\\markboth{References}{References}
+\\renewcommand{\\chaptermark}[1]{\\markboth{References}{References}}
 \\input{./others/97references97.tex}
 
 \\newpage
