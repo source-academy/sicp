@@ -864,8 +864,8 @@ const afterContent = writeTo => {
   if (chapArrIndex < allFilepath.length - 1) {
     writeTo.push(`
         <a class='btn btn-secondary btn-nav' id='${chapArrIndex + 2}' href='./${
-      tableOfContent[allFilepath[chapArrIndex + 1]].index
-    }.html'>Next &gt;</a>
+          tableOfContent[allFilepath[chapArrIndex + 1]].index
+        }.html'>Next &gt;</a>
       `);
   }
   writeTo.push(`</div>

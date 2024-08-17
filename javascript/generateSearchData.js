@@ -460,9 +460,8 @@ const processTextFunctions = {
     addBodyToObj(obj, node, false);
     obj["id"] = `#footnote-${display_footnote_count}`;
     obj["count"] = display_footnote_count;
-    obj[
-      "href"
-    ] = `/sicpjs/${chapterIndex}#footnote-link-${display_footnote_count}`;
+    obj["href"] =
+      `/sicpjs/${chapterIndex}#footnote-link-${display_footnote_count}`;
 
     recursiveProcessTextJson(node.firstChild, obj);
   },

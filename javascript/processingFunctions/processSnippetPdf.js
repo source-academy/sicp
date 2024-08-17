@@ -117,8 +117,8 @@ export const processSnippetPdf = (node, writeTo) => {
   const postSpace = inFigure
     ? ""
     : inFootnote
-    ? "\\PostBoxCmdFn%\n"
-    : "\\PostBoxCmd%\n";
+      ? "\\PostBoxCmdFn%\n"
+      : "\\PostBoxCmd%\n";
   const midSpace = inFigure ? "\\smallskip" : "";
 
   const jsPromptSnippet = node.getElementsByTagName("JAVASCRIPT_PROMPT")[0];
@@ -236,10 +236,10 @@ export const processSnippetPdf = (node, writeTo) => {
       let codeEnv = isSmall
         ? "JavaScriptSmaller" //"JavaScript" + LatexString + "SmallTwo"
         : ancestorHasTag(node, "FOOTNOTE")
-        ? "JavaScript" + LatexString + "Footnote"
-        : ancestorHasTag(node, "EXERCISE")
-        ? "JavaScript" + LatexString + "Small"
-        : "JavaScript" + LatexString;
+          ? "JavaScript" + LatexString + "Footnote"
+          : ancestorHasTag(node, "EXERCISE")
+            ? "JavaScript" + LatexString + "Small"
+            : "JavaScript" + LatexString;
 
       const separator =
         "\\end{" +
@@ -390,8 +390,8 @@ export const processSnippetPdf = (node, writeTo) => {
       let codeEnv = ancestorHasTag(node, "FOOTNOTE")
         ? "JavaScriptClickableFootnote"
         : ancestorHasTag(node, "EXERCISE") || isSmall
-        ? "JavaScriptClickableSmall"
-        : "JavaScriptClickable";
+          ? "JavaScriptClickableSmall"
+          : "JavaScriptClickable";
 
       const separator =
         "\\end{" +

@@ -128,8 +128,8 @@ export const recursiveProcessTOC = (index, writeTo, option, toIndexFolder) => {
               <span class="collapsed" data-toggle="collapse" href="#index-collapse-${
                 index + 1
               }" aria-expanded="false" aria-controls="index-collapse-${
-        index + 1
-      }">
+                index + 1
+              }">
                 <a href="${toIndexFolder}${chapterIndex}.html"> ${displayTitle}</a>
               </span>
             </h5>
@@ -144,8 +144,8 @@ export const recursiveProcessTOC = (index, writeTo, option, toIndexFolder) => {
               <span class="collapsed" data-toggle="collapse" href="#sidebar-collapse-${
                 index + 1
               }" aria-expanded="false" aria-controls="sidebar-collapse-${
-        index + 1
-      }">
+                index + 1
+              }">
                 <a href="${toIndexFolder}${chapterIndex}.html"> ${displayTitle}</a>
               </span>
             </h5>
@@ -170,15 +170,15 @@ export const recursiveProcessTOC = (index, writeTo, option, toIndexFolder) => {
               <a class="index-show collapsed" data-toggle="collapse" href="#index-collapse-${
                 index + 1
               }" aria-expanded="true" aria-controls="index-collapse-${
-        index + 1
-      }">
+                index + 1
+              }">
               &#10148;   <!-- ➤ (because this one is rendered blue on mobile: ▶  -->
               </a>
               <a class="index-hide collapsed" data-toggle="collapse" href="#index-collapse-${
                 index + 1
               }" aria-expanded="true" aria-controls="index-collapse-${
-        index + 1
-      }">
+                index + 1
+              }">
               &#x25BC;    <!-- ▼ (because the corresponding one is not rendered) -->
               </a>
               <a href="${toIndexFolder}${chapterIndex}.html">${displayTitle}</a>
@@ -198,15 +198,15 @@ export const recursiveProcessTOC = (index, writeTo, option, toIndexFolder) => {
                   <a class="sidebar-show collapsed" data-toggle="collapse" href="#sidebar-collapse-${
                     index + 1
                   }" aria-expanded="true" aria-controls="sidebar-collapse-${
-        index + 1
-      }">
+                    index + 1
+                  }">
                   &#10148;   <!-- ➤ (because this one is rendered blue on mobile: ▶  -->
                   </a>
                   <a class="sidebar-hide collapsed" data-toggle="collapse" href="#sidebar-collapse-${
                     index + 1
                   }" aria-expanded="true" aria-controls="sidebar-collapse-${
-        index + 1
-      }">
+                    index + 1
+                  }">
                   &#x25BC;    <!-- ▼ (because the corresponding one is not rendered) -->
                   </a>
                   <a href="${toIndexFolder}${chapterIndex}.html">${displayTitle}</a>
