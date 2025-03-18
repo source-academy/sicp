@@ -296,7 +296,6 @@ async function recursivelyTranslate(
       const text = messageContent.text;
 
       const safeText = escapeXML(text.value);
-      console.log(safeText);
       const textStream = Readable.from("<WRAPPER>" + safeText + "</WRAPPER>");
 
       await new Promise<void>((resolve, reject) => {
@@ -348,7 +347,7 @@ async function recursivelyTranslate(
             clean._parser.resume();
           } catch (e) {
             console.log("Failed to resume parser:", e);
-            reject;
+            reject();
           }
         });
 
@@ -360,7 +359,7 @@ async function recursivelyTranslate(
       return translatedChunk;
     } catch (err) {
       console.log(`Error occured while translating ${path}:\n    ` + err);
-      return translated + "<!-- Error translating this section -->";
+      return translatedChunk + "<!-- Error translating this section -->";
     }
   }
 }
