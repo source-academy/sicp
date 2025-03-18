@@ -25,6 +25,7 @@ const createParser = () =>
   (sax as any).createStream(true, { trim: false }, { strictEntities: true });
 
 async function translate(language: string, filePath: string): Promise<void> {
+  const startTime = new Date().getTime();
   try {
     // Pipe the XML file into the parser.
     const input_dir = fileURLToPath(
@@ -45,6 +46,9 @@ async function translate(language: string, filePath: string): Promise<void> {
     console.log(`Translation saved to ${output_path}`);
   } catch (parseErr) {
     console.error("Error parsing XML:", parseErr);
+  } finally {
+    const elapsed = new Date().getTime() - startTime;
+    console.log(filePath + " took " + elapsed / 1000.0 + " seconds");
   }
 }
 
@@ -59,7 +63,7 @@ async function recursivelyTranslate(
       return await translateChunk(ori); // translate the chunk
     }
 
-    let subTranslated = "";
+    let subTranslated: string[] = [];
     // continue splitting the chunk
     // Create a SAX parser in strict mode to split source into chunks.
     await new Promise<void>((resolve, reject) => {
@@ -71,6 +75,10 @@ async function recursivelyTranslate(
       let subIsRecording = false;
 
       subParser.on("opentag", node => {
+        if (node.name === "WRAPPER") {
+          return;
+        }
+
         subCurrentDepth++;
 
         // If we're at depth 2, this is the start of a new segment.
@@ -95,9 +103,7 @@ async function recursivelyTranslate(
             subSegments[subSegments.length - 1][0]
           ) {
             subSegments[subSegments.length - 1][1] += text;
-            subSegments[subSegments.length - 1][0] = true;
-          } else {
-            if (
+          } else if (
               text.trim() !== "" ||
               text.trim() === "," ||
               text.trim() === "."
@@ -105,7 +111,6 @@ async function recursivelyTranslate(
               subSegments.push([false, text]);
             } else {
               subSegments.push([true, text]);
-            }
           }
         }
       });
@@ -117,16 +122,36 @@ async function recursivelyTranslate(
       });
 
       subParser.on("closetag", tagName => {
+        if (tagName === "WRAPPER") {
+          return;
+        }
+
         if (subIsRecording) {
           subCurrentSegment += `</${tagName}>`;
         }
 
         if (subCurrentDepth === 2) {
           // We are closing a segment element.
-          if (tagName === "LATEXINLINE") {
+          if (
+            tagName === "LATEXINLINE" ||
+            tagName === "LATEX" ||
+            tagName === "SNIPPET" ||
+            tagName === "SCHEMEINLINE"
+          ) {
             subSegments.push([false, subCurrentSegment]);
           } else {
+            if (
+              subSegments.length > 0 &&
+              subSegments[subSegments.length - 1][0] &&
+              (subSegments[subSegments.length - 1][1].length +
+                subCurrentSegment.length) <
+                MAXLEN
+            ) {
+              console.log("Merging segments");
+              subSegments[subSegments.length - 1][1] += subCurrentSegment;
+            } else {
             subSegments.push([true, subCurrentSegment]);
+            }
           }
           subCurrentSegment = "";
           subIsRecording = false;
@@ -151,9 +176,9 @@ async function recursivelyTranslate(
       subParser.on("end", async () => {
         for (const segment of subSegments) {
           if (segment[0]) {
-            subTranslated += await helper(segment[1], false);
+              subTranslated.push(await helper(segment[1], false));
           } else {
-            subTranslated += segment[1];
+            subTranslated.push(segment[1]);
           }
         }
         resolve();
@@ -161,10 +186,10 @@ async function recursivelyTranslate(
 
       subParser.on("error", reject);
 
-      Readable.from(ori).pipe(subParser);
+      Readable.from("<WRAPPER>" + ori + "</WRAPPER>").pipe(subParser);
     });
 
-    return subTranslated;
+    return subTranslated.join("");
   }
 
   // Create a SAX parser in strict mode to split source into chunks.
@@ -173,7 +198,7 @@ async function recursivelyTranslate(
   // const assistant = await createAssistant(language, ai);
   const assistant_id = "asst_BLVYfog5DpWrbu3fW3o2oD4r";
   const thread = await ai.beta.threads.create();
-  let translated = "";
+  let translated: String[] = [];
 
   try {
     await new Promise<void>((resolve, reject) => {
@@ -250,9 +275,9 @@ async function recursivelyTranslate(
       parser.on("end", async () => {
         for (const segment of segments) {
           if (segment[0]) {
-            translated += await helper(segment[1], false);
+            translated.push(await helper(segment[1], false));
           } else {
-            translated += segment[1];
+            translated.push(segment[1]);
           }
         }
         console.log(`Done translating all segments.`);
@@ -264,14 +289,19 @@ async function recursivelyTranslate(
       fs.createReadStream(path).pipe(parser);
     });
 
-    return translated;
+    return translated.join("");
   } catch (parseErr) {
     console.error("Error parsing XML:", parseErr);
-    return translated + "<!-- Error parsing this section -->";
+    return translated.join("") + "<!-- Error parsing this section -->";
   }
 
   async function translateChunk(chunk: string): Promise<string> {
+    if (chunk.trim() === "" || chunk.trim() === "," || chunk.trim() === ".") {
+      return chunk;
+    }
+
     let translatedChunk = "";
+    console.log("Translating chunk of length: " + chunk.length + "\n" + chunk);
 
     try {
       await ai.beta.threads.messages.create(thread.id, {
@@ -364,7 +394,10 @@ async function recursivelyTranslate(
       return translatedChunk;
     } catch (err) {
       console.log(`Error occured while translating ${path}:\n    ` + err);
-      return translatedChunk + "<!-- Error translating this section -->";
+      return (
+        translatedChunk +
+        `<!-- Error occured while translating this section-->\n<!-- Error: ${err.length < 50 ? err : err.subString(0, 50) + "..."}-->`
+      );
     }
   }
 }
