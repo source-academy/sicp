@@ -90,8 +90,9 @@ async function recursivelyTranslate(
         if (subIsRecording) {
           subCurrentSegment += `${text}`;
         } else {
-          if (text == "\n " || text == "\r\n " || text == ", \n" || text == ", \r\n") {
-            subSegments.push([false, text]);
+          if (subSegments.length > 0 && subSegments[subSegments.length - 1][1] != undefined) {
+            subSegments[subSegments.length - 1][1] += text;
+            subSegments[subSegments.length - 1][0] = true;
           } else {
             subSegments.push([true, text]);
           }
