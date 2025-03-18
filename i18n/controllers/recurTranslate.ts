@@ -6,7 +6,6 @@ import dotenv from "dotenv";
 import sax from "sax";
 import { Readable } from "stream";
 import { fileURLToPath } from "url";
-import { strict } from "assert";
 
 dotenv.config();
 
@@ -20,9 +19,10 @@ const ai = new OpenAI({
   baseURL: process.env.AI_BASEURL
 });
 
-const MAXLEN = 5000;
+const MAXLEN = 3000;
 
-const createParser = () => (sax as any).createStream(true, { trim: false }, { strictEntities: true });
+const createParser = () =>
+  (sax as any).createStream(true, { trim: false }, { strictEntities: true });
 
 async function translate(language: string, filePath: string): Promise<void> {
   try {
@@ -92,18 +92,20 @@ async function recursivelyTranslate(
         } else {
           if (
             subSegments.length > 0 &&
-            subSegments[subSegments.length - 1][1] != undefined
+            subSegments[subSegments.length - 1][0]
           ) {
             subSegments[subSegments.length - 1][1] += text;
             subSegments[subSegments.length - 1][0] = true;
-
-            // if (text == "\n " || text == "\r\n " || text == ", \n" || text == ", \r\n") {
-            //   subSegments.push([false, text]);
-            // } else {
-            //   subSegments.push([true, text]);
-            // }
           } else {
-            subSegments.push([true, text]);
+            if (
+              text.trim() !== "" ||
+              text.trim() === "," ||
+              text.trim() === "."
+            ) {
+              subSegments.push([false, text]);
+            } else {
+              subSegments.push([true, text]);
+            }
           }
         }
       });
@@ -121,7 +123,11 @@ async function recursivelyTranslate(
 
         if (subCurrentDepth === 2) {
           // We are closing a segment element.
-          subSegments.push([true, subCurrentSegment]);
+          if (tagName === "LATEXINLINE") {
+            subSegments.push([false, subCurrentSegment]);
+          } else {
+            subSegments.push([true, subCurrentSegment]);
+          }
           subCurrentSegment = "";
           subIsRecording = false;
         }
@@ -336,10 +342,9 @@ async function recursivelyTranslate(
         clean.on("error", error => {
           console.log(
             "error encountered when validating XML: " +
-              error +
-              "\nvalidating section: " +
-              chunk.substring(0, 100) +
-              "..."
+              error + "\nfile: " + path +
+              "\n section: " +
+              (safeText.length > 50 ? safeText.substring(0, 100) + "..." : safeText )
           );
 
           // Attempt to recover using the internal parser
@@ -347,7 +352,7 @@ async function recursivelyTranslate(
             clean._parser.resume();
           } catch (e) {
             console.log("Failed to resume parser:", e);
-            reject();
+            reject(e);
           }
         });
 
@@ -375,7 +380,10 @@ function formatAttributes(attrs) {
 }
 
 function escapeXML(str: string): string {
-  return str.replace(/&(?!(?:amp;|lt;|gt;|apos;|quot;))/g, "&amp;");
+  return str
+    .replace(/&(?!(?:amp;|lt;|gt;|apos;|quot;))/g, "&amp;")
+    .replace(/<([^a-zA-Z\/])/g, "&lt;$1") // Fix lone < characters
+    .replace(/([^a-zA-Z0-9"'\s\/])>/g, "$1&gt;"); // Fix lone > characters;
 }
 
 function strongEscapeXML(str: string): string {
