@@ -6,6 +6,7 @@ import dotenv from "dotenv";
 import sax from "sax";
 import { Readable } from "stream";
 import { fileURLToPath } from "url";
+import { strict } from "assert";
 
 dotenv.config();
 
@@ -21,13 +22,15 @@ const ai = new OpenAI({
 
 const MAXLEN = 5000;
 
+const createParser = () => (sax as any).createStream(true, { trim: false }, { strictEntities: true });
+
 async function translate(language: string, filePath: string): Promise<void> {
   try {
     // Pipe the XML file into the parser.
     const input_dir = fileURLToPath(
       import.meta.resolve("../../xml" + filePath)
     );
-    console.log("Translating file: " + input_dir);
+
     const translated: string = await recursivelyTranslate(language, input_dir);
 
     const output_path = fileURLToPath(
@@ -52,19 +55,15 @@ async function recursivelyTranslate(
 ): Promise<string> {
   // Recursive function to split and translate
   async function helper(ori: string, force: boolean): Promise<string> {
-    ori = escapeXML(ori);
-
     if (ori.length < MAXLEN && !force) {
-      console.log("Translating chunk: " + ori.substring(0, 50) + "...");
       return await translateChunk(ori); // translate the chunk
     }
 
-    console.log("Chunk too large, splitting...");
     let subTranslated = "";
     // continue splitting the chunk
     // Create a SAX parser in strict mode to split source into chunks.
     await new Promise<void>((resolve, reject) => {
-      const subParser = (sax as any).createStream(true, { trim: false });
+      const subParser = createParser();
 
       let subCurrentDepth = 0;
       let subCurrentSegment = "";
@@ -87,12 +86,22 @@ async function recursivelyTranslate(
       });
 
       subParser.on("text", text => {
+        text = strongEscapeXML(text);
         if (subIsRecording) {
-          subCurrentSegment += `${text}`;
+          subCurrentSegment += text;
         } else {
-          if (subSegments.length > 0 && subSegments[subSegments.length - 1][1] != undefined) {
+          if (
+            subSegments.length > 0 &&
+            subSegments[subSegments.length - 1][1] != undefined
+          ) {
             subSegments[subSegments.length - 1][1] += text;
             subSegments[subSegments.length - 1][0] = true;
+
+            // if (text == "\n " || text == "\r\n " || text == ", \n" || text == ", \r\n") {
+            //   subSegments.push([false, text]);
+            // } else {
+            //   subSegments.push([true, text]);
+            // }
           } else {
             subSegments.push([true, text]);
           }
@@ -141,7 +150,6 @@ async function recursivelyTranslate(
             subTranslated += segment[1];
           }
         }
-        console.log(`Completed chunk translation, continuing...`);
         resolve();
       });
 
@@ -154,7 +162,7 @@ async function recursivelyTranslate(
   }
 
   // Create a SAX parser in strict mode to split source into chunks.
-  const parser = (sax as any).createStream(true, { trim: false });
+  const parser = createParser();
 
   // const assistant = await createAssistant(language, ai);
   const assistant_id = "asst_BLVYfog5DpWrbu3fW3o2oD4r";
@@ -191,8 +199,9 @@ async function recursivelyTranslate(
       });
 
       parser.on("text", text => {
+        text = strongEscapeXML(text);
         if (isRecording) {
-          currentSegment += `${text}`;
+          currentSegment += text;
         } else {
           segments.push([false, text]);
         }
@@ -287,18 +296,19 @@ async function recursivelyTranslate(
       const text = messageContent.text;
 
       const safeText = escapeXML(text.value);
+      console.log(safeText);
       const textStream = Readable.from("<WRAPPER>" + safeText + "</WRAPPER>");
 
       await new Promise<void>((resolve, reject) => {
         // Create a SAX parser in strict mode for cleaning up translations.
-        const clean = (sax as any).createStream(true, { trim: false });
+        const clean = createParser();
 
         // SAX parser to remove any excess text (artifacts, annotations etc.) from LLM outside of XML tags
         let currDepth = -1;
 
         clean.on("text", text => {
           if (currDepth >= 1) {
-            translatedChunk += escapeXML(text);
+            translatedChunk += strongEscapeXML(text);
           }
         });
 
@@ -367,4 +377,13 @@ function formatAttributes(attrs) {
 
 function escapeXML(str: string): string {
   return str.replace(/&(?!(?:amp;|lt;|gt;|apos;|quot;))/g, "&amp;");
+}
+
+function strongEscapeXML(str: string): string {
+  return str
+    .replace(/&(?!(?:amp;|lt;|gt;|apos;|quot;))/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&apos;");
 }
