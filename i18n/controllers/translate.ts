@@ -108,7 +108,7 @@ async function translate(language: string, filePath: string) {
     }
     console.log(`Done translating all segments.`);
     const output_path = fileURLToPath(
-      import.meta.resolve("../../xml/translations" + filePath)
+      import.meta.resolve("../../xml_cn" + filePath)
     );
 
     // Ensure directory exists
@@ -140,7 +140,7 @@ async function translate(language: string, filePath: string) {
 
     clean.on("text", text => {
       if (currDepth >= 1) {
-        translated += text;
+        translated += escapeXML(text);
       }
     });
 
@@ -166,6 +166,22 @@ async function translate(language: string, filePath: string) {
       translated += `<!-- ${comment} -->`;
     });
 
+      clean.on("error", error => {
+    console.log(
+      "error encountered when validating XML: " +
+      error +
+      "\nvalidating section: " +
+      chunk.substring(0, 100) + "..."
+    );
+    
+    // Attempt to recover using the internal parser
+    try {
+      clean._parser.resume();
+    } catch (e) {
+      console.log("Failed to resume parser:", e);
+    }
+  });
+
     let translated = "";
 
     try {
@@ -174,7 +190,7 @@ async function translate(language: string, filePath: string) {
         content: `Translate this content to ${language}.
                 IMPORTANT: You MUST search the uploaded reference file for any technical terms and use EXACTLY the translations specified there.
                 If a term exists in the reference file, use that translation without deviation.
-                Do not modify XML tags, content of XML tags and structure. Do not say anything else. Only translate the content and return the xml as is.
+                Do not modify XML tags, attributes of XML tags and structure. Do not say anything else.
                 Content to translate:
                 ${chunk}`
       });
