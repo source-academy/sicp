@@ -58,7 +58,7 @@ async function translate(language: string, filePath: string) {
 
   parser.on("text", text => {
     if (isRecording) {
-      currentSegment += `${text}`;
+      currentSegment += strongEscapeXML(text);
     } else {
       segments.push([false, text]);
     }
@@ -140,7 +140,7 @@ async function translate(language: string, filePath: string) {
 
     clean.on("text", text => {
       if (currDepth >= 1) {
-        translated += escapeXML(text);
+        translated += strongEscapeXML(text);
       }
     });
 
@@ -209,7 +209,7 @@ async function translate(language: string, filePath: string) {
       const text = messageContent.text;
       // console.log(text.value);
 
-      const safeText = escapeXML(text.value);
+      const safeText: String = escapeXML(text.value);
       const textStream = Readable.from("<WRAPPER>" + safeText + "</WRAPPER>");
 
       await new Promise<void>((resolve, reject) => {
@@ -237,4 +237,15 @@ function formatAttributes(attrs) {
 
 function escapeXML(str: string): string {
   return str.replace(/&(?!(?:amp;|lt;|gt;|apos;|quot;))/g, "&amp;");
+}
+
+
+
+function strongEscapeXML(str: string): string {
+  return str
+    .replace(/&(?!(?:amp;|lt;|gt;|apos;|quot;))/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&apos;");
 }
