@@ -188,10 +188,6 @@ async function translate(language: string, filePath: string) {
       await ai.beta.threads.messages.create(thread.id, {
         role: "user",
         content: `Translate this content to ${language}.
-                IMPORTANT: You MUST search the uploaded reference file for any technical terms and use EXACTLY the translations specified there.
-                If a term exists in the reference file, use that translation without deviation.
-                Do not modify XML tags, attributes of XML tags and structure. Do not say anything else.
-                Content to translate:
                 ${chunk}`
       });
       const run = await ai.beta.threads.runs.createAndPoll(thread.id, {

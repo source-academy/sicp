@@ -19,7 +19,7 @@ const ai = new OpenAI({
   baseURL: process.env.AI_BASEURL
 });
 
-const MAXLEN = 2000;
+const MAXLEN = 5000;
 
 async function translate(language: string, filePath: string): Promise<void> {
   try {
@@ -27,7 +27,7 @@ async function translate(language: string, filePath: string): Promise<void> {
     const input_dir = fileURLToPath(
       import.meta.resolve("../../xml" + filePath)
     );
-    console.log(input_dir);
+    console.log("Translating file: " + input_dir);
     const translated: string = await recursivelyTranslate(language, input_dir);
 
     const output_path = fileURLToPath(
@@ -52,10 +52,14 @@ async function recursivelyTranslate(
 ): Promise<string> {
   // Recursive function to split and translate
   async function helper(ori: string, force: boolean): Promise<string> {
+    ori = escapeXML(ori);
+
     if (ori.length < MAXLEN && !force) {
+      console.log("Translating chunk: " + ori.substring(0, 50) + "...");
       return await translateChunk(ori); // translate the chunk
     }
 
+    console.log("Chunk too large, splitting...");
     let subTranslated = "";
     // continue splitting the chunk
     // Create a SAX parser in strict mode to split source into chunks.
@@ -86,7 +90,11 @@ async function recursivelyTranslate(
         if (subIsRecording) {
           subCurrentSegment += `${text}`;
         } else {
-          subSegments.push([false, text]);
+          if (text == "\n " || text == "\r\n " || text == ", \n" || text == ", \r\n") {
+            subSegments.push([false, text]);
+          } else {
+            subSegments.push([true, text]);
+          }
         }
       });
 
@@ -132,7 +140,7 @@ async function recursivelyTranslate(
             subTranslated += segment[1];
           }
         }
-        console.log(`Done translating all segments.`);
+        console.log(`Completed chunk translation, continuing...`);
         resolve();
       });
 
@@ -232,7 +240,7 @@ async function recursivelyTranslate(
           }
         }
         console.log(`Done translating all segments.`);
-        resolve()
+        resolve();
       });
 
       parser.on("error", reject);
@@ -247,69 +255,17 @@ async function recursivelyTranslate(
   }
 
   async function translateChunk(chunk: string): Promise<string> {
-    // console.log("translating chunk: " + chunk);
-    // Create a SAX parser in strict mode for cleaning up translations.
-    const clean = (sax as any).createStream(true, { trim: false });
-
-    // SAX parser to remove any excess text (artifacts, annotations etc.) from LLM outside of XML tags
-    let currDepth = -1;
-
-    clean.on("text", text => {
-      if (currDepth >= 1) {
-        translatedChunk += escapeXML(text);
-      }
-    });
-
-    clean.on("opentag", node => {
-      currDepth++;
-      if (node.name != "WRAPPER") {
-        translatedChunk += `<${node.name}${formatAttributes(node.attributes)}>`;
-      }
-    });
-
-    clean.on("closetag", tagName => {
-      if (tagName != "WRAPPER") {
-        translatedChunk += `</${tagName}>`;
-      }
-      currDepth--;
-    });
-
-    clean.on("cdata", cdata => {
-      translatedChunk += `<![CDATA[${cdata}]]>`;
-    });
-
-    clean.on("comment", comment => {
-      translatedChunk += `<!-- ${comment} -->`;
-    });
-
-    clean.on("error", error => {
-      console.log(
-        "error encountered when validating XML: " +
-          error +
-          "\nvalidating section: " +
-          chunk.substring(0, 100) +
-          "..."
-      );
-
-      // Attempt to recover using the internal parser
-      try {
-        clean._parser.resume();
-      } catch (e) {
-        console.log("Failed to resume parser:", e);
-      }
-    });
-
     let translatedChunk = "";
 
     try {
       await ai.beta.threads.messages.create(thread.id, {
         role: "user",
         content: `Translate this content to ${language}.
-                IMPORTANT: You MUST search the uploaded reference file for any technical terms and use EXACTLY the translations specified there.
-                If a term exists in the reference file, use that translation without deviation.
-                Do not modify XML tags, attributes of XML tags and structure. Do not say anything else.
-                Content to translate:
-                ${chunk}`
+        IMPORTANT: You MUST search the uploaded reference file for any technical terms and use EXACTLY the translations specified there.
+        If a term exists in the reference file, use that translation without deviation.
+        Do not modify XML tags, attributes of XML tags and structure. Do not say anything else.
+        Content to translate:
+        ${chunk}`
       });
       const run = await ai.beta.threads.runs.createAndPoll(thread.id, {
         assistant_id: assistant_id
@@ -328,14 +284,65 @@ async function recursivelyTranslate(
       }
 
       const text = messageContent.text;
-      // console.log(text.value);
 
       const safeText = escapeXML(text.value);
       const textStream = Readable.from("<WRAPPER>" + safeText + "</WRAPPER>");
 
       await new Promise<void>((resolve, reject) => {
+        // Create a SAX parser in strict mode for cleaning up translations.
+        const clean = (sax as any).createStream(true, { trim: false });
+
+        // SAX parser to remove any excess text (artifacts, annotations etc.) from LLM outside of XML tags
+        let currDepth = -1;
+
+        clean.on("text", text => {
+          if (currDepth >= 1) {
+            translatedChunk += escapeXML(text);
+          }
+        });
+
+        clean.on("opentag", node => {
+          currDepth++;
+          if (node.name != "WRAPPER") {
+            translatedChunk += `<${node.name}${formatAttributes(node.attributes)}>`;
+          }
+        });
+
+        clean.on("closetag", tagName => {
+          if (tagName != "WRAPPER") {
+            translatedChunk += `</${tagName}>`;
+          }
+          currDepth--;
+        });
+
+        clean.on("cdata", cdata => {
+          translatedChunk += `<![CDATA[${cdata}]]>`;
+        });
+
+        clean.on("comment", comment => {
+          translatedChunk += `<!-- ${comment} -->`;
+        });
+
+        clean.on("error", error => {
+          console.log(
+            "error encountered when validating XML: " +
+              error +
+              "\nvalidating section: " +
+              chunk.substring(0, 100) +
+              "..."
+          );
+
+          // Attempt to recover using the internal parser
+          try {
+            clean._parser.resume();
+          } catch (e) {
+            console.log("Failed to resume parser:", e);
+            reject;
+          }
+        });
+
         clean.once("end", resolve);
-        clean.once("error", reject);
+
         textStream.pipe(clean);
       });
 
