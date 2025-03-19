@@ -147,7 +147,6 @@ async function recursivelyTranslate(
                 subCurrentSegment.length) <
                 MAXLEN
             ) {
-              console.log("Merging segments");
               subSegments[subSegments.length - 1][1] += subCurrentSegment;
             } else {
             subSegments.push([true, subCurrentSegment]);
@@ -251,9 +250,27 @@ async function recursivelyTranslate(
 
         if (currentDepth === 2) {
           // We are closing a segment element.
-          segments.push([true, currentSegment]);
-          currentSegment = "";
-          isRecording = false;
+          if (
+            tagName === "LATEXINLINE" ||
+            tagName === "LATEX" ||
+            tagName === "SNIPPET" ||
+            tagName === "SCHEMEINLINE" ||
+            tagName === "SCHEME"
+          ) {
+            segments.push([false, currentSegment]);
+          } else {
+            if (
+              segments.length > 0 &&
+              segments[segments.length - 1][0] &&
+              (segments[segments.length - 1][1].length +
+                currentSegment.length) <
+                MAXLEN
+            ) {
+              segments[segments.length - 1][1] += currentSegment;
+            } else {
+            segments.push([true, currentSegment]);
+            }
+          }
         }
 
         if (currentDepth === 1) {
@@ -280,7 +297,6 @@ async function recursivelyTranslate(
             translated.push(segment[1]);
           }
         }
-        console.log(`Done translating all segments.`);
         resolve();
       });
 
@@ -299,9 +315,13 @@ async function recursivelyTranslate(
     if (chunk.trim() === "" || chunk.trim() === "," || chunk.trim() === ".") {
       return chunk;
     }
-
+    
+    console.log("Translating chunk of length: " + chunk.length);
+    if (chunk.length < 100) {
+      console.log("\nchunk: " + chunk)
+    }
+    
     let translatedChunk = "";
-    console.log("Translating chunk of length: " + chunk.length + "\n" + chunk);
 
     try {
       await ai.beta.threads.messages.create(thread.id, {
