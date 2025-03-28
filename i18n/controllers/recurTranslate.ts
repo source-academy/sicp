@@ -331,7 +331,7 @@ async function recursivelyTranslate(
         If a term exists in the reference file, use that translation without deviation.
         Do not modify XML tags, attributes of XML tags and structure. Do not say anything else.
         Content to translate:
-        ${chunk}`
+        <TRANSLATE> ${chunk} </TRANSLATE>`
       });
       const run = await ai.beta.threads.runs.createAndPoll(thread.id, {
         assistant_id: assistant_id
@@ -369,13 +369,13 @@ async function recursivelyTranslate(
 
         clean.on("opentag", node => {
           currDepth++;
-          if (node.name != "WRAPPER") {
+          if (node.name != "WRAPPER" && node.name != "TRANSLATE") {
             translatedChunk += `<${node.name}${formatAttributes(node.attributes)}>`;
           }
         });
 
         clean.on("closetag", tagName => {
-          if (tagName != "WRAPPER") {
+          if (tagName != "WRAPPER" && tagName != "TRANSLATE") {
             translatedChunk += `</${tagName}>`;
           }
           currDepth--;
