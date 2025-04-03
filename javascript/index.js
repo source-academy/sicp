@@ -45,8 +45,9 @@ import { setupReferencesJson } from "./processingFunctions/processReferenceJson"
 
 export let parseType;
 let version;
+let outputDirPre;
 let outputDir; // depends on parseType
-const inputDir = path.join(__dirname, "../xml");
+let inputDir;
 
 const ensureDirectoryExists = (path, cb) => {
   fs.mkdir(path, err => {
@@ -292,8 +293,23 @@ const createMain = () => {
 
 async function main() {
   parseType = process.argv[2];
+  const _id = parseType == "web" ? 4 : 3;
+  const _od = parseType == "web" ? 5 : 4;
+  inputDir = path.join(__dirname, "../xml");
+  if (process.argv[_id] !== undefined) {
+    inputDir = path.join(__dirname, "..", process.argv[3]);
+  }
+  outputDirPre = path.join(__dirname, "..");
+  if (process.argv[_od] !== undefined) {
+    outputDirPre = path.join(__dirname, "..", process.argv[4]);
+  }
+  ensureDirectoryExists(outputDirPre, err => {
+    if (err) {
+      console.log(err);
+    }
+  });
   if (parseType == "pdf") {
-    outputDir = path.join(__dirname, "../latex_pdf");
+    outputDir = path.join(outputDirPre, "latex_pdf");
 
     switchParseFunctionsLatex(parseType);
     createMain();
@@ -317,9 +333,9 @@ async function main() {
     version = process.argv[3];
 
     if (version == "split") {
-      outputDir = path.join(__dirname, "../html_split");
+      outputDir = path.join(outputDirPre, "html_split");
     } else if (version == "scheme") {
-      outputDir = path.join(__dirname, "../html_scheme");
+      outputDir = path.join(outputDirPre, "html_scheme");
     }
 
     switchParseFunctionsHtml(version);
@@ -341,7 +357,7 @@ async function main() {
 
     recursiveXmlToHtmlInOrder("parseXml");
   } else if (parseType == "js") {
-    outputDir = path.join(__dirname, "../js_programs");
+    outputDir = path.join(outputDirPre, "js_programs");
 
     createMain();
     console.log("setup snippets\n");
@@ -349,7 +365,7 @@ async function main() {
     console.log("setup snippets done\n");
     recursiveTranslateXml("", "parseXml");
   } else if (parseType == "json") {
-    outputDir = path.join(__dirname, "../json");
+    outputDir = path.join(outputDirPre, "json");
 
     createMain();
 
