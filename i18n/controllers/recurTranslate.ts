@@ -19,7 +19,7 @@ const ai = new OpenAI({
   baseURL: process.env.AI_BASEURL
 });
 
-const MAXLEN = 3000;
+const MAXLEN = Number(process.env.MAX_LEN) || 3000;
 
 const createParser = () =>
   (sax as any).createStream(true, { trim: false }, { strictEntities: true });
@@ -35,7 +35,7 @@ async function translate(language: string, filePath: string): Promise<void> {
     const translated: string = await recursivelyTranslate(language, input_dir);
 
     const output_path = fileURLToPath(
-      import.meta.resolve("../../xml_cn" + filePath)
+      import.meta.resolve("../../xml/cn" + filePath)
     );
 
     // Ensure directory exists
@@ -69,7 +69,7 @@ async function recursivelyTranslate(
     await new Promise<void>((resolve, reject) => {
       const subParser = createParser();
 
-      let subCurrentDepth = 0;
+      let subCurrentDepth = 1;
       let subCurrentSegment = "";
       const subSegments: [boolean, string][] = [];
       let subIsRecording = false;
@@ -78,7 +78,7 @@ async function recursivelyTranslate(
         if (node.name === "WRAPPER") {
           return;
         }
-
+        
         subCurrentDepth++;
 
         // If we're at depth 2, this is the start of a new segment.
@@ -160,7 +160,6 @@ async function recursivelyTranslate(
           // We are closing the root element.
           subSegments.push([false, `</${tagName}>`]);
         }
-
         subCurrentDepth--;
       });
 
@@ -194,7 +193,7 @@ async function recursivelyTranslate(
   // Create a SAX parser in strict mode to split source into chunks.
   const parser = createParser();
 
-  // const assistant = await createAssistant(language, ai);
+  // const assistant = await createAssistant(language, ai as any);
   const assistant_id = "asst_BLVYfog5DpWrbu3fW3o2oD4r";
   const thread = await ai.beta.threads.create();
   let translated: String[] = [];
@@ -316,7 +315,7 @@ async function recursivelyTranslate(
       return chunk;
     }
     
-    console.log("Translating chunk of length: " + chunk.length);
+    // console.log("Translating chunk of length: " + chunk.length);
     if (chunk.length < 100) {
       console.log("\nchunk: " + chunk)
     }
@@ -333,6 +332,7 @@ async function recursivelyTranslate(
         Content to translate:
         <TRANSLATE> ${chunk} </TRANSLATE>`
       });
+      
       const run = await ai.beta.threads.runs.createAndPoll(thread.id, {
         assistant_id: assistant_id
       });
@@ -340,6 +340,7 @@ async function recursivelyTranslate(
       const messages = await ai.beta.threads.messages.list(thread.id, {
         run_id: run.id
       });
+
       const message = messages.data.pop()!;
       const messageContent = message.content[0];
 
@@ -352,6 +353,7 @@ async function recursivelyTranslate(
       const text = messageContent.text;
 
       const safeText = escapeXML(text.value);
+      console.log(safeText);
       const textStream = Readable.from("<WRAPPER>" + safeText + "</WRAPPER>");
 
       await new Promise<void>((resolve, reject) => {
@@ -416,7 +418,7 @@ async function recursivelyTranslate(
       console.log(`Error occured while translating ${path}:\n    ` + err);
       return (
         translatedChunk +
-        `<!-- Error occured while translating this section-->\n<!-- Error: ${err.length < 50 ? err : err.subString(0, 50) + "..."}-->`
+        `<!-- Error occured while translating this section-->\n<!-- Error: ${err}-->`
       );
     }
   }

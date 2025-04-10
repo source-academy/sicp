@@ -21,11 +21,11 @@ export default async function createAssistant(language: string, ai: OpenAI) {
   ].map(path => fs.createReadStream(path));
 
   // Create a vector store including our two files.
-  const vectorStore = await ai.beta.vectorStores.create({
+  const vectorStore = await ai.vectorStores.create({
     name: "Translation instructions"
   });
 
-  await ai.beta.vectorStores.fileBatches.uploadAndPoll(vectorStore.id, {
+  await ai.vectorStores.fileBatches.uploadAndPoll(vectorStore.id, {
     files: fileStreams
   });
 

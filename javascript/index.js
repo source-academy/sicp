@@ -42,6 +42,7 @@ import { writeRewritedSearchData } from "./searchRewrite";
 import { setupSnippetsJson } from "./processingFunctions/processSnippetJson";
 import { createTocJson } from "./generateTocJson";
 import { setupReferencesJson } from "./processingFunctions/processReferenceJson";
+import { SourceTextModule } from "vm";
 
 export let parseType;
 let version;
@@ -57,6 +58,11 @@ const ensureDirectoryExists = (path, cb) => {
     } else cb(null); // successfully created folder
   });
 };
+
+const getDirectories = async source =>
+  (await readdir(source, { withFileTypes: true }))
+    .filter(dirent => dirent.isDirectory())
+    .map(dirent => dirent.name);
 
 async function translateXml(filepath, filename, option) {
   const fullFilepath = path.join(inputDir, filepath, filename);
@@ -200,8 +206,14 @@ async function recursiveXmlToHtmlInOrder(option) {
   }
 }
 
-async function recursiveTranslateXml(filepath, option) {
+async function recursiveTranslateXml(filepath, option, lang = "en") {
   let files;
+
+  if (lang != null) {
+    filepath = path.join(filepath, lang);
+    console.log(filepath);
+  }
+
   const fullPath = path.join(inputDir, filepath);
   files = await readdir(fullPath);
   const promises = [];
@@ -222,7 +234,9 @@ async function recursiveTranslateXml(filepath, option) {
         promises.push(translateXml(filepath, file, option));
       }
     } else if (fs.lstatSync(path.join(fullPath, file)).isDirectory()) {
-      promises.push(recursiveTranslateXml(path.join(filepath, file), option));
+      promises.push(
+        recursiveTranslateXml(path.join(filepath, file), option, null)
+      );
     }
   });
   await Promise.all(promises);
@@ -349,23 +363,28 @@ async function main() {
     console.log("setup snippets done\n");
     recursiveTranslateXml("", "parseXml");
   } else if (parseType == "json") {
-    outputDir = path.join(__dirname, "../json");
+    const languages = await getDirectories(path.join(__dirname, "../xml"));
+    console.dir(languages)
 
-    createMain();
 
-    console.log("\ngenerate table of content\n");
-    await recursiveTranslateXml("", "generateTOC");
-    allFilepath = sortTOC(allFilepath);
-    createTocJson(outputDir);
+    languages.forEach(async lang => {
+      outputDir = path.join(__dirname, "../json", lang);
+      createMain();
 
-    console.log("setup snippets and references\n");
-    await recursiveXmlToHtmlInOrder("setupSnippet");
-    console.log("setup snippets and references done\n");
+      console.log("\ngenerate table of content\n");
+      await recursiveTranslateXml("", "generateTOC", lang);
+      allFilepath = sortTOC(allFilepath);
+      createTocJson(outputDir);
 
-    await recursiveXmlToHtmlInOrder("parseXml");
-    writeRewritedSearchData();
-    // this is meant to be temp; also, will remove the original "generateSearchData" after the updation at the frontend is completed.
-    //testIndexSearch();
+      console.log("setup snippets and references\n");
+      await recursiveXmlToHtmlInOrder("setupSnippet");
+      console.log("setup snippets and references done\n");
+
+      await recursiveXmlToHtmlInOrder("parseXml");
+      writeRewritedSearchData();
+      // this is meant to be temp; also, will remove the original "generateSearchData" after the updation at the frontend is completed.
+      //testIndexSearch();
+    });
   }
 }
 
