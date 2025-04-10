@@ -29,7 +29,7 @@ async function translate(language: string, filePath: string): Promise<void> {
   try {
     // Pipe the XML file into the parser.
     const input_dir = fileURLToPath(
-      import.meta.resolve("../../xml" + filePath)
+      import.meta.resolve("../../xml/en" + filePath)
     );
 
     const translated: string = await recursivelyTranslate(language, input_dir);
