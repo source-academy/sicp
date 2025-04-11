@@ -6,6 +6,7 @@ import dotenv from "dotenv";
 import sax from "sax";
 import { Readable } from "stream";
 import { fileURLToPath } from "url";
+import { isGeneratorObject } from "util/types";
 
 dotenv.config();
 
@@ -18,6 +19,8 @@ const ai = new OpenAI({
   apiKey: process.env.API_KEY,
   baseURL: process.env.AI_BASEURL
 });
+
+const ignoredTags = ["LATEXINLINE", "LATEX", "SNIPPET", "SCHEMEINLINE", "SCHEME", "LONG_PAGE", "LABEL"];
 
 const MAXLEN = Number(process.env.MAX_LEN) || 3000;
 
@@ -58,8 +61,8 @@ async function recursivelyTranslate(
   path: string
 ): Promise<string> {
   // Recursive function to split and translate
-  async function helper(ori: string, force: boolean): Promise<string> {
-    if (ori.length < MAXLEN && !force) {
+  async function helper(ori: string): Promise<string> {
+    if (ori.length < MAXLEN) {
       return await translateChunk(ori); // translate the chunk
     }
 
@@ -69,21 +72,19 @@ async function recursivelyTranslate(
     await new Promise<void>((resolve, reject) => {
       const subParser = createParser();
 
-      let subCurrentDepth = 1;
+      let subCurrentDepth = 0;
       let subCurrentSegment = "";
       const subSegments: [boolean, string][] = [];
       let subIsRecording = false;
 
       subParser.on("opentag", node => {
-        if (node.name === "WRAPPER") {
-          return;
-        }
-        
+        if (node.name === "WRAPPER") return;
+
         subCurrentDepth++;
 
-        // If we're at depth 2, this is the start of a new segment.
-        if (subCurrentDepth === 2 || subIsRecording) {
-          subIsRecording = true;
+        if (subCurrentDepth === 2) subIsRecording = true;
+
+        if (subIsRecording) {
           subCurrentSegment += `<${node.name}${formatAttributes(node.attributes)}>`;
         } else {
           subSegments.push([
@@ -97,21 +98,19 @@ async function recursivelyTranslate(
         text = strongEscapeXML(text);
         if (subIsRecording) {
           subCurrentSegment += text;
+        } else if (
+          subSegments.length > 0 &&
+          subSegments[subSegments.length - 1][0]
+        ) {
+          subSegments[subSegments.length - 1][1] += text;
+        } else if (
+          text.trim() === "" ||
+          text.trim() === "," ||
+          text.trim() === "."
+        ) {
+          subSegments.push([false, text]);
         } else {
-          if (
-            subSegments.length > 0 &&
-            subSegments[subSegments.length - 1][0]
-          ) {
-            subSegments[subSegments.length - 1][1] += text;
-          } else if (
-              text.trim() !== "" ||
-              text.trim() === "," ||
-              text.trim() === "."
-            ) {
-              subSegments.push([false, text]);
-            } else {
-              subSegments.push([true, text]);
-          }
+          subSegments.push([true, text]);
         }
       });
 
@@ -125,41 +124,35 @@ async function recursivelyTranslate(
         if (tagName === "WRAPPER") {
           return;
         }
-
-        if (subIsRecording) {
-          subCurrentSegment += `</${tagName}>`;
-        }
+        
+        subCurrentSegment += `</${tagName}>`;
 
         if (subCurrentDepth === 2) {
           // We are closing a segment element.
           if (
-            tagName === "LATEXINLINE" ||
-            tagName === "LATEX" ||
-            tagName === "SNIPPET" ||
-            tagName === "SCHEMEINLINE"
+            ignoredTags.includes(tagName)
           ) {
             subSegments.push([false, subCurrentSegment]);
+          } else if (
+            subSegments.length > 0 &&
+            subSegments[subSegments.length - 1][0] &&
+            subSegments[subSegments.length - 1][1].length +
+              subCurrentSegment.length <
+              MAXLEN
+          ) {
+            subSegments[subSegments.length - 1][1] += subCurrentSegment;
           } else {
-            if (
-              subSegments.length > 0 &&
-              subSegments[subSegments.length - 1][0] &&
-              (subSegments[subSegments.length - 1][1].length +
-                subCurrentSegment.length) <
-                MAXLEN
-            ) {
-              subSegments[subSegments.length - 1][1] += subCurrentSegment;
-            } else {
             subSegments.push([true, subCurrentSegment]);
-            }
           }
           subCurrentSegment = "";
           subIsRecording = false;
         }
-
+        
         if (subCurrentDepth === 1) {
-          // We are closing the root element.
-          subSegments.push([false, `</${tagName}>`]);
+          subSegments.push([false, `</${tagName}>`])
+          subCurrentSegment = "";
         }
+        
         subCurrentDepth--;
       });
 
@@ -174,7 +167,7 @@ async function recursivelyTranslate(
       subParser.on("end", async () => {
         for (const segment of subSegments) {
           if (segment[0]) {
-              subTranslated.push(await helper(segment[1], false));
+            subTranslated.push(await helper(segment[1]));
           } else {
             subTranslated.push(segment[1]);
           }
@@ -248,28 +241,23 @@ async function recursivelyTranslate(
         }
 
         if (currentDepth === 2) {
+          isRecording = false;
           // We are closing a segment element.
-          if (
-            tagName === "LATEXINLINE" ||
-            tagName === "LATEX" ||
-            tagName === "SNIPPET" ||
-            tagName === "SCHEMEINLINE" ||
-            tagName === "SCHEME"
-          ) {
+          if (ignoredTags.includes(tagName)) {
             segments.push([false, currentSegment]);
           } else {
             if (
               segments.length > 0 &&
               segments[segments.length - 1][0] &&
-              (segments[segments.length - 1][1].length +
-                currentSegment.length) <
+              segments[segments.length - 1][1].length + currentSegment.length <
                 MAXLEN
             ) {
               segments[segments.length - 1][1] += currentSegment;
             } else {
-            segments.push([true, currentSegment]);
+              segments.push([true, currentSegment]);
             }
           }
+          currentSegment = "";
         }
 
         if (currentDepth === 1) {
@@ -291,7 +279,7 @@ async function recursivelyTranslate(
       parser.on("end", async () => {
         for (const segment of segments) {
           if (segment[0]) {
-            translated.push(await helper(segment[1], false));
+            translated.push(await helper(segment[1]));
           } else {
             translated.push(segment[1]);
           }
@@ -314,12 +302,12 @@ async function recursivelyTranslate(
     if (chunk.trim() === "" || chunk.trim() === "," || chunk.trim() === ".") {
       return chunk;
     }
-    
+
     // console.log("Translating chunk of length: " + chunk.length);
-    if (chunk.length < 100) {
-      console.log("\nchunk: " + chunk)
-    }
-    
+    // if (chunk.length < 100) {
+    //   console.log("\nchunk: " + chunk);
+    // }
+
     let translatedChunk = "";
 
     try {
@@ -332,7 +320,7 @@ async function recursivelyTranslate(
         Content to translate:
         <TRANSLATE> ${chunk} </TRANSLATE>`
       });
-      
+
       const run = await ai.beta.threads.runs.createAndPoll(thread.id, {
         assistant_id: assistant_id
       });
@@ -353,7 +341,7 @@ async function recursivelyTranslate(
       const text = messageContent.text;
 
       const safeText = escapeXML(text.value);
-      console.log(safeText);
+      // const safeText = chunk;
       const textStream = Readable.from("<WRAPPER>" + safeText + "</WRAPPER>");
 
       await new Promise<void>((resolve, reject) => {
@@ -394,13 +382,18 @@ async function recursivelyTranslate(
         clean.on("error", error => {
           console.log(
             "error encountered when validating XML: " +
-              error + "\nfile: " + path +
+              error +
+              "\nfile: " +
+              path +
               "\n section: " +
-              (safeText.length > 50 ? safeText.substring(0, 100) + "..." : safeText )
+              safeText + 
+              "\n original text: " + 
+              chunk
           );
 
           // Attempt to recover using the internal parser
           try {
+            clean._parser.error = null;
             clean._parser.resume();
           } catch (e) {
             console.log("Failed to resume parser:", e);
