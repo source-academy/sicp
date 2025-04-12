@@ -22,9 +22,9 @@ export default async function createAssistant(language: string, ai: OpenAI) {
     tools: [{ type: "file_search" }]
   });
 
-  const fileStreams = [
-    path.resolve(__dirname, "../../dictionary/cn.txt")
-  ].map(path => fs.createReadStream(path));
+  const fileStreams = [path.resolve(__dirname, "../../dictionary/cn.txt")].map(
+    path => fs.createReadStream(path)
+  );
 
   // Create a vector store including our two files.
   const vectorStore = await ai.vectorStores.create({

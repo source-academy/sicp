@@ -166,21 +166,22 @@ async function translate(language: string, filePath: string) {
       translated += `<!-- ${comment} -->`;
     });
 
-      clean.on("error", error => {
-    console.log(
-      "error encountered when validating XML: " +
-      error +
-      "\nvalidating section: " +
-      chunk.substring(0, 100) + "..."
-    );
-    
-    // Attempt to recover using the internal parser
-    try {
-      clean._parser.resume();
-    } catch (e) {
-      console.log("Failed to resume parser:", e);
-    }
-  });
+    clean.on("error", error => {
+      console.log(
+        "error encountered when validating XML: " +
+          error +
+          "\nvalidating section: " +
+          chunk.substring(0, 100) +
+          "..."
+      );
+
+      // Attempt to recover using the internal parser
+      try {
+        clean._parser.resume();
+      } catch (e) {
+        console.log("Failed to resume parser:", e);
+      }
+    });
 
     let translated = "";
 
@@ -238,8 +239,6 @@ function formatAttributes(attrs) {
 function escapeXML(str: string): string {
   return str.replace(/&(?!(?:amp;|lt;|gt;|apos;|quot;))/g, "&amp;");
 }
-
-
 
 function strongEscapeXML(str: string): string {
   return str
