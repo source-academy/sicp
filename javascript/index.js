@@ -8,6 +8,7 @@ import { DOMParser as dom } from "xmldom";
 const readdir = util.promisify(fs.readdir);
 const open = util.promisify(fs.open);
 const readFile = util.promisify(fs.readFile);
+const errors = [];
 
 // latex (pdf version)
 import {
@@ -43,6 +44,8 @@ import { setupSnippetsJson } from "./processingFunctions/processSnippetJson";
 import { createTocJson } from "./generateTocJson";
 import { setupReferencesJson } from "./processingFunctions/processReferenceJson";
 import { SourceTextModule } from "vm";
+import { threadId } from "worker_threads";
+import { exitCode } from "process";
 
 export let parseType;
 let version;
@@ -163,7 +166,7 @@ async function translateXml(filepath, filename, option) {
   }
 
   if (parseType == "json") {
-    const relativeFilePath = path.join(
+    try {const relativeFilePath = path.join(
       filepath,
       filename.replace(/\.xml$/, "") + ".html"
     );
@@ -188,6 +191,8 @@ async function translateXml(filepath, filename, option) {
         stream.write(JSON.stringify(jsonObj));
         stream.end();
       });
+    } } catch (error) {
+      errors.push(filepath + " " + error);
     }
     return;
   }
@@ -215,9 +220,11 @@ async function recursiveTranslateXml(filepath, option, lang = "en") {
   }
 
   const fullPath = path.join(inputDir, filepath);
+  console.log(fullPath);
   files = await readdir(fullPath);
   const promises = [];
   files.forEach(file => {
+    console.log(file);
     if (file.match(/\.xml$/)) {
       // console.log(file + " being processed");
       if (
@@ -364,14 +371,16 @@ async function main() {
     recursiveTranslateXml("", "parseXml");
   } else if (parseType == "json") {
     const languages = await getDirectories(path.join(__dirname, "../xml"));
-    console.dir(languages)
+    console.dir(languages);
 
-
-    languages.forEach(async lang => {
+    for (const lang of languages) {
       outputDir = path.join(__dirname, "../json", lang);
+      allFilepath = [];
+      tableOfContent = {};
+
       createMain();
 
-      console.log("\ngenerate table of content\n");
+      console.log(`\ngenerate table of content for ${lang}\n`);
       await recursiveTranslateXml("", "generateTOC", lang);
       allFilepath = sortTOC(allFilepath);
       createTocJson(outputDir);
@@ -379,12 +388,30 @@ async function main() {
       console.log("setup snippets and references\n");
       await recursiveXmlToHtmlInOrder("setupSnippet");
       console.log("setup snippets and references done\n");
-
       await recursiveXmlToHtmlInOrder("parseXml");
       writeRewritedSearchData();
       // this is meant to be temp; also, will remove the original "generateSearchData" after the updation at the frontend is completed.
       //testIndexSearch();
-    });
+    }
+  }
+  try {
+    let summaryLog = "Parsing failed for: ";
+    const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+    for (const err of errors) {
+      summaryLog += "\n" + err;
+    }
+    const logDir = path.resolve(__dirname, "../logs");
+    if (!fs.existsSync(logDir)) {
+      fs.mkdirSync(logDir, { recursive: true });
+    }
+
+    const logPath = path.join(logDir, `json-summary-${timestamp}.log`);
+    fs.writeFileSync(logPath, summaryLog);
+    console.log(
+      `Summary log saved to logs/translation-summary-${timestamp}.log`
+    );
+  } catch (logError) {
+    console.error("Failed to save log file:", logError);
   }
 }
 
