@@ -192,7 +192,7 @@ async function translateXml(filepath, filename, option) {
         stream.end();
       });
     } } catch (error) {
-      errors.push(filepath + " " + error);
+      errors.push(path.join(filepath, filename) + " " + error);
     }
     return;
   }
