@@ -288,7 +288,13 @@ async function recursivelyTranslate(
         currentDepth++;
 
         // If we're at depth 2, this is the start of a new segment.
-        if (node.name == "SCHEME" || node.name == "SCHEMEINLINE") return;
+        if (
+          node.name == "SCHEME" ||
+          node.name == "SCHEMEINLINE" ||
+          parser._parser.tag === "SCHEME" ||
+          parser._parser.tag === "SCHEMEINLINE"
+        )
+          return;
 
         if (currentDepth === 2 || isRecording) {
           isRecording = true;
@@ -303,9 +309,13 @@ async function recursivelyTranslate(
 
       parser.on("text", text => {
         text = strongEscapeXML(text);
-        
+
         // ignore all scheme contents
-        if(parser._parser.tag == "SCHEME" || parser._parser.tag == "SCHEMEINLINE") return;
+        if (
+          parser._parser.tag == "SCHEME" ||
+          parser._parser.tag == "SCHEMEINLINE"
+        )
+          return;
 
         if (isRecording) {
           currentSegment += text;
@@ -321,7 +331,13 @@ async function recursivelyTranslate(
       });
 
       parser.on("closetag", tagName => {
-        if (tagName !== "SCHEME" && tagName !== "SCHEMEINLINE" && isRecording) {
+        if (
+          tagName !== "SCHEME" &&
+          tagName !== "SCHEMEINLINE" &&
+          parser._parser.tag !== "SCHEME" &&
+          parser._parser.tag !== "SCHEMEINLINE" &&
+          isRecording
+        ) {
           currentSegment += `</${tagName}>`;
         }
 
@@ -464,19 +480,13 @@ async function recursivelyTranslate(
 
         clean.on("opentag", node => {
           currDepth++;
-          if (
-            node.name != "WRAPPER" &&
-            node.name != "TRANSLATE"
-          ) {
+          if (node.name != "WRAPPER" && node.name != "TRANSLATE") {
             translatedChunk += `<${node.name}${formatAttributes(node.attributes)}>`;
           }
         });
 
         clean.on("closetag", tagName => {
-          if (
-            tagName != "WRAPPER" &&
-            tagName != "TRANSLATE"
-          ) {
+          if (tagName != "WRAPPER" && tagName != "TRANSLATE") {
             translatedChunk += `</${tagName}>`;
           }
           currDepth--;
