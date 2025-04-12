@@ -30,6 +30,10 @@ const ignoredTags = [
 
 const MAXLEN = Number(process.env.MAX_LEN) || 3000;
 
+// change to true to avoid calling openai api, useful for troubleshooting
+// chunking logic
+const troubleshoot = false;
+
 // Centralized logging to prevent duplicate messages
 const errorMessages = new Set();
 // Track errors by file for summary reporting
@@ -404,7 +408,7 @@ async function recursivelyTranslate(
   }
 
   async function translateChunk(chunk: string): Promise<string> {
-    return chunk;
+    if (troubleshoot) return chunk;
     if (chunk.trim() === "" || chunk.trim() === "," || chunk.trim() === ".") {
       return chunk;
     }
