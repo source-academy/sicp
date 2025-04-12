@@ -5,14 +5,11 @@ import createAssistant from "../initializers/initialize";
 import dotenv from "dotenv";
 import sax from "sax";
 import { Readable } from "stream";
-import { fileURLToPath } from "url";
-import { isGeneratorObject } from "util/types";
-import { AssistantStream } from "openai/lib/AssistantStream.mjs";
 
 dotenv.config();
 
 if (process.env.AI_MODEL === undefined || process.env.API_KEY === undefined) {
-  throw Error("Please specify AI_MODEL and API_KEY!");
+  throw Error("Please specify AI_MODEL and API_KEY");
 }
 
 // initialize OpenAI API
@@ -35,7 +32,10 @@ const MAXLEN = Number(process.env.MAX_LEN) || 3000;
 
 // Centralized logging to prevent duplicate messages
 const errorMessages = new Set();
-function logError(message: string, error?: any) {
+// Track errors by file for summary reporting
+const fileErrors: Record<string, { message: string; error?: any }[]> = {};
+
+function logError(message: string, error?: any, filePath?: string) {
   // Create a unique key for this error message
   const errorKey = message + (error ? error.toString() : "");
   // Only log if we haven't seen this exact message before
@@ -46,11 +46,27 @@ function logError(message: string, error?: any) {
     } else {
       console.error(message);
     }
+
+    // Store error for the summary log if filePath is provided
+    if (filePath) {
+      if (!fileErrors[filePath]) {
+        fileErrors[filePath] = [];
+      }
+      fileErrors[filePath].push({ message, error });
+    }
   }
 }
 
+// Function to get all logged errors for summary
+export function getFileErrors(): Record<
+  string,
+  { message: string; error?: any }[]
+> {
+  return fileErrors;
+}
+
 const createParser = () =>
-  (sax as any).createStream(true, { trim: false }, { strictEntities: true });
+  (sax as any).createStream(false, { trim: false }, { strictEntities: true });
 
 async function translate(language: string, filePath: string): Promise<void> {
   const startTime = new Date().getTime();
@@ -81,11 +97,13 @@ async function translate(language: string, filePath: string): Promise<void> {
     fs.writeFileSync(output_path, translated);
     console.log(`Translation saved to ${output_path}`);
   } catch (parseErr) {
-    logError(`Error translating file ${filePath}:`, parseErr);
+    logError(`Error translating file ${filePath}:`, parseErr, filePath);
+    // Re-throw the error to propagate it to the caller
+    throw parseErr;
   } finally {
     if (assistant) {
       await ai.beta.assistants.del(assistant.id).catch(err => {
-        logError(`Error deleting assistant:`, err);
+        logError(`Error deleting assistant:`, err, filePath);
       });
     }
     const elapsed = new Date().getTime() - startTime;
@@ -210,7 +228,11 @@ async function recursivelyTranslate(
               subTranslated.push(segment[1]);
             }
           } catch (error) {
-            logError(`Error translating segment in ${filePath}:`, error);
+            logError(
+              `Error translating segment in ${filePath}:`,
+              error,
+              filePath
+            );
             // Add error comment and continue with next segment
             subTranslated.push(
               segment[1] + `<!-- Error translating this segment -->`
@@ -221,13 +243,13 @@ async function recursivelyTranslate(
       });
 
       subParser.on("error", err => {
-        logError(`Error in subParser for ${filePath}:`, err);
+        logError(`Error in subParser for ${filePath}:`, err, filePath);
         // Try to recover and continue
         try {
           subParser._parser.error = null;
           subParser._parser.resume();
         } catch (resumeErr) {
-          logError(`Could not recover from parser error:`, resumeErr);
+          logError(`Could not recover from parser error:`, resumeErr, filePath);
           reject(err);
         }
       });
@@ -262,6 +284,8 @@ async function recursivelyTranslate(
         currentDepth++;
 
         // If we're at depth 2, this is the start of a new segment.
+        if (node.name == "SCHEME" || node.name == "SCHEMEINLINE") return;
+
         if (currentDepth === 2 || isRecording) {
           isRecording = true;
           currentSegment += `<${node.name}${formatAttributes(node.attributes)}>`;
@@ -275,6 +299,10 @@ async function recursivelyTranslate(
 
       parser.on("text", text => {
         text = strongEscapeXML(text);
+        
+        // ignore all scheme contents
+        if(parser._parser.tag == "SCHEME" || parser._parser.tag == "SCHEMEINLINE") return;
+
         if (isRecording) {
           currentSegment += text;
         } else {
@@ -289,7 +317,7 @@ async function recursivelyTranslate(
       });
 
       parser.on("closetag", tagName => {
-        if (isRecording) {
+        if (tagName !== "SCHEME" && tagName !== "SCHEMEINLINE" && isRecording) {
           currentSegment += `</${tagName}>`;
         }
 
@@ -338,7 +366,11 @@ async function recursivelyTranslate(
               translated.push(segment[1]);
             }
           } catch (error) {
-            logError(`Error translating segment in ${filePath}:`, error);
+            logError(
+              `Error translating segment in ${filePath}:`,
+              error,
+              filePath
+            );
             // Add error comment and continue with next segment
             translated.push(
               segment[1] + `<!-- Error translating this section -->`
@@ -349,13 +381,13 @@ async function recursivelyTranslate(
       });
 
       parser.on("error", err => {
-        logError(`Parser error in ${filePath}:`, err);
+        logError(`Parser error in ${filePath}:`, err, filePath);
         // Try to recover and continue
         try {
           parser._parser.error = null;
           parser._parser.resume();
         } catch (resumeErr) {
-          logError(`Could not recover from parser error:`, resumeErr);
+          logError(`Could not recover from parser error:`, resumeErr, filePath);
           reject(err);
         }
       });
@@ -366,12 +398,13 @@ async function recursivelyTranslate(
 
     return translated.join("");
   } catch (parseErr) {
-    logError(`Error parsing XML in ${filePath}:`, parseErr);
+    logError(`Error parsing XML in ${filePath}:`, parseErr, filePath);
     // Return what we have so far plus error comment
     return translated.join("") + `<!-- Error parsing this file -->`;
   }
 
   async function translateChunk(chunk: string): Promise<string> {
+    return chunk;
     if (chunk.trim() === "" || chunk.trim() === "," || chunk.trim() === ".") {
       return chunk;
     }
@@ -400,6 +433,7 @@ async function recursivelyTranslate(
       const message = messages.data.pop()!;
       const messageContent = message?.content[0];
 
+      if (!messageContent) throw new Error(`undefined AI response`);
       if (messageContent.type !== "text") {
         throw new Error(
           `Unexpected message content type: ${messageContent.type}`
@@ -428,8 +462,7 @@ async function recursivelyTranslate(
           currDepth++;
           if (
             node.name != "WRAPPER" &&
-            node.name != "TRANSLATE" &&
-            !ignoredTags.includes(node.name)
+            node.name != "TRANSLATE"
           ) {
             translatedChunk += `<${node.name}${formatAttributes(node.attributes)}>`;
           }
@@ -438,8 +471,7 @@ async function recursivelyTranslate(
         clean.on("closetag", tagName => {
           if (
             tagName != "WRAPPER" &&
-            tagName != "TRANSLATE" &&
-            !ignoredTags.includes(tagName)
+            tagName != "TRANSLATE"
           ) {
             translatedChunk += `</${tagName}>`;
           }
@@ -456,7 +488,11 @@ async function recursivelyTranslate(
 
         clean.on("error", error => {
           // Log only once with abbreviated content
-          logError(`XML validation error in ${filePath}`, error);
+          logError(
+            `Error validating AI response for ${filePath}`,
+            error,
+            filePath
+          );
 
           // Attempt to recover using the internal parser
           try {
@@ -478,7 +514,11 @@ async function recursivelyTranslate(
 
       return translatedChunk;
     } catch (err) {
-      logError(`Error occurred while translating chunk in ${filePath}:`, err);
+      logError(
+        `Error occurred while translating chunk in ${filePath}:`,
+        err,
+        filePath
+      );
       // Return the original chunk with error comment rather than throwing
       return chunk + `<!-- Error occurred while translating this section -->`;
     }
@@ -488,7 +528,7 @@ async function recursivelyTranslate(
 export default translate;
 
 // Helper function to format attributes into a string.
-function formatAttributes(attrs) {
+function formatAttributes(attrs: string) {
   const attrStr = Object.entries(attrs)
     .map(([key, val]) => `${key}="${val}"`)
     .join(" ");
