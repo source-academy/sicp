@@ -1,5 +1,11 @@
 import fs from "fs";
 import OpenAI from "openai/index.mjs";
+import path, { dirname } from "path";
+import { fileURLToPath } from "url";
+
+// Get the directory name of the current module
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 export default async function createAssistant(language: string, ai: OpenAI) {
   const assistant = await ai.beta.assistants.create({
@@ -16,16 +22,16 @@ export default async function createAssistant(language: string, ai: OpenAI) {
     tools: [{ type: "file_search" }]
   });
 
-  const fileStreams = [
-    "/home/yihao/projects/XML_translater/metadatas/try.txt"
-  ].map(path => fs.createReadStream(path));
+  const fileStreams = [path.resolve(__dirname, "../../dictionary/cn.txt")].map(
+    path => fs.createReadStream(path)
+  );
 
   // Create a vector store including our two files.
-  const vectorStore = await ai.beta.vectorStores.create({
+  const vectorStore = await ai.vectorStores.create({
     name: "Translation instructions"
   });
 
-  await ai.beta.vectorStores.fileBatches.uploadAndPoll(vectorStore.id, {
+  await ai.vectorStores.fileBatches.uploadAndPoll(vectorStore.id, {
     files: fileStreams
   });
 

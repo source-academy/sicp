@@ -1,0 +1,1615 @@
+<SUBSECTION> 
+  <NAME>
+    Propagation of Constraints
+  </NAME>
+
+  <LABEL NAME="sec:constraints"></LABEL>
+
+  <INDEX>propagation of constraints<OPEN></OPEN></INDEX>
+  <INDEX>constraint(s)<SUBINDEX>propagation of<OPEN></OPEN></SUBINDEX></INDEX>
+
+  <TEXT>
+    Computer programs are traditionally organized as
+    one-directional computations, which perform operations on prespecified
+    arguments to produce desired outputs.  On the other hand, we often
+    model systems in terms of relations among quantities.  For example, a
+    mathematical model of a mechanical structure might include the
+    information that the deflection <LATEXINLINE>$d$</LATEXINLINE> of a metal
+    rod is related to the force <LATEXINLINE>$F$</LATEXINLINE> on the rod, the
+    length <LATEXINLINE>$L$</LATEXINLINE> of the rod, the cross-sectional
+    area <LATEXINLINE>$A$</LATEXINLINE>, and the elastic modulus
+    <LATEXINLINE>$E$</LATEXINLINE> via the equation
+    <LATEX>
+      \[
+      \begin{array}{lll}
+      d A E &amp; = &amp; F L
+      \end{array}
+      \]
+    </LATEX>
+    Such an equation is not one-directional.  Given any four of the
+    quantities, we can use it to compute the fifth.  Yet translating the
+    equation into a traditional computer language would force us to choose
+    one of the quantities to be computed in terms of the other four.
+    Thus, a
+    <SPLITINLINE>
+      procedure
+      <JAVASCRIPT>function</JAVASCRIPT>
+    </SPLITINLINE>
+    for computing the area <LATEXINLINE>$A$</LATEXINLINE> could not be used to
+    compute the deflection <LATEXINLINE>$d$</LATEXINLINE>, even though the
+    computations of <LATEXINLINE>$A$</LATEXINLINE> and
+    <LATEXINLINE>$d$</LATEXINLINE> arise from the same
+    equation.<FOOTNOTE>Constraint propagation first appeared in the incredibly
+    forward-looking 
+    <INDEX>SKETCHPAD</INDEX>
+    SKETCHPAD system of
+    <INDEX>Sutherland, Ivan</INDEX>
+    Ivan Sutherland (1963).  A beautiful constraint-propagation system based
+    on the 
+    <INDEX>Smalltalk</INDEX>
+    Smalltalk language was developed by 
+    <INDEX>Borning, Alan</INDEX>
+    Alan Borning (1977) at 
+    <INDEX>Xerox Palo Alto Research Center</INDEX>
+    Xerox Palo Alto Research Center.  Sussman, Stallman, and Steele
+    applied constraint propagation to electrical circuit analysis 
+    <INDEX>Sussman, Gerald Jay</INDEX>
+    <INDEX>Stallman, Richard M.</INDEX>
+    (<CITATION>Sussman and Stallman 1975</CITATION>; 
+    <INDEX>Steele, Guy Lewis Jr.</INDEX>
+    <CITATION>Sussman and Steele 1980</CITATION>). 
+    <INDEX>TK&quot;!Solver</INDEX>
+    TK!Solver
+    <INDEX>Konopasek, Milos</INDEX>
+    <INDEX>Jayaraman, Sundaresan</INDEX>
+    (<CITATION>Konopasek and Jayaraman 1984</CITATION>) 
+    is an extensive modeling environment based on constraints.</FOOTNOTE>
+  </TEXT>
+
+  <TEXT>
+    In this section, we sketch the design of a language that enables us to work
+    in terms of
+    <INDEX>relations, computing in terms of</INDEX>
+    relations themselves.  The primitive elements of the language
+    are 
+    <INDEX>primitive constraints</INDEX>
+    <INDEX>constraint(s)<SUBINDEX>primitive</SUBINDEX></INDEX>
+    <EM>primitive constraints</EM>, which state that certain relations hold
+    between quantities.  For example,
+    <SPLITINLINE>
+      (adder a b c)
+      <JAVASCRIPT><JAVASCRIPTINLINE>adder(a, b, c)</JAVASCRIPTINLINE>
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    specifies that the quantities <LATEXINLINE>$a$</LATEXINLINE>,
+    <LATEXINLINE>$b$</LATEXINLINE>, and <LATEXINLINE>$c$</LATEXINLINE> must be
+    related by the equation <LATEXINLINE>$a+b=c$</LATEXINLINE>,
+    <SPLITINLINE>
+      (multiplier x y z)
+      <JAVASCRIPT><JAVASCRIPTINLINE>multiplier(x, y, z)</JAVASCRIPTINLINE>
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    expresses the constraint <LATEXINLINE>$xy = z$</LATEXINLINE>, and
+    <SPLITINLINE>
+      (constant 3.14 x)
+      <JAVASCRIPT><JAVASCRIPTINLINE>constant(3.14, x)</JAVASCRIPTINLINE>
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    says that the value of <LATEXINLINE>$x$</LATEXINLINE> must be 3.14.
+  </TEXT>
+
+  <TEXT>
+    Our language provides a means of combining primitive constraints in order to
+    express more complex relations.  We combine constraints by constructing 
+    <INDEX>constraint network</INDEX>
+    <EM>constraint networks</EM>, in which constraints are joined by 
+    <INDEX>connector(s), in constraint system</INDEX>
+    <EM>connectors</EM>.  A connector is an object that <QUOTE>holds</QUOTE> a
+    value that may participate in one or more constraints.  For example, we know
+    that the relationship between Fahrenheit and Celsius temperatures is
+    <LATEX>
+      \[
+      \begin{array}{lll}
+      9C &amp; = &amp; 5(F - 32)
+      \end{array}
+      \]
+    </LATEX>
+    Such a constraint can be thought of as a network consisting of primitive
+    adder, multiplier, and constant constraints
+    (figure<SPACE></SPACE><REF NAME="fig:constraint"></REF>).  In the figure, we see on the
+    left a multiplier box with three terminals, labeled
+    <LATEXINLINE>$m_1$</LATEXINLINE>, <LATEXINLINE>$m_2$</LATEXINLINE>, and
+    <LATEXINLINE>$p$</LATEXINLINE>. These connect the multiplier to the rest of
+    the network as follows:
+    The <LATEXINLINE>$m_1$</LATEXINLINE> terminal is linked to a connector
+    <LATEXINLINE>$C$</LATEXINLINE>, which will hold the Celsius temperature.
+    The <LATEXINLINE>$m_2$</LATEXINLINE> terminal is linked to a connector
+    <LATEXINLINE>$w$</LATEXINLINE>, which is also linked to a constant box that
+    holds 9.  The <LATEXINLINE>$p$</LATEXINLINE> terminal, which the multiplier
+    box constrains to be the product of <LATEXINLINE>$m_1$</LATEXINLINE> and
+    <LATEXINLINE>$m_2$</LATEXINLINE>, is linked to the
+    <LATEXINLINE>$p$</LATEXINLINE> terminal of another multiplier box, whose
+    <LATEXINLINE>$m_2$</LATEXINLINE> is connected to a constant 5 and whose
+    <LATEXINLINE>$m_1$</LATEXINLINE> is connected to one of the terms in a sum.
+    <FIGURE>
+      <FIGURE SPLIT_SCALE="0.5" WEB_SCALE="0.8" SCALE="0.59" SRC="img_original/ch3-Z-G-30.svg"></FIGURE>
+      <CAPTION>The relation <LATEXINLINE>$9C = 5(F - 32)$</LATEXINLINE>
+      expressed as a constraint network.
+      </CAPTION>
+      <LABEL NAME="fig:constraint"></LABEL>
+    </FIGURE>
+  </TEXT>
+
+  <TEXT>
+    Computation by such a network proceeds as follows: When a connector is
+    given a value (by the user or by a constraint box to which it is
+    linked), it awakens all of its associated constraints (except for the
+    constraint that just awakened it) to inform them that it has a value.
+    Each awakened constraint box then polls its connectors to see if there
+    is enough information to determine a value for a connector.  If so,
+    the box sets that connector, which then awakens all of its associated
+    constraints, and so on.  For instance, in conversion between
+    Celsius and Fahrenheit, <LATEXINLINE>$w$</LATEXINLINE>,
+    <LATEXINLINE>$x$</LATEXINLINE>, and <LATEXINLINE>$y$</LATEXINLINE> are
+    immediately set by the constant boxes to $9$, $5$, and $32$, respectively.  The
+    connectors awaken the multipliers and the adder, which determine that there
+    is not enough information to proceed.  If the user (or some other part of
+    the network) sets <LATEXINLINE>$C$</LATEXINLINE> to a value (say 25), the
+    leftmost multiplier will be awakened, and it will set
+    <LATEXINLINE>$u$</LATEXINLINE> to <LATEXINLINE>$25\cdot 9=225$</LATEXINLINE>.
+    Then <LATEXINLINE>$u$</LATEXINLINE> awakens the second multiplier, which sets
+    <LATEXINLINE>$v$</LATEXINLINE> to $45$, and <LATEXINLINE>$v$</LATEXINLINE>
+    awakens the adder, which sets <LATEXINLINE>$F$</LATEXINLINE> to $77$.
+  </TEXT>
+
+  <SUBHEADING> 
+    <NAME>Using the constraint system</NAME>
+  </SUBHEADING>
+
+  <TEXT>
+    <SPLIT>
+      
+	To use the constraint system to carry out the temperature computation
+	outlined above, we first create two connectors,
+	C and F, by
+	calling the constructor
+	make-connector, and link
+	C and F
+	in an appropriate network:
+      
+      <JAVASCRIPT>
+	To use the constraint system to carry out the temperature computation
+	outlined above, we first call the constructor
+	<JAVASCRIPTINLINE>make_connector</JAVASCRIPTINLINE>
+	to create two connectors,
+	C and F,
+	and then link them in an appropriate network:
+      </JAVASCRIPT>
+    </SPLIT>
+    <SNIPPET>
+      <NAME>celsius_fahrenheit_converter_example</NAME>
+      <REQUIRES>celsius_fahrenheit_converter</REQUIRES>
+      <EXPECTED>&apos;ok&apos;</EXPECTED>
+      
+(define C (make-connector))
+(define F (make-connector))
+(celsius-fahrenheit-converter C F)
+      
+      <SCHEMEOUTPUT>
+            ok
+      </SCHEMEOUTPUT>
+      <JAVASCRIPT>
+const C = make_connector();
+const F = make_connector();
+celsius_fahrenheit_converter(C, F);
+      </JAVASCRIPT>
+      <JAVASCRIPT_OUTPUT>
+&quot;ok&quot;
+      </JAVASCRIPT_OUTPUT>
+    </SNIPPET>
+    The
+    <SPLITINLINE>
+      procedure
+      <JAVASCRIPT>function</JAVASCRIPT>
+    </SPLITINLINE>
+    that creates the network is defined as follows:
+    <SNIPPET>
+      <INDEX><DECLARATION>celsius_fahrenheit_converter</DECLARATION></INDEX> 
+      <NAME>celsius_fahrenheit_converter</NAME>
+      <REQUIRES>make_connector</REQUIRES>
+      <REQUIRES>multiplier_2</REQUIRES>
+      <REQUIRES>adder</REQUIRES>
+      <REQUIRES>constant</REQUIRES>
+      <EXAMPLE>celsius_fahrenheit_converter_example</EXAMPLE>
+      <EXPECTED>&apos;ok&apos;</EXPECTED>
+      
+(define (celsius-fahrenheit-converter c f)
+  (let ((u (make-connector))
+        (v (make-connector))
+        (w (make-connector))
+        (x (make-connector))
+        (y (make-connector)))
+    (multiplier c w u)
+    (multiplier v x u)
+    (adder v y f)
+    (constant 9 w)
+    (constant 5 x)
+    (constant 32 y)
+    &apos;ok))
+      
+      <JAVASCRIPT>
+function celsius_fahrenheit_converter(c, f) {
+    const u = make_connector();
+    const v = make_connector();
+    const w = make_connector();
+    const x = make_connector();
+    const y = make_connector();
+    multiplier(c, w, u);
+    multiplier(v, x, u);
+    adder(v, y, f);
+    constant(9, w);
+    constant(5, x);
+    constant(32, y);
+    return &quot;ok&quot;;
+}
+      </JAVASCRIPT>
+    </SNIPPET>
+    This
+    <SPLITINLINE>
+      procedure
+      <JAVASCRIPT>function</JAVASCRIPT>
+    </SPLITINLINE>
+    creates the internal connectors u,
+    v, w,
+    x, and y, and
+    links them as shown in figure<SPACE></SPACE><REF NAME="fig:constraint"></REF> using the
+    primitive constraint constructors adder,
+    multiplier, and
+    constant.  Just as with the digital-circuit
+    simulator of section<SPACE></SPACE><REF NAME="sec:circuit-simulator"></REF>, expressing
+    these combinations of primitive elements in terms of
+    <SPLITINLINE>
+      procedures
+      <JAVASCRIPT>functions</JAVASCRIPT>
+    </SPLITINLINE>
+    automatically provides our language with a means of abstraction for compound
+    objects.
+  </TEXT>
+
+  <TEXT>
+    To watch the network in action, we can place probes on the connectors
+    C and F, using a
+    probe
+    <SPLITINLINE>
+      procedure
+      <JAVASCRIPT>function</JAVASCRIPT>
+    </SPLITINLINE>
+    similar to the one we used to monitor wires in
+    section<SPACE></SPACE><REF NAME="sec:circuit-simulator"></REF>. Placing a probe on a
+    connector will cause a message to be printed whenever the connector is
+    given a value:
+    <SNIPPET>
+      <NAME>celsius_probe</NAME>
+      <REQUIRES>probe_2</REQUIRES>
+      <REQUIRES>celsius_fahrenheit_converter_example</REQUIRES>
+      
+(probe &quot;Celsius temp&quot; C)
+(probe &quot;Fahrenheit temp&quot; F)
+      
+      <JAVASCRIPT>
+probe(&quot;Celsius temp&quot;, C);
+probe(&quot;Fahrenheit temp&quot;, F);
+      </JAVASCRIPT>
+    </SNIPPET>
+    Next we set the value of C to 25.  (The third
+    argument to
+    <SPLITINLINE>
+      set-value!
+      <JAVASCRIPT><JAVASCRIPTINLINE>set_value</JAVASCRIPTINLINE></JAVASCRIPT>
+    </SPLITINLINE>
+    tells C that this directive comes from the
+    user.)
+    <SNIPPET>
+      <NAME>set_value_example</NAME>
+      <REQUIRES>has_value</REQUIRES>
+      <REQUIRES>celsius_probe</REQUIRES>
+      <EXPECTED>&apos;done&apos;</EXPECTED>
+      
+            (set-value! C 25 &apos;user)
+      
+      <SCHEMEOUTPUT>
+Probe: Celsius temp = 25
+Probe: Fahrenheit temp = 77
+done
+      </SCHEMEOUTPUT>
+      <JAVASCRIPT>
+set_value(C, 25, &quot;user&quot;);
+      </JAVASCRIPT>
+      <JAVASCRIPT_OUTPUT>
+&quot;Probe: Celsius temp = 25&quot;
+&quot;Probe: Fahrenheit temp = 77&quot;
+&quot;done&quot;
+      </JAVASCRIPT_OUTPUT>
+    </SNIPPET>
+    The probe on C awakens and reports the value.
+    C also
+    propagates its value through the network as described above.  This
+    sets F to 77, which is reported by the probe
+    on<SPACE></SPACE>F.
+  </TEXT>
+
+  <TEXT>
+    Now we can try to set F to a new value, say 212:
+    <SNIPPET>
+      <NAME>set_value_example_2</NAME>
+      <REQUIRES>set_value_example</REQUIRES>
+      
+(set-value! F 212 &apos;user)
+      
+      <SCHEMEOUTPUT>
+Error! Contradiction (77 212)
+      </SCHEMEOUTPUT>
+      <JAVASCRIPT>
+set_value(F, 212, &quot;user&quot;);
+      </JAVASCRIPT>
+      <JAVASCRIPT_OUTPUT>
+&quot;Error! Contradiction: (77, 212)&quot;
+      </JAVASCRIPT_OUTPUT>
+    </SNIPPET>
+    The connector complains that it has sensed a contradiction: Its value
+    is 77, and someone is trying to set it to 212.  If we really want to
+    reuse the network with new values, we can tell
+    C to forget its old value:
+    <SNIPPET>
+      <NAME>forget_value_example</NAME>
+      <REQUIRES>set_value_example</REQUIRES>
+      <EXPECTED>&apos;done&apos;</EXPECTED>
+      
+(forget-value! C &apos;user)
+      
+      <SCHEMEOUTPUT>
+Probe: Celsius temp = ?
+Probe: Fahrenheit temp = ?
+done
+      </SCHEMEOUTPUT>
+      <JAVASCRIPT>
+forget_value(C, &quot;user&quot;);
+      </JAVASCRIPT>
+      <JAVASCRIPT_OUTPUT>
+&quot;Probe: Celsius temp = ?&quot;
+&quot;Probe: Fahrenheit temp = ?&quot;
+&quot;done&quot;
+      </JAVASCRIPT_OUTPUT>
+    </SNIPPET>
+    C finds that the
+    <SPLITINLINE>
+      
+	user,
+      
+      <JAVASCRIPT>
+	<JAVASCRIPTINLINE>&quot;user&quot;</JAVASCRIPTINLINE>,
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    who set its value originally, is now retracting that value, so
+    C agrees to lose its value, as shown by the
+    probe, and informs the rest of the network of this fact. This information
+    eventually propagates to F, which now finds
+    that it has no reason for continuing to believe that its own
+    value is<SPACE></SPACE>77.  Thus, F also
+    gives up its value, as shown by the probe.
+  </TEXT>
+
+  <TEXT>
+    Now that F has no value, we are free to set it
+    to 212:
+    <SNIPPET>
+      <NAME>set_value_example_3</NAME>
+      <REQUIRES>forget_value_example</REQUIRES>
+      <EXPECTED>&apos;done&apos;</EXPECTED>
+      
+(set-value! F 212 &apos;user)
+      
+      <SCHEMEOUTPUT>
+Probe: Fahrenheit temp = 212
+Probe: Celsius temp = 100
+done
+      </SCHEMEOUTPUT>
+      <JAVASCRIPT>
+set_value(F, 212, &quot;user&quot;);
+      </JAVASCRIPT>
+      <JAVASCRIPT_OUTPUT>
+&quot;Probe: Fahrenheit temp = 212&quot;
+&quot;Probe: Celsius temp = 100&quot;
+&quot;done&quot;
+      </JAVASCRIPT_OUTPUT>
+    </SNIPPET>
+    This new value, when propagated through the network, forces
+    C to have a value of 100, and this is
+    registered by the probe on C. Notice that the
+    very same network is being used to compute C
+    given F and to compute
+    F given<SPACE></SPACE>C.
+    This nondirectionality of computation is the distinguishing feature of
+    constraint-based systems.
+  </TEXT>
+
+  <SUBHEADING> 
+    <NAME>Implementing the constraint system</NAME>
+  </SUBHEADING>
+
+  <TEXT>
+    The constraint system is implemented via procedural objects with local
+    state, in a manner very similar to the digital-circuit simulator of
+    section<SPACE></SPACE><REF NAME="sec:circuit-simulator"></REF>.  Although the primitive
+    objects of the constraint system are somewhat more complex, the overall
+    system is simpler, since there is no concern about agendas and logic delays.
+  </TEXT>
+
+  <TEXT>
+    The basic
+    <INDEX>connector(s), in constraint system<SUBINDEX>operations on</SUBINDEX></INDEX>
+    operations on connectors are the following:
+    <UL>
+      <LI>
+        <SPLITINLINE>
+	  (has-value? connector):
+	  <JAVASCRIPT><JAVASCRIPTINLINE>has_value(</JAVASCRIPTINLINE><META>connector</META><JAVASCRIPTINLINE>)</JAVASCRIPTINLINE>
+	  </JAVASCRIPT>
+	</SPLITINLINE>
+        <INDEX><USE>has_value</USE></INDEX> 
+	<BR></BR>
+        tells whether the connector has a value.
+      </LI>
+      <LI>
+        <SPLITINLINE>
+	  (get-value connector):
+	  <JAVASCRIPT><JAVASCRIPTINLINE>get_value(</JAVASCRIPTINLINE><META>connector</META><JAVASCRIPTINLINE>)</JAVASCRIPTINLINE>
+	  </JAVASCRIPT>
+	</SPLITINLINE>
+        <INDEX><USE>get_value</USE></INDEX> 
+	<BR></BR>
+        returns the connector<APOS></APOS>s current value.
+      </LI>
+      <LI>
+        <SPLITINLINE>
+	  
+	    (set-value! connector new-value informant):
+	  
+	  <JAVASCRIPT>
+	    <JAVASCRIPTINLINE>set_value(</JAVASCRIPTINLINE><META>connector</META><JAVASCRIPTINLINE>, </JAVASCRIPTINLINE><META>new-value</META><JAVASCRIPTINLINE>,</JAVASCRIPTINLINE> <META>informant</META><JAVASCRIPTINLINE>)</JAVASCRIPTINLINE>
+	  </JAVASCRIPT>
+	</SPLITINLINE>
+        <INDEX><USE>set_value</USE></INDEX> 
+	<BR></BR>
+        indicates that the informant is requesting the connector to set its
+        value to the new value.
+      </LI>
+      <LI>
+        <SPLITINLINE>
+	  
+	    (forget-value! connector retractor):
+	  
+	  <JAVASCRIPT>
+	    <JAVASCRIPTINLINE>forget_value(</JAVASCRIPTINLINE><META>connector</META><JAVASCRIPTINLINE>,</JAVASCRIPTINLINE> <META>retractor</META><JAVASCRIPTINLINE>)</JAVASCRIPTINLINE>
+	  </JAVASCRIPT>
+	</SPLITINLINE>
+        <INDEX><USE>forget_value</USE></INDEX> 
+	<BR></BR>
+        tells the connector that the retractor is requesting it to forget its
+	value.
+      </LI>
+      <LI>
+        <SPLITINLINE>
+	  
+	    (connect connector new-constraint):
+	  
+	  <JAVASCRIPT>
+	    <JAVASCRIPTINLINE>connect(</JAVASCRIPTINLINE><META>connector</META><JAVASCRIPTINLINE>,</JAVASCRIPTINLINE> <META>new-constraint</META><JAVASCRIPTINLINE>)</JAVASCRIPTINLINE>
+	  </JAVASCRIPT>
+	</SPLITINLINE>
+        <INDEX><USE>connect</USE></INDEX> 
+	<BR></BR>
+        tells the connector to participate in the new constraint.
+      </LI>
+    </UL>
+    The connectors communicate with the constraints by means of the
+    <SPLITINLINE>
+      procedures
+      <JAVASCRIPT>functions</JAVASCRIPT>
+    </SPLITINLINE>
+    <SPLITINLINE>
+      inform-about-value,
+      
+      <JAVASCRIPT><JAVASCRIPTINLINE>inform_@about_@value</JAVASCRIPTINLINE>,
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    which tells the given constraint that the connector has a value, and
+    <SPLITINLINE>
+      inform-about-no-value,
+      <JAVASCRIPT><JAVASCRIPTINLINE>inform_@about_@no_@value</JAVASCRIPTINLINE>,
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    which tells the constraint that the connector has lost its value.
+  </TEXT>
+
+  <SHORT_PAGE LINES="2"></SHORT_PAGE>
+  <TEXT>
+    Adder constructs an adder constraint among
+    summand connectors a1 and
+    a2 and a sum
+    connector.  An adder is implemented as a
+    <SPLITINLINE>
+      procedure
+      <JAVASCRIPT>function</JAVASCRIPT>
+    </SPLITINLINE>
+    with local state (the
+    <SPLITINLINE>
+      procedure
+      <JAVASCRIPT>function</JAVASCRIPT>
+    </SPLITINLINE>
+    me below):
+    <SNIPPET>
+      <INDEX><DECLARATION>adder</DECLARATION> (primitive constraint)</INDEX>
+      <NAME>adder</NAME>
+      <REQUIRES>has_value</REQUIRES>
+      
+(define (adder a1 a2 sum)
+  (define (process-new-value)
+    (cond ((and (has-value? a1) (has-value? a2))
+            (set-value! sum
+                        (+ (get-value a1) (get-value a2))
+                        me))
+          ((and (has-value? a1) (has-value? sum))
+           (set-value! a2
+                       (- (get-value sum) (get-value a1))
+                       me))
+          ((and (has-value? a2) (has-value? sum))
+           (set-value! a1
+                       (- (get-value sum) (get-value a2))
+                       me))))
+  (define (process-forget-value)
+    (forget-value! sum me)
+    (forget-value! a1 me)
+    (forget-value! a2 me)
+    (process-new-value))
+  (define (me request)
+    (cond ((eq? request &apos;I-have-a-value)  
+           (process-new-value))
+          ((eq? request &apos;I-lost-my-value) 
+            (process-forget-value))
+          (else 
+            (error &quot;Unknown request - - ADDER&quot; request))))
+  (connect a1 me)
+  (connect a2 me)
+  (connect sum me)
+  me)
+      
+      <JAVASCRIPT>
+function adder(a1, a2, sum) {
+    function process_new_value() {
+        if (has_value(a1) &amp;&amp; has_value(a2)) {
+            set_value(sum, get_value(a1) + get_value(a2), me);
+        } else if (has_value(a1) &amp;&amp; has_value(sum)) {
+            set_value(a2, get_value(sum) - get_value(a1), me);
+        } else if (has_value(a2) &amp;&amp; has_value(sum)) {
+            set_value(a1, get_value(sum) - get_value(a2), me);
+        } else {}
+    }
+    function process_forget_value() {
+        forget_value(sum, me);
+        forget_value(a1, me);
+        forget_value(a2, me);
+        process_new_value();
+    }
+    function me(request) {
+        if (request === &quot;I have a value.&quot;) {
+            process_new_value();
+        } else if (request === &quot;I lost my value.&quot;) {
+            process_forget_value();
+        } else {
+            error(request, &quot;unknown request -- adder&quot;);
+        }
+    }
+    connect(a1, me);
+    connect(a2, me);
+    connect(sum, me);
+    return me;
+}
+      </JAVASCRIPT>
+    </SNIPPET>
+    <SPLITINLINE>
+      
+	Adder
+      
+      <JAVASCRIPT>
+	The function adder
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    connects the new adder to the designated
+    connectors and returns it as its value.  The
+    <SPLITINLINE>
+      procedure
+      <JAVASCRIPT>function</JAVASCRIPT>
+    </SPLITINLINE>
+    me, which represents the adder, acts as a
+    dispatch to the local
+    <SPLITINLINE>
+      procedures.
+      <JAVASCRIPT>functions.</JAVASCRIPT>
+    </SPLITINLINE>
+    The following
+    <QUOTE>syntax interfaces</QUOTE> (see
+    footnote<SPACE></SPACE><REF NAME="foot:object-syntax"></REF> in
+    section<SPACE></SPACE><REF NAME="sec:circuit-simulator"></REF>) are used in conjunction
+    with the dispatch:
+    <SNIPPET>
+      <INDEX><DECLARATION>inform_about_value</DECLARATION></INDEX> 
+      <INDEX><DECLARATION>inform_about_no_value</DECLARATION></INDEX> 
+      <NAME>inform_about_value</NAME>
+      
+(define (inform-about-value constraint)
+  (constraint &apos;I-have-a-value))
+
+(define (inform-about-no-value constraint)
+  (constraint &apos;I-lost-my-value))
+      
+      <JAVASCRIPT>
+function inform_about_value(constraint) {
+    return constraint(&quot;I have a value.&quot;);
+}
+<ALLOW_BREAK></ALLOW_BREAK>
+function inform_about_no_value(constraint) {
+    return constraint(&quot;I lost my value.&quot;);
+}
+      </JAVASCRIPT>
+    </SNIPPET>
+    The adder<APOS></APOS>s local
+    <SPLITINLINE>
+      procedure
+      <JAVASCRIPT>function</JAVASCRIPT>
+    </SPLITINLINE>
+    <SPLITINLINE>
+      process-new-value
+      <JAVASCRIPT><JAVASCRIPTINLINE>process_new_value</JAVASCRIPTINLINE>
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    is called when the adder is informed that one of its connectors has a value.
+    The adder first checks to see if both a1 and
+    a2 have values. If so, it tells
+    sum to set its value to the sum of the two
+    addends. The informant argument to
+    <SPLITINLINE>
+      set-value!
+      <JAVASCRIPT><JAVASCRIPTINLINE>set_value</JAVASCRIPTINLINE></JAVASCRIPT>
+    </SPLITINLINE>
+    is me, which is the adder object itself.  If
+    a1 and a2 do not
+    both have values, then the adder checks to see if perhaps
+    a1 and sum have
+    values.  If so, it sets a2 to the difference of
+    these two. Finally, if a2 and
+    sum have values, this gives the adder enough
+    information to set a1.  If the adder is told
+    that one of its connectors has lost a value, it requests that all of its
+    connectors now lose their values.  (Only those values that were set by
+    this adder are actually lost.)  Then it runs
+    <SPLITINLINE>
+      process-new-value.
+      <JAVASCRIPT><JAVASCRIPTINLINE>process_new_value</JAVASCRIPTINLINE>.
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    The reason for this last step is that one or more connectors may still
+    have a value (that is, a connector may have had a value that was not
+    originally set by the adder), and these values may need to be
+    propagated back through the adder.
+  </TEXT>
+
+  <TEXT>
+    A multiplier is very similar to an adder. It will set its
+    product to 0 if either of the factors is 0,
+    even if the other factor is not known.
+    <SNIPPET>
+      <INDEX><DECLARATION>multiplier</DECLARATION><SUBINDEX>primitive constraint</SUBINDEX></INDEX>
+      <NAME>multiplier_2</NAME>
+      <REQUIRES>has_value</REQUIRES>
+      
+(define (multiplier m1 m2 product)
+  (define (process-new-value)
+            (cond ((or (and (has-value? m1) (= (get-value m1) 0))
+                       (and (has-value? m2) (= (get-value m2) 0)))
+                   (set-value! product 0 me))
+                  ((and (has-value? m1) (has-value? m2))
+                   (set-value! product
+                               (* (get-value m1) (get-value m2))
+                               me))
+                  ((and (has-value? product) (has-value? m1))
+                   (set-value! m2
+                               (/ (get-value product) (get-value m1))
+                               me))
+                  ((and (has-value? product) (has-value? m2))
+                   (set-value! m1
+                               (/ (get-value product) (get-value m2))
+                               me))))
+  (define (process-forget-value)
+    (forget-value! product me)
+    (forget-value! m1 me)
+    (forget-value! m2 me)
+    (process-new-value))
+  (define (me request)
+    (cond ((eq? request &apos;I-have-a-value)
+           (process-new-value))
+          ((eq? request &apos;I-lost-my-value)
+           (process-forget-value))
+          (else
+            (error &quot;Unknown request - - MULTIPLIER&quot; request))))
+  (connect m1 me)
+  (connect m2 me)
+  (connect product me)
+  me)
+      
+      <JAVASCRIPT>
+function multiplier(m1, m2, product) {
+    function process_new_value() {
+        if ((has_value(m1) &amp;&amp; get_value(m1) === 0)
+         || (has_value(m2) &amp;&amp; get_value(m2) === 0)) {
+            set_value(product, 0, me);
+        } else if (has_value(m1) &amp;&amp; has_value(m2)) {
+            set_value(product, get_value(m1) * get_value(m2), me);
+        } else if (has_value(product) &amp;&amp; has_value(m1)) {
+            set_value(m2, get_value(product) / get_value(m1), me);
+        } else if (has_value(product) &amp;&amp; has_value(m2)) {
+            set_value(m1, get_value(product) / get_value(m2), me);
+        } else {}
+    }
+    function process_forget_value() {
+        forget_value(product, me);
+        forget_value(m1, me);
+        forget_value(m2, me);
+        process_new_value();
+    }
+    function me(request) {
+        if (request === &quot;I have a value.&quot;) {
+            process_new_value();
+        } else if (request === &quot;I lost my value.&quot;) {
+            process_forget_value();
+        } else {
+            error(request, &quot;unknown request -- multiplier&quot;);
+        }
+    }
+    connect(m1, me);
+    connect(m2, me);
+    connect(product, me);
+    return me;
+}
+      </JAVASCRIPT>
+    </SNIPPET>
+    A constant constructor simply sets the value of
+    the designated connector.  Any
+    <SPLITINLINE>
+      
+	I-have-a-value
+      
+      <JAVASCRIPT>
+	<JAVASCRIPTINLINE>&quot;I have a value.&quot;</JAVASCRIPTINLINE>
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    or
+    <SPLITINLINE>
+      
+	I-lost-my-value
+      
+      <JAVASCRIPT>
+	<JAVASCRIPTINLINE>&quot;I lost my value.&quot;</JAVASCRIPTINLINE>
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    message sent to the constant box will produce an error.
+    <SNIPPET>
+      <INDEX><DECLARATION>constant</DECLARATION> (primitive constraint)</INDEX>
+      <NAME>constant</NAME>
+      <REQUIRES>has_value</REQUIRES>
+      
+(define (constant value connector)
+  (define (me request)
+    (error &quot;Unknown request - - CONSTANT&quot; request))
+  (connect connector me)
+  (set-value! connector value me)
+  me)
+      
+      <JAVASCRIPT>
+function constant(value, connector) {
+    function me(request) {
+        error(request, &quot;unknown request -- constant&quot;);
+    }
+    connect(connector, me);
+    set_value(connector, value, me);
+    return me;
+}
+      </JAVASCRIPT>
+    </SNIPPET>
+    Finally, a probe prints a message about the setting or unsetting of
+    the designated connector:
+    <SNIPPET HIDE="yes">
+      <NAME>redefine_display</NAME>
+      <JAVASCRIPT>
+      </JAVASCRIPT>
+      <JAVASCRIPT_TEST>
+const display = x =&gt; x;
+      </JAVASCRIPT_TEST>
+    </SNIPPET>
+    <SNIPPET POSTPADDING="no">
+      <INDEX><DECLARATION>probe</DECLARATION><SUBINDEX>in constraint system</SUBINDEX></INDEX>
+      <NAME>probe_2</NAME>
+      <REQUIRES>redefine_display</REQUIRES>
+      <REQUIRES>has_value</REQUIRES>
+      
+(define (probe name connector)
+  (define (print-probe value)
+    (newline)
+    (display &quot;Probe: &quot;)
+    (display name)
+    (display &quot; = &quot;)
+    (display value))
+  (define (process-new-value)
+    (print-probe (get-value connector)))
+  (define (process-forget-value)
+    (print-probe &quot;?&quot;))
+  (define (me request)
+    (cond ((eq? request &apos;I-have-a-value)
+           (process-new-value))
+          ((eq? request &apos;I-lost-my-value)
+           (process-forget-value))
+          (else
+           (error &quot;Unknown request - - PROBE&quot; request))))
+  (connect connector me)
+  me)
+      
+      <JAVASCRIPT>
+function probe(name, connector) {
+    function print_probe(value) {
+        display(&quot;Probe: &quot; + name + &quot; = &quot; + stringify(value));
+    }
+    function process_new_value() {
+        print_probe(get_value(connector));
+    }
+    function process_forget_value() {
+        print_probe(&quot;?&quot;);
+    }
+    function me(request) {
+        return request === &quot;I have a value.&quot;
+               ? process_new_value()
+               : request === &quot;I lost my value.&quot;
+               ? process_forget_value()
+               : error(request, &quot;unknown request -- probe&quot;);
+    }
+    connect(connector, me);
+    return me;
+}
+      </JAVASCRIPT>
+    </SNIPPET>
+  </TEXT>
+
+  <SUBHEADING> 
+    <NAME>Representing connectors</NAME>
+  </SUBHEADING>
+
+  <INDEX>connector(s), in constraint system<SUBINDEX>representing</SUBINDEX></INDEX>
+
+  <TEXT>
+    A connector is represented as a procedural object with local state variables
+    value, the current value of the connector;
+    informant, the object that set the
+    connector<APOS></APOS>s value; and constraints,
+    a list of the constraints in which the connector participates.
+    <SNIPPET>
+      <INDEX><DECLARATION>make_connector</DECLARATION></INDEX> 
+      <NAME>make_connector</NAME>
+      <REQUIRES>for_each_except</REQUIRES>
+      <REQUIRES>inform_about_value</REQUIRES>
+      <REQUIRES>has_value</REQUIRES>
+      
+(define (make-connector)
+  (let ((value false) (informant false) (constraints &apos;()))
+    (define (set-my-value newval setter)
+      (cond ((not (has-value? me))
+             (set! value newval)
+             (set! informant setter)
+             (for-each-except setter
+                              inform-about-value
+                              constraints))
+            ((not (= value newval))
+             (error &quot;Contradiction&quot; (list value newval)))
+            (else &apos;ignored)))
+    (define (forget-my-value retractor)
+      (if (eq? retractor informant)
+          (begin (set! informant false)
+            (for-each-except retractor
+                             inform-about-no-value
+                             constraints))
+          &apos;ignored))
+    (define (connect new-constraint)
+      (if (not (memq new-constraint constraints))
+          (set! constraints 
+                (cons new-constraint constraints)))
+      (if (has-value? me)
+          (inform-about-value new-constraint))
+      &apos;done)
+    (define (me request)
+      (cond ((eq? request &apos;has-value?)
+             (if informant true false))
+            ((eq? request &apos;value) value)
+            ((eq? request &apos;set-value!) set-my-value)
+            ((eq? request &apos;forget) forget-my-value)
+            ((eq? request &apos;connect) connect)
+            (else (error &quot;Unknown operation - - CONNECTOR&quot;
+                         request))))
+    me))
+      
+      <JAVASCRIPT>
+function make_connector() {
+    let value = false;
+    let informant = false;
+    let constraints = null;
+    function set_my_value(newval, setter) {
+        if (!has_value(me)) {
+            value = newval;
+            informant = setter;
+            return for_each_except(setter,
+                                   inform_about_value,
+                                   constraints);
+        } else if (value !== newval) {
+            error(list(value, newval), &quot;contradiction&quot;);
+        } else {
+            return &quot;ignored&quot;;
+        }
+    }
+    function forget_my_value(retractor) {
+        if (retractor === informant) {
+            informant = false;
+            return for_each_except(retractor,
+                                   inform_about_no_value,
+                                   constraints);
+        } else {
+            return &quot;ignored&quot;;
+        }
+    }
+    function connect(new_constraint) {
+        if (is_null(member(new_constraint, constraints))) {
+            constraints = pair(new_constraint, constraints);
+        } else {}
+        if (has_value(me)) {
+            inform_about_value(new_constraint);
+        } else {}
+        return &quot;done&quot;;
+    }
+    function me(request) {
+        if (request === &quot;has_value&quot;) {
+            return informant !== false;
+        } else if (request === &quot;value&quot;) {
+            return value;
+        } else if (request === &quot;set_value&quot;) {
+            return set_my_value;
+        } else if (request === &quot;forget&quot;) {
+            return forget_my_value;
+        } else if (request === &quot;connect&quot;) {
+            return connect;
+        } else {
+            error(request, &quot;unknown operation -- connector&quot;);
+        }
+    }
+    return me;
+}
+      </JAVASCRIPT>
+    </SNIPPET>
+  </TEXT>
+
+  <TEXT>
+    The connector<APOS></APOS>s local
+    <SPLITINLINE>
+      procedure
+      <JAVASCRIPT>function</JAVASCRIPT>
+    </SPLITINLINE>
+    <SPLITINLINE>
+      set-my-value
+      <JAVASCRIPT><JAVASCRIPTINLINE>set_my_value</JAVASCRIPTINLINE></JAVASCRIPT>
+    </SPLITINLINE>
+    is called when there is a request to set the connector<APOS></APOS>s value.  If
+    the connector does not currently have a value, it will set its value and
+    remember as informant the constraint that
+    requested the value to be set.<FOOTNOTE>The
+    setter might not be a constraint.  In our
+    temperature example, we used
+    <SPLITINLINE>
+      
+	user
+      
+      <JAVASCRIPT>
+	<JAVASCRIPTINLINE>&quot;user&quot;</JAVASCRIPTINLINE>
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    as the
+    setter.</FOOTNOTE> Then the connector will
+    notify all of its participating constraints except the constraint that
+    requested the value to be set. This is accomplished using the following
+    iterator, which applies a designated
+    <SPLITINLINE>
+      procedure
+      <JAVASCRIPT>function</JAVASCRIPT>
+    </SPLITINLINE>
+    to all items in a list except a given one:
+    <SNIPPET>
+      <INDEX><DECLARATION>for_each_except</DECLARATION></INDEX> 
+      <NAME>for_each_except</NAME>
+      
+(define (for-each-except exception procedure list)
+  (define (loop items)
+    (cond ((null? items) &apos;done)
+          ((eq? (car items) exception) (loop (cdr items)))
+          (else (procedure (car items))
+                (loop (cdr items)))))
+  (loop list))
+      
+      <JAVASCRIPT>
+function for_each_except(exception, fun, list) {
+    function loop(items) {
+        if (is_null(items)) {
+            return &quot;done&quot;;
+        } else if (head(items) === exception) {
+            return loop(tail(items));
+        } else {
+            fun(head(items));
+            return loop(tail(items));
+        }
+    }
+    return loop(list);
+}
+      </JAVASCRIPT>
+    </SNIPPET>
+  </TEXT>
+
+  <TEXT>
+    If a connector is asked to forget its value, it runs
+    <SPLITINLINE>
+      
+	the local procedure
+	forget-my-value,
+	which
+      
+      <JAVASCRIPT>
+	<JAVASCRIPTINLINE>forget_my_value</JAVASCRIPTINLINE>,
+	a local function that
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    first checks to make sure that the request is coming from the same
+    object that set the value originally.  If so, the connector informs its
+    associated constraints about the loss of the value.
+  </TEXT>
+
+  <TEXT>
+    The local
+    <SPLITINLINE>
+      procedure
+      <JAVASCRIPT>function</JAVASCRIPT>
+    </SPLITINLINE>
+    connect adds the designated new constraint
+    to the list of constraints if it is not already in that
+    list.<SPLITINLINE><JAVASCRIPT><FOOTNOTE>We can use the function
+    <INDEX><USE>member</USE><SUBINDEX>extended to use pointer equality</SUBINDEX></INDEX>
+    <JAVASCRIPTINLINE>member</JAVASCRIPTINLINE>
+    from section<SPACE></SPACE><REF NAME="sec:strings"></REF>
+    to test whether
+    <JAVASCRIPTINLINE>new_constraint</JAVASCRIPTINLINE> is already in
+    <JAVASCRIPTINLINE>constraints</JAVASCRIPTINLINE>,
+    although
+    <JAVASCRIPTINLINE>member</JAVASCRIPTINLINE> was introduced
+    as being limited to numbers and strings, because
+    we extended
+    <JAVASCRIPTINLINE>===</JAVASCRIPTINLINE> to pointer equality in
+    section<SPACE></SPACE><REF NAME="sec:mutable-list-structure"></REF>.</FOOTNOTE></JAVASCRIPT></SPLITINLINE>
+    Then, if the connector has a value, it informs the new constraint of this
+    fact.
+  </TEXT>
+
+  <LONG_PAGE LINES="2"></LONG_PAGE>
+  <TEXT>
+    The connector<APOS></APOS>s
+    <SPLITINLINE>
+      procedure
+      <JAVASCRIPT>function</JAVASCRIPT>
+    </SPLITINLINE>
+    me serves as a dispatch to the other internal
+    <SPLITINLINE>
+      procedures
+      <JAVASCRIPT>functions</JAVASCRIPT>
+    </SPLITINLINE>
+    and also represents the connector as an object. The following
+    <SPLITINLINE>
+      procedures
+      <JAVASCRIPT>functions</JAVASCRIPT>
+    </SPLITINLINE>
+    provide a syntax interface for the dispatch:
+    <SNIPPET POSTPADDING="no">
+      <INDEX><DECLARATION>has_value</DECLARATION></INDEX> 
+      <INDEX><DECLARATION>get_value</DECLARATION></INDEX> 
+      <INDEX><DECLARATION>set_value</DECLARATION></INDEX> 
+      <INDEX><DECLARATION>forget_value</DECLARATION></INDEX> 
+      <INDEX><DECLARATION>connect</DECLARATION></INDEX> 
+      <NAME>has_value</NAME>
+      
+(define (has-value? connector)
+  (connector &apos;has-value?))
+
+(define (get-value connector)
+  (connector &apos;value))
+
+(define (set-value! connector new-value informant)
+  ((connector &apos;set-value!) new-value informant))
+
+(define (forget-value! connector retractor)
+  ((connector &apos;forget) retractor))
+
+(define (connect connector new-constraint)
+  ((connector &apos;connect) new-constraint))
+      
+      <JAVASCRIPT>
+function has_value(connector) {
+    return connector(&quot;has_value&quot;);
+}
+function get_value(connector) {
+    return connector(&quot;value&quot;);
+}
+function set_value(connector, new_value, informant) {
+    return connector(&quot;set_value&quot;)(new_value, informant);
+}
+function forget_value(connector, retractor) {
+    return connector(&quot;forget&quot;)(retractor);
+}
+<ALLOW_BREAK></ALLOW_BREAK>
+function connect(connector, new_constraint) {
+    return connector(&quot;connect&quot;)(new_constraint);
+}
+      </JAVASCRIPT>
+    </SNIPPET>
+  </TEXT>
+
+  <EXERCISE>
+    Using primitive multiplier, adder, and constant constraints, define a
+    <SPLITINLINE>
+      procedure
+      <JAVASCRIPT>function</JAVASCRIPT>
+    </SPLITINLINE>
+     <INDEX><USE>averager</USE> (constraint)</INDEX>
+    averager that takes three connectors
+    a, b,
+    and c as inputs and establishes the
+    constraint that the value of
+    c is the average of the values of
+    a and b.
+    <SOLUTION>
+      <SNIPPET HIDE="yes">
+	<NAME>averager_example</NAME>
+	
+(define a (make-connector))
+(define b (make-connector))
+(define c (make-connector))
+(averager a b c)
+(probe &quot;a&quot; a)
+(probe &quot;b&quot; b)
+(probe &quot;c&quot; c)
+(set-value! a 25 &apos;user)
+(set-value! c 125 &apos;user)
+(forget-value! a &apos;user)
+(forget-value! c &apos;user)
+(set-value! a 7 &apos;user)
+(set-value! b 13 &apos;user)
+	
+	<JAVASCRIPT>
+const a = make_connector();
+const b = make_connector();
+const c = make_connector();
+averager(a, b, c);
+
+probe(&quot;c&quot;, c);
+probe(&quot;b&quot;, b);
+probe(&quot;a&quot;, a);
+
+set_value(a, 25, &quot;user&quot;);
+set_value(c, 125, &quot;user&quot;);
+forget_value(a, &quot;user&quot;);
+forget_value(c, &quot;user&quot;);
+set_value(a, 7, &quot;user&quot;);
+set_value(b, 13, &quot;user&quot;);
+	</JAVASCRIPT>
+      </SNIPPET>
+      <SNIPPET>
+	<NAME>averager</NAME>
+	<REQUIRES>make_connector</REQUIRES>
+	<REQUIRES>multiplier_2</REQUIRES>
+	<REQUIRES>constant</REQUIRES>
+	<REQUIRES>adder</REQUIRES>
+	<REQUIRES>probe_2</REQUIRES>
+	<REQUIRES>has_value</REQUIRES>
+	<EXAMPLE>averager_example</EXAMPLE>
+	
+(define (averager a b c)
+ (let ((v (make-connector))
+       (s (make-connector)))
+    (adder a b s)
+    (multiplier v c s)
+    (constant 2 v)
+    &apos;ok
+ ))
+	
+	<JAVASCRIPT>
+// (a+b)/2 = c is same as a+b = 2*c = s
+function averager(a, b, c){
+    const s = make_connector();
+    const v = make_connector();
+    constant(2, v);
+    multiplier(v, c, s);
+    adder(a, b, s);
+}
+	</JAVASCRIPT>
+      </SNIPPET>
+    </SOLUTION>
+    <LABEL NAME="ex:3_33"></LABEL>
+  </EXERCISE>
+
+  <EXERCISE>
+    Louis Reasoner wants to build a
+    <INDEX><USE>squarer</USE> (constraint)</INDEX>
+    squarer, a constraint device with two
+    terminals such that the value of connector
+    b on the second
+    terminal will always be the square of the value
+    a on the first
+    terminal.  He proposes the following simple device made from a
+    multiplier:
+    <SNIPPET EVAL="no">
+      
+(define (squarer a b)
+  (multiplier a a b))
+      
+      <JAVASCRIPT>
+function squarer(a, b) {
+    return multiplier(a, a, b);
+}
+      </JAVASCRIPT>
+    </SNIPPET>
+    There is a serious flaw in this idea.  Explain.
+    <LABEL NAME="ex:squarer-constraint"></LABEL>
+  </EXERCISE>
+
+  <LONG_PAGE LINES="2"></LONG_PAGE>
+  <EXERCISE>
+    Ben Bitdiddle tells Louis that one way to avoid the trouble in
+    exercise<SPACE></SPACE><REF NAME="ex:squarer-constraint"></REF> is to define a
+    <INDEX><USE>squarer</USE> (constraint)</INDEX>
+    squarer as a new primitive constraint.  Fill in the missing
+    portions in Ben<APOS></APOS>s outline for a
+    <SPLITINLINE>
+      procedure
+      <JAVASCRIPT>function</JAVASCRIPT>
+    </SPLITINLINE>
+    to implement such a constraint:
+    <SNIPPET LATEX="yes" POSTPADDING="no">
+      
+(define (squarer a b)
+  (define (process-new-value)
+    (if (has-value? b)
+        (if (&lt; (get-value b) 0)
+            (error &quot;square less than 0 - - SQUARER&quot; (get-value b))
+            $\langle alternative1\rangle$)
+        $\langle alternative2 \rangle$))
+  (define (process-forget-value) $\langle body1 \rangle$)
+    (define (me request) $\langle body2 \rangle$)
+  $\langle rest\ of\ definition\rangle$
+  me)
+      
+      <JAVASCRIPT>
+function squarer(a, b) {
+    function process_new_value() {
+        if (has_value(b)) {
+            if (get_value(b) &lt; 0) {
+                error(get_value(b), &quot;square less than 0 -- squarer&quot;);
+            } else {
+                <META>alternative_1</META>
+            }
+        } else {
+            <META>alternative_2</META>
+        }
+    }
+    function process_forget_value() {
+        <META>body_1</META>
+    }
+    function me(request) {
+        <META>body_2</META>
+    }
+    <META>statements</META>
+    return me;
+}
+      </JAVASCRIPT>
+    </SNIPPET>
+    <LABEL NAME="ex:3_35"></LABEL>
+  </EXERCISE>
+
+  <EXERCISE>
+    Suppose we evaluate the following sequence of
+    <SPLITINLINE>
+      
+	expressions
+      
+      <JAVASCRIPT>
+	statements
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    in the
+    <SPLITINLINE>
+      global
+      <JAVASCRIPT>program</JAVASCRIPT>
+    </SPLITINLINE>
+    environment:
+    <SNIPPET EVAL="no">
+      
+(define a (make-connector))
+(define b (make-connector))
+(set-value! a 10 &apos;user)
+      
+      <JAVASCRIPT>
+const a = make_connector();
+const b = make_connector();
+set_value(a, 10, &quot;user&quot;);
+      </JAVASCRIPT>
+    </SNIPPET>
+    At some time during evaluation of the
+    <SPLITINLINE>
+      set-value!,
+      <JAVASCRIPT><JAVASCRIPTINLINE>set_value</JAVASCRIPTINLINE>,</JAVASCRIPT>
+    </SPLITINLINE>
+    the following expression from the connector<APOS></APOS>s local
+    <SPLITINLINE>
+      procedure
+      <JAVASCRIPT>function</JAVASCRIPT>
+    </SPLITINLINE>
+    is evaluated:
+    <SNIPPET EVAL="no">
+      <NAME>for_each_except_example</NAME>
+      
+(for-each-except setter inform-about-value constraints)
+      
+      <JAVASCRIPT>
+for_each_except(setter, inform_about_value, constraints);
+      </JAVASCRIPT>
+    </SNIPPET>
+    Draw an environment diagram showing the environment in which the above
+    expression is evaluated.
+    <LABEL NAME="ex:3_36"></LABEL>
+  </EXERCISE>
+
+  <LONG_PAGE LINES="1"></LONG_PAGE>
+  <EXERCISE>
+    The
+    <SPLITINLINE>
+      celsius-fahrenheit-converter
+      <JAVASCRIPT>
+	<JAVASCRIPTINLINE>celsius_fahrenheit_converter</JAVASCRIPTINLINE>
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    <SPLITINLINE>
+      procedure
+      <JAVASCRIPT>function</JAVASCRIPT>
+    </SPLITINLINE>
+    is cumbersome when
+    compared with a more expression-oriented style of definition, such as
+    <SNIPPET EVAL="no">
+      <INDEX><DECLARATION>celsius_fahrenheit_converter</DECLARATION><SUBINDEX>expression-oriented</SUBINDEX><FRAGILE></FRAGILE></INDEX>
+      
+(define (celsius-fahrenheit-converter x)
+  (c+ (c* (c/ (cv 9) (cv 5))
+          x)
+      (cv 32)))
+
+(define C (make-connector))
+(define F (celsius-fahrenheit-converter C))
+      
+      <JAVASCRIPT>
+function celsius_fahrenheit_converter(x) {
+    return cplus(cmul(cdiv(cv(9), cv(5)), x), cv(32));
+}
+
+const C = make_connector();    
+const F = celsius_fahrenheit_converter(C);
+      </JAVASCRIPT>
+    </SNIPPET>
+    Here
+    <SPLITINLINE>
+      c+,
+      <JAVASCRIPT><JAVASCRIPTINLINE>cplus</JAVASCRIPTINLINE>,</JAVASCRIPT>
+    </SPLITINLINE>
+    <SPLITINLINE>
+      c*,
+      <JAVASCRIPT><JAVASCRIPTINLINE>cmul</JAVASCRIPTINLINE>,</JAVASCRIPT>
+    </SPLITINLINE>
+    etc. are the <QUOTE>constraint</QUOTE>
+    versions of the  arithmetic operations.  For example,
+    <SPLITINLINE>
+      c+
+      <JAVASCRIPT><JAVASCRIPTINLINE>cplus</JAVASCRIPTINLINE></JAVASCRIPT>
+    </SPLITINLINE>
+    takes two connectors as arguments and returns a connector that is
+    related to these by an adder constraint:
+    <SNIPPET EVAL="no">
+      
+(define (c+ x y)
+  (let ((z (make-connector)))
+    (adder x y z)
+    z))
+      
+      <JAVASCRIPT>
+function cplus(x, y) {
+    const z = make_connector();
+    adder(x, y, z);
+    return z;
+}
+      </JAVASCRIPT>
+    </SNIPPET>
+    Define analogous
+    <SPLITINLINE>
+      procedures
+      <JAVASCRIPT>functions</JAVASCRIPT>
+    </SPLITINLINE>
+    <SPLITINLINE>
+      c-,
+      <JAVASCRIPT><JAVASCRIPTINLINE>cminus</JAVASCRIPTINLINE>,</JAVASCRIPT>
+    </SPLITINLINE>
+    <SPLITINLINE>
+      c*,
+      <JAVASCRIPT><JAVASCRIPTINLINE>cmul</JAVASCRIPTINLINE>,</JAVASCRIPT>
+    </SPLITINLINE>
+    <SPLITINLINE>
+      c/,
+      <JAVASCRIPT><JAVASCRIPTINLINE>cdiv</JAVASCRIPTINLINE>,</JAVASCRIPT>
+    </SPLITINLINE>
+    and
+    cv
+    (constant value) that enable us to define compound constraints as in
+    the converter example above.<FOOTNOTE>The
+    <INDEX>expression-oriented vs.<SPACE></SPACE>imperative programming style</INDEX>
+    <INDEX>imperative vs.<SPACE></SPACE>expression-oriented programming style</INDEX>
+    expression-oriented format
+    is convenient because it avoids the need to name the intermediate
+    expressions in a computation.  Our original formulation of the
+    constraint language is cumbersome in the same way that many languages
+    are cumbersome when dealing with operations on compound data.  For
+    example, if we wanted to compute the product
+    <LATEXINLINE>${(a+b)}\cdot{(c+d)}$</LATEXINLINE>, where the
+    variables represent vectors, we could work in
+    <QUOTE>imperative style,</QUOTE>
+    using
+    <SPLITINLINE>
+      procedures
+      <JAVASCRIPT>functions</JAVASCRIPT>
+    </SPLITINLINE>
+    that set the values of designated vector arguments
+    but do not themselves return vectors as values:
+    <SNIPPET EVAL="no">
+      
+(v-sum a b temp1)
+(v-sum c d temp2)
+(v-prod temp1 temp2 answer)
+      
+      <JAVASCRIPT>
+v_sum(&quot;a&quot;, &quot;b&quot;, temp1);
+v_sum(&quot;c&quot;, &quot;d&quot;, temp2);
+v_prod(temp1, temp2, answer);
+      </JAVASCRIPT>
+    </SNIPPET>
+    Alternatively, we could deal with expressions, using
+    <SPLITINLINE>
+      procedures
+      <JAVASCRIPT>functions</JAVASCRIPT>
+    </SPLITINLINE>
+    that return vectors as values, and thus avoid
+    explicitly mentioning temp1 and
+    temp2:
+    <SNIPPET EVAL="no">
+      
+(define answer (v-prod (v-sum a b) (v-sum c d)))
+      
+      <JAVASCRIPT>
+const answer = v_prod(v_sum(&quot;a&quot;, &quot;b&quot;), v_sum(&quot;c&quot;, &quot;d&quot;));
+      </JAVASCRIPT>
+    </SNIPPET>
+    Since
+    <SPLITINLINE>
+      Lisp
+      <JAVASCRIPT>JavaScript</JAVASCRIPT>
+    </SPLITINLINE>
+    allows us to return compound objects as values of
+    <SPLITINLINE>
+      procedures,
+      <JAVASCRIPT>functions,</JAVASCRIPT>
+    </SPLITINLINE>
+    we can transform our imperative-style constraint language
+    into an expression-oriented style as shown in this exercise.
+    <SPLITINLINE>
+      
+	In languages that are impoverished in handling compound objects, such
+	as
+	<INDEX>Algol<SUBINDEX>weakness in handling compound objects</SUBINDEX></INDEX>
+	<INDEX>Basic<SUBINDEX>weakness in handling compound objects</SUBINDEX></INDEX>
+	<INDEX>Pascal<SUBINDEX>weakness in handling compound objects</SUBINDEX></INDEX>
+	Algol, Basic, and Pascal (unless one explicitly uses Pascal pointer
+	variables), one is usually stuck with the imperative style when
+	manipulating compound objects.
+      
+    </SPLITINLINE>
+    Given the advantage of the
+    expression-oriented format, one might ask if there is any reason to
+    have implemented the system in imperative style, as we did in this
+    section.  One reason is that the non-expression-oriented constraint
+    language provides a handle on constraint objects (e.g., the value of
+    the adder
+    <SPLITINLINE>
+      procedure)
+      <JAVASCRIPT>function)</JAVASCRIPT>
+    </SPLITINLINE>
+    as well as on connector objects.  This is
+    useful if we wish to extend the system with new operations that
+    communicate with constraints directly rather than only indirectly via
+    operations on connectors.  Although it is easy to implement the
+    expression-oriented style in terms of the imperative implementation,
+    it is very difficult to do the converse.</FOOTNOTE>
+    <LABEL NAME="ex:3_37"></LABEL>
+    <SOLUTION>
+      <SNIPPET>
+	<REQUIRES>make_connector</REQUIRES>
+	<REQUIRES>has_value</REQUIRES>
+	<REQUIRES>for_each_except</REQUIRES>
+	<REQUIRES>inform_about_value</REQUIRES>
+	<REQUIRES>multiplier_2</REQUIRES>
+	<REQUIRES>adder</REQUIRES>
+	<REQUIRES>constant</REQUIRES>
+	<JAVASCRIPT>
+// Solution provided by GitHub user clean99
+
+function cminus(x, y) {
+    const z = make_connector();
+    const u = make_connector();
+    const v = make_connector();
+    constant(-1, u);
+    multiplier(u, y, v);
+    adder(x, v, z);
+    return z;
+}
+
+function cmul(x, y) {
+    const z = make_connector();
+    multiplier(x, y, z);
+    return z;
+}
+
+function cdiv(x, y) {
+    const z = make_connector();
+    const u = make_connector();
+    const v = make_connector();
+    constant(1, v);
+    // y * u = 1 -&gt; u = 1 / y
+    multiplier(y, u, v);
+    multiplier(x, u, z);
+    return z;
+}
+
+function cv(val) {
+    const x = make_connector();
+    constant(val, x);
+    return x;
+}
+	</JAVASCRIPT>
+      </SNIPPET>
+    </SOLUTION>
+  </EXERCISE>
+
+  <INDEX>propagation of constraints<CLOSE></CLOSE></INDEX>
+  <INDEX>constraint(s)<SUBINDEX>propagation of<CLOSE></CLOSE></SUBINDEX></INDEX>
+
+</SUBSECTION>
