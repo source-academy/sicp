@@ -32,7 +32,7 @@ const MAXLEN = Number(process.env.MAX_LEN) || 3000;
 
 // change to true to avoid calling openai api, useful for troubleshooting
 // chunking logic
-const troubleshoot = false;
+const troubleshoot = true;
 
 // Centralized logging to prevent duplicate messages
 const errorMessages = new Set();
@@ -80,7 +80,7 @@ async function translate(language: string, filePath: string): Promise<void> {
     // Use the provided file path directly without modification
     const input_path = filePath;
 
-    assistant = await createAssistant(language, ai as any);
+    if (!troubleshoot) assistant = await createAssistant(language, ai as any);
 
     // Generate output path by replacing "/en/" with "/cn/" in the path
     const output_path = filePath.replace(
@@ -91,7 +91,7 @@ async function translate(language: string, filePath: string): Promise<void> {
     const translated: string = await recursivelyTranslate(
       language,
       input_path,
-      assistant.id
+      troubleshoot ? 0 : assistant.id
     );
 
     // Ensure directory exists
@@ -287,15 +287,6 @@ async function recursivelyTranslate(
       parser.on("opentag", node => {
         currentDepth++;
 
-        // If we're at depth 2, this is the start of a new segment.
-        if (
-          node.name == "SCHEME" ||
-          node.name == "SCHEMEINLINE" ||
-          parser._parser.tag === "SCHEME" ||
-          parser._parser.tag === "SCHEMEINLINE"
-        )
-          return;
-
         if (currentDepth === 2 || isRecording) {
           isRecording = true;
           currentSegment += `<${node.name}${formatAttributes(node.attributes)}>`;
@@ -309,13 +300,6 @@ async function recursivelyTranslate(
 
       parser.on("text", text => {
         text = strongEscapeXML(text);
-
-        // ignore all scheme contents
-        if (
-          parser._parser.tag == "SCHEME" ||
-          parser._parser.tag == "SCHEMEINLINE"
-        )
-          return;
 
         if (isRecording) {
           currentSegment += text;
@@ -331,13 +315,7 @@ async function recursivelyTranslate(
       });
 
       parser.on("closetag", tagName => {
-        if (
-          tagName !== "SCHEME" &&
-          tagName !== "SCHEMEINLINE" &&
-          parser._parser.tag !== "SCHEME" &&
-          parser._parser.tag !== "SCHEMEINLINE" &&
-          isRecording
-        ) {
+        if (isRecording) {
           currentSegment += `</${tagName}>`;
         }
 
