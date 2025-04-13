@@ -25,14 +25,15 @@ const ignoredTags = [
   "SCHEMEINLINE",
   "SCHEME",
   "LONG_PAGE",
-  "LABEL"
+  "LABEL",
+  "HISTORY"
 ];
 
 const MAXLEN = Number(process.env.MAX_LEN) || 3000;
 
 // change to true to avoid calling openai api, useful for troubleshooting
 // chunking logic
-const troubleshoot = true;
+const troubleshoot = false;
 
 // Centralized logging to prevent duplicate messages
 const errorMessages = new Set();
@@ -412,33 +413,46 @@ async function recursivelyTranslate(
     try {
       await ai.beta.threads.messages.create(thread.id, {
         role: "user",
-        content: `Translate this content to ${language}.
-        IMPORTANT: You MUST search the uploaded reference file for any technical terms and use EXACTLY the translations specified there.
-        If a term exists in the reference file, use that translation without deviation.
-        Do not modify XML tags, attributes of XML tags and structure. Do not say anything else.
-        Content to translate:
-        <TRANSLATE> ${chunk} </TRANSLATE>`
+        content: `<TRANSLATE> ${chunk} </TRANSLATE>`
       });
 
       const run = await ai.beta.threads.runs.createAndPoll(thread.id, {
-        assistant_id: assistant_id
+        assistant_id: assistant_id,
+        truncation_strategy: {
+          type: "last_messages",
+          last_messages: Number(process.env.CONTEXT) || 3
+        }
       });
 
       const messages = await ai.beta.threads.messages.list(thread.id, {
-        run_id: run.id
+        run_id: run.id,
+        limit: Number(process.env.CONTEXT || 3)
       });
 
-      const message = messages.data.pop()!;
-      const messageContent = message?.content[0];
+      const message = messages.data.pop();
 
-      if (!messageContent) throw new Error(`undefined AI response`);
-      if (messageContent.type !== "text") {
-        throw new Error(
-          `Unexpected message content type: ${messageContent.type}`
-        );
+      if (message) {
+        if (message.status === "incomplete") {
+          throw new Error(
+            "AI Error: incomplete response: " + message.incomplete_details
+          );
+        }
+
+        if (message.content[0].type !== "text") {
+          throw new Error("AI Error: Unexpected response format");
+        }
+
+        if (
+          run.usage &&
+          run.usage.total_tokens > Number(process.env.TOKEN_WARNING || 10000)
+        ) {
+          console.warn("warning: high token usage", run.usage);
+        }
+      } else {
+        throw new Error("AI Error: Undefined Response");
       }
 
-      const text = messageContent.text;
+      const text = message.content[0].text;
 
       const safeText = escapeXML(text.value);
       const textStream = Readable.from("<WRAPPER>" + safeText + "</WRAPPER>");
