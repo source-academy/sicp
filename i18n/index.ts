@@ -42,6 +42,18 @@ async function saveSummaryLog() {
       })
     ).then(() => console.log("successfully removed all assistants"));
 
+    // list and delete all uploaded files
+    const files = await ai.files.list();
+    await Promise.all(
+      files.data.map(async file => {
+        try {
+          await ai.files.del(file.id);
+        } catch (error) {
+          failedDel.push(file.id);
+        }
+      })
+    ).then(() => console.log("successfully deleted all files"))
+
     const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
     let summaryLog = `
 Translation Summary (${timestamp})
@@ -250,7 +262,7 @@ export default async function fancyName(path: string) {
       const results = await Promise.allSettled(
         batch.map(async file => {
           try {
-            console.log(`Translating file: ${file}`);
+            console.log(`Starting translation for ${file}`);
             await translate("Chinese", file);
             return { file, success: true };
           } catch (error) {
