@@ -7,7 +7,7 @@ import { fileURLToPath } from "url";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-export default async function createAssistant(language: string, ai: OpenAI) {
+export default async function createAssistant(langCode: string, language: string, ai: OpenAI) {
   const assistant = await ai.beta.assistants.create({
     name: "SICP Translator",
     instructions: `You are a professional translator with high technical skills in computer science.
@@ -23,7 +23,7 @@ export default async function createAssistant(language: string, ai: OpenAI) {
     tools: [{ type: "file_search" }]
   });
 
-  const fileStreams = [path.join(__dirname, "../ai_files", language, "dictionary.txt")].map(
+  const fileStreams = [path.join(__dirname, "../ai_files", langCode, "dictionary.txt")].map(
     path => fs.createReadStream(path)
   );
 

@@ -87,7 +87,7 @@ async function translate(langCode: string, filePath: string): Promise<void> {
       throw new Error('Undefined language');
     }
 
-    if (!troubleshoot) assistant = await createAssistant(langCode, ai as any);
+    if (!troubleshoot) assistant = await createAssistant(langCode, language, ai as any);
 
     // Generate output path by replacing "/en/" with "/../i18n/translation_output/zh_CN/" in the path
     const output_path = filePath.replace(

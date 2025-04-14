@@ -196,30 +196,6 @@ async function findAllXmlFiles(directory: string): Promise<string[]> {
   return xmlFiles;
 }
 
-// Function to check if a file needs translation
-async function needsTranslation(enFilePath: string, lang: string): Promise<boolean> {
-  // Generate the corresponding cn file path
-  const cnFilePath = enFilePath.replace(
-    path.sep + "en" + path.sep,
-    path.sep + lang + path.sep
-  );
-
-  try {
-    // Check if CN file exists
-    const cnStats = await fs.promises.stat(cnFilePath);
-    if (!cnStats.isFile()) {
-      return true; // CN path exists but is not a file (unusual case)
-    }
-
-    // Compare modification times
-    const enStats = await fs.promises.stat(enFilePath);
-    return enStats.mtime > cnStats.mtime; // Return true if EN file is newer
-  } catch (error) {
-    // If we get an error, it's likely because the CN file doesn't exist
-    return true; // Need to translate since CN file doesn't exist
-  }
-}
-
 (async () => {
   await setupCleanupHandlers();
 
@@ -230,33 +206,35 @@ async function needsTranslation(enFilePath: string, lang: string): Promise<boole
     // Get the absolute path to the xml/en directory using proper path resolution
     const enDirPath = path.resolve(__dirname, "../xml/en");
 
-    // Find all XML files
-    if (process.argv[2] === "all"  || process.argv.length <= 2) {
-      console.log(`Scanning directory: ${enDirPath}`);
-      xmlFiles = await findAllXmlFiles(enDirPath);
-    } else {
-      const [, , ..._xmlFiles] = process.argv;
-      xmlFiles = _xmlFiles.map(file => path.join(__dirname, "..", file));
-    }
-
-    console.log(`Found ${xmlFiles.length} XML files to check for translation`);
-
-    for (const lang of languages) {
-      // Filter files that need translation
-      filesToTranslate = [];
-      for (const file of xmlFiles) {
-        if (await needsTranslation(file, lang)) {
-          filesToTranslate.push(file as never);
-        }
-      }
-
-      console.log(`${filesToTranslate.length} files need translation`);
-
-      if (filesToTranslate.length === 0) {
-        console.log(`No files need translation for ${lang}.`);
+    if (process.argv[2] === "test") {
+      if (process.argv.length !== 5) {
+        console.log("syntax: yarn trans test <section> <lang>");
         return;
       }
+      try {
+        console.log('start translating, may take a while ...');
+        const fullPath = PathGenerator(process.argv[3]);
+        await translate(process.argv[4], fullPath);
+      } catch (e) {
+        console.error('test error: ', e);
+      }
+      return;
+    } if (process.argv[2] === "all"  || process.argv.length <= 2) {
+      // Find all XML files
+      console.log(`Scanning directory: ${enDirPath}`);
+      filestoTranslate = await findAllXmlFiles(enDirPath);
+    } else {
+      const [, , ...xmlFiles] = process.argv;
+      filesToTranslate = xmlFiles.map(file => path.join(__dirname, "..", file));
+    }
 
+    if (filesToTranslate.length === 0) {
+      console.log(`No files to translate.`);
+      return;
+    }
+    console.log(`${filesToTranslate.length} files need translation`);
+
+    for (const lang of languages) {
       // Process files in batches to avoid overwhelming the system
       const batchSize: number = max_trans_num;
 
