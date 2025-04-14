@@ -314,6 +314,10 @@ const createMain = () => {
   });
 };
 
+// yarn pdf _id _od
+// yarn web split _id _od
+// yarn js _id _od
+// yarn json _id _od
 async function main() {
   parseType = process.argv[2];
   const _id = parseType == "web" ? 4 : 3;
@@ -398,7 +402,6 @@ async function main() {
   } else if (parseType == "json") {
 
     const languages = await getDirectories(inputDir);
-    console.dir(languages);
 
     for (const lang of languages) {
       outputDir = path.join(outputDirPre, "json", lang);

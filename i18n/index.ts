@@ -217,6 +217,8 @@ export default async function fancyName(path: string) {
   await translate("Chinese", fullPath);
 }
 
+// use "all" to translate every xml
+// or use a list to specify what needs to be translated
 (async () => {
   await setupCleanupHandlers();
 
@@ -227,7 +229,9 @@ export default async function fancyName(path: string) {
     console.log(`Scanning directory: ${enDirPath}`);
 
     // Find all XML files
-    xmlFiles = await findAllXmlFiles(enDirPath);
+    if (process.argv[2] == "all") {
+      xmlFiles = await findAllXmlFiles(enDirPath);
+    }
 
     console.log(`Found ${xmlFiles.length} XML files to check for translation`);
 
