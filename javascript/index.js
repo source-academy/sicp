@@ -214,13 +214,8 @@ async function recursiveXmlToHtmlInOrder(option) {
   }
 }
 
-async function recursiveTranslateXml(filepath, option, lang = "en") {
+async function recursiveTranslateXml(filepath, option) {
   let files;
-
-  if (lang != null) {
-    filepath = path.join(filepath, lang);
-    console.log(filepath);
-  }
 
   const fullPath = path.join(inputDir, filepath);
   console.log(fullPath);
@@ -314,22 +309,14 @@ const createMain = () => {
   });
 };
 
-// yarn pdf _id _od
-// yarn web split _id _od
-// yarn js _id _od
-// yarn json _id _od
+// yarn json _lang _inputDir
 async function main() {
   parseType = process.argv[2];
-  const _id = parseType == "web" ? 4 : 3;
-  const _od = parseType == "web" ? 5 : 4;
-  inputDir = path.join(__dirname, "../xml");
-  if (process.argv[_id] !== undefined) {
-    inputDir = path.join(__dirname, "..", process.argv[3]);
-  }
+  const _ilang = parseType === "web" ? 4 : 3;
+  const _iid   = parseType === "web" ? 5 : 4;
+  let lang = process.argv[_ilang] === undefined ? "en" : process.argv[_ilang];
+  inputDir = process.argv[_iid] === undefined ? path.join(__dirname, "../xml/en") : process.argv[_iid];
   outputDirPre = path.join(__dirname, "..");
-  if (process.argv[_od] !== undefined) {
-    outputDirPre = path.join(__dirname, "..", process.argv[4]);
-  }
 
   ensureDirectoryExists(outputDirPre, err => {
     if (err) {
@@ -401,28 +388,24 @@ async function main() {
 
   } else if (parseType == "json") {
 
-    const languages = await getDirectories(inputDir);
+    outputDir = path.join(outputDirPre, "json", lang);
+    allFilepath = [];
+    tableOfContent = {};
 
-    for (const lang of languages) {
-      outputDir = path.join(outputDirPre, "json", lang);
-      allFilepath = [];
-      tableOfContent = {};
+    createMain();
 
-      createMain();
+    console.log(`\ngenerate table of content for ${lang}\n`);
+    await recursiveTranslateXml("", "generateTOC", lang);
+    allFilepath = sortTOC(allFilepath);
+    createTocJson(outputDir);
 
-      console.log(`\ngenerate table of content for ${lang}\n`);
-      await recursiveTranslateXml("", "generateTOC", lang);
-      allFilepath = sortTOC(allFilepath);
-      createTocJson(outputDir);
-
-      console.log("setup snippets and references\n");
-      await recursiveXmlToHtmlInOrder("setupSnippet");
-      console.log("setup snippets and references done\n");
-      await recursiveXmlToHtmlInOrder("parseXml");
-      writeRewritedSearchData();
-      // this is meant to be temp; also, will remove the original "generateSearchData" after the updation at the frontend is completed.
-      //testIndexSearch();
-    }
+    console.log("setup snippets and references\n");
+    await recursiveXmlToHtmlInOrder("setupSnippet");
+    console.log("setup snippets and references done\n");
+    await recursiveXmlToHtmlInOrder("parseXml");
+    writeRewritedSearchData();
+    // this is meant to be temp; also, will remove the original "generateSearchData" after the updation at the frontend is completed.
+    //testIndexSearch();
   }
 
   try {
