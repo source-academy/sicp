@@ -11,6 +11,7 @@ export default async function createAssistant(language: string, ai: OpenAI) {
   const assistant = await ai.beta.assistants.create({
     name: "SICP Translator",
     instructions: `You are a professional translator with high technical skills in computer science.
+                You always translate all provided tags to ${language}
                 You MUST adhere to the following rules strictly:
                 1. ALWAYS use the exact translations for technical terms found in the uploaded reference file.
                 2. If a term appears in the reference file, you MUST use the provided translation without exception.
@@ -22,7 +23,7 @@ export default async function createAssistant(language: string, ai: OpenAI) {
     tools: [{ type: "file_search" }]
   });
 
-  const fileStreams = [path.resolve(__dirname, "../../dictionary/cn.txt")].map(
+  const fileStreams = [path.resolve(__dirname, "../../dictionary/short.txt")].map(
     path => fs.createReadStream(path)
   );
 
