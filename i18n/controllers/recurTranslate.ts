@@ -34,6 +34,7 @@ const MAXLEN = Number(process.env.MAX_LEN) || 3000;
 // change to true to avoid calling openai api, useful for troubleshooting
 // chunking logic
 const troubleshoot = false;
+let languageNames = new Intl.DisplayNames(["en"], { type: "language" });
 
 // Centralized logging to prevent duplicate messages
 const errorMessages = new Set();
@@ -73,21 +74,29 @@ export function getFileErrors(): Record<
 const createParser = () =>
   (sax as any).createStream(false, { trim: false }, { strictEntities: true });
 
-async function translate(language: string, filePath: string): Promise<void> {
+async function translate(langCode: string, filePath: string): Promise<void> {
   const startTime = new Date().getTime();
   let assistant;
 
   try {
     // Use the provided file path directly without modification
     const input_path = filePath;
+    const language = languageNames.of(langCode);
+
+    if (language === undefined) {
+      throw new Error('Undefined language');
+    }
 
     if (!troubleshoot) assistant = await createAssistant(language, ai as any);
 
+    
     // Generate output path by replacing "/en/" with "/cn/" in the path
     const output_path = filePath.replace(
       path.sep + "en" + path.sep,
-      path.sep + "cn" + path.sep
+      path.sep + langCode + path.sep
     );
+    
+
 
     const translated: string = await recursivelyTranslate(
       language,
@@ -112,7 +121,7 @@ async function translate(language: string, filePath: string): Promise<void> {
       });
     }
     const elapsed = new Date().getTime() - startTime;
-    console.log(filePath + " took " + elapsed / 1000.0 + " seconds");
+    console.log("Took " + elapsed / 1000.0 + " seconds");
   }
 }
 
@@ -273,7 +282,7 @@ async function recursivelyTranslate(
 
   try {
     await new Promise<void>((resolve, reject) => {
-      console.log("Translating " + filePath + " at " + thread.id);
+      console.log("Translating " + filePath + " to " + language + " at " + thread.id);
       // Variables to track current depth and segments.
       let currentDepth = 0;
       let currentSegment = "";
@@ -413,7 +422,7 @@ async function recursivelyTranslate(
     try {
       await ai.beta.threads.messages.create(thread.id, {
         role: "user",
-        content: `<TRANSLATE> ${chunk} </TRANSLATE>`
+        content: `Translate to ${language}: <TRANSLATE> ${chunk} </TRANSLATE>`
       });
 
       const run = await ai.beta.threads.runs.createAndPoll(thread.id, {

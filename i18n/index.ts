@@ -1,14 +1,22 @@
 import PathGenerator from "./controllers/path.ts";
 import translate, { getFileErrors } from "./controllers/recurTranslate.ts";
 import fs from "fs";
+import util from "util";
 import path from "path";
 import { fileURLToPath } from "url";
 import { dirname } from "path";
 import OpenAI from "openai";
+import { permission } from "process";
 
 // Get the directory name of the current module
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
+
+const readdir = util.promisify(fs.readdir);
+const getDirectories = async source =>
+  (await readdir(source, { withFileTypes: true }))
+    .filter(dirent => dirent.isDirectory())
+    .map(dirent => dirent.name);
 
 // Global variables for tracking translation state
 // These need to be accessible by signal handlers
@@ -52,7 +60,7 @@ async function saveSummaryLog() {
           failedDel.push(file.id);
         }
       })
-    ).then(() => console.log("successfully deleted all files"))
+    ).then(() => console.log("successfully deleted all files"));
 
     const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
     let summaryLog = `
@@ -189,11 +197,11 @@ async function findAllXmlFiles(directory: string): Promise<string[]> {
 }
 
 // Function to check if a file needs translation
-async function needsTranslation(enFilePath: string): Promise<boolean> {
+async function needsTranslation(enFilePath: string, lang: string): Promise<boolean> {
   // Generate the corresponding cn file path
   const cnFilePath = enFilePath.replace(
     path.sep + "en" + path.sep,
-    path.sep + "cn" + path.sep
+    path.sep + lang + path.sep
   );
 
   try {
@@ -212,9 +220,9 @@ async function needsTranslation(enFilePath: string): Promise<boolean> {
   }
 }
 
-export default async function fancyName(path: string) {
+export default async function fancyName(path: string, language: string) {
   const fullPath = PathGenerator(path);
-  await translate("Chinese", fullPath);
+  await translate(language, fullPath);
 }
 
 // use "all" to translate every xml
@@ -223,6 +231,20 @@ export default async function fancyName(path: string) {
   await setupCleanupHandlers();
 
   try {
+    if ((process.argv[2], process.argv[3])) {
+      fancyName(process.argv[2], process.argv[3]);
+      return;
+    }
+
+    let languages: string[] = [];
+
+    if (process.argv[2] === "all") {
+      languages = await getDirectories(path.join(__dirname, "../xml"));
+      console.dir(languages);
+    } else {
+      languages.push(process.argv[2]);
+    }
+
     // Get the absolute path to the xml/en directory using proper path resolution
     const enDirPath = path.resolve(__dirname, "../xml/en");
 
@@ -234,11 +256,12 @@ export default async function fancyName(path: string) {
     }
 
     console.log(`Found ${xmlFiles.length} XML files to check for translation`);
-
+   
+    for (const lang of languages) {
     // Filter files that need translation
     filesToTranslate = [];
     for (const file of xmlFiles) {
-      if (await needsTranslation(file)) {
+      if (await needsTranslation(file, lang)) {
         filesToTranslate.push(file as never);
       }
     }
@@ -246,7 +269,7 @@ export default async function fancyName(path: string) {
     console.log(`${filesToTranslate.length} files need translation`);
 
     if (filesToTranslate.length === 0) {
-      console.log("No files need translation. Exiting.");
+      console.log(`No files need translation for ${lang}.`);
       return;
     }
 
@@ -267,7 +290,7 @@ export default async function fancyName(path: string) {
         batch.map(async file => {
           try {
             console.log(`Starting translation for ${file}`);
-            await translate("Chinese", file);
+            await translate(lang, file);
             return { file, success: true };
           } catch (error) {
             // Return failure with error but don't log yet
@@ -329,6 +352,7 @@ export default async function fancyName(path: string) {
 
     // Save a detailed summary to a log file
     await saveSummaryLog();
+  }
   } catch (e) {
     console.error("Error during translation process:", e);
   }

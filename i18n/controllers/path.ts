@@ -1,5 +1,7 @@
-export default function PathGenerator(path: string) {
-  const pathArray: string[] = path.split(".");
+import path from "path";
+
+export default function PathGenerator(filePath: string) {
+  const pathArray: string[] = filePath.split(".");
   let gitPath: string = "";
   const gitPathPrefix: string[] = ["chapter", "section", "subsection"];
 
@@ -15,5 +17,5 @@ export default function PathGenerator(path: string) {
     i++;
   }
 
-  return gitPath + ".xml";
+  return path.resolve("../xml/en" + gitPath + ".xml");
 }
