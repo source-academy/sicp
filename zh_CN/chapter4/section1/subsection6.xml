@@ -1,0 +1,885 @@
+<SUBSECTION>
+  <NAME>
+    Internal
+    <SPLITINLINE>
+      <SCHEME>Definitions</SCHEME>
+      <JAVASCRIPT>Declarations</JAVASCRIPT>
+    </SPLITINLINE>
+  </NAME><!-- Error occurred while translating this section -->
+
+  <LABEL NAME="sec:internal-definitions"></LABEL>
+
+  <INDEX>block structure<OPEN></OPEN></INDEX><!-- Error occurred while translating this section -->
+
+  <SPLIT>
+    <SCHEME>
+      <INDEX>internal definition<SUBINDEX>scope of name<OPEN></OPEN></SUBINDEX></INDEX>
+      <INDEX>scope of a variable<SUBINDEX>internal <SCHEMEINLINE>define</SCHEMEINLINE></SUBINDEX></INDEX>
+      
+      <TEXT>
+	Our environment model of evaluation and our metacircular evaluator
+	execute definitions in sequence, extending the environment frame one
+	definition at a time. This is particularly convenient for interactive
+	program development, in which the programmer needs to freely mix the
+	application of procedures definition procedures. However, if we think
+	carefully about the internal definitions used to implement block
+	structure (introduced in section<SPACE></SPACE><REF NAME="sec:black-box"></REF>),
+	we will find that name-by-name extension of the environment may not be
+	the best way to define local variables.
+      </TEXT>
+
+      <TEXT>
+	Consider a procedure with internal definitions,	such as
+	<SNIPPET EVAL="no">
+	  <SCHEME>
+(define (f x)
+   (define (even? n)
+      (if (= n 0)
+          true
+          (odd? (- n 1))))
+   (define (odd? n)
+      (if (= n 0)
+          false
+          (even? (- n 1))))
+   $\langle$ rest of body of$\rangle$ f)
+	  </SCHEME>
+	</SNIPPET>
+      </TEXT>
+
+      <TEXT>
+	Our intention here is that the name <SCHEMEINLINE>odd?</SCHEMEINLINE>
+	in the body of the procedure <SCHEMEINLINE>even?</SCHEMEINLINE>	should
+	refer to the procedure <SCHEMEINLINE>odd?</SCHEMEINLINE> that is 
+	defined after <SCHEMEINLINE>even?</SCHEMEINLINE>.
+	The scope of the name <SCHEMEINLINE>odd?</SCHEMEINLINE>	is the entire
+	body of <SCHEMEINLINE>f</SCHEMEINLINE>, not just the portion of the body
+	of <SCHEMEINLINE>f</SCHEMEINLINE> starting at the point where the
+	<SCHEMEINLINE>define</SCHEMEINLINE> for <SCHEMEINLINE>odd?</SCHEMEINLINE>
+	occurs. Indeed, when we consider that <SCHEMEINLINE>odd?</SCHEMEINLINE>
+	is itself defined in terms of
+	<SCHEMEINLINE>even?</SCHEMEINLINE><EMDASH></EMDASH>so that
+	<SCHEMEINLINE>even?</SCHEMEINLINE> and <SCHEMEINLINE>odd?</SCHEMEINLINE>
+	are mutually recursive procedures<EMDASH></EMDASH>we see that the only
+	satisfactory interpretation of the two
+	<SCHEMEINLINE>define</SCHEMEINLINE>s is to regard them as if the names
+	<SCHEMEINLINE>even?</SCHEMEINLINE> and <SCHEMEINLINE>odd?</SCHEMEINLINE>
+	were being added to the environment simultaneously. More generally, in
+	block structure, the scope of a local name is the entire procedure
+	body in which the <SCHEMEINLINE>define</SCHEMEINLINE> is evaluated.
+      </TEXT>
+
+      <TEXT>
+	As it happens, our interpreter will evaluate calls to
+	<SCHEMEINLINE>f</SCHEMEINLINE> correctly, but for an
+	<QUOTE>accidental</QUOTE> reason:    Since the definitions
+	of the internal procedures come first, no calls to these procedures
+	will be evaluated until all of them have been defined. Hence,
+	<SCHEMEINLINE>odd?</SCHEMEINLINE> will have been defined by the time
+	<SCHEMEINLINE>even?</SCHEMEINLINE> is executed.  In fact, our sequential
+	evaluation mechanism will give the same result as a mechanism that
+	directly implements simultaneous definition for any
+	procedure in which the 
+	<INDEX>internal definition<SUBINDEX>restrictions on</SUBINDEX></INDEX>
+	internal definitions come first in a body and evaluation of the value
+	expressions for the defined variables doesn<APOS></APOS>t actually use any of
+	the defined variables. (For an example of a procedure that doesn<APOS></APOS>t
+	obey these restrictions, so that sequential definition isn<APOS></APOS>t
+	equivalent to simultaneous definition, see
+	exercise<SPACE></SPACE><REF NAME="ex:simultaneous-def_scheme"></REF>.)<FOOTNOTE>Wanting
+	programs to not depend on this evaluation mechanism is the reason for the
+	<QUOTE>management is not responsible</QUOTE> remark in
+	footnote<SPACE></SPACE><REF NAME="foot:management"></REF> of chapter<SPACE></SPACE><REF NAME="chap:fun"></REF>.
+	By insisting that internal definitions come first and do not use each
+	other while the definitions are being evaluated, the IEEE standard
+	for Scheme leaves implementors some choice in the mechanism used to
+	evaluate these definitions.  The choice of one evaluation rule rather
+	than another here may seem like a small issue, affecting only the
+	interpretation of <QUOTE>badly formed</QUOTE> programs. However, we will
+	see in section<SPACE></SPACE><REF NAME="sec:lexical-addressing"></REF> that moving
+	to a model of simultaneous scoping for internal definitions avoids some
+	nasty difficulties that would otherwise arise in implementing a compiler.
+	</FOOTNOTE>
+      </TEXT>
+
+      <TEXT>
+	There is, however, a simple way to treat definitions
+	so that internally defined names have truly simultaneous
+	scope<EMDASH></EMDASH>just create all local variables that will be in the
+	current environment before evaluating any of the value expressions.
+	One way to do this is by a syntax transformation on
+	<SCHEMEINLINE>lambda</SCHEMEINLINE> expressions. Before evaluating the
+	body of a <SCHEMEINLINE>lambda</SCHEMEINLINE> expression, we 
+	<INDEX>scanning out internal definitions</INDEX>
+	<INDEX>internal definition<SUBINDEX>scanning out</SUBINDEX></INDEX>
+	<QUOTE>scan out</QUOTE> and eliminate all the internal definitions in
+	the body.  The internally defined variables will be created with a
+	<SCHEMEINLINE>let</SCHEMEINLINE> and then set to their values by
+	assignment. For example, the procedure
+	<SNIPPET EVAL="no" LATEX="yes">
+	  <SCHEME>
+(lambda vars
+   (define u e1)
+   (define v e2)
+   e3)
+	  </SCHEME>
+	</SNIPPET>
+	would be transformed into
+	<SNIPPET EVAL="no" LATEX="yes">
+	  <SCHEME>
+(lambda vars
+   (let ((u &apos;*unassigned*)
+         (v &apos;*unassigned*))
+      (set! u e1)
+      (set! v e2)
+      e3))
+	  </SCHEME>
+	</SNIPPET>
+	where <SCHEMEINLINE>*unassigned*</SCHEMEINLINE> is a special symbol that
+	causes looking up a variable to signal an error if an attempt is made to
+	use the	value of the not-yet-assigned variable.
+      </TEXT>
+
+      <TEXT>
+	An alternative strategy for scanning out internal definitions is shown
+	in exercise<SPACE></SPACE><REF NAME="ex:alternative-scanout_scheme"></REF>. Unlike the
+	transformation shown above, this enforces the restriction that the
+	defined variables<APOS></APOS> values can be evaluated without using any of the
+	variables<APOS></APOS> values.<FOOTNOTE>The IEEE standard for Scheme allows
+	for different implementation strategies by specifying that it is up to
+	the programmer to obey this restriction, not up to the implementation to
+	enforce	it.  Some Scheme implementations, including
+	<INDEX>MIT Scheme<SUBINDEX>internal definitions</SUBINDEX></INDEX>
+	MIT Scheme, use the transformation shown above.  Thus, some programs that
+	don<APOS></APOS>t obey this restriction will in fact run in such
+	implementations.</FOOTNOTE>
+	<INDEX>internal definition<SUBINDEX>scope of name<CLOSE></CLOSE></SUBINDEX></INDEX>
+      </TEXT>
+    </SCHEME>
+
+    <JAVASCRIPT>
+      <INDEX>internal declaration<SUBINDEX>scope of name<OPEN></OPEN></SUBINDEX></INDEX>
+      <INDEX>scope of a name<SUBINDEX>internal declaration<OPEN></OPEN></SUBINDEX></INDEX>
+
+      <TEXT>
+	In JavaScript, the scope of a declaration
+	is the entire block that immediately surrounds the declaration,
+	not just the portion of the block starting at the point where
+	the declaration occurs.
+	This section takes a closer look at this design choice.
+      </TEXT>
+      <!-- Error occurred while translating this section --><TEXT>
+	Let us revisit the pair of mutually recursive functions
+	<JAVASCRIPTINLINE>is_even</JAVASCRIPTINLINE> and
+	<JAVASCRIPTINLINE>is_odd</JAVASCRIPTINLINE> from
+	Section<SPACE></SPACE><REF NAME="sec:env-internal-def"></REF>,
+	declared locally
+	in the body of a function<SPACE></SPACE><JAVASCRIPTINLINE>f</JAVASCRIPTINLINE>.
+	<!-- Error occurred while translating this section --><SNIPPET LATEX="yes">
+	  <NAME>f_is_even_is_odd_2</NAME>
+	  <JAVASCRIPT>
+function f(x) {
+    function is_even(n) {
+        return n === 0
+               ? true
+               : is_odd(n - 1);
+    }
+    function is_odd(n) {
+        return n === 0
+               ? false
+               : is_even(n - 1);
+    }
+    return is_even(x);
+}
+	  </JAVASCRIPT>
+	</SNIPPET>
+	Our intention here is that the name
+	 <JAVASCRIPTINLINE>is_odd</JAVASCRIPTINLINE>
+	in the body of the function <JAVASCRIPTINLINE>is_even</JAVASCRIPTINLINE>
+	should refer to the function <JAVASCRIPTINLINE>is_odd</JAVASCRIPTINLINE>
+	that is declared after <JAVASCRIPTINLINE>is_even</JAVASCRIPTINLINE>.
+	The scope of the name <JAVASCRIPTINLINE>is_odd</JAVASCRIPTINLINE> is the
+	entire body block of <!-- Error occurred while translating this section --><SCHEMEINLINE>f</SCHEMEINLINE>, not just the portion of
+	the body of<SPACE></SPACE><!-- Error occurred while translating this section --><SCHEMEINLINE>f</SCHEMEINLINE> starting at the point where
+	the declaration of <JAVASCRIPTINLINE>is_odd</JAVASCRIPTINLINE>
+	occurs. Indeed, when we consider that
+	<JAVASCRIPTINLINE>is_odd</JAVASCRIPTINLINE> is itself defined in terms of
+	<JAVASCRIPTINLINE>is_even</JAVASCRIPTINLINE><EMDASH></EMDASH>so that
+	<JAVASCRIPTINLINE>is_even</JAVASCRIPTINLINE> and
+	<JAVASCRIPTINLINE>is_odd</JAVASCRIPTINLINE> are mutually recursive
+	functions<EMDASH></EMDASH>we see that the only	satisfactory interpretation of
+	the two declarations is to regard them as if the names
+	<JAVASCRIPTINLINE>is_even</JAVASCRIPTINLINE> and
+	<JAVASCRIPTINLINE>is_odd</JAVASCRIPTINLINE>
+	were being added to the environment simultaneously. More generally, in
+	block structure, the scope of a local name is the entire block
+	in which the declaration is evaluated.
+      <!-- Error occurred while translating this section --></TEXT>
+      <DO_BREAK_PAGE></DO_BREAK_PAGE>
+      <TEXT>
+	The evaluation of blocks in the metacircular evaluator of
+	section<SPACE></SPACE><REF NAME="sec:core-of-evaluator"></REF> achieves such
+	a simultaneous scope for local names by
+        <INDEX>scanning out declarations<SUBINDEX>in metacircular evaluator</SUBINDEX></INDEX>
+	<INDEX>internal declaration<SUBINDEX>scanning out</SUBINDEX></INDEX>
+	scanning out the declarations in the block and extending the current
+	environment with a frame containing bindings for all the declared
+	names before evaluating the declarations. Thus the new environment
+	in which the block body is evaluated already contains
+	bindings for 
+	<JAVASCRIPTINLINE>is_even</JAVASCRIPTINLINE> and
+	<JAVASCRIPTINLINE>is_odd</JAVASCRIPTINLINE>, and any occurrence
+	of one of these names refers to the correct binding. Once their
+	declarations are evaluated,
+	these names are bound to their declared values, namely function
+	objects that have the extended environment as their environment
+	part. Thus, for example,
+	by the time
+	<JAVASCRIPTINLINE>is_even</JAVASCRIPTINLINE> 	
+	gets applied in the body of
+	<JAVASCRIPTINLINE>f</JAVASCRIPTINLINE>, its environment
+	already contains the correct binding for the symbol
+	<JAVASCRIPTINLINE>is_odd</JAVASCRIPTINLINE>, and
+	the evaluation of the name 
+	<JAVASCRIPTINLINE>is_odd</JAVASCRIPTINLINE> in the body  of
+	<JAVASCRIPTINLINE>is_even</JAVASCRIPTINLINE> retrieves the correct
+	value.
+      </TEXT>
+      <!-- Error occurred while translating this section --><EXERCISE>
+	Consider the function <JAVASCRIPTINLINE>f_3</JAVASCRIPTINLINE>
+	of section<SPACE></SPACE><REF NAME="sec:lambda"></REF>:
+        <SNIPPET PAGE="64" EVAL="no">
+          <NAME>f_helper_definition3_repeated</NAME>
+          <JAVASCRIPT>
+function f_3(x, y) {
+    const a = 1 + x * y;
+    const b = 1 - y;
+    return x * square(a) + y * b + a * b;
+}
+          </JAVASCRIPT>
+        </SNIPPET>
+	<OL>
+	  <LI>
+	    Draw a diagram of the environment in effect during evaluation
+	    of the return expression of
+	    <JAVASCRIPTINLINE>f_3</JAVASCRIPTINLINE>.
+	  </LI>
+	  <LI>
+	    When evaluating a function application, the evaluator creates two
+	    frames: one for the parameters and one for the names declared 
+	    <EM>directly</EM> in the function&apos;s body
+	    block, as opposed to in an inner block.
+	    Since all these names have
+	    the same scope, an implementation could combine the two frames.
+	    Change the evaluator
+	    such that the evaluation of the body block does not create
+	    a new frame.
+	    You may assume that this will not result in duplicate names
+	    in the frame (exercise<SPACE></SPACE><REF NAME="ex:directly"></REF> justifies this).
+	  </LI>
+	</OL>
+	<LABEL NAME="ex:4_16"></LABEL>
+      </EXERCISE>
+      <!-- Error occurred while translating this section --><EXERCISE>
+	<LABEL NAME="ex:hoisting"></LABEL>    
+	    Eva Lu Ator is writing programs in which
+	    function declarations and other statements are interleaved.
+	    She needs to make sure that the declarations are evaluated before
+	    the functions are applied. She complains: <QUOTE>Why can&apos;t
+	    the evaluator take care of this chore, and
+	    <INDEX>hoisting of function declarations</INDEX>
+	    <INDEX>function declaration<SUBINDEX>hoisting of</SUBINDEX></INDEX>
+	    hoist all function
+	    declarations to the beginning of the block in which they appear? Function declarations outside of blocks should be hoisted to the beginning of the program.</QUOTE>
+	    <OL>
+	      <LI>
+		Modify the evaluator following Eva&apos;s suggestion.
+	      </LI>
+	      <LI>
+		The designers of JavaScript decided to follow Eva&apos;s approach.
+		Discuss this decision.
+	      </LI>
+	      <LI>
+		In addition, the designers of JavaScript decided to allow the name declared
+		by a function declaration to be reassigned using assignment.
+		Modify your solution
+		accordingly and discuss this decision.
+	      </LI>
+	    </OL>
+      </EXERCISE>
+  <SHORT_PAGE LINES="1"></SHORT_PAGE>
+      <!-- Error occurred while translating this section --><EXERCISE>
+	<LABEL NAME="ex:lambda_calculus"></LABEL>
+	Recursive functions are obtained in a
+	<INDEX>recursive function<SUBINDEX>specifying without declaration</SUBINDEX></INDEX>
+	roundabout way in our
+	interpreter: First declare the name that will refer to the recursive
+	function and assign to it the special value
+	<JAVASCRIPTINLINE>&quot;*unassigned*&quot;</JAVASCRIPTINLINE>; then define the
+	recursive function in the scope of that name; and finally assign the
+	defined function to the name. By the time the recursive function gets
+	applied, any occurrences of the name in the body properly refer to
+	the recursive function. Amazingly, it is possible to specify recursive
+	functions without using declarations or assignment. The following program computes
+	10 factorial by applying a recursive
+	<INDEX>factorial<SUBINDEX><ORDER>declaration</ORDER>without declaration or assignment</SUBINDEX></INDEX>
+	factorial function:<FOOTNOTE>This example illustrates a programming
+	trick for formulating recursive functions without using assignment. The
+	most general trick of this sort is the
+	<INDEX><ORDER>Y</ORDER><LATEXINLINE>$Y$</LATEXINLINE> operator</INDEX>
+	<INDEX>Scheme<SUBINDEX><ORDER>Y</ORDER><LATEXINLINE>$Y$</LATEXINLINE> operator written in</SUBINDEX></INDEX>
+	<LATEXINLINE>$Y$</LATEXINLINE>
+	<EM>operator</EM>, which can be used to give a <QUOTE>pure
+	<LATEXINLINE>$\lambda$</LATEXINLINE>-calculus</QUOTE> implementation of
+	recursion.  (See
+	<INDEX>Stoy, Joseph E.</INDEX><INDEX>Gabriel, Richard P.</INDEX>
+	<CITATION>Stoy 1977</CITATION> for details on the lambda
+	calculus, and <CITATION>Gabriel 1988</CITATION> for an exposition of the
+	<LATEXINLINE>$Y$</LATEXINLINE> operator in the language
+	Scheme.)</FOOTNOTE>
+	<!-- Error occurred while translating this section --><SNIPPET>
+	  <NAME>lambda_calculus_factorial</NAME>
+	  <EXPECTED>3628800</EXPECTED>
+	  <JAVASCRIPT>
+(n =&gt; (fact =&gt; fact(fact, n))
+      ((ft, k) =&gt; k === 1
+                  ? 1
+                  : k * ft(ft, k - 1)))(10);
+	  </JAVASCRIPT>
+	</SNIPPET>
+	<OL>
+	  <LI>
+	    Check (by evaluating the expression) that this really does compute
+	    factorials.  Devise an analogous expression for computing Fibonacci
+	    numbers.
+	  </LI>
+	  <LI>
+	    Consider the function <JAVASCRIPTINLINE>f</JAVASCRIPTINLINE> given
+	    above:
+	    <SNIPPET LATEX="yes">
+	      <NAME>f_is_even_is_odd_3</NAME>
+	      <JAVASCRIPT>
+function f(x) {
+    function is_even(n) {
+        return n === 0
+               ? true
+               : is_odd(n - 1);
+    }
+    function is_odd(n) {
+        return n === 0
+               ? false
+               : is_even(n - 1);
+    }
+    return is_even(x);
+}
+	      </JAVASCRIPT>
+	    </SNIPPET>
+	    Fill in the missing expressions to complete an alternative
+	    declaration of <SCHEMEINLINE>f</SCHEMEINLINE>, which has
+	    no internal function declarations:
+	    <SNIPPET EVAL="no" LATEX="yes" POSTPADDING="no">
+	      <JAVASCRIPT>
+function f(x) {
+    return ((is_even, is_odd) =&gt; is_even(is_even, is_odd, x))
+           ((is_ev, is_od, n) =&gt; n === 0 ? true : is_od(<METAPHRASE>??</METAPHRASE>, <METAPHRASE>??</METAPHRASE>, <METAPHRASE>??</METAPHRASE>),
+            (is_ev, is_od, n) =&gt; n === 0 ? false : is_ev(<METAPHRASE>??</METAPHRASE>, <METAPHRASE>??</METAPHRASE>, <METAPHRASE>??</METAPHRASE>));
+}
+	      </JAVASCRIPT>
+	    </SNIPPET>
+	  </LI>
+	</OL>
+	<!-- Error occurred while translating this section --><SOLUTION>
+	  Part (a)
+	  <SNIPPET>
+	    <JAVASCRIPT>
+// solution provided by GitHub user LucasGdosR
+
+// The Fibonacci function receives n as an argument
+// It applies the fib function recursively, passing n as an argument,
+// as well as the initial arguments (k = 1, fib1 = 1, fib2 = 1)
+(n =&gt; (fib =&gt; fib(fib, n, 2, 1, 1))
+      // The fib function is then defined as ft,
+      // with parameters n, k, fib1, and fib2
+      // Establish the base cases: n === 1 or n === 2
+      ((ft, n, k, fib1, fib2) =&gt; n === 1
+                  ? 1
+                  : n === 2
+                  ? 1
+                  :
+                  // Iterate until k equals n. Notice k starts at 2, and gets incremented every iteration
+                  k === n
+                  // When k reaches n, return the accumulated fib2
+                  ? fib2
+                  // Otherwise, accumulate the sum as the new fib2
+                  : ft(ft, n, k + 1, fib2, fib1 + fib2)));
+	    </JAVASCRIPT>
+	  </SNIPPET>
+	  Part (b)
+	  <SNIPPET>
+	    <JAVASCRIPT>
+// solution provided by GitHub user LucasGdosR
+
+function f(x) {
+    return ((is_even, is_odd) =&gt; is_even(is_even, is_odd, x))
+           ((is_ev, is_od, n) =&gt; n === 0 ? true : is_od(is_ev, is_od, n - 1),
+           (is_ev, is_od, n) =&gt; n === 0 ? false : is_ev(is_ev, is_od, n - 1));
+}
+	    </JAVASCRIPT>
+	  </SNIPPET>
+	</SOLUTION>
+      <!-- Error occurred while translating this section --></EXERCISE>
+    </JAVASCRIPT>
+  </SPLIT>
+
+    <SPLIT>
+      <SCHEME>
+  <EXERCISE>
+    <LABEL NAME="ex:internal-defs"></LABEL>
+	In this exercise we implement the method just described for interpreting
+	internal definitions.
+	We assume that the evaluator supports <SCHEMEINLINE>let</SCHEMEINLINE>
+	(see exercise<SPACE></SPACE><REF NAME="ex:implement-let"></REF>).
+	<OL>
+	  <LI>
+	    Change
+	    <INDEX><USE>lookup-variable-value</USE><SUBINDEX>for scanned-out definitions</SUBINDEX></INDEX>
+	    <SCHEMEINLINE>lookup-variable-value</SCHEMEINLINE>
+	    (section<SPACE></SPACE><REF NAME="sec:operations-on-environments"></REF>)
+	    to signal an error if the value it finds is the symbol
+	    <SCHEMEINLINE>*unassigned*</SCHEMEINLINE>.
+	  </LI>
+	  <LI>
+	    Write a procedure
+	    <INDEX><USE>scan-out-defines</USE></INDEX> 
+	    <SCHEMEINLINE>scan-out-defines</SCHEMEINLINE>
+	    that takes a procedure body and returns an equivalent one that has no
+	    internal definitions, by making the transformation described above.
+	  </LI>
+	  <LI>
+	    Install <SCHEMEINLINE>scan-out-defines</SCHEMEINLINE> in the
+	    interpreter, either in  <SCHEMEINLINE>make-procedure</SCHEMEINLINE>
+	    or in <SCHEMEINLINE>procedure-body</SCHEMEINLINE> (see
+	    section<SPACE></SPACE><REF NAME="sec:eval-data-structures"></REF>).
+	    Which place is better? Why?
+	  </LI>
+	</OL>
+  </EXERCISE>
+
+  <EXERCISE>
+	Draw diagrams of the environment in effect when evaluating the
+	expression <LATEXINLINE>e3</LATEXINLINE> in the procedure in the text,
+	comparing how this will be structured when definitions are interpreted
+	sequentially with how it will be structured if definitions are scanned
+	out as described. Why is there an extra frame in the transformed program?
+	Explain why this difference in environment structure can never make a
+	difference in the behavior of a correct program.  Design a way to make
+	the interpreter implement the <QUOTE>simultaneous</QUOTE> scope rule for
+	internal definitions without constructing the extra frame.
+  </EXERCISE>
+      </SCHEME>
+    </SPLIT>
+  <SPLIT>
+    <SCHEME>
+      <EXERCISE>
+	<LABEL NAME="ex:alternative-scanout_scheme"></LABEL>
+	Consider an alternative strategy for scanning out definitions that
+	translates the example in the text to
+	<SNIPPET EVAL="no" LATEX="yes">
+	  <SCHEME>
+(lambda vars
+   (let ((u &apos;*unassigned*)
+         (v &apos;*unassigned*))
+      (let ((a e1)
+            (b e2))
+         (set! u a)
+   (set! v b))
+   e3))
+	  </SCHEME>
+	</SNIPPET>
+	Here <SCHEMEINLINE>a</SCHEMEINLINE> and <SCHEMEINLINE>b</SCHEMEINLINE>
+	are meant to represent new variable names, created by the interpreter,
+	that do	not appear in the user<APOS></APOS>s program. Consider the
+	<INDEX><DECLARATION>solve</DECLARATION> differential equation<SUBINDEX><ORDER>scan</ORDER>with scanned-out definitions</SUBINDEX></INDEX>
+	<SCHEMEINLINE>solve</SCHEMEINLINE> procedure from
+	section<SPACE></SPACE><REF NAME="sec:streams-and-delayed-evaluation"></REF>:
+	<SNIPPET>
+	  <SCHEME>
+(define (solve f y0 dt)
+(define y (integral (delay dy) y0 dt))
+(define dy (stream-map f y))
+      y)
+	  </SCHEME>
+	</SNIPPET>
+	Will this procedure work if internal definitions are scanned out as
+	shown in this exercise? What if they are scanned out as shown in the
+	text?  Explain.
+      </EXERCISE>
+    </SCHEME>
+    <JAVASCRIPT>
+      <SUBHEADING>
+      <NAME>Sequential Declaration Processing</NAME>
+      </SUBHEADING>
+      <!-- Error occurred while translating this section --><TEXT>
+	<INDEX>sequential declaration processing vs.<SPACE></SPACE>scanning out<OPEN></OPEN></INDEX>
+	<INDEX>scanning out declarations<SUBINDEX>sequential declaration processing vs.<OPEN></OPEN></SUBINDEX></INDEX>
+	<!-- Error occurred while translating this section --><LABEL NAME="add_binding_to_frame"></LABEL>	
+	The design of our evaluator of
+	section<SPACE></SPACE><REF NAME="sec:core-of-evaluator"></REF> imposes a
+	runtime burden on the evaluation of blocks: It needs to scan
+	the body of the block for locally declared names, extend the
+	current environment with a new frame that binds those names, and evaluate the
+	block body in this extended environment. Alternatively, the evaluation
+	of a block could extend the current environment with an empty frame.
+	The evaluation of each declaration in the block body would then add
+	a new binding to that frame.
+	To implement this design, we first simplify
+	<JAVASCRIPTINLINE>eval_block</JAVASCRIPTINLINE>:
+	<!-- Error occurred while translating this section --><SNIPPET EVAL="no">
+          <NAME>eval_block_simplified</NAME>
+          <JAVASCRIPT>
+function eval_block(component, env) {
+    const body = block_body(component);
+    return evaluate(body, extend_environment(null, null, env);
+}
+          </JAVASCRIPT>
+	</SNIPPET>
+	The function 
+	<JAVASCRIPTINLINE>eval_declaration</JAVASCRIPTINLINE> can no
+	longer assume that the environment already has a binding for
+	the name.
+	Instead of using
+	<JAVASCRIPTINLINE>assign_symbol_value</JAVASCRIPTINLINE> to
+	change an existing binding, it calls a new function,
+	<JAVASCRIPTINLINE>add_binding_to_frame</JAVASCRIPTINLINE>, to
+	add to the first frame of the environment a binding of the name
+	to the value of the value expression.
+	<!-- Error occurred while translating this section --><SNIPPET EVAL="no">
+          <NAME>eval_declaration_simplified</NAME>
+          <JAVASCRIPT>
+function eval_declaration(component, env) {
+    add_binding_to_frame(
+        declaration_symbol(component),
+        evaluate(declaration_value_expression(component), env),
+        first_frame(env));
+    return undefined;
+}
+function add_binding_to_frame(symbol, value, frame) {
+    set_head(frame, pair(symbol, head(frame)));
+    set_tail(frame, pair(value, tail(frame)));
+}
+	  </JAVASCRIPT>
+	</SNIPPET>
+      </TEXT>
+    </JAVASCRIPT>
+  </SPLIT>
+    <SPLIT>
+      <SCHEME>
+      <EXERCISE>
+	Ben Bitdiddle, Alyssa P. Hacker, and Eva Lu Ator are arguing about
+	the desired result of evaluating the expression
+	<SNIPPET>
+	  <SCHEME>
+(let ((a 1))
+   (define (f x)
+      (define b (+ a x))
+      (define a 5)
+      (+ a b))
+   (f 10))
+	  </SCHEME>
+	</SNIPPET>
+	Ben asserts that the result should be obtained using the sequential rule
+	for <SCHEMEINLINE>define</SCHEMEINLINE>: <SCHEMEINLINE>b</SCHEMEINLINE>
+	is defined to be 11, then <SCHEMEINLINE>a</SCHEMEINLINE> is defined to
+	be 5, so the result is 16.  Alyssa objects that mutual recursion requires
+	the simultaneous scope rule for internal procedure definitions, and that
+	it is unreasonable to treat procedure names differently from other names.
+	Thus, she argues for the mechanism implemented in
+	exercise<SPACE></SPACE><REF NAME="ex:internal-defs"></REF>. This would lead to
+	<SCHEMEINLINE>a</SCHEMEINLINE> being unassigned at the time that the
+	value for <SCHEMEINLINE>b</SCHEMEINLINE> is to be computed.  Hence, in
+	Alyssa<APOS></APOS>s view the procedure should produce an error.  Eva has a
+	third opinion.  She says that if the definitions of
+	<SCHEMEINLINE>a</SCHEMEINLINE> and <SCHEMEINLINE>b</SCHEMEINLINE> are
+	truly meant to be simultaneous, then the value 5 for
+	<SCHEMEINLINE>a</SCHEMEINLINE> should be used in evaluating
+	<SCHEMEINLINE>b</SCHEMEINLINE>.  Hence, in Eva<APOS></APOS>s view
+	<SCHEMEINLINE>a</SCHEMEINLINE> should be 5,
+	<SCHEMEINLINE>b</SCHEMEINLINE> should be 15, and the result should be 20.
+	Which (if any) of these	viewpoints do you support?  Can you devise a way
+	to implement internal definitions so that they behave as Eva
+	prefers?<FOOTNOTE>The MIT implementors of Scheme support Alyssa on the
+	following grounds: Eva is in principle correct<EMDASH></EMDASH>the definitions
+	should be regarded as simultaneous.  But it seems difficult to implement
+	a general, efficient mechanism that does what Eva requires. In the
+	absence of such a mechanism, it is better to generate an error in the
+	difficult cases of simultaneous definitions (Alyssa<APOS></APOS>s notion) than
+	to produce an incorrect answer (as Ben would have it).</FOOTNOTE>
+	<LABEL NAME="ex:simultaneous-def_scheme"></LABEL>
+      </EXERCISE>
+      </SCHEME>
+    </SPLIT>
+  <SPLIT>
+    <SCHEME>
+      <EXERCISE>
+	<LABEL NAME="ex:letrec"></LABEL>  
+	Because internal definitions look sequential but are actually
+	simultaneous, some people prefer to avoid them entirely, and use the
+	special form
+	<INDEX><DECLARATION>letrec</DECLARATION></INDEX>  
+	<INDEX><DECLARATION>special forms (those marked <EM>ns</EM> are not in the IEEE Scheme standard)</DECLARATION><SUBINDEX><ORDER>letrec</ORDER><SCHEMEINLINE>letrec</SCHEMEINLINE></SUBINDEX></INDEX>
+	<SCHEMEINLINE>letrec</SCHEMEINLINE> instead.  
+	<SCHEMEINLINE>Letrec</SCHEMEINLINE> looks like
+	<SCHEMEINLINE>let</SCHEMEINLINE>, so it is not surprising that the
+	variables it binds are bound simultaneously and have the same scope as
+	each other.  The sample	procedure <SCHEMEINLINE>f</SCHEMEINLINE> above
+	can be written without internal definitions, but with exactly the same
+	meaning, as
+	<SNIPPET EVAL="no">
+	  <SCHEME>
+(define (f x)
+   (letrec ((even?
+               (lambda (n)
+                  (if (= n 0)
+                      true
+                      (odd? (- n 1)))))
+            (odd?
+               (lambda (n)
+                  (if (= n 0)
+                      false
+                      (even? (- n 1))))))
+      $\langle$rest of body of$\rangle$ f))
+	  </SCHEME>
+	</SNIPPET>
+	<SCHEMEINLINE>Letrec</SCHEMEINLINE> expressions, which have the form
+	<SNIPPET EVAL="no">
+	  <SCHEME>
+(letrec ((var$_{1}$ exp$_{1}$) $\ldots$ (var$_{n}$ exp$_{n}$))
+    body)
+	  </SCHEME>
+	</SNIPPET>
+	are a variation on <SCHEMEINLINE>let</SCHEMEINLINE> in which the
+	expressions <LATEXINLINE>exp$_{k}$</LATEXINLINE> that provide the
+	initial values for the variables <LATEXINLINE>var$_{k}$</LATEXINLINE>
+	are evaluated in an environment that includes all the
+	<SCHEMEINLINE>letrec</SCHEMEINLINE> bindings.  This permits recursion in
+	the bindings, such as the mutual recursion of
+	<SCHEMEINLINE>even?</SCHEMEINLINE> and <SCHEMEINLINE>odd?</SCHEMEINLINE>
+	in the example above, or the evaluation of 10
+	<INDEX>factorial<SUBINDEX><ORDER>letrec</ORDER>with <SCHEMEINLINE>letrec</SCHEMEINLINE></SUBINDEX></INDEX>
+	factorial with
+	<SNIPPET>
+	  <SCHEME>
+(letrec ((fact
+            (lambda (n)
+               (if (= n 1)
+                   1
+                   (* n (fact (- n 1)))))))
+        (fact 10))
+	  </SCHEME>
+	</SNIPPET>
+	<OL>
+	  <LI>
+	    Implement <SCHEMEINLINE>letrec</SCHEMEINLINE> as a derived
+	    expression, by transforming a <SCHEMEINLINE>letrec</SCHEMEINLINE>
+	    expression into a <SCHEMEINLINE>let</SCHEMEINLINE> expression as
+	    shown in  the text above or in
+	    exercise<SPACE></SPACE><REF NAME="ex:alternative-scanout_scheme"></REF>. That is,
+	    the <SCHEMEINLINE>letrec</SCHEMEINLINE> variables should be created
+	    with a <SCHEMEINLINE>let</SCHEMEINLINE> and then be assigned their
+	    values with <SCHEMEINLINE>set!</SCHEMEINLINE>.
+	  </LI>
+	  <LI>
+	    Louis Reasoner is confused by all this fuss about internal
+	    definitions.  The way he sees it, if you don<APOS></APOS>t like to use
+	    <SCHEMEINLINE>define</SCHEMEINLINE> inside a procedure, you can just
+	    use <SCHEMEINLINE>let</SCHEMEINLINE>. Illustrate what is loose about
+	    his reasoning by drawing an environment diagram that shows the
+	    environment in which the
+	    <LATEXINLINE>$\langle$</LATEXINLINE>rest of body of<LATEXINLINE>$\rangle$</LATEXINLINE>
+	    <SCHEMEINLINE>f</SCHEMEINLINE>
+	    is evaluated during
+	    evaluation of the expression <SCHEMEINLINE>(f 5)</SCHEMEINLINE>, with
+	    <SCHEMEINLINE>f</SCHEMEINLINE> defined as in this exercise. Draw an
+	    environment diagram for the same evaluation, but with
+	    <SCHEMEINLINE>let</SCHEMEINLINE> in place of
+	    <SCHEMEINLINE>letrec</SCHEMEINLINE> in the definition of
+	    <SCHEMEINLINE>f</SCHEMEINLINE>.
+	  </LI>
+	</OL>
+      </EXERCISE>
+    </SCHEME>
+    <JAVASCRIPT>
+      <TEXT>
+	With sequential declaration processing, the scope of a
+	declaration is no longer the entire block that immediately surrounds
+	the declaration, but rather just the portion of the block starting at
+	the point where the declaration occurs.
+	Although we no longer have simultaneous scope, sequential
+	declaration processing
+	will evaluate calls to the function
+	<SCHEMEINLINE>f</SCHEMEINLINE> at the beginning of this section
+	correctly, but for an
+	<QUOTE>accidental</QUOTE> reason: Since the declarations
+	of the internal functions come first, no calls to these functions
+	will be evaluated until all of them have been declared. Hence,
+	<JAVASCRIPTINLINE>is_odd</JAVASCRIPTINLINE> will have been declared by the time
+	<JAVASCRIPTINLINE>is_even</JAVASCRIPTINLINE> is executed.  In fact, 
+	sequential declaration processing 
+	will give the same result as our scanning-out-names evaluator in
+	section<SPACE></SPACE><REF NAME="sec:core-of-evaluator"></REF>
+	for any function
+	in which the 
+	<INDEX>internal declaration<SUBINDEX>restrictions on</SUBINDEX></INDEX>
+	internal declarations come first in a body and evaluation of the value
+	expressions for the declared names doesn<APOS></APOS>t actually use any of
+	the declared names.
+	Exercise<SPACE></SPACE><REF NAME="ex:simultaneous-def"></REF> shows
+	an example of a function that doesn<APOS></APOS>t
+	obey these restrictions, so that the alternative evaluator isn<APOS></APOS>t
+	equivalent to our scanning-out-names evaluator.
+      </TEXT>
+      <TEXT>
+	Sequential declaration processing is more efficient and easier to
+	implement than scanning out names.
+	However, with sequential processing, the
+	declaration to which a name refers may depend on the order in which
+	the statements in a block are evaluated.
+	In exercise<SPACE></SPACE><REF NAME="ex:simultaneous-def"></REF>, we see that
+	views may differ as to whether that is desirable.
+      </TEXT>
+      <!-- Error occurred while translating this section --><INDEX>sequential declaration processing vs.<SPACE></SPACE>scanning out<CLOSE></CLOSE></INDEX>
+      <INDEX>scanning out declarations<SUBINDEX>sequential declaration processing vs.<CLOSE></CLOSE></SUBINDEX></INDEX>
+      <!-- Error occurred while translating this section --><EXERCISE>
+	<LABEL NAME="ex:simultaneous-def"></LABEL> 
+	Ben Bitdiddle, Alyssa P. Hacker, and Eva Lu Ator are arguing about
+	the desired result of evaluating the program
+	<!-- Error occurred while translating this section --><SNIPPET>
+	  <NAME>mystery_f</NAME>
+	  <JAVASCRIPT>
+const a = 1;
+function f(x) {      
+    const b = a + x;
+    const a = 5;
+    return a + b;
+}
+f(10); 
+	  </JAVASCRIPT>
+	</SNIPPET>
+	Ben asserts that the result should be obtained using the sequential
+	processing of declarations:
+	<!-- Error occurred while translating this section --><SCHEMEINLINE>b</SCHEMEINLINE> is declared to be 11, then
+	<!-- Error occurred while translating this section --><SCHEMEINLINE>a</SCHEMEINLINE> is declared to be 5, so the result is 16.
+	Alyssa objects that mutual recursion requires the simultaneous scope
+	rule for internal function declarations, and that it is unreasonable to
+	treat function names differently from other names.  Thus, she argues for
+	the mechanism implemented in
+	section<SPACE></SPACE><REF NAME="sec:core-of-evaluator"></REF>. This would
+	lead to <!-- Error occurred while translating this section --><SCHEMEINLINE>a</SCHEMEINLINE> being unassigned at the time that
+	the value for <!-- Error occurred while translating this section --><SCHEMEINLINE>b</SCHEMEINLINE> is to be computed.  Hence,
+	in Alyssa<APOS></APOS>s view the function should produce an error.  Eva has a
+	third opinion.  She says that if the declarations of
+	<!-- Error occurred while translating this section --><SCHEMEINLINE>a</SCHEMEINLINE> and <!-- Error occurred while translating this section --><SCHEMEINLINE>b</SCHEMEINLINE>
+	are truly meant to be simultaneous, then the value 5 for
+	<!-- Error occurred while translating this section --><SCHEMEINLINE>a</SCHEMEINLINE> should be used in evaluating
+	<!-- Error occurred while translating this section --><SCHEMEINLINE>b</SCHEMEINLINE>.  Hence, in Eva<APOS></APOS>s view
+	<!-- Error occurred while translating this section --><SCHEMEINLINE>a</SCHEMEINLINE> should be 5,
+	<!-- Error occurred while translating this section --><SCHEMEINLINE>b</SCHEMEINLINE> should be 15, and the result should be 20.
+	Which (if any) of these	viewpoints do you support?  Can you devise a way
+	to implement internal declarations so that they behave as Eva
+	prefers?<FOOTNOTE>The designers of JavaScript support Alyssa on the
+	following grounds: Eva is in principle correct<EMDASH></EMDASH>the declarations
+	should be regarded as simultaneous.  But it seems difficult to implement
+	a general, efficient mechanism that does what Eva requires. In the
+	absence of such a mechanism, it is better to generate an error in the
+	difficult cases of simultaneous declarations (Alyssa<APOS></APOS>s notion) than
+	to produce an incorrect answer (as Ben would have it).</FOOTNOTE>
+      <!-- Error occurred while translating this section --></EXERCISE>
+    </JAVASCRIPT>
+  </SPLIT>
+
+
+  <SPLIT>
+    <SCHEME>
+  <EXERCISE>
+    <LABEL NAME="ex:lambda_calculus_scheme"></LABEL>
+	Amazingly, Louis<APOS></APOS>s intuition in
+	exercise<SPACE></SPACE><REF NAME="ex:letrec"></REF> is correct. It is indeed
+	<INDEX>recursive procedure<SUBINDEX>specifying without <SCHEMEINLINE>define</SCHEMEINLINE></SUBINDEX></INDEX>
+	possible to specify recursive procedures without using
+	<SCHEMEINLINE>letrec</SCHEMEINLINE> (or even
+	<SCHEMEINLINE>define</SCHEMEINLINE>), although the method for
+	accomplishing this is much more subtle than Louis imagined.
+	The following expression computes 10
+	<INDEX>factorial<SUBINDEX><ORDER>letrec</ORDER>without <SCHEMEINLINE>letrec</SCHEMEINLINE> or <SCHEMEINLINE>define</SCHEMEINLINE></SUBINDEX></INDEX>
+	factorial by applying a recursive
+	factorial procedure:<FOOTNOTE>This example illustrates a programming
+	trick for formulating recursive procedures without using
+	<SCHEMEINLINE>define</SCHEMEINLINE>. The
+	most general trick of this sort is the
+	<INDEX><ORDER>Y</ORDER><LATEXINLINE>$Y$</LATEXINLINE> operator</INDEX>
+	<LATEXINLINE>$Y$</LATEXINLINE>
+	<EM>operator</EM>, which can be used to give a <QUOTE>pure
+	<LATEXINLINE>$\lambda$</LATEXINLINE>-calculus</QUOTE> implementation of
+	recursion.  (See
+	<INDEX>Stoy, Joseph E.</INDEX><INDEX>Gabriel, Richard P.</INDEX>
+	<CITATION>Stoy 1977</CITATION> for details on the lambda
+	calculus, and <CITATION>Gabriel 1988</CITATION> for an exposition of the
+	<LATEXINLINE>$Y$</LATEXINLINE> operator in Scheme.)</FOOTNOTE>
+	<SNIPPET>
+	  <SCHEME>
+((lambda (n)
+    ((lambda (fact)
+        (fact fact n))
+     (lambda (ft k)
+        (if (= k 1)
+            1
+            (* k (ft ft (- k 1)))))))
+ 10)
+	  </SCHEME>
+	</SNIPPET>
+	<OL>
+	  <LI>
+	    Check (by evaluating the expression) that this really does compute
+	    factorials.  Devise an analogous expression for computing Fibonacci
+	    numbers.
+	  </LI>
+	  <LI>
+	    Consider the following procedure, which includes mutually recursive
+	    internal definitions:
+	    <SNIPPET>
+              <SCHEME>
+(define (f x)
+   (define (even? n)
+      (if (= n 0)
+          true
+      (odd? (- n 1))))
+   (define (odd? n)
+      (if (= n 0)
+          false
+          (even? (- n 1))))
+   (even? x))
+              </SCHEME>
+	    </SNIPPET>
+	    Fill in the missing expressions to complete an alternative definition
+	    of <SCHEMEINLINE>f</SCHEMEINLINE>, which uses neither internal
+	    definitions nor <SCHEMEINLINE>letrec</SCHEMEINLINE>:
+	    <SNIPPET EVAL="no">
+              <SCHEME>
+(define (f x)
+   ((lambda (even? odd?)
+  (even? even? odd? x))
+    (lambda (ev? od? n)
+  (if (= n 0) true (od? ?? ?? ??)))
+    (lambda (ev? od? n)
+  (if (= n 0) false (ev? ?? ?? ??)))))
+              </SCHEME>
+	    </SNIPPET>
+	  </LI>
+	</OL>
+  </EXERCISE>
+    </SCHEME>
+  </SPLIT>
+
+  <INDEX>block structure<CLOSE></CLOSE></INDEX><!-- Error occurred while translating this section -->
+  <INDEX>internal declaration<SUBINDEX>scope of name<CLOSE></CLOSE></SUBINDEX></INDEX><!-- Error occurred while translating this section -->
+  <INDEX>scope of a name<SUBINDEX>internal declaration<CLOSE></CLOSE></SUBINDEX></INDEX><!-- Error occurred while translating this section -->
+</SUBSECTION>
