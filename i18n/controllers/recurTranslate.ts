@@ -26,7 +26,10 @@ const ignoredTags = [
   "SCHEME",
   "LONG_PAGE",
   "LABEL",
-  "HISTORY"
+  "HISTORY",
+  "REF",
+  "FIGURE",
+  
 ];
 
 const MAXLEN = Number(process.env.MAX_LEN) || 3000;
