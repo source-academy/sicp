@@ -174,6 +174,24 @@ async function setupCleanupHandlers() {
   });
 }
 
+function needsTranslation(enFilePath: string, lang: string): boolean {
+  const cnFilePath = enFilePath.replace(
+    enFilePath.sep + "en" + enFilePath.sep,
+    enFilePath.sep + ".." + enFilePath.sep + "i18n" + enFilePath.sep + "translation_output"  + enFilePath.sep + lang + enFilePath.sep
+  );
+  try {
+    const cnStats = await fs.promise.stat(cnFilePath);
+    if (!cnStats.isFile()) {
+      return true;
+    }
+
+    const enStats = await fs.promise.stat(enFilePath);
+    return enStats.mtime > cnStats.mtime;
+  } catch (error) {
+    return true;
+  }
+}
+
 // Function to recursively find all XML files in a directory
 async function findAllXmlFiles(directory: string): Promise<string[]> {
   const files = await fs.promises.readdir(directory);
@@ -205,6 +223,7 @@ async function findAllXmlFiles(directory: string): Promise<string[]> {
 
     // Get the absolute path to the xml/en directory using proper path resolution
     const enDirPath = path.resolve(__dirname, "../xml/en");
+    let absent: boolean = false;
 
     if (process.argv[2] === "test") {
       if (process.argv.length !== 5) {
@@ -219,7 +238,10 @@ async function findAllXmlFiles(directory: string): Promise<string[]> {
         console.error('test error: ', e);
       }
       return;
-    } if (process.argv[2] === "all"  || process.argv.length <= 2) {
+    } if (process.argv[2] === "all"  || process.argv.length <= 2 || process.argv[2] === "abs") {
+      if (process.argv[2] === "abs") {
+        absent = true;
+      }
       // Find all XML files
       console.log(`Scanning directory: ${enDirPath}`);
       filestoTranslate = await findAllXmlFiles(enDirPath);
@@ -250,6 +272,12 @@ async function findAllXmlFiles(directory: string): Promise<string[]> {
         // Process each file in the batch, but handle errors individually
         const results = await Promise.allSettled(
           batch.map(async file => {
+            if (absent) {
+              if (!needsTranslation(file, lang)) {
+                console.log(`Skipped translation for ${file} to language ${lang} (yarn trans abs)`);
+                return { file, success: true };
+              }
+            }
             try {
               console.log(`Starting translation for ${file}`);
               await translate(lang, file);
