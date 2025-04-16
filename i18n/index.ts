@@ -6,7 +6,6 @@ import path from "path";
 import { fileURLToPath } from "url";
 import { dirname } from "path";
 import OpenAI from "openai";
-import { permission } from "process";
 
 // Get the directory name of the current module
 const __filename = fileURLToPath(import.meta.url);
@@ -220,8 +219,8 @@ async function needsTranslation(enFilePath: string, lang: string): Promise<boole
   }
 }
 
-export default async function fancyName(path: string, language: string) {
-  const fullPath = PathGenerator(path);
+export default async function fancyName(language: string, section: string) {
+  const fullPath = PathGenerator(section);
   await translate(language, fullPath);
 }
 
@@ -266,7 +265,7 @@ export default async function fancyName(path: string, language: string) {
 
     if (filesToTranslate.length === 0) {
       console.log(`No files need translation for ${lang}.`);
-      return;
+      continue;
     }
 
     // Process files in batches to avoid overwhelming the system
