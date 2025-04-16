@@ -8,6 +8,7 @@ import { DOMParser as dom } from "xmldom";
 const readdir = util.promisify(fs.readdir);
 const open = util.promisify(fs.open);
 const readFile = util.promisify(fs.readFile);
+const errors = [];
 
 // latex (pdf version)
 import {
@@ -42,6 +43,9 @@ import { writeRewritedSearchData } from "./searchRewrite";
 import { setupSnippetsJson } from "./processingFunctions/processSnippetJson";
 import { createTocJson } from "./generateTocJson";
 import { setupReferencesJson } from "./processingFunctions/processReferenceJson";
+import { SourceTextModule } from "vm";
+import { threadId } from "worker_threads";
+import { exitCode } from "process";
 
 export let parseType;
 let version;
@@ -57,6 +61,11 @@ const ensureDirectoryExists = (path, cb) => {
     } else cb(null); // successfully created folder
   });
 };
+
+const getDirectories = async source =>
+  (await readdir(source, { withFileTypes: true }))
+    .filter(dirent => dirent.isDirectory())
+    .map(dirent => dirent.name);
 
 async function translateXml(filepath, filename, option) {
   const fullFilepath = path.join(inputDir, filepath, filename);
@@ -157,31 +166,35 @@ async function translateXml(filepath, filename, option) {
   }
 
   if (parseType == "json") {
-    const relativeFilePath = path.join(
-      filepath,
-      filename.replace(/\.xml$/, "") + ".html"
-    );
-
-    if (option == "generateTOC") {
-      generateTOC(doc, tableOfContent, relativeFilePath);
-      return;
-    } else if (option == "setupSnippet") {
-      setupSnippetsJson(doc.documentElement);
-      setupReferencesJson(doc.documentElement, relativeFilePath);
-      return;
-    } else if (option == "parseXml") {
-      const jsonObj = [];
-      parseXmlJson(doc, jsonObj, relativeFilePath);
-
-      const outputFile = path.join(
-        outputDir,
-        tableOfContent[relativeFilePath].index + ".json"
+    try {
+      const relativeFilePath = path.join(
+        filepath,
+        filename.replace(/\.xml$/, "") + ".html"
       );
-      const stream = fs.createWriteStream(outputFile);
-      stream.once("open", fd => {
-        stream.write(JSON.stringify(jsonObj));
-        stream.end();
-      });
+
+      if (option == "generateTOC") {
+        generateTOC(doc, tableOfContent, relativeFilePath);
+        return;
+      } else if (option == "setupSnippet") {
+        setupSnippetsJson(doc.documentElement);
+        setupReferencesJson(doc.documentElement, relativeFilePath);
+        return;
+      } else if (option == "parseXml") {
+        const jsonObj = [];
+        parseXmlJson(doc, jsonObj, relativeFilePath);
+
+        const outputFile = path.join(
+          outputDir,
+          tableOfContent[relativeFilePath].index + ".json"
+        );
+        const stream = fs.createWriteStream(outputFile);
+        stream.once("open", fd => {
+          stream.write(JSON.stringify(jsonObj));
+          stream.end();
+        });
+      }
+    } catch (error) {
+      errors.push(path.join(filepath, filename) + " " + error);
     }
     return;
   }
@@ -200,12 +213,20 @@ async function recursiveXmlToHtmlInOrder(option) {
   }
 }
 
-async function recursiveTranslateXml(filepath, option) {
+async function recursiveTranslateXml(filepath, option, lang = "en") {
   let files;
+
+  if (lang != null) {
+    filepath = path.join(filepath, lang);
+    console.log(filepath);
+  }
+
   const fullPath = path.join(inputDir, filepath);
+  console.log(fullPath);
   files = await readdir(fullPath);
   const promises = [];
   files.forEach(file => {
+    console.log(file);
     if (file.match(/\.xml$/)) {
       // console.log(file + " being processed");
       if (
@@ -222,7 +243,9 @@ async function recursiveTranslateXml(filepath, option) {
         promises.push(translateXml(filepath, file, option));
       }
     } else if (fs.lstatSync(path.join(fullPath, file)).isDirectory()) {
-      promises.push(recursiveTranslateXml(path.join(filepath, file), option));
+      promises.push(
+        recursiveTranslateXml(path.join(filepath, file), option, null)
+      );
     }
   });
   await Promise.all(promises);
@@ -349,23 +372,48 @@ async function main() {
     console.log("setup snippets done\n");
     recursiveTranslateXml("", "parseXml");
   } else if (parseType == "json") {
-    outputDir = path.join(__dirname, "../json");
+    const languages = await getDirectories(path.join(__dirname, "../xml"));
+    console.dir(languages);
 
-    createMain();
+    for (const lang of languages) {
+      outputDir = path.join(__dirname, "../json", lang);
+      allFilepath = [];
+      tableOfContent = {};
 
-    console.log("\ngenerate table of content\n");
-    await recursiveTranslateXml("", "generateTOC");
-    allFilepath = sortTOC(allFilepath);
-    createTocJson(outputDir);
+      createMain();
 
-    console.log("setup snippets and references\n");
-    await recursiveXmlToHtmlInOrder("setupSnippet");
-    console.log("setup snippets and references done\n");
+      console.log(`\ngenerate table of content for ${lang}\n`);
+      await recursiveTranslateXml("", "generateTOC", lang);
+      allFilepath = sortTOC(allFilepath);
+      createTocJson(outputDir);
 
-    await recursiveXmlToHtmlInOrder("parseXml");
-    writeRewritedSearchData();
-    // this is meant to be temp; also, will remove the original "generateSearchData" after the updation at the frontend is completed.
-    //testIndexSearch();
+      console.log("setup snippets and references\n");
+      await recursiveXmlToHtmlInOrder("setupSnippet");
+      console.log("setup snippets and references done\n");
+      await recursiveXmlToHtmlInOrder("parseXml");
+      writeRewritedSearchData();
+      // this is meant to be temp; also, will remove the original "generateSearchData" after the updation at the frontend is completed.
+      //testIndexSearch();
+    }
+  }
+  try {
+    let summaryLog = "Parsing failed for: ";
+    const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+    for (const err of errors) {
+      summaryLog += "\n" + err;
+    }
+    const logDir = path.resolve(__dirname, "../logs");
+    if (!fs.existsSync(logDir)) {
+      fs.mkdirSync(logDir, { recursive: true });
+    }
+
+    const logPath = path.join(logDir, `json-summary-${timestamp}.log`);
+    fs.writeFileSync(logPath, summaryLog);
+    console.log(
+      `Summary log saved to logs/translation-summary-${timestamp}.log`
+    );
+  } catch (logError) {
+    console.error("Failed to save log file:", logError);
   }
 }
 
