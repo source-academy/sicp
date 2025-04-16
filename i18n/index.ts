@@ -179,15 +179,7 @@ async function needsTranslation(
 ): Promise<boolean> {
   const cnFilePath = enFilePath.replace(
     path.sep + "en" + path.sep,
-    path.sep +
-      ".." +
-      path.sep +
-      "i18n" +
-      path.sep +
-      "translation_output" +
-      path.sep +
-      lang +
-      path.sep
+    path.sep + lang + path.sep
   );
   try {
     const cnStats = await fs.promises.stat(cnFilePath);
