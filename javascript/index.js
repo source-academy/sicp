@@ -410,7 +410,7 @@ async function main() {
     const logPath = path.join(logDir, `json-summary-${timestamp}.log`);
     fs.writeFileSync(logPath, summaryLog);
     console.log(
-      `Summary log saved to logs/translation-summary-${timestamp}.log`
+      `Summary log saved to logs/json-summary-${timestamp}.log`
     );
   } catch (logError) {
     console.error("Failed to save log file:", logError);
