@@ -174,18 +174,18 @@ async function setupCleanupHandlers() {
   });
 }
 
-function needsTranslation(enFilePath: string, lang: string): boolean {
+async function needsTranslation(enFilePath: string, lang: string): boolean {
   const cnFilePath = enFilePath.replace(
-    enFilePath.sep + "en" + enFilePath.sep,
-    enFilePath.sep + ".." + enFilePath.sep + "i18n" + enFilePath.sep + "translation_output"  + enFilePath.sep + lang + enFilePath.sep
+    path.sep + "en" + path.sep,
+    path.sep + ".." + path.sep + "i18n" + path.sep + "translation_output"  + path.sep + lang + path.sep
   );
   try {
-    const cnStats = await fs.promise.stat(cnFilePath);
+    const cnStats = await fs.promises.stat(cnFilePath);
     if (!cnStats.isFile()) {
       return true;
     }
 
-    const enStats = await fs.promise.stat(enFilePath);
+    const enStats = await fs.promises.stat(enFilePath);
     return enStats.mtime > cnStats.mtime;
   } catch (error) {
     return true;
@@ -244,7 +244,7 @@ async function findAllXmlFiles(directory: string): Promise<string[]> {
       }
       // Find all XML files
       console.log(`Scanning directory: ${enDirPath}`);
-      filestoTranslate = await findAllXmlFiles(enDirPath);
+      filesToTranslate = await findAllXmlFiles(enDirPath);
     } else {
       const [, , ...xmlFiles] = process.argv;
       filesToTranslate = xmlFiles.map(file => path.join(__dirname, "..", file));
@@ -273,7 +273,7 @@ async function findAllXmlFiles(directory: string): Promise<string[]> {
         const results = await Promise.allSettled(
           batch.map(async file => {
             if (absent) {
-              if (!needsTranslation(file, lang)) {
+              if (!(await needsTranslation(file, lang))) {
                 console.log(`Skipped translation for ${file} to language ${lang} (yarn trans abs)`);
                 return { file, success: true };
               }
