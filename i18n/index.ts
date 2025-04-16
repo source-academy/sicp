@@ -173,10 +173,21 @@ async function setupCleanupHandlers() {
   });
 }
 
-async function needsTranslation(enFilePath: string, lang: string): boolean {
+async function needsTranslation(
+  enFilePath: string,
+  lang: string
+): Promise<boolean> {
   const cnFilePath = enFilePath.replace(
     path.sep + "en" + path.sep,
-    path.sep + ".." + path.sep + "i18n" + path.sep + "translation_output"  + path.sep + lang + path.sep
+    path.sep +
+      ".." +
+      path.sep +
+      "i18n" +
+      path.sep +
+      "translation_output" +
+      path.sep +
+      lang +
+      path.sep
   );
   try {
     const cnStats = await fs.promises.stat(cnFilePath);
@@ -285,7 +296,9 @@ export default async function fancyName(path: string, language: string) {
           batch.map(async file => {
             if (absent) {
               if (!(await needsTranslation(file, lang))) {
-                console.log(`Skipped translation for ${file} to language ${lang} (yarn trans abs)`);
+                console.log(
+                  `Skipped translation for ${file} to language ${lang} (yarn trans abs)`
+                );
                 return { file, success: true };
               }
             }
