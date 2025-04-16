@@ -84,22 +84,19 @@ async function translate(langCode: string, filePath: string): Promise<void> {
   try {
     // Use the provided file path directly without modification
     const input_path = filePath;
-    const language = languageNames.of(langCode);
+    const language = languageNames.of(langCode.replace('_', '-'));
 
     if (language === undefined) {
       throw new Error('Undefined language');
     }
 
-    if (!troubleshoot) assistant = await createAssistant(language, ai as any);
+    if (!troubleshoot) assistant = await createAssistant(langCode, language, ai as any);
 
-    
-    // Generate output path by replacing "/en/" with "/cn/" in the path
+    // Generate output path by replacing "/en/" with "/../i18n/translation_output/zh_CN/" in the path
     const output_path = filePath.replace(
       path.sep + "en" + path.sep,
-      path.sep + langCode + path.sep
+      path.sep + ".." + path.sep + "i18n" + path.sep + "translation_output"  + path.sep + langCode + path.sep
     );
-    
-
 
     const translated: string = await recursivelyTranslate(
       language,

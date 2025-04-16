@@ -219,8 +219,8 @@ async function needsTranslation(enFilePath: string, lang: string): Promise<boole
   }
 }
 
-export default async function fancyName(language: string, section: string) {
-  const fullPath = PathGenerator(section);
+export default async function fancyName(path: string, language: string) {
+  const fullPath = PathGenerator(path);
   await translate(language, fullPath);
 }
 
@@ -228,126 +228,140 @@ export default async function fancyName(language: string, section: string) {
   await setupCleanupHandlers();
 
   try {
-    if ((process.argv[2], process.argv[3])) {
-      fancyName(process.argv[2], process.argv[3]);
-      return;
-    }
-
-    let languages: string[] = [];
-
-    if (process.argv[2] === "all") {
-      languages = await getDirectories(path.join(__dirname, "../xml"));
-      console.dir(languages);
-    } else {
-      languages.push(process.argv[2]);
-    }
+    const languages: string[] = await getDirectories(
+      path.join(__dirname, "ai_files")
+    );
+    console.dir(languages);
 
     // Get the absolute path to the xml/en directory using proper path resolution
     const enDirPath = path.resolve(__dirname, "../xml/en");
+    let absent: boolean = false;
 
-    console.log(`Scanning directory: ${enDirPath}`);
-
-    // Find all XML files
-    xmlFiles = await findAllXmlFiles(enDirPath);
-
-    console.log(`Found ${xmlFiles.length} XML files to check for translation`);
-   
-    for (const lang of languages) {
-    // Filter files that need translation
-    filesToTranslate = [];
-    for (const file of xmlFiles) {
-      if (await needsTranslation(file, lang)) {
-        filesToTranslate.push(file as never);
+    if (process.argv[2] === "test") {
+      if (process.argv.length !== 5) {
+        console.log("syntax: yarn trans test <section> <lang>");
+        return;
       }
+      try {
+        console.log("start translating, may take a while ...");
+        const fullPath = PathGenerator(process.argv[3]);
+        await translate(process.argv[4], fullPath);
+      } catch (e) {
+        console.error("test error: ", e);
+      }
+      return;
     }
-
-    console.log(`${filesToTranslate.length} files need translation`);
+    if (
+      process.argv[2] === "all" ||
+      process.argv.length <= 2 ||
+      process.argv[2] === "abs"
+    ) {
+      if (process.argv[2] === "abs") {
+        absent = true;
+      }
+      // Find all XML files
+      console.log(`Scanning directory: ${enDirPath}`);
+      filestoTranslate = await findAllXmlFiles(enDirPath);
+    } else {
+      const [, , ...xmlFiles] = process.argv;
+      filesToTranslate = xmlFiles.map(file => path.join(__dirname, "..", file));
+    }
 
     if (filesToTranslate.length === 0) {
-      console.log(`No files need translation for ${lang}.`);
-      continue;
+      console.log(`No files to translate.`);
+      return;
     }
+    console.log(`${filesToTranslate.length} files need translation`);
 
-    // Process files in batches to avoid overwhelming the system
-    const batchSize: number = max_trans_num;
+    for (const lang of languages) {
+      // Process files in batches to avoid overwhelming the system
+      const batchSize: number = max_trans_num;
 
-    // Track all failed translations with their errors
-    failures = [];
+      // Track all failed translations with their errors
+      failures = [];
 
-    for (let i = 0; i < filesToTranslate.length; i += batchSize) {
-      const batch = filesToTranslate.slice(i, i + batchSize);
-      console.log(
-        `Starting batch ${Math.floor(i / batchSize) + 1}/${Math.ceil(filesToTranslate.length / batchSize)}`
-      );
+      for (let i = 0; i < filesToTranslate.length; i += batchSize) {
+        const batch = filesToTranslate.slice(i, i + batchSize);
+        console.log(
+          `Starting batch ${Math.floor(i / batchSize) + 1}/${Math.ceil(filesToTranslate.length / batchSize)}`
+        );
 
-      // Process each file in the batch, but handle errors individually
-      const results = await Promise.allSettled(
-        batch.map(async file => {
-          try {
-            console.log(`Starting translation for ${file}`);
-            await translate(lang, file);
-            return { file, success: true };
-          } catch (error) {
-            // Return failure with error but don't log yet
-            return { file, success: false, error };
-          }
-        })
-      );
+        // Process each file in the batch, but handle errors individually
+        const results = await Promise.allSettled(
+          batch.map(async file => {
+            if (absent) {
+              if (!needsTranslation(file, lang)) {
+                console.log(
+                  `Skipped translation for ${file} to language ${lang} (yarn trans abs)`
+                );
+                return { file, success: true };
+              }
+            }
+            try {
+              console.log(`Starting translation for ${file}`);
+              await translate(lang, file);
+              return { file, success: true };
+            } catch (error) {
+              // Return failure with error but don't log yet
+              return { file, success: false, error };
+            }
+          })
+        );
 
-      // Count successes and failures
-      for (const result of results) {
-        processedCount++;
+        // Count successes and failures
+        for (const result of results) {
+          processedCount++;
 
-        if (result.status === "fulfilled") {
-          if (result.value.success) {
-            successCount++;
+          if (result.status === "fulfilled") {
+            if (result.value.success) {
+              successCount++;
+            } else {
+              failureCount++;
+              failures.push({
+                file: result.value.file,
+                error: result.value.error
+              });
+              console.error(
+                `Translation failed for ${result.value.file}: ${result.value.error}`
+              );
+            }
           } else {
+            // This is for Promise rejections (should be rare with our error handling)
             failureCount++;
             failures.push({
-              file: result.value.file,
-              error: result.value.error
+              file: "Unknown file in batch",
+              error: result.reason
             });
-            console.error(
-              `Translation failed for ${result.value.file}: ${result.value.error}`
-            );
+            console.error(`Promise rejected for file: ${result.reason}`);
           }
-        } else {
-          // This is for Promise rejections (should be rare with our error handling)
-          failureCount++;
-          failures.push({
-            file: "Unknown file in batch",
-            error: result.reason
-          });
-          console.error(`Promise rejected for file: ${result.reason}`);
         }
+
+        console.log(
+          `Completed batch ${Math.floor(i / batchSize) + 1}/${Math.ceil(filesToTranslate.length / batchSize)}`
+        );
+        console.log(
+          `Progress: ${successCount} successful, ${failureCount} failed, ${processedCount} processed out of ${filesToTranslate.length} files`
+        );
       }
 
+      console.log("All translations completed!");
       console.log(
-        `Completed batch ${Math.floor(i / batchSize) + 1}/${Math.ceil(filesToTranslate.length / batchSize)}`
+        `Final results: ${successCount} successful, ${failureCount} failed out of ${filesToTranslate.length} files`
       );
-      console.log(
-        `Progress: ${successCount} successful, ${failureCount} failed, ${processedCount} processed out of ${filesToTranslate.length} files`
-      );
+
+      // If there are failures, report them all at the end
+      if (failures.length > 0) {
+        console.log("\n===== FAILED TRANSLATIONS =====");
+        failures.forEach((failure, index) => {
+          console.log(`${index + 1}. Failed file: ${failure.file}`);
+          console.log(`   Error: ${failure.error}`);
+        });
+        console.log("==============================\n");
+      }
+
+      // Save a detailed summary to a log file
+      await saveSummaryLog();
     }
-
-    console.log("All translations completed!");
-    console.log(
-      `Final results: ${successCount} successful, ${failureCount} failed out of ${filesToTranslate.length} files`
-    );
-
-    // If there are failures, report them all at the end
-    if (failures.length > 0) {
-      console.log("\n===== FAILED TRANSLATIONS =====");
-      failures.forEach((failure, index) => {
-        console.log(`${index + 1}. Failed file: ${failure.file}`);
-        console.log(`   Error: ${failure.error}`);
-      });
-      console.log("==============================\n");
-    }
-
-    // Save a detailed summary to a log file
-    await saveSummaryLog();
-  }
   } catch (e) {
     console.error("Error during translation process:", e);
   }
