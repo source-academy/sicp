@@ -6,7 +6,6 @@ import path from "path";
 import { fileURLToPath } from "url";
 import { dirname } from "path";
 import OpenAI from "openai";
-import { permission } from "process";
 
 // Get the directory name of the current module
 const __filename = fileURLToPath(import.meta.url);
@@ -174,10 +173,13 @@ async function setupCleanupHandlers() {
   });
 }
 
-async function needsTranslation(enFilePath: string, lang: string): boolean {
+async function needsTranslation(
+  enFilePath: string,
+  lang: string
+): Promise<boolean> {
   const cnFilePath = enFilePath.replace(
     path.sep + "en" + path.sep,
-    path.sep + ".." + path.sep + "i18n" + path.sep + "translation_output"  + path.sep + lang + path.sep
+    path.sep + lang + path.sep
   );
   try {
     const cnStats = await fs.promises.stat(cnFilePath);
@@ -214,11 +216,18 @@ async function findAllXmlFiles(directory: string): Promise<string[]> {
   return xmlFiles;
 }
 
+export default async function fancyName(path: string, language: string) {
+  const fullPath = PathGenerator(path);
+  await translate(language, fullPath);
+}
+
 (async () => {
   await setupCleanupHandlers();
 
   try {
-    const languages: string[] = await getDirectories(path.join(__dirname, "ai_files"));
+    const languages: string[] = await getDirectories(
+      path.join(__dirname, "ai_files")
+    );
     console.dir(languages);
 
     // Get the absolute path to the xml/en directory using proper path resolution
@@ -231,14 +240,19 @@ async function findAllXmlFiles(directory: string): Promise<string[]> {
         return;
       }
       try {
-        console.log('start translating, may take a while ...');
+        console.log("start translating, may take a while ...");
         const fullPath = PathGenerator(process.argv[3]);
         await translate(process.argv[4], fullPath);
       } catch (e) {
-        console.error('test error: ', e);
+        console.error("test error: ", e);
       }
       return;
-    } if (process.argv[2] === "all"  || process.argv.length <= 2 || process.argv[2] === "abs") {
+    }
+    if (
+      process.argv[2] === "all" ||
+      process.argv.length <= 2 ||
+      process.argv[2] === "abs"
+    ) {
       if (process.argv[2] === "abs") {
         absent = true;
       }
@@ -274,7 +288,9 @@ async function findAllXmlFiles(directory: string): Promise<string[]> {
           batch.map(async file => {
             if (absent) {
               if (!(await needsTranslation(file, lang))) {
-                console.log(`Skipped translation for ${file} to language ${lang} (yarn trans abs)`);
+                console.log(
+                  `Skipped translation for ${file} to language ${lang} (yarn trans abs)`
+                );
                 return { file, success: true };
               }
             }
