@@ -173,6 +173,24 @@ async function setupCleanupHandlers() {
   });
 }
 
+async function needsTranslation(enFilePath: string, lang: string): boolean {
+  const cnFilePath = enFilePath.replace(
+    path.sep + "en" + path.sep,
+    path.sep + ".." + path.sep + "i18n" + path.sep + "translation_output"  + path.sep + lang + path.sep
+  );
+  try {
+    const cnStats = await fs.promises.stat(cnFilePath);
+    if (!cnStats.isFile()) {
+      return true;
+    }
+
+    const enStats = await fs.promises.stat(enFilePath);
+    return enStats.mtime > cnStats.mtime;
+  } catch (error) {
+    return true;
+  }
+}
+
 // Function to recursively find all XML files in a directory
 async function findAllXmlFiles(directory: string): Promise<string[]> {
   const files = await fs.promises.readdir(directory);
@@ -193,30 +211,6 @@ async function findAllXmlFiles(directory: string): Promise<string[]> {
   }
 
   return xmlFiles;
-}
-
-// Function to check if a file needs translation
-async function needsTranslation(enFilePath: string, lang: string): Promise<boolean> {
-  // Generate the corresponding cn file path
-  const cnFilePath = enFilePath.replace(
-    path.sep + "en" + path.sep,
-    path.sep + lang + path.sep
-  );
-
-  try {
-    // Check if CN file exists
-    const cnStats = await fs.promises.stat(cnFilePath);
-    if (!cnStats.isFile()) {
-      return true; // CN path exists but is not a file (unusual case)
-    }
-
-    // Compare modification times
-    const enStats = await fs.promises.stat(enFilePath);
-    return enStats.mtime > cnStats.mtime; // Return true if EN file is newer
-  } catch (error) {
-    // If we get an error, it's likely because the CN file doesn't exist
-    return true; // Need to translate since CN file doesn't exist
-  }
 }
 
 export default async function fancyName(path: string, language: string) {
@@ -261,7 +255,7 @@ export default async function fancyName(path: string, language: string) {
       }
       // Find all XML files
       console.log(`Scanning directory: ${enDirPath}`);
-      filestoTranslate = await findAllXmlFiles(enDirPath);
+      filesToTranslate = await findAllXmlFiles(enDirPath);
     } else {
       const [, , ...xmlFiles] = process.argv;
       filesToTranslate = xmlFiles.map(file => path.join(__dirname, "..", file));
@@ -290,10 +284,8 @@ export default async function fancyName(path: string, language: string) {
         const results = await Promise.allSettled(
           batch.map(async file => {
             if (absent) {
-              if (!needsTranslation(file, lang)) {
-                console.log(
-                  `Skipped translation for ${file} to language ${lang} (yarn trans abs)`
-                );
+              if (!(await needsTranslation(file, lang))) {
+                console.log(`Skipped translation for ${file} to language ${lang} (yarn trans abs)`);
                 return { file, success: true };
               }
             }
