@@ -29,7 +29,6 @@ const ignoredTags = [
   "HISTORY",
   "REF",
   "FIGURE",
-  
 ];
 
 const MAXLEN = Number(process.env.MAX_LEN) || 3000;
@@ -44,7 +43,7 @@ const errorMessages = new Set();
 // Track errors by file for summary reporting
 const fileErrors: Record<string, { message: string; error?: any }[]> = {};
 
-function logError(message: string, error?: any, filePath?: string) {
+function logError(message: string, error: any, filePath: string) {
   // Create a unique key for this error message
   const errorKey = message + (error ? error.toString() : "");
   // Only log if we haven't seen this exact message before
@@ -90,7 +89,7 @@ async function translate(langCode: string, filePath: string): Promise<void> {
       throw new Error('Undefined language');
     }
 
-    if (!troubleshoot) assistant = await createAssistant(langCode, language, ai as any);
+    if (!troubleshoot) assistant = await createAssistant(langCode, language, ai);
 
     // Generate output path by replacing "/en/" with "/../i18n/translation_output/zh_CN/" in the path
     const output_path = filePath.replace(
@@ -111,9 +110,7 @@ async function translate(langCode: string, filePath: string): Promise<void> {
     fs.writeFileSync(output_path, translated);
     console.log(`Translation saved to ${output_path}`);
   } catch (parseErr) {
-    logError(`Error translating file ${filePath}:`, parseErr, filePath);
-    // Re-throw the error to propagate it to the caller
-    throw parseErr;
+    logError(`Error processing file ${filePath}:`, parseErr, filePath);
   } finally {
     if (assistant) {
       await ai.beta.assistants.del(assistant.id).catch(err => {
