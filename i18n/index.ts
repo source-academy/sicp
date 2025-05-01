@@ -1,18 +1,19 @@
 import PathGenerator from "./controllers/path.ts";
 import translate, { getFileErrors } from "./controllers/recurTranslate.ts";
-import fs from "fs";
+import fs, { Dirent } from "fs";
 import util from "util";
 import path from "path";
 import { fileURLToPath } from "url";
 import { dirname } from "path";
 import OpenAI from "openai";
+import { max_trans_num, translationSummaryPrefix } from "./config.ts";
 
 // Get the directory name of the current module
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 const readdir = util.promisify(fs.readdir);
-const getDirectories = async source =>
+const getDirectories = async (source: fs.PathLike) =>
   (await readdir(source, { withFileTypes: true }))
     .filter(dirent => dirent.isDirectory())
     .map(dirent => dirent.name);
@@ -25,8 +26,6 @@ let successCount = 0;
 let failureCount = 0;
 let processedCount = 0;
 let failures: { file: string; error: any }[] = [];
-
-const max_trans_num = Number(process.env.MAX_TRANSLATION_NO) || 5;
 
 // Function to save summary log - can be called from signal handlers
 async function saveSummaryLog() {
@@ -115,7 +114,7 @@ Success rate: ${filesToTranslate.length > 0 ? ((successCount / filesToTranslate.
       fs.mkdirSync(logDir, { recursive: true });
     }
 
-    const logPath = path.join(logDir, `translation-summary-${timestamp}.log`);
+    const logPath = path.join(logDir, `${translationSummaryPrefix}-${timestamp}.log`);
     fs.writeFileSync(logPath, summaryLog);
     console.log(
       `Summary log saved to logs/translation-summary-${timestamp}.log`
@@ -190,7 +189,7 @@ async function needsTranslation(
     const enStats = await fs.promises.stat(enFilePath);
     return enStats.mtime > cnStats.mtime;
   } catch (error) {
-    return true;
+    throw error;
   }
 }
 
@@ -313,7 +312,6 @@ export default async function fancyName(path: string, language: string) {
             if (result.value.success) {
               successCount++;
             } else {
-              failureCount++;
               failures.push({
                 file: result.value.file,
                 error: result.value.error
@@ -324,7 +322,6 @@ export default async function fancyName(path: string, language: string) {
             }
           } else {
             // This is for Promise rejections (should be rare with our error handling)
-            failureCount++;
             failures.push({
               file: "Unknown file in batch",
               error: result.reason

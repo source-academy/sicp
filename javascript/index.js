@@ -37,15 +37,12 @@ import { setupSnippetsJs } from "./processingFunctions/processSnippetJs";
 import { getAnswers } from "./processingFunctions/processExercisePdf";
 
 // json (for cadet frontend)
-import { testIndexSearch } from "./searchRewriteTest";
 import { parseXmlJson } from "./parseXmlJson";
 import { writeRewritedSearchData } from "./searchRewrite";
 import { setupSnippetsJson } from "./processingFunctions/processSnippetJson";
 import { createTocJson } from "./generateTocJson";
 import { setupReferencesJson } from "./processingFunctions/processReferenceJson";
-import { SourceTextModule } from "vm";
-import { threadId } from "worker_threads";
-import { exitCode } from "process";
+import { jsonSummaryPrefix } from "../i18n/config";
 
 export let parseType;
 let version;
@@ -407,10 +404,10 @@ async function main() {
       fs.mkdirSync(logDir, { recursive: true });
     }
 
-    const logPath = path.join(logDir, `json-summary-${timestamp}.log`);
+    const logPath = path.join(logDir, `${jsonSummaryPrefix}-${timestamp}.log`);
     fs.writeFileSync(logPath, summaryLog);
     console.log(
-      `Summary log saved to logs/translation-summary-${timestamp}.log`
+      `Summary log saved to logs/json-summary-${timestamp}.log`
     );
   } catch (logError) {
     console.error("Failed to save log file:", logError);
