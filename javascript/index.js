@@ -151,7 +151,7 @@ async function translateXml(filepath, filename, option) {
       filepath,
       filename.replace(/\.xml$/, "") + ""
     );
-    ensureDirectoryExists(path.join(outputDir, filepath), err => {});
+    ensureDirectoryExists(path.join(outputDir, filepath), err => { });
     ensureDirectoryExists(relativeFileDir, err => {
       if (err) {
         //console.log(err);
