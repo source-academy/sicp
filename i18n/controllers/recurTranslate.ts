@@ -83,14 +83,14 @@ async function translate(langCode: string, filePath: string): Promise<void> {
     const output_path = filePath.replace(
       path.sep + "en" + path.sep,
       path.sep +
-      ".." +
-      path.sep +
-      "i18n" +
-      path.sep +
-      "translation_output" +
-      path.sep +
-      langCode +
-      path.sep
+        ".." +
+        path.sep +
+        "i18n" +
+        path.sep +
+        "translation_output" +
+        path.sep +
+        langCode +
+        path.sep
     );
 
     const translated: string = await recursivelyTranslate(
@@ -141,11 +141,7 @@ async function recursivelyTranslate(
           subTranslated.push(segment[1]);
         }
       } catch (error) {
-        logError(
-          `Error translating segment in ${filePath}:`,
-          error,
-          filePath
-        );
+        logError(`Error translating segment in ${filePath}:`, error, filePath);
         // Add error comment and continue with next segment
         subTranslated.push(
           segment[1] + `<!-- Error translating this segment -->`
@@ -176,15 +172,9 @@ async function recursivelyTranslate(
           translated.push(segment[1]);
         }
       } catch (error) {
-        logError(
-          `Error translating segment in ${filePath}:`,
-          error,
-          filePath
-        );
+        logError(`Error translating segment in ${filePath}:`, error, filePath);
         // Add error comment and continue with next segment
-        translated.push(
-          segment[1] + `<!-- Error translating this section -->`
-        );
+        translated.push(segment[1] + `<!-- Error translating this section -->`);
       }
     }
 
@@ -200,8 +190,6 @@ async function recursivelyTranslate(
     if (chunk.trim() === "" || chunk.trim() === "," || chunk.trim() === ".") {
       return chunk;
     }
-
-    let translatedChunk = "";
 
     try {
       await ai.beta.threads.messages.create(thread.id, {

@@ -76,7 +76,10 @@ export async function cleanParser(
   return translatedChunk;
 }
 
-export async function splitParser(filePath: PathLike, logError: Function): Promise<[boolean, string][]> {
+export async function splitParser(
+  filePath: PathLike,
+  logError: Function
+): Promise<[boolean, string][]> {
   // Create a SAX parser in strict mode to split source into chunks.
   const parser = createParser();
 
@@ -137,7 +140,7 @@ export async function splitParser(filePath: PathLike, logError: Function): Promi
             segments.length > 0 &&
             segments[segments.length - 1][0] &&
             segments[segments.length - 1][1].length + currentSegment.length <
-            Number(MAXLEN)
+              Number(MAXLEN)
           ) {
             segments[segments.length - 1][1] += currentSegment;
           } else {
@@ -186,121 +189,123 @@ export async function splitParser(filePath: PathLike, logError: Function): Promi
   return segments;
 }
 
-export async function recurSplitParser(ori: string, filePath: PathLike, logError: Function): Promise<string[]> {
-    let subTranslated: string[] = [];
-    // continue splitting the chunk
-    // Create a SAX parser in strict mode to split source into chunks.
-    await new Promise<void>((resolve, reject) => {
-      const subParser = createParser();
+export async function recurSplitParser(
+  ori: string,
+  filePath: PathLike,
+  logError: Function
+): Promise<string[]> {
+  let subTranslated: string[] = [];
+  // continue splitting the chunk
+  // Create a SAX parser in strict mode to split source into chunks.
+  await new Promise<void>((resolve, reject) => {
+    const subParser = createParser();
 
-      let subCurrentDepth = 0;
-      let subCurrentSegment = "";
-      const subSegments: [boolean, string][] = [];
-      let subIsRecording = false;
+    let subCurrentDepth = 0;
+    let subCurrentSegment = "";
+    const subSegments: [boolean, string][] = [];
+    let subIsRecording = false;
 
-      subParser.on("opentag", node => {
-        if (node.name === "WRAPPER") return;
+    subParser.on("opentag", node => {
+      if (node.name === "WRAPPER") return;
 
-        subCurrentDepth++;
+      subCurrentDepth++;
 
-        if (subCurrentDepth === 2) subIsRecording = true;
+      if (subCurrentDepth === 2) subIsRecording = true;
 
-        if (subIsRecording) {
-          subCurrentSegment += `<${node.name}${formatAttributes(node.attributes)}>`;
-        } else {
-          subSegments.push([
-            false,
-            `<${node.name}${formatAttributes(node.attributes)}>`
-          ]);
-        }
-      });
-
-      subParser.on("text", text => {
-        text = strongEscapeXML(text);
-        if (subIsRecording) {
-          subCurrentSegment += text;
-        } else if (
-          subSegments.length > 0 &&
-          subSegments[subSegments.length - 1][0]
-        ) {
-          subSegments[subSegments.length - 1][1] += text;
-        } else if (
-          text.trim() === "" ||
-          text.trim() === "," ||
-          text.trim() === "."
-        ) {
-          subSegments.push([false, text]);
-        } else {
-          subSegments.push([true, text]);
-        }
-      });
-
-      subParser.on("cdata", cdata => {
-        if (subIsRecording) {
-          subCurrentSegment += `<![CDATA[${cdata}]]>`;
-        }
-      });
-
-      subParser.on("closetag", tagName => {
-        if (tagName === "WRAPPER") {
-          return;
-        }
-
-        subCurrentSegment += `</${tagName}>`;
-
-        if (subCurrentDepth === 2) {
-          // We are closing a segment element.
-          if (ignoredTags.includes(tagName)) {
-            subSegments.push([false, subCurrentSegment]);
-          } else if (
-            subSegments.length > 0 &&
-            subSegments[subSegments.length - 1][0] &&
-            subSegments[subSegments.length - 1][1].length +
-            subCurrentSegment.length <
-            Number(MAXLEN)
-          ) {
-            subSegments[subSegments.length - 1][1] += subCurrentSegment;
-          } else {
-            subSegments.push([true, subCurrentSegment]);
-          }
-          subCurrentSegment = "";
-          subIsRecording = false;
-        }
-
-        if (subCurrentDepth === 1) {
-          subSegments.push([false, `</${tagName}>`]);
-          subCurrentSegment = "";
-        }
-
-        subCurrentDepth--;
-      });
-
-      subParser.on("comment", comment => {
-        if (subIsRecording) {
-          subCurrentSegment += `<!-- ${comment} -->`;
-        } else {
-          subSegments.push([false, `<!-- ${comment} -->`]);
-        }
-      });
-
-      subParser.on("end", async () => 
-        resolve()
-      );
-
-      subParser.on("error", err => {
-        logError(`Error in subParser for ${filePath}:`, err, filePath);
-        // Try to recover and continue
-        try {
-          subParser._parser.error = null;
-          subParser._parser.resume();
-        } catch (resumeErr) {
-          logError(`Could not recover from parser error:`, resumeErr, filePath);
-          reject(err);
-        }
-      });
-
-      Readable.from("<WRAPPER>" + ori + "</WRAPPER>").pipe(subParser);
+      if (subIsRecording) {
+        subCurrentSegment += `<${node.name}${formatAttributes(node.attributes)}>`;
+      } else {
+        subSegments.push([
+          false,
+          `<${node.name}${formatAttributes(node.attributes)}>`
+        ]);
+      }
     });
 
-    return subTranslated;
+    subParser.on("text", text => {
+      text = strongEscapeXML(text);
+      if (subIsRecording) {
+        subCurrentSegment += text;
+      } else if (
+        subSegments.length > 0 &&
+        subSegments[subSegments.length - 1][0]
+      ) {
+        subSegments[subSegments.length - 1][1] += text;
+      } else if (
+        text.trim() === "" ||
+        text.trim() === "," ||
+        text.trim() === "."
+      ) {
+        subSegments.push([false, text]);
+      } else {
+        subSegments.push([true, text]);
+      }
+    });
+
+    subParser.on("cdata", cdata => {
+      if (subIsRecording) {
+        subCurrentSegment += `<![CDATA[${cdata}]]>`;
+      }
+    });
+
+    subParser.on("closetag", tagName => {
+      if (tagName === "WRAPPER") {
+        return;
+      }
+
+      subCurrentSegment += `</${tagName}>`;
+
+      if (subCurrentDepth === 2) {
+        // We are closing a segment element.
+        if (ignoredTags.includes(tagName)) {
+          subSegments.push([false, subCurrentSegment]);
+        } else if (
+          subSegments.length > 0 &&
+          subSegments[subSegments.length - 1][0] &&
+          subSegments[subSegments.length - 1][1].length +
+            subCurrentSegment.length <
+            Number(MAXLEN)
+        ) {
+          subSegments[subSegments.length - 1][1] += subCurrentSegment;
+        } else {
+          subSegments.push([true, subCurrentSegment]);
+        }
+        subCurrentSegment = "";
+        subIsRecording = false;
+      }
+
+      if (subCurrentDepth === 1) {
+        subSegments.push([false, `</${tagName}>`]);
+        subCurrentSegment = "";
+      }
+
+      subCurrentDepth--;
+    });
+
+    subParser.on("comment", comment => {
+      if (subIsRecording) {
+        subCurrentSegment += `<!-- ${comment} -->`;
+      } else {
+        subSegments.push([false, `<!-- ${comment} -->`]);
+      }
+    });
+
+    subParser.on("end", async () => resolve());
+
+    subParser.on("error", err => {
+      logError(`Error in subParser for ${filePath}:`, err, filePath);
+      // Try to recover and continue
+      try {
+        subParser._parser.error = null;
+        subParser._parser.resume();
+      } catch (resumeErr) {
+        logError(`Could not recover from parser error:`, resumeErr, filePath);
+        reject(err);
+      }
+    });
+
+    Readable.from("<WRAPPER>" + ori + "</WRAPPER>").pipe(subParser);
+  });
+
+  return subTranslated;
 }
