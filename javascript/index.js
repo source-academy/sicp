@@ -151,7 +151,7 @@ async function translateXml(filepath, filename, option) {
       filepath,
       filename.replace(/\.xml$/, "") + ""
     );
-    ensureDirectoryExists(path.join(outputDir, filepath), err => { });
+    ensureDirectoryExists(path.join(outputDir, filepath), err => {});
     ensureDirectoryExists(relativeFileDir, err => {
       if (err) {
         //console.log(err);
@@ -406,9 +406,7 @@ async function main() {
 
     const logPath = path.join(logDir, `${jsonSummaryPrefix}-${timestamp}.log`);
     fs.writeFileSync(logPath, summaryLog);
-    console.log(
-      `Summary log saved to logs/json-summary-${timestamp}.log`
-    );
+    console.log(`Summary log saved to logs/json-summary-${timestamp}.log`);
   } catch (logError) {
     console.error("Failed to save log file:", logError);
   }
