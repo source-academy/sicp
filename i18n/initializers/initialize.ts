@@ -1,6 +1,7 @@
 import fs from "fs";
-import OpenAI from "openai/index.mjs";
+import OpenAI from "openai";
 import path, { dirname } from "path";
+import Stream from "stream";
 import { fileURLToPath } from "url";
 
 // Get the directory name of the current module
@@ -24,7 +25,15 @@ export default async function createAssistant(langCode: string, language: string
   });
 
   const fileStreams = [path.join(__dirname, "../ai_files", langCode, "dictionary.txt")].map(
-    path => fs.createReadStream(path)
+    filePath => {
+      const stream = fs.createReadStream(filePath);
+
+      stream.on('error', err => {
+        throw new Error(`Failed to read dictionary file at ${filePath}: ${err.message}`)
+      })
+      
+      return stream;
+    }
   );
 
   // Create a vector store including our two files.
