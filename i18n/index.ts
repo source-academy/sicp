@@ -1,5 +1,5 @@
 import PathGenerator from "./controllers/path.ts";
-import translate, { getFileErrors } from "./controllers/recurTranslate.ts";
+import translate, { getFileErrors } from "./controllers/translator.ts";
 import fs from "fs";
 import util from "util";
 import path from "path";
