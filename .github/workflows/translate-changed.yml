@@ -1,0 +1,51 @@
+on:
+  workflow_dispatch:
+  workflow_call:
+
+concurrency:
+  group: translate-changed
+  cancel-in-progress: true
+
+jobs:
+  translate-changed:
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: cd
+        run: |
+          cd i18n
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: yarn
+      - name: Fetch Yarn Dependencies
+        run: |
+          yarn install
+      - name: Clone translated_xmls
+        run: |
+          git clone -b translated_xmls https://github.com/source-academy/sicp.git translation_output
+      - name: Get Changed Files
+        id: changed-files
+        uses: tj-actions/changed-files@ed68ef82c095e0d48ec87eccea555d944a631a4c # v46
+        with:
+          files: |
+            xml/**.xml
+      - name: Create .env
+        run: |
+          touch .env
+          echo API_MODEL=gpt-4.1-mini >> .env
+          echo API_KEY=${{ secrets.OPENAI_KEY }} >> .env
+          # echo API_KEY=${{ secrets.OPENAI_KEY2 }} >> .env
+      - name: Translate Changed Files
+        if: steps.changed-files.outputs.anychanged == 'true'
+        env:
+          CHANGED_FILES: ${{ steps.changed_files.outputs.all_changed_files }}
+        run: |
+          npx tsx index.ts "${CHANGED_FILES[@]}"
+      - name: Deploy
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./translation_output
+          force_orphan: false # leave the possibility for direct modification on translated xmls

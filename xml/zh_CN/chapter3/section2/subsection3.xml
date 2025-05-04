@@ -1,0 +1,625 @@
+<SUBSECTION> 
+   <NAME>
+    Frames 作为局部状态的存储库
+  </NAME> 
+
+  <LABEL NAME="sec:env-local-state"></LABEL>
+   <INDEX>帧（环境模型）<SUBINDEX>作为局部状态的存储库<OPEN></OPEN></SUBINDEX></INDEX> 
+   <INDEX>局部状态<SUBINDEX>在帧中维护<OPEN></OPEN></SUBINDEX></INDEX> 
+   <INDEX>求值环境模型<SUBINDEX>局部状态<OPEN></OPEN></SUBINDEX></INDEX> 
+
+   <TEXT>
+    我们可以借助环境模型来看
+    <SPLITINLINE>
+      <SCHEME>过程</SCHEME>
+      <JAVASCRIPT>函数</JAVASCRIPT>
+    </SPLITINLINE>
+    和赋值如何被用来表示具有局部状态的对象。例如，考虑
+    <INDEX><USE>make_withdraw</USE><SUBINDEX><ORDER>environment</ORDER>在环境模型中<OPEN></OPEN></SUBINDEX></INDEX>
+    <QUOTE>提款处理器</QUOTE>
+    来自章节<SPACE></SPACE><REF NAME="sec:local-state-variables"></REF>，通过调用
+    <SPLITINLINE>
+      <SCHEME>过程</SCHEME>
+      <JAVASCRIPT>函数</JAVASCRIPT>
+    </SPLITINLINE>
+    创建的
+    <SNIPPET EVAL="yes">
+      <NAME>make_withdraw2</NAME>
+      <SCHEME>
+(define (make-withdraw balance)
+  (lambda (amount)
+    (if (&gt;= balance amount)
+        (begin (set! balance (- balance amount))
+               balance)
+        &quot;Insufficient funds&quot;)))
+      </SCHEME>
+      <JAVASCRIPT>
+function make_withdraw(balance) {
+    return amount =&gt; {
+               if (balance &gt;= amount) {
+                   balance = balance - amount;
+                   return balance;
+               } else {
+                   return &quot;insufficient funds&quot;;
+               }
+           };
+}
+      </JAVASCRIPT>
+    </SNIPPET>
+    下面我们描述对
+    <SNIPPET EVAL="yes">
+      <REQUIRES>make_withdraw2</REQUIRES>
+      <NAME>make_withdraw2_w1_declare</NAME>
+      <SCHEME>
+(define W1 (make-withdraw 100))
+      </SCHEME>
+      <JAVASCRIPT>
+const W1 = make_withdraw(100);
+      </JAVASCRIPT>
+    </SNIPPET>
+    的求值，随后
+    <SNIPPET EVAL="yes">
+      <NAME>make_withdraw2_w1_example</NAME>
+      <REQUIRES>make_withdraw2_w1_declare</REQUIRES>
+      <EXPECTED>50</EXPECTED>
+      <SCHEME>
+(W1 50)
+      </SCHEME>
+      <SCHEMEOUTPUT>
+            50
+      </SCHEMEOUTPUT>
+      <JAVASCRIPT>
+W1(50);
+      </JAVASCRIPT>
+      <JAVASCRIPT_OUTPUT>
+50
+      </JAVASCRIPT_OUTPUT>
+    </SNIPPET>
+    <SPLITINLINE>
+      <SCHEME>
+	Figure<SPACE></SPACE><REF NAME="fig:make-withdraw_scheme"></REF>
+      </SCHEME>
+      <JAVASCRIPT>
+	Figure<SPACE></SPACE><REF NAME="fig:make-withdraw"></REF>
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    显示了
+    <SPLITINLINE>
+      <SCHEME>定义 <SCHEMEINLINE>make-withdraw</SCHEMEINLINE></SCHEME>
+      <JAVASCRIPT>声明 <JAVASCRIPTINLINE>make_withdraw</JAVASCRIPTINLINE></JAVASCRIPT>
+    </SPLITINLINE>
+    <SPLITINLINE>
+      <SCHEME>过程</SCHEME>
+      <JAVASCRIPT>函数</JAVASCRIPT>
+    </SPLITINLINE>
+    在
+    <SPLITINLINE>
+      <SCHEME>全局</SCHEME>
+      <JAVASCRIPT>程序</JAVASCRIPT>
+    </SPLITINLINE>
+    环境中的结果。这产生了一个
+    <SPLITINLINE>
+      <SCHEME>过程</SCHEME>
+      <JAVASCRIPT>函数</JAVASCRIPT>
+    </SPLITINLINE>
+    对象，该对象包含一个指向
+    <SPLITINLINE>
+      <SCHEME>全局</SCHEME>
+      <JAVASCRIPT>程序</JAVASCRIPT>
+    </SPLITINLINE>
+    环境的指针。到目前为止，这与我们之前见过的例子没有什么不同，只不过
+    <SPLITINLINE>
+      <SCHEME>
+	    该过程的主体本身就是一个 <SCHEMEINLINE>lambda</SCHEMEINLINE> 表达式。
+      </SCHEME>
+      <JAVASCRIPT>
+	    该函数主体中的返回表达式本身就是一个 lambda 表达式。
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    <SPLIT>
+      <SCHEME>
+        <FIGURE>
+          <FIGURE SRC="img_original/ch3-Z-G-7.svg"></FIGURE>
+          <CAPTION>
+	    在全局环境中定义 <SCHEMEINLINE>make-withdraw</SCHEMEINLINE> 的结果。
+	  </CAPTION>
+          <LABEL NAME="fig:make-withdraw_scheme"></LABEL>
+        </FIGURE>
+      </SCHEME>
+      <JAVASCRIPT>
+        <FIGURE>
+          <FIGURE SRC="img_javascript/ch3-Z-G-7.svg"></FIGURE>
+          <CAPTION>
+	    在程序环境中声明 <JAVASCRIPTINLINE>make_withdraw</JAVASCRIPTINLINE> 的结果。
+	  </CAPTION>
+          <LABEL NAME="fig:make-withdraw"></LABEL>
+        </FIGURE>
+      </JAVASCRIPT>
+    </SPLIT>
+  </TEXT> 
+
+   <TEXT>
+    当我们把
+    <SPLITINLINE><SCHEME>过程</SCHEME>
+    <JAVASCRIPT>函数</JAVASCRIPT></SPLITINLINE>
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>make-withdraw</SCHEMEINLINE></SCHEME>
+      <JAVASCRIPT><JAVASCRIPTINLINE>make_withdraw</JAVASCRIPTINLINE></JAVASCRIPT>
+    </SPLITINLINE>
+    应用于一个参数时，计算中有趣的部分就会发生：
+    <SNIPPET EVAL="no">
+      <SCHEME>
+(define W1 (make-withdraw 100))
+      </SCHEME>
+      <JAVASCRIPT>
+const W1 = make_withdraw(100);
+      </JAVASCRIPT>
+    </SNIPPET> 
+    我们像往常一样开始，先建立一个环境 E1，在该环境中形式参数
+    <SPLITINLINE><SCHEME>formal</SCHEME></SPLITINLINE>
+    <SCHEMEINLINE>balance</SCHEMEINLINE> 被绑定到参数 100。接着，在这个环境中，我们求值
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>make-withdraw</SCHEMEINLINE>,</SCHEME>
+      <JAVASCRIPT>
+	<JAVASCRIPTINLINE>make_withdraw</JAVASCRIPTINLINE>,
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    的主体，也就是那个
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>lambda</SCHEMEINLINE> 表达式。</SCHEME>
+      <JAVASCRIPT>返回语句，其返回表达式是一个 lambda 表达式。对该 lambda 表达式的求值</JAVASCRIPT>
+    </SPLITINLINE>
+    构造了一个新的
+    <SPLITINLINE>
+      <SCHEME>过程</SCHEME>
+      <JAVASCRIPT>函数</JAVASCRIPT>
+    </SPLITINLINE>
+    对象，该对象的代码由
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>lambda</SCHEMEINLINE></SCHEME>
+      <JAVASCRIPT>lambda 表达式</JAVASCRIPT>
+    </SPLITINLINE>
+    指定，而其环境为 E1，即求值该
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>lambda</SCHEMEINLINE></SCHEME>
+      <JAVASCRIPT>lambda 表达式</JAVASCRIPT>
+    </SPLITINLINE>
+    所在的环境。调用
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>make-withdraw</SCHEMEINLINE>.</SCHEME>
+      <JAVASCRIPT>
+      <JAVASCRIPTINLINE>make_withdraw</JAVASCRIPTINLINE>.</JAVASCRIPT>
+    </SPLITINLINE>
+    返回的值就是这个
+    <SPLITINLINE>
+      <SCHEME>过程</SCHEME>
+      <JAVASCRIPT>函数</JAVASCRIPT>
+    </SPLITINLINE>
+    对象。由于
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>define</SCHEMEINLINE></SCHEME>
+      <JAVASCRIPT>常量声明</JAVASCRIPT>
+    </SPLITINLINE>
+    本身是在
+    <SPLITINLINE>
+      <SCHEME>全局</SCHEME>
+      <JAVASCRIPT>程序</JAVASCRIPT>
+    </SPLITINLINE>
+    环境中求值的，所以该对象被绑定到全局环境中的
+    <SCHEMEINLINE>W1</SCHEMEINLINE>。
+    <SPLITINLINE>
+      <SCHEME>
+	Figure<SPACE></SPACE><REF NAME="fig:w1_scheme"></REF>
+      </SCHEME>
+      <JAVASCRIPT>
+	Figure<SPACE></SPACE><REF NAME="fig:w1"></REF>
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    展示了结果环境结构。
+    <SPLIT>
+      <SCHEME>
+        <FIGURE>
+          <FIGURE SRC="img_original/ch3-Z-G-8.svg"></FIGURE>
+          <CAPTION>
+	    求值 
+	    <SCHEMEINLINE>(define W1 (make-withdraw 100))</SCHEMEINLINE> 
+	    的结果。
+	  </CAPTION>
+          <LABEL NAME="fig:w1_scheme"></LABEL>
+        </FIGURE>
+      </SCHEME></SPLIT>
+      <JAVASCRIPT>
+        <FIGURE>
+          <FIGURE SRC="img_javascript/ch3-Z-G-8.svg"></FIGURE>
+          <CAPTION>
+	    求值 
+	    <JAVASCRIPTINLINE>const W1 = make_withdraw(100);</JAVASCRIPTINLINE> 
+	    的结果。
+	  </CAPTION>
+          <LABEL NAME="fig:w1"></LABEL>
+        </FIGURE>
+      </JAVASCRIPT>
+    &lt;/SPLIT&gt;
+  </TEXT> 
+
+   <TEXT>
+    现在我们可以分析当 <SCHEMEINLINE>W1</SCHEMEINLINE>
+    被应用于一个参数时会发生什么：
+    <SNIPPET EVAL="no">
+      <SCHEME>
+(W1 50)
+      </SCHEME>
+      <SCHEMEOUTPUT>
+            50
+      </SCHEMEOUTPUT>
+      <JAVASCRIPT>
+W1(50);
+      </JAVASCRIPT>
+      <JAVASCRIPT_OUTPUT>
+50
+      </JAVASCRIPT_OUTPUT>
+    </SNIPPET>
+    我们首先构造一个帧，其中 <SCHEMEINLINE>amount</SCHEMEINLINE>，也就是
+    <SPLITINLINE><SCHEME>formal</SCHEME></SPLITINLINE>
+    参数 <SCHEMEINLINE>W1</SCHEMEINLINE> 被绑定到参数 50。关键之处在于，
+    该帧的外部环境不是
+    <SPLITINLINE>
+      <SCHEME>global</SCHEME>
+      <JAVASCRIPT>program</JAVASCRIPT>
+    </SPLITINLINE>
+    环境，而是环境 E1，因为这是由
+    <SCHEMEINLINE>W1</SCHEMEINLINE>
+    <SPLITINLINE>
+      <SCHEME>procedure</SCHEME>
+      <JAVASCRIPT>function</JAVASCRIPT>
+    </SPLITINLINE>
+    对象所指定的环境。在这个新环境中，我们求值
+    <SPLITINLINE>
+      <SCHEME>procedure:</SCHEME>
+      <JAVASCRIPT>function:</JAVASCRIPT>
+    </SPLITINLINE>
+    的主体：
+    <SNIPPET EVAL="no">
+      <SCHEME>
+(if (&gt;= balance amount)
+    (begin (set! balance (- balance amount))
+           balance)
+    &quot;Insufficient funds&quot;)
+      </SCHEME>
+      <JAVASCRIPT>
+if (balance &gt;= amount) {
+    balance = balance - amount;
+    return balance;
+} else {
+    return &quot;insufficient funds&quot;;
+}
+      </JAVASCRIPT>
+    </SNIPPET>
+    结果的环境结构如
+    <SPLITINLINE>
+      <SCHEME>
+	figure<SPACE></SPACE><REF NAME="fig:apply-w1_scheme"></REF>.
+      </SCHEME>
+      <JAVASCRIPT>
+	figure<SPACE></SPACE><REF NAME="fig:apply-w1"></REF>.
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    所示。被求值的表达式同时引用了 <SCHEMEINLINE>amount</SCHEMEINLINE>
+    和 <SCHEMEINLINE>balance</SCHEMEINLINE>。
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>Amount</SCHEMEINLINE></SCHEME>
+      <JAVASCRIPT>变量 <JAVASCRIPTINLINE>amount</JAVASCRIPTINLINE>
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    将在环境的第一帧中找到，而 <SCHEMEINLINE>balance</SCHEMEINLINE> 则通过跟随指向 E1 的外部环境指针而找到。
+    <SPLIT>
+      <SCHEME>
+        <FIGURE>
+          <FIGURE SRC="img_original/ch3-Z-G-9.svg"></FIGURE>
+          <CAPTION>
+	    通过应用过程对象 <SCHEMEINLINE>W1</SCHEMEINLINE> 创建的环境。
+	  </CAPTION>
+          <LABEL NAME="fig:apply-w1_scheme"></LABEL>
+        </FIGURE>
+      </SCHEME></SPLIT>
+      <JAVASCRIPT>
+        <FIGURE>
+          <FIGURE SRC="img_javascript/ch3-Z-G-9.svg"></FIGURE>
+          <CAPTION>
+	    通过应用函数对象 <JAVASCRIPTINLINE>W1</JAVASCRIPTINLINE> 创建的环境。
+	  </CAPTION>
+          <LABEL NAME="fig:apply-w1"></LABEL>
+        </FIGURE>
+      </JAVASCRIPT>
+    &lt;/SPLIT&gt;
+  </TEXT> 
+
+   <TEXT>
+    当执行
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>set!</SCHEMEINLINE></SCHEME>
+      <JAVASCRIPT>赋值</JAVASCRIPT>
+    </SPLITINLINE>
+    时，E1 中 <SCHEMEINLINE>balance</SCHEMEINLINE> 的绑定发生了改变。调用 <SCHEMEINLINE>W1</SCHEMEINLINE> 完成后，<SCHEMEINLINE>balance</SCHEMEINLINE> 的值为 50，并且包含 <SCHEMEINLINE>balance</SCHEMEINLINE> 的帧仍然由
+    <SPLITINLINE>
+      <SCHEME>过程</SCHEME>
+      <JAVASCRIPT>函数</JAVASCRIPT>
+    </SPLITINLINE>
+    对象 <SCHEMEINLINE>W1</SCHEMEINLINE> 指向。绑定 <SCHEMEINLINE>amount</SCHEMEINLINE> 的帧（在其中我们执行了修改 <SCHEMEINLINE>balance</SCHEMEINLINE> 的代码）已不再相关，因为构造该帧的
+    <SPLITINLINE>
+      <SCHEME>过程</SCHEME>
+      <JAVASCRIPT>函数</JAVASCRIPT>
+    </SPLITINLINE>
+    调用已终止，且环境的其他部分不再指向该帧。下一次调用 <SCHEMEINLINE>W1</SCHEMEINLINE> 时，将构造一个新帧，该帧绑定 <SCHEMEINLINE>amount</SCHEMEINLINE>，其外部环境依然为 E1。我们看到 E1 作为存放 <SCHEMEINLINE>W1</SCHEMEINLINE>
+    <SPLITINLINE>
+      <SCHEME>过程</SCHEME>
+      <JAVASCRIPT>函数</JAVASCRIPT>
+    </SPLITINLINE>
+    对象局部状态变量的<QUOTE>位置</QUOTE>。
+    <SPLITINLINE>
+      <SCHEME>
+	Figure<SPACE></SPACE><REF NAME="fig:after-w1_scheme"></REF>
+      </SCHEME>
+      <JAVASCRIPT>
+	Figure<SPACE></SPACE><REF NAME="fig:after-w1"></REF>
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    显示了调用 <SCHEMEINLINE>W1</SCHEMEINLINE> 之后的情况。
+    <SPLIT>
+      <SCHEME>
+        <FIGURE>
+          <FIGURE SRC="img_original/ch3-Z-G-10.svg"></FIGURE>
+          <CAPTION>
+	    调用 <SCHEMEINLINE>W1</SCHEMEINLINE> 后的环境。
+	  </CAPTION>
+          <LABEL NAME="fig:after-w1_scheme"></LABEL>
+        </FIGURE>
+      </SCHEME>
+      <JAVASCRIPT>
+        <FIGURE>
+          <FIGURE SRC="img_javascript/ch3-Z-G-10.svg"></FIGURE>
+          <CAPTION>
+	    调用 <JAVASCRIPTINLINE>W1</JAVASCRIPTINLINE> 后的环境。
+	  </CAPTION>
+          <LABEL NAME="fig:after-w1"></LABEL>
+        </FIGURE>
+      </JAVASCRIPT>
+    </SPLIT>
+  </TEXT> 
+
+  
+  <PDF_ONLY>\pagebreak</PDF_ONLY>
+
+  <LONG_PAGE LINES="2"></LONG_PAGE>
+  
+  <TEXT>
+    观察当我们通过再次调用
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>make_withdraw</SCHEMEINLINE>:</SCHEME>
+      <JAVASCRIPT><JAVASCRIPTINLINE>make_withdraw</JAVASCRIPTINLINE>:
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    来创建第二个<QUOTE>withdraw</QUOTE>对象时会发生什么
+    <SNIPPET EVAL="yes">
+      <REQUIRES>make_withdraw2</REQUIRES>
+      <NAME>make_withdraw2_w2_declare</NAME>
+      <EXPECTED>20</EXPECTED>
+      <SCHEME>
+(define W2 (make-withdraw 100))
+      </SCHEME>
+      <JAVASCRIPT>
+const W2 = make_withdraw(100);	
+      </JAVASCRIPT>
+      <JAVASCRIPT_RUN>
+const W1 = make_withdraw(100);
+W1(50);
+const W2 = make_withdraw(100);
+W2(80);	
+      </JAVASCRIPT_RUN>
+    </SNIPPET>
+    这会生成以下的环境结构
+    <SPLITINLINE>
+      <SCHEME>
+	figure<SPACE></SPACE><REF NAME="fig:w2_scheme"></REF>,
+      </SCHEME>
+      <JAVASCRIPT>
+	figure<SPACE></SPACE><REF NAME="fig:w2"></REF>,
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    其中显示<SCHEMEINLINE>W2</SCHEMEINLINE>是一个
+    <SPLITINLINE>
+      <SCHEME>过程</SCHEME>
+      <JAVASCRIPT>函数</JAVASCRIPT>
+    </SPLITINLINE>
+    对象，也就是说，一个包含一些代码和环境的对。用于<SCHEMEINLINE>W2</SCHEMEINLINE>的环境E2是由对
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>make-withdraw</SCHEMEINLINE>.</SCHEME>
+      <JAVASCRIPT><JAVASCRIPTINLINE>make_withdraw</JAVASCRIPTINLINE>.
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    的调用所创建的。它包含一个具有自身局部绑定<SCHEMEINLINE>balance</SCHEMEINLINE>的帧。另一方面，
+    <SCHEMEINLINE>W1</SCHEMEINLINE>和<SCHEMEINLINE>W2</SCHEMEINLINE>拥有相同的代码：该代码是由
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>lambda</SCHEMEINLINE></SCHEME>
+      <JAVASCRIPT>lambda</JAVASCRIPT>
+    </SPLITINLINE>
+    表达式在
+    <SPLITINLINE><SCHEME><SCHEMEINLINE>make-withdraw</SCHEMEINLINE></SCHEME><JAVASCRIPT><JAVASCRIPTINLINE>make_withdraw</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>
+    的主体中指定的。<FOOTNOTE>关于<SCHEMEINLINE>W1</SCHEMEINLINE>和<SCHEMEINLINE>W2</SCHEMEINLINE>是否共享存储在计算机中的相同物理代码，或者它们各自保留一份代码拷贝，这是实现的细节。对于我们在章节<SPACE></SPACE><REF NAME="chap:meta"></REF>中实现的解释器来说，代码实际上是共享的。</FOOTNOTE> 我们在这里可以看到为什么<SCHEMEINLINE>W1</SCHEMEINLINE>和<SCHEMEINLINE>W2</SCHEMEINLINE>表现为独立的对象。对<SCHEMEINLINE>W1</SCHEMEINLINE>的调用引用了存储在E1中的状态变量<SCHEMEINLINE>balance</SCHEMEINLINE>，而对<SCHEMEINLINE>W2</SCHEMEINLINE>的调用则引用了存储在E2中的<SCHEMEINLINE>balance</SCHEMEINLINE>。因此，一个对象局部状态的改变不会影响另一个对象。
+    <SPLIT>
+      <SCHEME>
+        <FIGURE>
+          <FIGURE SRC="img_original/ch3-Z-G-11.svg"></FIGURE>
+          <CAPTION>
+	    使用<SCHEMEINLINE>(define W2 (make-withdraw 100))</SCHEMEINLINE>创建第二个对象。
+	  </CAPTION>
+          <LABEL NAME="fig:w2_scheme"></LABEL>
+        </FIGURE>
+      </SCHEME>
+      <JAVASCRIPT>
+        <FIGURE>
+          <FIGURE SRC="img_javascript/ch3-Z-G-11.svg"></FIGURE>
+          <CAPTION>
+	    使用<JAVASCRIPTINLINE>const W2 = make_withdraw(100);</JAVASCRIPTINLINE>创建第二个对象。
+	  </CAPTION>
+          <LABEL NAME="fig:w2"></LABEL>
+        </FIGURE>
+      </JAVASCRIPT>
+    </SPLIT>
+  </TEXT>
+
+  <LONG_PAGE LINES="2"></LONG_PAGE>
+
+  
+  <EXERCISE>
+    <LABEL NAME="ex:local-state-variable"></LABEL>
+    在
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>make-withdraw</SCHEMEINLINE></SCHEME>
+      <JAVASCRIPT><JAVASCRIPTINLINE>make_withdraw</JAVASCRIPTINLINE></JAVASCRIPT>
+    </SPLITINLINE>
+    <SPLITINLINE>
+      <SCHEME>过程</SCHEME>
+      <JAVASCRIPT>函数</JAVASCRIPT>
+    </SPLITINLINE>
+    中，局部变量<SCHEMEINLINE>balance</SCHEMEINLINE>作为
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>make-withdraw</SCHEMEINLINE>.</SCHEME>
+      <JAVASCRIPT><JAVASCRIPTINLINE>make_withdraw</JAVASCRIPTINLINE>.</JAVASCRIPT>
+    </SPLITINLINE>
+    的参数而创建。我们也可以使用
+    <SPLITINLINE>
+      <SCHEME>显式地,</SCHEME>
+      <JAVASCRIPT>单独地,</JAVASCRIPT>
+    </SPLITINLINE>
+    来创建局部状态变量，采用
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>let</SCHEMEINLINE>,</SCHEME>
+      <JAVASCRIPT>我们可以称之为一个
+	<INDEX>lambda 表达式<SUBINDEX>立即调用</SUBINDEX></INDEX>
+	<INDEX>立即调用的 lambda 表达式</INDEX>
+	<EM>立即调用的 lambda 表达式</EM>
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    如下所示：
+    <SNIPPET EVAL="yes">
+      <INDEX><DECLARATION>make_withdraw</DECLARATION><SUBINDEX>使用立即调用的 lambda 表达式</SUBINDEX><FRAGILE></FRAGILE></INDEX>
+      <NAME>make_withdraw3</NAME>
+      <EXAMPLE>make_withdraw3_example</EXAMPLE>
+      <EXPECTED>20</EXPECTED>
+      <SCHEME>
+(define (make-withdraw initial-amount)
+  (let ((balance initial-amount))
+        (lambda (amount)
+    (if (&gt;= balance amount)
+        (begin (set! balance (- balance amount))
+               balance)
+        &quot;Insufficient funds&quot;))))
+      </SCHEME>
+      <JAVASCRIPT>
+function make_withdraw(initial_amount) {
+    return (balance =&gt; 
+              amount =&gt; {
+                  if (balance &gt;= amount) {
+                      balance = balance - amount;
+                      return balance;
+                   } else {
+                      return &quot;insufficient funds&quot;;
+                   }
+              })(initial_amount);
+}
+      </JAVASCRIPT>
+    </SNIPPET>
+    <SNIPPET HIDE="yes">
+      <NAME>make_withdraw3_example</NAME>
+      <JAVASCRIPT>
+const W1 = make_withdraw(100);
+W1(80);
+      </JAVASCRIPT>
+    </SNIPPET>
+    <SPLIT>
+      <SCHEME>
+        回忆一下在章节<SPACE></SPACE><REF NAME="sec:lambda"></REF>中提到，
+	<INDEX>let<SUBINDEX><ORDER>作为语法糖</ORDER>的语法糖</SUBINDEX></INDEX>
+	<INDEX>let<SUBINDEX>求值模型</SUBINDEX></INDEX>
+        <SCHEMEINLINE>let</SCHEMEINLINE>仅仅是对一个
+        <SPLITINLINE>
+	  <SCHEME>过程</SCHEME>
+	  <JAVASCRIPT>函数</JAVASCRIPT>
+	</SPLITINLINE>
+        调用的另一种语法形式：
+        <SNIPPET EVAL="no">
+          <SCHEME>
+(let ((var exp)) body)
+          </SCHEME>
+        </SNIPPET>
+        被解释为另一种语法形式：
+        <SNIPPET EVAL="no">
+          <SCHEME>
+((lambda (var) body) exp)
+          </SCHEME>
+        </SNIPPET>
+      </SCHEME>
+      <JAVASCRIPT>
+	外层的 lambda 表达式在求值后立即被调用。它的唯一目的是创建一个局部变量
+	<JAVASCRIPTINLINE>balance</JAVASCRIPTINLINE>并将其初始化为<JAVASCRIPTINLINE>initial_amount</JAVASCRIPTINLINE>。
+      </JAVASCRIPT>
+    </SPLIT>
+    使用环境模型来分析这个<SCHEMEINLINE>make-withdraw</SCHEMEINLINE>的另一种版本，
+    绘制如上所示的图形以说明它们之间的交互：
+    <SNIPPET EVAL="yes">
+      <NAME>make_withdraw3_example_2</NAME>
+      <REQUIRES>make_withdraw3</REQUIRES>
+      <EXPECTED>20</EXPECTED>
+      <SCHEME>
+(define W1 (make-withdraw 100))
+
+(W1 50)
+
+(define W2 (make-withdraw 100))
+      </SCHEME>
+      <JAVASCRIPT>
+const W1 = make_withdraw(100);
+
+W1(50);
+	
+const W2 = make_withdraw(100);
+      </JAVASCRIPT>
+      <JAVASCRIPT_TEST>
+const W1 = make_withdraw(100);
+W1(50);
+const W2 = make_withdraw(100);
+W2(80);
+      </JAVASCRIPT_TEST>
+    </SNIPPET>
+    证明这两种版本的
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>make-withdraw</SCHEMEINLINE></SCHEME>
+      <JAVASCRIPT><JAVASCRIPTINLINE>make_withdraw</JAVASCRIPTINLINE></JAVASCRIPT>
+    </SPLITINLINE>
+    创建了具有相同行为的对象。对于这两个版本，它们的环境结构有何不同？
+    <SOLUTION>
+      <UL>
+	<LI>黑色部分展示了练习 3.10 中函数的环境结构</LI>
+	<LI>绿色部分展示了原始版本环境结构的差异（其中<JAVASCRIPTINLINE>make_withdraw</JAVASCRIPTINLINE>被替换为图 3.9 中的版本）</LI>
+      </UL>
+      <FIGURE SRC="img_javascript/ex3-10-solution.png">
+        <LABEL NAME="ex:3-10"></LABEL>
+      </FIGURE>
+    </SOLUTION>
+  </EXERCISE>
+
+
+  
+  <INDEX>帧（环境模型）<SUBINDEX>作为局部状态存储库</SUBINDEX></INDEX>
+
+  
+  <INDEX>局部状态<SUBINDEX>保存在帧（环境模型）中<CLOSE></CLOSE></SUBINDEX></INDEX>
+
+  
+  <INDEX>评估的环境模型<SUBINDEX>局部状态<CLOSE></CLOSE></SUBINDEX></INDEX>
+
+  
+  <INDEX><USE>make_withdraw</USE><SUBINDEX><ORDER>环境</ORDER>在环境模型中<CLOSE></CLOSE></SUBINDEX></INDEX>
+
+</SUBSECTION>
