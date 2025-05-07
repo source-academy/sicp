@@ -1,13 +1,18 @@
 import fs from "fs";
-import OpenAI from "openai/index.mjs";
+import OpenAI from "openai";
 import path, { dirname } from "path";
+import Stream from "stream";
 import { fileURLToPath } from "url";
 
 // Get the directory name of the current module
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-export default async function createAssistant(langCode: string, language: string, ai: OpenAI) {
+export default async function createAssistant(
+  langCode: string,
+  language: string,
+  ai: OpenAI
+) {
   const assistant = await ai.beta.assistants.create({
     name: "SICP Translator",
     instructions: `You are a professional translator with high technical skills in computer science.
@@ -23,9 +28,19 @@ export default async function createAssistant(langCode: string, language: string
     tools: [{ type: "file_search" }]
   });
 
-  const fileStreams = [path.join(__dirname, "../ai_files", langCode, "dictionary.txt")].map(
-    path => fs.createReadStream(path)
-  );
+  const fileStreams = [
+    path.join(__dirname, "../ai_files", langCode, "dictionary.txt")
+  ].map(filePath => {
+    const stream = fs.createReadStream(filePath);
+
+    stream.on("error", err => {
+      throw new Error(
+        `Failed to read dictionary file at ${filePath}: ${err.message}`
+      );
+    });
+
+    return stream;
+  });
 
   // Create a vector store including our two files.
   const vectorStore = await ai.vectorStores.create({
