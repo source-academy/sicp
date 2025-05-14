@@ -370,6 +370,7 @@ async function main() {
     recursiveTranslateXml("", "parseXml");
   } else if (parseType == "json") {
     const languages = await getDirectories(path.join(__dirname, "../xml"));
+    languages.sort(function (x,y) { return x==="en" ? -1 : y==="en" ? 1 : 0; }); // put "en" at front
     console.dir(languages);
 
     for (const lang of languages) {
@@ -388,7 +389,11 @@ async function main() {
       await recursiveXmlToHtmlInOrder("setupSnippet");
       console.log("setup snippets and references done\n");
       await recursiveXmlToHtmlInOrder("parseXml");
-      writeRewritedSearchData();
+      // only write search data for English XMLs
+      // todo: support for other langs
+      if (lang === "en") {
+        writeRewritedSearchData();
+      }
       // this is meant to be temp; also, will remove the original "generateSearchData" after the updation at the frontend is completed.
       //testIndexSearch();
     }
