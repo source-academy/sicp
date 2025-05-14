@@ -42,7 +42,6 @@ import { writeRewritedSearchData } from "./searchRewrite";
 import { setupSnippetsJson } from "./processingFunctions/processSnippetJson";
 import { createTocJson } from "./generateTocJson";
 import { setupReferencesJson } from "./processingFunctions/processReferenceJson";
-import { jsonSummaryPrefix } from "../i18n/config";
 
 export let parseType;
 let version;
@@ -409,7 +408,7 @@ async function main() {
       fs.mkdirSync(logDir, { recursive: true });
     }
 
-    const logPath = path.join(logDir, `${jsonSummaryPrefix}-${timestamp}.log`);
+    const logPath = path.join(logDir, `json-summary-${timestamp}.log`);
     fs.writeFileSync(logPath, summaryLog);
     console.log(`Summary log saved to logs/json-summary-${timestamp}.log`);
   } catch (logError) {
