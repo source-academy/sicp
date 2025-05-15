@@ -369,7 +369,9 @@ async function main() {
     recursiveTranslateXml("", "parseXml");
   } else if (parseType == "json") {
     const languages = await getDirectories(path.join(__dirname, "../xml"));
-    languages.sort(function (x,y) { return x==="en" ? -1 : y==="en" ? 1 : 0; }); // put "en" at front
+    languages.sort(function (x, y) {
+      return x === "en" ? -1 : y === "en" ? 1 : 0;
+    }); // put "en" at front
     console.dir(languages);
 
     for (const lang of languages) {
