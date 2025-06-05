@@ -3,6 +3,11 @@ import path from "path";
 import fs from "fs";
 import { getFileErrors } from "./translator";
 import { translationSummaryPrefix } from "../config";
+import { fileURLToPath } from "url";
+import { dirname } from "path";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 // Function to save summary log - can be called from signal handlers
 export async function saveSummaryLog(
@@ -103,7 +108,7 @@ Success rate: ${translateNum > 0 ? ((successCount / translateNum) * 100).toFixed
         );
         fs.writeFileSync(logPath, summaryLog);
         console.log(
-            `Summary log saved to logs/translation-summary-${timestamp}.log`
+            `Summary log saved to i18n/logs/${translationSummaryPrefix}-${timestamp}.log`
         );
     } catch (logError) {
         console.error("Failed to save log file:", logError);

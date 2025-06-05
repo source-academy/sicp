@@ -5,6 +5,7 @@ import createAssistant from "../initializers/initialize";
 import dotenv from "dotenv";
 import sax from "sax";
 import { cleanParser, recurSplitParser, splitParser } from "./parsers";
+import { max_chunk_len } from "../config";
 
 dotenv.config();
 
@@ -17,8 +18,6 @@ const ai = new OpenAI({
   apiKey: process.env.API_KEY,
   baseURL: process.env.AI_BASEURL
 });
-
-const MAXLEN = Number(process.env.MAX_LEN) || 3000;
 
 // change to true to avoid calling openai api, useful for troubleshooting
 // chunking logic
@@ -126,7 +125,7 @@ async function recursivelyTranslate(
 ): Promise<string> {
   // Recursive function to split and translate
   async function helper(ori: string): Promise<string> {
-    if (ori.length < MAXLEN) {
+    if (ori.length < max_chunk_len) {
       return await translateChunk(ori); // translate the chunk
     }
 

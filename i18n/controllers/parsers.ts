@@ -3,9 +3,7 @@ import { escapeXML, formatAttributes, strongEscapeXML } from "./xmlUtilities";
 import { Readable } from "stream";
 import { ignoredTags, max_chunk_len } from "../config";
 import fs, { PathLike } from "fs";
-import { FileLike } from "openai/uploads.mjs";
 
-const MAXLEN = max_chunk_len;
 const createParser = () =>
   (sax as any).createStream(false, { trim: false }, { strictEntities: true });
 
@@ -140,7 +138,7 @@ export async function splitParser(
             segments.length > 0 &&
             segments[segments.length - 1][0] &&
             segments[segments.length - 1][1].length + currentSegment.length <
-              Number(MAXLEN)
+              max_chunk_len
           ) {
             segments[segments.length - 1][1] += currentSegment;
           } else {
@@ -264,7 +262,7 @@ export async function recurSplitParser(
           subSegments[subSegments.length - 1][0] &&
           subSegments[subSegments.length - 1][1].length +
             subCurrentSegment.length <
-            Number(MAXLEN)
+            max_chunk_len
         ) {
           subSegments[subSegments.length - 1][1] += subCurrentSegment;
         } else {
