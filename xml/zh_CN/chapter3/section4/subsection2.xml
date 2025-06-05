@@ -1,0 +1,1999 @@
+<SUBSECTION>
+  <NAME>
+    Mechanisms for Controlling Concurrency
+  </NAME><!-- Error occurred while translating this section -->
+
+  <INDEX>concurrency<SUBINDEX>mechanisms for controlling<OPEN></OPEN></SUBINDEX></INDEX><!-- Error occurred while translating this section -->
+
+  <TEXT>
+    We<APOS></APOS>ve seen that the difficulty in dealing with concurrent 
+    <SPLITINLINE><SCHEME>processes</SCHEME>
+    <JAVASCRIPT>threads</JAVASCRIPT></SPLITINLINE> 
+    is rooted in the need to consider the interleaving of the order of events
+    in the different 
+    <SPLITINLINE><SCHEME>processes</SCHEME>
+    <JAVASCRIPT>threads</JAVASCRIPT></SPLITINLINE>.  
+    For example, suppose we have two
+    <SPLITINLINE><SCHEME>processes</SCHEME>
+    <JAVASCRIPT>threads</JAVASCRIPT></SPLITINLINE>, 
+    one with three ordered events <LATEXINLINE>$(a,b,c)$</LATEXINLINE>
+    and one with three ordered events <LATEXINLINE>$(x,y,z)$</LATEXINLINE>.
+    If the two 
+    <SPLITINLINE>
+      <SCHEME>processes</SCHEME>
+      <JAVASCRIPT>threads</JAVASCRIPT>
+    </SPLITINLINE> 
+    run concurrently, with no constraints on how their execution is
+    interleaved, then there are 20 different possible orderings for the events
+    that are consistent with the individual orderings for the two 
+    <SPLITINLINE><SCHEME>processes</SCHEME>
+    <JAVASCRIPT>threads</JAVASCRIPT></SPLITINLINE>:
+    <LATEX>
+      \[ \begin{array}{cccc}
+      (a,b,c,x,y,z) &amp; (a,x,b,y,c,z) &amp; (x,a,b,c,y,z) &amp; (x,a,y,z,b,c)\\
+      (a,b,x,c,y,z) &amp; (a,x,b,y,z,c) &amp; (x,a,b,y,c,z) &amp; (x,y,a,b,c,z)\\
+      (a,b,x,y,c,z) &amp; (a,x,y,b,c,z) &amp; (x,a,b,y,z,c) &amp; (x,y,a,b,z,c)\\
+      (a,b,x,y,z,c) &amp; (a,x,y,b,z,c) &amp; (x,a,y,b,c,z) &amp; (x,y,a,z,b,c)\\
+      (a,x,b,c,y,z) &amp; (a,x,y,z,b,c) &amp; (x,a,y,b,z,c) &amp; (x,y,z,a,b,c)
+      \end{array} \]
+    </LATEX>
+    As programmers designing this system, we would have to consider the
+    effects of each of these 20 orderings and check that each behavior is
+    acceptable.  Such an approach rapidly becomes unwieldy as the numbers of 
+    <SPLITINLINE><SCHEME>processes</SCHEME>
+    <JAVASCRIPT>threads</JAVASCRIPT></SPLITINLINE> and events increase.
+  </TEXT><!-- Error occurred while translating this section -->
+
+  <TEXT>
+    A more practical approach to the design of concurrent systems is to
+    devise general mechanisms that allow us to constrain the interleaving
+    of concurrent 
+    <SPLITINLINE><SCHEME>processes</SCHEME>
+    <JAVASCRIPT>threads</JAVASCRIPT></SPLITINLINE> 
+    so that we can be sure that the program
+    behavior is correct.  Many mechanisms have been developed for this
+    purpose.  In this section, we describe one of them, the <EM>
+    serializer</EM>.
+  </TEXT><!-- Error occurred while translating this section -->
+
+  <SUBHEADING>
+    <NAME>Serializing access to shared state</NAME>
+  </SUBHEADING><!-- Error occurred while translating this section -->
+
+  <INDEX>serializer<OPEN></OPEN></INDEX><!-- Error occurred while translating this section -->
+
+  <TEXT>
+    Serialization implements the following idea: 
+    <SPLITINLINE><SCHEME>Processes</SCHEME>
+    <JAVASCRIPT>Threads</JAVASCRIPT></SPLITINLINE> 
+    will execute concurrently, but there will be certain collections of
+    <SPLITINLINE><SCHEME>procedures</SCHEME>
+    <JAVASCRIPT>functions</JAVASCRIPT></SPLITINLINE>
+    that cannot be executed concurrently.  More precisely, serialization
+    creates distinguished sets of
+    <SPLITINLINE><SCHEME>procedures</SCHEME>
+    <JAVASCRIPT>functions</JAVASCRIPT></SPLITINLINE>
+    such that only one execution of a
+    <SPLITINLINE><SCHEME>procedure</SCHEME>
+    <JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+    in each serialized set is permitted to happen at a time. If some
+    <SPLITINLINE><SCHEME>procedure</SCHEME>
+    <JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+    in the set is being executed, then a 
+    <SPLITINLINE><SCHEME>process</SCHEME>
+    <JAVASCRIPT>thread</JAVASCRIPT></SPLITINLINE> 
+    that attempts to execute any
+    <SPLITINLINE><SCHEME>procedure</SCHEME>
+    <JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+    in the set will be forced to wait
+    until the first execution has finished.
+  </TEXT><!-- Error occurred while translating this section -->
+
+  <TEXT>
+    We can use serialization to control access to shared variables.
+    For example, if we want to update a shared variable based on the
+    previous value of that variable, we put the access to the previous
+    value of the variable and the assignment of the new value to the
+    variable in the same
+    <SPLITINLINE><SCHEME>procedure</SCHEME>
+    <JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>.
+    We then ensure that no other
+    <SPLITINLINE><SCHEME>procedure</SCHEME>
+    <JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+    that assigns to the variable can run concurrently with this
+    <SPLITINLINE><SCHEME>procedure</SCHEME>
+    <JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+    by serializing all of these
+    <SPLITINLINE><SCHEME>procedures</SCHEME>
+    <JAVASCRIPT>functions</JAVASCRIPT></SPLITINLINE>
+    with the same serializer.  This guarantees that the value of the
+    variable cannot be changed between an access and the corresponding
+    assignment.
+  </TEXT><!-- Error occurred while translating this section -->
+
+  <DO_BREAK_PAGE></DO_BREAK_PAGE><!-- Error occurred while translating this section -->
+  <SPLIT>
+    <SCHEME>
+      <SUBHEADING>
+        <NAME>Serializers in Scheme</NAME>
+      </SUBHEADING>
+    </SCHEME>
+    <JAVASCRIPT>
+      <SUBHEADING>
+        <NAME>Serializers</NAME>
+      </SUBHEADING>
+    </JAVASCRIPT>
+  </SPLIT><!-- Error occurred while translating this section -->
+
+  <TEXT>
+    To make the above mechanism more concrete, suppose that we have
+    extended 
+    <SPLITINLINE><SCHEME>Scheme</SCHEME>
+    <JAVASCRIPT>JavaScript</JAVASCRIPT></SPLITINLINE>
+    to include a
+    <SPLITINLINE><SCHEME>procedure</SCHEME>
+    <JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+    called 
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>parallel-execute</SCHEMEINLINE>:</SCHEME>
+      <JAVASCRIPT>
+	<INDEX><USE>concurrent_execute</USE></INDEX> 
+        <JAVASCRIPTINLINE>concurrent_execute</JAVASCRIPTINLINE>:
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    <!-- Error occurred while translating this section --><SNIPPET EVAL="no" LATEX="yes">
+      <SCHEME>
+(parallel-execute p$_{1}$ p$_{2}$ $\ldots$ p$_{k}$)
+      </SCHEME>
+      <JAVASCRIPT>
+concurrent_execute($f_{1}$, $f_{2}$, $\ldots$, $f_{k}$)
+      </JAVASCRIPT>
+    </SNIPPET>
+    <SPLITINLINE>
+      <SCHEME>
+        Each <LATEXINLINE>p</LATEXINLINE> must be a procedure of no arguments.  
+        <SCHEME>Parallel-execute</SCHEME>
+        creates a separate process for each
+        <LATEXINLINE>p</LATEXINLINE>, which applies
+        <LATEXINLINE>p</LATEXINLINE> (to no arguments).
+      </SCHEME>
+      <JAVASCRIPT>
+        Each <LATEXINLINE>$f$</LATEXINLINE> must be a function of no arguments.
+        The function <JAVASCRIPTINLINE>concurrent_execute</JAVASCRIPTINLINE>
+        creates a separate thread for each
+        <LATEXINLINE>$f$</LATEXINLINE>, which applies
+        <LATEXINLINE>$f$</LATEXINLINE> (to no arguments).
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    These 
+    <SPLITINLINE><SCHEME>processes</SCHEME>
+    <JAVASCRIPT>threads</JAVASCRIPT></SPLITINLINE> 
+    all run concurrently.<!-- Error occurred while translating this section --><FOOTNOTE>
+    <SPLIT>
+      <SCHEME>
+        <SCHEMEINLINE>Parallel-execute</SCHEMEINLINE> is not part of standard
+	Scheme, but it can be implemented in MIT Scheme. In our implementation,
+	the new concurrent processes also run concurrently with the original
+	Scheme process. Also, in our implementation, the value returned by
+        <SCHEMEINLINE>parallel-execute</SCHEMEINLINE> is a special control
+	object that can be used to halt the newly created processes.
+      </SCHEME>
+      <JAVASCRIPT>
+        The function <JAVASCRIPTINLINE>concurrent_execute</JAVASCRIPTINLINE> is
+	not part of the JavaScript standard, but the examples in this section
+	can be implemented in ECMAScript 2020.
+	<!--   
+	<WEB_ONLY>
+	  This interactive version uses a custom-built virtual machine to
+	  implement <JAVASCRIPTINLINE>concurrent_execute</JAVASCRIPTINLINE>.
+	  Similar to the MIT Scheme implementation, new
+	  concurrent threads run concurrently with the original thread.
+	  Concurrent programs do not return any values, and hence are only able
+	  to show trace via <JAVASCRIPTINLINE>display</JAVASCRIPTINLINE> calls.
+	</WEB_ONLY>
+          -->
+      </JAVASCRIPT>
+    </SPLIT>
+  </FOOTNOTE>
+  <!-- Error occurred while translating this section --></TEXT>
+
+  <TEXT>
+    As an example of how this is used, consider
+    <!-- Error occurred while translating this section --><SNIPPET CHAP="3" VARIANT="concurrent">
+      <NAME>concurrent_execute_example</NAME>
+      <EXPECTED>&apos;all threads terminated&apos;</EXPECTED>
+      <SCHEME>
+(define x 10)
+
+(parallel-execute (lambda () (set! x (* x x)))
+  (lambda () (set! x (+ x 1))))
+      </SCHEME>
+      <JAVASCRIPT>
+let x = 10;
+<SHORT_SPACE></SHORT_SPACE>
+concurrent_execute(() =&gt; { x = x * x; },
+                   () =&gt; { x = x + 1; });
+      </JAVASCRIPT>
+    </SNIPPET>
+    <SPLIT>
+      <SCHEME>
+        This creates two concurrent
+        processes<EMDASH></EMDASH><LATEXINLINE>$P_1$</LATEXINLINE>, which
+        sets <SCHEMEINLINE>x</SCHEMEINLINE> to
+        <SCHEMEINLINE>x</SCHEMEINLINE> times <SCHEMEINLINE>x</SCHEMEINLINE>,
+        and <LATEXINLINE>$P_2$</LATEXINLINE>, which
+	increments<SPACE></SPACE><SCHEMEINLINE>x</SCHEMEINLINE>.  After execution is
+	complete, <SCHEMEINLINE>x</SCHEMEINLINE> will be left with one of five
+	possible values, depending on the interleaving of the events of
+        <LATEXINLINE>$P_1$</LATEXINLINE> and <LATEXINLINE>$P_2$</LATEXINLINE>:
+        <TABLE>
+          <TR>
+            <TD>101:</TD>
+	    <TD><LATEXINLINE>$P_1$</LATEXINLINE>
+            sets <SCHEMEINLINE>x</SCHEMEINLINE> to 100 and then
+            <LATEXINLINE>$P_2$</LATEXINLINE> increments
+            <SCHEMEINLINE>x</SCHEMEINLINE> to 101.</TD>
+	  </TR>
+	  <TR>
+            <TD>121:</TD>
+	    <TD><LATEXINLINE>$P_2$</LATEXINLINE> increments
+	    <SCHEMEINLINE>x</SCHEMEINLINE> to 11 and then
+            <LATEXINLINE>$P_1$</LATEXINLINE> sets <SCHEMEINLINE>x</SCHEMEINLINE>
+	    to <SCHEMEINLINE>x</SCHEMEINLINE> times
+	    <SCHEMEINLINE>x</SCHEMEINLINE>.</TD>
+	  </TR>
+	  <TR>
+            <TD>110:</TD>
+	    <TD><LATEXINLINE>$P_2$</LATEXINLINE> changes
+            <SCHEMEINLINE>x</SCHEMEINLINE> from 10 to 11 between the two
+            times that <LATEXINLINE>$P_1$</LATEXINLINE>
+	    </TD>
+	  </TR>
+	  <TR SINGLESPACE="yes">
+	    <TD>
+	    </TD>
+	    <TD>
+	      accesses the value of
+            <SCHEMEINLINE>x</SCHEMEINLINE> during the evaluation of
+            <SCHEMEINLINE>(* x x)</SCHEMEINLINE>.
+	    </TD>
+	  </TR>
+	  <TR>
+            <TD>11:</TD>
+	    <TD><LATEXINLINE>$P_2$</LATEXINLINE> accesses
+	    <SCHEMEINLINE>x</SCHEMEINLINE>, then
+            <LATEXINLINE>$P_1$</LATEXINLINE> sets <SCHEMEINLINE>x</SCHEMEINLINE>
+	    to 100,
+            then <LATEXINLINE>$P_2$</LATEXINLINE> sets
+	    <SCHEMEINLINE>x</SCHEMEINLINE>.</TD>
+	  </TR>
+	  <TR>
+            <TD>100:</TD>
+	    <TD><LATEXINLINE>$P_1$</LATEXINLINE> accesses
+	    <SCHEMEINLINE>x</SCHEMEINLINE> (twice),
+            then <LATEXINLINE>$P_2$</LATEXINLINE> sets
+	    <SCHEMEINLINE>x</SCHEMEINLINE> to 11,
+            then <LATEXINLINE>$P_1$</LATEXINLINE> sets
+	    <SCHEMEINLINE>x</SCHEMEINLINE>.</TD>
+	  </TR>
+	</TABLE>
+      </SCHEME>
+      <JAVASCRIPT>
+        This creates two concurrent
+	threads<EMDASH></EMDASH><!-- Error occurred while translating this section --><LATEXINLINE>$T_1$</LATEXINLINE>, which sets
+	<!-- Error occurred while translating this section --><SCHEMEINLINE>x</SCHEMEINLINE> to <!-- Error occurred while translating this section --><SCHEMEINLINE>x</SCHEMEINLINE> times
+	<!-- Error occurred while translating this section --><SCHEMEINLINE>x</SCHEMEINLINE>, and <!-- Error occurred while translating this section --><LATEXINLINE>$T_2$</LATEXINLINE>,
+	which increments <!-- Error occurred while translating this section --><SCHEMEINLINE>x</SCHEMEINLINE>.  After execution is
+	complete, <!-- Error occurred while translating this section --><SCHEMEINLINE>x</SCHEMEINLINE> will be left with one of five
+	possible values, depending on the interleaving of the events of
+        <!-- Error occurred while translating this section --><LATEXINLINE>$T_1$</LATEXINLINE> and <!-- Error occurred while translating this section --><LATEXINLINE>$T_2$</LATEXINLINE>:
+        <TABLE>
+          <TR>
+            <TD>101:</TD>
+	    <TD><LATEXINLINE>$T_1$</LATEXINLINE>
+            sets <SCHEMEINLINE>x</SCHEMEINLINE> to 100 and then
+            <LATEXINLINE>$T_2$</LATEXINLINE> increments
+            <SCHEMEINLINE>x</SCHEMEINLINE> to 101.</TD>
+	  </TR>
+	  <TR>
+            <TD>121:</TD>
+	    <TD><LATEXINLINE>$T_2$</LATEXINLINE> increments
+	    <SCHEMEINLINE>x</SCHEMEINLINE> to 11 and then
+            <LATEXINLINE>$T_1$</LATEXINLINE> sets <SCHEMEINLINE>x</SCHEMEINLINE>
+	    to <SCHEMEINLINE>x</SCHEMEINLINE> times
+	    <SCHEMEINLINE>x</SCHEMEINLINE>.</TD>
+	  </TR>
+	  <TR>
+            <TD>110:</TD>
+	    <TD><LATEXINLINE>$T_2$</LATEXINLINE> changes
+            <SCHEMEINLINE>x</SCHEMEINLINE> from 10 to 11 between the two
+            times that <LATEXINLINE>$T_1$</LATEXINLINE></TD>
+	  </TR>
+	  <TR SINGLESPACE="yes">
+            <TD></TD>
+	    <TD>
+	      accesses the value of
+              <SCHEMEINLINE>x</SCHEMEINLINE> during the evaluation of
+              <JAVASCRIPTINLINE>x * x</JAVASCRIPTINLINE>.
+	    </TD>
+	  </TR>
+	  <TR>
+            <TD><SPACE></SPACE><SPACE></SPACE>11:</TD>
+	    <TD><LATEXINLINE>$T_2$</LATEXINLINE> accesses
+	    <SCHEMEINLINE>x</SCHEMEINLINE>, then
+            <LATEXINLINE>$T_1$</LATEXINLINE> sets <SCHEMEINLINE>x</SCHEMEINLINE>
+	    to 100,
+            then <LATEXINLINE>$T_2$</LATEXINLINE> sets
+	    <SCHEMEINLINE>x</SCHEMEINLINE>.</TD>
+	  </TR>
+	  <TR>
+            <TD>100:</TD>
+	    <TD><LATEXINLINE>$T_1$</LATEXINLINE> accesses
+	    <SCHEMEINLINE>x</SCHEMEINLINE> (twice),
+            then <LATEXINLINE>$T_2$</LATEXINLINE> sets
+	    <SCHEMEINLINE>x</SCHEMEINLINE> to 11,
+            then <LATEXINLINE>$T_1$</LATEXINLINE> sets
+	    <SCHEMEINLINE>x</SCHEMEINLINE>.</TD>
+	  </TR>
+	</TABLE>
+      <!-- Error occurred while translating this section --></JAVASCRIPT>
+    </SPLIT>
+  </TEXT>
+  <TEXT>
+    We can constrain the concurrency by using serialized
+    <SPLITINLINE><SCHEME>procedures,</SCHEME>
+    <JAVASCRIPT>functions,</JAVASCRIPT></SPLITINLINE>
+    which are created by <EM>serializers</EM>. Serializers are constructed by
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>make-serializer</SCHEMEINLINE>,
+      </SCHEME>
+      <JAVASCRIPT><JAVASCRIPTINLINE>make_serializer</JAVASCRIPTINLINE>,
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    whose implementation is given below.  A serializer takes a
+    <SPLITINLINE><SCHEME>procedure</SCHEME>
+    <JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+    as argument and returns a serialized
+    <SPLITINLINE><SCHEME>procedure</SCHEME>
+    <JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+    that behaves like the original
+    <SPLITINLINE><SCHEME>procedure.</SCHEME>
+    <JAVASCRIPT>function.</JAVASCRIPT></SPLITINLINE>
+    All calls to a given serializer return serialized
+    <SPLITINLINE><SCHEME>procedures</SCHEME>
+    <JAVASCRIPT>functions</JAVASCRIPT></SPLITINLINE>
+    in the same set.
+  </TEXT><!-- Error occurred while translating this section -->
+
+  <TEXT>
+    Thus, in contrast to the example above, executing
+    <SNIPPET CHAP="3" VARIANT="concurrent">
+      <NAME>serializer_example</NAME>
+      <REQUIRES>serializer</REQUIRES>
+      <EXPECTED>&apos;all threads terminated&apos;</EXPECTED>
+      <SCHEME>
+(define x 10)
+
+(define s (make-serializer))
+
+(parallel-execute (s (lambda () (set! x (* x x))))
+                  (s (lambda () (set! x (+ x 1)))))
+      </SCHEME>
+      <JAVASCRIPT>
+let x = 10;
+<SHORT_SPACE></SHORT_SPACE>
+const s = make_serializer();
+<SHORT_SPACE></SHORT_SPACE>
+concurrent_execute(s(() =&gt; { x = x * x; }),
+                   s(() =&gt; { x = x + 1; }));
+      </JAVASCRIPT>
+    </SNIPPET>
+    can produce only two possible values for
+    <SCHEMEINLINE>x</SCHEMEINLINE>, 101 or 121.
+    The other possibilities are eliminated, because the execution of
+    <SPLITINLINE>
+      <SCHEME>
+	<LATEXINLINE>$P_1$</LATEXINLINE> and
+	<LATEXINLINE>$P_2$</LATEXINLINE> cannot be interleaved.
+      </SCHEME>
+      <JAVASCRIPT>
+	<LATEXINLINE>$T_1$</LATEXINLINE> and
+      <LATEXINLINE>$T_2$</LATEXINLINE> cannot be interleaved.</JAVASCRIPT>
+    </SPLITINLINE>
+  </TEXT><!-- Error occurred while translating this section -->
+
+  <TEXT>
+    Here is a version of the
+    <SPLITINLINE><SCHEME><SCHEMEINLINE>make-account</SCHEMEINLINE></SCHEME>
+    <JAVASCRIPT><JAVASCRIPTINLINE>make_account</JAVASCRIPTINLINE>
+    </JAVASCRIPT>
+    </SPLITINLINE>
+    <SPLITINLINE><SCHEME>procedure</SCHEME>
+    <JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+    from section<SPACE></SPACE><REF NAME="sec:local-state-variables"></REF>,
+    where the deposits and withdrawals have been
+    <INDEX>bank account<SUBINDEX>serialized</SUBINDEX></INDEX>
+    serialized:
+    <!-- Error occurred while translating this section --><SNIPPET HIDE="yes">
+      <NAME>make_account_serialize_attempt_example</NAME>
+      <JAVASCRIPT>
+const my_account = make_account(100);
+
+concurrent_execute(
+    () =&gt; {
+        display(my_account(&quot;balance&quot;), &quot;T1 balance&quot;);
+        my_account(&quot;withdraw&quot;)(50);
+        display(my_account(&quot;balance&quot;), &quot;T1 balance&quot;);
+        my_account(&quot;deposit&quot;)(100);
+    },
+    () =&gt; { display(my_account(&quot;balance&quot;), &quot;T2 balance&quot;);
+        my_account(&quot;withdraw&quot;)(50);
+        display(my_account(&quot;balance&quot;), &quot;T2 balance&quot;);
+        my_account(&quot;deposit&quot;)(100);
+    }
+);
+      </JAVASCRIPT>
+    </SNIPPET>
+    <SNIPPET CHAP="3" VARIANT="concurrent">
+      <INDEX><DECLARATION>make_account</DECLARATION><SUBINDEX>with serialization</SUBINDEX><FRAGILE></FRAGILE></INDEX>
+      <NAME>make_account_serialize_attempt</NAME>
+      <REQUIRES>serializer</REQUIRES>
+      <EXAMPLE>make_account_serialize_attempt_example</EXAMPLE>
+      <SCHEME>
+(define (make-account balance)
+  (define (withdraw amount)
+    (if (&gt;= balance amount)
+      (begin (set! balance (- balance amount))
+             balance)
+      &quot;Insufficient funds&quot;))
+  (define (deposit amount)
+    (set! balance (+ balance amount))
+    balance)
+  (let ((protected (make-serializer)))
+    (define (dispatch m)
+      (cond ((eq? m &apos;withdraw) (protected withdraw))
+            ((eq? m &apos;deposit) (protected deposit))
+            ((eq? m &apos;balance) balance)
+            (else (error &quot;Unknown request - - MAKE-ACCOUNT&quot;
+                         m))))
+    dispatch))
+      </SCHEME>
+      <JAVASCRIPT>
+function make_account(balance) {
+    function withdraw(amount) {
+        if (balance &gt; amount) {
+            balance = balance - amount;
+            return balance;
+        } else {
+            return &quot;Insufficient funds&quot;;
+        }
+    }
+    function deposit(amount) {
+        balance = balance + amount;
+        return balance;
+    }
+    const protect = make_serializer();
+    function dispatch(m) {
+        return m === &quot;withdraw&quot; 
+               ? protect(withdraw)
+               : m === &quot;deposit&quot;
+               ? protect(deposit)
+               : m === &quot;balance&quot;
+               ? balance
+               : error(m, &quot;unknown request -- make_account&quot;);
+    }
+    return dispatch;
+}
+      </JAVASCRIPT>
+    </SNIPPET>
+    With this implementation, two 
+    <SPLITINLINE><SCHEME>processes</SCHEME>
+    <JAVASCRIPT>threads</JAVASCRIPT></SPLITINLINE> 
+    cannot be withdrawing from or
+    depositing into a single account concurrently.  This eliminates the source
+    of the error illustrated in figure<SPACE></SPACE><REF NAME="fig:bank-access"></REF>,
+    where Peter changes the account balance between the times when Paul accesses
+    the balance to compute the new value and when Paul actually performs the
+    assignment.  On the other hand, each account has its own serializer,
+    so that deposits and withdrawals for different accounts can proceed
+    concurrently.
+  <!-- Error occurred while translating this section --></TEXT>
+
+  <EXERCISE>
+    Which of the five possibilities in the 
+    <SPLITINLINE><SCHEME>parallel</SCHEME>
+    <JAVASCRIPT>concurrent</JAVASCRIPT></SPLITINLINE> 
+    execution shown above remain if we instead serialize execution as follows:
+    <SNIPPET CHAP="3" VARIANT="concurrent" POSTPADDING="no">
+      <NAME>serializer_example_2</NAME>
+      <REQUIRES>serializer</REQUIRES>
+      <EXPECTED>&apos;all threads terminated&apos;</EXPECTED>
+      <SCHEME>
+(define x 10)
+
+(define s (make-serializer))
+
+(parallel-execute (lambda () (set! x ((s (lambda () (* x x))))))
+                  (s (lambda () (set! x (+ x 1)))))
+      </SCHEME>
+      <JAVASCRIPT>
+let x = 10;
+<SHORT_SPACE></SHORT_SPACE>
+const s = make_serializer();
+<SHORT_SPACE></SHORT_SPACE>
+concurrent_execute(  () =&gt; { x = s(() =&gt; x * x)(); },
+                   s(() =&gt; { x = x + 1;             }));
+      </JAVASCRIPT>
+    </SNIPPET>
+    <LABEL NAME="ex:3_39"></LABEL>
+  </EXERCISE><!-- Error occurred while translating this section -->
+
+  <EXERCISE>
+    Give all possible values of <SCHEMEINLINE>x</SCHEMEINLINE>
+    that can result from executing
+    <SNIPPET CHAP="3" VARIANT="concurrent">
+      <NAME>serializer_example_3</NAME>
+      <EXPECTED>&apos;all threads terminated&apos;</EXPECTED>
+      <SCHEME>
+(define x 10)
+<SHORT_SPACE></SHORT_SPACE>
+(parallel-execute (lambda () (set! x (* x x)))
+                  (lambda () (set! x (* x x x))))
+      </SCHEME>
+      <JAVASCRIPT>
+let x = 10;
+<SHORT_SPACE></SHORT_SPACE>
+concurrent_execute(() =&gt; { x = x * x; }, 
+                   () =&gt; { x = x * x * x; });
+      </JAVASCRIPT>
+    </SNIPPET>
+    <PDF_ONLY>\newpage\noindent</PDF_ONLY> Which of these possibilities remain if we instead use serialized
+    <SPLITINLINE><SCHEME>procedures:</SCHEME>
+    <JAVASCRIPT>functions:</JAVASCRIPT></SPLITINLINE>
+    <SNIPPET CHAP="3" VARIANT="concurrent" POSTPADDING="no">
+      <NAME>serializer_example_4</NAME>
+      <REQUIRES>serializer</REQUIRES>
+      <EXPECTED>&apos;all threads terminated&apos;</EXPECTED>
+      <SCHEME>
+(define x 10)
+
+(define s (make-serializer))
+
+(parallel-execute (s (lambda () (set! x (* x x))))
+                  (s (lambda () (set! x (* x x x)))))
+      </SCHEME>
+      <JAVASCRIPT>
+let x = 10;
+<SHORT_SPACE></SHORT_SPACE>
+const s = make_serializer();
+<SHORT_SPACE></SHORT_SPACE>
+concurrent_execute(s(() =&gt; { x = x * x;     }),
+                   s(() =&gt; { x = x * x * x; }));
+      </JAVASCRIPT>
+    </SNIPPET>
+    <LABEL NAME="ex:3_40"></LABEL>
+  </EXERCISE><!-- Error occurred while translating this section -->
+
+  <EXERCISE>
+    <LABEL NAME="ex:bensconcern"></LABEL>
+    Ben Bitdiddle worries that it would be better to implement the bank
+    account as follows (where the commented line has been changed):
+    <!-- Error occurred while translating this section --><SNIPPET CHAP="3" VARIANT="concurrent">
+      <INDEX><DECLARATION>make_account</DECLARATION><SUBINDEX>with serialization</SUBINDEX><FRAGILE></FRAGILE></INDEX>
+      <NAME>serializer_example_5</NAME>
+      <REQUIRES>serializer</REQUIRES>
+      <EXAMPLE>make_account_serialize_attempt_example</EXAMPLE>
+      <SCHEME>
+(define (make-account balance)
+  (define (withdraw amount)
+    (if (&gt;= balance amount)
+        (begin (set! balance (- balance amount))
+          balance)
+        &quot;Insufficient funds&quot;))
+  (define (deposit amount)
+    (set! balance (+ balance amount))
+    balance)
+  (let ((protected (make-serializer)))
+    (define (dispatch m)
+      (cond ((eq? m &apos;withdraw) (protected withdraw))
+            ((eq? m &apos;deposit) (protected deposit))
+            ((eq? m &apos;balance)
+            ((protected (lambda () balance)))) <EM>; serialized</EM>
+            (else (error &quot;Unknown request - - MAKE-ACCOUNT&quot;
+                         m))))
+    dispatch))
+      </SCHEME>
+      <JAVASCRIPT>
+function make_account(balance) {
+    function withdraw(amount) {
+        if (balance &gt; amount) {
+            balance = balance - amount;
+            return balance;
+        } else {
+            return &quot;Insufficient funds&quot;;
+        }
+    }
+    function deposit(amount) {
+        balance = balance + amount;
+        return balance;
+    }
+    const protect = make_serializer();
+    function dispatch(m) {
+        return m === &quot;withdraw&quot;
+               ? protect(withdraw)
+               : m === &quot;deposit&quot;
+               ? protect(deposit)
+               : m === &quot;balance&quot;
+               ? protect(() =&gt; balance)(undefined) // serialized
+               : error(m, &quot;unknown request -- make_account&quot;);
+    }
+    return dispatch;
+}
+      </JAVASCRIPT>
+    </SNIPPET>
+    because allowing unserialized access to the bank balance can
+    result in anomalous behavior.  Do you agree?  Is there any
+    scenario that demonstrates Ben<APOS></APOS>s concern?
+  <!-- Error occurred while translating this section --></EXERCISE>
+
+  <EXERCISE>
+    Ben Bitdiddle suggests that it<APOS></APOS>s a waste of time to
+    create a new serialized
+    <SPLITINLINE><SCHEME>procedure</SCHEME>
+    <JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+    in response to every <!-- Error occurred while translating this section --><SCHEMEINLINE>withdraw</SCHEMEINLINE> and
+    <!-- Error occurred while translating this section --><SCHEMEINLINE>deposit</SCHEMEINLINE> message.  He says that
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>make-account</SCHEMEINLINE></SCHEME>
+      <JAVASCRIPT><JAVASCRIPTINLINE>make_account</JAVASCRIPTINLINE></JAVASCRIPT>
+    </SPLITINLINE>
+    could be changed so that the calls to
+    <SPLITINLINE>
+      <SCHEME>
+	<SCHEMEINLINE>protected</SCHEMEINLINE>
+      </SCHEME>
+      <JAVASCRIPT>
+	<JAVASCRIPTINLINE>protect</JAVASCRIPTINLINE>
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    are done outside the <!-- Error occurred while translating this section --><SCHEMEINLINE>dispatch</SCHEMEINLINE>
+    <SPLITINLINE>
+      <SCHEME>procedure.</SCHEME>
+      <JAVASCRIPT>function.</JAVASCRIPT>
+    </SPLITINLINE>
+    That is, an account would return the same serialized
+    <SPLITINLINE><SCHEME>procedure</SCHEME>
+    <JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+    (which was created at the same time as the account) each time
+    it is asked for a withdrawal
+    <SPLITINLINE>
+      <SCHEME>procedure.</SCHEME>
+      <JAVASCRIPT>function.</JAVASCRIPT>
+    </SPLITINLINE>
+    <!-- Error occurred while translating this section --><SNIPPET CHAP="3" VARIANT="concurrent">
+      <INDEX><DECLARATION>make_account</DECLARATION><SUBINDEX>with serialization</SUBINDEX><FRAGILE></FRAGILE></INDEX>
+      <NAME>serializer_example_6</NAME>
+      <REQUIRES>serializer</REQUIRES>
+      <EXAMPLE>make_account_serialize_attempt_example</EXAMPLE>
+      <SCHEME>
+(define (make-account balance)
+  (define (withdraw amount)
+    (if (&gt;= balance amount)
+        (begin (set! balance (- balance amount))
+          balance)
+        &quot;Insufficient funds&quot;))
+  (define (deposit amount)
+    (set! balance (+ balance amount))
+    balance)
+  (let ((protected (make-serializer)))
+        (let ((protected-withdraw (protected withdraw))
+              (protected-deposit (protected deposit)))
+          (define (dispatch m)
+            (cond ((eq? m &apos;withdraw) protected-withdraw)
+                  ((eq? m &apos;deposit) protected-deposit)
+                  ((eq? m &apos;balance) balance)
+                  (else (error &quot;Unknown request - - MAKE-ACCOUNT&quot;
+                               m))))
+  dispatch)))
+      </SCHEME>
+      <JAVASCRIPT>
+function make_account(balance) {
+    function withdraw(amount) {
+        if (balance &gt; amount) {
+            balance = balance - amount;
+            return balance;
+        } else {
+            return &quot;Insufficient funds&quot;;
+        }
+    }
+    function deposit(amount) {
+        balance = balance + amount;
+        return balance;
+    }
+    const protect = make_serializer();
+    const protect_withdraw = protect(withdraw);
+    const protect_deposit = protect(deposit);
+    function dispatch(m) {
+        return m === &quot;withdraw&quot;
+               ? protect_withdraw
+               : m === &quot;deposit&quot;
+               ? protect_deposit
+               : m === &quot;balance&quot;
+               ? balance
+               : error(m, &quot;unknown request -- make_account&quot;);
+    }
+    return dispatch;
+}
+      </JAVASCRIPT>            
+    </SNIPPET>
+    Is this a safe change to make?  In particular, is there any difference
+    in what concurrency is allowed by these two versions of
+    <SPLITINLINE><SCHEME><SCHEMEINLINE>make-account</SCHEMEINLINE></SCHEME>
+    <JAVASCRIPT><JAVASCRIPTINLINE>make_account</JAVASCRIPTINLINE></JAVASCRIPT>
+    </SPLITINLINE>?
+    <!-- Error occurred while translating this section --><LABEL NAME="ex:3_42"></LABEL>
+  </EXERCISE>
+
+  <INDEX>serializer<CLOSE></CLOSE></INDEX><!-- Error occurred while translating this section -->
+
+  <SUBHEADING>
+    <NAME>Complexity of using multiple shared resources</NAME>
+  </SUBHEADING><!-- Error occurred while translating this section -->
+
+  <INDEX>serializer<SUBINDEX>with multiple shared resources<OPEN></OPEN></SUBINDEX></INDEX><!-- Error occurred while translating this section -->
+  <INDEX>shared resources<OPEN></OPEN></INDEX><!-- Error occurred while translating this section -->
+  
+  <TEXT>
+    Serializers provide a powerful abstraction that helps isolate the
+    complexities of concurrent programs so that they can be dealt with
+    carefully and (hopefully) correctly.  However, while using serializers
+    is relatively straightforward when there is only a single shared
+    resource (such as a single bank account), concurrent programming can
+    be treacherously difficult when there are multiple shared resources.
+  </TEXT><!-- Error occurred while translating this section -->
+
+  <TEXT>
+    To illustrate one of the difficulties that can arise, suppose we wish to
+    <INDEX>bank account<SUBINDEX>exchanging balances</SUBINDEX></INDEX>
+    swap the balances in two bank accounts.  We access each account to find
+    the balance, compute the difference between the balances, withdraw this
+    difference from one account, and deposit it in the other account.
+    We could implement this as
+    follows:<FOOTNOTE>We have simplified <SCHEMEINLINE>exchange</SCHEMEINLINE>
+    by exploiting the fact that our <SCHEMEINLINE>deposit</SCHEMEINLINE>
+    message accepts negative amounts.  (This is a serious bug in our banking
+    system!)</FOOTNOTE>
+    <!-- Error occurred while translating this section --><SNIPPET HIDE="yes">
+      <NAME>exchange_example</NAME>
+      <JAVASCRIPT>
+const a1 = make_account(100);
+const a2 = make_account(200);
+const a3 = make_account(300);
+
+concurrent_execute(
+    () =&gt; { 
+        display(a1(&quot;balance&quot;), &quot;Peter balance a1 before&quot;);
+        display(a2(&quot;balance&quot;), &quot;Peter balance a2 before&quot;);
+        exchange(a1, a2);
+        display(a1(&quot;balance&quot;), &quot;Peter balance a1 after&quot;);
+        display(a2(&quot;balance&quot;), &quot;Peter balance a2 after&quot;);
+    },
+    () =&gt; { 
+        display(a1(&quot;balance&quot;), &quot;Paul balance a1 before&quot;);
+        display(a3(&quot;balance&quot;), &quot;Paul balance a3 before&quot;);
+        exchange(a1, a3);
+        display(a1(&quot;balance&quot;), &quot;Paul balance a1 after&quot;);
+        display(a3(&quot;balance&quot;), &quot;Paul balance a3 after&quot;);
+    }
+);
+      </JAVASCRIPT>
+    </SNIPPET>
+    <SNIPPET CHAP="3" VARIANT="concurrent">
+      <INDEX><DECLARATION>exchange</DECLARATION></INDEX> 
+      <NAME>exchange</NAME>
+      <REQUIRES>make_account_serialize_attempt</REQUIRES>
+      <EXAMPLE>exchange_example</EXAMPLE>
+      <SCHEME>
+(define (exchange account1 account2)
+  (let ((difference (- (account1 &apos;balance)
+                       (account2 &apos;balance))))
+       ((account1 &apos;withdraw) difference)
+    ((account2 &apos;deposit) difference)))
+      </SCHEME>
+      <JAVASCRIPT>
+function exchange(account1, account2) {
+    const difference = account1(&quot;balance&quot;) - account2(&quot;balance&quot;);
+    account1(&quot;withdraw&quot;)(difference);
+    account2(&quot;deposit&quot;)(difference);
+}
+      </JAVASCRIPT>
+    </SNIPPET>
+  </TEXT>
+
+  <TEXT>
+    This
+    <SPLITINLINE>
+      <SCHEME>procedure</SCHEME>
+      <JAVASCRIPT>function</JAVASCRIPT>
+    </SPLITINLINE>
+    works well when only a single 
+    <SPLITINLINE><SCHEME>process</SCHEME>
+    <JAVASCRIPT>thread</JAVASCRIPT></SPLITINLINE> 
+    is trying to do the exchange.  Suppose, however, that Peter and Paul both
+    have access to accounts <!-- Error occurred while translating this section --><LATEXINLINE>$a_1$</LATEXINLINE>,
+    <LATEXINLINE>$a_2$</LATEXINLINE>, and <!-- Error occurred while translating this section --><LATEXINLINE>$a_3$</LATEXINLINE>, and
+    that Peter exchanges <!-- Error occurred while translating this section --><LATEXINLINE>$a_1$</LATEXINLINE> and
+    <!-- Error occurred while translating this section --><LATEXINLINE>$a_2$</LATEXINLINE> while Paul concurrently exchanges
+    <!-- Error occurred while translating this section --><LATEXINLINE>$a_1$</LATEXINLINE> and <!-- Error occurred while translating this section --><LATEXINLINE>$a_3$</LATEXINLINE>.
+    Even with account deposits and withdrawals
+    serialized for individual accounts (as in the
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>make-account</SCHEMEINLINE></SCHEME>
+      <JAVASCRIPT><JAVASCRIPTINLINE>make_account</JAVASCRIPTINLINE></JAVASCRIPT>
+    </SPLITINLINE>
+    <SPLITINLINE>
+      <SCHEME>procedure</SCHEME>
+      <JAVASCRIPT>function</JAVASCRIPT>
+    </SPLITINLINE>
+    shown above in this section), <!-- Error occurred while translating this section --><SCHEMEINLINE>exchange</SCHEMEINLINE> can
+    still produce incorrect results.  For example, Peter might compute the
+    difference in the balances for <!-- Error occurred while translating this section --><LATEXINLINE>$a_1$</LATEXINLINE> and
+    <!-- Error occurred while translating this section --><LATEXINLINE>$a_2$</LATEXINLINE>, but then Paul might change the balance in
+    <!-- Error occurred while translating this section --><LATEXINLINE>$a_1$</LATEXINLINE> before Peter is able to complete the
+    exchange.<FOOTNOTE>If the account balances start out as <DOLLAR></DOLLAR>10,
+    <DOLLAR></DOLLAR>20, and <DOLLAR></DOLLAR>30, then after any number of concurrent exchanges,
+    the balances should still be <DOLLAR></DOLLAR>10, <DOLLAR></DOLLAR>20, and <DOLLAR></DOLLAR>30 in
+    some order.  Serializing the deposits to individual accounts is not
+    sufficient to guarantee this. See
+    exercise<SPACE></SPACE><REF NAME="ex:exchange-bug"></REF>.</FOOTNOTE>
+    For correct behavior, we must arrange for the
+    <!-- Error occurred while translating this section --><SCHEMEINLINE>exchange</SCHEMEINLINE>
+    <SPLITINLINE>
+      <SCHEME>procedure</SCHEME>
+      <JAVASCRIPT>function</JAVASCRIPT>
+    </SPLITINLINE>
+    to lock out any other concurrent accesses to the accounts during the
+    entire time of the exchange.
+  <!-- Error occurred while translating this section --></TEXT>
+
+  <TEXT>
+    One way we can accomplish this is by using both accounts<APOS></APOS> serializers
+    to serialize the entire <!-- Error occurred while translating this section --><SCHEMEINLINE>exchange</SCHEMEINLINE>
+    <SPLITINLINE><SCHEME>procedure</SCHEME>
+    <JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>.
+    To do this, we will arrange for access to an account<APOS></APOS>s serializer.
+    Note that we are deliberately breaking the modularity of the bank-account
+    object by exposing the serializer.  The following version of
+    <SPLITINLINE><SCHEME><SCHEMEINLINE>make-account</SCHEMEINLINE></SCHEME>
+    <JAVASCRIPT><JAVASCRIPTINLINE>make_@account</JAVASCRIPTINLINE></JAVASCRIPT>
+    </SPLITINLINE>
+    is identical to the original version given in
+    section<SPACE></SPACE><REF NAME="sec:local-state-variables"></REF>, except that a
+    serializer is provided to protect the balance variable, and the serializer
+    is exported via message passing:
+    <!-- Error occurred while translating this section --><SNIPPET CHAP="3" VARIANT="concurrent">
+      <INDEX><DECLARATION>make_account_and_serializer</DECLARATION></INDEX> 
+      <NAME>make_account_and_serializer</NAME>
+      <REQUIRES>serializer</REQUIRES>
+      <EXPECTED>&apos;all threads terminated&apos;</EXPECTED>
+      <SCHEME>
+(define (make-account-and-serializer balance)
+  (define (withdraw amount)
+    (if (&gt;= balance amount)
+        (begin (set! balance (- balance amount))
+          balance)
+        &quot;Insufficient funds&quot;))
+  (define (deposit amount)
+    (set! balance (+ balance amount))
+    balance)
+  (let ((balance-serializer (make-serializer)))
+    (define (dispatch m)
+      (cond ((eq? m &apos;withdraw) withdraw)
+            ((eq? m &apos;deposit) deposit)
+            ((eq? m &apos;balance) balance)
+            ((eq? m &apos;serializer) balance-serializer)
+            (else (error &quot;Unknown request - - MAKE-ACCOUNT&quot;
+                         m))))
+    dispatch))
+      </SCHEME>
+      <JAVASCRIPT>
+function make_account_and_serializer(balance) {
+    function withdraw(amount) {
+        if (balance &gt; amount) {
+            balance = balance - amount;
+            return balance;
+        } else {
+            return &quot;Insufficient funds&quot;;
+        }
+    }
+    function deposit(amount) {
+        balance = balance + amount;
+        return balance;
+    }
+    const balance_serializer = make_serializer();
+    return m =&gt; m === &quot;withdraw&quot;
+                ? withdraw
+                : m === &quot;deposit&quot;
+                ? deposit
+                : m === &quot;balance&quot;
+                ? balance
+                : m === &quot;serializer&quot;
+                ? balance_serializer
+                : error(m, &quot;unknown request -- make_account&quot;);
+}
+      </JAVASCRIPT>
+    </SNIPPET>
+  </TEXT>
+
+  <TEXT>
+    We can use this to do serialized deposits and withdrawals.  However,
+    unlike our earlier serialized account, it is now the responsibility of
+    each user of bank-account objects to explicitly manage the
+    serialization, for example as
+    follows:<FOOTNOTE>Exercise<SPACE></SPACE><REF NAME="ex:export-serializer"></REF>
+    investigates why deposits and withdrawals are no longer automatically
+    serialized by the account.</FOOTNOTE>
+    <SNIPPET HIDE="yes">
+      <NAME>make_account_and_serializer_example</NAME>
+      <JAVASCRIPT>
+const my_account = make_account_and_serializer(100);
+
+deposit(my_account, 200);
+
+display(my_account(&quot;balance&quot;));
+      </JAVASCRIPT>
+    </SNIPPET>
+    <SNIPPET CHAP="3" VARIANT="concurrent">
+      <INDEX><DECLARATION>deposit</DECLARATION>, with external serializer</INDEX>
+      <NAME>make_account_and_serializer_usage</NAME>
+      <REQUIRES>make_account_and_serializer</REQUIRES>
+      <EXAMPLE>make_account_and_serializer_example</EXAMPLE>
+      <SCHEME>
+(define (deposit account amount)
+  (let ((s (account &apos;serializer))
+        (d (account &apos;deposit)))
+    ((s d) amount)))
+      </SCHEME>
+      <JAVASCRIPT>
+function deposit(account, amount) {
+    const s = account(&quot;serializer&quot;);
+    const d = account(&quot;deposit&quot;);
+    s(d(amount));
+}
+      </JAVASCRIPT>
+    </SNIPPET>
+  </TEXT><!-- Error occurred while translating this section -->
+
+  <TEXT>
+    Exporting the serializer in this way gives us enough flexibility to
+    implement a serialized exchange program.  We simply serialize the original
+    <!-- Error occurred while translating this section --><SCHEMEINLINE>exchange</SCHEMEINLINE>
+    <SPLITINLINE><SCHEME>procedure</SCHEME>
+    <JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+    with the serializers for both accounts:
+    <!-- Error occurred while translating this section --><SNIPPET HIDE="yes">
+      <NAME>serialized_exchange_example</NAME>
+      <JAVASCRIPT>
+const a1 = make_account_and_serializer(100);
+const a2 = make_account_and_serializer(200);
+const a3 = make_account_and_serializer(300);
+
+concurrent_execute(
+    () =&gt; { 
+        display(a1(&quot;balance&quot;), &quot;Peter balance a1 before&quot;);
+        display(a2(&quot;balance&quot;), &quot;Peter balance a2 before&quot;);
+        serialized_exchange(a1, a2);
+        display(a1(&quot;balance&quot;), &quot;Peter balance a1 after&quot;);
+        display(a2(&quot;balance&quot;), &quot;Peter balance a2 after&quot;);
+    },
+    () =&gt; { 
+        display(a1(&quot;balance&quot;), &quot;Paul balance a1 before&quot;);
+        display(a3(&quot;balance&quot;), &quot;Paul balance a3 before&quot;);
+        serialized_exchange(a1, a3);
+        display(a1(&quot;balance&quot;), &quot;Paul balance a1 after&quot;);
+        display(a3(&quot;balance&quot;), &quot;Paul balance a3 after&quot;);
+    }
+);
+      </JAVASCRIPT>
+    </SNIPPET>
+    <SNIPPET CHAP="3" VARIANT="concurrent" POSTPADDING="no">
+      <INDEX><DECLARATION>serialized_exchange</DECLARATION></INDEX> 
+      <NAME>serialized_exchange</NAME>
+      <REQUIRES>make_account_and_serializer</REQUIRES>
+      <REQUIRES>exchange</REQUIRES>
+      <EXAMPLE>serialized_exchange_example</EXAMPLE>
+      <SCHEME>
+(define (serialized-exchange account1 account2)
+  (let ((serializer1 (account1 &apos;serializer))
+        (serializer2 (account2 &apos;serializer)))
+    ((serializer1 (serializer2 exchange))
+     account1
+     account2)))
+      </SCHEME>
+      <JAVASCRIPT>
+function serialized_exchange(account1, account2) {
+    const serializer1 = account1(&quot;serializer&quot;);
+    const serializer2 = account2(&quot;serializer&quot;);
+    serializer1(serializer2(exchange))(account1, account2);
+}
+      </JAVASCRIPT>
+    </SNIPPET>
+  </TEXT>
+
+  <EXERCISE>
+    Suppose that the balances in three accounts start out as <DOLLAR></DOLLAR>10,
+    <DOLLAR></DOLLAR>20, and <DOLLAR></DOLLAR>30, and that multiple 
+    <SPLITINLINE>
+      <SCHEME>processes</SCHEME>
+      <JAVASCRIPT>threads</JAVASCRIPT>
+    </SPLITINLINE> 
+    run, exchanging the balances in the accounts.  Argue that if the 
+    <SPLITINLINE>
+      <SCHEME>processes</SCHEME>
+      <JAVASCRIPT>threads</JAVASCRIPT>
+    </SPLITINLINE> 
+    are run sequentially,
+    after any number of concurrent exchanges, the account balances should be 
+    <DOLLAR></DOLLAR>10, <DOLLAR></DOLLAR>20, and <DOLLAR></DOLLAR>30 in some order.
+    Draw a timing diagram like the one in
+    figure<SPACE></SPACE><REF NAME="fig:bank-access"></REF> to
+    show how this condition can be violated if the exchanges are
+    implemented using the first version of the account-exchange program in
+    this section.  On the other hand, argue that even with this
+    <SCHEMEINLINE>exchange</SCHEMEINLINE> program, the sum of the balances
+    in the accounts will be preserved.  Draw a timing diagram to show how
+    even this condition would be violated if we did not serialize the
+    transactions on individual accounts.
+    <LABEL NAME="ex:exchange-bug"></LABEL>
+  </EXERCISE><!-- Error occurred while translating this section -->
+
+  <EXERCISE>
+    Consider the problem of
+    <INDEX>bank account<SUBINDEX>transferring money</SUBINDEX></INDEX>
+    transferring an amount from one account to
+    another.  Ben Bitdiddle claims that this can be accomplished with the
+    following
+    <SPLITINLINE><SCHEME>procedure,</SCHEME>
+    <JAVASCRIPT>function,</JAVASCRIPT></SPLITINLINE>
+    even if there are multiple people concurrently
+    transferring money among multiple accounts, using any account
+    mechanism that serializes deposit and withdrawal transactions, for
+    example, the version of
+    <SPLITINLINE><SCHEME><SCHEMEINLINE>make-account</SCHEMEINLINE></SCHEME>
+    <JAVASCRIPT>
+      <JAVASCRIPTINLINE>make_account</JAVASCRIPTINLINE>
+    </JAVASCRIPT>
+    </SPLITINLINE>
+    in the text above.
+    <!-- Error occurred while translating this section --><SNIPPET HIDE="yes">
+      <NAME>transfer_example</NAME>
+      <REQUIRES>make_account_serialize_attempt</REQUIRES>
+      <JAVASCRIPT>
+const a1 = make_account(400);
+const a2 = make_account(100);
+
+concurrent_execute(
+    () =&gt; {
+        display(a1(&quot;balance&quot;), &quot;Peter balance a1 before&quot;);
+        display(a2(&quot;balance&quot;), &quot;Peter balance a2 before&quot;);
+        transfer(a1, a2, 50);
+        display(a1(&quot;balance&quot;), &quot;Peter balance a1 after&quot;);
+        display(a2(&quot;balance&quot;), &quot;Peter balance a2 after&quot;);
+    },
+    () =&gt; { 
+        display(a1(&quot;balance&quot;), &quot;Paul balance a1&quot;);
+        display(a2(&quot;balance&quot;), &quot;Paul balance a2&quot;);
+        display(a1(&quot;balance&quot;), &quot;Paul balance a1&quot;);
+        display(a2(&quot;balance&quot;), &quot;Paul balance a2&quot;);
+        display(a1(&quot;balance&quot;), &quot;Paul balance a1&quot;);
+        display(a2(&quot;balance&quot;), &quot;Paul balance a2&quot;);
+    }
+);
+      </JAVASCRIPT>
+    </SNIPPET>
+    <SNIPPET CHAP="3" VARIANT="concurrent">
+      <NAME>transfer</NAME>
+      <EXAMPLE>transfer_example</EXAMPLE>
+      <REQUIRES>make_account_and_serializer</REQUIRES>
+      <SCHEME>
+(define (transfer from-account to-account amount)
+  ((from-account &apos;withdraw) amount)
+  ((to-account &apos;deposit) amount))
+      </SCHEME>
+      <JAVASCRIPT>
+function transfer(from_account, to_account, amount) {
+    from_account(&quot;withdraw&quot;)(amount);
+    to_account(&quot;deposit&quot;)(amount);
+}
+      </JAVASCRIPT>
+    </SNIPPET>
+    <SHORT_PAGE LINES="4"></SHORT_PAGE>Louis Reasoner claims that there is a problem here, and that we need
+    to use a more sophisticated method, such as the one required for
+    dealing with the exchange problem.  Is Louis right?  If not, what is
+    the essential difference between the transfer problem and the exchange
+    problem?  (You should assume that the balance in
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>from-account</SCHEMEINLINE></SCHEME>
+      <JAVASCRIPT><JAVASCRIPTINLINE>from_account</JAVASCRIPTINLINE></JAVASCRIPT>
+    </SPLITINLINE>
+    is at least <!-- Error occurred while translating this section --><SCHEMEINLINE>amount</SCHEMEINLINE>.)
+    <!-- Error occurred while translating this section --><LABEL NAME="ex:3_44"></LABEL>
+  </EXERCISE>
+
+  <EXERCISE>
+    Louis Reasoner thinks our bank-account system is unnecessarily complex
+    and error-prone now that deposits and withdrawals aren<APOS></APOS>t
+    automatically serialized. He suggests that
+    <SPLITINLINE>
+      <SCHEME>
+        <SCHEMEINLINE>make-account-and-serializer</SCHEMEINLINE>
+      </SCHEME>
+      <JAVASCRIPT>
+        <JAVASCRIPTINLINE>make_@account_@and_@serializer</JAVASCRIPTINLINE>
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    should have exported the serializer 
+    <SPLITINLINE>
+      <SCHEME>
+        (for use by such procedures as
+        <SCHEMEINLINE>serialized-exchange</SCHEMEINLINE>)
+      </SCHEME>
+      <JAVASCRIPT>
+        (for use by such functions as
+        <JAVASCRIPTINLINE>serialized_exchange</JAVASCRIPTINLINE>)        
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    in addition to (rather than instead of) using it to serialize accounts and
+    deposits as
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>make-account</SCHEMEINLINE></SCHEME>
+      <JAVASCRIPT><JAVASCRIPTINLINE>make_account</JAVASCRIPTINLINE></JAVASCRIPT>
+    </SPLITINLINE>
+    did. He proposes to redefine accounts as follows:
+    <!-- Error occurred while translating this section --><SNIPPET CHAP="3" VARIANT="concurrent">
+      <NAME>make_account_and_serializer_exercise</NAME>
+      <REQUIRES>serializer</REQUIRES>
+      <EXAMPLE>make_account_and_serializer_exercise_example</EXAMPLE>
+      <SCHEME>
+(define (make-account-and-serializer balance)
+  (define (withdraw amount)
+    (if (&gt;= balance amount)
+      (begin (set! balance (- balance amount))
+        balance)
+      &quot;Insufficient funds&quot;))
+  (define (deposit amount)
+    (set! balance (+ balance amount))
+    balance)
+  (let ((balance-serializer (make-serializer)))
+    (define (dispatch m)
+      (cond ((eq? m &apos;withdraw) (balance-serializer withdraw))
+            ((eq? m &apos;deposit) (balance-serializer deposit))
+            ((eq? m &apos;balance) balance)
+            ((eq? m &apos;serializer) balance-serializer)
+            (else (error &quot;Unknown request - - MAKE-ACCOUNT&quot;
+                         m))))
+    dispatch))
+      </SCHEME>
+      <JAVASCRIPT>
+function make_account_and_serializer(balance) {
+    function withdraw(amount) {
+        if (balance &gt; amount) {
+            balance = balance - amount;
+	    return balance;
+        } else {
+            return &quot;Insufficient funds&quot;;
+        }
+    }
+    function deposit(amount) {
+        balance = balance + amount;
+        return balance;
+    }
+    const balance_serializer = make_serializer();
+    return m =&gt; m === &quot;withdraw&quot;
+                ? balance_serializer(withdraw)
+                : m === &quot;deposit&quot;
+                ? balance_serializer(deposit)
+                : m === &quot;balance&quot;
+                ? balance
+                : m === &quot;serializer&quot;
+                ? balance_serializer
+                : error(m, &quot;unknown request -- make_account&quot;);
+}
+      </JAVASCRIPT>
+    </SNIPPET>
+    Then deposits are handled as with the original
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>make-account</SCHEMEINLINE>:</SCHEME>
+      <JAVASCRIPT><JAVASCRIPTINLINE>make_account</JAVASCRIPTINLINE>:</JAVASCRIPT>
+    </SPLITINLINE>
+    <!-- Error occurred while translating this section --><SNIPPET CHAP="3" VARIANT="concurrent">
+      <NAME>make_account_and_serializer_exercise_usage</NAME>
+      <REQUIRES>make_account_and_serializer_exercise</REQUIRES>
+      <EXAMPLE>make_account_and_serializer_exercise_example</EXAMPLE>
+      <SCHEME>
+(define (deposit account amount)
+  ((account &apos;deposit) amount))
+      </SCHEME>
+      <JAVASCRIPT>
+function deposit(account, amount) {
+    account(&quot;deposit&quot;)(amount);
+}
+      </JAVASCRIPT>
+    </SNIPPET>
+    <SNIPPET CHAP="3" VARIANT="concurrent" HIDE="yes">
+      <NAME>make_account_and_serializer_exercise_example</NAME>
+      <REQUIRES>make_account_and_serializer_exercise_usage</REQUIRES>
+      <SCHEME>
+      </SCHEME>
+      <JAVASCRIPT>
+const my_account = make_account_and_serializer(300);
+deposit(my_account, 100);	
+display(my_account(&quot;balance&quot;));
+      </JAVASCRIPT>
+    </SNIPPET>
+    Explain what is wrong with Louis&apos;s reasoning.  In particular,
+    consider what happens when
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>serialized-exchange</SCHEMEINLINE></SCHEME>
+      <JAVASCRIPT><JAVASCRIPTINLINE>serialized_exchange</JAVASCRIPTINLINE>
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    is called.
+    <!-- Error occurred while translating this section --><LABEL NAME="ex:export-serializer"></LABEL>
+  </EXERCISE>
+
+  <INDEX>serializer<SUBINDEX>with multiple shared resources<CLOSE></CLOSE></SUBINDEX></INDEX><!-- Error occurred while translating this section -->
+  <INDEX>shared resources<CLOSE></CLOSE></INDEX><!-- Error occurred while translating this section -->
+
+  <DO_BREAK_PAGE></DO_BREAK_PAGE><!-- Error occurred while translating this section -->
+  <SUBHEADING>
+    <NAME>Implementing serializers</NAME>
+  </SUBHEADING><!-- Error occurred while translating this section -->
+
+  <INDEX>serializer<SUBINDEX>implementing<OPEN></OPEN></SUBINDEX></INDEX><!-- Error occurred while translating this section -->
+
+  <TEXT>
+    We implement serializers in terms of a more primitive synchronization
+    mechanism called a 
+    <!-- Error occurred while translating this section --><INDEX>mutex<!-- Error occurred while translating this section --></INDEX>
+    <EM>mutex<!-- Error occurred while translating this section --></EM>.  A mutex is an object that supports two
+    operations<!-- Error occurred while translating this section --><EMDASH></EMDASH>the mutex can be 
+    <!-- Error occurred while translating this section --><INDEX>acquire a mutex<!-- Error occurred while translating this section --></INDEX>
+    <EM>acquired<!-- Error occurred while translating this section --></EM>, and the mutex can be
+    <!-- Error occurred while translating this section --><INDEX>release a mutex<!-- Error occurred while translating this section --></INDEX>
+    <EM>released<!-- Error occurred while translating this section --></EM>.  Once a mutex has been acquired, no other acquire
+    operations on that mutex may proceed until the mutex is
+    released.<!-- Error occurred while translating this section --><FOOTNOTE>The term <QUOTE>mutex</QUOTE> is an abbreviation for 
+    <INDEX>mutual exclusion</INDEX>
+    <EM>mutual exclusion</EM>.  The general problem of arranging a mechanism
+    that permits concurrent 
+    <SPLITINLINE><SCHEME>processes</SCHEME>
+    <JAVASCRIPT>threads</JAVASCRIPT></SPLITINLINE> 
+    to safely share resources is called the mutual exclusion problem.  Our
+    mutex is a simple variant of the 
+    <INDEX>semaphore</INDEX>
+    <EM>semaphore</EM> mechanism (see
+    exercise<SPACE></SPACE><REF NAME="ex:semaphore"></REF>), which was introduced in the 
+    <INDEX>THE Multiprogramming System</INDEX>
+    <QUOTE>THE</QUOTE> Multiprogramming System developed at the
+    <INDEX>Technological University of Eindhoven</INDEX>
+    Technological University of Eindhoven and named for the university<APOS></APOS>s
+    initials in Dutch
+    <INDEX>Dijkstra, Edsger Wybe</INDEX>
+    (<CITATION>Dijkstra 1968a</CITATION>).  The acquire and
+    release operations were originally called 
+    <INDEX><ORDER>P</ORDER>P operation on semaphore</INDEX>
+    <INDEX><ORDER>V</ORDER>V operation on semaphore</INDEX>
+    P and V, from the Dutch
+    words <EM>passeren</EM> (to pass) and <EM>vrijgeven</EM> (to release), in
+    reference to the semaphores used on railroad systems.  Dijkstra<APOS></APOS>s
+    classic exposition (1968b) was one of the first to clearly present the
+    issues of concurrency control, and showed how to use semaphores to
+    handle a variety of concurrency problems.<!-- Error occurred while translating this section --></FOOTNOTE>
+    In our implementation, each serializer has an associated mutex.  Given a
+    <!-- Error occurred while translating this section --><SPLITINLINE>
+      <SCHEME>
+	procedure
+	<SCHEMEINLINE>p</SCHEMEINLINE>, 	
+      </SCHEME>
+      <JAVASCRIPT>
+	function
+	<JAVASCRIPTINLINE>f</JAVASCRIPTINLINE>,
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    the serializer returns a
+    <SPLITINLINE><SCHEME>procedure</SCHEME>
+    <JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+    that acquires the mutex, runs
+    <SPLITINLINE>
+      <SCHEME>
+	<SCHEMEINLINE>p</SCHEMEINLINE>,
+      </SCHEME>
+      <JAVASCRIPT>
+	<JAVASCRIPTINLINE>f</JAVASCRIPTINLINE>,
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    and then releases the mutex.  This ensures that only one of the
+    <SPLITINLINE>
+      <SCHEME>procedures</SCHEME>
+      <JAVASCRIPT>functions</JAVASCRIPT>
+    </SPLITINLINE>
+    produced by the serializer can be running at once, which is
+    precisely the serialization property that we need to guarantee.
+    <!-- Error occurred while translating this section --><SPLIT>
+      <JAVASCRIPT>
+	To apply serializers to functions that take an arbitrary number of arguments,
+	we use JavaScript&apos;s <EM>rest</EM> parameter and <EM>spread</EM> syntax.
+	<INDEX><ORDER>0a3</ORDER><JAVASCRIPTINLINE>...</JAVASCRIPTINLINE> (rest parameter and spread syntax)</INDEX>
+	<INDEX>vector (data structure)<SUBINDEX><ORDER>rest</ORDER>used in spread and rest parameter syntax</SUBINDEX></INDEX>
+	<INDEX>rest parameter and spread syntax</INDEX>
+	<INDEX>spread and rest parameter syntax</INDEX>
+	<INDEX><FUNCTION></FUNCTION><SUBINDEX>with any number of arguments</SUBINDEX></INDEX>    
+	<INDEX>argument(s)<SUBINDEX>arbitrary number of</SUBINDEX></INDEX>    
+	The <JAVASCRIPTINLINE>...</JAVASCRIPTINLINE> in front of the
+	parameter <JAVASCRIPTINLINE>args</JAVASCRIPTINLINE> collects
+	the rest (here all) of the arguments of any call of the function
+	into a <EM>vector</EM> data structure.
+	The
+	<JAVASCRIPTINLINE>...</JAVASCRIPTINLINE> in front of
+	<JAVASCRIPTINLINE>args</JAVASCRIPTINLINE> in
+	the application
+	<JAVASCRIPTINLINE>f(...args)</JAVASCRIPTINLINE>
+	spreads the elements of 
+	<JAVASCRIPTINLINE>args</JAVASCRIPTINLINE> so that
+	they become separate arguments of 
+	<JAVASCRIPTINLINE>f</JAVASCRIPTINLINE>.
+      </JAVASCRIPT>
+    </SPLIT>
+    <!-- Error occurred while translating this section --><SNIPPET CHAP="3" VARIANT="concurrent">
+      <INDEX><DECLARATION>make_serializer</DECLARATION></INDEX> 
+      <NAME>serializer</NAME>
+      <REQUIRES>mutex</REQUIRES>
+      <EXPECTED>&apos;all threads terminated&apos;</EXPECTED>
+      <SCHEME>
+(define (make-serializer)
+  (let ((mutex (make-mutex)))
+    (lambda (p)
+      (define (serialized-p . args)
+        (mutex &apos;acquire)
+        (let ((val (apply p args)))
+          (mutex &apos;release)
+          val))
+      serialized-p)))
+      </SCHEME>
+      <JAVASCRIPT>
+function make_serializer() {
+    const mutex = make_mutex();
+    return f =&gt; {
+               function serialized_f(...args) {
+                   mutex(&quot;acquire&quot;);
+                   const val = f(...args);
+                   mutex(&quot;release&quot;);
+                   return val;
+               }
+               return serialized_f;          
+           };
+}
+      </JAVASCRIPT>
+      <JAVASCRIPT_RUN>
+function make_serializer() {
+    const mutex = make_mutex();
+    return f =&gt; {
+               function serialized_f() {
+                   mutex(&quot;acquire&quot;);
+                   const val = f();
+                   mutex(&quot;release&quot;);
+                   return val;
+               }
+               return serialized_f;          
+           };
+}
+      </JAVASCRIPT_RUN>
+    </SNIPPET>
+  </TEXT>
+
+  <TEXT>
+    The mutex is a mutable object (here we<APOS></APOS>ll use a one-element list,
+    which we<APOS></APOS>ll refer to as a 
+    <INDEX>cell, in serializer implementation</INDEX>
+    <EM>cell</EM>) that can hold the value true or false.  When the value is
+    false, the mutex is available to be acquired.  When the value is true, the
+    mutex is unavailable, and any
+    <SPLITINLINE>
+      <SCHEME>process</SCHEME>
+      <JAVASCRIPT>thread</JAVASCRIPT>
+    </SPLITINLINE> 
+    that attempts to acquire the mutex must wait.
+  </TEXT><!-- Error occurred while translating this section -->
+
+  <TEXT>
+    Our mutex constructor
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>make-mutex</SCHEMEINLINE></SCHEME>
+      <JAVASCRIPT><JAVASCRIPTINLINE>make_mutex</JAVASCRIPTINLINE></JAVASCRIPT>
+    </SPLITINLINE>
+    begins by initializing the cell contents to false.  To acquire the mutex,
+    we test the cell.  If the mutex is available, we set the cell contents to
+    true and proceed. Otherwise, we wait in a loop, attempting to acquire over
+    and over again, until we find that the mutex is available.<FOOTNOTE>In most
+    time-shared operating systems,
+    <SPLITINLINE>
+      <SCHEME>processes</SCHEME>
+      <JAVASCRIPT>threads</JAVASCRIPT>
+    </SPLITINLINE> 
+    that are
+    <INDEX>blocked process</INDEX>
+    blocked by a mutex do
+    not waste time
+    <INDEX>busy-waiting</INDEX>
+    <QUOTE>busy-waiting</QUOTE> as above.  Instead, the system
+    schedules another 
+    <SPLITINLINE>
+      <SCHEME>process</SCHEME>
+      <JAVASCRIPT>thread</JAVASCRIPT>
+    </SPLITINLINE> 
+    to run while the first is waiting, and the blocked
+    <SPLITINLINE><SCHEME>process</SCHEME>
+    <JAVASCRIPT>thread</JAVASCRIPT></SPLITINLINE> 
+    is awakened when the mutex becomes available.</FOOTNOTE>
+    To release the mutex, we set the cell contents to false.
+    <!-- Error occurred while translating this section --><SNIPPET CHAP="3" VARIANT="concurrent">
+      <INDEX><DECLARATION>make_mutex</DECLARATION></INDEX> 
+      <NAME>mutex</NAME>
+      <EXPECTED>&apos;all threads terminated&apos;</EXPECTED>
+      <SCHEME>
+(define (make-mutex)
+  (let ((cell (list false)))            
+    (define (the-mutex m)
+      (cond ((eq? m &apos;acquire)
+             (if (test-and-set! cell)
+                 (the-mutex &apos;acquire))) <EM>; retry</EM>
+                 ((eq? m &apos;release) (clear! cell))))
+    the-mutex))
+
+(define (clear! cell)
+  (set-car! cell false))
+      </SCHEME>
+      <JAVASCRIPT>
+function make_mutex() {
+    const cell = list(false);
+    function the_mutex(m) {
+        return m === &quot;acquire&quot;
+               ? test_and_set(cell)
+                 ? the_mutex(&quot;acquire&quot;) // retry
+                 : true
+               : m === &quot;release&quot;
+               ? clear(cell)
+               : error(m, &quot;unknown request -- mutex&quot;);
+    }
+    return the_mutex;
+}
+function clear(cell) {
+    set_head(cell, false);
+}
+      </JAVASCRIPT>
+    </SNIPPET>
+  </TEXT>
+
+  <TEXT>
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>Test-and-set!</SCHEMEINLINE></SCHEME>
+      <JAVASCRIPT>The function <JAVASCRIPTINLINE>test_and_set</JAVASCRIPTINLINE>
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    tests the cell and returns the result of the test.  In addition, if the
+    test was false,
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>test-and-set!</SCHEMEINLINE></SCHEME>
+      <JAVASCRIPT><JAVASCRIPTINLINE>test_and_set</JAVASCRIPTINLINE></JAVASCRIPT>
+    </SPLITINLINE>
+    sets the cell contents to true before returning false.  We can express this
+    behavior as the following
+    <SPLITINLINE>
+      <SCHEME>procedure:</SCHEME>
+      <JAVASCRIPT>function:</JAVASCRIPT>
+    </SPLITINLINE>
+    <SNIPPET CHAP="3" VARIANT="concurrent">
+      <INDEX><DECLARATION>test_and_set</DECLARATION></INDEX> 
+      <NAME>test_and_set</NAME>
+      <EXPECTED>&apos;all threads terminated&apos;</EXPECTED>
+      <SCHEME>
+(define (test-and-set! cell)
+  (if (car cell)
+      true
+      (begin (set-car! cell true)
+        false)))
+      </SCHEME>
+      <JAVASCRIPT>
+function test_and_set(cell) {
+    if (head(cell)) {
+        return true;
+    } else {
+        set_head(cell, true);
+        return false;
+    }
+}
+      </JAVASCRIPT>
+    </SNIPPET>
+  </TEXT><!-- Error occurred while translating this section -->
+
+  <TEXT>
+    However, this implementation of
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>test-and-set!</SCHEMEINLINE></SCHEME>
+      <JAVASCRIPT><JAVASCRIPTINLINE>test_and_set</JAVASCRIPTINLINE></JAVASCRIPT>
+    </SPLITINLINE>
+    does not suffice as it stands.  There is a crucial subtlety here, which is
+    the essential place where concurrency control enters the system: The
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>test-and-set!</SCHEMEINLINE></SCHEME>
+      <JAVASCRIPT><JAVASCRIPTINLINE>test_and_set</JAVASCRIPTINLINE>
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    operation must be performed 
+    <INDEX>atomic requirement for <SPLITINLINE><SCHEME>test-and-set!</SCHEME><JAVASCRIPT>test_and_set</JAVASCRIPT></SPLITINLINE></INDEX>
+    <EM>atomically</EM>. That is, we must guarantee that, once a 
+    <SPLITINLINE>
+      <SCHEME>process</SCHEME>
+      <JAVASCRIPT>thread</JAVASCRIPT>
+    </SPLITINLINE> 
+    has tested the cell and found it to be false, the cell contents will
+    actually be set to true before any other 
+    <SPLITINLINE>
+      <SCHEME>process</SCHEME>
+      <JAVASCRIPT>thread</JAVASCRIPT>
+    </SPLITINLINE> 
+    can test the cell.  If we do not make this guarantee, then the mutex can
+    fail in a way similar to the bank-account failure in
+    figure<SPACE></SPACE><REF NAME="fig:bank-access"></REF>. (See
+    exercise<SPACE></SPACE><REF NAME="ex:atomic-test-and-set"></REF>.)
+  </TEXT><!-- Error occurred while translating this section -->
+
+  <TEXT>
+    The actual implementation of
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>test-and-set!</SCHEMEINLINE></SCHEME>
+      <JAVASCRIPT><JAVASCRIPTINLINE>test_and_set</JAVASCRIPTINLINE></JAVASCRIPT>
+    </SPLITINLINE>
+    depends on the details of how our system runs concurrent 
+    <SPLITINLINE>
+      <SCHEME>processes.</SCHEME>
+      <JAVASCRIPT>threads.</JAVASCRIPT>
+    </SPLITINLINE>
+    For example, we might be executing concurrent 
+    <SPLITINLINE>
+      <SCHEME>processes</SCHEME>
+      <JAVASCRIPT>threads</JAVASCRIPT>
+    </SPLITINLINE> 
+    on a sequential processor using a 
+    <INDEX>time slicing</INDEX>
+    time-slicing mechanism that cycles through the 
+    <SPLITINLINE>
+      <SCHEME>processes,</SCHEME>
+      <JAVASCRIPT>threads,</JAVASCRIPT>
+    </SPLITINLINE>
+    permitting each 
+    <SPLITINLINE>
+      <SCHEME>process</SCHEME>
+      <JAVASCRIPT>thread</JAVASCRIPT>
+    </SPLITINLINE> 
+    to run for a short time before interrupting it
+    and moving on to the next 
+    <SPLITINLINE><SCHEME>process.</SCHEME>
+    <JAVASCRIPT>thread.</JAVASCRIPT>
+    </SPLITINLINE>
+    In that case,
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>test-and-set!</SCHEMEINLINE></SCHEME>
+      <JAVASCRIPT>
+        <JAVASCRIPTINLINE>test_and_set</JAVASCRIPTINLINE>
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    can work by disabling time slicing during the testing and
+    setting.<!-- Error occurred while translating this section --><SPLITINLINE><SCHEME><FOOTNOTE>In MIT Scheme
+    for a single processor, which uses a time-slicing
+    model, <SCHEMEINLINE>test-and-set!</SCHEMEINLINE>
+    can be implemented as follows:
+    <INDEX><USE>without_interrupts</USE></INDEX> 
+    <INDEX>MIT Scheme<SUBINDEX><ORDER>without</ORDER>without-interrupts</SUBINDEX></INDEX>
+    <SNIPPET EVAL="no" CHAP="3" VARIANT="concurrent">
+      <INDEX><DECLARATION>test-and-set!</DECLARATION></INDEX> 
+      <SCHEME>
+(define (test-and-set! cell)
+  (without-interrupts
+    (lambda ()
+      (if (car cell)
+          true
+          (begin (set-car! cell true)
+            false)))))
+      </SCHEME>
+    </SNIPPET>
+    Without-interrupts disables time-slicing interrupts while its procedure
+    argument is being executed.</FOOTNOTE></SCHEME></SPLITINLINE>
+    Alternatively, multiprocessing computers provide instructions that
+    support atomic operations directly in hardware.<!-- Error occurred while translating this section --><FOOTNOTE>There are many
+    variants of such
+    <INDEX>atomic operations supported in hardware</INDEX>
+    instructions<EMDASH></EMDASH>including test-and-set, test-and-clear, swap,
+    compare-and-exchange, load-reserve, and store-conditional<EMDASH></EMDASH>whose
+    design must be carefully matched to the machine<APOS></APOS>s
+    processor<ENDASH></ENDASH>memory interface. One issue that arises here is to
+    determine what happens if two 
+    <SPLITINLINE><SCHEME>processes</SCHEME>
+    <JAVASCRIPT>threads</JAVASCRIPT></SPLITINLINE> 
+    attempt to acquire the same resource at exactly the same time by using such
+    an instruction. This requires some mechanism for making a decision about
+    which 
+    <SPLITINLINE><SCHEME>process</SCHEME>
+    <JAVASCRIPT>thread</JAVASCRIPT></SPLITINLINE> 
+    gets control. Such a mechanism is called an 
+    <INDEX>arbiter</INDEX>
+    <EM>arbiter</EM>.  Arbiters usually boil down to some sort of hardware
+    device. Unfortunately, it is possible to prove that one cannot physically
+    construct a fair arbiter that works 100% of the time unless one
+    allows the arbiter an arbitrarily long time to make its decision.
+    The fundamental phenomenon here was originally observed by the
+    fourteenth-century French philosopher 
+    <INDEX>Buridan, Jean</INDEX>
+    Jean Buridan in his commentary on
+    <INDEX>Aristotle<APOS></APOS>s <EM>De caelo</EM> (Buridan<APOS></APOS>s commentary on)</INDEX>
+    Aristotle<APOS></APOS>s <EM>De caelo</EM>. Buridan argued that a perfectly rational
+    <INDEX>dog, perfectly rational behavior of</INDEX>
+    dog placed between two equally attractive sources of food will starve to
+    death, because it is incapable of deciding which to go to first.</FOOTNOTE>
+  <!-- Error occurred while translating this section --></TEXT>
+
+  <EXERCISE>
+    Suppose that we implement
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>test-and-set!</SCHEMEINLINE></SCHEME>
+      <JAVASCRIPT><JAVASCRIPTINLINE>test_and_set</JAVASCRIPTINLINE></JAVASCRIPT>
+    </SPLITINLINE>
+    using an ordinary
+    <SPLITINLINE>
+      <SCHEME>procedure</SCHEME>
+      <JAVASCRIPT>function</JAVASCRIPT>
+    </SPLITINLINE>
+    as shown in the text, without attempting to make the operation atomic.
+    Draw a timing diagram like the one in
+    figure<SPACE></SPACE><REF NAME="fig:bank-access"></REF> to demonstrate how the mutex
+    implementation can fail by allowing two 
+    <SPLITINLINE>
+      <SCHEME>processes</SCHEME>
+      <JAVASCRIPT>threads</JAVASCRIPT>
+    </SPLITINLINE> 
+    to acquire the mutex at the same time.
+    <LABEL NAME="ex:atomic-test-and-set"></LABEL>
+  </EXERCISE><!-- Error occurred while translating this section -->
+
+  <EXERCISE>
+    <LABEL NAME="ex:semaphore"></LABEL>
+    A semaphore
+    <INDEX>semaphore<SUBINDEX>of size <LATEXINLINE>$n$</LATEXINLINE></SUBINDEX></INDEX>
+    (of size <LATEXINLINE>$n$</LATEXINLINE>) is a generalization of
+    a mutex. Like a mutex, a semaphore supports acquire and release operations,
+    but it is more general in that up to <LATEXINLINE>$n$</LATEXINLINE> 
+    <SPLITINLINE><SCHEME>processes</SCHEME>
+    <JAVASCRIPT>threads</JAVASCRIPT></SPLITINLINE> 
+    can acquire it
+    concurrently.  Additional 
+    <SPLITINLINE><SCHEME>processes</SCHEME>
+    <JAVASCRIPT>threads</JAVASCRIPT></SPLITINLINE> 
+    that attempt to acquire the semaphore must wait for release operations.  
+    Give implementations of semaphores
+    <OL>
+      <LI>in terms of mutexes
+      </LI>
+      <LI>
+        in terms of atomic
+        <SPLITINLINE>
+          <SCHEME><SCHEMEINLINE>test-and-set!</SCHEMEINLINE></SCHEME>
+          <JAVASCRIPT><JAVASCRIPTINLINE>test_and_set</JAVASCRIPTINLINE>
+	  </JAVASCRIPT>
+        </SPLITINLINE>
+        operations.
+      </LI>
+    </OL>
+  </EXERCISE><!-- Error occurred while translating this section -->
+
+  <INDEX>serializer<SUBINDEX>implementing<CLOSE></CLOSE></SUBINDEX></INDEX><!-- Error occurred while translating this section -->
+
+  <SUBHEADING>
+    <NAME>Deadlock</NAME>
+  </SUBHEADING><!-- Error occurred while translating this section -->
+
+  <INDEX>concurrency<SUBINDEX>deadlock<OPEN></OPEN></SUBINDEX></INDEX><!-- Error occurred while translating this section -->
+  <INDEX>deadlock<OPEN></OPEN></INDEX><!-- Error occurred while translating this section -->
+
+  <TEXT>
+    <!--   
+         %Even with the serialization technique discussed above,
+         %account exchanging still has a problem.
+      -->
+    Now that we have seen how to implement serializers, we can see
+    that account exchanging still has a problem, even with the
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>serialized-exchange</SCHEMEINLINE></SCHEME>
+      <JAVASCRIPT><JAVASCRIPTINLINE>serialized_exchange</JAVASCRIPTINLINE>
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    <SPLITINLINE><SCHEME>procedure</SCHEME>
+    <JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+    above.
+    Imagine that Peter attempts to exchange <!-- Error occurred while translating this section --><LATEXINLINE>$a_1$</LATEXINLINE>
+    with <!-- Error occurred while translating this section --><LATEXINLINE>$a_2$</LATEXINLINE> while Paul concurrently attempts to
+    exchange <!-- Error occurred while translating this section --><LATEXINLINE>$a_2$</LATEXINLINE> with
+    <!-- Error occurred while translating this section --><LATEXINLINE>$a_1$</LATEXINLINE>. Suppose that Peter<APOS></APOS>s 
+    <SPLITINLINE>
+      <SCHEME>process</SCHEME>
+      <JAVASCRIPT>thread</JAVASCRIPT>
+    </SPLITINLINE> 
+    reaches the point where it has entered a serialized
+    <SPLITINLINE>
+      <SCHEME>procedure</SCHEME>
+      <JAVASCRIPT>function</JAVASCRIPT>
+    </SPLITINLINE>
+    protecting <!-- Error occurred while translating this section --><LATEXINLINE>$a_1$</LATEXINLINE> and, just after that,
+    Paul<APOS></APOS>s 
+    <SPLITINLINE>
+      <SCHEME>process</SCHEME>
+      <JAVASCRIPT>thread</JAVASCRIPT>
+    </SPLITINLINE> 
+    enters a serialized
+    <SPLITINLINE>
+      <SCHEME>procedure</SCHEME>
+      <JAVASCRIPT>function</JAVASCRIPT>
+    </SPLITINLINE>
+    protecting <!-- Error occurred while translating this section --><LATEXINLINE>$a_2$</LATEXINLINE>.  Now Peter cannot proceed (to
+    enter a serialized
+    <SPLITINLINE>
+      <SCHEME>procedure</SCHEME>
+      <JAVASCRIPT>function</JAVASCRIPT>
+    </SPLITINLINE>
+    protecting <!-- Error occurred while translating this section --><LATEXINLINE>$a_2$</LATEXINLINE>) until Paul exits the serialized
+    <SPLITINLINE>
+      <SCHEME>procedure</SCHEME>
+      <JAVASCRIPT>function</JAVASCRIPT>
+    </SPLITINLINE>
+    protecting <!-- Error occurred while translating this section --><LATEXINLINE>$a_2$</LATEXINLINE>.  Similarly, Paul cannot proceed
+    until Peter exits the serialized
+    <SPLITINLINE>
+      <SCHEME>procedure</SCHEME>
+      <JAVASCRIPT>function</JAVASCRIPT>
+    </SPLITINLINE>
+    protecting <!-- Error occurred while translating this section --><LATEXINLINE>$a_1$</LATEXINLINE>.  Each
+    <SPLITINLINE>
+      <SCHEME>process</SCHEME>
+      <JAVASCRIPT>thread</JAVASCRIPT>
+    </SPLITINLINE> 
+    is stalled forever, waiting for the other.  This situation is called a
+    <EM>deadlock</EM>.  Deadlock is always a danger in systems that provide
+    concurrent access to multiple shared resources.
+  <!-- Error occurred while translating this section --></TEXT>
+
+  <TEXT>
+    One way to avoid the
+    <INDEX>deadlock<SUBINDEX>avoidance</SUBINDEX></INDEX>
+    deadlock in this situation is to give each account a
+    unique identification number and rewrite
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>serialized-exchange</SCHEMEINLINE></SCHEME>
+      <JAVASCRIPT><JAVASCRIPTINLINE>serialized_exchange</JAVASCRIPTINLINE>
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    so that a 
+    <SPLITINLINE><SCHEME>process</SCHEME>
+    <JAVASCRIPT>thread</JAVASCRIPT>
+    </SPLITINLINE> 
+    will always attempt to enter a
+    <SPLITINLINE>
+      <SCHEME>procedure</SCHEME>
+      <JAVASCRIPT>function</JAVASCRIPT>
+    </SPLITINLINE>
+    protecting the lowest-numbered account first.  Although this method works
+    well for the exchange problem, there are other situations that require more
+    sophisticated deadlock-avoidance techniques, or where deadlock cannot
+    be avoided at all.  (See exercises<SPACE></SPACE><REF NAME="ex:deadlock-avoid"></REF>
+    and<SPACE></SPACE><REF NAME="ex:deadlock-cannot-avoid"></REF>.)<FOOTNOTE>The general
+    technique for avoiding
+    <INDEX>deadlock<SUBINDEX>recovery</SUBINDEX></INDEX>
+    deadlock by numbering the
+    shared resources and acquiring them in order is due to 
+    <INDEX>Havender, J.</INDEX>
+    <CITATION>Havender (1968)</CITATION>.  Situations where deadlock cannot be
+    avoided require <EM>deadlock-recovery</EM> methods, which entail having 
+    <SPLITINLINE>
+      <SCHEME>processes</SCHEME>
+      <JAVASCRIPT>threads</JAVASCRIPT>
+    </SPLITINLINE>
+    <QUOTE>back out</QUOTE> of the deadlocked state and try again.
+    Deadlock-recovery mechanisms are widely used in
+    data-base-management systems, a topic that is treated in detail in
+    <INDEX>Gray, Jim</INDEX>
+    <INDEX>Reuter, Andreas</INDEX>
+    <CITATION>Gray and Reuter 1993</CITATION>.</FOOTNOTE>
+  </TEXT><!-- Error occurred while translating this section -->
+
+  <EXERCISE>
+    Explain in detail why the
+    <INDEX><USE>serialized_exchange</USE><SUBINDEX>with deadlock avoidance</SUBINDEX></INDEX>
+    deadlock-avoidance method described above,
+    (i.e., the accounts are numbered, and each 
+    <SPLITINLINE><SCHEME>process</SCHEME>
+    <JAVASCRIPT>thread</JAVASCRIPT></SPLITINLINE> 
+    attempts to acquire the smaller-numbered account first) avoids 
+    deadlock in the exchange problem.  Rewrite
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>serialized-exchange</SCHEMEINLINE></SCHEME>
+      <JAVASCRIPT><JAVASCRIPTINLINE>serialized_exchange</JAVASCRIPTINLINE>
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    to incorporate this idea. (You will also need to modify
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>make-account</SCHEMEINLINE></SCHEME>
+      <JAVASCRIPT><JAVASCRIPTINLINE>make_account</JAVASCRIPTINLINE>
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    so that each account is created with a number, which can be accessed by
+    sending an appropriate message.)
+    <LABEL NAME="ex:deadlock-avoid"></LABEL>
+  </EXERCISE><!-- Error occurred while translating this section -->
+
+  <EXERCISE>
+    Give a scenario where the deadlock-avoidance mechanism described
+    above does not work.  (Hint: In the exchange problem, each 
+    <SPLITINLINE><SCHEME>process</SCHEME>
+    <JAVASCRIPT>thread</JAVASCRIPT></SPLITINLINE>
+    knows in advance which accounts it will need to get access to.  Consider a
+    situation where a 
+    <SPLITINLINE>
+      <SCHEME>process</SCHEME>
+      <JAVASCRIPT>thread</JAVASCRIPT>
+    </SPLITINLINE> 
+    must get access to some shared resources before it can know which additional
+    shared resources it will require.)
+    <LABEL NAME="ex:deadlock-cannot-avoid"></LABEL>
+  </EXERCISE><!-- Error occurred while translating this section -->
+
+  <INDEX>concurrency<SUBINDEX>deadlock<CLOSE></CLOSE></SUBINDEX></INDEX><!-- Error occurred while translating this section -->
+  <INDEX>deadlock<CLOSE></CLOSE></INDEX><!-- Error occurred while translating this section -->
+
+  <SUBHEADING>
+    <NAME>Concurrency, time, and communication</NAME>
+  </SUBHEADING><!-- Error occurred while translating this section -->
+
+  <TEXT>
+    We<APOS></APOS>ve seen how programming concurrent systems requires controlling
+    the ordering of events when different 
+    <SPLITINLINE>
+      <SCHEME>processes</SCHEME>
+      <JAVASCRIPT>threads</JAVASCRIPT>
+    </SPLITINLINE> 
+    access shared state, and we<APOS></APOS>ve seen how to achieve this control 
+    through judicious use of serializers.  But the problems of concurrency
+    lie deeper than this, because, from a fundamental point of view, it<APOS></APOS>s
+    not always clear what is meant by <QUOTE>shared state.</QUOTE>
+  </TEXT><!-- Error occurred while translating this section -->
+
+  <TEXT>
+    Mechanisms such as
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>test-and-set!</SCHEMEINLINE></SCHEME>
+      <JAVASCRIPT><JAVASCRIPTINLINE>test_and_set</JAVASCRIPTINLINE>
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    require 
+    <SPLITINLINE>
+      <SCHEME>processes</SCHEME>
+      <JAVASCRIPT>threads</JAVASCRIPT>
+    </SPLITINLINE> 
+    to examine a global shared flag at arbitrary times.  This is problematic 
+    and inefficient to implement in modern high-speed processors, where
+    due to optimization techniques such as pipelining and cached memory,
+    the contents of memory may not be in a consistent state at every instant.
+    In
+    <SPLITINLINE>
+      <SCHEME>contemporary</SCHEME>
+      <JAVASCRIPT>some</JAVASCRIPT>
+    </SPLITINLINE>
+    multiprocessing systems, therefore, the serializer paradigm
+    is being supplanted by
+    <SPLITINLINE>
+      <SCHEME>new</SCHEME>
+      <JAVASCRIPT>other</JAVASCRIPT>
+    </SPLITINLINE>
+    approaches to concurrency
+    control.<!-- Error occurred while translating this section --><FOOTNOTE>One such alternative to serialization is called 
+    <INDEX>barrier synchronization</INDEX>
+    <EM>barrier synchronization</EM>.  The programmer permits concurrent 
+    <SPLITINLINE><SCHEME>processes</SCHEME>
+    <JAVASCRIPT>threads</JAVASCRIPT></SPLITINLINE>
+    to execute as they please, but establishes certain synchronization points
+    (<QUOTE>barriers</QUOTE>) through which no 
+    <SPLITINLINE>
+      <SCHEME>process</SCHEME>
+      <JAVASCRIPT>thread</JAVASCRIPT>
+    </SPLITINLINE> 
+    can proceed until all the
+    <SPLITINLINE>
+      <SCHEME>processes</SCHEME>
+      <JAVASCRIPT>threads</JAVASCRIPT>
+    </SPLITINLINE> 
+    have reached the barrier.
+    <SPLITINLINE>
+      <SCHEME>Modern</SCHEME>
+      <JAVASCRIPT>Some</JAVASCRIPT>
+    </SPLITINLINE>
+    processors provide machine instructions
+    that permit programmers to establish synchronization points at places where
+    consistency is required.  The 
+    <INDEX>PowerPC</INDEX>
+    PowerPC<LATEXINLINE>$^{\textrm{TM}}$</LATEXINLINE>, for example, includes
+    for this purpose two instructions called
+    <INDEX>SYNC</INDEX>
+    SYNC and 
+    <INDEX>EIEIO</INDEX>
+    EIEIO (Enforced In-order Execution of Input/Output).</FOOTNOTE>
+  <!-- Error occurred while translating this section --></TEXT>
+
+  <SHORT_PAGE LINES="2"></SHORT_PAGE><!-- Error occurred while translating this section -->
+  <TEXT>
+    The problematic aspects of shared state also arise in large, distributed
+    systems.  For instance, imagine a distributed banking system where
+    individual branch banks maintain local values for bank balances and
+    periodically compare these with values maintained by other branches.  In
+    such a system the value of <QUOTE>the account balance</QUOTE> would be
+    undetermined, except right after synchronization.  If Peter deposits money
+    in an account he holds jointly with Paul, when should we say that the
+    account balance has changed<EMDASH></EMDASH>when the balance in the local branch
+    changes, or not until after the synchronization?  And if Paul accesses the
+    account from a different branch, what are the reasonable constraints to
+    place on the banking system such that the behavior is
+    <QUOTE>correct</QUOTE>?  The only thing that might matter for correctness
+    is the behavior observed by Peter and Paul individually and the
+    <QUOTE>state</QUOTE> of the account immediately after synchronization.
+    Questions about the <QUOTE>real</QUOTE> account balance or the order of
+    events between synchronizations may be irrelevant or
+    meaningless.<FOOTNOTE>This may seem like a strange point of view, but there
+    are
+    systems that work this way.
+    <INDEX>credit-card accounts, international</INDEX>
+    International charges to credit-card accounts,
+    for example, are normally cleared on a per-country basis, and the charges
+    made in different countries are periodically reconciled.  Thus the account
+    balance may be different in different countries.</FOOTNOTE>
+  </TEXT><!-- Error occurred while translating this section -->
+
+  <TEXT>
+    The basic phenomenon here is that synchronizing different 
+    <SPLITINLINE>
+      <SCHEME>processes,</SCHEME>
+      <JAVASCRIPT>threads,</JAVASCRIPT>
+    </SPLITINLINE>
+    establishing shared state, or imposing an order on events requires
+    communication among the 
+    <SPLITINLINE>
+      <SCHEME>processes.</SCHEME>
+      <JAVASCRIPT>threads.</JAVASCRIPT>
+    </SPLITINLINE>
+    <INDEX>time<SUBINDEX>communication and</SUBINDEX></INDEX>
+    In essence, any notion of time in concurrency control must be intimately
+    tied to communication.<FOOTNOTE>For distributed systems, this perspective
+    was pursued by 
+    <INDEX>Lamport, Leslie</INDEX>
+    Lamport (1978), who showed how to use communication to establish
+    <QUOTE>global clocks</QUOTE> that can be used to establish orderings on
+    events in distributed systems.</FOOTNOTE> It is intriguing that a similar
+    connection between time and communication also arises in the 
+    <INDEX>relativity, theory of</INDEX>
+    Theory of Relativity, where the speed of light (the fastest signal that can
+    be used to synchronize events) is a fundamental constant relating time and
+    space.  The complexities we encounter in dealing with time and state in our
+    computational models may in fact mirror a fundamental complexity of
+    the physical universe.
+
+    <INDEX>concurrency<CLOSE></CLOSE></INDEX>
+    <INDEX>concurrency<SUBINDEX>mechanisms for controlling<CLOSE></CLOSE></SUBINDEX></INDEX>
+
+  </TEXT><!-- Error occurred while translating this section -->
+</SUBSECTION>
