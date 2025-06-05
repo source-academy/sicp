@@ -1,7 +1,6 @@
 import fs from "fs";
 import OpenAI from "openai";
 import path, { dirname } from "path";
-import Stream from "stream";
 import { fileURLToPath } from "url";
 
 // Get the directory name of the current module
