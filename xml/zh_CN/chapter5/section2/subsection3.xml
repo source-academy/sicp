@@ -1,0 +1,1452 @@
+<SUBSECTION>
+  <NAME>
+    <SPLITINLINE>
+      <SCHEME>Generating Execution Procedures for Instructions</SCHEME>
+      <JAVASCRIPT>Instructions and Their Execution Functions</JAVASCRIPT>
+    </SPLITINLINE>
+  </NAME><!-- Error occurred while translating this section -->
+
+  <LABEL NAME="sec:ex-proc"></LABEL>
+
+  <INDEX>execution <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE><SUBINDEX>in register-machine simulator<OPEN></OPEN></SUBINDEX></INDEX><!-- Error occurred while translating this section -->
+  <INDEX>register-machine language<SUBINDEX>instructions</SUBINDEX><OPEN></OPEN></INDEX><!-- Error occurred while translating this section -->
+
+  <TEXT>
+    The assembler calls
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>make-execution-procedure</SCHEMEINLINE></SCHEME>
+      <JAVASCRIPT>
+	<JAVASCRIPTINLINE>make_execution_function</JAVASCRIPTINLINE>
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    to generate the execution
+    <SPLITINLINE>
+      <SCHEME>procedure</SCHEME>
+      <JAVASCRIPT>function</JAVASCRIPT>
+    </SPLITINLINE>
+    for <SPLITINLINE><SCHEME>an</SCHEME><JAVASCRIPT>a controller</JAVASCRIPT></SPLITINLINE> instruction.
+    Like the <!-- Error occurred while translating this section --><SCHEMEINLINE>analyze</SCHEMEINLINE>
+    <SPLITINLINE>
+      <SCHEME>procedure</SCHEME>
+      <JAVASCRIPT>function</JAVASCRIPT>
+    </SPLITINLINE>
+    in the evaluator of section<SPACE></SPACE><REF NAME="sec:separating-analysis"></REF>,
+    this dispatches on the type of instruction to generate the appropriate
+    execution
+    <SPLITINLINE>
+      <SCHEME>procedure.</SCHEME>
+      <JAVASCRIPT>function.</JAVASCRIPT>
+    </SPLITINLINE>
+    <SPLIT>
+      <JAVASCRIPT>
+        The details of these execution <JAVASCRIPT>functions</JAVASCRIPT> determine the
+        meaning of the individual instructions in the register-machine language.
+      </JAVASCRIPT>
+    </SPLIT>
+
+    <!-- Error occurred while translating this section --><SNIPPET>
+      <INDEX><DECLARATION>make_execution_function</DECLARATION></INDEX> 
+      <EXAMPLE>gcd_machine_complete_example</EXAMPLE>
+      <SCHEME>
+(define (make-execution-procedure inst labels machine
+                                  pc flag stack ops)
+  (cond ((eq? (car inst) &apos;assign)
+         (make-assign inst machine labels ops pc))
+        ((eq? (car inst) &apos;test)
+         (make-test inst machine labels ops flag pc))
+        ((eq? (car inst) &apos;branch)
+         (make-branch inst machine labels flag pc))
+        ((eq? (car inst) &apos;goto)
+         (make-goto inst machine labels pc))
+        ((eq? (car inst) &apos;save)
+         (make-save inst machine stack pc))
+        ((eq? (car inst) &apos;restore)
+         (make-restore inst machine stack pc))
+        ((eq? (car inst) &apos;perform)
+         (make-perform inst machine labels ops pc))
+        (else (error &quot;Unknown instruction type - - ASSEMBLE&quot;
+                     inst))))
+      </SCHEME>
+      <JAVASCRIPT>
+function make_execution_function(inst, labels, machine, 
+                                 pc, flag, stack, ops) {
+    const inst_type = type(inst);
+    return inst_type === &quot;assign&quot;
+           ? make_assign_ef(inst, machine, labels, ops, pc)
+           : inst_type === &quot;test&quot;
+           ? make_test_ef(inst, machine, labels, ops, flag, pc)
+           : inst_type === &quot;branch&quot;
+           ? make_branch_ef(inst, machine, labels, flag, pc)
+           : inst_type === &quot;go_to&quot;
+           ? make_go_to_ef(inst, machine, labels, pc)
+           : inst_type === &quot;save&quot;
+           ? make_save_ef(inst, machine, stack, pc)
+           : inst_type === &quot;restore&quot;
+           ? make_restore_ef(inst, machine, stack, pc)
+           : inst_type === &quot;perform&quot;
+           ? make_perform_ef(inst, machine, labels, ops, pc)
+           : error(inst, &quot;unknown instruction type -- assemble&quot;);
+}
+      </JAVASCRIPT>
+    </SNIPPET>
+    <SNIPPET HIDE="yes">
+      <NAME>make_execution_function</NAME>
+      <REQUIRES>make_assign</REQUIRES>
+      <REQUIRES>make_test</REQUIRES>
+      <REQUIRES>test_instruction_syntax</REQUIRES>
+      <REQUIRES>make_branch_5</REQUIRES>
+      <REQUIRES>branch_branch_dest</REQUIRES>
+      <REQUIRES>make_go_to</REQUIRES>
+      <REQUIRES>go_to_go_to_dest</REQUIRES>
+      <REQUIRES>make_save</REQUIRES>
+      <REQUIRES>save_restore</REQUIRES>
+      <REQUIRES>make_perform</REQUIRES>
+      <REQUIRES>perform_perform_action</REQUIRES>
+      <EXAMPLE>gcd_machine_complete_example</EXAMPLE>
+      <SCHEME>
+(define (make-execution-procedure inst labels machine
+                                  pc flag stack ops)
+  (cond ((eq? (car inst) &apos;assign)
+         (make-assign inst machine labels ops pc))
+        ((eq? (car inst) &apos;test)
+         (make-test inst machine labels ops flag pc))
+        ((eq? (car inst) &apos;branch)
+         (make-branch inst machine labels flag pc))
+        ((eq? (car inst) &apos;goto)
+         (make-goto inst machine labels pc))
+        ((eq? (car inst) &apos;save)
+         (make-save inst machine stack pc))
+        ((eq? (car inst) &apos;restore)
+         (make-restore inst machine stack pc))
+        ((eq? (car inst) &apos;perform)
+         (make-perform inst machine labels ops pc))
+        (else (error &quot;Unknown instruction type - - ASSEMBLE&quot;
+                     inst))))
+      </SCHEME>
+      <JAVASCRIPT>
+function make_execution_function(inst, labels, machine, 
+                                 pc, flag, stack, ops) {
+    return type(inst) === &quot;assign&quot;
+           ? make_assign_ef(inst, machine, labels, ops, pc)
+           : type(inst) === &quot;test&quot;
+           ? make_test_ef(inst, machine, labels, ops, flag, pc)
+           : type(inst) === &quot;branch&quot;
+           ? make_branch_ef(inst, machine, labels, flag, pc)
+           : type(inst) === &quot;go_to&quot;
+           ? make_go_to_ef(inst, machine, labels, pc)
+           : type(inst) === &quot;save&quot;
+           ? make_save_ef(inst, machine, stack, pc)
+           : type(inst) === &quot;restore&quot;
+           ? make_restore_ef(inst, machine, stack, pc)
+           : type(inst) === &quot;push_marker_to_stack&quot;
+           ? make_push_marker_to_stack_ef(machine, stack, pc)
+           : type(inst) === &quot;revert_stack_to_marker&quot;
+           ? make_revert_stack_to_marker_ef(machine, stack, pc)
+           : type(inst) === &quot;perform&quot;
+           ? make_perform_ef(inst, machine, labels, ops, pc)
+           : error(inst, &quot;unknown instruction type -- assemble&quot;);
+}
+      </JAVASCRIPT>
+    </SNIPPET>
+    <SPLIT>
+      <SCHEME>
+        For each type of instruction in the register-machine language,
+        there is a generator that builds an appropriate execution
+        procedure. The details of these procedures determine the
+        meaning of the individual instructions in the register-machine
+        language. We use data abstraction to isolate the detailed
+        syntax of register-machine expressions from the general
+        execution mechanism, as we did for evaluators in
+        section<SPACE></SPACE><REF NAME="sec:representing-expressions"></REF>, by
+        using syntax procedures to extract and classify the parts of
+        an instruction.
+      </SCHEME>
+      <JAVASCRIPT>
+        The elements of the <JAVASCRIPTINLINE>controller</JAVASCRIPTINLINE> sequence
+        received by <JAVASCRIPTINLINE>make_machine</JAVASCRIPTINLINE> and passed
+        to <JAVASCRIPTINLINE>assemble</JAVASCRIPTINLINE> are strings (for
+        labels) and tagged lists (for instructions). The tag in an instruction
+        is a string that identifies the instruction type, such as
+        <JAVASCRIPTINLINE>&quot;go_to&quot;</JAVASCRIPTINLINE>, and the remaining elements
+        of the list contains the arguments, such as the destination of the
+        <JAVASCRIPTINLINE>go_to</JAVASCRIPTINLINE>.
+        The dispatch in <JAVASCRIPTINLINE>make_execution_function</JAVASCRIPTINLINE> uses
+        <SNIPPET>
+	  <INDEX><DECLARATION>type</DECLARATION> in register machine</INDEX>
+          <NAME>type_function</NAME>
+          <EXAMPLE>gcd_machine_complete_example</EXAMPLE>
+          <JAVASCRIPT>
+function type(instruction) { return head(instruction); }
+          </JAVASCRIPT>
+        </SNIPPET>
+      </JAVASCRIPT>
+    </SPLIT>
+  <!-- Error occurred while translating this section --></TEXT>
+  <SPLIT>
+    <JAVASCRIPT>
+      <TEXT>
+        The tagged lists are constructed when the
+        <JAVASCRIPTINLINE>list</JAVASCRIPTINLINE> expression that is the third
+        argument to <JAVASCRIPTINLINE>make_machine</JAVASCRIPTINLINE> is
+        evaluated. Each argument to that
+        <JAVASCRIPTINLINE>list</JAVASCRIPTINLINE> is either a string (which
+        evaluates to itself) or a call to a constructor for an instruction
+        tagged list. For example, <JAVASCRIPTINLINE>assign(&quot;b&quot;, reg(&quot;t&quot;))</JAVASCRIPTINLINE> calls the constructor
+        <JAVASCRIPTINLINE>assign</JAVASCRIPTINLINE> with arguments
+        <JAVASCRIPTINLINE>&quot;b&quot;</JAVASCRIPTINLINE> and the result of calling the
+        constructor <JAVASCRIPTINLINE>reg</JAVASCRIPTINLINE> with the argument
+        <JAVASCRIPTINLINE>&quot;t&quot;</JAVASCRIPTINLINE>. The constructors and their
+        arguments determine the syntax of the individual instructions in the
+        register-machine language. The instruction constructors and selectors
+        are shown below, along with the execution-function generators that use
+        the selectors.
+      </TEXT>
+    </JAVASCRIPT>
+  </SPLIT><!-- Error occurred while translating this section -->
+  
+  <!--  <SPLIT>  -->
+  <!--    <JAVASCRIPT>  -->
+  <!--      Because we chose a textual representation for the controller in the beginning of  -->
+  <!--      this chapter that is valid JavaScript syntax, we can now write functions that  -->
+  <!--      allows us to evaluate the controller text as part of a JavaScript program. When the  -->
+  <!--      controller text is evaluated, is will generate a data structure representation of  -->
+  <!--      itself which can be executed by the register machine simulator.  -->
+  <!--    </JAVASCRIPT>  -->
+  <!--  </SPLIT>  -->
+
+  <SUBHEADING>
+    <NAME>
+      <SPLITINLINE>
+	<SCHEME><SCHEMEINLINE>Assign</SCHEMEINLINE> instructions</SCHEME>
+	<JAVASCRIPT>The instruction <JAVASCRIPTINLINE>assign</JAVASCRIPTINLINE>
+	</JAVASCRIPT>
+      </SPLITINLINE>
+    </NAME>
+  </SUBHEADING><!-- Error occurred while translating this section -->
+
+  <INDEX><USE>assign</USE> (in register machine)<SUBINDEX>simulating</SUBINDEX></INDEX><!-- Error occurred while translating this section -->
+
+  <SHORT_PAGE LINES="2"></SHORT_PAGE><!-- Error occurred while translating this section -->
+  <TEXT>
+    The
+    <SPLITINLINE>
+      <SCHEME>make-assign</SCHEME>
+      <JAVASCRIPT><JAVASCRIPTINLINE>make_assign_ef</JAVASCRIPTINLINE></JAVASCRIPT>
+    </SPLITINLINE>
+    <SPLITINLINE>
+      <SCHEME>procedure</SCHEME>
+      <JAVASCRIPT>function</JAVASCRIPT>
+    </SPLITINLINE>
+    <SPLITINLINE>
+      <SCHEME>handles assign</SCHEME>
+      <JAVASCRIPT>makes execution functions for <JAVASCRIPTINLINE>assign</JAVASCRIPTINLINE></JAVASCRIPT>
+    </SPLITINLINE>
+    instructions:
+    <!-- Error occurred while translating this section --><SNIPPET>
+      <INDEX><DECLARATION>make_assign_ef</DECLARATION></INDEX> 
+      <NAME>make_assign</NAME>
+      <REQUIRES>type_function</REQUIRES>
+      <REQUIRES>make_operation_exp</REQUIRES>
+      <REQUIRES>assign_reg_name</REQUIRES>
+      <EXAMPLE>gcd_machine_complete_example</EXAMPLE>
+      <SCHEME>
+(define (make-assign inst machine labels operations pc)
+  (let ((target
+         (get-register machine (assign-reg-name inst)))
+        (value-exp (assign-value-exp inst)))
+    (let ((value-proc
+           (if (operation-exp? value-exp)
+               (make-operation-exp
+                value-exp machine labels operations)
+               (make-primitive-exp
+                (car value-exp) machine labels))))
+      (lambda ()     ; execution procedure for assign
+        (set-contents! target (value-proc))
+        (advance-pc pc)))))
+      </SCHEME>
+      <JAVASCRIPT>
+function make_assign_ef(inst, machine, labels, operations, pc) {
+    const target = get_register(machine, assign_reg_name(inst));
+    const value_exp = assign_value_exp(inst);
+    const value_fun =
+        is_operation_exp(value_exp)
+        ? make_operation_exp_ef(value_exp, machine, labels, operations)
+        : make_primitive_exp_ef(value_exp, machine, labels);
+    return () =&gt; {
+               set_contents(target, value_fun());
+               advance_pc(pc); 
+           };
+}
+      </JAVASCRIPT>
+    </SNIPPET>
+    <SPLIT>
+      <SCHEME>
+        <SCHEMEINLINE>Make-assign</SCHEMEINLINE>
+	extracts the target register name (the second element of the instruction)
+	and the value expression (the rest of the list that forms the instruction)
+	from the <SCHEMEINLINE>assign</SCHEMEINLINE> instruction using the selectors
+	<INDEX><DECLARATION>assign-reg-name</DECLARATION></INDEX> 
+	<INDEX><DECLARATION>assign-value-exp</DECLARATION></INDEX> 
+      </SCHEME>
+      <JAVASCRIPT>
+	The function <JAVASCRIPTINLINE>assign</JAVASCRIPTINLINE> constructs
+	<JAVASCRIPTINLINE>assign</JAVASCRIPTINLINE> instructions.
+	The selectors <JAVASCRIPTINLINE>assign_@reg_@name</JAVASCRIPTINLINE> and
+	<JAVASCRIPTINLINE>assign_value_exp</JAVASCRIPTINLINE> extract the register name
+	and value expression from an <JAVASCRIPTINLINE>assign</JAVASCRIPTINLINE> instruction.
+      </JAVASCRIPT>
+    </SPLIT>
+    <!-- Error occurred while translating this section --><SNIPPET>
+      <INDEX><DECLARATION>assign</DECLARATION> (in register machine)<SUBINDEX>instruction constructor</SUBINDEX></INDEX>
+      <INDEX>register-machine language<SUBINDEX><DECLARATION>assign</DECLARATION></SUBINDEX></INDEX>
+      <INDEX><DECLARATION>assign_reg_name</DECLARATION></INDEX>
+      <INDEX><DECLARATION>assign_value_exp</DECLARATION></INDEX>
+      <NAME>assign_reg_name</NAME>
+      <!--   <NAME>assign_constructor</NAME>   -->
+      <EXAMPLE>gcd_machine_complete_example</EXAMPLE>
+      <SCHEME>
+(define (assign-reg-name assign-instruction)
+  (cadr assign-instruction))
+
+(define (assign-value-exp assign-instruction)
+  (cddr assign-instruction))
+      </SCHEME>
+      <JAVASCRIPT>
+function assign(register_name, source) {
+    return list(&quot;assign&quot;, register_name, source);
+}
+function assign_reg_name(assign_instruction) {
+    return head(tail(assign_instruction));
+}
+function assign_value_exp(assign_instruction) { 
+    return head(tail(tail(assign_instruction)));
+}
+      </JAVASCRIPT>
+    </SNIPPET>
+
+    <SPLITINLINE>
+      <SCHEME>
+        The register name is looked up 
+      </SCHEME>
+      <JAVASCRIPT>
+        The function <JAVASCRIPTINLINE>make_assign_ef</JAVASCRIPTINLINE> looks up the register name
+      </JAVASCRIPT>
+    <!-- Error occurred while translating this section --></SPLITINLINE>
+    with
+    <!-- Error occurred while translating this section --><SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>get-register</SCHEMEINLINE></SCHEME>
+      <JAVASCRIPT>
+	<JAVASCRIPTINLINE>get_register</JAVASCRIPTINLINE>
+      </JAVASCRIPT>
+    <!-- Error occurred while translating this section --></SPLITINLINE>
+    to produce the target register object.  The value expression is passed to
+    <!-- Error occurred while translating this section --><SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>make-operation-exp</SCHEMEINLINE></SCHEME>
+      <JAVASCRIPT><JAVASCRIPTINLINE>make_@operation_@exp_@ef</JAVASCRIPTINLINE>
+      </JAVASCRIPT>
+    <!-- Error occurred while translating this section --></SPLITINLINE>
+    if the value is the result of an operation, and
+    <!-- Error occurred while translating this section --><SPLITINLINE>
+      <JAVASCRIPT>
+	it is passed
+      </JAVASCRIPT>
+    <!-- Error occurred while translating this section --></SPLITINLINE>
+    to
+    <!-- Error occurred while translating this section --><SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>make-primitive-exp</SCHEMEINLINE></SCHEME>
+      <JAVASCRIPT>
+	<JAVASCRIPTINLINE>make_@primitive_@exp_@ef</JAVASCRIPTINLINE>
+      </JAVASCRIPT>
+    <!-- Error occurred while translating this section --></SPLITINLINE>
+    otherwise.  These
+    <!-- Error occurred while translating this section --><SPLITINLINE>
+      <SCHEME>procedures</SCHEME>
+      <JAVASCRIPT>functions</JAVASCRIPT>
+    <!-- Error occurred while translating this section --></SPLITINLINE>
+    (shown below)
+    <!-- Error occurred while translating this section --><SPLITINLINE>
+      <SCHEME>parse</SCHEME>
+      <JAVASCRIPT>analyze</JAVASCRIPT>
+    <!-- Error occurred while translating this section --></SPLITINLINE>
+    the value expression and produce an execution
+    <!-- Error occurred while translating this section --><SPLITINLINE>
+      <SCHEME>procedure</SCHEME>
+      <JAVASCRIPT>function</JAVASCRIPT>
+    <!-- Error occurred while translating this section --></SPLITINLINE>
+    for the value.  This is a
+    <!-- Error occurred while translating this section --><SPLITINLINE>
+      <SCHEME>procedure</SCHEME>
+      <JAVASCRIPT>function</JAVASCRIPT>
+    <!-- Error occurred while translating this section --></SPLITINLINE>
+    of no arguments, called 
+    <!-- Error occurred while translating this section --><INDEX><USE>value_fun</USE><!-- Error occurred while translating this section --></INDEX> 
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>value-proc</SCHEMEINLINE>,</SCHEME>
+      <JAVASCRIPT>
+      <JAVASCRIPTINLINE>value_fun</JAVASCRIPTINLINE>,</JAVASCRIPT>
+    <!-- Error occurred while translating this section --></SPLITINLINE>
+    which will be evaluated during the simulation to produce the actual
+    value to be assigned to the register.  Notice that the work of looking
+    up the register name and
+    <!-- Error occurred while translating this section --><SPLITINLINE>
+      <SCHEME>parsing</SCHEME>
+      <JAVASCRIPT>analyzing</JAVASCRIPT>
+    </SPLITINLINE>
+    the value expression is performed
+    just once, at assembly time, not every time the instruction is
+    simulated.  This saving of work is the reason we use execution
+    <INDEX>syntactic analysis, separated from execution<SUBINDEX>in register-machine simulator</SUBINDEX></INDEX>
+    <SPLITINLINE>
+      <SCHEME>procedures,</SCHEME>
+      <JAVASCRIPT>functions,</JAVASCRIPT>
+    </SPLITINLINE>
+    and corresponds directly to the saving in work we obtained by separating
+    program analysis from execution in the evaluator of
+    section<SPACE></SPACE><REF NAME="sec:separating-analysis"></REF>.
+  <!-- Error occurred while translating this section --></TEXT>
+
+  <TEXT>
+    The result returned by
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>make-assign</SCHEMEINLINE></SCHEME>
+      <JAVASCRIPT><JAVASCRIPTINLINE>make_assign_ef</JAVASCRIPTINLINE></JAVASCRIPT>
+    </SPLITINLINE>
+    is the execution
+    <SPLITINLINE>
+      <SCHEME>procedure</SCHEME>
+      <JAVASCRIPT>function</JAVASCRIPT>
+    </SPLITINLINE>
+    for the <!-- Error occurred while translating this section --><SCHEMEINLINE>assign</SCHEMEINLINE> instruction.  When this
+    <SPLITINLINE>
+      <SCHEME>procedure</SCHEME>
+      <JAVASCRIPT>function</JAVASCRIPT>
+    </SPLITINLINE>
+    is called (by the machine model<APOS></APOS>s <!-- Error occurred while translating this section --><SCHEMEINLINE>execute</SCHEMEINLINE>
+    <SPLITINLINE>
+      <SCHEME>procedure),</SCHEME>
+      <JAVASCRIPT>function),</JAVASCRIPT>
+    </SPLITINLINE>
+    it sets the contents of the target register to the result obtained by
+    executing
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>value-proc</SCHEMEINLINE>.</SCHEME>
+      <JAVASCRIPT><JAVASCRIPTINLINE>value_fun</JAVASCRIPTINLINE>.</JAVASCRIPT>
+    </SPLITINLINE>
+    Then it advances the <!-- Error occurred while translating this section --><SCHEMEINLINE>pc</SCHEMEINLINE> to the next instruction
+    by running the
+    <SPLITINLINE>
+      <SCHEME>procedure</SCHEME>
+      <JAVASCRIPT>function</JAVASCRIPT>
+    </SPLITINLINE>
+    <!-- Error occurred while translating this section --><SNIPPET>
+      <INDEX><DECLARATION>advance_pc</DECLARATION></INDEX> 
+      <NAME>advance_pc</NAME>
+      <EXAMPLE>gcd_machine_complete_example</EXAMPLE>
+      <SCHEME>
+(define (advance-pc pc)
+  (set-contents! pc (cdr (get-contents pc))))
+      </SCHEME>
+      <JAVASCRIPT>
+function advance_pc(pc) {
+    set_contents(pc, tail(get_contents(pc))); 
+}
+      </JAVASCRIPT>
+    </SNIPPET>
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>Advance-pc</SCHEMEINLINE></SCHEME>
+      <JAVASCRIPT>
+	The function
+	<JAVASCRIPTINLINE>advance_pc</JAVASCRIPTINLINE>
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    is the normal termination for all instructions except
+    <!-- Error occurred while translating this section --><SCHEMEINLINE>branch</SCHEMEINLINE> and
+    <SPLITINLINE>
+      <SCHEME>    
+	<SCHEMEINLINE>goto</SCHEMEINLINE>.
+      </SCHEME>
+      <JAVASCRIPT>
+	<JAVASCRIPTINLINE>go_to</JAVASCRIPTINLINE>.
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    <!-- Error occurred while translating this section --></TEXT>
+
+  <SUBHEADING>
+    <NAME>
+      <SPLITINLINE>
+	<SCHEME>
+	  <SCHEMEINLINE>Test</SCHEMEINLINE>,
+	  <SCHEMEINLINE>branch</SCHEMEINLINE>, and
+	  <SCHEMEINLINE>goto</SCHEMEINLINE>
+	  instructions
+	</SCHEME>
+	<JAVASCRIPT>
+	  The instructions
+	  <JAVASCRIPTINLINE>test</JAVASCRIPTINLINE>,
+	  <JAVASCRIPTINLINE>branch</JAVASCRIPTINLINE>, and
+	  <JAVASCRIPTINLINE>go_to</JAVASCRIPTINLINE>
+	</JAVASCRIPT>
+      </SPLITINLINE>
+    </NAME>
+  </SUBHEADING><!-- Error occurred while translating this section -->
+
+  <TEXT>
+    <SPLITINLINE>
+      <SCHEME>
+	<INDEX><USE>test</USE> (in register machine)<SUBINDEX>simulating</SUBINDEX></INDEX>
+	<SCHEMEINLINE>Make-test</SCHEMEINLINE>
+      </SCHEME>
+      <JAVASCRIPT>
+	The function
+	<INDEX><USE>test</USE> (in register machine)<SUBINDEX>simulating</SUBINDEX></INDEX>
+	<JAVASCRIPTINLINE>make_test_ef</JAVASCRIPTINLINE>
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    handles <!-- Error occurred while translating this section --><SCHEMEINLINE>test</SCHEMEINLINE> instructions in a similar way.
+    It extracts the expression that specifies the condition to be tested and
+    generates an execution
+    <SPLITINLINE>
+      <SCHEME>procedure</SCHEME>
+      <JAVASCRIPT>function</JAVASCRIPT>
+    </SPLITINLINE>
+    for it.  At simulation time, the
+    <SPLITINLINE>
+      <SCHEME>procedure</SCHEME>
+      <JAVASCRIPT>function</JAVASCRIPT>
+    </SPLITINLINE>
+    for the condition is called, the result is assigned to the
+    <!-- Error occurred while translating this section --><SCHEMEINLINE>flag</SCHEMEINLINE> register, and the
+    <!-- Error occurred while translating this section --><SCHEMEINLINE>pc</SCHEMEINLINE> is advanced:
+    <!-- Error occurred while translating this section --><SNIPPET>
+      <INDEX><DECLARATION>make_test_ef</DECLARATION></INDEX> 
+      <NAME>make_test</NAME>
+      <REQUIRES>advance_pc</REQUIRES>
+      <EXAMPLE>gcd_machine_complete_example</EXAMPLE>
+      <SCHEME>
+(define (make-test inst machine labels operations flag pc)
+  (let ((condition (test-condition inst)))
+    (if (operation-exp? condition)
+        (let ((condition-proc
+               (make-operation-exp
+                condition machine labels operations)))
+          (lambda ()
+            (set-contents! flag (condition-proc))
+            (advance-pc pc)))
+        (error &quot;Bad TEST instruction - - ASSEMBLE&quot; inst))))
+
+(define (test-condition test-instruction)
+  (cdr test-instruction))
+      </SCHEME>
+      <JAVASCRIPT>
+function make_test_ef(inst, machine, labels, operations, flag, pc) {
+    const condition = test_condition(inst);
+    if (is_operation_exp(condition)) {
+        const condition_fun = make_operation_exp_ef(
+                                  condition, machine, 
+                                  labels, operations);
+        return () =&gt; {
+                   set_contents(flag, condition_fun());
+                   advance_pc(pc); 
+               };
+    } else {
+        error(inst, &quot;bad test instruction -- assemble&quot;);
+    }
+}
+      </JAVASCRIPT>
+    </SNIPPET>
+    <SPLIT>
+      <JAVASCRIPT>
+	The function
+	<JAVASCRIPTINLINE>test</JAVASCRIPTINLINE> constructs
+	<JAVASCRIPTINLINE>test</JAVASCRIPTINLINE> instructions. The selector
+	<JAVASCRIPTINLINE>test_condition</JAVASCRIPTINLINE> extracts the condition
+	from a test.
+	<SNIPPET>
+	  <INDEX><DECLARATION>test_condition</DECLARATION></INDEX>
+	  <INDEX><DECLARATION>test</DECLARATION> (in register machine)<SUBINDEX>instruction constructor</SUBINDEX></INDEX>
+	  <INDEX>register-machine language<SUBINDEX><DECLARATION>test</DECLARATION></SUBINDEX></INDEX>
+          <NAME>test_instruction_syntax</NAME>
+          <EXAMPLE>gcd_machine_complete_example</EXAMPLE>
+          <JAVASCRIPT>
+function test(condition) { return list(&quot;test&quot;, condition); }
+<SHORT_SPACE></SHORT_SPACE>
+function test_condition(test_instruction) {
+    return head(tail(test_instruction)); 
+}
+          </JAVASCRIPT>
+	</SNIPPET>
+      </JAVASCRIPT>
+    </SPLIT>
+  <!-- Error occurred while translating this section --></TEXT>
+
+  <TEXT>
+    The execution
+    <SPLITINLINE>
+      <SCHEME>procedure</SCHEME>
+      <JAVASCRIPT>function</JAVASCRIPT>
+    </SPLITINLINE>
+    for a <!-- Error occurred while translating this section --><SCHEMEINLINE>branch</SCHEMEINLINE> instruction checks the contents of
+    the <!-- Error occurred while translating this section --><SCHEMEINLINE>flag</SCHEMEINLINE> register and either sets the contents
+    of the <!-- Error occurred while translating this section --><SCHEMEINLINE>pc</SCHEMEINLINE> to the branch destination (if the
+    branch is taken) or else just advances the <!-- Error occurred while translating this section --><SCHEMEINLINE>pc</SCHEMEINLINE>
+    (if the branch is not taken).  Notice that the indicated destination in a
+    <INDEX><USE>branch</USE> (in register machine)<SUBINDEX>simulating</SUBINDEX></INDEX>
+    <!-- Error occurred while translating this section --><SCHEMEINLINE>branch</SCHEMEINLINE> instruction must be a label, and the
+    <SPLITINLINE>
+      <SCHEME>
+	<SCHEMEINLINE>make-branch</SCHEMEINLINE>
+      </SCHEME>
+      <JAVASCRIPT>
+	<JAVASCRIPTINLINE>make_branch_ef</JAVASCRIPTINLINE>
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    <SPLITINLINE>
+      <SCHEME>procedure</SCHEME>
+      <JAVASCRIPT>function</JAVASCRIPT>
+    </SPLITINLINE>
+    enforces this.  Notice also that the label is looked up at assembly time,
+    not each time the <!-- Error occurred while translating this section --><SCHEMEINLINE>branch</SCHEMEINLINE> instruction is
+    simulated.
+    <!-- Error occurred while translating this section --><SNIPPET>
+      <INDEX><DECLARATION>make_branch_ef</DECLARATION></INDEX> 
+      <NAME>make_branch_5</NAME>
+      <EXAMPLE>gcd_machine_complete_example</EXAMPLE>
+      <SCHEME>
+(define (make-branch inst machine labels flag pc)
+  (let ((dest (branch-dest inst)))
+    (if (label-exp? dest)
+        (let ((insts
+               (lookup-label labels (label-exp-label dest))))
+          (lambda ()
+            (if (get-contents flag)
+                (set-contents! pc insts)
+                (advance-pc pc))))
+        (error &quot;Bad BRANCH instruction - - ASSEMBLE&quot; inst))))
+
+(define (branch-dest branch-instruction)
+  (cadr branch-instruction))
+      </SCHEME>
+      <JAVASCRIPT>
+function make_branch_ef(inst, machine, labels, flag, pc) {
+    const dest = branch_dest(inst);
+    if (is_label_exp(dest)) {
+        const insts = lookup_label(labels, label_exp_label(dest));
+        return () =&gt; {
+                   if (get_contents(flag)) {
+                       set_contents(pc, insts);
+                   } else {
+                       advance_pc(pc);
+                   }
+               };
+    } else {
+        error(inst, &quot;bad branch instruction -- assemble&quot;);
+    }
+}
+      </JAVASCRIPT>
+    </SNIPPET>
+
+    <SPLIT>
+      <JAVASCRIPT>
+	The function <JAVASCRIPTINLINE>branch</JAVASCRIPTINLINE>
+	constructs <JAVASCRIPTINLINE>branch</JAVASCRIPTINLINE> instructions. The
+	selector 
+	<JAVASCRIPTINLINE>branch_dest</JAVASCRIPTINLINE> extracts
+	the destination from a branch.
+	<SNIPPET>
+	  <INDEX>register-machine language<SUBINDEX><DECLARATION>branch</DECLARATION></SUBINDEX></INDEX>
+	  <INDEX><DECLARATION>branch</DECLARATION> (in register machine)<SUBINDEX>instruction constructor</SUBINDEX></INDEX>
+	  <INDEX><DECLARATION>branch_dest</DECLARATION></INDEX>
+          <NAME>branch_branch_dest</NAME>
+          <EXAMPLE>gcd_machine_complete_example</EXAMPLE>
+          <JAVASCRIPT>
+function branch(label) { return list(&quot;branch&quot;, label); }
+<SHORT_SPACE></SHORT_SPACE>
+function branch_dest(branch_instruction) {
+    return head(tail(branch_instruction)); 
+}
+          </JAVASCRIPT>
+	</SNIPPET>
+      </JAVASCRIPT>
+    </SPLIT>
+  <!-- Error occurred while translating this section --></TEXT>
+
+  <TEXT>
+    A
+    <INDEX><USE>go_to</USE> (in register machine)<SUBINDEX>simulating</SUBINDEX></INDEX>
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>goto</SCHEMEINLINE></SCHEME>
+      <JAVASCRIPT><JAVASCRIPTINLINE>go_to</JAVASCRIPTINLINE></JAVASCRIPT>
+    </SPLITINLINE>
+    instruction is similar to a branch, except that the destination may be
+    specified either as a label or as a register, and there is no condition to
+    check<EMDASH></EMDASH>the <!-- Error occurred while translating this section --><SCHEMEINLINE>pc</SCHEMEINLINE> is always set to the
+    new destination.
+    <!-- Error occurred while translating this section --><SNIPPET>
+      <INDEX><DECLARATION>make_go_to_ef</DECLARATION></INDEX> 
+      <NAME>make_go_to</NAME>
+      <REQUIRES>is_register_exp</REQUIRES>
+      <EXAMPLE>gcd_machine_complete_example</EXAMPLE>
+      <SCHEME>
+(define (make-goto inst machine labels pc)
+  (let ((dest (goto-dest inst)))
+    (cond ((label-exp? dest)
+           (let ((insts
+                  (lookup-label labels
+                                (label-exp-label dest))))
+             (lambda () (set-contents! pc insts))))
+          ((register-exp? dest)
+           (let ((reg
+                  (get-register machine
+                                (register-exp-reg dest))))
+             (lambda ()
+               (set-contents! pc (get-contents reg)))))
+          (else (error &quot;Bad GOTO instruction - - ASSEMBLE&quot;
+            inst)))))
+
+(define (goto-dest goto-instruction)
+  (cadr goto-instruction))
+      </SCHEME>
+      <JAVASCRIPT>
+function make_go_to_ef(inst, machine, labels, pc) {
+    const dest = go_to_dest(inst);
+    if (is_label_exp(dest)) {
+        const insts = lookup_label(labels, label_exp_label(dest));
+        return () =&gt; set_contents(pc, insts);
+    } else if (is_register_exp(dest)) {
+        const reg = get_register(machine, register_exp_reg(dest));
+        return () =&gt; set_contents(pc, get_contents(reg));
+    } else {
+        error(inst, &quot;bad go_to instruction -- assemble&quot;);
+    }
+}
+      </JAVASCRIPT>
+    </SNIPPET>
+
+    <SPLIT>
+      <JAVASCRIPT>
+	The function <JAVASCRIPTINLINE>go_to</JAVASCRIPTINLINE> constructs
+	<JAVASCRIPTINLINE>go_to</JAVASCRIPTINLINE> instructions. The selector 
+	<JAVASCRIPTINLINE>go_to_dest</JAVASCRIPTINLINE> extracts the destination from a
+	<JAVASCRIPTINLINE>go_to</JAVASCRIPTINLINE> instruction.
+	<SNIPPET POSTPADDING="no">
+	  <INDEX><DECLARATION>go_to</DECLARATION> (in register machine)<SUBINDEX>instruction constructor</SUBINDEX></INDEX>
+	  <INDEX>register-machine language<SUBINDEX><DECLARATION>go_to</DECLARATION></SUBINDEX></INDEX>
+	  <INDEX><DECLARATION>go_to_dest</DECLARATION></INDEX>
+          <NAME>go_to_go_to_dest</NAME>
+          <REQUIRES>make_go_to</REQUIRES>
+          <EXAMPLE>gcd_machine_complete_example</EXAMPLE>
+          <JAVASCRIPT>
+function go_to(label) { return list(&quot;go_to&quot;, label); }
+<SHORT_SPACE></SHORT_SPACE>
+function go_to_dest(go_to_instruction) { 
+    return head(tail(go_to_instruction)); 
+}
+          </JAVASCRIPT>
+	</SNIPPET>
+      </JAVASCRIPT>
+    </SPLIT>
+  <!-- Error occurred while translating this section --></TEXT>
+
+  <DO_BREAK_PAGE></DO_BREAK_PAGE><!-- Error occurred while translating this section -->
+  <SUBHEADING>
+    <NAME>Other instructions</NAME>
+  </SUBHEADING><!-- Error occurred while translating this section -->
+
+  <TEXT>
+    The stack instructions
+    <!-- Error occurred while translating this section --><SCHEMEINLINE>save</SCHEMEINLINE> and <!-- Error occurred while translating this section --><SCHEMEINLINE>restore</SCHEMEINLINE>
+    simply use the stack with the designated register and advance the
+    <!-- Error occurred while translating this section --><SCHEMEINLINE>pc</SCHEMEINLINE>:
+    <!-- Error occurred while translating this section --><SNIPPET>
+      <INDEX><DECLARATION>make_save_ef</DECLARATION></INDEX> 
+      <INDEX><DECLARATION>make_restore_ef</DECLARATION></INDEX> 
+      <INDEX><USE>save</USE> (in register machine)<SUBINDEX>simulating</SUBINDEX></INDEX>
+      <INDEX><USE>restore</USE> (in register machine)<SUBINDEX>simulating</SUBINDEX></INDEX>
+      <NAME>make_save</NAME>
+      <REQUIRES>pop</REQUIRES>
+      <EXAMPLE>gcd_machine_complete_example</EXAMPLE>
+      <SCHEME>
+(define (make-save inst machine stack pc)
+  (let ((reg (get-register machine
+              (stack-inst-reg-name inst))))
+    (lambda ()
+      (push stack (get-contents reg))
+      (advance-pc pc))))
+
+(define (make-restore inst machine stack pc)
+  (let ((reg (get-register machine
+              (stack-inst-reg-name inst))))
+    (lambda ()
+      (set-contents! reg (pop stack))    
+      (advance-pc pc))))
+
+(define (stack-inst-reg-name stack-instruction)
+  (cadr stack-instruction))
+      </SCHEME>
+      <JAVASCRIPT>
+function make_save_ef(inst, machine, stack, pc) {
+    const reg = get_register(machine, stack_inst_reg_name(inst));
+    return () =&gt; {
+               push(stack, get_contents(reg));
+               advance_pc(pc);
+           };
+}
+function make_restore_ef(inst, machine, stack, pc) {
+    const reg = get_register(machine, stack_inst_reg_name(inst));
+    return () =&gt; {
+               set_contents(reg, pop(stack));
+               advance_pc(pc); 
+           };
+}
+      </JAVASCRIPT>
+    </SNIPPET>
+
+    <SPLIT>
+      <JAVASCRIPT>
+	The functions <JAVASCRIPTINLINE>save</JAVASCRIPTINLINE> and
+	<JAVASCRIPTINLINE>restore</JAVASCRIPTINLINE> construct
+	<JAVASCRIPTINLINE>save</JAVASCRIPTINLINE> and <JAVASCRIPTINLINE>restore</JAVASCRIPTINLINE> instructions. The
+	selector
+	<JAVASCRIPTINLINE>stack_inst_reg_name</JAVASCRIPTINLINE>
+	extracts the register name from such instructions.
+	<SNIPPET>
+	  <INDEX><DECLARATION>save</DECLARATION> (in register machine)<SUBINDEX>instruction constructor</SUBINDEX></INDEX>
+	  <INDEX>register-machine language<SUBINDEX><DECLARATION>save</DECLARATION></SUBINDEX></INDEX>
+	  <INDEX><DECLARATION>restore</DECLARATION> (in register machine)<SUBINDEX>instruction constructor</SUBINDEX></INDEX>
+	  <INDEX>register-machine language<SUBINDEX><DECLARATION>restore</DECLARATION></SUBINDEX></INDEX>
+	  <INDEX><DECLARATION>stack_inst_reg_name</DECLARATION></INDEX>
+	  <NAME>save_restore</NAME>
+	  <REQUIRES>make_save</REQUIRES>
+	  <EXAMPLE>gcd_machine_complete_example</EXAMPLE>
+	  <JAVASCRIPT>
+function save(reg) { return list(&quot;save&quot;, reg); }
+<SHORT_SPACE></SHORT_SPACE>
+function restore(reg) { return list(&quot;restore&quot;, reg); }
+<SHORT_SPACE></SHORT_SPACE>
+function stack_inst_reg_name(stack_instruction) {
+    return head(tail(stack_instruction));
+}
+	  </JAVASCRIPT>
+	</SNIPPET>
+      </JAVASCRIPT>
+    </SPLIT>
+  <!-- Error occurred while translating this section --></TEXT>
+  
+  <TEXT>
+    The final instruction type, handled by
+    <INDEX><USE>perform</USE> (in register machine)<SUBINDEX>simulating</SUBINDEX></INDEX>
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>make-perform</SCHEMEINLINE>,</SCHEME>
+      <JAVASCRIPT>
+      <JAVASCRIPTINLINE>make_perform_ef</JAVASCRIPTINLINE>,</JAVASCRIPT>
+    </SPLITINLINE>
+    generates an execution
+    <SPLITINLINE>
+      <SCHEME>procedure</SCHEME>
+      <JAVASCRIPT>function</JAVASCRIPT>
+    </SPLITINLINE>
+    for the action to be performed.  At simulation time, the action
+    <SPLITINLINE>
+      <SCHEME>procedure</SCHEME>
+      <JAVASCRIPT>function</JAVASCRIPT>
+    </SPLITINLINE>
+    is executed and the <!-- Error occurred while translating this section --><SCHEMEINLINE>pc</SCHEMEINLINE> advanced.
+    <!-- Error occurred while translating this section --><SNIPPET>
+      <INDEX><DECLARATION>make_perform_ef</DECLARATION></INDEX> 
+      <NAME>make_perform</NAME>
+      <REQUIRES>is_register_exp</REQUIRES>
+      <EXAMPLE>gcd_machine_complete_example</EXAMPLE>
+      <SCHEME>
+(define (make-perform inst machine labels operations pc)
+  (let ((action (perform-action inst)))
+    (if (operation-exp? action)
+        (let ((action-proc
+               (make-operation-exp
+                action machine labels operations)))
+          (lambda ()
+            (action-proc)
+            (advance-pc pc)))
+        (error &quot;Bad PERFORM instruction - - ASSEMBLE&quot; inst))))
+
+(define (perform-action inst) (cdr inst))
+      </SCHEME>
+      <JAVASCRIPT>
+function make_perform_ef(inst, machine, labels, operations, pc) {
+    const action = perform_action(inst);
+    if (is_operation_exp(action)) {
+        const action_fun = make_operation_exp_ef(action, machine,
+                                                 labels, operations);
+        return () =&gt; { 
+                   action_fun(); 
+                   advance_pc(pc); 
+               };
+    } else {
+        error(inst, &quot;bad perform instruction -- assemble&quot;);
+    }
+}
+      </JAVASCRIPT>
+    </SNIPPET>
+
+    <SPLIT>
+      <JAVASCRIPT>
+	The function <JAVASCRIPTINLINE>perform</JAVASCRIPTINLINE> 
+	constructs <JAVASCRIPTINLINE>perform</JAVASCRIPTINLINE> instructions. The
+	selector 
+	<JAVASCRIPTINLINE>perform_@action</JAVASCRIPTINLINE> extracts
+	the action from a <JAVASCRIPTINLINE>perform</JAVASCRIPTINLINE> instruction.
+	<SNIPPET POSTPADDING="no">
+	  <INDEX><DECLARATION>perform</DECLARATION> (in register machine)<SUBINDEX>instruction constructor</SUBINDEX></INDEX>
+	  <INDEX>register-machine language<SUBINDEX><DECLARATION>perform</DECLARATION></SUBINDEX></INDEX>
+	  <INDEX><DECLARATION>perform_action</DECLARATION></INDEX>
+          <NAME>perform_perform_action</NAME>
+          <REQUIRES>make_perform</REQUIRES>
+          <EXAMPLE>gcd_machine_complete_example</EXAMPLE>
+          <JAVASCRIPT>
+function perform(action) { return list(&quot;perform&quot;, action); }
+<SHORT_SPACE></SHORT_SPACE>
+function perform_action(perform_instruction) {
+    return head(tail(perform_instruction));
+}
+          </JAVASCRIPT>
+	</SNIPPET>
+      </JAVASCRIPT>
+    </SPLIT>
+
+  <!-- Error occurred while translating this section --></TEXT>
+  
+  <SUBHEADING>
+    <NAME>Execution
+    <SPLITINLINE>
+      <SCHEME>procedures</SCHEME>
+      <JAVASCRIPT>functions</JAVASCRIPT>
+    </SPLITINLINE>
+    for subexpressions</NAME>
+  </SUBHEADING><!-- Error occurred while translating this section -->
+
+  <TEXT>
+    The value of a
+    <INDEX><USE>reg</USE> (in register machine)<SUBINDEX>simulating</SUBINDEX></INDEX>
+    <!-- Error occurred while translating this section --><SCHEMEINLINE>reg</SCHEMEINLINE>,
+    <INDEX><USE>label</USE> (in register machine)<SUBINDEX>simulating</SUBINDEX></INDEX>
+    <!-- Error occurred while translating this section --><SCHEMEINLINE>label</SCHEMEINLINE>, or
+    <INDEX><USE>constant</USE> (in register machine)<SUBINDEX>simulating</SUBINDEX></INDEX>
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>const</SCHEMEINLINE></SCHEME>
+      <JAVASCRIPT><JAVASCRIPTINLINE>constant</JAVASCRIPTINLINE></JAVASCRIPT>
+    </SPLITINLINE>
+    expression may be needed for assignment to a register
+    <SPLITINLINE>
+      <SCHEME>(<SCHEMEINLINE>make-assign</SCHEMEINLINE>)</SCHEME>
+      <JAVASCRIPT>(<JAVASCRIPTINLINE>make_assign_ef</JAVASCRIPTINLINE>, above)</JAVASCRIPT>
+    </SPLITINLINE>
+    or for input to an operation
+    <SPLITINLINE>
+      <SCHEME>(<SCHEMEINLINE>make-operation-exp</SCHEMEINLINE>,</SCHEME>
+      <JAVASCRIPT>
+      (<JAVASCRIPTINLINE>make_@operation_@exp_@ef</JAVASCRIPTINLINE>,</JAVASCRIPT>
+    </SPLITINLINE>
+    below).  The following
+    <SPLITINLINE>
+      <SCHEME>procedure</SCHEME>
+      <JAVASCRIPT>function</JAVASCRIPT>
+    </SPLITINLINE>
+    generates execution
+    <SPLITINLINE>
+      <SCHEME>procedures</SCHEME>
+      <JAVASCRIPT>functions</JAVASCRIPT>
+    </SPLITINLINE>
+    to produce values for these expressions during the simulation:
+    <!-- Error occurred while translating this section --><SNIPPET>
+      <INDEX><DECLARATION>make_primitive_exp_ef</DECLARATION></INDEX> 
+      <NAME>make_primitive_exp</NAME>
+      <REQUIRES>lookup_label</REQUIRES>
+      <EXAMPLE>gcd_machine_complete_example</EXAMPLE>
+      <SCHEME>
+(define (make-primitive-exp exp machine labels)
+  (cond ((constant-exp? exp)
+         (let ((c (constant-exp-value exp)))
+           (lambda () c)))
+        ((label-exp? exp)
+         (let ((insts
+                (lookup-label labels
+                              (label-exp-label exp))))
+           (lambda () insts)))
+        ((register-exp? exp)
+         (let ((r (get-register machine
+                   (register-exp-reg exp))))
+           (lambda () (get-contents r))))
+        (else
+         (error &quot;Unknown expression type - - ASSEMBLE&quot; exp))))
+      </SCHEME>
+      <JAVASCRIPT>
+function make_primitive_exp_ef(exp, machine, labels) {
+    if (is_constant_exp(exp)) {
+        const c = constant_exp_value(exp);
+        return () =&gt; c;
+    } else if (is_label_exp(exp)) {
+        const insts = lookup_label(labels, label_exp_label(exp));
+        return () =&gt; insts;
+    } else if (is_register_exp(exp)) {
+        const r = get_register(machine, register_exp_reg(exp));
+        return () =&gt; get_contents(r); 
+    } else {
+        error(exp, &quot;unknown expression type -- assemble&quot;);
+    }
+}
+      </JAVASCRIPT>
+    </SNIPPET>
+
+    <SPLIT>
+      <SCHEME>
+        The syntax of <SCHEMEINLINE>reg</SCHEMEINLINE>,
+        <SCHEMEINLINE>label</SCHEMEINLINE>, and <SCHEMEINLINE>const</SCHEMEINLINE>
+        expressions is determined by
+        <SNIPPET>
+          <INDEX><DECLARATION>register-exp</DECLARATION></INDEX> 
+          <INDEX><DECLARATION>register-exp-reg</DECLARATION></INDEX> 
+          <INDEX><DECLARATION>constant-exp</DECLARATION></INDEX> 
+          <INDEX><DECLARATION>constant-exp-value</DECLARATION></INDEX> 
+          <INDEX><DECLARATION>label-exp</DECLARATION></INDEX> 
+          <INDEX><DECLARATION>label-exp-label</DECLARATION></INDEX> 
+          <NAME>is_register_exp</NAME>
+          <REQUIRES>tagged_list</REQUIRES>
+          <EXAMPLE>gcd_machine_complete_example</EXAMPLE>
+          <SCHEME>
+(define (register-exp? exp) (tagged-list? exp &apos;reg))
+
+(define (register-exp-reg exp) (cadr exp))
+
+(define (constant-exp? exp) (tagged-list? exp &apos;const))
+
+(define (constant-exp-value exp) (cadr exp))
+
+(define (label-exp? exp) (tagged-list? exp &apos;label))
+
+(define (label-exp-label exp) (cadr exp))
+          </SCHEME>
+        </SNIPPET>
+      </SCHEME>
+      <JAVASCRIPT>
+	The syntax of <JAVASCRIPTINLINE>reg</JAVASCRIPTINLINE>,
+	<JAVASCRIPTINLINE>label</JAVASCRIPTINLINE>, and <JAVASCRIPTINLINE>constant</JAVASCRIPTINLINE>
+        expressions is determined by the following constructor functions, along with
+        corresponding predicates and selectors.
+	<!-- Error occurred while translating this section --><SNIPPET>
+	  <INDEX><DECLARATION>reg</DECLARATION> (in register machine)</INDEX>
+	  <INDEX>register-machine language<SUBINDEX><DECLARATION>reg</DECLARATION></SUBINDEX></INDEX>
+	  <INDEX><DECLARATION>is_register_exp</DECLARATION></INDEX>
+	  <INDEX><DECLARATION>register_exp_reg</DECLARATION></INDEX>
+	  <INDEX><DECLARATION>constant</DECLARATION> (in register machine)</INDEX>
+	  <INDEX>register-machine language<SUBINDEX><DECLARATION>constant</DECLARATION></SUBINDEX></INDEX>
+	  <INDEX><DECLARATION>is_constant_exp</DECLARATION></INDEX>
+	  <INDEX><DECLARATION>constant_exp_value</DECLARATION></INDEX>
+	  <INDEX><DECLARATION>label</DECLARATION> (in register machine)</INDEX>
+	  <INDEX>register-machine language<SUBINDEX><DECLARATION>label</DECLARATION></SUBINDEX></INDEX>
+	  <INDEX><DECLARATION>is_label_exp</DECLARATION></INDEX>
+	  <INDEX><DECLARATION>label_exp_label</DECLARATION></INDEX>
+	  <NAME>is_register_exp0</NAME>
+	  <REQUIRES>tagged_list</REQUIRES>
+	  <EXAMPLE>gcd_machine_complete_example</EXAMPLE>
+	  <JAVASCRIPT>
+function reg(name) { return list(&quot;reg&quot;, name); }
+<SHORT_SPACE></SHORT_SPACE>
+function is_register_exp(exp) { return is_tagged_list(exp, &quot;reg&quot;); }
+<SHORT_SPACE></SHORT_SPACE>
+function register_exp_reg(exp) { return head(tail(exp)); }
+
+function constant(value) { return list(&quot;constant&quot;, value); }
+<SHORT_SPACE></SHORT_SPACE>
+function is_constant_exp(exp) {
+    return is_tagged_list(exp, &quot;constant&quot;);
+}
+<SHORT_SPACE></SHORT_SPACE>
+function constant_exp_value(exp) { return head(tail(exp)); }
+
+function label(name) { return list(&quot;label&quot;, name); }
+<SHORT_SPACE></SHORT_SPACE>
+function is_label_exp(exp) { return is_tagged_list(exp, &quot;label&quot;); }
+<SHORT_SPACE></SHORT_SPACE>
+function label_exp_label(exp) { return head(tail(exp)); }
+	  </JAVASCRIPT>
+	</SNIPPET>
+      </JAVASCRIPT>
+    </SPLIT>
+  </TEXT>
+
+  <TEXT>
+    <SPLITINLINE>
+      <SCHEME>
+	<SCHEMEINLINE>Assign</SCHEMEINLINE>,
+	<SCHEMEINLINE>perform</SCHEMEINLINE>, and
+	<SCHEMEINLINE>test</SCHEMEINLINE>
+	instructions
+      </SCHEME>
+      <JAVASCRIPT>
+	The instructions
+	<SCHEMEINLINE>assign</SCHEMEINLINE>,
+	<SCHEMEINLINE>perform</SCHEMEINLINE>, and
+	<SCHEMEINLINE>test</SCHEMEINLINE>
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    may include the application of a machine operation (specified by an
+    <INDEX><USE>op</USE> (in register machine)<SUBINDEX>simulating</SUBINDEX></INDEX>
+    <!-- Error occurred while translating this section --><SCHEMEINLINE>op</SCHEMEINLINE> expression) to some operands (specified
+    by <!-- Error occurred while translating this section --><SCHEMEINLINE>reg</SCHEMEINLINE> and
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>const</SCHEMEINLINE></SCHEME>
+      <JAVASCRIPT><JAVASCRIPTINLINE>constant</JAVASCRIPTINLINE></JAVASCRIPT>
+    </SPLITINLINE>
+    expressions). The following
+    <SPLITINLINE>
+      <SCHEME>procedure</SCHEME>
+      <JAVASCRIPT>function</JAVASCRIPT>
+    </SPLITINLINE>
+    produces an execution
+    <SPLITINLINE>
+      <SCHEME>procedure</SCHEME>
+      <JAVASCRIPT>function</JAVASCRIPT>
+    </SPLITINLINE>
+    for an <QUOTE>operation expression</QUOTE><EMDASH></EMDASH>a list containing the
+    operation and operand expressions from the instruction:
+    <!-- Error occurred while translating this section --><SNIPPET>
+      <INDEX><DECLARATION>make_operation_exp_ef</DECLARATION></INDEX> 
+      <NAME>make_operation_exp</NAME>
+      <REQUIRES>lookup_prim</REQUIRES>
+      <REQUIRES>make_primitive_exp</REQUIRES>
+      <EXAMPLE>gcd_machine_complete_example</EXAMPLE>
+      <SCHEME>
+(define (make-operation-exp exp machine labels operations)
+  (let ((op (lookup-prim (operation-exp-op exp) operations))
+        (aprocs
+         (map (lambda (e)
+                (make-primitive-exp e machine labels))
+              (operation-exp-operands exp))))
+    (lambda ()
+      (apply op (map (lambda (p) (p)) aprocs)))))
+      </SCHEME>
+      <JAVASCRIPT>
+function make_operation_exp_ef(exp, machine, labels, operations) {
+    const op = lookup_prim(operation_exp_op(exp), operations);
+    const afuns = map(e =&gt; make_primitive_exp_ef(e, machine, labels),
+                      operation_exp_operands(exp));
+    return () =&gt; apply_in_underlying_javascript(
+                     op, map(f =&gt; f(), afuns));
+}
+      </JAVASCRIPT>
+    </SNIPPET>
+
+    <SPLIT>
+      <SCHEME>
+	The syntax of operation expressions is determined by
+	<SNIPPET>
+	  <INDEX><DECLARATION>operation-exp</DECLARATION></INDEX> 
+	  <INDEX><DECLARATION>operation-exp-op</DECLARATION></INDEX> 
+	  <INDEX><DECLARATION>operation-exp-operands</DECLARATION></INDEX> 
+	  <NAME>is_operation_exp</NAME>
+	  <REQUIRES>tagged_list</REQUIRES>
+	  <EXAMPLE>gcd_machine_complete_example</EXAMPLE>
+	  <SCHEME>
+(define (operation-exp? exp)
+  (and (pair? exp) (tagged-list? (car exp) &apos;op)))
+
+(define (operation-exp-op operation-exp)
+  (cadr (car operation-exp)))
+
+(define (operation-exp-operands operation-exp)
+  (cdr operation-exp))
+	  </SCHEME>
+	</SNIPPET>
+      </SCHEME>
+      <JAVASCRIPT>
+	The syntax of operation expressions is determined by<DONT_BREAK_PAGE STRENGTH="4"></DONT_BREAK_PAGE>
+	<SNIPPET>
+	  <INDEX><DECLARATION>op</DECLARATION> (in register machine)<SUBINDEX>simulating</SUBINDEX></INDEX>
+	  <INDEX>register-machine language<SUBINDEX><DECLARATION>op</DECLARATION></SUBINDEX></INDEX>
+	  <INDEX><DECLARATION>is_operation_exp</DECLARATION></INDEX>
+	  <INDEX><DECLARATION>operation_exp_op</DECLARATION></INDEX>
+	  <INDEX><DECLARATION>operation_exp_operands</DECLARATION></INDEX>
+	  <NAME>is_register_exp</NAME>
+	  <REQUIRES>is_register_exp0</REQUIRES>
+	  <EXAMPLE>gcd_machine_complete_example</EXAMPLE>
+	  <JAVASCRIPT>
+function op(name) { return list(&quot;op&quot;, name); }
+<SHORT_SPACE></SHORT_SPACE>
+function is_operation_exp(exp) {
+    return is_pair(exp) &amp;&amp; is_tagged_list(head(exp), &quot;op&quot;);
+}
+<SHORT_SPACE></SHORT_SPACE>
+function operation_exp_op(op_exp) { return head(tail(head(op_exp))); }
+<SHORT_SPACE></SHORT_SPACE>
+function operation_exp_operands(op_exp) { return tail(op_exp); }
+	  </JAVASCRIPT>
+	</SNIPPET>
+      </JAVASCRIPT>
+    <!-- Error occurred while translating this section --></SPLIT>
+
+    Observe that the treatment of operation expressions is very much like
+    the treatment of
+    <!-- Error occurred while translating this section --><SPLITINLINE>
+      <SCHEME>procedure</SCHEME>
+      <JAVASCRIPT>function</JAVASCRIPT>
+    <!-- Error occurred while translating this section --></SPLITINLINE>
+    applications by the
+    <!-- Error occurred while translating this section --><SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>analyze-application</SCHEMEINLINE></SCHEME>
+      <JAVASCRIPT>
+	<JAVASCRIPTINLINE>analyze_application</JAVASCRIPTINLINE>
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    <SPLITINLINE>
+      <SCHEME>procedure</SCHEME>
+      <JAVASCRIPT>function</JAVASCRIPT>
+    </SPLITINLINE>
+    in the evaluator of section<SPACE></SPACE><REF NAME="sec:separating-analysis"></REF> in
+    that we generate an execution
+    <SPLITINLINE>
+      <SCHEME>procedure</SCHEME>
+      <JAVASCRIPT>function</JAVASCRIPT>
+    </SPLITINLINE>
+    for each operand.  
+    <SPLITINLINE>
+      <SCHEME>
+	At simulation time, we call the operand	
+	procedures
+	and apply the Scheme procedure	
+      </SCHEME>
+      <JAVASCRIPT>
+	At simulation time, we call the operand	
+	functions
+	and apply the JavaScript function
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    that simulates the operation to the resulting values. 
+
+    <SPLIT>
+      <JAVASCRIPT>
+	We make use of the function
+	<JAVASCRIPTINLINE>apply_in_underlying_javascript</JAVASCRIPTINLINE>, as we did 
+	in <JAVASCRIPTINLINE>apply_primitive_function</JAVASCRIPTINLINE> in 
+	section<SPACE></SPACE><REF NAME="sec:running-eval"></REF>. This is needed to apply
+	<JAVASCRIPTINLINE>op</JAVASCRIPTINLINE> to all elements of the argument list
+	<JAVASCRIPTINLINE>afuns</JAVASCRIPTINLINE> 
+	produced by the first <JAVASCRIPTINLINE>map</JAVASCRIPTINLINE>,
+	as if they were separate arguments to
+	<JAVASCRIPTINLINE>op</JAVASCRIPTINLINE>. Without this,
+	<JAVASCRIPTINLINE>op</JAVASCRIPTINLINE> would have been restricted to be a unary
+	function.
+      </JAVASCRIPT>
+    </SPLIT>
+  <!-- Error occurred while translating this section --></TEXT>
+  <TEXT>
+  The simulation
+    <SPLITINLINE>
+      <SCHEME>procedure</SCHEME>
+      <JAVASCRIPT>function</JAVASCRIPT>
+    </SPLITINLINE>
+    is found by looking up the operation name in the operation table for the
+    machine:
+    <SNIPPET POSTPADDING="no">
+      <INDEX><DECLARATION>lookup_prim</DECLARATION></INDEX> 
+      <NAME>lookup_prim</NAME>
+      <EXAMPLE>gcd_machine_complete_example</EXAMPLE>
+      <SCHEME>
+(define (lookup-prim symbol operations)
+  (let ((val (assoc symbol operations)))
+    (if val
+        (cadr val)
+        (error &quot;Unknown operation - - ASSEMBLE&quot; symbol))))
+      </SCHEME>
+      <JAVASCRIPT>
+function lookup_prim(symbol, operations) {
+    const val = assoc(symbol, operations);
+    return is_undefined(val)
+           ? error(symbol, &quot;unknown operation -- assemble&quot;)
+           : head(tail(val));
+}
+      </JAVASCRIPT>
+    </SNIPPET>
+  </TEXT><!-- Error occurred while translating this section -->
+
+  <EXERCISE>
+    The treatment of machine operations above permits them to operate
+    on labels as well as on constants and the contents of registers.
+    Modify the expression-processing
+    <SPLITINLINE>
+      <SCHEME>procedures</SCHEME>
+      <JAVASCRIPT>functions</JAVASCRIPT>
+    </SPLITINLINE>
+    to enforce the condition that operations can be used only with registers
+    and constants.
+    <LABEL NAME="ex:5_9"></LABEL>
+  </EXERCISE><!-- Error occurred while translating this section -->
+
+  <SPLIT>
+    <SCHEME>
+      <!--  Removed from JS version to avoid discussing whether the controller is "text" or not  -->
+      <EXERCISE>
+	Design a new syntax for register-machine instructions and modify the
+	simulator to use your new syntax.  Can you implement your new
+	syntax without changing any part of the simulator except the
+	<SPLITINLINE>
+	  <SCHEME>syntax procedures in this section?</SCHEME>
+	  <JAVASCRIPT>constructor and selector functions in this section?</JAVASCRIPT>
+	</SPLITINLINE>
+	<LABEL NAME="ex:reg-machine-syntax"></LABEL>
+      </EXERCISE>
+    </SCHEME>
+  </SPLIT><!-- Error occurred while translating this section -->
+
+  <EXERCISE>
+    When we introduced
+    <INDEX><USE>save</USE> (in register machine)</INDEX>
+    <!-- Error occurred while translating this section --><SCHEMEINLINE>save</SCHEMEINLINE> and
+    <INDEX><USE>restore</USE> (in register machine)</INDEX>
+    <SPLITINLINE>restore</SPLITINLINE> in
+    section<SPACE></SPACE><REF NAME="sec:stack-recursion"></REF>, we didn<APOS></APOS>t specify
+    what would happen if you tried to restore a register that was not the last
+    one saved, as in the sequence
+    <!-- Error occurred while translating this section --><SNIPPET EVAL="no">
+      <SCHEME>
+(save y)
+(save x)
+(restore y)
+      </SCHEME>
+      <JAVASCRIPT>
+save(y);
+save(x);
+restore(y);
+      </JAVASCRIPT>
+    </SNIPPET>
+    <SHORT_PAGE LINES="2"></SHORT_PAGE>There are several reasonable possibilities for the meaning of
+    <!-- Error occurred while translating this section --><SCHEMEINLINE>restore</SCHEMEINLINE>:
+    <OL>
+      <LI>
+	<SPLITINLINE>
+	  <SCHEME><SCHEMEINLINE>(restore y)</SCHEMEINLINE></SCHEME>
+	  <JAVASCRIPT><JAVASCRIPTINLINE>restore(y)</JAVASCRIPTINLINE>
+	  </JAVASCRIPT>
+	</SPLITINLINE>
+	puts into <SCHEMEINLINE>y</SCHEMEINLINE> the last value saved on the
+	stack, regardless of what register that value came from.  This is the
+	way our simulator behaves.  Show how to take advantage of this
+	behavior to eliminate one instruction from the Fibonacci machine of
+	section<SPACE></SPACE><REF NAME="sec:stack-recursion"></REF>
+	(figure<SPACE></SPACE><REF NAME="fig:fib-machine"></REF>).
+      </LI>
+      <LI>
+	<SPLITINLINE>
+	  <SCHEME><SCHEMEINLINE>(restore y)</SCHEMEINLINE></SCHEME>
+	  <JAVASCRIPT><JAVASCRIPTINLINE>restore(y)</JAVASCRIPTINLINE>
+	  </JAVASCRIPT>
+	</SPLITINLINE>
+	puts into <SCHEMEINLINE>y</SCHEMEINLINE> the last value saved on the
+	stack, but only if that value was saved from
+	<SCHEMEINLINE>y</SCHEMEINLINE>; otherwise, it signals an error.  Modify
+	the simulator to behave this way.  You will have to change
+	<SCHEMEINLINE>save</SCHEMEINLINE> to put the register name on the stack
+	along with the value.
+      </LI>
+      <LI>
+	<SPLITINLINE>
+	  <SCHEME><SCHEMEINLINE>(restore y)</SCHEMEINLINE></SCHEME>
+	  <JAVASCRIPT><JAVASCRIPTINLINE>restore(y)</JAVASCRIPTINLINE>
+	  </JAVASCRIPT>
+	</SPLITINLINE>
+	puts into <SCHEMEINLINE>y</SCHEMEINLINE> the last value saved from
+	<SCHEMEINLINE>y</SCHEMEINLINE> regardless of what other registers were
+	saved after <SCHEMEINLINE>y</SCHEMEINLINE> and not restored.  Modify the
+	simulator to behave this way.  You will have to associate a separate
+	stack with each register.  You should make the
+	<SPLITINLINE>
+	  <SCHEME><SCHEMEINLINE>initialize-stack</SCHEMEINLINE></SCHEME>
+	  <JAVASCRIPT>
+	    <JAVASCRIPTINLINE>initialize_stack</JAVASCRIPTINLINE>
+	  </JAVASCRIPT>
+	</SPLITINLINE>
+	operation initialize all the register stacks.
+      </LI>
+    </OL>
+    <!-- Error occurred while translating this section --><LABEL NAME="ex:stack-behavior"></LABEL>
+  </EXERCISE>
+
+  <EXERCISE>
+    The simulator can be used to help determine the data paths required
+    for implementing a machine with a given controller.  Extend
+    the assembler to store the following information in the machine model:
+    <UL>
+      <LI>
+	a list of all instructions, with duplicates removed, sorted by
+	instruction type
+	(<SCHEMEINLINE>assign</SCHEMEINLINE>,
+	<SPLITINLINE>
+	  <SCHEME><SCHEMEINLINE>goto</SCHEMEINLINE>,</SCHEME>
+	  <JAVASCRIPT><JAVASCRIPTINLINE>go_to</JAVASCRIPTINLINE>,</JAVASCRIPT>
+	</SPLITINLINE>
+	and so on);
+      </LI>
+      <LI>
+	a list (without duplicates) of the registers used to hold entry points
+	(these are the registers referenced by
+	<SPLITINLINE>
+	  <SCHEME><SCHEMEINLINE>goto</SCHEMEINLINE></SCHEME>
+	  <JAVASCRIPT><JAVASCRIPTINLINE>go_to</JAVASCRIPTINLINE></JAVASCRIPT>
+	</SPLITINLINE>
+	instructions);
+      </LI>
+      <LI>
+	a list (without duplicates) of the registers that are
+	<SCHEMEINLINE>save</SCHEMEINLINE>d
+	or <SCHEMEINLINE>restore</SCHEMEINLINE>d;
+      </LI>
+      <LI>
+	for each register, a list (without duplicates) of the sources from
+	which it is assigned (for example, the sources for register
+	<SCHEMEINLINE>val</SCHEMEINLINE> in the factorial machine of
+	figure<SPACE></SPACE><REF NAME="fig:fact-machine"></REF> are
+	<SPLITINLINE>
+	  <SCHEME><SCHEMEINLINE>(const 1)</SCHEMEINLINE></SCHEME>
+	  <JAVASCRIPT>
+	    <JAVASCRIPTINLINE>constant(1)</JAVASCRIPTINLINE>
+	  </JAVASCRIPT>
+	</SPLITINLINE>
+	and
+	<SPLITINLINE>
+	  <SCHEME>
+	    <SCHEMEINLINE>((op *) (reg n) (reg val))</SCHEMEINLINE>).
+	  </SCHEME>
+	  <JAVASCRIPT>
+	    <JAVASCRIPTINLINE>list(op(&quot;*&quot;), reg(&quot;n&quot;), reg(&quot;val&quot;))</JAVASCRIPTINLINE>).
+	  </JAVASCRIPT>
+	</SPLITINLINE>
+      </LI>
+    </UL>
+    Extend the message-passing interface to the machine to provide access to
+    this new information.  To test your analyzer, define the Fibonacci machine
+    from figure<SPACE></SPACE><REF NAME="fig:fib-machine"></REF> and examine the lists you
+    constructed.
+    <!-- Error occurred while translating this section --><LABEL NAME="ex:simulated-data-paths"></LABEL>
+  </EXERCISE>
+
+  <EXERCISE>
+    Modify the simulator so that it uses the controller sequence to determine
+    what registers the machine has rather than requiring a list of registers as
+    an argument to
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>make-machine</SCHEMEINLINE>.</SCHEME>
+      <JAVASCRIPT><JAVASCRIPTINLINE>make_machine</JAVASCRIPTINLINE>.</JAVASCRIPT>
+    </SPLITINLINE>
+    Instead of preallocating the registers in
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>make-machine</SCHEMEINLINE>,</SCHEME>
+      <JAVASCRIPT>
+      <JAVASCRIPTINLINE>make_machine</JAVASCRIPTINLINE>,</JAVASCRIPT>
+    </SPLITINLINE>
+    you can allocate them one at a time when they are first seen during assembly
+    of the instructions.
+    <LABEL NAME="ex:5_12"></LABEL>
+  </EXERCISE><!-- Error occurred while translating this section -->
+
+  <INDEX>register-machine language<SUBINDEX>instructions</SUBINDEX><CLOSE></CLOSE></INDEX><!-- Error occurred while translating this section -->
+  <INDEX>execution <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE><SUBINDEX>in register-machine simulator<CLOSE></CLOSE></SUBINDEX></INDEX><!-- Error occurred while translating this section -->
+
+</SUBSECTION>
