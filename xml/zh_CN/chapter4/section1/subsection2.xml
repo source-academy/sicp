@@ -1,0 +1,2735 @@
+<SUBSECTION>
+  <NAME>
+    Representing
+    <SPLITINLINE>
+      <SCHEME>Expressions</SCHEME>
+      <JAVASCRIPT>Components</JAVASCRIPT>
+    </SPLITINLINE>
+  </NAME><!-- Error occurred while translating this section -->
+
+  <LABEL NAME="sec:representing-expressions"></LABEL>
+
+  <INDEX>metacircular evaluator for JavaScript<SUBINDEX>component representation<OPEN></OPEN></SUBINDEX></INDEX><!-- Error occurred while translating this section -->
+  <INDEX>metacircular evaluator for JavaScript<SUBINDEX>syntax of evaluated language<OPEN></OPEN></SUBINDEX></INDEX><!-- Error occurred while translating this section -->
+  <INDEX>parsing JavaScript<OPEN></OPEN></INDEX><!-- Error occurred while translating this section -->
+
+  <SHORT_PAGE LINES="4"></SHORT_PAGE><!-- Error occurred while translating this section -->
+  <SPLIT>
+    <JAVASCRIPT>
+      <TEXT>
+	Programmers write programs as text, i.e. sequences of characters, entered
+	in a programming environment or a text editor. To run our evaluator, we need
+	to start with a representation of this program text as a JavaScript value.
+	In section<SPACE></SPACE><REF NAME="sec:strings"></REF> we introduced strings to represent
+	text. We would like to evaluate programs such as
+	<JAVASCRIPTINLINE>&quot;const size = 2; 5 * size;&quot;</JAVASCRIPTINLINE>
+	from section<SPACE></SPACE><REF NAME="sec:naming"></REF>.
+	Unfortunately, such program text does not provide enough structure to
+	the evaluator. In this example, the program parts
+	<JAVASCRIPTINLINE>&quot;size = 2&quot;</JAVASCRIPTINLINE> and
+	<JAVASCRIPTINLINE>&quot;5 * size&quot;</JAVASCRIPTINLINE> look similar, but carry
+	very different meanings. Abstract syntax functions such as
+	<JAVASCRIPTINLINE>declaration_@value_@expression</JAVASCRIPTINLINE> would be
+	difficult
+	and error-prone to implement by examining the program text.
+	In this section, we therefore
+	introduce a function 
+	<INDEX><USE>parse</USE></INDEX>
+	<JAVASCRIPTINLINE>parse</JAVASCRIPTINLINE> that translates program text
+	to a <EM>tagged-list representation</EM>, reminiscent of
+	the tagged data of section<SPACE></SPACE><REF NAME="sec:manifest-types"></REF>.
+	For example, the application of 
+	<JAVASCRIPTINLINE>parse</JAVASCRIPTINLINE> to the program string
+	above produces a data structure that
+	reflects the structure of the program: a sequence consisting 
+	of a constant declaration associating the name
+	<JAVASCRIPTINLINE>size</JAVASCRIPTINLINE>  with the value 2
+	and a multiplication.
+	<!-- Error occurred while translating this section --><SNIPPET PAGE="372">
+	  <NAME>parse_declaration</NAME>
+	  <JAVASCRIPT>
+parse(&quot;const size = 2; 5 * size;&quot;);
+	  </JAVASCRIPT>
+	  <JAVASCRIPT_OUTPUT>
+list(&quot;sequence&quot;,
+     list(list(&quot;constant_declaration&quot;,
+               list(&quot;name&quot;, &quot;size&quot;), list(&quot;literal&quot;, 2)),
+          list(&quot;binary_operator_combination&quot;, &quot;*&quot;,
+               list(&quot;literal&quot;, 5), list(&quot;name&quot;, &quot;size&quot;))))
+	  </JAVASCRIPT_OUTPUT>
+	</SNIPPET>
+	The syntax functions used by the evaluator access the tagged-list
+	representation produced by 
+	<JAVASCRIPTINLINE>parse</JAVASCRIPTINLINE>.
+      <!-- Error occurred while translating this section --></TEXT>
+    </JAVASCRIPT>
+  </SPLIT>
+  <TEXT>
+    The evaluator is reminiscent of the
+    <INDEX>metacircular evaluator for JavaScript<SUBINDEX>symbolic differentiation and</SUBINDEX></INDEX>
+    symbolic differentiation program
+    discussed in section<SPACE></SPACE><REF NAME="sec:symbolic-differentiation"></REF>.
+    Both programs operate on symbolic
+    <SPLITINLINE>
+      <SCHEME>expressions.</SCHEME>
+      <JAVASCRIPT>data.</JAVASCRIPT>
+    </SPLITINLINE>
+    In both programs, the
+    result of operating on 
+    <SPLITINLINE>
+      <SCHEME>a compound expression</SCHEME>
+      <JAVASCRIPT>an object</JAVASCRIPT>
+    </SPLITINLINE>
+    is determined by
+    operating recursively on the pieces of the
+    <SPLITINLINE>
+      <SCHEME>expression</SCHEME>
+      <JAVASCRIPT>object</JAVASCRIPT>
+    </SPLITINLINE>
+    and combining
+    the results in a way that depends on the type of the
+    <SPLITINLINE>
+      <SCHEME>expression.</SCHEME>
+      <JAVASCRIPT>object.</JAVASCRIPT>
+    </SPLITINLINE>
+    In both programs we used 
+    <INDEX>data abstraction</INDEX>
+    data abstraction to decouple the general rules
+    of operation from the details of how
+    <SPLITINLINE>
+      <SCHEME>expressions</SCHEME>
+      <JAVASCRIPT>the objects</JAVASCRIPT>
+    </SPLITINLINE>
+    are represented.  In
+    the differentiation program this meant that the same differentiation
+    <SPLITINLINE><SCHEME>procedure</SCHEME>
+    <JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+    could deal with algebraic expressions in prefix form, in
+    infix form, or in some other form.  For the evaluator, this means that
+    <!-- Error occurred while translating this section --><SPLITINLINE>
+      <SCHEME>
+	the syntax of the language being evaluated is determined solely by the
+      procedures that classify and extract pieces of expressions.
+      </SCHEME>
+      <JAVASCRIPT>
+	the syntax of the language being evaluated is determined
+	solely by <JAVASCRIPTINLINE>parse</JAVASCRIPTINLINE> and
+	the functions that classify and extract pieces of the
+	tagged lists produced by <JAVASCRIPTINLINE>parse</JAVASCRIPTINLINE>.	
+      </JAVASCRIPT>
+    </SPLITINLINE>
+  <!-- Error occurred while translating this section --></TEXT>
+
+  <SPLIT>
+    <JAVASCRIPT>
+      <TEXT>
+        <FIGURE>
+          <FIGURE SPLIT_SCALE="1" WEB_SCALE="0.8" SCALE="0.65" SRC="img_javascript/ch4-parse-abstraction.svg"></FIGURE>
+          <CAPTION>Syntax abstraction in the evaluator.</CAPTION>
+          <LABEL NAME="fig:parse-abstraction"></LABEL>
+        </FIGURE>
+	Figure<SPACE></SPACE><REF NAME="fig:parse-abstraction"></REF> depicts the
+	<INDEX>abstraction barriers<SUBINDEX>in representing JavaScript syntax</SUBINDEX></INDEX>
+	abstraction barrier
+	formed by the syntax predicates and selectors,
+	which interface the evaluator to the tagged-list representation of programs,
+	which in turn is separated from the string representation by 
+	<JAVASCRIPTINLINE>parse</JAVASCRIPTINLINE>. Below we
+	describe the parsing of program components and list the
+	corresponding syntax predicates and selectors, as well as
+	constructors if they are needed.
+      </TEXT>
+    </JAVASCRIPT>
+  </SPLIT><!-- Error occurred while translating this section -->
+  
+  <SPLIT>
+    <SCHEME>
+      <TEXT>
+	Here is the specification of the syntax of our language:
+	<UL>
+          <LI>
+	    The only self-evaluating items are numbers and
+	    strings:
+	    <SNIPPET PAGE="369">
+	      <NAME>is_literal</NAME>
+	      <SCHEME>
+(define (self-evaluating? exp)
+  (cond ((number? exp) true)
+        ((string? exp) true)
+        ((null? exp) true)
+        (else false)))
+	      </SCHEME>
+	    </SNIPPET>
+          </LI>
+	  
+          <LI>
+	    Variables are represented by symbols:
+	    <SNIPPET PAGE="369">
+	      <NAME>variable</NAME>
+	      <SCHEME>
+(define (variable? exp) (symbol? exp))
+	      </SCHEME>
+	    </SNIPPET>
+          </LI>
+
+          <LI>
+	    Quotations have the form
+	    <SCHEMEINLINE>(quote </SCHEMEINLINE>
+	    <LATEXINLINE>text-of-quotation</LATEXINLINE><SCHEMEINLINE>)
+	    </SCHEMEINLINE>:<FOOTNOTE>As mentioned in
+	    section<SPACE></SPACE><REF NAME="sec:quotation"></REF>, the evaluator sees a
+	    quoted expression as a list beginning with
+	    <SCHEMEINLINE>quote</SCHEMEINLINE>, even if the expression is typed
+	    with the quotation mark.  For example, the expression
+	    <SCHEMEINLINE>&apos;a</SCHEMEINLINE> would be seen by the evaluator as
+	    <SCHEMEINLINE>(quote a)</SCHEMEINLINE>.
+	    See exercise<SPACE></SPACE><REF NAME="ex:double-quote"></REF>.</FOOTNOTE>
+	    <SNIPPET PAGE="369">
+	      <NAME>quoted</NAME>
+	      <SCHEME>
+(define (quoted? exp)
+  (tagged-list? exp &apos;quote))
+
+(define (text-of-quotation exp) (cadr exp))
+	      </SCHEME>
+	    </SNIPPET>
+	    <SCHEMEINLINE>Quoted?</SCHEMEINLINE> is defined in terms of the
+	    procedure <SCHEMEINLINE>tagged-list?</SCHEMEINLINE>, which
+	    identifies lists beginning with a designated symbol:
+	    <SNIPPET PAGE="369">
+	      <NAME>tagged_list</NAME>
+	      <SCHEME>
+(define (tagged-list? exp tag)
+  (if (pair? exp)
+      (eq? (car exp) tag)
+      false))
+	      </SCHEME>
+	    </SNIPPET>
+          </LI>
+
+          <LI>
+	    Assignments have the form
+	    <SCHEMEINLINE>(set!</SCHEMEINLINE>
+	    <LATEXINLINE>var value</LATEXINLINE><SCHEMEINLINE>)</SCHEMEINLINE>:
+	    <SNIPPET PAGE="369">
+	      <NAME>assignment</NAME>
+	      <SCHEME>
+(define (assignment? exp)
+  (tagged-list? exp &apos;set!))
+
+(define (assignment-variable exp) (cadr exp))
+
+(define (assignment-value exp) (caddr exp))
+	      </SCHEME>
+	    </SNIPPET>
+          </LI>
+
+          <LI>
+	    Definitions have the form
+	    <SNIPPET EVAL="no">
+	      <SCHEME>
+(define var value)
+	      </SCHEME>
+	    </SNIPPET>
+	    or the form
+	    <SNIPPET EVAL="no">
+	      <SCHEME>
+(define (var parameter$_{1}$ $\ldots$ parameter$_{n}$)
+  body)
+	      </SCHEME>
+	    </SNIPPET>
+	    The latter form (standard
+	    procedure definition) is
+	    <INDEX>syntactic sugar<SUBINDEX><ORDER>define</ORDER><SCHEMEINLINE>define</SCHEMEINLINE></SUBINDEX></INDEX>
+	    <INDEX><DECLARATION>define</DECLARATION><SUBINDEX>syntactic sugar</SUBINDEX></INDEX>
+	    syntactic sugar for
+	    <SNIPPET EVAL="no">
+	      <SCHEME>
+(define var
+  (lambda (parameter$_{1}$ $\ldots$ parameter$_{n}$)
+    body))
+	      </SCHEME>
+	    </SNIPPET>
+	    The corresponding syntax
+	    procedures
+	    are the following:
+	    <SNIPPET PAGE="370">
+	      <NAME>definition_scheme</NAME>
+	      <SCHEME>
+(define (definition? exp)
+  (tagged-list? exp &apos;define))
+
+(define (definition-variable exp)
+  (if (symbol? (cadr exp))
+      (cadr exp)
+      (caadr exp)))
+
+(define (definition-value exp)
+  (if (symbol? (cadr exp))
+      (caddr exp)
+      (make-lambda (cdadr exp)
+                   (cddr exp))))
+	      </SCHEME>
+	    </SNIPPET>
+          </LI>
+
+          <LI>
+	    <SCHEMEINLINE>Lambda</SCHEMEINLINE> expressions are lists that begin
+	    with the symbol <SCHEMEINLINE>lambda</SCHEMEINLINE>:
+	    <SNIPPET PAGE="370">
+	      <NAME>lambda</NAME>
+	      <SCHEME>
+(define (lambda? exp) (tagged-list? exp &apos;lambda))
+
+(define (lambda-parameters exp) (cadr exp))
+(define (lambda-body exp) (cddr exp))
+
+(define (make-lambda parameters body)
+  (cons &apos;lambda (cons parameters body)))
+	      </SCHEME>
+	    </SNIPPET>
+	    We also provide a constructor for
+	    <SCHEMEINLINE>lambda</SCHEMEINLINE> expressions, which is used by
+	    <SCHEMEINLINE>definition-value</SCHEMEINLINE>, above:
+	    <SNIPPET>
+	      <INDEX><DECLARATION>make-lambda</DECLARATION></INDEX> 
+	      <SCHEME>
+(define (make-lambda parameters body)
+  (cons &apos;lambda (cons parameters body)))
+	      </SCHEME>
+	    </SNIPPET>
+
+          </LI>
+
+          <LI>
+	    Conditionals begin with <SCHEMEINLINE>if</SCHEMEINLINE> and have a
+	    predicate, a consequent, and an (optional) alternative.  If the
+	    expression has no alternative part, we provide
+	    <SCHEMEINLINE>false</SCHEMEINLINE> as the alternative.<FOOTNOTE>The
+	    value of an <SCHEMEINLINE>if</SCHEMEINLINE> expression when the
+	    predicate is false and there is no alternative is unspecified in
+	    Scheme; we have chosen here to make it false. We will support the
+	    use of the variables <SCHEMEINLINE>true</SCHEMEINLINE> and
+	    <SCHEMEINLINE>false</SCHEMEINLINE> in expressions to be evaluated
+	    by binding them in the global environment.  See
+	    section<SPACE></SPACE><REF NAME="sec:running-eval"></REF>.
+	  </FOOTNOTE>
+
+	  <SNIPPET PAGE="371">
+	    <NAME>if</NAME>
+	    <SCHEME>
+(define (if? exp) (tagged-list? exp &apos;if))
+
+(define (if-predicate exp) (cadr exp))
+
+(define (if-consequent exp) (caddr exp))
+
+(define (if-alternative exp)
+  (if (not (null? (cdddr exp)))
+      (cadddr exp)
+      &apos;false))
+
+(define (make-if predicate consequent alternative)
+  (list &apos;if predicate consequent alternative))
+	    </SCHEME>
+	  </SNIPPET>
+	  We also provide a constructor for <SCHEMEINLINE>if</SCHEMEINLINE> expressions,
+	  to be used by <SCHEMEINLINE>cond-&gt;if</SCHEMEINLINE> to transform <SCHEMEINLINE>cond</SCHEMEINLINE> expressions
+	  into <SCHEMEINLINE>if</SCHEMEINLINE> expressions:
+	  <SNIPPET>
+	    <INDEX><DECLARATION>make-if</DECLARATION></INDEX> 
+	    <SCHEME>
+(define (make-if predicate consequent alternative)
+  (list &apos;if predicate consequent alternative))
+	    </SCHEME>
+	  </SNIPPET>
+          </LI>
+
+          <LI>
+	    <SCHEMEINLINE>Begin</SCHEMEINLINE> packages a sequence of
+	    expressions into a single expression.  We include syntax operations
+	    on <SCHEMEINLINE>begin</SCHEMEINLINE> expressions to extract the
+	    actual sequence from the <SCHEMEINLINE>begin</SCHEMEINLINE>
+	    expression, as well as selectors that return the first expression
+	    and the rest of the expressions in the sequence.<FOOTNOTE>These
+	    selectors for a list of expressions<EMDASH></EMDASH>and the corresponding
+	    ones for a list of operands<EMDASH></EMDASH>are not intended as a data
+	    abstraction. They are introduced as mnemonic names for the basic list
+	    operations in order to make it easier to understand the
+	    explicit-control evaluator in
+	    section<SPACE></SPACE><REF NAME="sec:eceval"></REF>.
+	    <LABEL NAME="foot:mceval-abstraction_scheme"></LABEL></FOOTNOTE>
+	    <SNIPPET PAGE="371">
+	      <NAME>begin</NAME>
+	      <SCHEME>
+(define (begin? exp) (tagged-list? exp &apos;begin))
+
+(define (begin-actions exp) (cdr exp))
+
+(define (last-exp? seq) (null? (cdr seq)))
+(define (first-exp seq) (car seq))
+(define (rest-exps seq) (cdr seq))
+	      </SCHEME>
+	    </SNIPPET>
+	    We also include a constructor 
+	    <SCHEMEINLINE>sequence-&gt;exp</SCHEMEINLINE> (for use by
+	    <SCHEMEINLINE>cond-&gt;if</SCHEMEINLINE>) 
+	    that transforms a sequence into a single expression,
+	    using <SCHEMEINLINE>begin</SCHEMEINLINE> if necessary:
+	    <SNIPPET PAGE="372">
+	      <NAME>sequence_exp</NAME>
+	      <SCHEME>
+(define (sequence-&gt;exp seq)
+  (cond ((null? seq) seq)
+        ((last-exp? seq) (first-exp seq))
+        (else (make-begin seq))))
+
+(define (make-begin seq) (cons &apos;begin seq))
+	      </SCHEME>
+	    </SNIPPET>
+          </LI>
+
+          <LI>
+	    A procedure application is any compound expression that is not one
+	    of the above expression types. The <SCHEMEINLINE>car</SCHEMEINLINE>
+	    of the expression is the operator, and the 
+	    <SCHEMEINLINE>cdr</SCHEMEINLINE> is the list of operands:
+	    <SNIPPET PAGE="372">
+	      <NAME>application</NAME>
+	      <SCHEME>
+(define (application? exp) (pair? exp))
+(define (operator exp) (car exp))
+(define (operands exp) (cdr exp))
+
+(define (no-operands? ops) (null? ops))
+(define (first-operand ops) (car ops))
+(define (rest-operands ops) (cdr ops))
+	      </SCHEME>
+	    </SNIPPET>
+          </LI>
+	</UL>
+      </TEXT>
+    </SCHEME>
+    <JAVASCRIPT>
+
+  <INDEX>parsing JavaScript<CLOSE></CLOSE></INDEX>
+
+  <DO_BREAK_PAGE></DO_BREAK_PAGE>
+  <SUBHEADING>
+    <NAME>Literal expression</NAME>
+  </SUBHEADING>
+  <!-- Error occurred while translating this section --><TEXT>
+	<SNIPPET PAGE="365" HIDE="yes" EVAL="no">
+	  <NAME>headline_4_1_2</NAME>
+	  <JAVASCRIPT>
+// functions from SICP JS 4.1.2
+	  </JAVASCRIPT>
+	</SNIPPET>
+	Literal expressions
+	<INDEX><PARSING></PARSING><SUBINDEX><ORDER>literal expression</ORDER>literal expression</SUBINDEX></INDEX>
+	<INDEX>literal expression<SUBINDEX>parsing of</SUBINDEX></INDEX>
+	are parsed into tagged lists with
+	tag <JAVASCRIPTINLINE>&quot;literal&quot;</JAVASCRIPTINLINE> and
+	the actual value.
+	<WEB_ONLY>
+	  <LATEX>
+	    \[
+      \begin{align*}
+	    \ll\ \mathit{literal}\textit{-}\mathit{expression}\ \gg &amp; = 
+	    \texttt{list(&quot;literal&quot;, }\mathit{value}\texttt{)}
+	    \end{align*}
+      \]
+	  </LATEX>
+	  where <META>value</META> is
+	  the JavaScript value represented by the
+	  <META>literal-expression</META> string.
+	  Here <LATEXINLINE>$\ll\ $</LATEXINLINE><META>literal-expression</META><LATEXINLINE>$\ \gg$</LATEXINLINE> denotes the
+	  result of parsing the string <META>literal-expression</META>.
+	</WEB_ONLY>
+	<PDF_ONLY>
+	  <LATEX>
+	    \begin{Parsing}
+	    \ll\ \mathit{literal}\mhyphen\mathit{expression}\ \gg &amp; = &amp;
+	    \texttt{list(&quot;literal&quot;, }\mathit{value}\texttt{)}
+	    \end{Parsing}%
+	  </LATEX>
+	  where <META>value</META> is
+	  the JavaScript value represented by the
+	  <META>literal-expression</META> string.
+	  Here <LATEXINLINE>$\ll\ \mathit{literal}\mhyphen\mathit{expression}\ \gg$</LATEXINLINE> denotes the
+	  result of parsing the string <META>literal-expression</META>.
+	</PDF_ONLY>
+	<!-- Error occurred while translating this section --><SNIPPET>
+	  <NAME>parse_literal_example</NAME>
+	  <JAVASCRIPT>
+parse(&quot;1;&quot;);
+	  </JAVASCRIPT>
+	  <JAVASCRIPT_OUTPUT>
+list(&quot;literal&quot;, 1)
+	  </JAVASCRIPT_OUTPUT>
+	</SNIPPET>
+	<SNIPPET>
+	  <NAME>parse_literal_example_2</NAME>
+	  <JAVASCRIPT>
+parse(&quot;&apos;hello world&apos;;&quot;);
+	  </JAVASCRIPT>
+	  <JAVASCRIPT_OUTPUT>
+list(&quot;literal&quot;, &quot;hello world&quot;)
+	  </JAVASCRIPT_OUTPUT>
+	</SNIPPET>
+	<SNIPPET>
+	  <NAME>parse_literal_example_3</NAME>
+	  <JAVASCRIPT>
+parse(&quot;null;&quot;);
+	  </JAVASCRIPT>
+	  <JAVASCRIPT_OUTPUT>
+list(&quot;literal&quot;, null)
+	  </JAVASCRIPT_OUTPUT>
+	</SNIPPET>
+	The syntax predicate for literal expressions is 
+	<JAVASCRIPTINLINE>is_literal</JAVASCRIPTINLINE>.
+	<!-- Error occurred while translating this section --><SNIPPET PAGE="369">
+	  <INDEX><DECLARATION>is_literal</DECLARATION></INDEX>
+	  <NAME>is_literal</NAME>
+	  <REQUIRES>tagged_list</REQUIRES>
+	  <EXAMPLE>is_literal_example</EXAMPLE>
+	  <EXPECTED>true</EXPECTED>
+	  <JAVASCRIPT>
+function is_literal(component) {
+    return is_tagged_list(component, &quot;literal&quot;);
+}
+	  </JAVASCRIPT>
+	  <JAVASCRIPT_RUN>
+function is_literal(component) {
+    return is_tagged_list(component, &quot;literal&quot;);
+}
+function literal_value(component) {    
+    return head(tail(component));
+}
+	  </JAVASCRIPT_RUN>
+	</SNIPPET>
+	<SNIPPET HIDE="yes">
+	  <NAME>is_literal_example</NAME>
+	  <JAVASCRIPT>
+const my_program = parse(&quot;true; 1;&quot;);
+const my_true_statement = list_ref(list_ref(my_program, 1), 0);
+is_literal(my_true_statement);
+	  </JAVASCRIPT>
+	</SNIPPET>
+	It is defined in terms of the function
+	<JAVASCRIPTINLINE>is_tagged_list</JAVASCRIPTINLINE>,
+	which identifies lists that begin with a designated
+	string:
+	<!-- Error occurred while translating this section --><SNIPPET PAGE="369">
+	  <INDEX><DECLARATION>is_tagged_list</DECLARATION></INDEX>
+	  <NAME>tagged_list</NAME>
+	  <EXAMPLE>tagged_list_example</EXAMPLE>
+	  <EXPECTED>true</EXPECTED>
+	  <JAVASCRIPT>
+function is_tagged_list(component, the_tag) {
+    return is_pair(component) &amp;&amp; head(component) === the_tag;
+}
+	  </JAVASCRIPT>
+	</SNIPPET>
+	<SNIPPET HIDE="yes">
+	  <NAME>tagged_list_example</NAME>
+	  <JAVASCRIPT>
+is_tagged_list(list(&quot;name&quot;, &quot;x&quot;), &quot;name&quot;);
+	  </JAVASCRIPT>
+	</SNIPPET>
+	The second element of the list that results from parsing a literal expression
+	is its actual JavaScript value.
+	The selector for retrieving the value is
+	<JAVASCRIPTINLINE>literal_value</JAVASCRIPTINLINE>.
+	<!-- Error occurred while translating this section --><SNIPPET PAGE="369">
+	  <INDEX><DECLARATION>literal_value</DECLARATION></INDEX>
+	  <NAME>literal_value</NAME>
+	  <EXAMPLE>literal_value_example</EXAMPLE>
+	  <EXPECTED>null</EXPECTED>
+	  <JAVASCRIPT>
+function literal_value(component) {    
+    return head(tail(component));
+}
+	  </JAVASCRIPT>
+	</SNIPPET>
+	<SNIPPET PAGE="369">
+	  <NAME>literal_value_example</NAME>
+	  <JAVASCRIPT>
+literal_value(parse(&quot;null;&quot;));
+	  </JAVASCRIPT>
+	  <JAVASCRIPT_OUTPUT>
+null
+	  </JAVASCRIPT_OUTPUT>
+	</SNIPPET>
+	In the rest of this section, we just list the syntax predicates and selectors,
+	and omit their declarations if they just access the obvious list elements.
+      <!-- Error occurred while translating this section --></TEXT>
+      <TEXT>
+	We provide a constructor for literals, which will come in handy:
+	<SNIPPET PAGE="369" POSTPADDING="no">
+	  <INDEX><DECLARATION>make_literal</DECLARATION></INDEX>
+	  <NAME>make_literal</NAME>
+	  <JAVASCRIPT>
+function make_literal(value) {
+    return list(&quot;literal&quot;, value);
+}
+	  </JAVASCRIPT>
+	</SNIPPET>
+      </TEXT>
+
+  <SUBHEADING>
+    <NAME>Names</NAME>
+  </SUBHEADING>
+  <!-- Error occurred while translating this section --><LONG_PAGE LINES="2"></LONG_PAGE>
+  <TEXT>
+    The tagged-list representation for
+    <INDEX><PARSING></PARSING><SUBINDEX><ORDER>name</ORDER>name</SUBINDEX></INDEX>
+    <INDEX>name<SUBINDEX>parsing of</SUBINDEX></INDEX>
+    <INDEX>symbol(s)<SUBINDEX>in parsing of names</SUBINDEX></INDEX>
+    names includes the tag <JAVASCRIPTINLINE>&quot;name&quot;</JAVASCRIPTINLINE> as first
+    element and the string representing the name as second element.
+    <WEB_ONLY>
+	<LATEX>
+    \[
+	  \begin{align*}
+	  \ll\ \mathit{name}\ \gg &amp; = 
+	  \texttt{list(&quot;name&quot;, }\mathit{symbol}\texttt{)}
+	  \end{align*}
+    \]
+	</LATEX>
+	where <META>symbol</META> is a string
+	that contains the characters that make up the
+	<META>name</META> as written in the program.
+    </WEB_ONLY>
+    <PDF_ONLY>
+	<LATEX>
+	  \begin{Parsing}
+	  \ll\ \mathit{name}\ \gg &amp; = &amp;
+	  \texttt{list(&quot;name&quot;, }\mathit{symbol}\texttt{)}
+	  \end{Parsing}%
+	</LATEX>
+	where <META>symbol</META> is a string
+	that contains the characters that make up the
+	<META>name</META> as written in the program.
+    </PDF_ONLY>
+	The syntax predicate for names is 
+	<INDEX><USE>is_name</USE></INDEX>
+	<JAVASCRIPTINLINE>is_name</JAVASCRIPTINLINE>.
+	    <!-- Error occurred while translating this section --><SNIPPET PAGE="369" HIDE="yes">
+	      <NAME>variable</NAME>
+	      <EXAMPLE>variable_example</EXAMPLE>
+	      <REQUIRES>tagged_list</REQUIRES>
+	      <JAVASCRIPT>
+function is_name(component) {
+    return is_tagged_list(component, &quot;name&quot;);
+}
+	      </JAVASCRIPT>
+	    </SNIPPET>
+	The symbol is accessed using the selector 
+	<INDEX><USE>symbol_of_name</USE></INDEX>
+	<JAVASCRIPTINLINE>symbol_of_name</JAVASCRIPTINLINE>.	
+	    <!-- Error occurred while translating this section --><SNIPPET PAGE="369" HIDE="yes">
+	      <NAME>symbol_of_name</NAME>
+	      <EXAMPLE>variable_example</EXAMPLE>
+	      <REQUIRES>tagged_list</REQUIRES>
+	      <REQUIRES>variable</REQUIRES>
+	      <JAVASCRIPT>
+function symbol_of_name(component) {
+    return head(tail(component));
+}
+	      </JAVASCRIPT>
+	    </SNIPPET>
+	    <SNIPPET HIDE="yes">
+	      <NAME>variable_example</NAME>
+	      <JAVASCRIPT>
+const my_name_statement = parse(&quot;x;&quot;);
+display(is_name(my_name_statement));
+display(symbol_of_name(my_name_statement));
+	      </JAVASCRIPT>
+	    </SNIPPET>
+	    We provide a constructor for names, to be used by
+	    <JAVASCRIPTINLINE>operator_combination_to_application</JAVASCRIPTINLINE>:
+	    <!-- Error occurred while translating this section --><SNIPPET PAGE="369" POSTPADDING="no">
+	      <INDEX><DECLARATION>make_name</DECLARATION></INDEX>
+	      <NAME>make_name</NAME>
+	      <EXAMPLE>variable_example</EXAMPLE>
+	      <REQUIRES>tagged_list</REQUIRES>
+	      <JAVASCRIPT>
+function make_name(symbol) {
+    return list(&quot;name&quot;, symbol);
+}
+	      </JAVASCRIPT>
+	    </SNIPPET>
+  </TEXT>
+      
+
+  <SUBHEADING>
+    <NAME>Expression statements</NAME>
+  </SUBHEADING>
+  <TEXT>
+    We do not need to distinguish between expressions and
+    <INDEX><PARSING></PARSING><SUBINDEX><ORDER>expression statement</ORDER>expression statement</SUBINDEX></INDEX>
+    <INDEX>expression statement<SUBINDEX>parsing of</SUBINDEX></INDEX>
+    expression statements.
+    Consequently, 
+    <JAVASCRIPTINLINE>parse</JAVASCRIPTINLINE> can ignore the difference
+    between the two kinds of components:
+    <WEB_ONLY>
+	<LATEX>
+	  \[
+    \ll\ \mathit{expression}\texttt{;}\ \gg {=} \ll\ \mathit{expression}\ \gg
+    \]
+	</LATEX>
+    </WEB_ONLY>
+    <PDF_ONLY>
+	<LATEX>
+	  \begin{ParsingNoPostPadding}
+	  \ll\ \mathit{expression}\texttt{;}\ \gg &amp; = &amp;
+	  \ll\ \mathit{expression}\ \gg
+	  \end{ParsingNoPostPadding}
+	</LATEX>
+    </PDF_ONLY>
+  </TEXT>
+
+
+  <SUBHEADING>
+    <NAME>Function applications</NAME>
+  </SUBHEADING>
+
+  <!-- Error occurred while translating this section --><TEXT>
+    Function applications
+    <INDEX><PARSING></PARSING><SUBINDEX><ORDER>function application</ORDER>function application</SUBINDEX></INDEX>
+    <INDEX>function application<SUBINDEX>parsing of</SUBINDEX></INDEX>
+    are parsed as follows:
+    <WEB_ONLY>
+	<LATEX>
+    \[
+    \ll\ \mathit{fun}\textit{-}\mathit{expr}\texttt{(}\mathit{arg}\textit{-}\mathit{expr}_1\texttt{, }\ldots\texttt{, } \mathit{arg}\textit{-}\mathit{expr}_n \texttt{)}\ \gg \\
+    = \\
+    \texttt{list(&quot;application&quot;,} \ll\ \mathit{fun}\textit{-}\mathit{expr}\gg\texttt{, list(} \ll\ \mathit{arg}\textit{-}\mathit{expr}_1\;\gg \texttt{, }\ldots\texttt{, } \ll\ \mathit{arg}\textit{-}\mathit{expr}_n\;\gg \texttt{))}
+    \]
+	</LATEX>
+    </WEB_ONLY>
+    <PDF_ONLY>
+	<SNIPPET LATEX="yes" EVAL="no">
+	  <JAVASCRIPT>
+$\ll\ $<META>fun-expr</META>(<META>arg-expr</META>$_1$, $\ldots$, <META>arg-expr</META>$_n$)$\ \gg$ = 
+     list(&quot;application&quot;, 
+          $\ll\ $<META>fun-expr</META>$\ \gg$,
+          list($\ll\ $<META>arg-expr</META>$_1\;\gg$, $\ldots$, $\ll\ $<META>arg-expr</META>$_n\;\gg$))
+	  </JAVASCRIPT>
+	</SNIPPET>
+<!--     	<LATEX>     -->
+<!--     	  \begin{Parsing}     -->
+<!--     &amp;	  \ll\ \mathit{fun}\mhyphen{}\mathit{expr}\texttt{(}\mathit{arg}\mhyphen{}\mathit{expr}_1\texttt{, }\ldots\texttt{, } \mathit{arg}\mhyphen{}\mathit{expr}_n \texttt{)}\ \gg \\[-1mm]     -->
+<!--     &amp;	  = \\[-1mm]     -->
+<!--     &amp;	  \texttt{list("application",}\ \ll\ \mathit{fun}\mhyphen{}\mathit{expr}\ \gg \texttt{, list(} \ll\ \mathit{arg}\mhyphen{}\mathit{expr}_1\;\gg \texttt{, }\ldots\texttt{, } \ll\ \mathit{arg}\mhyphen{}\mathit{expr}_n\;\gg \texttt{))}     -->
+<!--     	  \end{Parsing}%     -->
+<!--     	</LATEX>     -->
+    </PDF_ONLY>
+    We declare
+    <INDEX><USE>is_application</USE></INDEX>
+    <JAVASCRIPTINLINE>is_application</JAVASCRIPTINLINE>
+    as the syntax predicate and
+    <INDEX><USE>function_expression</USE></INDEX>
+    <INDEX><USE>arg_expressions</USE></INDEX>
+    <!-- Error occurred while translating this section --><JAVASCRIPTINLINE>function_expression</JAVASCRIPTINLINE> and
+    <JAVASCRIPTINLINE>arg_expressions</JAVASCRIPTINLINE> as the selectors.
+    <!-- Error occurred while translating this section --><SNIPPET PAGE="372" HIDE="yes" POSTPADDING="no">
+      <NAME>application</NAME>
+      <REQUIRES>tagged_list</REQUIRES>
+      <EXAMPLE>application_example</EXAMPLE>
+      <JAVASCRIPT>
+function is_application(component) {
+   return is_tagged_list(component, &quot;application&quot;);
+}
+function function_expression(component) {
+   return head(tail(component));
+}
+function arg_expressions(component) {
+   return head(tail(tail(component)));
+}
+      </JAVASCRIPT>
+    </SNIPPET>
+    <SNIPPET PAGE="366" HIDE="yes">
+      <NAME>application_example</NAME>
+      <JAVASCRIPT>
+const my_application = parse(&quot;math_pow(3, 4);&quot;);
+display(is_application(my_application));
+display(function_expression(my_application));
+const my_expressions = arg_expressions(my_application);
+display(no_arg_expressions(my_expressions));
+display(first_arg_expression(my_expressions));
+display(rest_arg_expressions(my_expressions));
+      </JAVASCRIPT>
+    </SNIPPET>
+    We add a constructor for function applications, to be used by
+    <JAVASCRIPTINLINE>operator_combination_to_application</JAVASCRIPTINLINE>:
+    <!-- Error occurred while translating this section --><SNIPPET PAGE="369" POSTPADDING="no">
+      <INDEX><DECLARATION>make_application</DECLARATION></INDEX>
+      <NAME>make_application</NAME>
+      <REQUIRES>variable</REQUIRES>
+      <EXAMPLE>variable_example</EXAMPLE>
+      <REQUIRES>tagged_list</REQUIRES>
+      <JAVASCRIPT>
+function make_application(function_expression, argument_expressions) {
+    return list(&quot;application&quot;,
+                function_expression, argument_expressions);
+}
+      </JAVASCRIPT>
+    </SNIPPET>
+  </TEXT>
+
+  <SUBHEADING>
+    <NAME>Conditionals</NAME>
+  </SUBHEADING>
+
+  <!-- Error occurred while translating this section --><TEXT>
+    Conditional expressions
+    <INDEX><PARSING></PARSING><SUBINDEX><ORDER>conditional expression</ORDER>conditional expression</SUBINDEX></INDEX>
+    <INDEX>conditional expression<SUBINDEX>parsing of</SUBINDEX></INDEX>
+    <INDEX><PARSING></PARSING><SUBINDEX><ORDER>conditional statement</ORDER>conditional statement</SUBINDEX></INDEX>
+    <INDEX>conditional statement<SUBINDEX>parsing of</SUBINDEX></INDEX>
+    are parsed as follows:
+      <WEB_ONLY>
+    <BLOCKQUOTE>
+	<LATEX>
+$\ll\ \mathit{predicate}\ \texttt{?}\ \mathit{consequent}\textit{-}\mathit{expression}\ \texttt{:}\ \mathit{alternative}\textit{-}\mathit{expression}\ \gg\ \ = $
+	</LATEX>
+	<SNIPPET LATEX="yes" EVAL="no">
+	  <JAVASCRIPT>
+list(&quot;conditional_expression&quot;, 
+     $\ll\ $<META>predicate</META>$\ \gg$,
+     $\ll\ $<META>consequent-expression</META>$\ \gg$,
+     $\ll\ $<META>alternative-expression</META>$\ \gg$)
+	  </JAVASCRIPT>
+	</SNIPPET>
+    </BLOCKQUOTE>
+      </WEB_ONLY>
+	<PDF_ONLY>
+	<SNIPPET LATEX="yes" EVAL="no">
+	  <JAVASCRIPT>
+    $\ll\ $<META>predicate</META> ? <META>consequent-expression</META> : <META>alternative-expression</META>$\ \gg$ =
+        list(&quot;conditional_expression&quot;, 
+             $\ll\ $<META>predicate</META>$\ \gg$,
+             $\ll\ $<META>consequent-expression</META>$\ \gg$,
+             $\ll\ $<META>alternative-expression</META>$\ \gg$)
+	  </JAVASCRIPT>
+	</SNIPPET>
+	</PDF_ONLY>
+    Similarly, conditional statements are parsed as follows:
+      <!-- Error occurred while translating this section --><WEB_ONLY>
+    <BLOCKQUOTE>
+	<LATEX>
+$\ll\ \textbf{if}\ \texttt{(} \mathit{predicate} \texttt{)}\ \mathit{consequent}\textit{-}\mathit{block}\ \textbf{else}\ \mathit{alternative}\textit{-}\mathit{block}\ \gg\ \ =$
+	</LATEX>
+	<SNIPPET LATEX="yes" EVAL="no">
+	  <JAVASCRIPT>
+list(&quot;conditional_statement&quot;, 
+     $\ll\ $<META>predicate</META>$\ \gg$,
+     $\ll\ $<META>consequent-block</META>$\ \gg$,
+     $\ll\ $<META>alternative-block</META>$\ \gg$)
+	  </JAVASCRIPT>
+	</SNIPPET>
+    </BLOCKQUOTE>
+      </WEB_ONLY>
+      <PDF_ONLY>
+	<SNIPPET LATEX="yes" EVAL="no">
+	  <JAVASCRIPT>
+    $\ll\ $if (<META>predicate</META>) <META>consequent-block</META> else <META>alternative-block</META>$\ \gg$ =
+        list(&quot;conditional_statement&quot;, 
+             $\ll\ $<META>predicate</META>$\ \gg$,
+             $\ll\ $<META>consequent-block</META>$\ \gg$,
+             $\ll\ $<META>alternative-block</META>$\ \gg$)
+	  </JAVASCRIPT>
+	</SNIPPET>
+      </PDF_ONLY>
+      The syntax predicate
+      <INDEX><USE>is_conditional</USE></INDEX>
+      <JAVASCRIPTINLINE>is_conditional</JAVASCRIPTINLINE>
+      returns true for both kinds of conditionals, and the selectors
+      <INDEX><USE>conditional_predicate</USE></INDEX>
+      <JAVASCRIPTINLINE>conditional_predicate</JAVASCRIPTINLINE>,
+      <INDEX><USE>conditional_consequent</USE></INDEX>
+      <JAVASCRIPTINLINE>conditional_consequent</JAVASCRIPTINLINE>, and
+      <INDEX><USE>conditional_alternative</USE></INDEX>
+      <JAVASCRIPTINLINE>conditional_alternative</JAVASCRIPTINLINE>
+      can be applied to both kinds.
+	    <!-- Error occurred while translating this section --><SNIPPET PAGE="371" HIDE="yes">
+	      <NAME>if</NAME>
+	      <REQUIRES>tagged_list</REQUIRES>
+	      <EXAMPLE>if_example</EXAMPLE>
+	      <EXPECTED>[ &apos;literal&apos;, [ 2, null ] ]</EXPECTED>
+	      <JAVASCRIPT>
+function is_conditional(component) {
+    return is_tagged_list(component, &quot;conditional_expression&quot;) ||
+           is_tagged_list(component, &quot;conditional_statement&quot;);
+}
+function conditional_predicate(component) {
+   return list_ref(component, 1);
+}
+function conditional_consequent(component) {
+   return list_ref(component, 2);
+}
+function conditional_alternative(component) {
+   return list_ref(component, 3);
+}
+	      </JAVASCRIPT>
+	    </SNIPPET>
+	    <SNIPPET PAGE="366" HIDE="yes">
+	      <NAME>if_example</NAME>
+	      <JAVASCRIPT>
+const my_cond_expr = 
+    parse(&quot;true ? 1 : 2;&quot;);
+display(is_conditional(my_cond_expr));
+display(conditional_predicate(my_cond_expr));
+display(conditional_consequent(my_cond_expr));
+display(conditional_alternative(my_cond_expr));
+	      </JAVASCRIPT>
+	      <JAVASCRIPT_TEST>
+const my_cond_expr = 
+    parse(&quot;true ? 1 : 2;&quot;);
+is_conditional(my_cond_expr);
+conditional_predicate(my_cond_expr);
+conditional_consequent(my_cond_expr);
+conditional_alternative(my_cond_expr);
+	      </JAVASCRIPT_TEST>
+	    </SNIPPET>
+  </TEXT>
+
+  <SUBHEADING>
+    <NAME>Lambda expressions</NAME>
+  </SUBHEADING>
+
+  <!-- Error occurred while translating this section --><TEXT>
+    A lambda expression
+    <INDEX><PARSING></PARSING><SUBINDEX><ORDER>lambda expression</ORDER>lambda expression</SUBINDEX></INDEX>
+    <INDEX>lambda expression<SUBINDEX>parsing of</SUBINDEX></INDEX>
+    whose body is an expression is parsed as if the
+    body consisted of a block containing a single return statement whose
+    return expression is the body of the lambda expression.
+    <WEB_ONLY>
+    <LATEX>
+\[
+ \ll\ \texttt{(}\mathit{name}_1\texttt{, }\ldots\texttt{, } \mathit{name}_n \texttt{) =&gt;}\ \mathit{expression}\ \gg \\
+ = \\
+ \ll\ \texttt{(}\mathit{name}_1\texttt{, }\ldots\texttt{, } \mathit{name}_n \texttt{) =&gt; \{}\ \textbf{return} \ \mathit{expression}\texttt{;}\ \texttt{\}}\ \gg
+\]
+	</LATEX>
+    </WEB_ONLY>
+    <PDF_ONLY>
+	<SNIPPET LATEX="yes" EVAL="no">
+	  <JAVASCRIPT>
+$\ll\ $(<META>name</META>$_1$, $\ldots$, <META>name</META>$_n$) =&gt; <META>expression</META>$\ \gg$ = 
+    $\ll\ $(<META>name</META>$_1$, $\ldots$, <META>name</META>$_n$) =&gt; { return <META>expression</META>; }$\ \gg$
+	  </JAVASCRIPT>
+	</SNIPPET>
+<!--         <LATEX>     -->
+<!--     \begin{Parsing}           -->
+<!--     &amp; \ll\ \texttt{(}\mathit{name}_1\texttt{, }\ldots\texttt{, } \mathit{name}_n \texttt{) =&gt;}\ \mathit{expression}\ \gg \\[-1mm]     -->
+<!--     &amp; = \\[-1mm]     -->
+<!--     &amp; \ll\ \texttt{(}\mathit{name}_1\texttt{, }\ldots\texttt{, } \mathit{name}_n \texttt{) =&gt; \{}\ \textbf{\texttt{return}} \ \mathit{expression}\texttt{;}\ \texttt{\}}\ \gg     -->
+<!--     \end{Parsing}%     -->
+<!--     	</LATEX>     -->
+    </PDF_ONLY>A lambda expression whose body is a block is parsed as follows:
+		<!-- Error occurred while translating this section --><WEB_ONLY>
+	      <BLOCKQUOTE>
+	      <LATEX>
+$\ll\ \texttt{(}\mathit{name}_1\texttt{, }\ldots\texttt{, } \mathit{name}_n \texttt{) =&gt;}\ \mathit{block}\ \gg\ \ =$
+	</LATEX>
+	<SNIPPET LATEX="yes" EVAL="no">
+	  <JAVASCRIPT>
+list(&quot;lambda_expression&quot;,
+     list($\ll\ name_1\;\gg$, $\ldots$, $\ll\ name_n\;\gg$),
+     $\ll\ block\ \gg$)
+	  </JAVASCRIPT>
+	</SNIPPET>
+	      </BLOCKQUOTE>
+		</WEB_ONLY>
+		<PDF_ONLY>
+	<SNIPPET LATEX="yes" EVAL="no">
+	  <JAVASCRIPT>
+$\ll\ $(<META>name</META>$_1$, $\ldots$, <META>name</META>$_n$) =&gt; <META>block</META>$\ \gg$ = 
+     list(&quot;lambda_expression&quot;, 
+          list($\ll\ $<META>name</META>$_1\;\gg$, $\ldots$, $\ll\ $<META>name</META>$_n\;\gg$), 
+          $\ll\ $<META>block</META>$\ \gg$)
+	  </JAVASCRIPT>
+	</SNIPPET>
+<!--     	      <LATEX>     -->
+<!--     \begin{Parsing}     -->
+<!--     &amp; \ll\ \texttt{(}\mathit{name}_1\texttt{, }\ldots\texttt{, } \mathit{name}_n \texttt{) =>}\ \mathit{block}\ \gg \\[-1mm]     -->
+<!--     &amp; = \\[-1mm]     -->
+<!--     &amp; \texttt{list("lambda_expression", list(}\ll\ \texttt{name}_1\;\gg\texttt{,}\, \ldots\texttt{,} \ll\ \texttt{name}_n\;\gg\texttt{),}\, \ll\ \mathit{block}\ \gg\texttt{)}     -->
+<!--     \end{Parsing}%     -->
+<!--     </LATEX>     -->
+</PDF_ONLY>
+The syntax predicate is
+<INDEX><USE>is_lambda_expression</USE></INDEX>
+	<JAVASCRIPTINLINE>is_lambda_expression</JAVASCRIPTINLINE>
+	and the selector for the body of the lambda expression is
+	<INDEX><USE>lambda_body</USE></INDEX>
+	<JAVASCRIPTINLINE>lambda_body</JAVASCRIPTINLINE>.
+	The selector for the parameters, called
+	<JAVASCRIPTINLINE>lambda_parameter_symbols</JAVASCRIPTINLINE>,
+	additionally extracts the symbols from the names.
+	    <!-- Error occurred while translating this section --><SNIPPET PAGE="370">
+	      <INDEX><DECLARATION>lambda_parameter_symbols</DECLARATION></INDEX>
+	      <NAME>lambda</NAME>
+	      <REQUIRES>variable</REQUIRES>
+	      <REQUIRES>symbol_of_name</REQUIRES>
+	      <REQUIRES>tagged_list</REQUIRES>
+	      <EXAMPLE>lambda_example</EXAMPLE>
+	      <JAVASCRIPT>
+function lambda_parameter_symbols(component) {
+    return map(symbol_of_name, head(tail(component)));
+}
+	      </JAVASCRIPT>
+	      <JAVASCRIPT_RUN>
+function is_lambda_expression(component) {
+    return is_tagged_list(component, &quot;lambda_expression&quot;);
+}
+function lambda_parameter_symbols(component) {
+    return map(symbol_of_name, head(tail(component)));
+}
+function lambda_body(component) {
+    return head(tail(tail(component)));
+}
+	      </JAVASCRIPT_RUN>
+	    </SNIPPET>
+	    <SNIPPET PAGE="370" HIDE="yes">
+	      <NAME>lambda_example</NAME>
+	      <JAVASCRIPT>
+const my_lambda = parse(&quot;x =&gt; x&quot;);
+display(is_lambda_expression(my_lambda));
+display(lambda_parameter_symbols(my_lambda));
+display(lambda_body(my_lambda));
+	      </JAVASCRIPT>
+	    </SNIPPET>
+	    The function
+	    <JAVASCRIPTINLINE>function_decl_to_constant_decl</JAVASCRIPTINLINE>
+	    needs a constructor for lambda expressions:
+	    <!-- Error occurred while translating this section --><SNIPPET PAGE="369" POSTPADDING="no">
+	      <INDEX><DECLARATION>make_lambda_expression</DECLARATION></INDEX>
+	      <NAME>make_lambda_expression</NAME>
+	      <EXAMPLE>variable_example</EXAMPLE>
+	      <REQUIRES>tagged_list</REQUIRES>
+	      <REQUIRES>variable</REQUIRES>
+	      <JAVASCRIPT>
+function make_lambda_expression(parameters, body) {
+    return list(&quot;lambda_expression&quot;, parameters, body);
+}
+	      </JAVASCRIPT>
+	    </SNIPPET>
+
+	    </TEXT>
+
+  <SUBHEADING>
+    <NAME>Sequences</NAME>
+  </SUBHEADING>
+
+  <!-- Error occurred while translating this section --><TEXT>
+    A sequence statement
+    <!-- Error occurred while translating this section --><INDEX><PARSING></PARSING><SUBINDEX><ORDER>sequence of statements</ORDER>sequence of statements</SUBINDEX><!-- Error occurred while translating this section --></INDEX>
+    <INDEX>sequence of statements<SUBINDEX>parsing of</SUBINDEX><!-- Error occurred while translating this section --></INDEX>
+    packages a sequence of statements into a
+    single statement. A<!-- Error occurred while translating this section --><SPACE></SPACE>sequence of statements is parsed as follows:
+    <!-- Error occurred while translating this section --><WEB_ONLY>
+    <LATEX>
+\[
+\ll\ \mathit{statement}_1 \cdots \mathit{statement}_n\;\gg \\
+= \\
+\texttt{list(&quot;sequence&quot;, list(}
+\ll\ \mathit{statement}_1\;\gg \texttt{, } \ldots \texttt{, }
+\ll\ \mathit{statement}_n\;\gg \texttt{))}
+\]
+    </LATEX>
+    </WEB_ONLY>
+    <PDF_ONLY>
+	<SNIPPET LATEX="yes" EVAL="no">
+	  <JAVASCRIPT>
+$\ll\ $<META>statement</META>$_1$ $\cdots$ <META>statement</META>$_n\;\gg$ = 
+     list(&quot;sequence&quot;, list($\ll\ $<META>statement</META>$_1\;\gg$, $\ldots$, $\ll\ $<META>statement</META>$_n\;\gg$))
+	  </JAVASCRIPT>
+	</SNIPPET>
+<!--                <LATEX>      -->
+<!--      	  \begin{Parsing}      -->
+<!--      &amp;	  \ll\ \mathit{statement}_1 \cdots \mathit{statement}_n\;\gg \\[-1mm]      -->
+<!--      &amp;	  = \\[-1mm]      -->
+<!--      &amp;	  \texttt{list("sequence", list(}      -->
+<!--      \ll\ \mathit{statement}_1\;\gg \texttt{, } \ldots \texttt{, }      -->
+<!--      \ll\ \mathit{statement}_n\;\gg \texttt{))}      -->
+<!--      	  \end{Parsing}%      -->
+<!--          </LATEX>      -->
+    </PDF_ONLY>
+    The syntax predicate is
+    <!-- Error occurred while translating this section --><INDEX><USE>is_sequence</USE><!-- Error occurred while translating this section --></INDEX>
+    <JAVASCRIPTINLINE>is_sequence<!-- Error occurred while translating this section --></JAVASCRIPTINLINE> and
+    the selector is <!-- Error occurred while translating this section --><JAVASCRIPTINLINE>sequence_statements<!-- Error occurred while translating this section --></JAVASCRIPTINLINE>.
+    We retrieve the first of a list of statements using
+    <!-- Error occurred while translating this section --><JAVASCRIPTINLINE>first_statement<!-- Error occurred while translating this section --></JAVASCRIPTINLINE> and
+    the remaining statements using
+    <!-- Error occurred while translating this section --><JAVASCRIPTINLINE>rest_statements<!-- Error occurred while translating this section --></JAVASCRIPTINLINE>. We test
+    whether the list is empty using the predicate
+    <!-- Error occurred while translating this section --><JAVASCRIPTINLINE>is_empty_sequence<!-- Error occurred while translating this section --></JAVASCRIPTINLINE> and
+    whether it contains only one element
+    using the predicate
+    <!-- Error occurred while translating this section --><JAVASCRIPTINLINE>is_last_statement</JAVASCRIPTINLINE>.<FOOTNOTE>These
+    selectors for a list of statements are not intended
+    as a data abstraction.
+    They are introduced as mnemonic names for the
+    basic list operations in order to make it easier to understand the
+    explicit-control evaluator in
+    section<SPACE></SPACE><REF NAME="sec:eceval"></REF>.
+    <LABEL NAME="foot:mceval-abstraction"></LABEL>
+  </FOOTNOTE>
+  <!-- Error occurred while translating this section --><SNIPPET PAGE="371" POSTPADDING="no">
+    <INDEX><DECLARATION>first_statement</DECLARATION></INDEX>
+    <INDEX><DECLARATION>rest_statements</DECLARATION></INDEX>
+    <INDEX><DECLARATION>is_empty_sequence</DECLARATION></INDEX>
+    <INDEX><DECLARATION>is_last_statement</DECLARATION></INDEX>
+    <NAME>begin</NAME>
+    <REQUIRES>tagged_list</REQUIRES>
+    <EXAMPLE>begin_example</EXAMPLE>
+    <EXPECTED>[ &apos;literal&apos;, [ 45, null ] ]</EXPECTED>
+    <JAVASCRIPT>
+function first_statement(stmts) { return head(stmts); }
+<SHORT_SPACE></SHORT_SPACE>
+function rest_statements(stmts) { return tail(stmts); }
+<SHORT_SPACE></SHORT_SPACE>
+function is_empty_sequence(stmts) { return is_null(stmts); }
+<SHORT_SPACE></SHORT_SPACE>
+function is_last_statement(stmts) { return is_null(tail(stmts)); }
+	      </JAVASCRIPT>
+	      <JAVASCRIPT_RUN>
+function is_sequence(stmt) {
+   return is_tagged_list(stmt, &quot;sequence&quot;);
+}
+function sequence_statements(stmt) {   
+   return head(tail(stmt));
+}
+function first_statement(stmts) {
+   return head(stmts);
+}
+function rest_statements(stmts) {
+   return tail(stmts);
+}
+function is_empty_sequence(stmts) {
+   return is_null(stmts);
+}
+function is_last_statement(stmts) {
+   return is_null(tail(stmts));
+}
+	      </JAVASCRIPT_RUN>	      
+	    </SNIPPET>
+	    <SNIPPET PAGE="366" HIDE="yes" POSTPADDING="no">
+	      <NAME>begin_example</NAME>
+	      <JAVASCRIPT>
+const my_sequence = parse(&quot;1; true; 45;&quot;);
+display(is_sequence(my_sequence));
+const my_actions = sequence_statements(my_sequence);
+display(is_empty_sequence(my_actions));
+display(is_last_statement(my_actions));
+display(first_statement(my_actions));
+display(rest_statements(my_actions));
+	      </JAVASCRIPT>
+	      <JAVASCRIPT_TEST>
+const my_sequence = parse(&quot;1; true; 45;&quot;);
+is_sequence(my_sequence);
+const my_actions = sequence_statements(my_sequence);
+is_empty_sequence(my_actions);
+is_last_statement(my_actions);
+first_statement(my_actions);
+rest_statements(my_actions);
+list_ref(rest_statements(my_actions), 1);
+	      </JAVASCRIPT_TEST>
+	    </SNIPPET>
+  </TEXT>
+
+  <SUBHEADING>
+    <NAME>Blocks</NAME>
+  </SUBHEADING>
+
+  <!-- Error occurred while translating this section --><TEXT>
+    Blocks
+    <INDEX><PARSING></PARSING><SUBINDEX><ORDER>block</ORDER>block</SUBINDEX></INDEX>
+    <INDEX>block<SUBINDEX>parsing of</SUBINDEX></INDEX>
+    are parsed as follows:<FOOTNOTE>A parser implementation may
+    decide to represent a block by just its statement sequence if none
+    of the statements of the sequence are declarations, or to represent
+    a sequence with only one statement by just that statement. The language
+    processors in this chapter and in chapter 5 do not depend on
+    these decisions.</FOOTNOTE>
+    <WEB_ONLY>
+    <LATEX>
+    \[
+	  \begin{align*}
+	  \ll\ \texttt{\{}\ \mathit{statements}\ \texttt{\}}\ \gg
+	  &amp; =
+	  \texttt{list(&quot;block&quot;,}\ \ll\ \mathit{statements}\ \gg \texttt{)}
+	  \end{align*}
+    \]
+	  </LATEX>
+    </WEB_ONLY>
+    <PDF_ONLY>
+    <LATEX>
+	  \begin{Parsing}
+	  \ll\ \texttt{\{}\ \mathit{statements}\ \texttt{\}}\ \gg
+	  &amp; = &amp;
+	  \texttt{list(&quot;block&quot;,}\ \ll\ \mathit{statements}\ \gg \texttt{)}
+	  \end{Parsing}%
+	  </LATEX>
+    </PDF_ONLY>
+	Here <META>statements</META> refers to a sequence of
+	statements, as shown above.
+	The syntax predicate is
+	<INDEX><USE>is_block</USE></INDEX>
+	<JAVASCRIPTINLINE>is_block</JAVASCRIPTINLINE>
+	and the selector is
+	<INDEX><USE>block_body</USE></INDEX>
+	<JAVASCRIPTINLINE>block_body</JAVASCRIPTINLINE>.
+	    <!-- Error occurred while translating this section --><SNIPPET PAGE="371" HIDE="yes">
+	      <NAME>block</NAME>
+	      <REQUIRES>tagged_list</REQUIRES>
+	      <EXAMPLE>block_example</EXAMPLE>
+	      <JAVASCRIPT>
+function is_block(component) {
+    return is_tagged_list(component, &quot;block&quot;);
+}
+function block_body(component) {
+    return head(tail(component));
+}
+	      </JAVASCRIPT>
+	      <JAVASCRIPT_RUN>
+function is_block(component) {
+    return is_tagged_list(component, &quot;block&quot;);
+}
+function block_body(component) {
+    return head(tail(component));
+}
+function make_block(statement) {
+    return list(&quot;block&quot;, statement);
+}
+	      </JAVASCRIPT_RUN>
+	    </SNIPPET>
+	    <SNIPPET PAGE="366" HIDE="yes">
+	      <NAME>block_example</NAME>
+	      <JAVASCRIPT>
+const my_block = parse(&quot;{ 1; true; 45; }&quot;);
+display(is_block(my_block));
+display(block_body(my_block));
+	      </JAVASCRIPT>
+	    </SNIPPET>
+</TEXT>
+
+  <SUBHEADING>
+    <NAME>Return statements</NAME>
+  </SUBHEADING>
+
+  <TEXT>
+    Return statements
+    <INDEX><PARSING></PARSING><SUBINDEX><ORDER>return</ORDER>return statement</SUBINDEX></INDEX>
+    <INDEX>return statement<SUBINDEX>parsing of</SUBINDEX></INDEX>
+    are parsed as follows:
+    <WEB_ONLY>
+	<LATEX>
+    \[
+	  \begin{align*}
+	  \ll\ \textbf{return}\ \mathit{expression} \texttt{;}\ \gg
+	  &amp; =
+	  \texttt{list(&quot;return\_statement&quot;,}\ \ll\ \mathit{expression}\ \gg \texttt{)}
+	  \end{align*}
+    \]
+	</LATEX>
+    </WEB_ONLY>
+    <PDF_ONLY>
+	<LATEX>
+	  \begin{Parsing}
+	  \ll\ \textbf{\texttt{return}}\ \mathit{expression} \texttt{;}\ \gg
+	  &amp; = &amp;
+	  \texttt{list(&quot;return_statement&quot;,}\ \ll\ \mathit{expression}\ \gg \texttt{)}
+	  \end{Parsing}%
+	</LATEX>
+    </PDF_ONLY>
+    The syntax predicate and selector are, respectively,
+    <INDEX><USE>is_return_statement</USE></INDEX>
+    <JAVASCRIPTINLINE>is_return_statement</JAVASCRIPTINLINE>
+    and
+    <INDEX><USE>return_expression</USE></INDEX>
+    <JAVASCRIPTINLINE>return_expression</JAVASCRIPTINLINE>.
+	    <SNIPPET PAGE="366" HIDE="yes">
+	      <NAME>return</NAME>
+	      <REQUIRES>tagged_list</REQUIRES>
+	      <EXAMPLE>return_example</EXAMPLE>
+	      <EXPECTED>[ &apos;name&apos;, [ &apos;x&apos;, null ] ]</EXPECTED>
+	      <JAVASCRIPT>
+function is_return_statement(component) {
+   return is_tagged_list(component, &quot;return_statement&quot;);
+}
+function return_expression(component) {
+   return head(tail(component));
+}
+	      </JAVASCRIPT>
+	    </SNIPPET>
+	    <SNIPPET PAGE="366" HIDE="yes">
+	      <NAME>return_example</NAME>
+	      <JAVASCRIPT>
+const my_function_declaration = parse(&quot;function f(x) { return x; }&quot;);
+const my_return = list_ref(my_function_declaration, 3);
+list_ref(my_return, 1);
+	      </JAVASCRIPT>
+	    </SNIPPET>
+	    </TEXT>
+
+  <SUBHEADING>
+    <NAME>Assignments</NAME>
+  </SUBHEADING>
+
+  <!-- Error occurred while translating this section --><TEXT>
+    Assignments
+    <INDEX><PARSING></PARSING><SUBINDEX><ORDER>assignment</ORDER>assignment</SUBINDEX></INDEX>
+    <INDEX>assignment<SUBINDEX>parsing of</SUBINDEX></INDEX>
+    are parsed as follows:
+    <WEB_ONLY>
+	<LATEX>
+    \[
+	  \begin{align*}
+	  \ll\ \mathit{name}\ \ \texttt{=}\ \ \mathit{expression}\ \gg &amp; = 
+	  \texttt{list(&quot;assignment&quot;, }\ll\ \mathit{name}\gg \texttt{, }\ll\ \mathit{expression}\ \gg \texttt{)}
+	  \end{align*}
+    \]
+	</LATEX>
+    </WEB_ONLY>
+    <PDF_ONLY>
+	<LATEX>
+	  \begin{Parsing}
+	  \ll\;\mathit{name} \ \texttt{=}\  \mathit{expression}\;\gg &amp; = &amp;
+	  \texttt{list(&quot;assignment&quot;,}\ \ll\;\mathit{name}\;\gg \texttt{, }\ll\;\mathit{expression}\;\gg \texttt{)}
+	  \end{Parsing}%
+	</LATEX>
+    </PDF_ONLY>
+    The syntax predicate is
+    <INDEX><USE>is_assignment</USE></INDEX>
+    <JAVASCRIPTINLINE>is_assignment</JAVASCRIPTINLINE>
+    and the selectors are
+    <JAVASCRIPTINLINE>assignment_symbol</JAVASCRIPTINLINE>
+    and
+    <INDEX><USE>assignment_value_expression</USE></INDEX>
+    <JAVASCRIPTINLINE>assignment_value_expression</JAVASCRIPTINLINE>.
+    The symbol is wrapped in a tagged list representing the name, and thus
+    <JAVASCRIPTINLINE>assignment_symbol</JAVASCRIPTINLINE> needs to
+    unwrap it.
+    <!-- Error occurred while translating this section --><SNIPPET PAGE="369" POSTPADDING="no">
+      <INDEX><DECLARATION>assignment_symbol</DECLARATION></INDEX>
+      <NAME>assignment</NAME>
+      <REQUIRES>tagged_list</REQUIRES>
+      <EXAMPLE>assignment_example</EXAMPLE>
+      <EXPECTED>[ &apos;literal&apos;, [ 1, null ] ]</EXPECTED>
+      <JAVASCRIPT>
+function assignment_symbol(component) {
+    return symbol_of_name(head(tail(component))));
+}
+      </JAVASCRIPT>
+      <JAVASCRIPT_RUN>
+function is_assignment(component) {
+    return is_tagged_list(component, &quot;assignment&quot;);
+}
+function assignment_symbol(component) {
+    return head(tail(head(tail(component))));
+}
+function assignment_value_expression(component) {
+    return head(tail(tail(component)));
+}
+      </JAVASCRIPT_RUN>
+    </SNIPPET>
+    <SNIPPET HIDE="yes">
+      <NAME>assignment_example</NAME>
+      <JAVASCRIPT>
+const my_assignment_statement = parse(&quot;x = 1;&quot;);
+display(assignment_symbol(my_assignment_statement));
+display(assignment_value_expression(my_assignment_statement));
+      </JAVASCRIPT>
+      <JAVASCRIPT_TEST>
+const my_assignment_statement = parse(&quot;x = 1;&quot;);
+assignment_symbol(my_assignment_statement);
+assignment_value_expression(my_assignment_statement);
+      </JAVASCRIPT_TEST>
+    </SNIPPET>
+  </TEXT>
+
+  <SUBHEADING>
+    <NAME>Constant, variable, and function declarations</NAME>
+  </SUBHEADING>
+
+    <!-- Error occurred while translating this section --><TEXT>
+      Constant and variable declarations
+      <INDEX><PARSING></PARSING><SUBINDEX><ORDER>constant</ORDER>constant declaration</SUBINDEX></INDEX>
+      <INDEX>constant declaration<SUBINDEX>parsing of</SUBINDEX></INDEX>
+      <INDEX><PARSING></PARSING><SUBINDEX><ORDER>variable</ORDER>variable declaration</SUBINDEX></INDEX>
+      <INDEX>variable<SUBINDEX>declaration, parsing of</SUBINDEX></INDEX>
+      are parsed as follows:
+      <WEB_ONLY>
+	<LATEX>
+\[
+  \ll\ \textbf{const}\ \mathit{name}\ \ \texttt{=}\ \ \mathit{expression}\texttt{;}\ \gg \\
+  = \\
+  \texttt{list(&quot;constant\_declaration&quot;, } \ll\ \mathit{name}\ \gg \texttt{, }\ll\ \mathit{expression}\ \gg \texttt{)}\\[3mm]
+  \ll\ \textbf{let}\ \mathit{name} \ \ \texttt{=}\ \ \mathit{expression}\texttt{;}\ \gg \\
+  = \\
+  \texttt{list(&quot;variable\_declaration&quot;, } \ll\ \mathit{name}\ \gg \texttt{, }\ll\ \mathit{expression}\ \gg \texttt{)}
+\]
+	</LATEX>
+      </WEB_ONLY>
+      <!-- Error occurred while translating this section --><PDF_ONLY>
+	<SNIPPET LATEX="yes" EVAL="no">
+	  <JAVASCRIPT>
+$\ll\ $const <META>name</META> = <META>expression</META>;$\ \gg$ = 
+     list(&quot;constant_declaration&quot;, $\ll\ $<META>name</META>$\ \gg$, $\ll\ $<META>expression</META>$\ \gg$)
+
+$\ll\ $let <META>name</META> = <META>expression</META>;$\ \gg$ = 
+     list(&quot;variable_declaration&quot;, $\ll\ $<META>name</META>$\ \gg$, $\ll\ $<META>expression</META>$\ \gg$)
+	  </JAVASCRIPT>
+	</SNIPPET>
+<!--     	<LATEX>     -->
+<!--     	  \begin{Parsing}     -->
+<!--     &amp;  \ll\ \textbf{\texttt{const}}\ \mathit{name}\ \ \texttt{=}\ \ \mathit{expression}\texttt{;}\ \gg \\[-1mm]     -->
+<!--     &amp; = \\[-1mm]     -->
+<!--     &amp; \texttt{list("constant_declaration", } \ll\ \mathit{name}\ \gg \texttt{, }\ll\ \mathit{expression}\ \gg \texttt{)}\\[3mm]     -->
+<!--     &amp;  \ll\ \textbf{\texttt{let}}\ \mathit{name} \ \ \texttt{=}\ \ \mathit{expression}\texttt{;}\ \gg \\[-1mm]     -->
+<!--     &amp; = \\[-1mm]     -->
+<!--     &amp; \texttt{list("variable_declaration", } \ll\ \mathit{name}\ \gg \texttt{, }\ll\ \mathit{expression}\ \gg \texttt{)}     -->
+<!--     	  \end{Parsing}%     -->
+<!--     	</LATEX>     -->
+      </PDF_ONLY>
+	The selectors 
+	<JAVASCRIPTINLINE>declaration_symbol</JAVASCRIPTINLINE> and
+	<JAVASCRIPTINLINE>declaration_value_expression</JAVASCRIPTINLINE> apply to both
+	kinds.
+	<!-- Error occurred while translating this section --><SNIPPET PAGE="370">
+	  <INDEX><DECLARATION>declaration_symbol</DECLARATION></INDEX>
+	  <INDEX><DECLARATION>declaration_value_expression</DECLARATION></INDEX>
+	      <NAME>declaration_symbol</NAME>
+	      <REQUIRES>tagged_list</REQUIRES>
+	      <EXAMPLE>definition_example</EXAMPLE>
+	      <JAVASCRIPT>
+function declaration_symbol(component) {
+    return symbol_of_name(head(tail(component)));
+}
+function declaration_value_expression(component) {
+    return head(tail(tail(component)));
+}
+	      </JAVASCRIPT>
+	</SNIPPET>
+	The function
+	<JAVASCRIPTINLINE>function_decl_to_constant_decl</JAVASCRIPTINLINE>
+	needs a constructor for constant declarations:
+	<!-- Error occurred while translating this section --><SNIPPET PAGE="370">
+	  <INDEX><DECLARATION>make_constant_declaration</DECLARATION></INDEX>
+	      <NAME>make_constant_declaration</NAME>
+	      <REQUIRES>tagged_list</REQUIRES>
+	      <REQUIRES>definition</REQUIRES>
+	      <EXAMPLE>definition_example</EXAMPLE>
+	      <JAVASCRIPT>
+function make_constant_declaration(name, value_expression) {
+    return list(&quot;constant_declaration&quot;, name, value_expression);
+}
+	      </JAVASCRIPT>
+	</SNIPPET>
+    </TEXT>
+    <TEXT>
+      Function declarations
+      <INDEX><PARSING></PARSING><SUBINDEX><ORDER>function declaration</ORDER>function declaration</SUBINDEX></INDEX>
+      <INDEX>function declaration<SUBINDEX>parsing of</SUBINDEX></INDEX>
+      are parsed as follows:
+	  <WEB_ONLY>
+	<BLOCKQUOTE>
+	      <LATEX>
+$\ll\ \textbf{function}\ \mathit{name} \texttt{(}\mathit{name}_1\texttt{, }\ldots\texttt{, } \mathit{name}_n \texttt{)} \ \mathit{block}\ \gg\ \ =$ 
+	</LATEX>
+	<SNIPPET LATEX="yes" EVAL="no">
+	  <JAVASCRIPT>
+list(&quot;function_declaration&quot;,
+     $\ll\ $<META>name</META>$\ \gg$,
+     list($\ll\ $<META>name</META>$_1\;\gg$, $\ldots$, $\ll\ $<META>name</META>$_n\;\gg$),
+     $\ll\ $<META>block</META>$\ \gg$)
+	  </JAVASCRIPT>
+	</SNIPPET>
+	</BLOCKQUOTE>
+	  </WEB_ONLY>
+	  <PDF_ONLY>
+	<SNIPPET LATEX="yes" EVAL="no">
+	  <JAVASCRIPT>
+$\ll\ $function <META>name</META>(<META>name</META>$_1$, $\ldots$ <META>name</META>$_n$) <META>block</META>$\ \gg$ =
+    list(&quot;function_declaration&quot;,
+         $\ll\ $<META>name</META>$\ \gg$,
+         list($\ll\ $<META>name</META>$_1\;\gg$, $\ldots$, $\ll\ $<META>name</META>$_n\;\gg$),
+         $\ll\ $<META>block</META>$\ \gg$)
+	  </JAVASCRIPT>
+	</SNIPPET>
+	  </PDF_ONLY>
+     The syntax predicate
+      <INDEX><USE>is_function_declaration</USE></INDEX>
+      <JAVASCRIPTINLINE>is_function_declaration</JAVASCRIPTINLINE>
+      recognizes these.
+      The selectors are
+      <INDEX><USE>function_declaration_name</USE></INDEX>
+     <JAVASCRIPTINLINE>function_declaration_name</JAVASCRIPTINLINE>,
+      <INDEX><USE>function_declaration_parameters</USE></INDEX>
+     <JAVASCRIPTINLINE>function_declaration_parameters</JAVASCRIPTINLINE>, and
+      <INDEX><USE>function_declaration_body</USE></INDEX>
+     <JAVASCRIPTINLINE>function_declaration_body</JAVASCRIPTINLINE>.
+     <!-- Error occurred while translating this section --><SNIPPET PAGE="373" EVAL="no" HIDE="yes">
+       <NAME>function_declaration_syntax</NAME>
+       <REQUIRES>tagged_list</REQUIRES>
+       <JAVASCRIPT>
+function is_function_declaration(component) {	    
+    return is_tagged_list(component, &quot;function_declaration&quot;);
+}
+function function_declaration_name(component) {
+    return list_ref(component, 1);
+}
+function function_declaration_parameters(component) {
+    return list_ref(component, 2);
+}
+function function_declaration_body(component) {
+    return list_ref(component, 3);
+}
+       </JAVASCRIPT>
+     </SNIPPET>
+    </TEXT>
+    <TEXT>
+	The syntax predicate
+	<JAVASCRIPTINLINE>is_declaration</JAVASCRIPTINLINE>
+	returns true for all three kinds of declarations.
+	<SNIPPET PAGE="370" POSTPADDING="no">
+	  <INDEX><DECLARATION>is_declaration</DECLARATION></INDEX>
+	      <NAME>definition</NAME>
+	      <REQUIRES>tagged_list</REQUIRES>
+	      <EXAMPLE>definition_example</EXAMPLE>
+	      <JAVASCRIPT>
+function is_declaration(component) {
+    return is_tagged_list(component, &quot;constant_declaration&quot;) ||
+           is_tagged_list(component, &quot;variable_declaration&quot;) ||
+           is_tagged_list(component, &quot;function_declaration&quot;);
+}
+	      </JAVASCRIPT>
+	</SNIPPET>
+	<SNIPPET HIDE="yes">
+	  <NAME>definition_example</NAME>
+	  <JAVASCRIPT>
+const my_declaration_statement = parse(&quot;let x = 1;&quot;);
+display(is_declaration(my_declaration_statement));
+display(declaration_symbol(my_declaration_statement));
+display(declaration_value_expression(my_declaration_statement));
+	  </JAVASCRIPT>
+	</SNIPPET>
+    </TEXT>
+    <!-- Error occurred while translating this section --></JAVASCRIPT>
+  </SPLIT>
+
+  <SPLIT>
+    <SCHEME>
+
+      <SUBHEADING>
+	<NAME>Derived expressions</NAME>
+      </SUBHEADING>
+      
+      <TEXT>
+	Some special forms in our language can be defined in terms of
+	expressions involving
+	<INDEX>metacircular evaluator for Scheme<SUBINDEX>derived expressions<OPEN></OPEN></SUBINDEX></INDEX>
+	<INDEX>metacircular evaluator for Scheme<SUBINDEX>special forms as derived expressions<OPEN></OPEN></SUBINDEX></INDEX>
+	<INDEX>derived expressions in evaluator<OPEN></OPEN></INDEX>
+	<INDEX>special form<SUBINDEX><ORDER>derived</ORDER>as derived expression in evaluator</SUBINDEX></INDEX>
+	other special forms, rather than being
+	implemented directly.  One example is <SCHEMEINLINE>cond</SCHEMEINLINE>,
+	which can be implemented as a nest of <SCHEMEINLINE>if</SCHEMEINLINE>
+	expressions.  For example, we can reduce the problem of evaluating the
+	expression
+	<SNIPPET>
+	  <SCHEME>
+(cond ((&gt; x 0) x)
+      ((= x 0) (display &apos;zero) 0)
+      (else (- x)))
+	  </SCHEME>
+	</SNIPPET>
+	to the problem of evaluating the following expression involving
+	<SCHEMEINLINE>if</SCHEMEINLINE> and <SCHEMEINLINE>begin</SCHEMEINLINE>
+	expressions:
+	<SNIPPET>
+	  <SCHEME>
+(if (&gt; x 0)
+    x
+    (if (= x 0)
+        (begin (display &apos;zero)
+               0)
+        (- x)))
+	  </SCHEME>
+	</SNIPPET>
+	Implementing the evaluation of <SCHEMEINLINE>cond</SCHEMEINLINE> in this
+	way simplifies the evaluator because it reduces the number of special
+	forms for which the evaluation process must be explicitly specified.
+      </TEXT>
+      
+      <TEXT>
+	We include syntax procedures that extract the parts of a
+	<SCHEMEINLINE>cond</SCHEMEINLINE>expression, and a procedure
+	<SCHEMEINLINE>cond-&gt;if</SCHEMEINLINE> that transforms 
+	<SCHEMEINLINE>cond</SCHEMEINLINE> expressions into
+	<SCHEMEINLINE>if</SCHEMEINLINE> expressions. A case analysis begins with
+	<SCHEMEINLINE>cond</SCHEMEINLINE> and has a list of predicate-action
+	clauses.  A clause is an <SCHEMEINLINE>else</SCHEMEINLINE> clause if its
+	predicate is the symbol	<SCHEMEINLINE>else</SCHEMEINLINE>.<FOOTNOTE>The
+	value of a <SCHEMEINLINE>cond</SCHEMEINLINE> expression when all the
+	predicates are false and there is no <SCHEMEINLINE>else</SCHEMEINLINE>
+	clause is unspecified in Scheme; we have chosen here to make it
+	false.</FOOTNOTE>
+	<SNIPPET PAGE="373">
+	  <NAME>cond</NAME>
+	  <REQUIRES>sequence_exp</REQUIRES>
+	  <SCHEME>
+(define (cond? exp) (tagged-list? exp &apos;cond))
+
+(define (cond-clauses exp) (cdr exp))
+
+(define (cond-else-clause? clause)
+  (eq? (cond-predicate clause) &apos;else))
+
+(define (cond-predicate clause) (car clause))
+
+(define (cond-actions clause) (cdr clause))
+
+(define (cond-&gt;if exp)
+  (expand-clauses (cond-clauses exp)))
+
+(define (expand-clauses clauses)
+  (if (null? clauses)
+      &apos;false                          ; no else clause
+      (let ((first (car clauses))
+            (rest (cdr clauses)))
+        (if (cond-else-clause? first)
+            (if (null? rest)
+                (sequence-&gt;exp (cond-actions first))
+                (error &quot;ELSE clause isn&apos;t last - - COND-&gt;IF&quot;
+                       clauses))
+            (make-if (cond-predicate first)
+                     (sequence-&gt;exp (cond-actions first))
+                     (expand-clauses rest))))))
+	  </SCHEME>
+	</SNIPPET>
+      </TEXT>
+
+      <TEXT>
+	Expressions (such as <SCHEMEINLINE>cond</SCHEMEINLINE>) that we choose
+	to implement as syntactic transformations are called <EM>derived
+	expressions</EM>. <SCHEMEINLINE>Let</SCHEMEINLINE> expressions are also
+	derived expressions (see
+	exercise<SPACE></SPACE><REF NAME="ex:implement-let"></REF>).<FOOTNOTE>Practical Lisp
+	systems provide a mechanism that allows a user to add new derived
+	expressions and specify their implementation as syntactic
+	transformations without	modifying the evaluator.  Such a user-defined
+	transformation is called a
+	<INDEX>macro</INDEX>
+	<EM>macro</EM>.	Although it is easy to add an elementary mechanism for
+	defining macros, the resulting language has subtle name-conflict
+	problems. There has been much research on mechanisms for macro definition
+	that do not cause these difficulties.  See,
+	<INDEX>Kohlbecker, Eugene Edmund, Jr.</INDEX>
+	for example, <CITATION>Kohlbecker 1986</CITATION>, 
+	<INDEX>Clinger, William</INDEX>
+	<INDEX>Rees, Jonathan A.</INDEX>
+	<CITATION>Clinger and Rees 1991</CITATION>, and 
+	<INDEX>Hanson, Christopher P.</INDEX>
+	<CITATION>Hanson 1991</CITATION>.<LABEL NAME="foot:macros"></LABEL></FOOTNOTE>
+	<INDEX>metacircular evaluator for Scheme<SUBINDEX>expression representation<CLOSE></CLOSE></SUBINDEX></INDEX>
+	<INDEX>metacircular evaluator for Scheme<SUBINDEX>syntax of evaluated language<CLOSE></CLOSE></SUBINDEX></INDEX>
+	<INDEX>metacircular evaluator for Scheme<SUBINDEX>derived expressions<CLOSE></CLOSE></SUBINDEX></INDEX>
+	<INDEX>metacircular evaluator for Scheme<SUBINDEX>special forms as derived expressions<CLOSE></CLOSE></SUBINDEX></INDEX>
+	<INDEX>derived expressions in evaluator<CLOSE></CLOSE></INDEX>
+      </TEXT>
+    </SCHEME>
+    <JAVASCRIPT>
+
+      <SUBHEADING>
+	<NAME>Derived components</NAME>
+      </SUBHEADING>
+
+      <INDEX>derived components in evaluator<OPEN></OPEN></INDEX>
+      <INDEX>syntactic form<SUBINDEX><ORDER>derived</ORDER>as derived component<OPEN></OPEN></SUBINDEX></INDEX>
+      <INDEX>metacircular evaluator for JavaScript<SUBINDEX>derived components<OPEN></OPEN></SUBINDEX></INDEX>
+      <INDEX>metacircular evaluator for JavaScript<SUBINDEX>syntactic forms as derived components<OPEN></OPEN></SUBINDEX></INDEX>
+      
+      <!-- Error occurred while translating this section --><TEXT>
+	Some
+	<INDEX>syntactic form<SUBINDEX><ORDER>derived</ORDER>as derived component</SUBINDEX></INDEX>
+	syntactic forms in our language can be defined in terms of
+	components involving other syntactic forms, rather than being
+	implemented directly.
+	One example is
+	<INDEX>function declaration<SUBINDEX><ORDER>derived</ORDER>as derived component</SUBINDEX></INDEX>
+	<INDEX>derived components in evaluator<SUBINDEX>function declaration</SUBINDEX></INDEX>
+	function declaration, which 
+	<JAVASCRIPTINLINE>evaluate</JAVASCRIPTINLINE>
+	transforms into a constant declaration whose
+	value expression is a lambda expression.<FOOTNOTE>In 
+	    actual JavaScript, there are subtle differences between the two
+	    forms; see footnote<SPACE></SPACE><REF NAME="foot:function-decl-vs-lambda"></REF>
+	    in chapter 1.
+	    Exercise<SPACE></SPACE><REF NAME="ex:hoisting"></REF> addresses these differences.
+          </FOOTNOTE>
+	<!-- Error occurred while translating this section --><SNIPPET PAGE="373">
+	  <INDEX><DECLARATION>function_decl_to_constant_decl</DECLARATION></INDEX>
+	  <NAME>function_declaration</NAME>
+	  <REQUIRES>tagged_list</REQUIRES>
+	  <JAVASCRIPT>
+function function_decl_to_constant_decl(component) {
+    return make_constant_declaration(
+               function_declaration_name(component),
+               make_lambda_expression(
+                   function_declaration_parameters(component),
+                   function_declaration_body(component)));
+}
+	  </JAVASCRIPT>
+	  <JAVASCRIPT_RUN>
+function is_function_declaration(component) {	    
+    return is_tagged_list(component, &quot;function_declaration&quot;);
+}
+function function_declaration_name(component) {
+    return list_ref(component, 1);
+}
+function function_declaration_parameters(component) {
+    return list_ref(component, 2);
+}
+function function_declaration_body(component) {
+    return list_ref(component, 3);
+}
+function function_decl_to_constant_decl(component) {
+    return make_constant_declaration(
+               function_declaration_name(component),
+               make_lambda_expression(
+                   function_declaration_parameters(component),
+                   function_declaration_body(component)));
+}
+	  </JAVASCRIPT_RUN>
+	</SNIPPET>
+	Implementing the evaluation of function declarations
+	in this	way simplifies the evaluator because it reduces the number of
+	syntactic forms for which the evaluation process must be explicitly specified.
+      <!-- Error occurred while translating this section --></TEXT>
+      
+      <TEXT>
+	Similarly, we define
+	<INDEX><PARSING></PARSING><SUBINDEX><ORDER>operator combination</ORDER>operator combination</SUBINDEX></INDEX>
+	<INDEX>operator combination<SUBINDEX>parsing of</SUBINDEX></INDEX>
+	operator combinations in terms of
+	function applications. 
+	Operator combinations are unary or binary and carry their operator symbol as second element
+	in the tagged-list representation:
+	<WEB_ONLY>
+	    <LATEX>
+	      \[
+	          \ll\ \mathit{unary}\textit{-}\mathit{operator}\ \ \mathit{expression}\ \gg \\
+	          = \\
+	          \texttt{list(&quot;unary\_operator\_combination&quot;, &quot;}\mathit{unary}\textit{-}\mathit{operator}\texttt{&quot;},\ 
+            \texttt{list(}\ll\ \mathit{expression}\ \gg \texttt{))}
+	      \]
+	    </LATEX>
+	</WEB_ONLY>
+	<PDF_ONLY>
+	<SNIPPET LATEX="yes" EVAL="no">
+	  <JAVASCRIPT>
+$\ll\ $<META>unary-operator</META> <META>expression</META>$\ \gg$ = 
+     list(&quot;unary_operator_combination&quot;, 
+          &quot;<META>unary-operator</META>&quot;, 
+          list($\ll\ $<META>expression</META>$\ \gg$))
+	  </JAVASCRIPT>
+	</SNIPPET>
+	    <!--     <LATEX>     -->
+	    <!--       \begin{Parsing}     -->
+	    <!--       &amp; \ll\ \mathit{unary}\mhyphen{}\mathit{operator}\ \ \mathit{expression}\ \gg \\[-1mm]     -->
+	    <!--       &amp; = \\[-1mm]     -->
+	    <!--       &amp; \texttt{list("unary_operator_combination", "}\mathit{unary}\mhyphen{}\mathit{operator}\texttt{"},\      -->
+      <!--             \texttt{list(}\ll\ \mathit{expression}\ \gg \texttt{))}     -->
+	    <!--       \end{Parsing}%     -->
+	    <!--     </LATEX>     -->
+	</PDF_ONLY>
+	where <META>unary-operator</META> is 
+    <JAVASCRIPTINLINE>!</JAVASCRIPTINLINE> (for logical negation) or
+    <JAVASCRIPTINLINE>-unary</JAVASCRIPTINLINE> (for numeric negation), and
+    <!-- Error occurred while translating this section --><WEB_ONLY>
+	    <LATEX>
+	      \[
+	          \ll\ \mathit{expression}_1\ \mathit{binary}\textit{-}\mathit{operator}\ \ \mathit{expression}_2\;\gg \\
+	          = \\
+	          \texttt{list(&quot;binary\_operator\_combination&quot;, &quot;}\mathit{binary}\textit{-}\mathit{operator}\texttt{&quot;},\\ 
+            \texttt{list(}\ll\ \mathit{expression}_1\;\gg\texttt{,}\ \ll\ \mathit{expression}_2\;\gg \texttt{))}
+	      \]
+	    </LATEX>
+    </WEB_ONLY>
+    <PDF_ONLY>
+	<SNIPPET LATEX="yes" EVAL="no">
+	  <JAVASCRIPT>
+$\ll\ $<META>expression</META>$_1$ <META>binary-operator</META> <META>expression</META>$_2\;\gg$ = 
+     list(&quot;binary_operator_combination&quot;, 
+          &quot;<META>binary-operator</META>&quot;, 
+          list($\ll\ $<META>expression</META>$_1\;\gg$, $\ll\ $<META>expression</META>$_2\;\gg$))
+	  </JAVASCRIPT>
+	</SNIPPET>
+	    <!--      <LATEX>      -->
+	    <!--        \begin{Parsing}      -->
+	    <!--        &amp; \ll\ \mathit{expression}_1\ \mathit{binary}\mhyphen{}\mathit{operator}\ \ \mathit{expression}_2\;\gg \\[-1mm]      -->
+	    <!--        &amp; = \\[-1mm]      -->
+	    <!--        &amp; \texttt{list("binary_operator_combination", "}\mathit{binary}\mhyphen{}\mathit{operator}\texttt{"},\       -->
+      <!--              \texttt{list(}\ll\ \mathit{expression}_1\texttt{,}\ \mathit{expression}_2\;\gg \texttt{))}      -->
+	    <!--        \end{Parsing}%      -->
+	    <!--      </LATEX>      -->
+    </PDF_ONLY>
+    where <!-- Error occurred while translating this section --><META>binary-operator<!-- Error occurred while translating this section --></META> is 
+    <!-- Error occurred while translating this section --><JAVASCRIPTINLINE>+<!-- Error occurred while translating this section --></JAVASCRIPTINLINE>,
+    <JAVASCRIPTINLINE>-<!-- Error occurred while translating this section --></JAVASCRIPTINLINE>,
+    <JAVASCRIPTINLINE>*<!-- Error occurred while translating this section --></JAVASCRIPTINLINE>,
+    <JAVASCRIPTINLINE>/<!-- Error occurred while translating this section --></JAVASCRIPTINLINE>,
+    <JAVASCRIPTINLINE>%<!-- Error occurred while translating this section --></JAVASCRIPTINLINE>,
+    <JAVASCRIPTINLINE>===<!-- Error occurred while translating this section --></JAVASCRIPTINLINE>,
+    <JAVASCRIPTINLINE>!==<!-- Error occurred while translating this section --></JAVASCRIPTINLINE>,
+    <JAVASCRIPTINLINE>&gt;<!-- Error occurred while translating this section --></JAVASCRIPTINLINE>,
+    <JAVASCRIPTINLINE>&lt;<!-- Error occurred while translating this section --></JAVASCRIPTINLINE>,
+    <JAVASCRIPTINLINE>&gt;=<!-- Error occurred while translating this section --></JAVASCRIPTINLINE> or
+    <!-- Error occurred while translating this section --><JAVASCRIPTINLINE>&lt;=<!-- Error occurred while translating this section --></JAVASCRIPTINLINE>.
+     The syntax predicates are
+     <!-- Error occurred while translating this section --><JAVASCRIPTINLINE>is_operator_combination</JAVASCRIPTINLINE>,
+     <JAVASCRIPTINLINE>is_unary_operator_combination</JAVASCRIPTINLINE>, and
+     <JAVASCRIPTINLINE>is_binary_operator_combination</JAVASCRIPTINLINE>,
+     and the selectors are
+     <JAVASCRIPTINLINE>operator_symbol</JAVASCRIPTINLINE>,
+     <JAVASCRIPTINLINE>first_operand</JAVASCRIPTINLINE>, and
+     <JAVASCRIPTINLINE>second_operand</JAVASCRIPTINLINE>.
+	<!-- Error occurred while translating this section --><SNIPPET PAGE="373" HIDE="yes">
+	  <NAME>operator_combination</NAME>
+	  <JAVASCRIPT>
+function is_operator_combination(component) {	    
+    return is_unary_operator_combination(component) ||
+           is_binary_operator_combination(component);
+}
+function is_unary_operator_combination(component) {	    
+    return is_tagged_list(component, &quot;unary_operator_combination&quot;);
+}
+function is_binary_operator_combination(component) {	    
+    return is_tagged_list(component, &quot;binary_operator_combination&quot;);
+}
+function operator_symbol(component) {
+    return list_ref(component, 1);
+}
+function first_operand(component) {
+    return list_ref(component, 2);
+}
+function second_operand(component) {
+    return list_ref(component, 3);
+}
+	  </JAVASCRIPT>
+	</SNIPPET>
+      </TEXT>
+      <TEXT>
+	The evaluator uses
+	<JAVASCRIPTINLINE>operator_combination_to_application</JAVASCRIPTINLINE>
+	to transform an
+	<INDEX>operator combination<SUBINDEX>as function application</SUBINDEX></INDEX>
+	<INDEX>operator combination<SUBINDEX><ORDER>derived</ORDER>as derived component</SUBINDEX></INDEX>
+	<INDEX>derived components in evaluator<SUBINDEX>operator combination</SUBINDEX></INDEX>
+	operator combination into a function application whose
+	function expression is the name of the operator:
+	<SNIPPET PAGE="373">
+	  <INDEX><DECLARATION>operator_combination_to_</DECLARATION> <JAVASCRIPTINLINE>application</JAVASCRIPTINLINE></INDEX>
+	  <NAME>operator_combination_to_application</NAME>
+	  <REQUIRES>operator_combination</REQUIRES>
+	  <REQUIRES>make_application</REQUIRES>
+	  <JAVASCRIPT>
+function operator_combination_to_application(component) {
+    const operator = operator_symbol(component);
+    return is_unary_operator_combination(component)
+           ? make_application(make_name(operator),
+                              list(first_operand(component)))
+           : make_application(make_name(operator),
+                              list(first_operand(component),
+                                   second_operand(component)));
+}
+	  </JAVASCRIPT>
+	</SNIPPET>
+      </TEXT>
+      <!-- Error occurred while translating this section --><TEXT>
+	Components (such as function declarations and operator combinations) that we
+	choose
+	to implement as syntactic transformations are called
+	<INDEX>derived component</INDEX>
+	<EM>derived components</EM>. Logical composition operations are also
+	derived components (see exercise<SPACE></SPACE><REF NAME="ex:eval-and-or"></REF>).
+
+	<INDEX>metacircular evaluator for JavaScript<SUBINDEX>component representation<CLOSE></CLOSE></SUBINDEX></INDEX>
+	<INDEX>metacircular evaluator for JavaScript<SUBINDEX>syntax of evaluated language<CLOSE></CLOSE></SUBINDEX></INDEX>
+	<INDEX>metacircular evaluator for JavaScript<SUBINDEX>derived components<CLOSE></CLOSE></SUBINDEX></INDEX>
+	<INDEX>metacircular evaluator for JavaScript<SUBINDEX>syntactic forms as derived components<CLOSE></CLOSE></SUBINDEX></INDEX>
+	<INDEX>derived components in evaluator<CLOSE></CLOSE></INDEX>
+	<INDEX>syntactic form<SUBINDEX><ORDER>derived</ORDER>as derived component<CLOSE></CLOSE></SUBINDEX></INDEX>
+
+      </TEXT>
+      
+    <!-- Error occurred while translating this section --></JAVASCRIPT>
+  </SPLIT>
+
+  <SNIPPET PAGE="383" HIDE="yes">
+    <NAME>functions_4_1_2</NAME>
+    <REQUIRES>headline_4_1_2</REQUIRES>
+    <REQUIRES>is_literal</REQUIRES>
+    <REQUIRES>make_literal</REQUIRES>
+    <REQUIRES>variable</REQUIRES>
+    <REQUIRES>make_name</REQUIRES>
+    <REQUIRES>symbol_of_name</REQUIRES>
+    <REQUIRES>tagged_list</REQUIRES>
+    <REQUIRES>assignment</REQUIRES>
+    <REQUIRES>definition</REQUIRES>
+    <REQUIRES>declaration_symbol</REQUIRES>
+    <REQUIRES>make_constant_declaration</REQUIRES>
+    <REQUIRES>lambda</REQUIRES>
+    <REQUIRES>make_lambda_expression</REQUIRES>
+    <REQUIRES>function_declaration</REQUIRES>
+    <REQUIRES>return</REQUIRES>
+    <REQUIRES>if</REQUIRES>
+    <REQUIRES>begin</REQUIRES>
+    <REQUIRES>block</REQUIRES>
+    <REQUIRES>operator_combination</REQUIRES>
+    <REQUIRES>operator_combination_to_application</REQUIRES>
+    <REQUIRES>make_application</REQUIRES>
+    <REQUIRES>application</REQUIRES>
+    <JAVASCRIPT></JAVASCRIPT>
+  </SNIPPET>
+
+  <SPLIT>
+    <SCHEME>
+      <EXERCISE>
+	<LABEL NAME="ex:application-predicate"></LABEL>
+	Louis Reasoner plans to reorder the <SCHEMEINLINE>cond</SCHEMEINLINE>
+	clauses in <SCHEMEINLINE>eval</SCHEMEINLINE> so that the clause for
+	<INDEX>metacircular evaluator for Scheme<SUBINDEX>combinations (procedure applications)</SUBINDEX></INDEX>	procedure applications appears before the clause for assignments.  He
+	argues that this will make the interpreter more efficient:  Since
+	programs usually contain more applications than assignments,
+	definitions, and so on, his modified <SCHEMEINLINE>eval</SCHEMEINLINE>
+	will usually check fewer clauses than the original
+	<SCHEMEINLINE>eval</SCHEMEINLINE> before identifying the type of an
+	expression.
+	<OL>
+	  <LI>
+	    What is wrong with Louis<APOS></APOS>s plan?  (Hint: What will
+	    Louis<APOS></APOS>s evaluator do with the expression 
+	    <SCHEMEINLINE>(define x 3)</SCHEMEINLINE>?)
+	  </LI>
+	  <LI>
+	    Louis is upset that his plan didn<APOS></APOS>t work. He is willing to go
+	    to any lengths to make his evaluator recognize procedure
+	    applications before it checks for most other kinds of expressions.
+	    Help him by changing the
+	    <INDEX>metacircular evaluator for Scheme<SUBINDEX>syntax of evaluated language</SUBINDEX></INDEX>
+	    syntax of the evaluated language so that
+	    procedure applications start with <SCHEMEINLINE>call</SCHEMEINLINE>.
+	    For example, instead of <SCHEMEINLINE>(factorial 3)</SCHEMEINLINE>
+	    we will now have to write
+	    <SCHEMEINLINE>(call factorial 3)</SCHEMEINLINE> and instead of 
+	    <SCHEMEINLINE>(+ 1 2)</SCHEMEINLINE> we will have to write 
+	    <SCHEMEINLINE>(call + 1 2)</SCHEMEINLINE>.
+	  </LI>
+	</OL>
+      </EXERCISE>
+    </SCHEME>
+    <JAVASCRIPT>
+      <EXERCISE>
+	The inverse of <JAVASCRIPTINLINE>parse</JAVASCRIPTINLINE>
+	is called
+	<INDEX><USE>unparse</USE><SUBINDEX>as inverse of <JAVASCRIPTINLINE>parse</JAVASCRIPTINLINE></SUBINDEX></INDEX>
+	<JAVASCRIPTINLINE>unparse</JAVASCRIPTINLINE>. It takes
+	as argument a
+	tagged list as produced by <JAVASCRIPTINLINE>parse</JAVASCRIPTINLINE>
+	and returns a string that adheres to JavaScript notation.
+	<!-- Error occurred while translating this section --><OL>
+	  <LI>
+	  Write a function <JAVASCRIPTINLINE>unparse</JAVASCRIPTINLINE> by 
+	  following the structure of <JAVASCRIPTINLINE>evaluate</JAVASCRIPTINLINE>
+	  (without the environment parameter), but producing a string that represents
+	  the given component, rather than evaluating it. Recall
+	  from section<SPACE></SPACE><REF NAME="sec:circuit-simulator"></REF> that 
+	  the operator <JAVASCRIPTINLINE>+</JAVASCRIPTINLINE> can be applied
+	  to two strings to concatenate them and that the primitive function
+	  <JAVASCRIPTINLINE>stringify</JAVASCRIPTINLINE> turns values such
+	  as 1.5, true, <JAVASCRIPTINLINE>null</JAVASCRIPTINLINE> and
+	  <JAVASCRIPTINLINE>undefined</JAVASCRIPTINLINE> into strings.
+	  Take care to respect operator precedences by surrounding the strings
+	  that result from unparsing operator combinations with parentheses
+	  (always or whenever necessary).
+	</LI>
+	<LI>
+	  Your <JAVASCRIPTINLINE>unparse</JAVASCRIPTINLINE> function will come
+	  in handy when solving later exercises in this section. Improve
+	  <JAVASCRIPTINLINE>unparse</JAVASCRIPTINLINE> by adding
+	  <JAVASCRIPTINLINE>&quot;</JAVASCRIPTINLINE><FIXED_SPACE></FIXED_SPACE><JAVASCRIPTINLINE>&quot;</JAVASCRIPTINLINE>
+	  (space)
+	  and <JAVASCRIPTINLINE>&quot;\n&quot;</JAVASCRIPTINLINE> (newline) characters
+	  to the result string, to follow the
+	  <INDEX>indentation</INDEX>
+	  indentation style used in the JavaScript
+	  programs of this book. Adding such
+	  <INDEX>whitespace characters</INDEX>
+	  whitespace characters to (or removing
+	  them from) a program text in order to make the text easier to read
+	  is called
+	  <INDEX>pretty-printing</INDEX>
+	  <EM>pretty-printing</EM>.
+	</LI>
+       </OL>
+      <!-- Error occurred while translating this section --><LABEL NAME="ex:parse"></LABEL>
+      </EXERCISE>
+    </JAVASCRIPT>
+  </SPLIT>
+
+  <SPLIT>
+    <SCHEME>
+      <EXERCISE>
+	Rewrite
+	<INDEX>data-directed programming<SUBINDEX>in metacircular evaluator</SUBINDEX></INDEX>
+	<INDEX>metacircular evaluator for Scheme<SUBINDEX>data-directed <SCHEMEINLINE>eval</SCHEMEINLINE></SUBINDEX></INDEX>
+	<INDEX><DECLARATION>eval</DECLARATION> (metacircular)<SUBINDEX>data-directed</SUBINDEX></INDEX>
+	<SCHEMEINLINE>eval</SCHEMEINLINE> so that the dispatch is done in
+	data-directed style.  Compare this with the data-directed differentiation
+	procedure of
+	exercise<SPACE></SPACE><REF NAME="ex:data-directed-differentiation"></REF>.	(You may
+	use the <SCHEMEINLINE>car</SCHEMEINLINE> of a compound expression as the
+	type of the expression, as is appropriate for the syntax implemented in
+	this section.)
+	<LABEL NAME="ex:data-directed-eval_scheme"></LABEL>
+      </EXERCISE>
+    </SCHEME>
+    <JAVASCRIPT>
+      <EXERCISE>
+	Rewrite
+	<JAVASCRIPTINLINE>evaluate</JAVASCRIPTINLINE> so that the
+	dispatch is done in
+	<INDEX>data-directed programming<SUBINDEX>in metacircular evaluator</SUBINDEX></INDEX>
+	<INDEX>metacircular evaluator for JavaScript<SUBINDEX>data-directed <SCHEMEINLINE>evaluate</SCHEMEINLINE></SUBINDEX></INDEX>
+	<INDEX><USE>evaluate</USE> (metacircular)<SUBINDEX>data-directed</SUBINDEX></INDEX>
+	data-directed style.  Compare this with the
+	data-directed differentiation function of
+	exercise<SPACE></SPACE><REF NAME="ex:data-directed-differentiation"></REF>. (You may
+	use the tag of the tagged-list representation as the type of the components.)
+	<LABEL NAME="ex:data-directed-eval"></LABEL>
+      </EXERCISE>
+    </JAVASCRIPT>
+  </SPLIT><!-- Error occurred while translating this section -->
+
+  <EXERCISE> 
+    <LABEL NAME="ex:eval-and-or"></LABEL>
+    <SPLIT>
+      <SCHEME>
+	Recall
+	<INDEX>metacircular evaluator for Scheme<SUBINDEX>special forms (additional)</SUBINDEX></INDEX>
+	<INDEX><DECLARATION>and</DECLARATION><SUBINDEX>with no subexpressions</SUBINDEX></INDEX>
+	<INDEX><DECLARATION>or</DECLARATION><SUBINDEX>with no subexpressions</SUBINDEX></INDEX>
+	special forms
+	<SCHEMEINLINE>and</SCHEMEINLINE>
+	and
+	<SCHEMEINLINE>or</SCHEMEINLINE>
+	from section<SPACE></SPACE><REF NAME="sec:conditionals"></REF>:
+      </SCHEME>
+      <JAVASCRIPT>
+	Recall from section<SPACE></SPACE><REF NAME="sec:conditionals"></REF> that the
+	<INDEX>metacircular evaluator for JavaScript<SUBINDEX>syntactic forms (additional)</SUBINDEX></INDEX>
+	<INDEX>metacircular evaluator for JavaScript<SUBINDEX><USE>&amp;&amp;</USE> (logical conjunction)</SUBINDEX></INDEX>
+	<INDEX>metacircular evaluator for JavaScript<SUBINDEX>{\tt &quot;|&quot;|} (logical disjunction)</SUBINDEX></INDEX>
+	<INDEX><USE>&amp;&amp;</USE> (logical conjunction)<ORDER>;1</ORDER><SUBINDEX>implementing in metacircular evaluator</SUBINDEX></INDEX>
+	<INDEX><USE>&amp;&amp;</USE> (logical conjunction)<ORDER>;1</ORDER><SUBINDEX><ORDER>derived</ORDER>as derived component</SUBINDEX></INDEX>
+	<INDEX>{\tt &quot;|&quot;|} (logical disjunction)<ORDER>;2</ORDER><SUBINDEX>implementing in metacircular evaluator</SUBINDEX></INDEX>
+	<INDEX>{\tt &quot;|&quot;|} (logical disjunction)<ORDER>;2</ORDER><SUBINDEX><ORDER>derived</ORDER>as derived component</SUBINDEX></INDEX>
+	logical composition operations
+	<JAVASCRIPTINLINE>&amp;&amp;</JAVASCRIPTINLINE>
+	and
+	<JAVASCRIPTINLINE>||</JAVASCRIPTINLINE>
+	are syntactic sugar for conditional expressions:
+	The logical conjunction
+	    <!-- Error occurred while translating this section --><LATEXINLINE>$\mathit{expression}_1$</LATEXINLINE> <JAVASCRIPTINLINE>&amp;&amp;</JAVASCRIPTINLINE>
+	    <!-- Error occurred while translating this section --><LATEXINLINE>$\mathit{expression}_2$</LATEXINLINE>
+	    is syntactic sugar for
+	    <!-- Error occurred while translating this section --><LATEXINLINE>$ \mathit{expression}_1$</LATEXINLINE> <JAVASCRIPTINLINE>?</JAVASCRIPTINLINE>
+	    <!-- Error occurred while translating this section --><LATEXINLINE>$\mathit{expression}_2$</LATEXINLINE> <JAVASCRIPTINLINE>:</JAVASCRIPTINLINE>
+	    <JAVASCRIPTINLINE>false</JAVASCRIPTINLINE>, and
+	    the logical disjunction
+            <!-- Error occurred while translating this section --><LATEXINLINE>$\mathit{expression}_1$</LATEXINLINE> 
+            <JAVASCRIPTINLINE>||</JAVASCRIPTINLINE> 
+            <!-- Error occurred while translating this section --><LATEXINLINE>$\mathit{expression}_2$</LATEXINLINE>
+	    is syntactic sugar for
+	    <!-- Error occurred while translating this section --><LATEXINLINE>$ \mathit{expression}_1$</LATEXINLINE> <JAVASCRIPTINLINE>?</JAVASCRIPTINLINE>
+	    <JAVASCRIPTINLINE>true</JAVASCRIPTINLINE> <JAVASCRIPTINLINE>:</JAVASCRIPTINLINE>
+	    <!-- Error occurred while translating this section --><LATEXINLINE>$\mathit{expression}_2$</LATEXINLINE>.
+      </JAVASCRIPT>
+    </SPLIT>
+    <SPLIT>
+      <SCHEME>
+	<UL>
+	  <LI>
+	    <SCHEMEINLINE>and</SCHEMEINLINE>: The expressions are evaluated from
+	    left to right.  If any expression evaluates to false, false is
+	    returned; any remaining expressions are not evaluated.  If all the
+	    expressions evaluate to true values, the value of the last
+	    expression is returned.  If there are no expressions then true is
+	    returned.
+	  </LI>
+	  <LI>
+	    <SCHEMEINLINE>or</SCHEMEINLINE>: The expressions are evaluated from
+	    left to right.  If any expression evaluates to a true value, that
+	    value is returned; any remaining expressions are not evaluated.  If
+	    all expressions evaluate to false, or if there are no expressions,
+	    then false is returned.
+	  </LI>
+	</UL>
+	Install <SCHEMEINLINE>and</SCHEMEINLINE> and
+	<SCHEMEINLINE>or</SCHEMEINLINE> as new special forms for the evaluator
+	by defining appropriate syntax procedures and evaluation procedures
+	<SCHEMEINLINE>eval-and</SCHEMEINLINE> and 
+	<SCHEMEINLINE>eval-or</SCHEMEINLINE>. Alternatively, show how to
+	implement <SCHEMEINLINE>and</SCHEMEINLINE> and
+	<SCHEMEINLINE>or</SCHEMEINLINE>	as derived expressions.
+      </SCHEME>
+      <JAVASCRIPT>
+	They are
+	<INDEX><USE>&amp;&amp;</USE> (logical conjunction)<ORDER>;1</ORDER><SUBINDEX>parsing of</SUBINDEX></INDEX>
+	<INDEX><PARSING></PARSING><SUBINDEX><ORDER>;2</ORDER>{\tt &quot;|&quot;|} (logical disjunction)</SUBINDEX></INDEX>
+	<INDEX><PARSING></PARSING><SUBINDEX><ORDER>;1</ORDER><USE>&amp;&amp;</USE> (logical conjunction)</SUBINDEX></INDEX>
+	<INDEX>{\tt &quot;|&quot;|} (logical disjunction)<ORDER>;2</ORDER><SUBINDEX>parsing of</SUBINDEX></INDEX>
+	parsed as follows:
+	  <PDF_ONLY>
+	<SNIPPET LATEX="yes" EVAL="no">
+	  <JAVASCRIPT>
+    $\ll\ $<META>expression</META>$_1$ <META>logical-operation</META> <META>expression</META>$_2\;\gg$ = 
+    list(&quot;logical_composition&quot;,
+         &quot;$logical$-$operation$&quot;,
+         list($\ll\ $<META>expression</META>$_1\;\gg$, $\ll\ $<META>expression</META>$_2\;\gg$))
+	  </JAVASCRIPT>
+	</SNIPPET>
+	  </PDF_ONLY>
+	  <WEB_ONLY>
+	<BLOCKQUOTE>
+	<LATEX>
+	  $\ll\ \mathit{expression}_1\ \ \mathit{logical}\textit{-}\mathit{operation}\ \ \mathit{expression}_2\;\gg \ \ = $
+	</LATEX>
+	<SNIPPET LATEX="yes" EVAL="no">
+	  <JAVASCRIPT>
+list(&quot;logical_composition&quot;,
+     &quot;$logical$-$operation$&quot;,
+     list($\ll\ $<META>expression</META>$_1\;\gg$, $\ll\ $<META>expression</META>$_2\;\gg$))
+	  </JAVASCRIPT>
+	</SNIPPET>
+    </BLOCKQUOTE>
+	  </WEB_ONLY>
+    where <META>logical-operation</META> is 
+    <JAVASCRIPTINLINE>&amp;&amp;</JAVASCRIPTINLINE> or
+    <JAVASCRIPTINLINE>||</JAVASCRIPTINLINE>.
+    Install
+    <JAVASCRIPTINLINE>&amp;&amp;</JAVASCRIPTINLINE> and
+    <JAVASCRIPTINLINE>||</JAVASCRIPTINLINE>
+	as new syntactic forms for the evaluator
+	by declaring appropriate syntax functions and evaluation functions
+	<SCHEMEINLINE>eval_and</SCHEMEINLINE> and 
+	<SCHEMEINLINE>eval_or</SCHEMEINLINE>. Alternatively, show how to
+	implement
+    <JAVASCRIPTINLINE>&amp;&amp;</JAVASCRIPTINLINE> and
+    <JAVASCRIPTINLINE>||</JAVASCRIPTINLINE>
+    as derived components.
+      </JAVASCRIPT>
+    <!-- Error occurred while translating this section --></SPLIT>
+    <SOLUTION>
+      GitHub user EmilyOng provides a solution for the alternative:
+      how to implement 
+      <JAVASCRIPTINLINE>&amp;&amp;</JAVASCRIPTINLINE> and
+      <JAVASCRIPTINLINE>||</JAVASCRIPTINLINE>
+      as derived components.
+      <SNIPPET>
+	<JAVASCRIPT>
+function make_conditional_expr_decl(predicate, consequent_expression, alternative_expression) {
+    return list(&quot;conditional_expression&quot;, predicate, consequent_expression, alternative_expression);
+}
+function make_literal(value) {
+    return list(&quot;literal&quot;, value);
+}
+
+// Syntax selectors
+function logical_operation(component) {
+    return head(tail(component));
+}
+function first_expression(component) {
+    return head(tail(tail(component)));
+}
+function second_expression(component) {
+    return head(tail(tail(tail(component))));
+}
+
+function logical_comp_decl_to_conditional_expr_decl(component) {
+    const operation = logical_operation(component);
+    
+    return operation === &quot;&amp;&amp;&quot;
+        ? make_conditional_expr_decl(
+            first_expression(component),
+            second_expression(component),
+            false
+        )
+        : operation === &quot;||&quot;
+        ? make_conditional_expr_decl(
+            first_expression(component),
+            true,
+            second_expression(component)
+        )
+        : error(component, &quot;unknown operation -- logical_comp_decl_to_conditional_expr_decl&quot;);
+}
+
+display(logical_comp_decl_to_conditional_expr_decl(parse(&quot;a &amp;&amp; b;&quot;)));
+display(logical_comp_decl_to_conditional_expr_decl(parse(&quot;a || b;&quot;)));
+display(logical_comp_decl_to_conditional_expr_decl(parse(&quot;(a &amp;&amp; !b) || (!a &amp;&amp; b);&quot;)));
+	</JAVASCRIPT>
+      </SNIPPET>
+    </SOLUTION>
+  <!-- Error occurred while translating this section --></EXERCISE>
+  
+  <EXERCISE>
+    <LABEL NAME="ex:directly"></LABEL>
+    <SPLIT>
+      <SCHEME>
+	Scheme allows an additional syntax for 
+	<INDEX><DECLARATION>cond</DECLARATION><SUBINDEX>additional clause syntax</SUBINDEX></INDEX>
+	<INDEX>clause, of a<SCHEMEINLINE>cond</SCHEMEINLINE><SUBINDEX>additional syntax</SUBINDEX></INDEX>
+	<INDEX>metacircular evaluator for Scheme<SUBINDEX>special forms (additional)</SUBINDEX></INDEX>
+	<SCHEMEINLINE>cond</SCHEMEINLINE> clauses, 
+	<SCHEMEINLINE>(</SCHEMEINLINE><LATEXINLINE>test</LATEXINLINE>
+	<SCHEMEINLINE>=&gt;</SCHEMEINLINE>
+	<LATEXINLINE>recipient</LATEXINLINE><SCHEMEINLINE>)</SCHEMEINLINE>
+	If <LATEXINLINE>test</LATEXINLINE> evaluates to a true value, then
+	<LATEXINLINE>recipient</LATEXINLINE> is evaluated. Its value must be a
+	procedure of one argument; this	procedure is then invoked on the value
+	of the <LATEXINLINE>test</LATEXINLINE>, and the result is returned as
+	the value of the <SCHEMEINLINE>cond</SCHEMEINLINE> expression.  For
+	example
+	<SNIPPET>
+	  <SCHEME>
+(cond ((assoc &apos;b &apos;((a 1) (b 2))) =&gt; cadr)
+      (else false))
+	  </SCHEME>
+	</SNIPPET>
+	returns 2. Modify the handling of <SCHEMEINLINE>cond</SCHEMEINLINE> 
+	so that it supports this extended syntax.
+	<LABEL NAME="ex:extended-cond"></LABEL>
+      </SCHEME>
+      <JAVASCRIPT>
+	<OL>
+	  <LI>
+	    In JavaScript, lambda expressions must not have
+	    <INDEX>parameters<SUBINDEX>duplicate</SUBINDEX><FRAGILE></FRAGILE></INDEX>
+	    <INDEX>duplicate parameters<FRAGILE></FRAGILE></INDEX>
+	    <INDEX>metacircular evaluator for JavaScript<SUBINDEX>preventing duplicate parameters</SUBINDEX><FRAGILE></FRAGILE></INDEX>
+	    duplicate parameters. The evaluator in
+	    section<SPACE></SPACE><REF NAME="sec:core-of-evaluator"></REF> does not check for this.
+	    <UL>
+	      <LI>
+		Modify the evaluator so
+		that any attempt to apply a function with duplicate parameters
+		signals an error.
+	      </LI>
+	      <LI>
+		Implement a <JAVASCRIPTINLINE>verify</JAVASCRIPTINLINE> function that
+		checks whether any lambda expression in a given program contains
+		duplicate parameters. With such a function, we could check the entire
+		program before we pass it to
+		<JAVASCRIPTINLINE>evaluate</JAVASCRIPTINLINE>.
+	      </LI>
+	    </UL>
+	    In order to implement this check in an evaluator for JavaScript, which
+	    of these two approaches would you prefer? Why?
+	  </LI>
+	  <LI>
+	    In JavaScript, the parameters of a lambda expression must be distinct from
+	    <INDEX>metacircular evaluator for JavaScript<SUBINDEX>parameters distinct from local names</SUBINDEX><FRAGILE></FRAGILE></INDEX>
+	    <INDEX>parameters<SUBINDEX>distinct from local names</SUBINDEX><FRAGILE></FRAGILE></INDEX>
+	    <INDEX>internal declaration<SUBINDEX>names distinct from parameters</SUBINDEX><FRAGILE></FRAGILE></INDEX>
+	    the names declared <EM>directly</EM> in the body block of the lambda expression
+	    (as opposed to in an inner block).
+	    Use your preferred approach above to check for this as well.
+          </LI>
+        </OL>
+      </JAVASCRIPT>
+    <!-- Error occurred while translating this section --></SPLIT>
+  </EXERCISE>
+
+    <SPLIT>
+      <SCHEME>
+	<EXERCISE>
+	<SCHEMEINLINE>Let</SCHEMEINLINE> expressions are derived expressions,
+	<INDEX>metacircular evaluator for Scheme<SUBINDEX>special forms (additional)</SUBINDEX></INDEX>
+	because
+	<SNIPPET EVAL="no">
+	  <SCHEME>
+(let ((var$_{1}$ exp$_{1}$) $\ldots$ (var$_{n}$ exp$_{n}$))
+  body)
+	  </SCHEME>
+	</SNIPPET>
+	is equivalent to
+	<SNIPPET EVAL="no">
+	  <SCHEME>
+((lambda (var$_{1}$ $\ldots$ var$_{n}$)
+   body)
+ exp$_{1}$
+ $\vdots$
+ exp$_{n}$)
+	  </SCHEME>
+	</SNIPPET>
+	Implement a syntactic transformation
+	<SCHEMEINLINE>let-&gt;combination</SCHEMEINLINE> that reduces evaluating
+	<SCHEMEINLINE>let</SCHEMEINLINE> expressions to evaluating combinations
+	of the type shown above, and add the appropriate clause to
+	<SCHEMEINLINE>eval</SCHEMEINLINE> to handle
+	<SCHEMEINLINE>let</SCHEMEINLINE> expressions.
+	<LABEL NAME="ex:implement-let"></LABEL>
+	</EXERCISE>
+      </SCHEME>
+    </SPLIT><!-- Error occurred while translating this section -->
+
+    <EXERCISE>
+    <SPLIT>
+      <SCHEME>
+	<SCHEMEINLINE>Let*</SCHEMEINLINE> is similar to
+	<INDEX><DECLARATION>let*</DECLARATION></INDEX>  
+	<INDEX><DECLARATION>special forms (those marked <EM>ns</EM> are not in the IEEE Scheme standard)</DECLARATION><SUBINDEX><ORDER>let*</ORDER><SCHEMEINLINE>let*</SCHEMEINLINE></SUBINDEX></INDEX>
+	<INDEX>metacircular evaluator for Scheme<SUBINDEX>special forms (additional)</SUBINDEX></INDEX>
+	<SCHEMEINLINE>let</SCHEMEINLINE>, except that the bindings of the
+	<SCHEMEINLINE>let*</SCHEMEINLINE> variables are performed sequentially
+	from left to right, and each binding is made in an environment in which
+	all of the preceding bindings are visible.  For example
+	<SNIPPET>
+	  <SCHEME>
+(let* ((x 3)
+       (y (+ x 2))
+       (z (+ x y 5)))
+  (* x z))
+	  </SCHEME>
+	</SNIPPET>
+	returns 39.  Explain how a <SCHEMEINLINE>let*</SCHEMEINLINE> expression
+	can be rewritten as a set of nested <SCHEMEINLINE>let</SCHEMEINLINE>
+	expressions, and write a procedure
+	<SCHEMEINLINE>let*-&gt;nested-lets</SCHEMEINLINE> that performs this
+	transformation. If we have already implemented
+	<SCHEMEINLINE>let</SCHEMEINLINE>
+	(exercise<SPACE></SPACE><REF NAME="ex:implement-let"></REF>)
+	and we want to extend the evaluator to handle
+	<SCHEMEINLINE>let*</SCHEMEINLINE>, is it sufficient to add a clause to
+	<SCHEMEINLINE>eval</SCHEMEINLINE> whose action is
+	<SNIPPET>
+	  <SCHEME>
+(eval (let*-&gt;nested-lets exp) env)
+	  </SCHEME>
+	</SNIPPET>
+	or must we
+	explicitly expand <SCHEMEINLINE>let*</SCHEMEINLINE> in terms of
+	non-derived expressions?
+	<LABEL NAME="ex:let*"></LABEL>
+      </SCHEME>
+      <JAVASCRIPT>
+	The language Scheme includes a variant of
+	<INDEX>metacircular evaluator for JavaScript<SUBINDEX>syntactic forms (additional)</SUBINDEX></INDEX>
+	<INDEX>metacircular evaluator for JavaScript<SUBINDEX><ORDER>let</ORDER><JAVASCRIPTINLINE>let</JAVASCRIPTINLINE><JAVASCRIPTINLINE>*</JAVASCRIPTINLINE> (Scheme variant of <JAVASCRIPTINLINE>let</JAVASCRIPTINLINE>)</SUBINDEX><FRAGILE></FRAGILE></INDEX>
+	<INDEX><USE>let</USE><JAVASCRIPTINLINE>*</JAVASCRIPTINLINE> (Scheme variant of <JAVASCRIPTINLINE>let</JAVASCRIPTINLINE>)</INDEX>
+	<INDEX>Scheme<SUBINDEX><USE>let</USE><JAVASCRIPTINLINE>*</JAVASCRIPTINLINE> in</SUBINDEX></INDEX>
+	<JAVASCRIPTINLINE>let</JAVASCRIPTINLINE> called
+	<JAVASCRIPTINLINE>let*</JAVASCRIPTINLINE>. We could approximate
+	the behavior of
+	<JAVASCRIPTINLINE>let*</JAVASCRIPTINLINE> in JavaScript by stipulating
+	that a 
+	<JAVASCRIPTINLINE>let*</JAVASCRIPTINLINE> declaration implicitly
+	introduces a new block whose body includes the declaration and all
+	subsequent statements of the statement sequence in which the
+	declaration occurs. For example, the program
+	<!-- Error occurred while translating this section --><SNIPPET EVAL="no">
+	  <JAVASCRIPT>
+let* x = 3;
+let* y = x + 2;
+let* z = x + y + 5;
+display(x * z);
+	  </JAVASCRIPT>
+	</SNIPPET>
+	displays 39 and could be seen as a shorthand for
+	<!-- Error occurred while translating this section --><SNIPPET EVAL="no">
+	  <JAVASCRIPT>
+{
+  let x = 3;
+  {
+    let y = x + 2;
+    {
+      let z = x + y + 5;
+      display(x * z);
+    }
+  }
+}
+	  </JAVASCRIPT>
+	</SNIPPET>
+	<OL>
+	  <LI>
+	    Write a program in such an extended JavaScript language
+	    that behaves differently when some occurrences of the keyword
+	    <JAVASCRIPTINLINE>let</JAVASCRIPTINLINE> are replaced
+	    with <JAVASCRIPTINLINE>let*</JAVASCRIPTINLINE>.
+	  </LI>
+	  <LI>
+	    Introduce
+	    <JAVASCRIPTINLINE>let*</JAVASCRIPTINLINE> as
+	    a new syntactic form by designing a suitable tagged-list representation and
+	    writing a parse rule.
+	    Declare a syntax predicate and selectors for the tagged-list
+	    representation.
+	  </LI>
+	  <LI>
+	    Assuming that
+	    <JAVASCRIPTINLINE>parse</JAVASCRIPTINLINE> implements your
+	    new rule, write a
+	    <JAVASCRIPTINLINE>let_star_to_nested_let</JAVASCRIPTINLINE>
+	    function that transforms any occurrence of
+	    <JAVASCRIPTINLINE>let*</JAVASCRIPTINLINE> in a given program as
+	    described above. We could
+	    then evaluate a program <JAVASCRIPTINLINE>p</JAVASCRIPTINLINE> in the
+	    extended language by running
+	    <JAVASCRIPTINLINE>evaluate(let_star_to_nested_let(p))</JAVASCRIPTINLINE>.
+	  </LI>
+	  <LI>
+	    As an alternative, consider implementing
+	    <JAVASCRIPTINLINE>let*</JAVASCRIPTINLINE> by
+	    adding to
+	    <JAVASCRIPTINLINE>evaluate</JAVASCRIPTINLINE> a clause that
+	    recognizes the new syntactic form and calls a function
+	    <JAVASCRIPTINLINE>eval_let_star_declaration</JAVASCRIPTINLINE>.
+	    Why does this approach not work?
+	  </LI>
+	</OL>
+      <!-- Error occurred while translating this section --></JAVASCRIPT>
+    </SPLIT>
+  </EXERCISE>
+
+  <EXERCISE>
+    <LABEL NAME="ex:while_loop"></LABEL>
+    <SPLIT>
+      <SCHEME>
+	<QUOTE>Named <SCHEMEINLINE>let</SCHEMEINLINE></QUOTE> is a variant of
+	<INDEX><DECLARATION>let</DECLARATION><SUBINDEX>named</SUBINDEX></INDEX>
+	<INDEX><DECLARATION><ORDER>named let</ORDER>named <SCHEMEINLINE>let</SCHEMEINLINE> (special form)</DECLARATION></INDEX> 
+	<INDEX><DECLARATION>special forms (those marked <EM>ns</EM> are not in the IEEE Scheme standard)</DECLARATION><SUBINDEX><ORDER>named let</ORDER>named <SCHEMEINLINE>let</SCHEMEINLINE></SUBINDEX></INDEX>
+	
+	<INDEX>metacircular evaluator for Scheme<SUBINDEX>special forms (additional)</SUBINDEX></INDEX>
+	<SCHEMEINLINE>let</SCHEMEINLINE> that has the form
+	<SNIPPET>
+	  <SCHEME>
+(let var bindings body)
+	  </SCHEME>
+	</SNIPPET>
+	The <LATEXINLINE>bindings</LATEXINLINE> and
+	<LATEXINLINE>body</LATEXINLINE> are just as in ordinary
+	<SCHEMEINLINE>let</SCHEMEINLINE>, except that
+	<LATEXINLINE>var</LATEXINLINE> is bound within
+	<LATEXINLINE>body</LATEXINLINE> to a procedure whose body is
+	<LATEXINLINE>body</LATEXINLINE> and whose parameters are the variables
+	in the <LATEXINLINE>bindings</LATEXINLINE>.  Thus, one can repeatedly
+	execute the <LATEXINLINE>body</LATEXINLINE> by invoking the procedure
+	named <LATEXINLINE>var</LATEXINLINE>.  For example, the iterative
+	Fibonacci procedure (section<SPACE></SPACE><REF NAME="sec:tree-recursion"></REF>)
+	can be rewritten using named <SCHEMEINLINE>let</SCHEMEINLINE> as follows:
+	<SNIPPET>
+	  <INDEX><DECLARATION>fib</DECLARATION><SUBINDEX>with named <SCHEMEINLINE>let</SCHEMEINLINE></SUBINDEX></INDEX>
+	  <SCHEME>
+(define (fib n)
+  (let fib-iter ((a 1)
+                 (b 0)
+                 (count n))
+    (if (= count 0)
+        b
+        (fib-iter (+ a b) a (- count 1)))))
+	  </SCHEME>
+	</SNIPPET>
+	Modify <SCHEMEINLINE>let-&gt;combination</SCHEMEINLINE> of
+	exercise<SPACE></SPACE><REF NAME="ex:implement-let"></REF> to also support named
+	<SCHEMEINLINE>let</SCHEMEINLINE>.
+	<LABEL NAME="ex:named-let"></LABEL>
+      </SCHEME>
+      <JAVASCRIPT>
+	JavaScript supports
+	<INDEX>metacircular evaluator for JavaScript<SUBINDEX>syntactic forms (additional)</SUBINDEX></INDEX>
+	<INDEX>while loop<SUBINDEX>implementing in metacircular evaluator</SUBINDEX></INDEX>
+	<INDEX>metacircular evaluator for JavaScript<SUBINDEX>while loop</SUBINDEX></INDEX>
+	<INDEX>syntactic forms<SUBINDEX>while loop</SUBINDEX></INDEX>
+	<INDEX><USE>while</USE> (keyword)</INDEX>
+	<INDEX>keywords<SUBINDEX><ORDER>while</ORDER><USE>while</USE></SUBINDEX></INDEX>
+	<EM>while loops</EM> that execute a given
+	statement repeatedly. Specifically,
+	<!-- Error occurred while translating this section --><SNIPPET LATEX="yes" EVAL="no">
+	  <JAVASCRIPT>
+while (<META>predicate</META>) { <META>body</META> }
+	  </JAVASCRIPT>
+	</SNIPPET>
+	evaluates the <META>predicate</META>, and
+	if the result is true, evaluates the
+	<META>body</META>
+	and then evaluates
+	the whole while loop again.
+	Once the <META>predicate</META> evaluates
+	to false, the
+	while loop terminates.
+	<!-- Error occurred while translating this section --><TEXT>
+	  For example, recall the imperative-style version of the iterative
+	  factorial function from section<SPACE></SPACE><REF NAME="sec:costs-of-assignment"></REF>:
+	  <SNIPPET EVAL="yes">
+	    <NAME>factorial_imperative_2</NAME>
+	    <EXAMPLE>factorial_example</EXAMPLE>
+	    <EXPECTED>120</EXPECTED>
+	    <JAVASCRIPT>
+function factorial(n) {
+    let product = 1;
+    let counter = 1;
+    function iter() {
+        if (counter &gt; n) {
+            return product;
+        } else {
+            product = counter * product;
+            counter = counter + 1;
+            return iter();
+        }
+    }
+    return iter();
+}
+      </JAVASCRIPT>
+    </SNIPPET>
+    <PDF_ONLY>\newpage\noindent </PDF_ONLY>
+    We can formulate the same algorithm using a while loop as follows:
+	<SNIPPET>
+	  <INDEX><DECLARATION>factorial</DECLARATION><SUBINDEX>with while loop</SUBINDEX></INDEX>
+	  <NAME>factorial_with_loop</NAME>
+	  <JAVASCRIPT>
+function factorial(n) {
+    let product = 1;
+    let counter = 1;
+    while (counter &lt;= n) {
+        product = counter * product;
+        counter = counter + 1;
+    }
+    return product;
+}
+	  </JAVASCRIPT>
+	</SNIPPET>
+	While loops are parsed as follows:
+	  <WEB_ONLY>
+	<BLOCKQUOTE>
+	<LATEX>
+	  $\ll\ \textbf{while} \ \texttt{(}\ \mathit{predicate}\ \texttt{)}\ \mathit{block}\ \gg \ \ =$ 
+	</LATEX>
+	  <SNIPPET LATEX="yes" EVAL="no">
+	  <JAVASCRIPT>
+    $\ll\ $while (<META>predicate</META>) <META>block</META>$\ \gg$ =
+        list(&quot;while_loop&quot;, $\ll\ $<META>predicate</META>$\ \gg$, $\ll\ $<META>block</META>$\ \gg$)
+	  </JAVASCRIPT>
+	</SNIPPET>
+    </BLOCKQUOTE>
+	  </WEB_ONLY>
+	  <PDF_ONLY>
+	    <SNIPPET LATEX="yes" EVAL="no">
+	      <JAVASCRIPT>
+    $\ll\ $while (<META>predicate</META>) <META>block</META>$\ \gg$ =
+        list(&quot;while_loop&quot;, $\ll\ $<META>predicate</META>$\ \gg$, $\ll\ $<META>block</META>$\ \gg$)
+	      </JAVASCRIPT>
+	    </SNIPPET>
+    </PDF_ONLY>
+	</TEXT>
+	<!-- Error occurred while translating this section --><OL>
+	  <LI>
+	    Declare a syntax predicate and selectors to handle
+	    while loops.
+	  </LI>
+	  <LI>
+	    Declare a function <JAVASCRIPTINLINE>while_loop</JAVASCRIPTINLINE>
+	    that takes as arguments a predicate and a
+	    body<EMDASH></EMDASH>each represented by a
+	    function of no arguments<EMDASH></EMDASH>and simulates the behavior of the
+	    while loop. The
+	    <JAVASCRIPTINLINE>factorial</JAVASCRIPTINLINE> function would then
+	    look as follows:
+	    <SNIPPET>
+	      <NAME>factorial_with_while_loop_function</NAME>
+	      <JAVASCRIPT>
+function factorial(n) {
+    let product = 1;
+    let counter = 1;
+    while_loop(() =&gt; counter &lt;= n,
+               () =&gt; {
+                   product = counter * product;
+                   counter = counter + 1;
+               });
+    return product;
+}
+	      </JAVASCRIPT>
+	    </SNIPPET>
+	    Your function
+	    <JAVASCRIPTINLINE>while_loop</JAVASCRIPTINLINE> should generate
+	    an iterative process (see
+	    section<SPACE></SPACE><REF NAME="sec:recursion-and-iteration"></REF>).
+	  </LI>
+	  <LI>
+	    Install while loops as
+	    a derived component by defining a transformation function
+	    <JAVASCRIPTINLINE>while_@to_@application</JAVASCRIPTINLINE> 
+	    that makes use of your function
+	    <JAVASCRIPTINLINE>while_loop</JAVASCRIPTINLINE>.
+	  </LI>
+	  <LI>
+	    What problem arises with this approach for implementing
+	    while loops, when
+	    the programmer decides within the body of the loop to
+	    return from the function that contains the loop?
+	  </LI>
+	  <LI>
+	    Change your approach to address the problem. How about directly
+	    installing while loops for the
+	    evaluator, using a function
+	    <JAVASCRIPTINLINE>eval_while</JAVASCRIPTINLINE>?
+	  </LI>
+	  <!-- Error occurred while translating this section --><LI>
+	    Following this direct approach, implement a
+	    <INDEX>syntactic forms<SUBINDEX>break statement</SUBINDEX></INDEX>
+	    <INDEX><USE>break</USE> (keyword)</INDEX>
+	    <INDEX>keywords<SUBINDEX><ORDER>break</ORDER><USE>break</USE></SUBINDEX></INDEX>
+	    <JAVASCRIPTINLINE>break;</JAVASCRIPTINLINE> statement that immediately
+	    terminates the loop in which it is evaluated.
+	  </LI>
+	  <LI>
+	    Implement a 
+	    <INDEX>syntactic forms<SUBINDEX>continue statement</SUBINDEX></INDEX>
+	    <INDEX><ORDER>continue</ORDER>\textbf{\texttt{continue}} (keyword)</INDEX>
+	    <INDEX>keywords<SUBINDEX><ORDER>continue</ORDER>\textbf{\texttt{continue}}</SUBINDEX></INDEX>
+	    <WEB_ONLY><JAVASCRIPTINLINE>continue;</JAVASCRIPTINLINE></WEB_ONLY><PDF_ONLY><LATEXINLINE>\textbf{\texttt{continue}}</LATEXINLINE><JAVASCRIPTINLINE>;</JAVASCRIPTINLINE></PDF_ONLY> statement that terminates
+	    only the loop iteration in which it is evaluated, and continues with
+	    evaluating the
+	    while loop predicate.
+	  </LI>
+	<!-- Error occurred while translating this section --></OL>
+      </JAVASCRIPT>
+    </SPLIT>
+  </EXERCISE>
+  
+  <SPLIT>
+    <SCHEME>
+      <EXERCISE>
+	Many languages support a variety of iteration constructs, such as
+  	<INDEX>metacircular evaluator for Scheme<SUBINDEX>special forms (additional)</SUBINDEX></INDEX>
+	<INDEX>looping constructs<SUBINDEX>implementing in metacircular evaluator</SUBINDEX></INDEX>
+	<SCHEMEINLINE>do</SCHEMEINLINE>, <SCHEMEINLINE>for</SCHEMEINLINE>,
+	<SCHEMEINLINE>while</SCHEMEINLINE>, and
+	<SCHEMEINLINE>until</SCHEMEINLINE>.  In Scheme,	iterative processes can
+	be expressed in terms of ordinary procedure calls, so special iteration
+	constructs provide no essential gain in	computational power.  On the
+	other hand, such constructs are often convenient.  Design some iteration
+	constructs, give examples of their use, and show how to implement them
+	as derived expressions.
+      </EXERCISE>
+    </SCHEME>
+  </SPLIT><!-- Error occurred while translating this section -->
+
+  <LONG_PAGE LINES="2"></LONG_PAGE>
+  <EXERCISE>
+    <LABEL NAME="ex:value_producing"></LABEL>
+    <SPLIT>
+      <SCHEME>
+	By using data abstraction, we were able to write an
+	<SCHEMEINLINE>eval</SCHEMEINLINE> procedure that is independent of the
+	particular syntax of the language to be evaluated.  To illustrate this,
+	design and implement a new
+	<INDEX>metacircular evaluator for Scheme<SUBINDEX>syntax of evaluated language</SUBINDEX></INDEX>
+	<INDEX>metacircular evaluator for Scheme<SUBINDEX>data abstraction in</SUBINDEX></INDEX>
+	syntax for Scheme by modifying the procedures
+	in this section, without changing <SCHEMEINLINE>eval</SCHEMEINLINE> or
+	<SCHEMEINLINE>apply</SCHEMEINLINE>.
+      </SCHEME>
+      <JAVASCRIPT>
+	The result of evaluating the body of a function is determined by
+	its return statements. 
+	Following up on footnote<SPACE></SPACE><REF NAME="foot:value_producing"></REF>
+	and the evaluation of declarations in
+	section<SPACE></SPACE><REF NAME="sec:core-of-evaluator"></REF>,
+	this exercise addresses the question of what should be the result of
+	<INDEX>value<SUBINDEX>of a program</SUBINDEX></INDEX>
+	<INDEX>program<SUBINDEX>value of</SUBINDEX></INDEX>
+	<INDEX>statement<SUBINDEX>value-producing and non-value-producing</SUBINDEX></INDEX>
+	<INDEX>metacircular evaluator for JavaScript<SUBINDEX>value of program at top level</SUBINDEX></INDEX>
+	evaluating a JavaScript program that consists of a sequence of
+	statements (declarations, blocks, expression statements, and conditional
+	statements) <EM>outside of</EM> any function body.
+	<!-- Error occurred while translating this section --><TEXT>
+	For such a program, JavaScript
+	statically
+        distinguishes between <EM>value-producing</EM> and
+	<EM>non-value-producing statements</EM>. (Here 
+	<QUOTE>statically</QUOTE> means that
+	we can make the distinction by <EM>inspecting</EM> the program
+	rather than by running it.)
+	All declarations are
+	non-value-producing, and all 
+	expression statements and conditional statements are
+	value-producing.
+	The value of an expression statement is the value of the expression.
+	The value of a conditional statement is the value of the branch that
+	gets executed, or the value
+	<JAVASCRIPTINLINE>undefined</JAVASCRIPTINLINE> if that branch is
+	not value-producing.
+	A block is value-producing if its body (sequence of statements)
+	is value-producing, and then its value is the value of its body.
+	A sequence is value-producing if any of
+	its component statements is value-producing, and then its value is
+	the value of its <EM>last</EM> value-producing component statement.
+	Finally, if the whole
+	program	is not value-producing, its value is the value
+	<JAVASCRIPTINLINE>undefined</JAVASCRIPTINLINE>.
+	<OL>
+	  <LI>
+	    According to this specification, what are the values of the
+	    following four programs?
+	    <SNIPPET EVAL="no">
+	      <JAVASCRIPT>
+1; 2; 3;
+
+1; { if (true) {} else { 2; } }
+
+1; const x = 2;
+
+1; { let x = 2; { x = x + 3; } }
+	      </JAVASCRIPT>
+	    </SNIPPET>
+	  </LI>
+	  <LI>
+	    Modify the evaluator to adhere to this
+	    specification.
+	  </LI>
+	</OL>
+	</TEXT>
+      <!-- Error occurred while translating this section --></JAVASCRIPT>
+    </SPLIT>
+  </EXERCISE>
+
+  <!--  More ideas for JavaScript exercises
+ 
+       * Prevent return at top level, outside of functions
+
+       * <LABEL NAME="ex:parse_conditionals"/>
+	 Exercise<SPACE/><REF NAME="ex:parse"/> shows that the
+	 <JAVASCRIPTINLINE>parse</JAVASCRIPTINLINE> function can handle
+	 conditional statements. Verify experimentally that the 
+	 <JAVASCRIPTINLINE>parse</JAVASCRIPTINLINE> function wraps 
+	 the consequent and alternative statements of conditional statements
+	 with block statements whenever necessary. What problem would arise 
+	 if this was not the case?
+
+   -->
+</SUBSECTION>
+
+
+
