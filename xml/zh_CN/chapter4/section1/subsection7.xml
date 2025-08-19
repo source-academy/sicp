@@ -1,0 +1,1111 @@
+<SUBSECTION>
+  <NAME>
+    Separating Syntactic Analysis from Execution
+  </NAME><!-- Error occurred while translating this section -->
+
+  <LABEL NAME="sec:separating-analysis"></LABEL>
+
+  <INDEX>syntactic analysis, separated from execution<SUBINDEX>in metacircular evaluator<OPEN></OPEN></SUBINDEX></INDEX><!-- Error occurred while translating this section -->
+  <INDEX>analyzing evaluator<OPEN></OPEN></INDEX><!-- Error occurred while translating this section -->
+  <INDEX>metacircular evaluator for JavaScript<SUBINDEX>analyzing version<OPEN></OPEN></SUBINDEX></INDEX><!-- Error occurred while translating this section -->
+
+  <TEXT>
+    The evaluator implemented above is simple, but it is very
+    <INDEX>metacircular evaluator for JavaScript<SUBINDEX>efficiency of</SUBINDEX></INDEX>
+    <INDEX>efficiency<SUBINDEX><ORDER>evaluation</ORDER>of evaluation</SUBINDEX></INDEX>
+    inefficient, because the syntactic analysis of
+    <SPLITINLINE>
+      <SCHEME>
+	expressions
+      </SCHEME>
+      <JAVASCRIPT>
+	components
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    is interleaved
+    with their execution.  Thus if a program is executed many times, its
+    syntax is analyzed many times.  Consider, for example, evaluating
+    <SPLITINLINE><SCHEME><SCHEMEINLINE>(factorial 4)</SCHEMEINLINE></SCHEME>
+    <JAVASCRIPT><JAVASCRIPTINLINE>factorial(4)</JAVASCRIPTINLINE></JAVASCRIPT>
+    </SPLITINLINE> using the following definition of
+    <SCHEMEINLINE>factorial</SCHEMEINLINE>:
+    <SNIPPET>
+      <NAME>factorial_4_1_7</NAME>
+      <EXAMPLE>factorial_example</EXAMPLE>
+      <EXPECTED>120</EXPECTED>
+      <SCHEME>
+(define (factorial n)
+  (if (= n 1)
+      1
+      (* (factorial (- n 1)) n)))
+      </SCHEME>
+      <JAVASCRIPT>
+function factorial(n) {      
+    return n === 1
+           ? 1
+           : factorial(n - 1) * n;
+}
+      </JAVASCRIPT>
+    </SNIPPET>
+  </TEXT><!-- Error occurred while translating this section -->
+
+  <TEXT>
+    Each time <SCHEMEINLINE>factorial</SCHEMEINLINE> is called, the evaluator
+    must determine that the body is
+    <SPLITINLINE>
+      <SCHEME>an <SCHEMEINLINE>if</SCHEMEINLINE>
+      </SCHEME>
+      <JAVASCRIPT>a conditional
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    expression and extract the predicate. Only then can it evaluate the
+    predicate and dispatch on its value.  Each time it evaluates the expression
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>(* (factorial (- n 1)) n)</SCHEMEINLINE>,
+      </SCHEME>
+      <JAVASCRIPT><JAVASCRIPTINLINE>factorial(n - 1) * n</JAVASCRIPTINLINE>,
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    or the subexpressions
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>(factorial (- n 1))</SCHEMEINLINE>
+      </SCHEME>
+      <JAVASCRIPT><JAVASCRIPTINLINE>factorial(n - 1)</JAVASCRIPTINLINE>
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    and 
+    <SPLITINLINE><SCHEME><SCHEMEINLINE>(- n 1)</SCHEMEINLINE>,</SCHEME>
+    <JAVASCRIPT><JAVASCRIPTINLINE>n - 1</JAVASCRIPTINLINE>,</JAVASCRIPT>
+    </SPLITINLINE>
+    the evaluator must perform the case analysis in
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>eval</SCHEMEINLINE></SCHEME>
+      <JAVASCRIPT><JAVASCRIPTINLINE>evaluate</JAVASCRIPTINLINE></JAVASCRIPT>
+    </SPLITINLINE>
+    to determine that the expression is an application, and must extract
+    <SPLITINLINE>
+      <SCHEME>its operator and operands.</SCHEME>
+      <JAVASCRIPT>its function expression and argument expressions.</JAVASCRIPT>
+    </SPLITINLINE>
+    This analysis is expensive.
+    Performing it repeatedly is wasteful.
+  </TEXT><!-- Error occurred while translating this section -->
+  <DO_BREAK_PAGE></DO_BREAK_PAGE><!-- Error occurred while translating this section -->
+  <TEXT>
+    We can transform the evaluator to be significantly more efficient by
+    arranging things so that syntactic analysis is performed only
+    once.<FOOTNOTE>This technique is an integral part of the compilation
+    process, which we shall discuss in chapter<SPACE></SPACE><REF NAME="chap:reg"></REF>.  Jonathan Rees wrote
+    a Scheme
+    interpreter like this in about 1982 for the T project 
+    <INDEX>Rees, Jonathan A.</INDEX>
+    <INDEX>Adams, Norman I., IV</INDEX>
+    (<CITATION>Rees and Adams 1982</CITATION>).  
+    <INDEX>Feeley, Marc</INDEX>
+    Marc <CITATION>Feeley 1986</CITATION>
+    (see also
+    <INDEX>Lapalme, Guy</INDEX>
+    <CITATION>Feeley and Lapalme 1987</CITATION>)
+    independently invented this technique
+    in his master<APOS></APOS>s thesis.</FOOTNOTE> We split
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>eval</SCHEMEINLINE>,</SCHEME>
+      <JAVASCRIPT><JAVASCRIPTINLINE>evaluate</JAVASCRIPTINLINE>,</JAVASCRIPT>
+    </SPLITINLINE>
+    which takes
+    <SPLITINLINE>
+      <SCHEME>an expression</SCHEME>
+      <JAVASCRIPT>a component</JAVASCRIPT>
+    </SPLITINLINE>
+    and an environment, into two parts.  The
+    <SPLITINLINE><SCHEME>procedure</SCHEME>
+    <JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+    <!-- Error occurred while translating this section --><SCHEMEINLINE>analyze</SCHEMEINLINE> takes only the
+    <SPLITINLINE>
+      <SCHEME>expression.</SCHEME>
+      <JAVASCRIPT>component.</JAVASCRIPT>
+    </SPLITINLINE>
+    It performs the syntactic
+    analysis and returns a new
+    <SPLITINLINE><SCHEME>procedure</SCHEME>
+    <JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>, the 
+    <INDEX>execution <SPLITINLINE><SCHEME>procedure</SCHEME><JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE><SUBINDEX>in analyzing evaluator</SUBINDEX></INDEX>
+    <EM>execution
+    <SPLITINLINE><SCHEME>procedure</SCHEME>
+    <JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE></EM>, that
+    encapsulates the work to be done in executing the analyzed
+    <SPLITINLINE>
+      <SCHEME>expression.</SCHEME>
+      <JAVASCRIPT>component.</JAVASCRIPT>
+    </SPLITINLINE>
+    The execution
+    <SPLITINLINE><SCHEME>procedure</SCHEME>
+    <JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+    takes an environment as its
+    argument and completes the evaluation.  This saves work because
+    <!-- Error occurred while translating this section --><SCHEMEINLINE>analyze</SCHEMEINLINE> will be called only once on
+    <SPLITINLINE>
+      <SCHEME>an expression,</SCHEME>
+      <JAVASCRIPT>a component,</JAVASCRIPT>
+    </SPLITINLINE>
+    while the execution
+    <SPLITINLINE><SCHEME>procedure</SCHEME>
+    <JAVASCRIPT>function</JAVASCRIPT></SPLITINLINE>
+    may be called many times.
+  <!-- Error occurred while translating this section --></TEXT>
+
+  <TEXT>
+    With the separation into analysis and execution,
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>eval</SCHEMEINLINE></SCHEME>
+      <JAVASCRIPT><JAVASCRIPTINLINE>evaluate</JAVASCRIPTINLINE></JAVASCRIPT>
+    </SPLITINLINE>
+    now becomes
+    <SNIPPET HIDE="yes">
+      <NAME>analyze_headline</NAME>
+      <JAVASCRIPT>
+// functions from SICP JS 4.1.7
+      </JAVASCRIPT>
+    </SNIPPET>
+    <SNIPPET>
+      <INDEX><DECLARATION>evaluate</DECLARATION> (metacircular)<SUBINDEX>analyzing version</SUBINDEX></INDEX>
+      <NAME>evaluate_4_1_7</NAME>
+      <REQUIRES>analyze</REQUIRES>
+      <EXAMPLE>evaluate_4_1_7_simple_function</EXAMPLE>
+      <SCHEME>
+(define (eval exp env)
+  ((analyze exp) env))
+      </SCHEME>
+      <JAVASCRIPT>
+function evaluate(component, env) {      
+    return analyze(component)(env);
+}
+      </JAVASCRIPT>
+    </SNIPPET>
+    <SNIPPET HIDE="yes">
+      <NAME>evaluate_4_1_7_simple_function</NAME>
+      <REQUIRES>evaluate_4_1_7</REQUIRES>
+      <EXPECTED>5</EXPECTED>
+      <JAVASCRIPT>
+evaluate(parse(&quot;{ function f(x) { return x + 1; } f(4); }&quot;), 
+         the_global_environment);
+      </JAVASCRIPT>
+    </SNIPPET>
+  </TEXT><!-- Error occurred while translating this section -->
+
+  <TEXT>
+    The result of calling <!-- Error occurred while translating this section --><SCHEMEINLINE>analyze</SCHEMEINLINE> is the execution
+    <SPLITINLINE>
+      <SCHEME>procedure</SCHEME>
+      <JAVASCRIPT>function</JAVASCRIPT>
+    </SPLITINLINE>
+    to be applied to the environment.  The <!-- Error occurred while translating this section --><SCHEMEINLINE>analyze</SCHEMEINLINE>
+    <SPLITINLINE>
+      <SCHEME>procedure</SCHEME>
+      <JAVASCRIPT>function</JAVASCRIPT>
+    </SPLITINLINE>
+    is the same case analysis as performed by the original
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>eval</SCHEMEINLINE></SCHEME>
+      <JAVASCRIPT><JAVASCRIPTINLINE>evaluate</JAVASCRIPTINLINE></JAVASCRIPT>
+    </SPLITINLINE>
+    of section<SPACE></SPACE><REF NAME="sec:core-of-evaluator"></REF>, except that the
+    <SPLITINLINE>
+      <SCHEME>procedures</SCHEME>
+      <JAVASCRIPT>functions</JAVASCRIPT>
+    </SPLITINLINE>
+    to which we dispatch perform only analysis, not full evaluation:
+    <!-- Error occurred while translating this section --><SNIPPET HIDE="yes">
+      <NAME>analyze_example</NAME>
+      <JAVASCRIPT>
+analyze(parse(&quot;{ const x = 1; x + 1; }&quot;))
+       (the_global_environment);
+      </JAVASCRIPT>
+    </SNIPPET>
+    <SNIPPET>
+      <INDEX><DECLARATION>analyze</DECLARATION><SUBINDEX>metacircular</SUBINDEX></INDEX>
+      <NAME>analyze</NAME>
+      <REQUIRES>headline_4_1_1</REQUIRES>
+      <REQUIRES>list_of_unassigned</REQUIRES>
+      <REQUIRES>functions_4_1_2</REQUIRES>
+      <REQUIRES>functions_4_1_3</REQUIRES>
+      <REQUIRES>functions_4_1_4</REQUIRES>
+      <REQUIRES>analyze_headline</REQUIRES>
+      <REQUIRES>analyze_literal</REQUIRES>
+      <REQUIRES>analyze_variable</REQUIRES>
+      <REQUIRES>analyze_assignment</REQUIRES>
+      <REQUIRES>analyze_if</REQUIRES>
+      <REQUIRES>scan_out_declarations</REQUIRES>
+      <REQUIRES>analyze_lambda</REQUIRES>
+      <REQUIRES>analyze_sequence</REQUIRES>
+      <REQUIRES>analyze_block</REQUIRES>
+      <REQUIRES>analyze_return_statement</REQUIRES>
+      <REQUIRES>analyze_application</REQUIRES>
+      <EXAMPLE>analyze_example</EXAMPLE>
+      <EXPECTED>2</EXPECTED>
+      <SCHEME>
+      (define (analyze exp)
+      (cond ((self-evaluating? exp) 
+            (analyze-self-evaluating exp))
+            ((quoted? exp) (analyze-quoted exp))
+            ((variable? exp) (analyze-variable exp))
+            ((assignment? exp) (analyze-assignment exp))
+            ((definition? exp) (analyze-definition exp))
+            ((if? exp) (analyze-if exp))
+            ((lambda? exp) (analyze-lambda exp))
+            ((begin? exp) (analyze-sequence (begin-actions exp)))
+            ((cond? exp) (analyze (cond-&gt;if exp)))
+            ((application? exp) (analyze-application exp))
+            (else
+            (error &quot;Unknown expression type - - ANALYZE&quot; exp))))
+      </SCHEME>
+      <JAVASCRIPT>
+function analyze(component) {
+    return is_literal(component)
+           ? analyze_literal(component)
+           : is_name(component)
+           ? analyze_name(component)
+           : is_application(component)
+           ? analyze_application(component)
+           : is_operator_combination(component)
+           ? analyze(operator_combination_to_application(component))
+           : is_conditional(component)
+           ? analyze_conditional(component)
+           : is_lambda_expression(component)
+           ? analyze_lambda_expression(component)
+           : is_sequence(component)
+           ? analyze_sequence(sequence_statements(component))
+           : is_block(component)
+           ? analyze_block(component)
+           : is_return_statement(component)
+           ? analyze_return_statement(component)
+           : is_function_declaration(component)
+           ? analyze(function_decl_to_constant_decl(component))
+           : is_declaration(component)
+           ? analyze_declaration(component)
+           : is_assignment(component)
+           ? analyze_assignment(component)
+           : error(component, &quot;unknown syntax -- analyze&quot;);
+}
+      </JAVASCRIPT>
+    </SNIPPET>
+  </TEXT>
+  <INDEX><USE>analyze_...</USE><SUBINDEX>metacircular</SUBINDEX><OPEN></OPEN></INDEX><!-- Error occurred while translating this section -->
+  <TEXT>
+    Here is the simplest syntactic analysis
+    <SPLITINLINE>
+      <SCHEME>
+	procedure,
+	which handles self-evaluating expressions.
+      </SCHEME>
+      <JAVASCRIPT>
+	function,
+	which handles literal expressions.
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    It returns an execution
+    <SPLITINLINE>
+      <SCHEME>procedure</SCHEME>
+      <JAVASCRIPT>function</JAVASCRIPT>
+    </SPLITINLINE>
+    that ignores its environment argument and just returns the
+    <SPLITINLINE>
+      <SCHEME>expression:</SCHEME>
+      <JAVASCRIPT>value of the literal:</JAVASCRIPT>
+    </SPLITINLINE>
+    <SNIPPET HIDE="yes">
+      <NAME>analyze_literal_example</NAME>
+      <JAVASCRIPT>
+// null is the empty environment (not used here)	
+analyze_literal(parse(&quot;true;&quot;))(null);	
+      </JAVASCRIPT>
+    </SNIPPET>
+    <SNIPPET>
+      <NAME>analyze_literal</NAME>
+      <REQUIRES>functions_4_1_2</REQUIRES>
+      <EXAMPLE>analyze_literal_example</EXAMPLE>
+      <EXPECTED>true</EXPECTED>
+      <SCHEME>
+(define (analyze-self-evaluating exp)
+  (lambda (env) exp))
+      </SCHEME>
+      <JAVASCRIPT>
+function analyze_literal(component) {      
+    return env =&gt; literal_value(component);
+}
+      </JAVASCRIPT>
+    </SNIPPET>
+  </TEXT><!-- Error occurred while translating this section -->
+
+  <SPLIT>
+    <SCHEME>
+      <TEXT>
+	For a quoted expression, we can gain a little efficiency by
+	extracting the text of the quotation only once, in the analysis phase,
+	rather than in the execution phase.
+	<SNIPPET>
+	  <NAME>analyze_quoted</NAME>
+	  <EXAMPLE>analyze_quoted_quoted</EXAMPLE>
+	  <SCHEME>
+(define (analyze-quoted exp)
+  (let ((qval (text-of-quotation exp)))
+    (lambda (env) qval)))
+	  </SCHEME>
+	</SNIPPET>
+      </TEXT>
+    </SCHEME>
+    <JAVASCRIPT>
+    </JAVASCRIPT>
+  </SPLIT><!-- Error occurred while translating this section -->
+  
+  <TEXT>
+    Looking up
+    <SPLITINLINE>
+      <SCHEME>
+	a variable value	    
+      </SCHEME>
+      <JAVASCRIPT>
+	the value of a name
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    must still be done in the execution phase, since this depends upon knowing
+    the environment.<FOOTNOTE>There is, however, an important part of the
+    <SPLITINLINE>
+      <SCHEME>
+	variable search    
+      </SCHEME>
+      <JAVASCRIPT>
+	search for a name
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    that <EM>can</EM> be done as part of the syntactic analysis.
+       As we will show in section<SPACE></SPACE><REF NAME="sec:lexical-addressing"></REF>,
+	one can determine the position in the environment structure where the
+	value of the variable will be found, thus obviating the need to scan the
+	environment for the entry that matches the variable.
+</FOOTNOTE>
+    <SNIPPET HIDE="yes">
+      <NAME>analyze_variable_example</NAME>
+      <REQUIRES>functions_4_1_2</REQUIRES>
+      <REQUIRES>functions_4_1_3</REQUIRES>
+      <REQUIRES>functions_4_1_4</REQUIRES>
+      <JAVASCRIPT>
+analyze_name(parse(&quot;myname;&quot;))
+ (extend_environment(list(&quot;myname&quot;), list(1), 
+                     the_global_environment));
+      </JAVASCRIPT>
+    </SNIPPET>
+    <SNIPPET>
+      <NAME>analyze_variable</NAME>
+      <EXAMPLE>analyze_variable_example</EXAMPLE>
+      <EXPECTED>1</EXPECTED>
+      <SCHEME>
+(define (analyze-variable exp)
+  (lambda (env) (lookup-variable-value exp env)))
+      </SCHEME>
+      <JAVASCRIPT>
+function analyze_name(component) {      
+    return env =&gt; lookup_symbol_value(symbol_of_name(component), env);
+}
+      </JAVASCRIPT>
+    </SNIPPET>
+  </TEXT><!-- Error occurred while translating this section -->
+
+
+  <SPLIT>
+    <JAVASCRIPT>
+    To analyze an application, we analyze the
+    function expression and argument expressions
+    and construct an execution function that calls the
+    execution function of the function expression
+    (to obtain the actual function to be applied) and the
+    argument-expression execution functions (to obtain the actual arguments).
+    We then pass these to
+    	<JAVASCRIPTINLINE>execute_application</JAVASCRIPTINLINE>,
+    which is the analog of <!-- Error occurred while translating this section --><SCHEMEINLINE>apply</SCHEMEINLINE> in
+    section<SPACE></SPACE><REF NAME="sec:core-of-evaluator"></REF>.
+    The function <JAVASCRIPTINLINE>execute_application</JAVASCRIPTINLINE>
+    differs from <!-- Error occurred while translating this section --><SCHEMEINLINE>apply</SCHEMEINLINE> in that the
+    function body for a compound function
+    has already been analyzed, so there is no need to do further analysis.
+    Instead, we just call the execution function
+    for the body on the extended environment.
+    <!-- Error occurred while translating this section --><SNIPPET HIDE="yes">
+      <NAME>analyze_application_example</NAME>
+      <REQUIRES>analyze</REQUIRES>
+      <JAVASCRIPT>
+analyze(parse(&quot;x + 1;&quot;))
+(extend_environment(list(&quot;x&quot;), list(5), the_global_environment));	
+      </JAVASCRIPT>
+    </SNIPPET>
+    <SNIPPET>
+      <INDEX><DECLARATION>execute_application</DECLARATION><SUBINDEX>metacircular</SUBINDEX></INDEX>
+      <NAME>analyze_application</NAME>
+      <EXAMPLE>analyze_application_example</EXAMPLE>
+      <EXPECTED>6</EXPECTED>
+      <JAVASCRIPT>
+function analyze_application(component) {	
+    const ffun = analyze(function_expression(component));
+    const afuns = map(analyze, arg_expressions(component));
+    return env =&gt; execute_application(ffun(env),
+                                      map(afun =&gt; afun(env), afuns));
+}
+function execute_application(fun, args) {
+    if (is_primitive_function(fun)) {
+        return apply_primitive_function(fun, args);
+    } else if (is_compound_function(fun)) {
+        const result = function_body(fun)
+                       (extend_environment(function_parameters(fun),
+                                           args,
+                                           function_environment(fun)));
+        return is_return_value(result)
+               ? return_value_content(result)
+               : undefined;
+    } else {
+        error(fun, &quot;unknown function type -- execute_application&quot;);
+    }
+}
+      </JAVASCRIPT>
+    </SNIPPET>
+    </JAVASCRIPT>
+  </SPLIT>
+
+  <SPLIT>
+    <JAVASCRIPT>
+      <TEXT>
+	For conditionals,
+	we extract and analyze the predicate, consequent, and alternative at
+	analysis time.
+	<SNIPPET HIDE="yes">
+	  <NAME>analyze_if_example</NAME>
+	  <REQUIRES>analyze</REQUIRES>
+	  <JAVASCRIPT>
+analyze_conditional(parse(&quot;true ? 3 : 7;&quot;))
+   (the_global_environment);	
+	  </JAVASCRIPT>
+	</SNIPPET>
+	<SNIPPET>
+	  <NAME>analyze_if</NAME>
+	  <EXAMPLE>analyze_if_example</EXAMPLE>
+	  <EXPECTED>3</EXPECTED>
+	  <JAVASCRIPT>
+function analyze_conditional(component) {	
+    const pfun = analyze(conditional_predicate(component));
+    const cfun = analyze(conditional_consequent(component));
+    const afun = analyze(conditional_alternative(component));
+    return env =&gt; is_truthy(pfun(env)) ? cfun(env) : afun(env);
+}
+	  </JAVASCRIPT>
+	</SNIPPET>
+      </TEXT>
+
+      <TEXT>
+	Analyzing a
+	lambda
+	expression also achieves a major gain in efficiency: We analyze the
+	lambda body only once, even though
+	functions resulting from evaluation of the
+	lambda expression
+	may be applied many times.
+	<SNIPPET HIDE="yes">
+	  <NAME>analyze_lambda_example</NAME>
+	  <REQUIRES>analyze</REQUIRES>
+	  <JAVASCRIPT>
+list_ref(analyze_lambda_expression(parse(&quot;x =&gt; x;&quot;))
+         (the_global_environment),
+         2)
+        (extend_environment(list(&quot;x&quot;), list(7), 
+                            the_global_environment));
+	  </JAVASCRIPT>
+	</SNIPPET>
+	<SNIPPET>
+	  <NAME>analyze_lambda</NAME>
+	  <EXAMPLE>analyze_lambda_example</EXAMPLE>
+	  <EXPECTED>[ &apos;return_value&apos;, [ 7, null ] ]</EXPECTED>
+	  <JAVASCRIPT>
+function analyze_lambda_expression(component) {
+    const params = lambda_parameter_symbols(component);
+    const bfun = analyze(lambda_body(component));
+    return env =&gt; make_function(params, bfun, env);
+}
+	  </JAVASCRIPT>
+	</SNIPPET>
+      </TEXT>
+
+
+      <!-- Error occurred while translating this section --><TEXT>
+	Analysis of a sequence of
+	statements is more 
+	involved.<FOOTNOTE>See exercise<SPACE></SPACE><REF NAME="ex:analyze-sequence"></REF> for
+	some insight into the processing of sequences.</FOOTNOTE> Each
+	    statement
+	in the sequence is analyzed, yielding an execution
+	function. These execution functions
+	are combined to produce an execution
+	function that takes an environment as argument and sequentially
+	calls each individual execution
+	function with the environment as argument.
+	<SNIPPET HIDE="yes">
+	  <NAME>analyze_sequence_example</NAME>
+	  <REQUIRES>analyze</REQUIRES>
+	  <JAVASCRIPT>
+analyze_sequence(sequence_statements(parse(&quot;10; 20; 30;&quot;)))
+   (the_global_environment);	
+	  </JAVASCRIPT>
+	</SNIPPET>
+	<SNIPPET>
+	  <NAME>analyze_sequence</NAME>
+	  <EXAMPLE>analyze_sequence_example</EXAMPLE>
+	  <EXPECTED>30</EXPECTED>
+	  <JAVASCRIPT>
+function analyze_sequence(stmts) {
+    function sequentially(fun1, fun2) {
+        return env =&gt; {
+                   const fun1_val = fun1(env);
+                   return is_return_value(fun1_val)
+                          ? fun1_val
+                          : fun2(env);
+               };
+    }
+    function loop(first_fun, rest_funs) {
+        return is_null(rest_funs)
+               ? first_fun
+               : loop(sequentially(first_fun, head(rest_funs)),
+                      tail(rest_funs));
+    }
+    const funs = map(analyze, stmts);
+    return is_null(funs) 
+           ? env =&gt; undefined
+           : loop(head(funs), tail(funs));
+}
+	  </JAVASCRIPT>
+	</SNIPPET>
+      </TEXT>
+
+
+  <DO_BREAK_PAGE></DO_BREAK_PAGE>
+            <!-- Error occurred while translating this section --><TEXT>
+	The body of a
+	block is scanned only once for local declarations.
+	The bindings are installed in the environment when
+	the execution function for the block is called.
+	<SNIPPET HIDE="yes">
+	  <NAME>analyze_block_example</NAME>
+	  <REQUIRES>analyze</REQUIRES>
+	  <JAVASCRIPT>
+analyze_block(parse(&quot;{ const x = 4; x; }&quot;))
+   (the_global_environment);
+	  </JAVASCRIPT>
+	</SNIPPET>
+	<SNIPPET>
+	  <NAME>analyze_block</NAME>
+	  <REQUIRES>list_of_unassigned</REQUIRES>
+	  <EXAMPLE>analyze_block_example</EXAMPLE>
+	  <EXPECTED>4</EXPECTED>
+	  <JAVASCRIPT>
+function analyze_block(component) {
+    const body = block_body(component);
+    const bfun = analyze(body);
+    const locals = scan_out_declarations(body);	    
+    const unassigneds = list_of_unassigned(locals);
+    return env =&gt; bfun(extend_environment(locals, unassigneds, env));
+}
+	  </JAVASCRIPT>
+	</SNIPPET>
+      </TEXT>
+
+      
+            <TEXT>
+	For return statements, we analyze the return expression.
+	The execution function for the return statement simply calls
+	the execution function for the return expression and wraps
+	the result in a return value.
+	<SNIPPET HIDE="yes">
+	  <NAME>analyze_return_statement_example</NAME>
+	  <REQUIRES>analyze</REQUIRES>
+	  <JAVASCRIPT>
+analyze_return_statement(list_ref(parse(&quot;() =&gt; x + 1;&quot;), 2))
+   (extend_environment(list(&quot;x&quot;), list(6), the_global_environment));
+	  </JAVASCRIPT>
+	</SNIPPET>
+	<SNIPPET>
+	  <NAME>analyze_return_statement</NAME>
+	  <EXAMPLE>analyze_return_statement_example</EXAMPLE>
+	  <EXPECTED>[ &apos;return_value&apos;, [ 7, null ] ]</EXPECTED>
+	  <JAVASCRIPT>
+function analyze_return_statement(component) {
+    const rfun = analyze(return_expression(component));
+    return env =&gt; make_return_value(rfun(env));
+}
+	  </JAVASCRIPT>
+	</SNIPPET>
+      </TEXT>
+
+      
+    <!-- Error occurred while translating this section --></JAVASCRIPT>
+  </SPLIT>
+  
+  <TEXT>
+    <SPLITINLINE>
+      <SCHEME>
+	<SCHEMEINLINE>Analyze-assignment</SCHEMEINLINE>
+      </SCHEME>
+      <JAVASCRIPT>The function
+      <JAVASCRIPTINLINE>analyze_assignment</JAVASCRIPTINLINE>
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    must defer actually setting the variable until the execution, when the
+    environment has been supplied.  However, the fact that the
+    <SPLITINLINE>
+      <SCHEME>
+	<SCHEMEINLINE>assignment-value</SCHEMEINLINE> expression 
+      </SCHEME>
+      <JAVASCRIPT>
+	assignment-value expression
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    can be analyzed (recursively) during analysis is a major gain in
+    efficiency, because the
+    <SPLITINLINE>
+      <SCHEME>
+	<SCHEMEINLINE>assignment-value</SCHEMEINLINE> expression
+      </SCHEME>
+      <JAVASCRIPT>
+	assignment-value expression
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    will now be analyzed only once.  The same holds true for
+    <SPLITINLINE>
+      <SCHEME>definitions.</SCHEME>
+      <JAVASCRIPT>constant and variable declarations.</JAVASCRIPT>
+    </SPLITINLINE>
+    <!-- Error occurred while translating this section --><SNIPPET HIDE="yes">
+      <NAME>analyze_assignment_example</NAME>
+      <REQUIRES>analyze</REQUIRES>
+      <JAVASCRIPT>
+analyze_assignment(parse(&quot;x = x + 1;&quot;))
+   (extend_environment(list(&quot;x&quot;), list(7), the_global_environment));
+      </JAVASCRIPT>
+    </SNIPPET>
+    <SNIPPET>
+      <NAME>analyze_assignment</NAME>
+      <EXAMPLE>analyze_assignment_example</EXAMPLE>
+      <EXPECTED>8</EXPECTED>
+      <SCHEME>
+(define (analyze-assignment exp)
+  (let ((var (assignment-variable exp))
+        (vproc (analyze (assignment-value exp))))
+    (lambda (env)
+      (set-variable-value! var (vproc env) env)
+      &apos;ok)))
+
+(define (analyze-definition exp)
+  (let ((var (definition-variable exp))
+        (vproc (analyze (definition-value exp))))
+    (lambda (env)
+      (define-variable! var (vproc env) env)
+      &apos;ok)))
+      </SCHEME>
+      <JAVASCRIPT>
+function analyze_assignment(component) {
+    const symbol = assignment_symbol(component);
+    const vfun = analyze(assignment_value_expression(component));
+    return env =&gt; {
+               const value = vfun(env);
+               assign_symbol_value(symbol, value, env);
+               return value;
+           };
+}
+function analyze_declaration(component) {
+    const symbol = declaration_symbol(component);
+    const vfun = analyze(declaration_value_expression(component));
+    return env =&gt; {
+               assign_symbol_value(symbol, vfun(env), env);
+               return undefined;
+           };
+}
+      </JAVASCRIPT>
+    </SNIPPET>
+  </TEXT>
+
+  <SPLIT>
+    <SCHEME>
+      <TEXT>
+	For <SCHEMEINLINE>if</SCHEMEINLINE> expressions,
+	we extract and analyze the predicate, consequent, and alternative at
+	analysis time.
+	<SNIPPET EVAL="no">
+	  <NAME>analyze_if</NAME>
+	  <EXPECTED>3</EXPECTED>
+	  <SCHEME>
+(define (analyze-if exp)
+  (let ((pproc (analyze (if-predicate exp)))
+        (cproc (analyze (if-consequent exp)))
+        (aproc (analyze (if-alternative exp))))
+    (lambda (env)
+      (if (true? (pproc env))
+          (cproc env)
+          (aproc env)))))
+	  </SCHEME>
+	</SNIPPET>
+      </TEXT>
+
+      <TEXT>
+	Analyzing a
+	<SCHEMEINLINE>lambda</SCHEMEINLINE>
+	expression also achieves a major gain in efficiency: We analyze the
+	<SCHEMEINLINE>lambda</SCHEMEINLINE>
+	body only once, even though procedures
+	resulting from evaluation of the
+	<SCHEMEINLINE>lambda</SCHEMEINLINE>
+	may be applied many times.
+	<SNIPPET EVAL="no">
+	  <NAME>analyze_lambda</NAME>
+	  <SCHEME>
+(define (analyze-lambda exp)
+  (let ((vars (lambda-parameters exp))
+        (bproc (analyze-sequence (lambda-body exp))))
+  (lambda (env) (make-procedure vars bproc env))))
+	  </SCHEME>
+	</SNIPPET>
+      </TEXT>
+
+      <TEXT>
+	Analysis of a sequence of
+	expressions (as in a
+	<SCHEMEINLINE>begin</SCHEMEINLINE> or the body
+	of a <SCHEMEINLINE>lambda</SCHEMEINLINE> expression)
+	is more 
+	involved.<FOOTNOTE>See exercise<SPACE></SPACE><REF NAME="ex:analyze-sequence"></REF> for
+	some insight into the processing of sequences.</FOOTNOTE> Each
+	    expression
+	in the sequence is analyzed, yielding an execution
+	procedure. These execution
+	procedures are combined to produce an execution
+	procedure
+	that takes an environment as argument and sequentially
+	calls each individual execution
+	procedure with the environment as argument.
+	<SNIPPET EVAL="no">
+	  <NAME>analyze_sequence</NAME>
+	  <SCHEME>
+(define (analyze-sequence exps)
+  (define (sequentially proc1 proc2)
+    (lambda (env) (proc1 env) (proc2 env)))
+  (define (loop first-proc rest-procs)
+    (if (null? rest-procs)
+        first-proc
+        (loop (sequentially first-proc (car rest-procs))
+              (cdr rest-procs))))
+  (let ((procs (map analyze exps)))
+    (if (null? procs)
+        (error &quot;Empty sequence - - ANALYZE&quot;))
+        (loop (car procs) (cdr procs))))
+	  </SCHEME>
+	</SNIPPET>
+      </TEXT>
+
+      <TEXT>
+	To analyze an application, we analyze the
+	operator and operands
+	and construct an execution
+	procedure
+	that calls the
+	operator execution function
+	(to obtain the actual
+	procedure
+	to be applied) and the
+	operand
+	execution
+	procedures
+	(to obtain the actual arguments).  We then pass these to
+	<SCHEMEINLINE>execute-application</SCHEMEINLINE>,
+	which is the analog of <SCHEMEINLINE>apply</SCHEMEINLINE> in
+	section<SPACE></SPACE><REF NAME="sec:core-of-evaluator"></REF>.
+	<SCHEMEINLINE>Execute-application</SCHEMEINLINE>
+	differs from <SCHEMEINLINE>apply</SCHEMEINLINE> in that the
+	procedure
+	body for a compound
+	procedure
+	has already been analyzed, so there is no need to do further analysis.
+	Instead, we just call the execution
+	procedure
+	for the body on the extended environment.
+      <SNIPPET EVAL="no">
+	<INDEX><DECLARATION>execute-application</DECLARATION><SUBINDEX>metacircular</SUBINDEX></INDEX>
+	<NAME>analyze_application</NAME>
+	<SCHEME>
+(define (analyze-application exp)
+  (let ((fproc (analyze (operator exp)))
+        (aprocs (map analyze (operands exp))))
+    (lambda (env)
+      (execute-application (fproc env)
+                           (map (lambda (aproc) (aproc env))
+                                aprocs)))))
+
+(define (execute-application proc args)
+  (cond ((primitive-procedure? proc)
+         (apply-primitive-procedure proc args))
+        ((compound-procedure? proc)
+         ((procedure-body proc)
+          (extend-environment (procedure-parameters proc)
+                              args
+                              (procedure-environment proc))))
+        (else
+         (error
+          &quot;Unknown procedure type - - EXECUTE-APPLICATION&quot;
+          proc))))
+	</SCHEME>
+      </SNIPPET>
+      </TEXT>
+    </SCHEME>
+  </SPLIT>
+  <TEXT>
+    Our new evaluator uses the same data structures, syntax
+    <SPLITINLINE>
+      <SCHEME>procedures,</SCHEME>
+      <JAVASCRIPT>functions,</JAVASCRIPT>
+    </SPLITINLINE>
+    and
+    <SPLITINLINE>
+      <SCHEME>run-time support procedures</SCHEME>
+      <JAVASCRIPT>runtime support functions</JAVASCRIPT>
+    </SPLITINLINE>
+    as in sections<SPACE></SPACE><REF NAME="sec:representing-expressions"></REF>,
+    <SPACE></SPACE><REF NAME="sec:eval-data-structures"></REF>,
+    and<SPACE></SPACE><REF NAME="sec:running-eval"></REF>.
+  </TEXT><!-- Error occurred while translating this section -->
+  <INDEX><USE>analyze_...</USE><SUBINDEX>metacircular</SUBINDEX><CLOSE></CLOSE></INDEX><!-- Error occurred while translating this section -->
+  <EXERCISE>
+    <SPLIT>
+      <SCHEME>
+	Extend the evaluator in this section to support the special form
+	<INDEX>analyzing evaluator<SUBINDEX><ORDER>let</ORDER><SCHEMEINLINE>let</SCHEMEINLINE></SUBINDEX></INDEX>
+	<SCHEMEINLINE>let</SCHEMEINLINE>. (See
+	exercise<SPACE></SPACE><REF NAME="ex:implement-let"></REF>.)
+	<LABEL NAME="ex:implement-analyze-let"></LABEL>
+    </SCHEME>
+    <JAVASCRIPT>
+      Extend the evaluator in this section to support
+      <INDEX>while loop<SUBINDEX><ORDER>analyzing</ORDER>implementing in analyzing evaluator</SUBINDEX></INDEX>
+      while loops.
+	(See exercise<SPACE></SPACE><REF NAME="ex:while_loop"></REF>.)
+    </JAVASCRIPT>
+    </SPLIT>
+  </EXERCISE><!-- Error occurred while translating this section -->
+
+  <EXERCISE>
+    Alyssa P. Hacker doesn<APOS></APOS>t understand why
+    <INDEX><USE>analyze_...</USE><SUBINDEX>metacircular</SUBINDEX></INDEX>
+    <SPLITINLINE>
+      <SCHEME>
+	<SCHEMEINLINE>analyze-sequence</SCHEMEINLINE>
+      </SCHEME>
+      <JAVASCRIPT>
+	<JAVASCRIPTINLINE>analyze_sequence</JAVASCRIPTINLINE>
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    needs to be so complicated.  All the other analysis
+    <SPLITINLINE>
+      <SCHEME>procedures</SCHEME>
+      <JAVASCRIPT>functions</JAVASCRIPT>
+    </SPLITINLINE>
+    are straightforward transformations of the corresponding evaluation
+    <SPLITINLINE>
+      <SCHEME>procedures</SCHEME>
+      <JAVASCRIPT>functions</JAVASCRIPT>
+    </SPLITINLINE>
+    (or
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>eval</SCHEMEINLINE></SCHEME>
+      <JAVASCRIPT><JAVASCRIPTINLINE>evaluate</JAVASCRIPTINLINE></JAVASCRIPT>
+    </SPLITINLINE>
+    clauses) in
+    section<SPACE></SPACE><REF NAME="sec:core-of-evaluator"></REF>.
+    She expected
+    <SPLITINLINE>
+      <SCHEME>
+	<SCHEMEINLINE>analyze-sequence</SCHEMEINLINE>
+      </SCHEME>
+      <JAVASCRIPT>
+	<JAVASCRIPTINLINE>analyze_sequence</JAVASCRIPTINLINE>
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    to look like this:
+    <!-- Error occurred while translating this section --><!--   
+	 %***But note one drawback - - eval-sequence used first-exp/etc.
+	 %(the not-really-a-data-abstraction selectors), whereas this
+	 %has to use car/etc., so the match isn't perfectly clear.
+      -->
+    <SNIPPET>
+      <NAME>analyze_sequence_2</NAME>
+      <EXAMPLE>analyze_sequence_example</EXAMPLE>
+      <SCHEME>
+(define (analyze-sequence exps)
+  (define (execute-sequence procs env)
+      (cond ((null? (cdr procs)) ((car procs) env))
+            (else ((car procs) env)
+                  (execute-sequence (cdr procs) env))))
+  (let ((procs (map analyze exps)))
+    (if (null? procs)
+        (error &quot;Empty sequence - - ANALYZE&quot;))
+        (lambda (env) (execute-sequence procs env))))
+      </SCHEME>
+      <JAVASCRIPT>
+function analyze_sequence(stmts) {	
+    function execute_sequence(funs, env) {
+        if (is_null(funs)) {
+            return undefined;
+        } else if (is_null(tail(funs))) {
+            return head(funs)(env);
+        } else {
+            const head_val = head(funs)(env);
+	    return is_return_value(head_val)
+	           ? head_val
+                   : execute_sequence(tail(funs), env);
+        }
+    }
+    const funs = map(analyze, stmts);
+    return env =&gt; execute_sequence(funs, env);
+}
+      </JAVASCRIPT>
+    </SNIPPET>
+    Eva Lu Ator explains to Alyssa that the version in the text does more of the
+    work of evaluating a sequence at analysis time. Alyssa<APOS></APOS>s 
+    <SPLITINLINE>
+      <SCHEME>sequence-execution procedure,
+      </SCHEME>
+      <JAVASCRIPT>
+	sequence-execution function,
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    rather than having the calls to the individual execution
+    <SPLITINLINE>
+      <SCHEME>procedures</SCHEME>
+      <JAVASCRIPT>functions</JAVASCRIPT>
+    </SPLITINLINE>
+    built in, loops through the
+    <SPLITINLINE>
+      <SCHEME>procedures</SCHEME>
+      <JAVASCRIPT>functions</JAVASCRIPT>
+    </SPLITINLINE>
+    in order to call them: In effect, although the individual
+    <SPLITINLINE>
+      <SCHEME>expressions</SCHEME>
+      <JAVASCRIPT>statements</JAVASCRIPT>
+    </SPLITINLINE>
+    in the sequence have been analyzed, the sequence itself has not been.
+    <P></P>
+    Compare the two versions of
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>analyze-sequence</SCHEMEINLINE>.
+      </SCHEME>
+      <JAVASCRIPT>
+	<JAVASCRIPTINLINE>analyze_sequence</JAVASCRIPTINLINE>.
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    For example, consider the common case (typical of
+    <SPLITINLINE>
+      <SCHEME>procedure</SCHEME>
+      <JAVASCRIPT>function</JAVASCRIPT>
+    </SPLITINLINE>
+    bodies) where the sequence has just one
+    <SPLITINLINE>
+      <SCHEME>expression.</SCHEME>
+      <JAVASCRIPT>statement.</JAVASCRIPT>
+    </SPLITINLINE>
+    What work will the
+    execution
+    <SPLITINLINE>
+      <SCHEME>procedure</SCHEME>
+      <JAVASCRIPT>function</JAVASCRIPT>
+    </SPLITINLINE>
+    produced by Alyssa<APOS></APOS>s program do?  What about the execution
+    <SPLITINLINE>
+      <SCHEME>procedure</SCHEME>
+      <JAVASCRIPT>function</JAVASCRIPT>
+    </SPLITINLINE>
+    produced by the program in the text above?  How do the two versions compare
+    for a sequence with two expressions?
+    <!-- Error occurred while translating this section --><LABEL NAME="ex:analyze-sequence"></LABEL>
+  </EXERCISE>
+  
+  <EXERCISE>
+    <LABEL NAME="ex:meta_speed"></LABEL>
+    Design and carry out some experiments to compare the speed of the original
+    metacircular evaluator with the version in this section.  Use your results
+    to estimate the fraction of time that is spent in analysis versus execution
+    for various
+    <SPLITINLINE>
+      <SCHEME>procedures.</SCHEME>
+      <JAVASCRIPT>functions.</JAVASCRIPT>
+    </SPLITINLINE>
+  </EXERCISE><!-- Error occurred while translating this section -->
+
+  <INDEX>syntactic analysis, separated from execution<SUBINDEX>in metacircular evaluator<CLOSE></CLOSE></SUBINDEX></INDEX><!-- Error occurred while translating this section -->
+  <INDEX>analyzing evaluator<CLOSE></CLOSE></INDEX><!-- Error occurred while translating this section -->
+  <INDEX>metacircular evaluator for JavaScript<SUBINDEX>analyzing version<CLOSE></CLOSE></SUBINDEX></INDEX><!-- Error occurred while translating this section -->
+
+
+  <!--  test cases  -->
+
+  <SNIPPET HIDE="yes">
+    <NAME>parse_and_evaluate_4_1_7</NAME>
+    <REQUIRES>evaluate_4_1_7</REQUIRES>
+    <JAVASCRIPT>
+function parse_and_evaluate(input) {
+    const program = parse(input);
+    const locals = scan_out_declarations(program);
+    const unassigneds = list_of_unassigned(locals);
+    const program_env = extend_environment(locals, unassigneds,
+                                       the_global_environment);
+    return evaluate(program, program_env);
+}
+    </JAVASCRIPT>
+  </SNIPPET>
+  
+  <SNIPPET HIDE="yes">
+    <NAME>evaluate_4_1_7_test_factorial</NAME>
+    <REQUIRES>parse_and_evaluate_4_1_7</REQUIRES>
+    <EXPECTED>120</EXPECTED>
+    <JAVASCRIPT>
+parse_and_evaluate(&quot;               \
+function factorial(n) {            \
+    return n === 1                 \
+           ? 1                     \
+           : n * factorial(n - 1); \
+}                                  \
+factorial(5);                      &quot;);
+    </JAVASCRIPT>
+  </SNIPPET>
+  <SNIPPET HIDE="yes">
+    <NAME>evaluate_4_1_7_test_append</NAME>
+    <REQUIRES>parse_and_evaluate_4_1_7</REQUIRES>
+    <EXPECTED>[ &apos;b&apos;, [ &apos;c&apos;, [ &apos;d&apos;, null ] ] ]</EXPECTED>
+    <JAVASCRIPT>
+parse_and_evaluate(&quot;                                \
+function append(xs, ys) {                           \
+    return is_null(xs)                              \
+           ? ys                                     \
+           : pair(head(xs), append(tail(xs), ys));  \
+}                                                   \
+tail(append(list(&apos;a&apos;, &apos;b&apos;), list(&apos;c&apos;, &apos;d&apos;)));       &quot;);
+    </JAVASCRIPT>
+  </SNIPPET>
+  <SNIPPET HIDE="yes">
+    <NAME>evaluate_4_1_7_test_map</NAME>
+    <REQUIRES>parse_and_evaluate_4_1_7</REQUIRES>
+    <EXPECTED>[ 3, [ 4, [ 5, null ] ] ]</EXPECTED>
+    <JAVASCRIPT>
+parse_and_evaluate(&quot;                              \
+function map(f, xs) {                             \
+    return is_null(xs)                            \
+           ? null                                 \
+           : pair(f(head(xs)), map(f, tail(xs))); \
+}                                                 \
+tail(map(x =&gt; x + 1, list(1, 2, 3, 4)));          &quot;);
+    </JAVASCRIPT>
+  </SNIPPET>
+
+  
+</SUBSECTION>

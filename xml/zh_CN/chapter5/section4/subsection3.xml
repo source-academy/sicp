@@ -1,0 +1,363 @@
+<SUBSECTION>
+  <NAME>
+    <SPLITINLINE>
+      <SCHEME>
+        Conditionals, Assignments and Definitions
+      </SCHEME>
+      <JAVASCRIPT>
+        Blocks, Assignments, and Declarations
+      </JAVASCRIPT>
+    </SPLITINLINE>
+  </NAME><!-- Error occurred while translating this section -->
+
+  <LABEL NAME="sec:block-assign-def-evaluation"></LABEL>
+  
+  <SPLIT>
+    <SCHEME>
+  
+  <LABEL NAME="sec:cond-assign-def-evaluation"></LABEL>
+  <TEXT>
+    As with the metacircular evaluator, special syntactic forms are handled by selectively
+    evaluating fragments of the expression. For an <SCHEMEINLINE>if</SCHEMEINLINE>
+    expression, we must evaluate the predicate and decide, based on the value of
+    predicate, whether to evaluate the consequent or the alternative.
+  </TEXT>
+
+  <TEXT>
+    Before evaluating the predicate, we save the <SCHEMEINLINE>if</SCHEMEINLINE>
+    expression itself so that we can later extract the consequent or alternative. We also
+    save the environment, which we will need later in order to evaluate the consequent or
+    the alternative, and we save <SCHEMEINLINE>continue</SCHEMEINLINE>, which we will need
+    later in order to return to the evaluation of the expression that is waiting for the
+    value of the <SCHEMEINLINE>if</SCHEMEINLINE>.
+    <SNIPPET EVAL="no">
+      <SCHEME>
+ev-if
+(save exp)                    <EM>; save expression for later</EM>
+(save env)
+(save continue)
+(assign continue (label ev-if-decide))
+(assign exp (op if-predicate) (reg exp))
+(goto (label eval-dispatch))  <EM>; evaluate the predicate</EM>
+      </SCHEME>
+    </SNIPPET>
+  </TEXT>
+
+  <TEXT>
+    When we return from evaluating the predicate, we test whether it was true or false
+    and, depending on the result, place either the consequent or the alternative in
+    <SCHEMEINLINE>exp</SCHEMEINLINE> before going to
+    <SCHEMEINLINE>eval-dispatch</SCHEMEINLINE>. Notice that restoring
+    <SCHEMEINLINE>env</SCHEMEINLINE> and <SCHEMEINLINE>continue</SCHEMEINLINE> here sets
+    up <SCHEMEINLINE>eval-dispatch</SCHEMEINLINE> to have the correct environment and to
+    continue at the right place to receive the value of the
+    <SCHEMEINLINE>if</SCHEMEINLINE> expression.
+    <SNIPPET EVAL="no">
+      <SCHEME>
+ev-if-decide
+(restore continue)
+(restore env)
+(restore exp)
+(test (op true?) (reg val))
+(branch (label ev-if-consequent))
+ev-if-alternative
+(assign exp (op if-alternative) (reg exp))
+(goto (label eval-dispatch))
+ev-if-consequent
+(assign exp (op if-consequent) (reg exp))
+(goto (label eval-dispatch))
+      </SCHEME>
+    </SNIPPET>
+  </TEXT>
+    </SCHEME>
+    <JAVASCRIPT>
+      <SUBHEADING> 
+        <NAME>Blocks</NAME>
+      </SUBHEADING>
+
+      <INDEX>explicit-control evaluator for JavaScript<SUBINDEX>blocks</SUBINDEX></INDEX>
+      <INDEX>explicit-control evaluator for JavaScript<SUBINDEX>declarations</SUBINDEX></INDEX>
+
+      <!-- Error occurred while translating this section --><TEXT>
+        The body of a block is evaluated with respect to the current environment
+	extended by a frame that binds all local names to the value
+	<JAVASCRIPTINLINE>&quot;*unassigned*&quot;</JAVASCRIPTINLINE>. We temporarily
+        make use of the <JAVASCRIPTINLINE>val</JAVASCRIPTINLINE> register to
+	hold the list of all variables declared in the block, which is obtained
+	by 
+	<INDEX>scanning out declarations<SUBINDEX>in explicit-control evaluator</SUBINDEX></INDEX>
+	<JAVASCRIPTINLINE>scan_out_declarations</JAVASCRIPTINLINE>
+	from section<SPACE></SPACE><REF NAME="sec:core-of-evaluator"></REF>. The functions
+  <JAVASCRIPTINLINE>scan_@out_@declarations</JAVASCRIPTINLINE> and
+  <JAVASCRIPTINLINE>list_of_unassigned</JAVASCRIPTINLINE> are assumed
+  to be available as machine operations.<FOOTNOTE>
+	Footnote<SPACE></SPACE><REF NAME="foot:syntax-transformer"></REF>
+	suggests that an actual implementation would perform
+	syntax transformations before program execution.
+  In the same vein, names declared in blocks should be scanned out
+  in a preprocessing step rather than each time a block is evaluated.
+	</FOOTNOTE>
+	<SNIPPET EVAL="no" LATEX="yes" POSTPADDING="no">
+	  <INDEX><DECLARATION>ev_block</DECLARATION></INDEX>
+	  <JAVASCRIPT>
+&quot;ev_block&quot;,
+  assign(&quot;comp&quot;, list(op(&quot;block_body&quot;), reg(&quot;comp&quot;))),
+  assign(&quot;val&quot;, list(op(&quot;scan_out_declarations&quot;), reg(&quot;comp&quot;))),
+
+  save(&quot;comp&quot;),    // so we can use it to temporarily hold $\texttt{*unassigned*}$ values
+  assign(&quot;comp&quot;, list(op(&quot;list_of_unassigned&quot;), reg(&quot;val&quot;))),
+  assign(&quot;env&quot;, list(op(&quot;extend_environment&quot;),
+                     reg(&quot;val&quot;), reg(&quot;comp&quot;), reg(&quot;env&quot;))),
+  restore(&quot;comp&quot;), // the block body
+  go_to(label(&quot;eval_dispatch&quot;)),
+	  </JAVASCRIPT>
+	</SNIPPET>
+      </TEXT>
+      <!-- Error occurred while translating this section --><!--    Removed based on email with subject SICP JS: 5.4 Parse from Julie 2021-02-06 
+      <TEXT>
+    According to section<SPACE/><REF NAME="sec:representing-expressions"/>, all lambda
+    expressions and functions have a block as their body. However,
+    <JAVASCRIPTINLINE>compound_apply</JAVASCRIPTINLINE> does not jump to
+    <JAVASCRIPTINLINE>ev_block</JAVASCRIPTINLINE> but to the dispatcher, seemingly an
+    additional hoop. By deferring to the dispatcher rather than using a fixed label, we
+    open up for more flexible parsing, such as forgoing blocks when there are no variable
+    declarations (so no need to scan out declarations), or forgoing sequences where there
+    is only a single statement. If the parser follows the specification in
+    section<SPACE/><REF NAME="sec:representing-expressions"/>,
+    <JAVASCRIPTINLINE>compound_apply</JAVASCRIPTINLINE> will always jump (via the
+    dispatcher) to <JAVASCRIPTINLINE>ev_block</JAVASCRIPTINLINE>, and
+    <JAVASCRIPTINLINE>ev_block</JAVASCRIPTINLINE> will always jump (via the dispatcher) to
+    <JAVASCRIPTINLINE>ev_sequence</JAVASCRIPTINLINE>.
+      </TEXT>
+         -->
+    </JAVASCRIPT>
+  </SPLIT>
+  
+  <SUBHEADING> 
+    <NAME>
+      Assignments and
+      <SPLITINLINE>
+	<SCHEME>definitions</SCHEME>
+	<JAVASCRIPT>declarations</JAVASCRIPT>
+      </SPLITINLINE>
+    </NAME>
+  </SUBHEADING><!-- Error occurred while translating this section -->
+
+  <TEXT>
+    Assignments
+    <INDEX>explicit-control evaluator for JavaScript<SUBINDEX>assignments</SUBINDEX></INDEX>
+    are handled by
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>ev-assignment</SCHEMEINLINE>, which is</SCHEME>
+      <JAVASCRIPT><JAVASCRIPTINLINE>ev_assignment</JAVASCRIPTINLINE>,
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    reached from
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>eval-dispatch</SCHEMEINLINE></SCHEME>
+      <JAVASCRIPT><JAVASCRIPTINLINE>eval_@dispatch</JAVASCRIPTINLINE>
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    with the assignment expression in <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>exp</SCHEMEINLINE>.</SCHEME>
+      <JAVASCRIPT><JAVASCRIPTINLINE>comp</JAVASCRIPTINLINE>.</JAVASCRIPT>
+    </SPLITINLINE> The
+    code at
+    <SPLITINLINE>
+      <SCHEME>
+      <SCHEMEINLINE>ev-assignment</SCHEMEINLINE></SCHEME>
+      <JAVASCRIPT><JAVASCRIPTINLINE>ev_assignment</JAVASCRIPTINLINE>
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    first evaluates the value part of the expression and then installs the new
+    value in the environment.
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>Set-variable-value!</SCHEMEINLINE></SCHEME>
+      <JAVASCRIPT>
+	The function
+	<JAVASCRIPTINLINE>assign_symbol_value</JAVASCRIPTINLINE>
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    is assumed to be available as a machine operation.
+    <!-- Error occurred while translating this section --><SNIPPET EVAL="no">
+      <INDEX><DECLARATION>ev_assignment</DECLARATION></INDEX> 
+      <SCHEME>
+ev-assignment
+(assign unev (op assignment-variable) (reg exp))
+(save unev)                   <EM>; save variable for later</EM>
+(assign exp (op assignment-value) (reg exp))
+(save env)
+(save continue)
+(assign continue (label ev-assignment-1))
+(goto (label eval-dispatch))  <EM>; evaluate the assignment value</EM>
+ev-assignment-1
+(restore continue)
+(restore env)
+(restore unev)
+(perform
+(op set-variable-value!) (reg unev) (reg val) (reg env))
+(assign val (const ok))
+(goto (reg continue))
+      </SCHEME>
+      <JAVASCRIPT>
+&quot;ev_assignment&quot;,
+  assign(&quot;unev&quot;, list(op(&quot;assignment_symbol&quot;), reg(&quot;comp&quot;))),
+  save(&quot;unev&quot;), // save variable for later
+  assign(&quot;comp&quot;, list(op(&quot;assignment_value_expression&quot;), reg(&quot;comp&quot;))),
+  save(&quot;env&quot;),
+  save(&quot;continue&quot;),
+  assign(&quot;continue&quot;, label(&quot;ev_assignment_install&quot;)),
+  go_to(label(&quot;eval_dispatch&quot;)), // evaluate assignment value
+&quot;ev_assignment_install&quot;,
+  restore(&quot;continue&quot;),
+  restore(&quot;env&quot;),
+  restore(&quot;unev&quot;),
+  perform(list(op(&quot;assign_symbol_value&quot;),
+               reg(&quot;unev&quot;), reg(&quot;val&quot;), reg(&quot;env&quot;))),
+  go_to(reg(&quot;continue&quot;)),
+      </JAVASCRIPT>
+    </SNIPPET>
+  </TEXT>
+
+  <TEXT>
+    <SPLIT>
+      <SCHEME>
+        Definitions are handled in a similar way:
+      </SCHEME>
+      <JAVASCRIPT>
+        Declarations
+	<INDEX>explicit-control evaluator for JavaScript<SUBINDEX>declarations</SUBINDEX></INDEX>
+	of variables and constants are handled in a similar way.
+        Note that whereas the value of an assignment is the value that was assigned,
+        the value of a declaration is
+        <JAVASCRIPTINLINE>undefined</JAVASCRIPTINLINE>. This is handled by
+        setting <JAVASCRIPTINLINE>val</JAVASCRIPTINLINE> to
+        <JAVASCRIPTINLINE>undefined</JAVASCRIPTINLINE> before continuing. 
+        As in the metacircular evaluator, we transform a function declaration
+        into a constant declaration whose value expression is a lambda expression. This happens at
+        <JAVASCRIPTINLINE>ev_function_declaration</JAVASCRIPTINLINE>, which makes the
+        transformation in place in <JAVASCRIPTINLINE>comp</JAVASCRIPTINLINE> and
+        falls through to <JAVASCRIPTINLINE>ev_declaration</JAVASCRIPTINLINE>.
+      </JAVASCRIPT>
+    </SPLIT>
+    <!-- Error occurred while translating this section --><SNIPPET EVAL="no" POSTPADDING="no">
+      <INDEX><DECLARATION>ev_function_declaration</DECLARATION></INDEX> 
+      <INDEX><DECLARATION>ev_declaration</DECLARATION></INDEX> 
+      <SCHEME>
+ev-definition
+(assign unev (op definition-variable) (reg exp))
+(save unev)                   <EM>; save variable for later</EM>
+(assign exp (op definition-value) (reg exp))
+(save env)
+(save continue)
+(assign continue (label ev-definition-1))
+(goto (label eval-dispatch))  <EM>; evaluate the definition value</EM>
+ev-definition-1
+(restore continue)
+(restore env)
+(restore unev)
+(perform
+(op define-variable!) (reg unev) (reg val) (reg env))
+(assign val (const ok))
+(goto (reg continue))
+      </SCHEME>
+      <JAVASCRIPT>
+&quot;ev_function_declaration&quot;,
+  assign(&quot;comp&quot;, 
+         list(op(&quot;function_decl_to_constant_decl&quot;), reg(&quot;comp&quot;))),
+&quot;ev_declaration&quot;,
+  assign(&quot;unev&quot;, list(op(&quot;declaration_symbol&quot;), reg(&quot;comp&quot;))),
+  save(&quot;unev&quot;), // save declared name
+  assign(&quot;comp&quot;,
+         list(op(&quot;declaration_value_expression&quot;), reg(&quot;comp&quot;))),
+  save(&quot;env&quot;),
+  save(&quot;continue&quot;),
+  assign(&quot;continue&quot;, label(&quot;ev_declaration_assign&quot;)),
+  go_to(label(&quot;eval_dispatch&quot;)), // evaluate declaration value
+&quot;ev_declaration_assign&quot;,
+  restore(&quot;continue&quot;),
+  restore(&quot;env&quot;),
+  restore(&quot;unev&quot;),
+  perform(list(op(&quot;assign_symbol_value&quot;),
+               reg(&quot;unev&quot;), reg(&quot;val&quot;), reg(&quot;env&quot;))),
+  assign(&quot;val&quot;, constant(undefined)),
+  go_to(reg(&quot;continue&quot;)),
+      </JAVASCRIPT>
+    </SNIPPET>
+  </TEXT>
+  
+  <EXERCISE>
+    <LABEL NAME="ex:derived-expressions"></LABEL>
+    <SPLIT>
+      <SCHEME>
+	<INDEX>derived component<SUBINDEX>adding to explicit-control evaluator</SUBINDEX></INDEX>
+	<INDEX>explicit-control evaluator for Scheme<SUBINDEX>derived expressions</SUBINDEX></INDEX>
+	<INDEX>explicit-control evaluator for Scheme<SUBINDEX>special forms (additional)</SUBINDEX></INDEX>
+	Extend the evaluator to handle derived expressions such as
+	<SCHEMEINLINE>cond</SCHEMEINLINE>,
+	<SCHEMEINLINE>let</SCHEMEINLINE>, and so on
+	(section<SPACE></SPACE><REF NAME="sec:representing-expressions"></REF>).
+	You may <QUOTE>cheat</QUOTE> and assume that the syntax
+	transformers such as <SCHEMEINLINE>cond-&gt;if</SCHEMEINLINE> are available
+	as machine operations.<FOOTNOTE>This isn<APOS></APOS>t really cheating.  In an
+	actual implementation built from scratch, we would use our explicit-control
+	evaluator to interpret a Scheme program that performs source-level
+	transformations
+	<SPLITINLINE>
+	  <SCHEME><SCHEMEINLINE>like cond-&gt;if</SCHEMEINLINE></SCHEME>
+	  <JAVASCRIPT><JAVASCRIPTINLINE></JAVASCRIPTINLINE></JAVASCRIPT>
+	  </SPLITINLINE> in a syntax phase that runs before execution.</FOOTNOTE>
+      </SCHEME>
+      <JAVASCRIPT>
+	Extend the evaluator to handle
+	<INDEX>derived component<SUBINDEX>adding to explicit-control evaluator</SUBINDEX></INDEX>
+	<INDEX>explicit-control evaluator for JavaScript<SUBINDEX>derived components</SUBINDEX></INDEX>
+	<INDEX>explicit-control evaluator for JavaScript<SUBINDEX>syntactic forms (additional)</SUBINDEX></INDEX>
+	while loops, by translating them to applications of a function
+	<JAVASCRIPTINLINE>while_loop</JAVASCRIPTINLINE>, as shown in
+	exercise<SPACE></SPACE><REF NAME="ex:while_loop"></REF>.
+	You can paste the declaration of the function
+	<JAVASCRIPTINLINE>while_loop</JAVASCRIPTINLINE> in front of user programs.
+	You may <QUOTE>cheat</QUOTE> by assuming that the syntax transformer
+	<JAVASCRIPTINLINE>while_to_application</JAVASCRIPTINLINE> is available
+	as a machine operation.<!--   <FOOTNOTE>This isn<APOS/>t really cheating.  In an
+	actual implementation built from scratch, we would use our explicit-control
+	evaluator to interpret a JavaScript program that performs source-level
+	transformations like
+	<JAVASCRIPTINLINE>while_to_application</JAVASCRIPTINLINE>
+	in a syntax phase that runs before execution.</FOOTNOTE>   --> Refer to
+	exercise<SPACE></SPACE><REF NAME="ex:while_loop"></REF> to discuss whether
+	this approach works if return, break, and continue statements are allowed
+	inside the while loop. If not,
+	how can you modify the explicit-control evaluator to run programs 
+	with while loops that include these statements?
+      </JAVASCRIPT>
+    <!-- Error occurred while translating this section --></SPLIT>
+  </EXERCISE>
+
+  <SPLIT>
+    <SCHEME>
+      <EXERCISE>
+	Implement <SCHEMEINLINE>cond</SCHEMEINLINE> as a new basic
+        <INDEX>explicit-control evaluator for Scheme<SUBINDEX>syntactic forms (additional)</SUBINDEX></INDEX>
+	special form
+	without reducing it to <SCHEMEINLINE>if</SCHEMEINLINE>. You will have to
+	construct a loop that tests the predicates of successive
+	<SCHEMEINLINE>cond</SCHEMEINLINE> clauses until you find one that is
+	true, and then use <SCHEMEINLINE>ev-sequence</SCHEMEINLINE> to evaluate
+	the actions of the clause.
+        <LABEL NAME="ex:eceval-cond"></LABEL>
+      </EXERCISE>
+    </SCHEME>
+  </SPLIT><!-- Error occurred while translating this section -->
+
+  <EXERCISE>
+    Modify the evaluator so that it uses
+    <INDEX>explicit-control evaluator for JavaScript<SUBINDEX>normal-order evaluation</SUBINDEX></INDEX>
+    <INDEX>normal-order evaluation<SUBINDEX><ORDER>explicit</ORDER>in explicit-control evaluator</SUBINDEX></INDEX>
+    normal-order evaluation,
+    based on the lazy evaluator of
+    section<SPACE></SPACE><REF NAME="sec:lazy-evaluation"></REF>.
+    <LABEL NAME="ex:5_26"></LABEL>
+  </EXERCISE><!-- Error occurred while translating this section -->
+</SUBSECTION>
