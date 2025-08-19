@@ -14,35 +14,35 @@ const readFile = util.promisify(fs.readFile);
 import {
   switchParseFunctionsLatex,
   recursiveProcessTextLatex
-} from "./parseXmlLatex";
-import { setupSnippetsPdf } from "./processingFunctions/processSnippetPdf";
-import { preamble, frontmatter, ending } from "./latexContent";
+} from "./parseXmlLatex.js";
+import { setupSnippetsPdf } from "./processingFunctions/processSnippetPdf.js";
+import { preamble, frontmatter, ending } from "./latexContent.js";
 const latexmkrcContent = `$pdflatex = "xelatex %O %S";
 $pdf_mode = 1;
 $dvi_mode = 0;
 $postscript_mode = 0;`;
 
 // html (comparison version)
-import { switchTitle } from "./htmlContent";
-import { switchParseFunctionsHtml, parseXmlHtml } from "./parseXmlHtml";
-import { setupSnippetsHtml } from "./processingFunctions/processSnippetHtml";
-import { setupReferences } from "./processingFunctions/processReferenceHtml";
-import { generateTOC, sortTOC, indexHtml } from "./generateTocHtml";
+import { switchTitle } from "./htmlContent.js";
+import { switchParseFunctionsHtml, parseXmlHtml } from "./parseXmlHtml.js";
+import { setupSnippetsHtml } from "./processingFunctions/processSnippetHtml.js";
+import { setupReferences } from "./processingFunctions/processReferenceHtml.js";
+import { generateTOC, sortTOC, indexHtml } from "./generateTocHtml.js";
 export let allFilepath = [];
 export let tableOfContent = {};
 
 // js (javascript programs)
-import { parseXmlJs } from "./parseXmlJs";
-import { setupSnippetsJs } from "./processingFunctions/processSnippetJs";
-import { getAnswers } from "./processingFunctions/processExercisePdf";
+import { parseXmlJs } from "./parseXmlJs.js";
+import { setupSnippetsJs } from "./processingFunctions/processSnippetJs.js";
+import { getAnswers } from "./processingFunctions/processExercisePdf.js";
 
 // json (for cadet frontend)
-import { testIndexSearch } from "./searchRewriteTest";
-import { parseXmlJson } from "./parseXmlJson";
-import { writeRewritedSearchData } from "./searchRewrite";
-import { setupSnippetsJson } from "./processingFunctions/processSnippetJson";
-import { createTocJson } from "./generateTocJson";
-import { setupReferencesJson } from "./processingFunctions/processReferenceJson";
+import { testIndexSearch } from "./searchRewriteTest.js";
+import { parseXmlJson } from "./parseXmlJson.js";
+import { writeRewritedSearchData } from "./searchRewrite.js";
+import { setupSnippetsJson } from "./processingFunctions/processSnippetJson.js";
+import { createTocJson } from "./generateTocJson.js";
+import { setupReferencesJson } from "./processingFunctions/processReferenceJson.js";
 
 export let parseType;
 let version;
