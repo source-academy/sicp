@@ -8,7 +8,6 @@ import { DOMParser as dom } from "xmldom";
 const readdir = util.promisify(fs.readdir);
 const open = util.promisify(fs.open);
 const readFile = util.promisify(fs.readFile);
-const errors = [];
 
 // latex (pdf version)
 import {
@@ -158,35 +157,31 @@ async function translateXml(filepath, filename, option) {
   }
 
   if (parseType == "json") {
-    try {
-      const relativeFilePath = path.join(
-        filepath,
-        filename.replace(/\.xml$/, "") + ".html"
+    const relativeFilePath = path.join(
+      filepath,
+      filename.replace(/\.xml$/, "") + ".html"
+    );
+
+    if (option == "generateTOC") {
+      generateTOC(doc, tableOfContent, relativeFilePath);
+      return;
+    } else if (option == "setupSnippet") {
+      setupSnippetsJson(doc.documentElement);
+      setupReferencesJson(doc.documentElement, relativeFilePath);
+      return;
+    } else if (option == "parseXml") {
+      const jsonObj = [];
+      parseXmlJson(doc, jsonObj, relativeFilePath);
+
+      const outputFile = path.join(
+        outputDir,
+        tableOfContent[relativeFilePath].index + ".json"
       );
-
-      if (option == "generateTOC") {
-        generateTOC(doc, tableOfContent, relativeFilePath);
-        return;
-      } else if (option == "setupSnippet") {
-        setupSnippetsJson(doc.documentElement);
-        setupReferencesJson(doc.documentElement, relativeFilePath);
-        return;
-      } else if (option == "parseXml") {
-        const jsonObj = [];
-        parseXmlJson(doc, jsonObj, relativeFilePath);
-
-        const outputFile = path.join(
-          outputDir,
-          tableOfContent[relativeFilePath].index + ".json"
-        );
-        const stream = fs.createWriteStream(outputFile);
-        stream.once("open", fd => {
-          stream.write(JSON.stringify(jsonObj));
-          stream.end();
-        });
-      }
-    } catch (error) {
-      errors.push(path.join(filepath, filename) + " " + error);
+      const stream = fs.createWriteStream(outputFile);
+      stream.once("open", fd => {
+        stream.write(JSON.stringify(jsonObj));
+        stream.end();
+      });
     }
     return;
   }
