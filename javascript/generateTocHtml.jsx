@@ -6,6 +6,7 @@ import {
   html_licences,
   indexPage
 } from "./htmlContent";
+import LinksHead from "./html/LinksHead";
 
 const generateChapterIndex = filename => {
   let chapterIndex = "";
@@ -250,12 +251,14 @@ export const indexHtml = writeToIndex => {
 
   //console.log(tableOfContent);
   writeToIndex.push(html_links_part1);
-  writeToIndex.push(`
-    <meta name="description" content="" />
-        <title>
+  writeToIndex.push(
+    <LinksHead toIndexFolder="" version="js">
+      <meta name="description" content="" />
+      <title>
         Structure and Interpretation of Computer Programs, Comparison Edition
-        </title>
-    `);
+      </title>
+    </LinksHead>
+  );
   html_links_part2(writeToIndex, "", "js");
 
   // TOC at the sidebar

@@ -18,6 +18,7 @@ import {
   processSnippetHtmlScheme,
   recursiveProcessPureText
 } from "./processingFunctions";
+import LinksHead from "./html/LinksHead.js";
 
 let paragraph_count = 0;
 let heading_count = 0;
@@ -106,7 +107,7 @@ let processTextFunctionsHtml = {
     writeTo.push(`
       <div class='chapter-title'>
         <div class='permalink'>
-        <a name='top' class='permalink'> 
+        <a name='top' class='permalink'>
     `);
     writeTo.push(displayTitle);
     writeTo.push(`
@@ -159,7 +160,7 @@ let processTextFunctionsHtml = {
     writeTo.push(`
       <div class='chapter-title'>
         <div class='permalink'>
-        <a name='top' class='permalink'> 
+        <a name='top' class='permalink'>
     `);
     writeTo.push(displayTitle);
     writeTo.push(`
@@ -337,7 +338,7 @@ let processTextFunctionsHtml = {
     writeTo.push(`
       <div class='chapter-title'>
         <div class='permalink'>
-        <a name='top' class='permalink'> 
+        <a name='top' class='permalink'>
     `);
     if (ancestorHasTag(node, "MATTER")) {
       recursiveProcessTextHtml(
@@ -473,7 +474,7 @@ let processTextFunctionsHtml = {
     writeTo.push(`
       <div class='chapter-title'>
         <div class='permalink'>
-        <a name='top' class='permalink'> 
+        <a name='top' class='permalink'>
     `);
     writeTo.push(displayTitle);
     writeTo.push(`
@@ -651,7 +652,7 @@ const processTextFunctionsSplit = {
       writeTo.push(`</span>`);
     }
     writeTo.push(`</div>
-    
+
     `);
   },
 
@@ -833,12 +834,12 @@ export const recursiveProcessTextHtml = (node, writeTo) => {
 
 const beforeContent = writeTo => {
   writeTo.push(html_links_part1);
-  writeTo.push(`
-  <meta name="description" content="${pageTitle}" />
-    <title>
-      ${pageTitle}
-    </title>
-    `);
+  writeTo.push(
+    <LinksHead toIndexFolder={toIndexFolder} version="js">
+      <meta name="description" content={pageTitle} />
+      <title>{pageTitle}</title>
+    </LinksHead>
+  );
   html_links_part2(writeTo, toIndexFolder, "js");
   recursiveProcessTOC(0, writeTo, "sidebar", "./");
   writeTo.push("</div>\n");
