@@ -1,0 +1,1542 @@
+<SUBSECTION>
+  <NAME>
+    Example: Symbolic Differentiation
+  </NAME>
+
+  <LABEL NAME="sec:symbolic-differentiation"></LABEL>
+  <INDEX>differentiation<SUBINDEX>symbolic</SUBINDEX><OPEN></OPEN></INDEX>
+  <INDEX>symbolic differentiation<OPEN></OPEN></INDEX>
+  <INDEX>algebraic expression<SUBINDEX>differentiating</SUBINDEX><OPEN></OPEN></INDEX>
+
+  <TEXT>
+    As an illustration of symbol manipulation and a further illustration
+    of data abstraction, consider the design of a
+    <SPLITINLINE>
+      procedure
+      <JAVASCRIPT>function</JAVASCRIPT>
+    </SPLITINLINE>
+    that performs symbolic differentiation of algebraic expressions.  We would
+    like the
+    <SPLITINLINE>
+      procedure
+      <JAVASCRIPT>function</JAVASCRIPT>
+    </SPLITINLINE>
+    to take as arguments an algebraic expression and a variable and to return
+    the derivative of the expression with respect to the variable. For example,
+    if the arguments to the
+    <SPLITINLINE>
+      procedure
+      <JAVASCRIPT>function</JAVASCRIPT>
+    </SPLITINLINE>
+    are <LATEXINLINE>$ax^2 + bx +c$</LATEXINLINE> 
+    and<SPACE></SPACE><LATEXINLINE>$x$</LATEXINLINE>, the
+    <SPLITINLINE>
+      procedure
+      <JAVASCRIPT>function</JAVASCRIPT>
+    </SPLITINLINE>
+    should return <LATEXINLINE>$2ax+b$</LATEXINLINE>.  Symbolic differentiation
+    is of special historical significance in
+    <SPLITINLINE>
+      
+	Lisp.
+      
+      <JAVASCRIPT>
+	the programming language Lisp.<FOOTNOTE>The original version of this
+	book used the programming language Scheme, a dialect of Lisp.</FOOTNOTE>
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    It was one of the
+    motivating examples behind the development of a computer language for
+    symbol manipulation.  Furthermore, it marked the beginning of the line of
+    research that led to the development of powerful systems for symbolic
+    mathematical work, which are
+    <SPLITINLINE>
+      
+    currently being used by a growing number of
+    applied mathematicians and physicists.
+      
+      <JAVASCRIPT>
+	today routinely used by applied mathematicians and physicists.
+      </JAVASCRIPT>
+    </SPLITINLINE>
+  </TEXT>
+  <TEXT>
+    In developing the symbolic-differentiation program, we will follow the same
+    strategy of data abstraction that we followed in developing the
+    rational-number system of section<SPACE></SPACE><REF NAME="sec:rationals"></REF>.  That
+    is, we will first define a differentiation algorithm that operates on
+    abstract objects such as <QUOTE>sums,</QUOTE> <QUOTE>products,</QUOTE> and
+    <QUOTE>variables</QUOTE> without worrying about how these are to be
+    represented.  Only afterward will we address the representation problem.
+  </TEXT>
+
+  <SUBHEADING>
+    <NAME>The differentiation program with abstract data</NAME>
+  </SUBHEADING>
+
+  <TEXT>
+    <SPLITINLINE>
+      
+	In order to
+      
+      <JAVASCRIPT>
+	To
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    keep things simple, we will consider a very simple
+    symbolic-differentiation program that handles expressions that are built up
+    using only the operations of addition and multiplication with two
+    arguments.  Differentiation of any such expression can be carried out by
+    applying the following
+    <INDEX>differentiation<SUBINDEX>rules for</SUBINDEX></INDEX>
+    reduction rules:
+    <LATEX>
+      \[
+      \begin{array}{rll}
+      \dfrac{dc}{dx}     &amp; = &amp; 
+                         0\quad \text{for $c$ a constant or a variable different from $x$} \\[12pt]
+      \dfrac{dx}{dx}     &amp; = &amp;  1  \\[12pt]
+      \dfrac{d(u+v)}{dx} &amp; = &amp; \dfrac{du}{dx}+\dfrac{dv}{dx} \\[12pt]
+      \dfrac{d(uv)}{dx}  &amp; = &amp;  u\left( \dfrac{dv}{dx}\right)+v\left(
+      \dfrac{du}{dx}\right)
+      \end{array}
+      \]
+    </LATEX>
+  </TEXT>
+  <TEXT>
+  Observe that the latter two rules are recursive in nature.  That is, to
+    obtain the derivative of a sum we first find the derivatives of the terms
+    and add them.  Each of the terms may in turn be an expression that needs to
+    be decomposed.  Decomposing into smaller and smaller pieces will eventually
+    produce pieces that are either constants or variables, whose derivatives
+    will be either <LATEXINLINE>$0$</LATEXINLINE> or
+    <LATEXINLINE>$1$</LATEXINLINE>.
+  </TEXT>
+  <TEXT>
+    To embody these rules in a
+    <SPLITINLINE>
+      procedure
+      <JAVASCRIPT>function</JAVASCRIPT>
+    </SPLITINLINE>
+    we indulge in a little
+    <INDEX>wishful thinking</INDEX>
+    wishful thinking, as we did in designing the rational-number implementation.
+    If we had a means for representing algebraic expressions, we should be able
+    to tell whether an expression is a sum, a product, a constant, or a
+    variable.  We should be able to extract the parts of an expression. For a
+    sum, for example, we want to be able to extract the addend (first term) and
+    the augend (second term).  We should also be able to construct expressions
+    from parts.  Let us assume that we already have
+    <SPLITINLINE>
+      procedures
+      <JAVASCRIPT>functions</JAVASCRIPT>
+    </SPLITINLINE>
+    to implement the following selectors, constructors, and predicates:
+    <TABLE>
+      <TR>
+        <TD>
+          <SPLITINLINE>
+	    (variable? e)
+	    <JAVASCRIPT><JAVASCRIPTINLINE>is_variable(e)</JAVASCRIPTINLINE>
+	    </JAVASCRIPT>
+	  </SPLITINLINE>
+        </TD>
+        <TD>
+          Is e a variable?
+        </TD>
+      </TR>
+      <TR>
+        <TD>
+          <SPLITINLINE>
+	    (same-variable? v1 v2)
+	    <JAVASCRIPT>
+	      <JAVASCRIPTINLINE>is_same_variable(v1, v2)</JAVASCRIPTINLINE>
+	    </JAVASCRIPT>
+	  </SPLITINLINE>
+        </TD>
+        <TD>
+          Are v1 and
+	  v2 the same variable?
+        </TD>
+      </TR>
+      <TR DOUBLESPACE="yes">
+        <TD>
+          <SPLITINLINE>
+	    (sum? e)
+	    <JAVASCRIPT><JAVASCRIPTINLINE>is_sum(e)</JAVASCRIPTINLINE>
+	    </JAVASCRIPT>
+	  </SPLITINLINE>
+        </TD>
+        <TD>
+          Is e a sum?
+        </TD>
+      </TR>
+      <TR>
+        <TD>
+          <SPLITINLINE>
+	    (addend e)
+	    <JAVASCRIPT><JAVASCRIPTINLINE>addend(e)</JAVASCRIPTINLINE>
+	    </JAVASCRIPT>
+	  </SPLITINLINE>
+        </TD>
+        <TD>
+          Addend of the sum e.
+        </TD>
+      </TR>
+      <TR>
+        <TD>
+          <SPLITINLINE>
+	    (augend e)
+	    <JAVASCRIPT><JAVASCRIPTINLINE>augend(e)</JAVASCRIPTINLINE>
+	    </JAVASCRIPT>
+	  </SPLITINLINE>
+        </TD>
+        <TD>
+          Augend of the sum e.
+        </TD>
+      </TR>
+      <TR>
+        <TD>
+          <SPLITINLINE>
+	    (make-sum a1 a2)
+	    <JAVASCRIPT><JAVASCRIPTINLINE>make_sum(a1, a2)</JAVASCRIPTINLINE>
+	    </JAVASCRIPT>
+	  </SPLITINLINE>
+        </TD>
+        <TD>
+          Construct the sum of a1 and
+	  a2.
+        </TD>
+      </TR>
+      <TR DOUBLESPACE="yes">
+        <TD>
+          <SPLITINLINE>
+	    (product? e)
+	    <JAVASCRIPT><JAVASCRIPTINLINE>is_product(e)</JAVASCRIPTINLINE>
+	    </JAVASCRIPT>
+	  </SPLITINLINE>
+        </TD>
+        <TD>
+          Is e a product?
+        </TD>
+      </TR>
+      <TR>
+        <TD>
+          <SPLITINLINE>
+	    (multiplier e)
+	    <JAVASCRIPT><JAVASCRIPTINLINE>multiplier(e)</JAVASCRIPTINLINE>
+	    </JAVASCRIPT>
+	  </SPLITINLINE>
+        </TD>
+        <TD>
+          Multiplier of the product e.
+        </TD>
+      </TR>
+      <TR>
+        <TD>
+          <SPLITINLINE>
+	    (multiplicand e)
+	    <JAVASCRIPT><JAVASCRIPTINLINE>multiplicand(e)</JAVASCRIPTINLINE>
+	    </JAVASCRIPT>
+	  </SPLITINLINE>
+        </TD>
+        <TD>
+          Multiplicand of the product e.
+        </TD>
+      </TR>
+      <TR>
+        <TD>
+          <SPLITINLINE>
+	    (make-product m1 m2)
+	    <JAVASCRIPT>
+	      <JAVASCRIPTINLINE>make_product(m1, m2)</JAVASCRIPTINLINE>
+	    </JAVASCRIPT>
+	  </SPLITINLINE>
+        </TD>
+        <TD>
+          Construct the product of m1 and
+	  m2.
+        </TD>
+      </TR>
+    </TABLE>
+    Using these, and the primitive predicate
+    <INDEX><USE>is_number</USE> (primitive function)</INDEX>
+    <INDEX><PRIMITIVE></PRIMITIVE><SUBINDEX><USE>is_number</USE> (\textit{ns})</SUBINDEX></INDEX>
+    <SPLITINLINE>
+      number?,
+      <JAVASCRIPT><JAVASCRIPTINLINE>is_number</JAVASCRIPTINLINE>,</JAVASCRIPT>
+    </SPLITINLINE>
+    which identifies numbers, we can express the differentiation rules as the
+    following
+    <SPLITINLINE>
+      procedure:
+      <JAVASCRIPT>function:</JAVASCRIPT>
+    </SPLITINLINE>
+    <SNIPPET>
+      <INDEX><DECLARATION>deriv</DECLARATION> (symbolic)</INDEX>
+      <NAME>deriv</NAME>
+      <REQUIRES>is_variable</REQUIRES>
+      <REQUIRES>is_same_variable</REQUIRES>
+      <REQUIRES>is_sum</REQUIRES>
+      <REQUIRES>make_sum</REQUIRES>
+      <REQUIRES>addend</REQUIRES>
+      <REQUIRES>augend</REQUIRES>
+      <REQUIRES>is_product</REQUIRES>
+      <REQUIRES>multiplier</REQUIRES>
+      <REQUIRES>multiplicand</REQUIRES>
+      <EXAMPLE>xyx3</EXAMPLE>
+      <EXPECTED>[ &apos;*&apos;, [ &apos;x&apos;, [ &apos;y&apos;, null ] ] ]</EXPECTED>
+      
+(define (deriv exp var)
+  (cond ((number? exp) 0)
+        ((variable? exp)
+          (if (same-variable? exp var) 1 0))
+        ((sum? exp)
+          (make-sum (deriv (addend exp) var)
+                    (deriv (augend exp) var)))
+        ((product? exp)
+          (make-sum
+            (make-product (multiplier exp)
+                          (deriv (multiplicand exp) var))
+            (make-product (deriv (multiplier exp) var)
+                          (multiplicand exp))))
+        (else
+          (error &quot;unknown expression type -- DERIV&quot; exp))))
+      
+      <JAVASCRIPT>
+function deriv(exp, variable) {
+    return is_number(exp)
+           ? 0
+           : is_variable(exp)
+           ? is_same_variable(exp, variable) ? 1 : 0
+           : is_sum(exp)
+           ? make_sum(deriv(addend(exp), variable),
+                      deriv(augend(exp), variable))
+           : is_product(exp)
+           ? make_sum(make_product(multiplier(exp),
+                                   deriv(multiplicand(exp),
+                                         variable)),
+                      make_product(deriv(multiplier(exp),
+                                         variable),
+                                   multiplicand(exp)))
+           : error(exp, &quot;unknown expression type -- deriv&quot;);
+}
+      </JAVASCRIPT>
+    </SNIPPET>
+    This deriv
+    <SPLITINLINE>
+      procedure
+      <JAVASCRIPT>function</JAVASCRIPT>
+    </SPLITINLINE>
+    incorporates the complete differentiation algorithm. Since it is expressed
+    in terms of abstract data, it will work no matter how we choose to
+    represent algebraic expressions, as long as we design a proper set of
+    selectors and constructors.  This is the issue we must address next.
+  </TEXT>
+
+  <SUBHEADING>
+    <NAME>Representing algebraic expressions</NAME>
+  </SUBHEADING>
+
+  <INDEX>algebraic expression<SUBINDEX>representing<OPEN></OPEN></SUBINDEX></INDEX>
+  <TEXT>
+    We can imagine many ways to use list structure to represent algebraic
+    expressions.  For example, we could use lists of symbols that mirror the
+    usual algebraic notation, representing <LATEXINLINE>$ax+b$</LATEXINLINE> as
+    <SPLITINLINE>
+      the list (a * x + b).
+      <JAVASCRIPT>
+	<JAVASCRIPTINLINE>list(&quot;a&quot;, &quot;*&quot;, &quot;x&quot;, &quot;+&quot;, &quot;b&quot;)</JAVASCRIPTINLINE>.
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    <SPLITINLINE>
+      
+	However, one especially straightforward choice is to use the same
+	parenthesized prefix notation that Lisp uses for combinations; that
+	is, to represent <LATEXINLINE>$ax+b$</LATEXINLINE> as
+	(+ (* a x) b). Then our 
+      
+      <JAVASCRIPT>
+        However, it will be more convenient if we reflect the mathematical
+	structure of the expression in the JavaScript value representing it;
+	that is, to represent <LATEXINLINE>$ax+b$</LATEXINLINE> as
+	<JAVASCRIPTINLINE>list(&quot;+&quot;, list(&quot;*&quot;, &quot;a&quot;, &quot;x&quot;), &quot;b&quot;)</JAVASCRIPTINLINE>.
+	Placing a binary operator in front of its operands is called
+	<INDEX>prefix notation</INDEX>	
+	<EM>prefix notation</EM>,
+	in contrast with the infix notation introduced in
+	section<SPACE></SPACE><REF NAME="sec:expressions"></REF>. With prefix notation, our
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    data representation for the differentiation problem is as follows:
+    <UL>
+      <LI>
+	The variables are
+	<SPLITINLINE>
+	  symbols.
+	  <JAVASCRIPT>just strings.</JAVASCRIPT>
+	</SPLITINLINE>
+	They are identified by the primitive predicate
+	<INDEX><USE>is_string</USE> (primitive function)</INDEX>
+	<INDEX><PRIMITIVE></PRIMITIVE><SUBINDEX><USE>is_string</USE> (\textit{ns})</SUBINDEX></INDEX>
+	<SPLITINLINE>
+	  symbol?:
+	  <JAVASCRIPT><JAVASCRIPTINLINE>is_string</JAVASCRIPTINLINE>:
+	  </JAVASCRIPT>
+	</SPLITINLINE>
+	<SNIPPET HIDE="yes">
+          <NAME>is_variable_example</NAME>
+          
+(variable? &apos;xyz)
+          
+          <JAVASCRIPT>
+is_variable(&quot;xyz&quot;);
+          </JAVASCRIPT>
+        </SNIPPET>
+        <SNIPPET>
+          <INDEX><DECLARATION>is_variable</DECLARATION><SUBINDEX>for algebraic expressions</SUBINDEX></INDEX> 
+          <NAME>is_variable</NAME>
+          <EXAMPLE>is_variable_example</EXAMPLE>
+	  <EXPECTED>true</EXPECTED>
+          
+(define (variable? x) (symbol? x))
+          
+          <JAVASCRIPT>
+function is_variable(x) { return is_string(x); }
+          </JAVASCRIPT>
+        </SNIPPET>
+      </LI>
+      <LI>
+	Two variables are the same if the
+	<SPLITINLINE>
+          symbols representing them are
+	  eq?:
+          
+          <JAVASCRIPT>strings representing them are equal:
+          </JAVASCRIPT>
+	</SPLITINLINE>
+	<SNIPPET HIDE="yes">
+          <NAME>is_same_variable_example</NAME>
+          
+(same-variable? &apos;xyz &apos;xyz)
+          
+          <JAVASCRIPT>
+is_same_variable(&quot;xyz&quot;, &quot;xyz&quot;);
+          </JAVASCRIPT>
+	</SNIPPET>
+	<SNIPPET>
+          <INDEX><DECLARATION>is_same_variable</DECLARATION></INDEX> 
+          <NAME>is_same_variable</NAME>
+	  <EXPECTED>true</EXPECTED>
+          <REQUIRES>is_variable</REQUIRES>
+          <EXAMPLE>is_same_variable_example</EXAMPLE>
+          
+(define (same-variable? v1 v2)
+  (and (variable? v1) (variable? v2) (eq? v1 v2)))
+          
+          <JAVASCRIPT>
+function is_same_variable(v1, v2) {
+    return is_variable(v1) &amp;&amp; is_variable(v2) &amp;&amp; v1 === v2;
+}
+          </JAVASCRIPT>
+	</SNIPPET>
+      </LI>
+      <LI>
+	Sums and products are constructed as lists:
+	<SNIPPET HIDE="yes">
+          <NAME>make_sum_example</NAME>
+          <REQUIRES>make_sum</REQUIRES>
+          
+(make-sum (make-product &apos;x 3) (make-product &apos;y &apos;z))
+          
+          <JAVASCRIPT>
+make_sum(make_product(&quot;x&quot;, 3), make_product(&quot;y&quot;, &quot;z&quot;));
+          </JAVASCRIPT>
+          <JAVASCRIPT_TEST>
+head(tail(make_sum(make_product(&quot;x&quot;, 3), make_product(&quot;y&quot;, &quot;z&quot;))));
+          </JAVASCRIPT_TEST>
+	</SNIPPET>
+	<SNIPPET>
+          <INDEX><DECLARATION>make_sum</DECLARATION></INDEX> 
+          <INDEX><DECLARATION>make_product</DECLARATION></INDEX> 
+          <NAME>make_sum</NAME>
+          <EXAMPLE>make_sum_example</EXAMPLE>
+	  <EXPECTED>[ &apos;*&apos;, [ &apos;x&apos;, [ 3, null ] ] ]</EXPECTED>
+          
+(define (make-sum a1 a2) (list &apos;+ a1 a2))
+(define (make-product m1 m2) (list &apos;* m1 m2))
+          
+          <JAVASCRIPT>
+function make_sum(a1, a2) { return list(&quot;+&quot;, a1, a2); }
+<SHORT_SPACE></SHORT_SPACE>
+function make_product(m1, m2) { return list(&quot;*&quot;, m1, m2); }
+          </JAVASCRIPT>
+	</SNIPPET>
+      </LI>
+      <LI>
+	A sum is a list whose first element is the
+        <SPLITINLINE>
+          symbol +:
+          <JAVASCRIPT>string <JAVASCRIPTINLINE>&quot;+&quot;</JAVASCRIPTINLINE>:
+	  </JAVASCRIPT>
+        </SPLITINLINE>
+        <SNIPPET HIDE="yes">
+          <NAME>is_sum_example</NAME>
+          <REQUIRES>make_sum</REQUIRES>
+          
+(sum? (make-sum &apos;x 3))
+          
+          <JAVASCRIPT>
+is_sum(make_sum(&quot;x&quot;, 3));
+          </JAVASCRIPT>
+        </SNIPPET>
+        <SNIPPET>
+          <INDEX><DECLARATION>is_sum</DECLARATION></INDEX> 
+          <NAME>is_sum</NAME>
+          <EXAMPLE>is_sum_example</EXAMPLE>
+	  <EXPECTED>true</EXPECTED>
+          
+(define (sum? x)
+  (and (pair? x) (eq? (car x) &apos;+)))
+          
+          <JAVASCRIPT>
+function is_sum(x) {
+    return is_pair(x) &amp;&amp; head(x) === &quot;+&quot;;
+}
+          </JAVASCRIPT>
+        </SNIPPET>
+      </LI>
+      <LI>
+	The addend is the second item of the sum list:
+        <SNIPPET HIDE="yes">
+          <NAME>addend_example</NAME>
+          <REQUIRES>make_sum</REQUIRES>
+          
+(addend (make-sum &apos;x 3))
+          
+          <JAVASCRIPT>
+addend(make_sum(&quot;x&quot;, 3));
+          </JAVASCRIPT>
+        </SNIPPET>
+        <SNIPPET>
+          <INDEX><DECLARATION>addend</DECLARATION></INDEX> 
+          <NAME>addend</NAME>
+          <EXAMPLE>addend_example</EXAMPLE>
+	  <EXPECTED>&apos;x&apos;</EXPECTED>
+          
+(define (addend s) (cadr s))
+          
+          <JAVASCRIPT>
+function addend(s) { return head(tail(s)); }
+          </JAVASCRIPT>
+        </SNIPPET>
+      </LI>
+      <LI>
+	The augend is the third item of the sum list:
+        <SNIPPET HIDE="yes">
+          <NAME>augend_example</NAME>
+          <REQUIRES>make_sum</REQUIRES>
+          
+(augend (make-sum &apos;x 3))
+          
+          <JAVASCRIPT>
+augend(make_sum(&quot;x&quot;, 3));
+          </JAVASCRIPT>
+        </SNIPPET>
+        <SNIPPET>
+          <INDEX><DECLARATION>augend</DECLARATION></INDEX> 
+          <NAME>augend</NAME>
+          <EXAMPLE>augend_example</EXAMPLE>
+	  <EXPECTED>3</EXPECTED>
+          
+(define (augend s) (caddr s))
+          
+          <JAVASCRIPT>
+function augend(s) { return head(tail(tail(s))); }
+          </JAVASCRIPT>
+        </SNIPPET>
+      </LI>
+      <LI>
+	A product is a list whose first element is the
+        <SPLITINLINE>
+          symbol *:
+          <JAVASCRIPT>string <JAVASCRIPTINLINE>&quot;*&quot;</JAVASCRIPTINLINE>:
+	  </JAVASCRIPT>
+        </SPLITINLINE>
+        <SNIPPET HIDE="yes">
+          <NAME>is_product_example</NAME>
+          <REQUIRES>make_sum</REQUIRES>
+          
+(is-product (make-product &apos;x 3))
+          
+          <JAVASCRIPT>
+is_product(make_product(&quot;x&quot;, 3));
+          </JAVASCRIPT>
+        </SNIPPET>
+        <SNIPPET>
+          <INDEX><DECLARATION>is_product</DECLARATION></INDEX> 
+          <NAME>is_product</NAME>
+	  <EXPECTED>true</EXPECTED>
+          <EXAMPLE>is_product_example</EXAMPLE>
+          
+(define (product? x)
+  (and (pair? x) (eq? (car x) &apos;*)))
+          
+          <JAVASCRIPT>
+function is_product(x) {
+    return is_pair(x) &amp;&amp; head(x) === &quot;*&quot;;
+}
+          </JAVASCRIPT>
+        </SNIPPET>
+      </LI>
+      <LI>
+	The multiplier is the second item of the product list:
+        <SNIPPET HIDE="yes">
+          <NAME>multiplier_example</NAME>
+          <REQUIRES>make_sum</REQUIRES>
+          
+(multiplier (make-product &apos;x 3))
+          
+          <JAVASCRIPT>
+multiplier(make_product(&quot;x&quot;, 3));
+          </JAVASCRIPT>
+        </SNIPPET>
+        <SNIPPET>
+          <INDEX><DECLARATION>multiplier</DECLARATION><SUBINDEX>selector</SUBINDEX></INDEX>
+          <NAME>multiplier</NAME>
+          <EXAMPLE>multiplier_example</EXAMPLE>
+	  <EXPECTED>&apos;x&apos;</EXPECTED>
+          
+(define (multiplier p) (cadr p))
+          
+          <JAVASCRIPT>
+function multiplier(s) { return head(tail(s)); }
+          </JAVASCRIPT>
+        </SNIPPET>
+      </LI>
+      <LI>
+	The multiplicand is the third item of the product list:
+        <SNIPPET HIDE="yes">
+          <NAME>multiplicand_example</NAME>
+          <REQUIRES>make_sum</REQUIRES>
+          
+(multiplicand (make-product &apos;x 3))
+          
+          <JAVASCRIPT>
+multiplicand(make_product(&quot;x&quot;, 3));
+          </JAVASCRIPT>
+        </SNIPPET>
+        <SNIPPET>
+          <INDEX><DECLARATION>multiplicand</DECLARATION></INDEX> 
+          <NAME>multiplicand</NAME>
+          <EXAMPLE>multiplicand_example</EXAMPLE>
+	  <EXPECTED>3</EXPECTED>
+          
+(define (multiplicand p) (caddr p))
+          
+          <JAVASCRIPT>
+function multiplicand(s) { return head(tail(tail(s))); }
+          </JAVASCRIPT>
+        </SNIPPET>
+      </LI>
+    </UL>
+    Thus, we need only combine these with the algorithm as embodied by
+    deriv in order to have a working
+    symbolic-differentiation program.  Let us look at some examples of its
+    behavior:
+    <SNIPPET>
+      <NAME>deriv_example_8</NAME>
+      <REQUIRES>deriv</REQUIRES>
+      <EXPECTED>[ &apos;+&apos;, [ 1, [ 0, null ] ] ]</EXPECTED>
+      
+(deriv &apos;(+ x 3) &apos;x)
+      
+      <SCHEMEOUTPUT>
+(+ 1 0)
+      </SCHEMEOUTPUT>
+      <JAVASCRIPT>
+deriv(list(&quot;+&quot;, &quot;x&quot;, 3), &quot;x&quot;);
+      </JAVASCRIPT>
+      <JAVASCRIPT_OUTPUT>
+list(&quot;+&quot;, 1, 0)
+      </JAVASCRIPT_OUTPUT>
+    </SNIPPET>
+    <SNIPPET>
+      <NAME>deriv_example_2</NAME>
+      <REQUIRES>deriv</REQUIRES>
+      <EXPECTED>[ &apos;*&apos;, [ &apos;x&apos;, [ 0, null ] ] ]</EXPECTED>
+      
+(deriv &apos;(* x y) &apos;x)
+      
+      <SCHEMEOUTPUT>
+(+ (* x 0) (* 1 y))
+      </SCHEMEOUTPUT>
+      <JAVASCRIPT>
+deriv(list(&quot;*&quot;, &quot;x&quot;, &quot;y&quot;), &quot;x&quot;);
+      </JAVASCRIPT>
+      <JAVASCRIPT_TEST>
+head(tail(deriv(list(&quot;*&quot;, &quot;x&quot;, &quot;y&quot;), &quot;x&quot;)));
+      </JAVASCRIPT_TEST>
+      <JAVASCRIPT_OUTPUT>
+list(&quot;+&quot;, list(&quot;*&quot;, &quot;x&quot;, 0), list(&quot;*&quot;, 1, &quot;y&quot;))
+      </JAVASCRIPT_OUTPUT>
+    </SNIPPET>
+    <SNIPPET>
+      <NAME>xyx3</NAME>
+      <REQUIRES>deriv</REQUIRES>
+      <EXPECTED>[ &apos;*&apos;, [ &apos;x&apos;, [ &apos;y&apos;, null ] ] ]</EXPECTED>
+      
+(deriv &apos;(* (* x y) (+ x 3)) &apos;x)
+      
+      <SCHEMEOUTPUT>
+(+ (* (* x y) (+ 1 0))
+   (* (+ (* x 0) (* 1 y))
+      (+  x 3)))
+      </SCHEMEOUTPUT>
+      <JAVASCRIPT>
+deriv(list(&quot;*&quot;, list(&quot;*&quot;, &quot;x&quot;, &quot;y&quot;), list(&quot;+&quot;, &quot;x&quot;, 3)), &quot;x&quot;);
+      </JAVASCRIPT>
+      <JAVASCRIPT_TEST>
+head(tail(head(tail(deriv(list(&quot;*&quot;, list(&quot;*&quot;, &quot;x&quot;, &quot;y&quot;), list(&quot;+&quot;, &quot;x&quot;, 3)), &quot;x&quot;)))));
+      </JAVASCRIPT_TEST>
+    <JAVASCRIPT_OUTPUT>
+list(&quot;+&quot;, list(&quot;*&quot;, list(&quot;*&quot;, &quot;x&quot;, &quot;y&quot;), list(&quot;+&quot;, 1, 0)),
+          list(&quot;*&quot;, list(&quot;+&quot;, list(&quot;*&quot;, &quot;x&quot;, 0), list(&quot;*&quot;, 1, &quot;y&quot;)),
+                    list(&quot;+&quot;, &quot;x&quot;, 3)))
+    </JAVASCRIPT_OUTPUT>
+    </SNIPPET>
+    The program produces answers that are correct; however, they are
+    unsimplified.  It is true that
+    <LATEX>
+      \[
+      \begin{array}{lll}
+      \dfrac{d(xy)}{dx} &amp; = &amp; x\cdot 0+1\cdot y
+      \end{array}
+      \]
+    </LATEX>
+    but we would like the program to know that
+    <LATEXINLINE>$x\cdot 0 = 0$</LATEXINLINE>,
+    <LATEXINLINE>$1\cdot y = y$</LATEXINLINE>, and
+    <LATEXINLINE>$0+y = y$</LATEXINLINE>.  The answer for the second example
+    should have been simply<SPACE></SPACE>y.  As the
+    third example shows, this becomes a serious issue when the expressions are
+    complex.
+  </TEXT>
+  <TEXT>
+    Our difficulty is much like the one we encountered with the rational-number
+    implementation:
+    <INDEX>algebraic expression<SUBINDEX>simplifying<OPEN></OPEN></SUBINDEX></INDEX>
+    <INDEX>simplification of algebraic expressions</INDEX>
+    we haven<APOS></APOS>t reduced answers to simplest form.  To
+    accomplish the rational-number reduction, we needed to change only the
+    constructors and the selectors of the implementation. We can adopt a similar strategy here.  We won<APOS></APOS>t change deriv at
+    all.  Instead, we will change
+    <SPLITINLINE>
+      make-sum
+      <JAVASCRIPT><JAVASCRIPTINLINE>make_sum</JAVASCRIPTINLINE></JAVASCRIPT>
+    </SPLITINLINE>
+    so that if both summands are numbers,
+    <SPLITINLINE>
+      make-sum
+      <JAVASCRIPT><JAVASCRIPTINLINE>make_sum</JAVASCRIPTINLINE></JAVASCRIPT>
+    </SPLITINLINE>
+    will add them and return their sum.  Also, if one of the summands is 0,
+    then
+    <SPLITINLINE>
+      make-sum
+      <JAVASCRIPT><JAVASCRIPTINLINE>make_sum</JAVASCRIPTINLINE></JAVASCRIPT>
+    </SPLITINLINE>
+    will return the other summand.
+    <SNIPPET HIDE="yes">
+      <NAME>make_sum_example_2</NAME>
+      
+(make-sum 2 3)
+      
+      <JAVASCRIPT>
+make_sum(2, 3);
+      </JAVASCRIPT>
+    </SNIPPET>
+    <SNIPPET>
+      <INDEX><DECLARATION>make_sum</DECLARATION></INDEX> 
+      <NAME>make_sum_2</NAME>
+      <EXAMPLE>make_sum_example_2</EXAMPLE>
+      <REQUIRES>number_equal</REQUIRES>
+      <EXPECTED>5</EXPECTED>
+      
+(define (make-sum a1 a2)
+  (cond ((=number? a1 0) a2)
+        ((=number? a2 0) a1)
+        ((and (number? a1) (number? a2)) (+ a1 a2))
+        (else (list &apos;+ a1 a2))))
+      
+      <JAVASCRIPT>
+function make_sum(a1, a2) {
+    return number_equal(a1, 0)
+           ? a2
+           : number_equal(a2, 0)
+           ? a1
+           : is_number(a1) &amp;&amp; is_number(a2)
+           ? a1 + a2
+           : list(&quot;+&quot;, a1, a2);
+}
+      </JAVASCRIPT>
+    </SNIPPET>
+    This uses the
+    <SPLITINLINE>
+      procedure
+      <JAVASCRIPT>function</JAVASCRIPT>
+    </SPLITINLINE>
+    <SPLITINLINE>
+      =number?,
+      <JAVASCRIPT><JAVASCRIPTINLINE>number_equal</JAVASCRIPTINLINE>,
+    </JAVASCRIPT></SPLITINLINE>
+    which checks whether an expression is equal to a given number:
+    <SNIPPET HIDE="yes">
+      <NAME>number_equal_example</NAME>
+      
+(number_equal 3 3))
+      
+      <JAVASCRIPT>
+number_equal(3, 3);
+      </JAVASCRIPT>
+    </SNIPPET>
+    <SNIPPET>
+      <INDEX><DECLARATION>number_equal</DECLARATION></INDEX> 
+      <NAME>number_equal</NAME>
+      <EXAMPLE>number_equal_example</EXAMPLE>
+      <EXPECTED>true</EXPECTED>
+      
+(define (=number? exp num)
+  (and (number? exp) (= exp num)))
+      
+      <JAVASCRIPT>
+function number_equal(exp, num) {
+    return is_number(exp) &amp;&amp; exp === num;
+}
+      </JAVASCRIPT>
+    </SNIPPET>
+    Similarly, we will change
+    <SPLITINLINE>
+      make-product
+      <JAVASCRIPT><JAVASCRIPTINLINE>make_product</JAVASCRIPTINLINE>
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    to build in the rules that 0 times anything is 0 and 1 times anything is
+    the thing itself:
+    <SNIPPET HIDE="yes">
+      <NAME>make_product_example_2</NAME>
+      
+(make-product 2 3))
+      
+      <JAVASCRIPT>
+make_product(2, 3);
+      </JAVASCRIPT>
+    </SNIPPET>
+    <SNIPPET>
+      <INDEX><DECLARATION>make_product</DECLARATION></INDEX> 
+      <NAME>make_product_2</NAME>
+      <EXAMPLE>make_product_example_2</EXAMPLE>
+      <EXPECTED>6</EXPECTED>
+      <REQUIRES>number_equal</REQUIRES>
+      
+(define (make-product m1 m2)
+  (cond ((or (=number? m1 0) (=number? m2 0)) 0)
+        ((=number? m1 1) m2)
+        ((=number? m2 1) m1)
+        ((and (number? m1) (number? m2)) (* m1 m2))
+        (else (list &apos;* m1 m2))))
+      
+      <JAVASCRIPT>
+function make_product(m1, m2) {
+    return number_equal(m1, 0) || number_equal(m2, 0)
+           ? 0
+           : number_equal(m1, 1)
+           ? m2
+           : number_equal(m2, 1)
+           ? m1
+           : is_number(m1) &amp;&amp; is_number(m2)
+           ? m1 * m2
+           : list(&quot;*&quot;, m1, m2);
+}
+      </JAVASCRIPT>
+    </SNIPPET>
+    <SNIPPET HIDE="yes">
+      <NAME>deriv_2</NAME>
+      <REQUIRES>is_variable</REQUIRES>
+      <REQUIRES>is_same_variable</REQUIRES>
+      <REQUIRES>is_sum</REQUIRES>
+      <REQUIRES>make_sum_2</REQUIRES>
+      <REQUIRES>make_product_2</REQUIRES>
+      <REQUIRES>addend</REQUIRES>
+      <REQUIRES>augend</REQUIRES>
+      <REQUIRES>is_product</REQUIRES>
+      <REQUIRES>multiplier</REQUIRES>
+      <REQUIRES>multiplicand</REQUIRES>
+      
+(define (deriv exp var)
+  (cond ((number? exp) 0)
+        ((variable? exp)
+          (if (same-variable? exp var) 1 0))
+        ((sum? exp)
+          (make-sum (deriv (addend exp) var)
+                    (deriv (augend exp) var)))
+        ((product? exp)
+          (make-sum
+            (make-product (multiplier exp)
+                          (deriv (multiplicand exp) var))
+            (make-product (deriv (multiplier exp) var)
+                          (multiplicand exp))))
+        (else
+          (error &quot;unknown expression type -- DERIV&quot; exp))))
+      
+      <JAVASCRIPT>
+function deriv(exp, variable) {
+    return is_number(exp)
+           ? 0
+           : is_variable(exp)
+             ? (is_same_variable(exp, variable)) ? 1 : 0
+             : is_sum(exp)
+               ? make_sum(deriv(addend(exp), variable),
+                          deriv(augend(exp), variable))
+               : is_product(exp)
+                 ? make_sum(make_product(multiplier(exp),
+                                deriv(multiplicand(exp),
+                                      variable)),
+                            make_product(deriv(multiplier(exp),
+                                            variable),
+                                         multiplicand(exp)))
+                 : error(exp, &quot;unknown expression type -- deriv&quot;);
+}
+      </JAVASCRIPT>
+    </SNIPPET>
+    Here is how this version works on our three examples:
+    <SNIPPET>
+      <NAME>here_is_how</NAME>
+      <REQUIRES>deriv_2</REQUIRES>
+      <EXPECTED>1</EXPECTED>
+      
+(deriv &apos;(+ x 3) &apos;x)
+      
+      <SCHEMEOUTPUT>
+1
+      </SCHEMEOUTPUT>
+      <JAVASCRIPT>
+deriv(list(&quot;+&quot;, &quot;x&quot;, 3), &quot;x&quot;);
+      </JAVASCRIPT>
+      <JAVASCRIPT_OUTPUT>
+1
+      </JAVASCRIPT_OUTPUT>
+    </SNIPPET>
+    <SNIPPET>
+      <NAME>why_y</NAME>
+      <REQUIRES>deriv_2</REQUIRES>
+      <EXPECTED>&apos;y&apos;</EXPECTED>
+      
+(deriv &apos;(* x y) &apos;x)
+      
+      <SCHEMEOUTPUT>
+y
+      </SCHEMEOUTPUT>
+      <JAVASCRIPT>
+deriv(list(&quot;*&quot;, &quot;x&quot;, &quot;y&quot;), &quot;x&quot;);
+      </JAVASCRIPT>
+      <JAVASCRIPT_OUTPUT>
+&quot;y&quot;
+      </JAVASCRIPT_OUTPUT>
+    </SNIPPET>
+    <SNIPPET>
+      <NAME>deriv_list_times</NAME>
+      <REQUIRES>deriv_2</REQUIRES>
+      <EXPECTED>[ &apos;*&apos;, [ &apos;x&apos;, [ &apos;y&apos;, null ] ] ]</EXPECTED>
+      
+          (deriv &apos;(* (* x y) (+ x 3)) &apos;x)
+      
+      <SCHEMEOUTPUT>
+          (+ (* x y) (* y (+ x 3)))
+      </SCHEMEOUTPUT>
+      <JAVASCRIPT>
+deriv(list(&quot;*&quot;, list(&quot;*&quot;, &quot;x&quot;, &quot;y&quot;), list(&quot;+&quot;, &quot;x&quot;, 3)), &quot;x&quot;);
+      </JAVASCRIPT>
+      <JAVASCRIPT_TEST>
+head(tail(deriv(list(&quot;*&quot;, list(&quot;*&quot;, &quot;x&quot;, &quot;y&quot;), list(&quot;+&quot;, &quot;x&quot;, 3)), &quot;x&quot;)));
+      </JAVASCRIPT_TEST>
+      <JAVASCRIPT_OUTPUT>
+list(&quot;+&quot;, list(&quot;*&quot;, &quot;x&quot;, &quot;y&quot;), list(&quot;*&quot;, &quot;y&quot;, list(&quot;+&quot;, &quot;x&quot;, 3)))
+      </JAVASCRIPT_OUTPUT>
+    </SNIPPET>
+    Although this is quite an improvement, the third example shows that there
+    is still a long way to go before we get a program that puts expressions
+    into a form that we might agree is <QUOTE>simplest.</QUOTE>  The problem
+    of algebraic simplification is complex because, among other reasons, a
+    form that may be simplest for one purpose may not be for another.
+    <INDEX>algebraic expression<SUBINDEX>simplifying<CLOSE></CLOSE></SUBINDEX></INDEX>
+  </TEXT>
+
+  <EXERCISE>
+    Show how to extend the basic differentiator to handle more kinds of
+    expressions.
+    <INDEX>differentiation<SUBINDEX>rules for</SUBINDEX></INDEX>
+    For instance, implement the differentiation rule
+    <LATEX>
+      \[
+      \begin{array}{lll}
+      \dfrac {d(u^{n})}{dx} &amp; = &amp; nu^{n-1}\left( \dfrac{du}{dx}\right)
+      \end{array}
+      \]
+    </LATEX>
+    by adding a new clause to the deriv program
+    and defining appropriate
+    <SPLITINLINE>
+      procedures
+      <JAVASCRIPT>functions</JAVASCRIPT>
+    </SPLITINLINE>
+    <SPLITINLINE>
+      exponentiation?,
+      <JAVASCRIPT><JAVASCRIPTINLINE>is_exp</JAVASCRIPTINLINE>,</JAVASCRIPT>
+    </SPLITINLINE>
+    base, exponent,
+    and
+    <SPLITINLINE>
+      make-exponentiation.
+      <JAVASCRIPT><JAVASCRIPTINLINE>make_exp</JAVASCRIPTINLINE>.</JAVASCRIPT>
+    </SPLITINLINE>
+    (You may use
+    <SPLITINLINE>
+      the symbol **
+      <JAVASCRIPT>the string <JAVASCRIPTINLINE>&quot;**&quot;</JAVASCRIPTINLINE>
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    to denote exponentiation.) Build in the rules that anything raised to the
+    power 0 is 1 and anything raised to the power 1 is the thing itself.
+    <LABEL NAME="ex:deriv-exponentiation"></LABEL>
+    <SOLUTION>
+      <SNIPPET>
+	<NAME>deriv_expo</NAME>
+        <REQUIRES>is_variable</REQUIRES>
+        <REQUIRES>is_same_variable</REQUIRES>
+        <REQUIRES>is_sum</REQUIRES>
+        <REQUIRES>make_sum</REQUIRES>
+        <REQUIRES>addend</REQUIRES>
+        <REQUIRES>augend</REQUIRES>
+        <REQUIRES>is_product</REQUIRES>
+        <REQUIRES>multiplier</REQUIRES>
+        <REQUIRES>multiplicand</REQUIRES>
+        <REQUIRES>number_equal</REQUIRES>
+	<EXAMPLE>example_deriv_expo</EXAMPLE>
+	<EXPECTED>4</EXPECTED>
+	<JAVASCRIPT>
+function base(e) {
+    return head(tail(e));
+}
+function exponent(e) {
+    return head(tail(tail(e)));
+}
+function make_exp(base, exp) {
+    return number_equal(exp, 0)
+           ? 1
+           : number_equal(exp, 1)
+             ? base
+             : list(&quot;**&quot;, base, exp);
+}
+function is_exp(x) {
+    return is_pair(x) &amp;&amp; head(x) === &quot;**&quot;;
+}
+function deriv(exp, variable) {
+    return is_number(exp)
+           ? 0
+           : is_variable(exp)
+             ? (is_same_variable(exp, variable) ? 1 : 0)
+             : is_sum(exp)
+               ? make_sum(deriv(addend(exp), variable),
+                          deriv(augend(exp), variable))
+               : is_product(exp)
+                 ? make_sum(make_product(multiplier(exp),
+                                deriv(multiplicand(exp),
+                                      variable)),
+                            make_product(deriv(multiplier(exp),
+                                               variable),
+                                multiplicand(exp)))
+                 : is_exp(exp)
+                   ? make_product(make_product(exponent(exp),
+                                      make_exp(
+                                          base(exp),
+                                          exponent(exp) - 1)),
+			          deriv(base(exp), variable))
+                   : error(exp, &quot;unknown expression type -- deriv&quot;);
+}
+	</JAVASCRIPT>
+	
+	
+      </SNIPPET>
+    </SOLUTION>
+    <SNIPPET HIDE="yes">
+      <NAME>example_deriv_expo</NAME>
+      <JAVASCRIPT>
+deriv(list(&quot;**&quot;, &quot;x&quot;, 4), &quot;x&quot;);
+      </JAVASCRIPT>
+      <JAVASCRIPT_TEST>
+head(tail(head(tail(deriv(list(&quot;**&quot;, &quot;x&quot;, 4), &quot;x&quot;)))));
+      </JAVASCRIPT_TEST>
+      
+      
+    </SNIPPET>
+  </EXERCISE>
+
+  <EXERCISE>
+    Extend the differentiation program to handle sums and products of arbitrary
+    numbers of (two or more) terms. Then the last example above could be
+    expressed as
+    <SNIPPET HIDE="yes">
+      <NAME>deriv_3</NAME>
+      <REQUIRES>is_variable</REQUIRES>
+      <REQUIRES>is_same_variable</REQUIRES>
+      <REQUIRES>is_sum</REQUIRES>
+      <REQUIRES>make_sum_2</REQUIRES>
+      <REQUIRES>make_product_2</REQUIRES>
+      <REQUIRES>addend</REQUIRES>
+      <REQUIRES>is_product</REQUIRES>
+      <REQUIRES>multiplier</REQUIRES>
+      
+;; change the representation of terms
+;; by defining make_sum, make_product, is_sum, is_product, etc
+
+(define (deriv exp var)
+  (cond ((number? exp) 0)
+        ((variable? exp)
+          (if (same-variable? exp var) 1 0))
+        ((sum? exp)
+          (make-sum (deriv (addend exp) var)
+                    (deriv (augend exp) var)))
+        ((product? exp)
+          (make-sum
+            (make-product (multiplier exp)
+                          (deriv (multiplicand exp) var))
+            (make-product (deriv (multiplier exp) var)
+                          (multiplicand exp))))
+        (else
+          (error &quot;unknown expression type -- DERIV&quot; exp))))
+      
+      <JAVASCRIPT>
+// change the representation of terms
+// by defining augend and multiplicand
+
+function deriv(exp, variable) {
+    return is_number(exp)
+           ? 0
+           : is_variable(exp)
+             ? (is_same_variable(exp, variable) ? 1 : 0)
+             : is_sum(exp)
+               ? make_sum(deriv(addend(exp), variable),
+                          deriv(augend(exp), variable))
+               : is_product(exp)
+                 ? make_sum(make_product(multiplier(exp),
+                                deriv(multiplicand(exp),
+                                      variable)),
+                            make_product(
+                                deriv(multiplier(exp),
+                                      variable),
+                                multiplicand(exp)))
+                 : error(exp, &quot;unknown expression type -- deriv&quot;);
+}
+      </JAVASCRIPT>
+    </SNIPPET>
+    <SNIPPET>
+      <NAME>deriv_3_example</NAME>
+      <REQUIRES>deriv_3</REQUIRES>
+      
+(deriv &apos;(* x y (+ x 3)) &apos;x)
+      
+      <JAVASCRIPT>
+deriv(list(&quot;*&quot;, &quot;x&quot;, &quot;y&quot;, list(&quot;+&quot;, &quot;x&quot;, 3)), &quot;x&quot;);
+      </JAVASCRIPT>
+    </SNIPPET>
+    Try to do this by changing only the
+    representation for sums and products, without changing the
+    deriv
+    <SPLITINLINE>
+      procedure
+      <JAVASCRIPT>function</JAVASCRIPT>
+    </SPLITINLINE>
+    at all.  For example, the addend of a sum would
+    be the first term, and the augend would be the
+    sum of the rest of the terms.
+    <SOLUTION>
+    <SNIPPET HIDE="yes">
+    <NAME>deriv_3_solution_example</NAME>
+    <JAVASCRIPT>
+    deriv(list(&quot;*&quot;, &quot;x&quot;, &quot;y&quot;, list(&quot;+&quot;, &quot;x&quot;, 3)), &quot;x&quot;);
+    </JAVASCRIPT>
+    
+    </SNIPPET>
+    <SNIPPET>
+      <NAME>deriv_3_solution</NAME>
+      <REQUIRES>deriv_3</REQUIRES>
+      <EXAMPLE>deriv_3_solution_example</EXAMPLE>
+      
+(deriv &apos;(* x y (+ x 3)) &apos;x)
+      
+      <JAVASCRIPT>
+function augend(s) {
+    return accumulate(make_sum, 0, tail(tail(s)));
+}
+function multiplicand(s) {
+    return accumulate(make_product, 1, tail(tail(s)));
+}
+      </JAVASCRIPT>
+    </SNIPPET>
+    </SOLUTION>
+    <!--   NOT WORKING!!!
+    <SOLUTION>
+      <SNIPPET>
+	<NAME>try_to_do_this</NAME>
+	<EXAMPLE>deriv_4_example</EXAMPLE>
+	<EXPECTED>[ '*', [ 'x', [ 0, null ] ] ]</EXPECTED>
+	<JAVASCRIPT>
+function augend(s) {
+    return length(tail(tail(s))) &gt; 1
+           ? make_sum(head(tail(tail(s))),
+                      tail(tail(tail(s))))
+           : head(tail(tail(s)));
+}
+function multiplicand(s) {
+    return length(tail(tail(s))) &gt; 1
+           ? make_product(head(tail(tail(s))),
+                      tail(tail(tail(s))))
+           : head(tail(tail(s)));
+}
+	</JAVASCRIPT>
+      </SNIPPET>
+      <SNIPPET HIDE="yes">
+        <NAME>deriv_4</NAME>
+        <REQUIRES>is_variable</REQUIRES>
+        <REQUIRES>is_same_variable</REQUIRES>
+        <REQUIRES>is_sum</REQUIRES>
+        <REQUIRES>make_sum</REQUIRES>
+        <REQUIRES>addend</REQUIRES>
+        <REQUIRES>is_product</REQUIRES>
+        <REQUIRES>multiplier</REQUIRES>
+        <SCHEME>
+;; change the representation of terms
+;; by defining make_sum, make_product, is_sum, is_product, etc
+
+(define (deriv exp var)
+  (cond ((number? exp) 0)
+        ((variable? exp)
+          (if (same-variable? exp var) 1 0))
+        ((sum? exp)
+          (make-sum (deriv (addend exp) var)
+                    (deriv (augend exp) var)))
+        ((product? exp)
+          (make-sum
+            (make-product (multiplier exp)
+                          (deriv (multiplicand exp) var))
+            (make-product (deriv (multiplier exp) var)
+                          (multiplicand exp))))
+        (else
+          (error "unknown expression type   --><!--   --><!-- -- DERIV" exp))))
+        </SCHEME>
+        <JAVASCRIPT>
+// change the representation of terms
+// by defining augend and multiplicand
+
+function deriv(exp, variable) {
+    return is_number(exp)
+           ? 0
+           : is_variable(exp)
+             ? (is_same_variable(exp, variable) ? 1 : 0)
+             : is_sum(exp)
+               ? make_sum(deriv(addend(exp), variable),
+                          deriv(augend(exp), variable))
+               : is_product(exp)
+                 ? make_sum(make_product(multiplier(exp),
+                                deriv(multiplicand(exp),
+                                      variable)),
+                            make_product(deriv(multiplier(exp),
+                                               variable),
+                                         multiplicand(exp)))
+                 : error(exp, "unknown expression type   --><!--   --><!-- -- deriv");
+}
+	</JAVASCRIPT>
+      </SNIPPET>
+      <SNIPPET HIDE="yes">
+	<NAME>deriv_4_example</NAME>
+        <REQUIRES>deriv_4</REQUIRES>
+        <SCHEME>
+(deriv '(* x y (+ x 3)) 'x)
+        </SCHEME>
+        <JAVASCRIPT>
+deriv(list("*", "x", "y", list("+", "x", 3)), "x");
+        </JAVASCRIPT>
+        <JAVASCRIPT_TEST>
+head(tail(deriv(list("*", "x", "y", list("+", "x", 3)), "x")));
+        </JAVASCRIPT_TEST>
+      </SNIPPET>
+    </SOLUTION>
+      -->
+    <LABEL NAME="ex:2_57"></LABEL>
+  </EXERCISE>
+
+  <EXERCISE>
+    Suppose we want to modify the differentiation program so that it works
+    with ordinary mathematical notation, in which
+    <SPLITINLINE>
+      +
+      <JAVASCRIPT><JAVASCRIPTINLINE>&quot;+&quot;</JAVASCRIPTINLINE></JAVASCRIPT>
+    </SPLITINLINE>
+    and
+    <SPLITINLINE>
+      *
+      <JAVASCRIPT><JAVASCRIPTINLINE>&quot;*&quot;</JAVASCRIPTINLINE></JAVASCRIPT>
+    </SPLITINLINE>
+    are
+    <INDEX>infix notation<SUBINDEX>prefix notation vs.</SUBINDEX></INDEX>
+    <INDEX>prefix notation<SUBINDEX>infix notation vs.</SUBINDEX></INDEX>
+    infix rather than prefix operators.  Since the differentiation program
+    is defined in terms of abstract data, we can modify it to work with
+    different representations of expressions solely by changing the predicates,
+    selectors, and constructors that define the representation of the algebraic
+    expressions on which the differentiator is to operate.
+    <OL>
+      <LI>
+        Show how to do this in order to differentiate algebraic expressions
+	presented in infix form,
+	<SPLITINLINE>
+	  
+	    such as
+	    (x + (3 * (x + (y + 2)))).
+	  
+	  <JAVASCRIPT>as in this example:
+	  <SNIPPET EVAL="no">
+	    <JAVASCRIPT>
+list(&quot;x&quot;, &quot;+&quot;, list(3, &quot;*&quot;, list(&quot;x&quot;, &quot;+&quot;, list(&quot;y&quot;, &quot;+&quot;, 2))))
+	    </JAVASCRIPT>
+	  </SNIPPET>
+	  </JAVASCRIPT>
+	</SPLITINLINE>
+        To simplify the task, assume that
+	<SPLITINLINE>
+	  +
+	  <JAVASCRIPT><JAVASCRIPTINLINE>&quot;+&quot;</JAVASCRIPTINLINE></JAVASCRIPT>
+	</SPLITINLINE>
+	and
+	<SPLITINLINE>
+	  *
+	  <JAVASCRIPT><JAVASCRIPTINLINE>&quot;*&quot;</JAVASCRIPTINLINE></JAVASCRIPT>
+	</SPLITINLINE>
+	always take two arguments and that expressions are fully parenthesized.
+      </LI>
+      <LI>
+        The problem becomes substantially harder if we allow
+        <SPLITINLINE>
+          
+            standard algebraic notation, such as
+            (x + 3 * (x + y + 2))
+            which drops unnecessary parentheses and assumes that multiplication is done before addition.
+          
+          <JAVASCRIPT>
+	    a notation closer to ordinary infix notation, which omits unnecessary
+	    parentheses and assumes that
+	    multiplication has higher precedence than addition, as in this
+	    example:
+	    <SNIPPET EVAL="no">
+	      <JAVASCRIPT>
+list(&quot;x&quot;, &quot;+&quot;, 3, &quot;*&quot;, list(&quot;x&quot;, &quot;+&quot;, &quot;y&quot;, &quot;+&quot;, 2))
+              </JAVASCRIPT>
+	    </SNIPPET>
+	  </JAVASCRIPT>
+	</SPLITINLINE>
+        Can you design appropriate predicates, selectors, and constructors for
+	this notation such that our derivative program still works?
+      </LI>
+    </OL>
+    <SOLUTION>
+      <OL>
+	<LI>
+	  <SNIPPET>
+            <REQUIRES>is_variable</REQUIRES>
+            <REQUIRES>is_same_variable</REQUIRES>
+            <REQUIRES>number_equal</REQUIRES>
+	    <EXAMPLE>example_2.61_1</EXAMPLE>
+	    <EXPECTED>4</EXPECTED>
+	    <JAVASCRIPT>
+function make_sum(a1, a2) {
+    return number_equal(a1, 0)
+           ? a2
+           : number_equal(a2, 0)
+             ?  a1
+             : is_number(a1) &amp;&amp; is_number(a2)
+               ? a1 + a2
+               : list(a1, &quot;+&quot;, a2);
+}
+function is_sum(x) {
+    return is_pair(x) &amp;&amp; head(tail(x)) === &quot;+&quot;;
+}
+function addend(s) {
+    return head(s);
+}
+function augend(s) {
+    return head(tail(tail(s)));
+}
+function make_product(m1, m2) {
+    return number_equal(m1, 0) || number_equal(m2, 0)
+           ?  0
+           : number_equal(m1, 1)
+             ? m2
+             : number_equal(m2, 1)
+               ?  m1
+               : is_number(m1) &amp;&amp; is_number(m2)
+                 ? m1 * m2
+                 : list(m1, &quot;*&quot;, m2);
+}
+function is_product(x) {
+    return is_pair(x) &amp;&amp; head(tail(x)) === &quot;*&quot;;
+}
+function multiplier(s) {
+    return head(s);
+}
+function multiplicand(s) {
+    return head(tail(tail(s)));
+}
+function deriv(exp, variable) {
+    return is_number(exp)
+        ? 0
+        : is_variable(exp)
+          ? (is_same_variable(exp, variable) ? 1 : 0)
+          : is_sum(exp)
+            ? make_sum(deriv(addend(exp), variable),
+                       deriv(augend(exp), variable))
+            : is_product(exp)
+              ? make_sum(make_product(multiplier(exp),
+                             deriv(multiplicand(exp),
+                                   variable)),
+                         make_product(deriv(multiplier(
+                                                    exp),
+                                            variable),
+                                      multiplicand(exp)))
+              : error(exp, &quot;unknown expression type -- deriv&quot;);
+}
+	    </JAVASCRIPT>
+	    
+	    
+	  </SNIPPET>
+	  <SNIPPET HIDE="yes">
+	    <NAME>example_2.61_1</NAME>
+	    <JAVASCRIPT>
+deriv(list(&quot;x&quot;, &quot;*&quot;, 4), &quot;x&quot;);
+	    </JAVASCRIPT>
+	    
+	    
+	  </SNIPPET>
+	</LI>
+	<LI>
+	  <SNIPPET>
+            <REQUIRES>is_variable</REQUIRES>
+            <REQUIRES>is_same_variable</REQUIRES>
+            <REQUIRES>number_equal</REQUIRES>
+	    <EXAMPLE>example_2.61_2</EXAMPLE>
+	    <JAVASCRIPT>
+function items_before_first(op, s) {
+    return is_string(head(s)) &amp;&amp; head(s) === op
+           ? null
+           : pair(head(s),
+                  items_before_first(op, tail(s)));
+}
+function items_after_first(op, s) {
+    return is_string(head(s)) &amp;&amp; head(s) === op
+           ? tail(s)
+           : items_after_first(op, tail(s));
+}
+function simplify_unary_list(s) {
+    return is_pair(s) &amp;&amp; is_null(tail(s))
+           ? head(s)
+           : s;
+}
+function contains_plus(s) {
+    return is_null(s)
+           ? false
+           : is_string(head(s)) &amp;&amp; head(s) === &quot;+&quot;
+             ? true
+             : contains_plus(tail(s));
+}
+function make_sum(a1, a2) {
+    return number_equal(a1, 0)
+           ? a2
+           : number_equal(a2, 0)
+             ?  a1
+             : is_number(a1) &amp;&amp; is_number(a2)
+               ? a1 + a2
+               : list(a1, &quot;+&quot;, a2);
+}
+// a sequence of terms and operators is a sum
+// if and only if at least one + operator occurs
+function is_sum(x) {
+    return is_pair(x) &amp;&amp; contains_plus(x);
+}
+function addend(s) {
+    return simplify_unary_list(items_before_first(&quot;+&quot;, s));
+}
+function augend(s) {
+    return simplify_unary_list(items_after_first(&quot;+&quot;, s));
+}
+function make_product(m1, m2) {
+    return number_equal(m1, 0) || number_equal(m2, 0)
+           ?  0
+           : number_equal(m1, 1)
+             ? m2
+             : number_equal(m2, 1)
+               ?  m1
+               : is_number(m1) &amp;&amp; is_number(m2)
+                 ? m1 * m2
+                 : list(m1, &quot;*&quot;, m2);
+}
+// a sequence of terms and operators is a product
+// if and only if no + operator occurs
+function is_product(x) {
+    return is_pair(x) &amp;&amp; ! contains_plus(x);
+}
+function multiplier(s) {
+    return simplify_unary_list(items_before_first(&quot;*&quot;, s));
+}
+function multiplicand(s) {
+    return simplify_unary_list(items_after_first(&quot;*&quot;, s));
+}
+function deriv(exp, variable) {
+    return is_number(exp)
+        ? 0
+        : is_variable(exp)
+          ? (is_same_variable(exp, variable) ? 1 : 0)
+          : is_sum(exp)
+            ? make_sum(deriv(addend(exp), variable),
+                       deriv(augend(exp), variable))
+            : is_product(exp)
+              ? make_sum(make_product(multiplier(exp),
+                             deriv(multiplicand(exp),
+                                   variable)),
+                         make_product(deriv(multiplier(exp),
+                                            variable),
+                             multiplicand(exp)))
+              : error(exp, &quot;unknown expression type -- deriv&quot;);
+}
+	    </JAVASCRIPT>
+	    
+	    
+	  </SNIPPET>
+
+	  <SNIPPET HIDE="yes">
+	    <NAME>example_2.61_2</NAME>
+	    <JAVASCRIPT>
+deriv(list(&quot;x&quot;, &quot;*&quot;, 4), &quot;x&quot;);
+	    </JAVASCRIPT>
+	    
+	    
+	  </SNIPPET>
+	</LI>
+      </OL>
+    </SOLUTION>
+    <LABEL NAME="ex:2_58"></LABEL>
+  </EXERCISE>
+  <INDEX>algebraic expression<SUBINDEX>representing<CLOSE></CLOSE></SUBINDEX></INDEX>
+  <INDEX>differentiation<SUBINDEX>symbolic<CLOSE></CLOSE></SUBINDEX></INDEX>
+  <INDEX>symbolic differentiation<CLOSE></CLOSE></INDEX>
+  <INDEX>algebraic expression<SUBINDEX>differentiating<CLOSE></CLOSE></SUBINDEX></INDEX>
+</SUBSECTION> --&gt;

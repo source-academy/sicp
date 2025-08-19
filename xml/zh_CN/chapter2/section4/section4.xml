@@ -1,0 +1,163 @@
+<SECTION>
+  
+  <NAME>抽象数据的多重表示</NAME>
+
+
+  
+  <SECTIONCONTENT></SECTIONCONTENT>
+
+
+  <LABEL NAME="sec:multiple-reps"></LABEL>
+
+  
+  <INDEX>数据抽象</INDEX>
+
+
+  
+  <TEXT>
+    我们已经介绍了数据抽象，这是一种构造系统的方法，使得程序的大部分可以独立于实现程序所操作的数据对象时所涉及的选择而被指定。例如，我们在 <REF NAME="sec:rationals"></REF> 中展示了如何将设计使用有理数的程序的任务与用计算机语言<APOS></APOS>的构造复合数据的原始机制来实现有理数的任务分开。关键思想是在此竖立一个 <INDEX>抽象屏障</INDEX> —— 在本例中，即有理数的选择器和构造器
+    <SPLITINLINE>
+      <SCHEME>(<SCHEMEINLINE>make-rat</SCHEMEINLINE>,</SCHEME>
+      <JAVASCRIPT>(<JAVASCRIPTINLINE>make_rat</JAVASCRIPTINLINE>,</JAVASCRIPT>
+    </SPLITINLINE>
+    <SCHEMEINLINE>numer</SCHEMEINLINE>,
+    <SCHEMEINLINE>denom</SCHEMEINLINE>)<EMDASH></EMDASH>，它将有理数的使用方式与它们在列表结构中的底层表示隔离开来。一个类似的抽象屏障将执行有理算术的 
+    <SPLITINLINE>
+      <SCHEME>过程</SCHEME>
+      <JAVASCRIPT>函数</JAVASCRIPT>
+    </SPLITINLINE>
+    的细节隔离开来，
+    <SPLITINLINE>
+      <SCHEME>(<SCHEMEINLINE>add-rat</SCHEMEINLINE>,</SCHEME>
+      <JAVASCRIPT>(<JAVASCRIPTINLINE>add_rat</JAVASCRIPTINLINE>,</JAVASCRIPT>
+    </SPLITINLINE>
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>sub-rat</SCHEMEINLINE>,</SCHEME>
+      <JAVASCRIPT><JAVASCRIPTINLINE>sub_rat</JAVASCRIPTINLINE>,</JAVASCRIPT>
+    </SPLITINLINE>
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>mul-rat</SCHEMEINLINE>,</SCHEME>
+      <JAVASCRIPT><JAVASCRIPTINLINE>mul_rat</JAVASCRIPTINLINE>,</JAVASCRIPT>
+    </SPLITINLINE>
+    和
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>div-rat</SCHEMEINLINE>)</SCHEME>
+      <JAVASCRIPT><JAVASCRIPTINLINE>div_rat</JAVASCRIPTINLINE>)</JAVASCRIPT>
+    </SPLITINLINE>
+    与使用有理数的 
+    <SPLITINLINE>
+      <SCHEME>过程</SCHEME>
+      <JAVASCRIPT>函数</JAVASCRIPT>
+    </SPLITINLINE>
+    隔离。由此产生的程序具有图 <REF NAME="fig:abstraction-barriers"></REF> 所示的结构。
+  </TEXT>
+
+  
+  <TEXT>
+    这些数据抽象屏障是控制复杂性强大的工具。通过将数据对象的底层表示隔离开来，我们可以将设计大型程序的任务划分为可以独立进行的较小任务。但这种数据抽象还不够强大，因为对于某个数据对象来说，“底层表示”这个说法并不总是有意义。
+  </TEXT>
+
+  
+  <TEXT>
+    首先，一个数据对象可能有不止一种有用的表现形式，而我们可能希望设计能够处理多种表现形式的系统。举个简单的例子，复数可以用两种几乎等价的方式来表示：直角坐标形式（实部和虚部）以及极坐标形式（模和角）。有时候直角坐标形式更为合适，有时候极坐标形式更为合适。事实上，完全可以想象出这样一种系统，在该系统中，复数以这两种方式表示，并且用于操作复数的
+    <SPLITINLINE>
+      <SCHEME>过程</SCHEME>
+      <JAVASCRIPT>函数</JAVASCRIPT>
+    </SPLITINLINE>
+    都可以适用于任一表现形式。
+  </TEXT>
+
+  
+  <TEXT>
+    更重要的是，编程系统通常由许多人在长时间内共同设计，并且受到随着时间变化的需求的制约。在这种环境下，显然不可能让所有人在事前就对数据表示的选择达成一致。因此，除了将表示与使用隔离开来的数据抽象屏障之外，我们还需要将不同设计选择彼此隔离并允许它们在单个程序中共存的抽象屏障。此外，由于大型程序通常是通过组合那些在各自独立环境中设计的<SPLITINLINE>
+      <SCHEME>pre-existing</SCHEME>
+      <JAVASCRIPT>preexisting</JAVASCRIPT>
+    </SPLITINLINE>
+    模块构成的，我们需要一些约定，使程序员能够<INDEX>additivity</INDEX> <EM>additively</EM>地将模块纳入更大的系统，也就是说，无须重新设计或重新实现这些模块。
+  </TEXT>
+
+  
+  <TEXT>
+    在本节中，我们将学习如何处理可能由程序的不同部分以不同方式表示的数据。这需要构造<INDEX>通用<SPLITINLINE><SCHEME>过程</SCHEME><JAVASCRIPT>函数</JAVASCRIPT></SPLITINLINE></INDEX> <INDEX><FUNCTION></FUNCTION><SUBINDEX>通用</SUBINDEX></INDEX> <EM>通用<SPLITINLINE><SCHEME>过程</SCHEME><JAVASCRIPT>函数</JAVASCRIPT></SPLITINLINE></EM><EMDASH></EMDASH><SPLITINLINE><SCHEME>过程</SCHEME><JAVASCRIPT>函数</JAVASCRIPT></SPLITINLINE>，它们可以作用于以不止一种方式表示的数据。我们构造通用<SPLITINLINE><SCHEME>过程</SCHEME><JAVASCRIPT>函数</JAVASCRIPT></SPLITINLINE>的主要技术将是以具有<INDEX>类型标签</INDEX> <EM>类型标签</EM>的数据对象来工作，也就是说，这些数据对象包含关于如何处理它们的明确信息。我们还将讨论<INDEX>数据导向编程</INDEX> <EM>数据导向</EM>编程，这是一种强大且方便的实现策略，用于添加性地组装具有通用操作的系统。
+  </TEXT>
+
+  
+  <TEXT>
+    我们首先介绍简单的复数示例。我们将看到类型标签和数据导向风格如何使我们能够在保持抽象<INDEX>复数算术</INDEX> <INDEX>算术<SUBINDEX>关于复数</SUBINDEX></INDEX> <QUOTE>复数</QUOTE>数据对象概念的同时，设计独立的矩形和极坐标表示形式。
+    我们将通过定义针对复数的算术
+    <SPLITINLINE>
+      <SCHEME>过程</SCHEME>
+      <JAVASCRIPT>函数</JAVASCRIPT>
+    </SPLITINLINE>
+    来实现这一点，这些算术
+    <SPLITINLINE>
+      <SCHEME>(<SCHEMEINLINE>add-complex</SCHEMEINLINE>,</SCHEME>
+      <JAVASCRIPT>(<JAVASCRIPTINLINE>add_complex</JAVASCRIPTINLINE>,</JAVASCRIPT>
+    </SPLITINLINE>
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>sub-complex</SCHEMEINLINE>,</SCHEME>
+      <JAVASCRIPT><JAVASCRIPTINLINE>sub_complex</JAVASCRIPTINLINE>,</JAVASCRIPT>
+    </SPLITINLINE>
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>mul-complex</SCHEMEINLINE>,</SCHEME>
+      <JAVASCRIPT><JAVASCRIPTINLINE>mul_complex</JAVASCRIPTINLINE>,</JAVASCRIPT>
+    </SPLITINLINE>
+    和
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>div-complex</SCHEMEINLINE>)</SCHEME>
+      <JAVASCRIPT><JAVASCRIPTINLINE>div_complex</JAVASCRIPTINLINE>)</JAVASCRIPT>
+    </SPLITINLINE>
+    的定义，这些定义基于通用选择器，这些选择器可以独立于复数的表示方式来访问复数的各个部分。由此产生的复数系统，如下所示
+    <SPLITINLINE>
+      <SCHEME>
+	    figure<SPACE></SPACE><REF NAME="fig:complex-system_scheme"></REF>,
+      </SCHEME>
+      <JAVASCRIPT>
+	    figure<SPACE></SPACE><REF NAME="fig:complex-system"></REF>,
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    包含两种不同类型的<INDEX>抽象屏障<SUBINDEX>在复数系统中的抽象屏障</SUBINDEX></INDEX>。水平抽象屏障起着与
+    figure<SPACE></SPACE><REF NAME="fig:abstraction-barriers"></REF>中相同的作用。它们将“高层”操作与“低层”表示隔离开来。此外，还有一个垂直屏障，使我们能够分别设计和安装替代表示。
+    <SPLIT>
+      <SCHEME>
+	    <FIGURE>
+          <FIGURE WEB_SCALE="0.6" SRC="img_original/ch2-Z-G-54.svg"></FIGURE>
+	      <CAPTION>
+	        复数系统中的数据抽象屏障。
+	      </CAPTION>
+	      <LABEL NAME="fig:complex-system_scheme"></LABEL>
+	    </FIGURE>
+      </SCHEME>
+      <JAVASCRIPT>
+	    <FIGURE>
+          <FIGURE WEB_SCALE="0.6" SCALE="0.65" SRC="img_javascript/ch2-Z-G-54.svg"></FIGURE>
+	      <CAPTION>
+	        复数系统中的数据抽象屏障。
+	      </CAPTION>
+	      <LABEL NAME="fig:complex-system"></LABEL>
+	    </FIGURE>
+      </JAVASCRIPT>
+    </SPLIT>
+  </TEXT>
+
+  
+  <TEXT>
+    在<SPACE></SPACE><REF NAME="sec:generic-operators"></REF>节中，我们将展示如何使用类型标签和数据导向风格来开发一个通用算术软件包。这提供了
+    <SPLITINLINE>
+      <SCHEME>过程</SCHEME>
+      <JAVASCRIPT>函数</JAVASCRIPT>
+    </SPLITINLINE>
+    （<SCHEMEINLINE>add</SCHEMEINLINE>, <SCHEMEINLINE>mul</SCHEMEINLINE>等）可用于操作各种<QUOTE>数字</QUOTE>，并且在需要新的数字类型时可以轻松扩展。在<SPACE></SPACE><REF NAME="sec:symbolic-algebra"></REF>节中，我们还将展示如何在执行符号代数的系统中使用通用算术。
+  </TEXT>
+
+
+  <!--  Subsection 1 : Representations for Complex Numbers  -->
+  &amp;subsection2.4.1;
+
+  <!--  Subsection 2 : Tagged Data  -->
+  &amp;subsection2.4.2;
+
+  <!--  Subsection 3 : Data-Directed Programming and Additivity  -->
+  &amp;subsection2.4.3;
+
+</SECTION>
