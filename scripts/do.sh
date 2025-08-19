@@ -1,5 +1,8 @@
 #! /usr/bin/env bash
 
+# Fail early
+set -euo pipefail
+
 # hand-paginated index file for LaTeX => PDF
 HAND_PAGINATED="hand-paginated.ind"
 
