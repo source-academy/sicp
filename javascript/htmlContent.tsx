@@ -1,7 +1,8 @@
-import NavigationElements from "./html/NavigationElements.js";
-import type { WriteBufferElement } from "./types.js";
+import { html } from "hono/html";
+import type { WriteBuffer, WriteBufferElement } from "./types.js";
 import { JsVersionEdition, JsVersionLegend } from "./versions/js.js";
 import { SplitVersionEdition, SplitVersionLegend } from "./versions/split.js";
+import Navigation from "./html/Navigation.js";
 
 const shortTitleDefault: WriteBufferElement = `SICP &mdash; JS`;
 const longTitleDefault: WriteBufferElement = `Structure and Interpretation of Computer Programs &mdash; Comparison Edition`;
@@ -40,34 +41,32 @@ export const switchTitle = version => {
 // `\\\\`' is used to display double back-slash \\ in template literals
 export const html_links_part1 = `<!DOCTYPE html><html lang="en">`;
 
-export const html_links_part2 = (writeTo, toIndexFolder, version) => {
-  writeTo.push(`
-  <body>
-    <!-- support for progressive web app, see README, DISABLED
-    <script>
-      if ('serviceWorker' in navigator && !navigator.serviceWorker.controller) {
-          navigator.serviceWorker.register("../sw.js").then(function(reg) {
-              console.log("Service worker has been registered for scope: " + reg.scope);
-          });
-      }
-    </script>
-    -->
-
-     <nav class="navbar navbar-expand-sm navbar-dark bg-dark fixed-top justify-content-between">
-       <button id="btn" class="navbar-toggler collapsed" type="button" data-toggle="collapse" data-target="#nav-sidebar" aria-controls="nav-sidebar" aria-expanded="false" aria-label="Toggle navigation" title="navigation">
-         <span class="navbar-toggler-icon"></span>
-       </button>
-       <span class="toolt">Legend<span class="toolttext">
-    ${(<NavigationElements />)}
-</span></span>
-       <span class="navbar-brand-short"><a title="Go back to front page" href="${toIndexFolder}index.html" class="gray">${shortTitle}</a></span>
-       <span class="navbar-brand-long" ><a title="Go back to front page" href="${toIndexFolder}index.html" class="gray">${longTitle}</a></span>
-
-     </nav>
-
-     <div class="container scroll">
-
-     `);
+export const html_links_part2 = (
+  writeTo: WriteBuffer,
+  toIndexFolder: string,
+  version: string
+) => {
+  writeTo.push(`<body>`);
+  writeTo.push(<Navigation />);
+  writeTo.push(
+    html`<span class="navbar-brand-short"
+        ><a
+          title="Go back to front page"
+          href="${toIndexFolder}index.html"
+          class="gray"
+          >${shortTitle}</a
+        ></span
+      >
+      <span class="navbar-brand-long"
+        ><a
+          title="Go back to front page"
+          href="${toIndexFolder}index.html"
+          class="gray"
+          >${longTitle}</a
+        ></span
+      >`
+  );
+  writeTo.push(`<div class="container scroll">`);
 };
 
 export const indexPage = writeTo => {
