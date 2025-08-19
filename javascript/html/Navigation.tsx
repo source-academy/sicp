@@ -1,4 +1,4 @@
-import { html } from "hono/html";
+import { html, raw } from "hono/html";
 import type { FC } from "hono/jsx";
 
 const NavigationElements: FC = () => {
@@ -61,7 +61,7 @@ const Navigation: FC = () => {
       </button>
       <span class="toolt"
         >Legend<span class="toolttext">
-          ${(<NavigationElements />)}
+          ${raw(<NavigationElements />)}
         </span></span
       >
     </nav>`;

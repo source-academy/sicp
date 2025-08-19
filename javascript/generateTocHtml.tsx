@@ -9,7 +9,7 @@ import LinksHead from "./html/LinksHead.js";
 import Licences from "./html/Licences.js";
 import { generateChapterIndex } from "./tocUtils.js";
 import { IndexHeaderCard, SidebarHeaderCard } from "./TocCards.js";
-import { html } from "hono/html";
+import { html, raw } from "hono/html";
 import type { WriteBuffer } from "./types.js";
 
 const truncateTitle = chapterTitle => {
@@ -109,8 +109,8 @@ export const recursiveProcessTOC = (
                 aria-expanded="false"
                 aria-controls="index-collapse-${index + 1}"
               >
-                <a href="${toIndexFolder}${chapterIndex}.html">
-                  ${displayTitle}</a
+                <a href="${raw(toIndexFolder)}${chapterIndex}.html">
+                  ${raw(displayTitle)}</a
                 >
               </span>
             </h5>
@@ -129,8 +129,8 @@ export const recursiveProcessTOC = (
                 aria-expanded="false"
                 aria-controls="sidebar-collapse-${index + 1}"
               >
-                <a href="${toIndexFolder}${chapterIndex}.html">
-                  ${displayTitle}</a
+                <a href="${raw(toIndexFolder)}${chapterIndex}.html">
+                  ${raw(displayTitle)}</a
                 >
               </span>
             </h5>

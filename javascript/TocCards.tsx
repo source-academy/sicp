@@ -1,4 +1,4 @@
-import { html } from "hono/html";
+import { html, raw } from "hono/html";
 import type { FC } from "hono/jsx";
 
 type HeaderCardProps = {
@@ -36,7 +36,9 @@ export const IndexHeaderCard: FC<HeaderCardProps> = ({
         &#x25BC;
         <!-- ▼ (because the corresponding one is not rendered) -->
       </a>
-      <a href="${toIndexFolder}${chapterIndex}.html">${displayTitle}</a>
+      <a href="${raw(toIndexFolder)}${chapterIndex}.html"
+        >${raw(displayTitle)}</a
+      >
     </h5>
   </div>`;
 };
@@ -69,7 +71,9 @@ export const SidebarHeaderCard: FC<HeaderCardProps> = ({
         &#x25BC;
         <!-- ▼ (because the corresponding one is not rendered) -->
       </a>
-      <a href="${toIndexFolder}${chapterIndex}.html">${displayTitle}</a>
+      <a href="${raw(toIndexFolder)}${chapterIndex}.html"
+        >${raw(displayTitle)}</a
+      >
     </h5>
   </div>`;
 };
