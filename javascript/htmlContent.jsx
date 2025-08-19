@@ -1,3 +1,6 @@
+import { JsVersionEdition, JsVersionLegend } from "./versions/js.js";
+import { SplitVersionEdition, SplitVersionLegend } from "./versions/split.js";
+
 const shortTitleDefault = `SICP &mdash; JS`;
 const longTitleDefault = `Structure and Interpretation of Computer Programs &mdash; Comparison Edition`;
 let shortTitle = shortTitleDefault;
@@ -19,62 +22,13 @@ export const switchTitle = version => {
   if (version == "js") {
     shortTitle = shortTitleDefault;
     longTitle = longTitleDefault;
-    this_edition = `
-    <div class="title-text-EDITION">
-       <span class="title-text-EDITION">Mobile-friendly Web Edition</span>
-    </div>`;
-    legend = `
-    <div class="title-text-ALSO">
-      <span class="title-text-ALSO">also available</span><BR/>
-    </div>
-    <div class="title-text-OTHEREDITIONS">
-      <span class="title-text-OTHEREDITIONS">
-    <a href="split">Comparison edition</a></span>
-    </div>
-    <div class="title-text-OTHEREDITIONS">
-      <span class="title-text-OTHEREDITIONS">
-    <a href="sicpjs.zip">All programs zipped</a></span>
-    </div>`;
+    this_edition = <JsVersionEdition />;
+    legend = <JsVersionLegend />;
   } else if (version == "split") {
     shortTitle = `SICP &mdash; Scheme/JS`;
     longTitle = `Structure and Interpretation of Computer Programs &mdash; Comparison Edition`;
-    this_edition = `
-    <div class="title-text-EDITION">
-       <span class="title-text-EDITION">Comparison Edition</span>
-    </div>`;
-    legend = `
-    <div class="title-text-ALSO">
-      <span class="title-text-ALSO">Color highlighting:</span><BR/>
-    </div>
-    <div class="title-text-OTHEREDITIONS">
-      <span class="title-text-OTHEREDITIONS">
-      <span style="color:black">Unchanged █</span>
-      </span>
-    </div>
-    <div class="title-text-OTHEREDITIONS">
-      <span class="title-text-OTHEREDITIONS">
-      <span style="color:green">Scheme █</span>
-      </span>
-    </div>
-    <div class="title-text-OTHEREDITIONS">
-      <span class="title-text-OTHEREDITIONS">
-      <span style="color:blue">Javascript █</span>
-      </span>
-    </div>
-    <div class="title-text-OTHEREDITIONS">
-      <span class="title-text-OTHEREDITIONS">
-      <span style="color:grey">Explanation █</span>
-      </span>
-    </div>
-    <div class="title-text-OTHEREDITIONS">
-      <span class="title-text-OTHEREDITIONS">
-      <span style="color:red">Web-only █</span>
-      </span>
-    </div>
-    <div class="title-text-OTHEREDITIONS">
-      <span class="title-text-OTHEREDITIONS">
-    <a href="https://sourceacademy.org/sicpjs">Interactive SICP JS</a></span>
-    </div>`;
+    this_edition = <SplitVersionEdition />;
+    legend = <SplitVersionLegend />;
   } else if (version == "scheme") {
     // scheme version of the web textbook has yet been developed
     console.log("generate sicp scheme web textook");
@@ -134,7 +88,7 @@ export const html_links_part2 = (writeTo, toIndexFolder, version) => {
        <span class="navbar-brand-long" ><a title="Go back to front page" href="${toIndexFolder}index.html" class="gray">${longTitle}</a></span>
 
      </nav>
-     
+
      <div class="container scroll">
 
      `);
@@ -155,10 +109,10 @@ export const indexPage = writeTo => {
 	</TD>
       </TR>
     </TABLE>
-    
+
     <div class="title-text-ATTRIBUTION">
       <span class="title-text-AUTHOR">Harold Abelson and Gerald Jay Sussman<br/>with Julie Sussman</span>
-      <span class="title-text-TITLE">original authors</span> 
+      <span class="title-text-TITLE">original authors</span>
     </div>
 
     <div class="title-text-ATTRIBUTION">
