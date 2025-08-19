@@ -1,3 +1,4 @@
+import NavigationElements from "./html/NavigationElements.js";
 import { JsVersionEdition, JsVersionLegend } from "./versions/js.js";
 import { SplitVersionEdition, SplitVersionLegend } from "./versions/split.js";
 
@@ -56,34 +57,7 @@ export const html_links_part2 = (writeTo, toIndexFolder, version) => {
          <span class="navbar-toggler-icon"></span>
        </button>
        <span class="toolt">Legend<span class="toolttext">
-    <div class="title-text-ALSO">
-      <span class="title-text-ALSO">Color highlighting:</span><BR/>
-    </div>
-    <div class="title-text-OTHEREDITIONS">
-      <span class="title-text-OTHEREDITIONS">
-      <span style="color:black">Unchanged █</span>
-      </span>
-    </div>
-    <div class="title-text-OTHEREDITIONS">
-      <span class="title-text-OTHEREDITIONS">
-      <span style="color:green">Scheme █</span>
-      </span>
-    </div>
-    <div class="title-text-OTHEREDITIONS">
-      <span class="title-text-OTHEREDITIONS">
-      <span style="color:blue">Javascript █</span>
-      </span>
-    </div>
-    <div class="title-text-OTHEREDITIONS">
-      <span class="title-text-OTHEREDITIONS">
-      <span style="color:grey">Explanation █</span>
-      </span>
-    </div>
-    <div class="title-text-OTHEREDITIONS">
-      <span class="title-text-OTHEREDITIONS">
-      <span style="color:red">Web-only █</span>
-      </span>
-    </div>
+    ${(<NavigationElements />)}
 </span></span>
        <span class="navbar-brand-short"><a title="Go back to front page" href="${toIndexFolder}index.html" class="gray">${shortTitle}</a></span>
        <span class="navbar-brand-long" ><a title="Go back to front page" href="${toIndexFolder}index.html" class="gray">${longTitle}</a></span>
