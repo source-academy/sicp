@@ -74,17 +74,26 @@ const ignoreTags = new Set([
   "p",
   "WEB_ONLY"
 ]);
-export const trieTree = {};
+
+type TrieEnd = {
+  value: string;
+  pureIndex: [string, string][];
+  subIndex: { value: string; id: [string, string]; order: string }[];
+};
+
+type TrieTree = {
+  [key: string]: TrieTree | { value: TrieEnd };
+};
+export const trieTree: TrieTree = {};
 export const trieTreeText = {};
 export const writeSearchData = () => {
   const outputDir = path.join(__dirname, "../json");
-
   const outputFile = path.join(outputDir, "searchData.json");
-  const searchData = {};
-  searchData["textbook"] = textBook;
-  searchData["indexSearch"] = trieTree;
-  searchData["userSearch"] = trieTreeText;
-
+  const searchData = {
+    textbook: textBook,
+    indexSearch: trieTree,
+    userSearch: trieTreeText
+  };
   fs.writeFile(outputFile, JSON.stringify(searchData), err => {
     if (err) {
       console.error(err);
@@ -174,8 +183,8 @@ function maintainTextTrie(arr) {
 }
 
 function maintainIndexTrie() {
-  function add(obj, trie) {
-    let current = trie;
+  function add(obj, trie: TrieTree) {
+    let current: TrieTree | { value: TrieEnd } = trie;
 
     if (obj["parse"] == null || obj["parse"]["value"] == null) {
       if (obj["parse"]["DECLARATION"]) {
@@ -200,14 +209,13 @@ function maintainIndexTrie() {
 
     var index = obj["parse"]["value"];
 
-    for (let i = 0; i < index.length; i++) {
-      let char = index[i];
-      char = char.toLowerCase();
-
-      if (!current.hasOwnProperty(char)) {
-        current[char] = {};
+    for (let char of index) {
+      // FIXME: Once we can type `char` as `string`, fix the type gymnastics
+      const key = char.toLowerCase();
+      if (!Object.prototype.hasOwnProperty.call(current, key)) {
+        current[key as keyof typeof current] = {};
       }
-      current = current[char];
+      current = (current as any)[key]!;
     }
     if (!current.value) {
       current.value = { value: index, pureIndex: [], subIndex: [] };
@@ -248,24 +256,28 @@ function maintainIndexTrie() {
       } else {
         toAdd["order"] = obj["parse"]["SUBINDEX"]["value"];
       }
+      // TODO: Use type guard instead
+      const _current = current as { value: TrieEnd };
       if (
-        !current.value.subIndex.find(
+        !_current.value.subIndex.find(
           obj =>
             obj.value === toAdd.value &&
             obj.id[0] === toAdd.id[0] &&
             obj.id[1] === toAdd.id[1]
         )
       ) {
-        current.value.subIndex.push(toAdd);
-        for (let i = 0; i < current.value.subIndex.length; i++) {
+        _current.value.subIndex.push(toAdd);
+        for (let i = 0; i < _current.value.subIndex.length; i++) {
           //console.log(current.value.subIndex[i]["order"].toString.localeCompare("gh"));
-          current.value.subIndex.sort((a, b) =>
+          _current.value.subIndex.sort((a, b) =>
             a["order"].localeCompare(b.order)
           );
         }
       }
     } else {
-      current.value.pureIndex.push(obj["parentId"]);
+      // TODO: Use type guard instead
+      const _current = current as { value: TrieEnd };
+      _current.value.pureIndex.push(obj["parentId"]);
     }
   }
   let len = index.length;
