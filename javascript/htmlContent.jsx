@@ -82,6 +82,7 @@ export const html_links_part2 = (writeTo, toIndexFolder, version) => {
     <div class="title-text-OTHEREDITIONS">
       <span class="title-text-OTHEREDITIONS">
       <span style="color:red">Web-only █</span>
+      </span>
     </div>
 </span></span>
        <span class="navbar-brand-short"><a title="Go back to front page" href="${toIndexFolder}index.html" class="gray">${shortTitle}</a></span>
