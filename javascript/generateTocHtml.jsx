@@ -1,41 +1,13 @@
 import { recursiveProcessTextHtml } from "./parseXmlHtml.js";
 import { tableOfContent, allFilepath } from "./index.js";
-import { html_links_part1, html_links_part2, indexPage } from "./htmlContent";
-import LinksHead from "./html/LinksHead";
-import Licences from "./html/Licences";
-
-const generateChapterIndex = filename => {
-  let chapterIndex = "";
-  if (filename.match(/chapter/)) {
-    // match the number after string "chapter"
-    chapterIndex += filename.match(/(?<=chapter)\d+/g)[0];
-  }
-  if (filename.match(/section/)) {
-    // "section"
-    chapterIndex += "." + filename.match(/(?<=section)\d+/g)[0];
-  }
-  if (filename.match(/subsection/)) {
-    // "subsection"
-    chapterIndex += "." + filename.match(/(?<=subsection)\d+/g)[0];
-  }
-  if (filename.match(/foreword/)) {
-    chapterIndex = filename.match(/foreword\d*/g)[0];
-  } else if (filename.match(/prefaces/)) {
-    chapterIndex = filename.match(/prefaces\d*/g)[0];
-  } else if (filename.match(/acknowledgements/)) {
-    chapterIndex = "acknowledgements";
-  } else if (filename.match(/references/)) {
-    chapterIndex = "references";
-  } else if (filename.match(/see/)) {
-    chapterIndex = "see";
-  } else if (filename.match(/indexpreface/)) {
-    chapterIndex = "index";
-  } else if (filename.match(/making/)) {
-    chapterIndex = "making-of";
-  }
-  //console.log(chapterNumber);
-  return chapterIndex;
-};
+import {
+  html_links_part1,
+  html_links_part2,
+  indexPage
+} from "./htmlContent.js";
+import LinksHead from "./html/LinksHead.js";
+import Licences from "./html/Licences.js";
+import { generateChapterIndex } from "./tocUtils.js";
 
 const truncateTitle = chapterTitle => {
   let truncatedTitle = "";
