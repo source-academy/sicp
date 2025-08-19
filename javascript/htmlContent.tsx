@@ -3,6 +3,7 @@ import type { WriteBuffer, WriteBufferElement } from "./types.js";
 import { JsVersionEdition, JsVersionLegend } from "./versions/js.js";
 import { SplitVersionEdition, SplitVersionLegend } from "./versions/split.js";
 import Navigation from "./html/Navigation.js";
+import Attribution from "./html/Attribution.js";
 
 const shortTitleDefault: WriteBufferElement = `SICP &mdash; JS`;
 const longTitleDefault: WriteBufferElement = `Structure and Interpretation of Computer Programs &mdash; Comparison Edition`;
@@ -69,7 +70,7 @@ export const html_links_part2 = (
   writeTo.push(`<div class="container scroll">`);
 };
 
-export const indexPage = writeTo => {
+export const indexPage = (writeTo: WriteBuffer) => {
   writeTo.push(`
   <TABLE class="tight">
 	<TD  class="tight" width="70%" valign="top" align="right">
@@ -83,22 +84,8 @@ export const indexPage = writeTo => {
 	  ${legend}
 	</TD>
       </TR>
-    </TABLE>
-
-    <div class="title-text-ATTRIBUTION">
-      <span class="title-text-AUTHOR">Harold Abelson and Gerald Jay Sussman<br/>with Julie Sussman</span>
-      <span class="title-text-TITLE">original authors</span>
-    </div>
-
-    <div class="title-text-ATTRIBUTION">
-      <span class="title-text-AUTHOR">Martin Henz and Tobias Wrigstad<br/>with Julie Sussman</span><span class="title-text-TITLE">adapters to JavaScript</span>
-    </div>
-
-    <div class="title-text-ATTRIBUTION">
-      <span class="title-text-AUTHOR">Chan Ger Hean, He Xinyue, Liu Hang, Feng Piaopiao, Jolyn Tan and Wang Qian</span><span class="title-text-TITLE">developers of Comparison Edition</span>
-    </div>
-
-    `);
+    </TABLE>`);
+  writeTo.push(<Attribution />);
 };
 
 export const beforeContentWrapper = `<div id='permalink-msg'>
