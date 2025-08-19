@@ -1,5 +1,4 @@
-// @ts-check
-import fs from "fs";
+import fs from "node:fs";
 import fse from "fs-extra";
 import util from "util";
 import path from "path";
