@@ -13,6 +13,7 @@ import {
   recursiveProcessPureText,
   recursivelyProcessTextSnippetJson
 } from "./processingFunctions/index.js";
+import type { WriteBuffer } from "./types.js";
 
 let paragraph_count = 0;
 let heading_count = 0;
@@ -335,12 +336,12 @@ const processTagWithChildren = (node, obj) => {
 };
 
 const processLatex = (node, obj, inline) => {
-  const writeTo = [];
+  const writeTo: WriteBuffer = [];
 
   if (inline) {
     recursiveProcessPureText(node.firstChild, writeTo, {
       removeNewline: "all"
-    });
+    } as any);
   } else {
     recursiveProcessPureText(node.firstChild, writeTo);
   }
@@ -372,23 +373,14 @@ const processTextFunctions = {
 
   // Tags with children and no body
   B: processTagWithChildren,
-
   EM: processTagWithChildren,
-
   LI: processTagWithChildren,
-
   TT: processTagWithChildren,
-
   TABLE: processTagWithChildren,
-
   TR: processTagWithChildren,
-
   TD: processTagWithChildren,
-
   REFERENCE: processTagWithChildren,
-
   OL: processTagWithChildren,
-
   UL: processTagWithChildren,
 
   br: (node, obj) => {
