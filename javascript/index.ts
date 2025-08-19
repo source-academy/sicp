@@ -1,5 +1,4 @@
 import fs from "node:fs";
-import fse from "fs-extra";
 import util from "util";
 import path from "path";
 
@@ -15,11 +14,6 @@ import {
   recursiveProcessTextLatex
 } from "./parseXmlLatex.js";
 import { setupSnippetsPdf } from "./processingFunctions/processSnippetPdf.js";
-import { preamble, frontmatter, ending } from "./latexContent.js";
-const latexmkrcContent = `$pdflatex = "xelatex %O %S";
-$pdf_mode = 1;
-$dvi_mode = 0;
-$postscript_mode = 0;`;
 
 // html (comparison version)
 import { switchTitle } from "./htmlContent.js";
@@ -42,6 +36,7 @@ import { writeRewritedSearchData } from "./searchRewrite.js";
 import { setupSnippetsJson } from "./processingFunctions/processSnippetJson.js";
 import { createTocJson } from "./generateTocJson.js";
 import { setupReferencesJson } from "./processingFunctions/processReferenceJson.js";
+import { createMain } from "./commands/utils.js";
 
 export let parseType;
 let version;
@@ -243,62 +238,13 @@ const createIndexHtml = version => {
   });
 };
 
-const createMain = () => {
-  if (!fs.existsSync(outputDir)) {
-    fs.mkdirSync(outputDir);
-  }
-
-  if (parseType == "js" || parseType == "json") {
-    return;
-  }
-
-  if (parseType == "web") {
-    if (!fs.existsSync(path.join(outputDir, "/chapters"))) {
-      fs.mkdirSync(path.join(outputDir, "/chapters"));
-    }
-    fse.copy(path.join(__dirname, "/../static"), outputDir, err => {
-      if (err) return console.error(err);
-    });
-    return;
-  }
-
-  // for latex version only
-  // create sicpjs.tex file
-  const chaptersFound = [];
-  const files = fs.readdirSync(inputDir);
-  files.forEach(file => {
-    if (file.match(/chapter/)) {
-      chaptersFound.push(file);
-    }
-  });
-  const stream = fs.createWriteStream(path.join(outputDir, "sicpjs.tex"));
-  stream.once("open", fd => {
-    stream.write(preamble);
-    stream.write(frontmatter);
-    chaptersFound.forEach(chapter => {
-      const pathStr = "./" + chapter + "/" + chapter + ".tex";
-      stream.write("\\input{" + pathStr + "}\n");
-    });
-    stream.write(ending);
-    stream.end();
-  });
-  // makes the .latexmkrc file
-  const latexmkrcStream = fs.createWriteStream(
-    path.join(outputDir, ".latexmkrc")
-  );
-  latexmkrcStream.once("open", fd => {
-    latexmkrcStream.write(latexmkrcContent);
-    latexmkrcStream.end();
-  });
-};
-
 async function main() {
   parseType = process.argv[2];
   if (parseType == "pdf") {
     outputDir = path.join(__dirname, "../latex_pdf");
 
     switchParseFunctionsLatex(parseType);
-    createMain();
+    createMain(inputDir, outputDir, parseType);
 
     console.log("setup snippets\n");
     await recursiveTranslateXml("", "setupSnippet");
@@ -326,7 +272,7 @@ async function main() {
 
     switchParseFunctionsHtml(version);
     switchTitle(version);
-    createMain();
+    createMain(inputDir, outputDir, parseType);
 
     console.log("\ngenerate table of content\n");
     await recursiveTranslateXml("", "generateTOC");
@@ -345,7 +291,7 @@ async function main() {
   } else if (parseType == "js") {
     outputDir = path.join(__dirname, "../js_programs");
 
-    createMain();
+    createMain(inputDir, outputDir, parseType);
     console.log("setup snippets\n");
     await recursiveTranslateXml("", "setupSnippet");
     console.log("setup snippets done\n");
@@ -353,7 +299,7 @@ async function main() {
   } else if (parseType == "json") {
     outputDir = path.join(__dirname, "../json");
 
-    createMain();
+    createMain(inputDir, outputDir, parseType);
 
     console.log("\ngenerate table of content\n");
     await recursiveTranslateXml("", "generateTOC");
