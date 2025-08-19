@@ -47,7 +47,7 @@ export const html_links_part2 = (
   toIndexFolder: string,
   version: string
 ) => {
-  writeTo.push(`<body>`);
+  writeTo.push(`<body>\n`);
   writeTo.push(<Navigation />);
   writeTo.push(
     html`<span class="navbar-brand-short"

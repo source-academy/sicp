@@ -2,7 +2,7 @@ import { html, raw } from "hono/html";
 import type { FC } from "hono/jsx";
 
 const HtmlHeadPart1: FC = () => {
-  return html`<meta charset="utf-8" />
+  return html`<meta charset="utf-8">
     <!-- Global site tag (gtag.js) - Google Analytics - START -->
     <script
       async
@@ -13,12 +13,12 @@ const HtmlHeadPart1: FC = () => {
       function gtag() {
         dataLayer.push(arguments);
       }
-      gtag("js", new Date());
-      gtag("config", "UA-156801664-1");
+      gtag('js', new Date());
+      gtag('config', 'UA-156801664-1');
     </script>
     <!-- Global site tag (gtag.js) - Google Analytics - END -->
-    <meta http-equiv="X-UA-Compatible" content="IE=Edge,chrome=1" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />`;
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge,chrome=1">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">`;
 };
 
 type HtmlHeadPart2Props = {
@@ -35,12 +35,10 @@ const HtmlHeadPart2: FC<HtmlHeadPart2Props> = ({ toIndexFolder }) => {
     -->
     <link
       href="https://fonts.googleapis.com/css?family=Inconsolata&display?swap"
-      rel="stylesheet"
-    />
+      rel="stylesheet">
     <link
       href="https://fonts.googleapis.com/css?family=Droid+Sans|Droid+Serif"
-      rel="stylesheet"
-    />
+      rel="stylesheet">
     <link
       rel="stylesheet"
       media="all"
@@ -63,24 +61,26 @@ const HtmlHeadPart2: FC<HtmlHeadPart2Props> = ({ toIndexFolder }) => {
       src="https://code.jquery.com/jquery-3.2.1.min.js"
       integrity="sha256-hwg4gsxgFZhOsEEamdOYGBf13FyQuiTwlAQgxVSNgt4="
       crossorigin="anonymous"
-    />
+    >
+    </script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tether/1.4.0/js/tether.min.js"></script>
     <script
       src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.6/umd/popper.min.js"
       integrity="sha384-wHAiFfRlMFy6i5SRaxvfOCifBUQy1xHdJ/yoi7FRNXMRBu5WHdZYu1hA6ZOblgut"
       crossorigin="anonymous"
-    />
+    ></script>
     <script
       src="https://stackpath.bootstrapcdn.com/bootstrap/4.2.1/js/bootstrap.min.js"
       integrity="sha384-B0UglyR+jN6CkvvICOB2joaf5I4l3gm9GU6Hc1og6Ls7i6U/mkkaduKaBhlAXv9k"
       crossorigin="anonymous"
-    />
+    ></script>
 
     <!-- <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-alpha.6/js/bootstrap.min.js" integrity="sha384-vBWWzlZJ8ea9aCX4pEW3rVHjgjt7zpkNpZk+02D9phzyeVkE+jo0ieGizqPLForn" crossorigin="anonymous"></script> -->
     <script
       type="text/javascript"
       src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.4/latest.js?config=TeX-AMS-MML_HTMLorMML-full"
-    />
+    >
+    </script>
     <!--  <script type="text/javascript"
       src="${toIndexFolder}MathJax/MathJax.js?config=TeX-AMS-MML_HTMLorMML-full">
     </script> -->
@@ -101,8 +101,7 @@ const HtmlHeadPart2: FC<HtmlHeadPart2Props> = ({ toIndexFolder }) => {
     <!--[if lt IE 9]>
       <script
         src="https://cdnjs.cloudflare.com/ajax/libs/html5shiv/3.7.2/html5shiv.min.js"
-        type="text/javascript"
-      ></script>
+        type="text/javascript"></script>
     <![endif]--> `;
 };
 

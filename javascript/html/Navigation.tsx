@@ -3,7 +3,7 @@ import type { FC } from "hono/jsx";
 
 const NavigationElements: FC = () => {
   return html`<div class="title-text-ALSO">
-      <span class="title-text-ALSO">Color highlighting:</span><br />
+      <span class="title-text-ALSO">Color highlighting:</span><BR />
     </div>
     <div class="title-text-OTHEREDITIONS">
       <span class="title-text-OTHEREDITIONS">
@@ -33,13 +33,11 @@ const NavigationElements: FC = () => {
 };
 
 const Navigation: FC = () => {
-  return html`<!-- support for progressive web app, see README, DISABLED -->
-    <!-- <script>
-      if ("serviceWorker" in navigator && !navigator.serviceWorker.controller) {
-        navigator.serviceWorker.register("../sw.js").then(function (reg) {
-          console.log(
-            "Service worker has been registered for scope: " + reg.scope
-          );
+  return html`<!-- support for progressive web app, see README, DISABLED
+    <script>
+      if ('serviceWorker' in navigator && !navigator.serviceWorker.controller) {
+        navigator.serviceWorker.register("../sw.js").then(function(reg) {
+          console.log("Service worker has been registered for scope: " + reg.scope);
         });
       }
     </script> -->
