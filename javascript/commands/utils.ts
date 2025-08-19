@@ -3,6 +3,8 @@ import fse from "fs-extra";
 import path from "node:path";
 import { ending, frontmatter, preamble } from "../latexContent.js";
 
+const __dirname = path.resolve(import.meta.dirname);
+
 export const createMain = (
   inputDir: string,
   outputDir: string,
