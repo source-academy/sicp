@@ -1,4 +1,4 @@
-import { html, raw } from "hono/html";
+import { html } from "hono/html";
 import type { FC } from "hono/jsx";
 
 const HtmlHeadPart1: FC = () => {
@@ -116,12 +116,13 @@ const LinksHead: FC<LinksHeadProps> = ({
   toIndexFolder,
   version
 }) => {
-  return html`
+  return (
     <head>
-      ${(<HtmlHeadPart1 />)} ${raw(children)}
-      ${(<HtmlHeadPart2 toIndexFolder={toIndexFolder} />)}
+      <HtmlHeadPart1 />
+      {children}
+      <HtmlHeadPart2 toIndexFolder={toIndexFolder} />
     </head>
-  `;
+  );
 };
 
 export default LinksHead;

@@ -1,9 +1,9 @@
-import { html } from "hono/html";
+import { html, raw } from "hono/html";
+import Attribution from "./html/Attribution.js";
+import Navigation from "./html/Navigation.js";
 import type { WriteBuffer, WriteBufferElement } from "./types.js";
 import { JsVersionEdition, JsVersionLegend } from "./versions/js.js";
 import { SplitVersionEdition, SplitVersionLegend } from "./versions/split.js";
-import Navigation from "./html/Navigation.js";
-import Attribution from "./html/Attribution.js";
 
 const shortTitleDefault: WriteBufferElement = `SICP &mdash; JS`;
 const longTitleDefault: WriteBufferElement = `Structure and Interpretation of Computer Programs &mdash; Comparison Edition`;
@@ -55,7 +55,7 @@ export const html_links_part2 = (
           title="Go back to front page"
           href="${toIndexFolder}index.html"
           class="gray"
-          >${shortTitle}</a
+          >${raw(shortTitle)}</a
         ></span
       >
       <span class="navbar-brand-long"
@@ -63,7 +63,7 @@ export const html_links_part2 = (
           title="Go back to front page"
           href="${toIndexFolder}index.html"
           class="gray"
-          >${longTitle}</a
+          >${raw(longTitle)}</a
         ></span
       >`
   );

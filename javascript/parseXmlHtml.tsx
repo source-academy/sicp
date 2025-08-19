@@ -20,6 +20,7 @@ import {
 } from "./processingFunctions/index.js";
 import LinksHead from "./html/LinksHead.js";
 import type { WriteBuffer } from "./types.js";
+import { raw } from "hono/html";
 
 let paragraph_count = 0;
 let heading_count = 0;
@@ -837,8 +838,8 @@ const beforeContent = (writeTo: WriteBuffer) => {
   writeTo.push(html_links_part1);
   writeTo.push(
     <LinksHead toIndexFolder={toIndexFolder} version="js">
-      <meta name="description" content={pageTitle} />
-      <title>{pageTitle}</title>
+      <meta name="description" content={raw(pageTitle)} />
+      <title>{raw(pageTitle)}</title>
     </LinksHead>
   );
   html_links_part2(writeTo, toIndexFolder, "js");
