@@ -8,6 +8,8 @@ import {
 import LinksHead from "./html/LinksHead.js";
 import Licences from "./html/Licences.js";
 import { generateChapterIndex } from "./tocUtils.js";
+import { IndexHeaderCard, SidebarHeaderCard } from "./TocCards.js";
+import { html } from "hono/html";
 
 const truncateTitle = chapterTitle => {
   let truncatedTitle = "";
@@ -90,37 +92,45 @@ export const recursiveProcessTOC = (index, writeTo, option, toIndexFolder) => {
 
   if (filename.match(/others/) || filename.match(/subsection/)) {
     if (option == "index") {
-      writeTo.push(`
+      writeTo.push(html`
         <div class="card card-inverse">
           <div class="card-header" role="tab" id="index-${index + 1}">
             <h5 class="mb-0">
-              <span class="collapsed" data-toggle="collapse" href="#index-collapse-${
-                index + 1
-              }" aria-expanded="false" aria-controls="index-collapse-${
-                index + 1
-              }">
-                <a href="${toIndexFolder}${chapterIndex}.html"> ${displayTitle}</a>
+              <span
+                class="collapsed"
+                data-toggle="collapse"
+                href="#index-collapse-${index + 1}"
+                aria-expanded="false"
+                aria-controls="index-collapse-${index + 1}"
+              >
+                <a href="${toIndexFolder}${chapterIndex}.html">
+                  ${displayTitle}</a
+                >
               </span>
             </h5>
           </div>
         </div>
-        `);
+      `);
     } else if (option == "sidebar") {
-      writeTo.push(`
+      writeTo.push(html`
         <div class="card card-inverse">
           <div class="card-header" role="tab" id="sidebar-${index + 1}">
             <h5 class="mb-0">
-              <span class="collapsed" data-toggle="collapse" href="#sidebar-collapse-${
-                index + 1
-              }" aria-expanded="false" aria-controls="sidebar-collapse-${
-                index + 1
-              }">
-                <a href="${toIndexFolder}${chapterIndex}.html"> ${displayTitle}</a>
+              <span
+                class="collapsed"
+                data-toggle="collapse"
+                href="#sidebar-collapse-${index + 1}"
+                aria-expanded="false"
+                aria-controls="sidebar-collapse-${index + 1}"
+              >
+                <a href="${toIndexFolder}${chapterIndex}.html">
+                  ${displayTitle}</a
+                >
               </span>
             </h5>
           </div>
         </div>
-        `);
+      `);
     }
 
     if (filename.match(/others/)) {
@@ -134,25 +144,14 @@ export const recursiveProcessTOC = (index, writeTo, option, toIndexFolder) => {
     if (option == "index") {
       writeTo.push(`
         <div class="card card-inverse">
-          <div class="card-header" role="tab" id="index-${index + 1}">
-            <h5 class="mb-0">
-              <a class="index-show collapsed" data-toggle="collapse" href="#index-collapse-${
-                index + 1
-              }" aria-expanded="true" aria-controls="index-collapse-${
-                index + 1
-              }">
-              &#10148;   <!-- ➤ (because this one is rendered blue on mobile: ▶  -->
-              </a>
-              <a class="index-hide collapsed" data-toggle="collapse" href="#index-collapse-${
-                index + 1
-              }" aria-expanded="true" aria-controls="index-collapse-${
-                index + 1
-              }">
-              &#x25BC;    <!-- ▼ (because the corresponding one is not rendered) -->
-              </a>
-              <a href="${toIndexFolder}${chapterIndex}.html">${displayTitle}</a>
-            </h5>
-          </div>
+          ${(
+            <IndexHeaderCard
+              index={index}
+              chapterIndex={chapterIndex}
+              displayTitle={displayTitle}
+              toIndexFolder={toIndexFolder}
+            />
+          )}
 
           <div id="index-collapse-${
             index + 1
@@ -162,25 +161,14 @@ export const recursiveProcessTOC = (index, writeTo, option, toIndexFolder) => {
     } else if (option == "sidebar") {
       writeTo.push(`
             <div class="card card-inverse">
-              <div class="card-header" role="tab" id="sidebar-${index + 1}">
-                <h5 class="mb-0">
-                  <a class="sidebar-show collapsed" data-toggle="collapse" href="#sidebar-collapse-${
-                    index + 1
-                  }" aria-expanded="true" aria-controls="sidebar-collapse-${
-                    index + 1
-                  }">
-                  &#10148;   <!-- ➤ (because this one is rendered blue on mobile: ▶  -->
-                  </a>
-                  <a class="sidebar-hide collapsed" data-toggle="collapse" href="#sidebar-collapse-${
-                    index + 1
-                  }" aria-expanded="true" aria-controls="sidebar-collapse-${
-                    index + 1
-                  }">
-                  &#x25BC;    <!-- ▼ (because the corresponding one is not rendered) -->
-                  </a>
-                  <a href="${toIndexFolder}${chapterIndex}.html">${displayTitle}</a>
-                </h5>
-              </div>
+            ${(
+              <SidebarHeaderCard
+                index={index}
+                chapterIndex={chapterIndex}
+                displayTitle={displayTitle}
+                toIndexFolder={toIndexFolder}
+              />
+            )}
 
               <div id="sidebar-collapse-${
                 index + 1
