@@ -1,4 +1,4 @@
-import { getChildrenByTagName, ancestorHasTag } from "./utilityFunctions";
+import { getChildrenByTagName, ancestorHasTag } from "./utilityFunctions.js";
 import { allFilepath, tableOfContent } from "./index.js";
 import path from "path";
 import fs from "fs";
@@ -12,7 +12,7 @@ import {
   processSnippetJson,
   recursiveProcessPureText,
   recursivelyProcessTextSnippetJson
-} from "./processingFunctions";
+} from "./processingFunctions/index.js";
 
 let paragraph_count = 0;
 let heading_count = 0;
