@@ -7,7 +7,7 @@ export const getUrl = searchResult =>
   `https://sourceacademy.nus.edu.sg/sicpjs/${searchResult.id}`;
 
 // search data, maintaining and updation functions and write function from this line onwards
-export const idToContentMap = {};
+export const idToContentMap: Record<string, string> = {};
 export const textTrie = new TrieNode();
 export const indexTrie = new TrieNode();
 
