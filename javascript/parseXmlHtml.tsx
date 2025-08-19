@@ -19,6 +19,7 @@ import {
   recursiveProcessPureText
 } from "./processingFunctions/index.js";
 import LinksHead from "./html/LinksHead.js";
+import type { WriteBuffer } from "./types.js";
 
 let paragraph_count = 0;
 let heading_count = 0;
@@ -804,7 +805,7 @@ export const switchParseFunctionsHtml = version => {
   }
 };
 
-export const processTextHtml = (node, writeTo) => {
+export const processTextHtml = (node, writeTo: string[]) => {
   const name = node.nodeName;
   if (processTextFunctionsHtml[name]) {
     processTextFunctionsHtml[name](node, writeTo);
@@ -826,13 +827,13 @@ export const processTextHtml = (node, writeTo) => {
   return false;
 };
 
-export const recursiveProcessTextHtml = (node, writeTo) => {
+export const recursiveProcessTextHtml = (node, writeTo: WriteBuffer) => {
   if (!node) return;
   processTextHtml(node, writeTo);
   return recursiveProcessTextHtml(node.nextSibling, writeTo);
 };
 
-const beforeContent = writeTo => {
+const beforeContent = (writeTo: WriteBuffer) => {
   writeTo.push(html_links_part1);
   writeTo.push(
     <LinksHead toIndexFolder={toIndexFolder} version="js">
@@ -846,7 +847,7 @@ const beforeContent = writeTo => {
   writeTo.push(beforeContentWrapper);
 };
 
-const afterContent = writeTo => {
+const afterContent = (writeTo: WriteBuffer) => {
   writeTo.push(`
     <div class='nav'>
   `);

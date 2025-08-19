@@ -10,6 +10,7 @@ import Licences from "./html/Licences.js";
 import { generateChapterIndex } from "./tocUtils.js";
 import { IndexHeaderCard, SidebarHeaderCard } from "./TocCards.js";
 import { html } from "hono/html";
+import type { WriteBuffer } from "./types.js";
 
 const truncateTitle = chapterTitle => {
   let truncatedTitle = "";
@@ -67,7 +68,12 @@ export const sortTOC = allFilepath => {
   return head.concat(mid, tail);
 };
 
-export const recursiveProcessTOC = (index, writeTo, option, toIndexFolder) => {
+export const recursiveProcessTOC = (
+  index: number,
+  writeTo: WriteBuffer,
+  option,
+  toIndexFolder
+) => {
   if (index >= allFilepath.length) {
     return;
   }
@@ -202,7 +208,7 @@ export const recursiveProcessTOC = (index, writeTo, option, toIndexFolder) => {
   }
 };
 
-export const indexHtml = writeToIndex => {
+export const indexHtml = (writeToIndex: WriteBuffer) => {
   //let chapArrIndex = 0;
 
   //console.log(tableOfContent);
