@@ -1,3 +1,4 @@
+// @ts-check
 import fs from "fs";
 import fse from "fs-extra";
 import util from "util";
@@ -46,6 +47,8 @@ import { setupReferencesJson } from "./processingFunctions/processReferenceJson"
 export let parseType;
 let version;
 let outputDir; // depends on parseType
+
+const __dirname = path.resolve(import.meta.dirname);
 const inputDir = path.join(__dirname, "../xml");
 
 const ensureDirectoryExists = (path, cb) => {

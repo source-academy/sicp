@@ -26,6 +26,8 @@ let chapterTitle = "";
 let displayTitle = "";
 export let chapterIndex = "";
 
+const __dirname = path.resolve(import.meta.dirname);
+
 export const tagsToRemove = new Set([
   "#comment",
   "ATTRIBUTION",

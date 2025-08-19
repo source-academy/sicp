@@ -8,6 +8,7 @@ const readdir = util.promisify(fs.readdir);
 const open = util.promisify(fs.open);
 const readFile = util.promisify(fs.readFile);
 
+const __dirname = path.resolve(import.meta.dirname);
 const inputDir = path.join(__dirname, "../xml");
 
 const validTags = new Set([
