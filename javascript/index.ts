@@ -37,10 +37,11 @@ import { setupSnippetsJson } from "./processingFunctions/processSnippetJson.js";
 import { createTocJson } from "./generateTocJson.js";
 import { setupReferencesJson } from "./processingFunctions/processReferenceJson.js";
 import { createMain } from "./commands/utils.js";
+import type { WriteBuffer } from "./types.js";
 
 export let parseType;
 let version;
-let outputDir; // depends on parseType
+let outputDir: string; // depends on parseType
 
 const __dirname = path.resolve(import.meta.dirname);
 const inputDir = path.join(__dirname, "../xml");
@@ -229,7 +230,7 @@ async function recursiveTranslateXml(filepath, option) {
 // (to recreate non-split Mobile-friendly Web Edition: remove conditional)
 const createIndexHtml = version => {
   const indexFilepath = path.join(outputDir, "index.html");
-  const writeToIndex = [];
+  const writeToIndex: WriteBuffer = [];
   indexHtml(writeToIndex);
   const stream = fs.createWriteStream(indexFilepath);
   stream.once("open", fd => {
