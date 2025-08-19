@@ -172,11 +172,10 @@ const recursiveCheckChildrenForValidTag = node => {
   return found;
 };
 
-async function recursiveCheckXmlForTag(filepath, tagName) {
-  let files;
+async function recursiveCheckXmlForTag(filepath: string, tagName: string) {
   const fullPath = path.join(inputDir, filepath);
-  files = await readdir(fullPath);
-  const promises = [];
+  const files = await readdir(fullPath);
+  const promises: Promise<void>[] = [];
 
   files.forEach(file => {
     if (file.match(/\.xml$/)) {
@@ -190,7 +189,11 @@ async function recursiveCheckXmlForTag(filepath, tagName) {
   await Promise.all(promises);
 }
 
-async function checkXmlForTag(filepath, filename, tagName) {
+async function checkXmlForTag(
+  filepath: string,
+  filename: string,
+  tagName: string
+) {
   const fullFilepath = path.join(inputDir, filepath, filename);
   const fileToRead = await open(fullFilepath, "r");
 
@@ -211,7 +214,7 @@ async function checkXmlForTag(filepath, filename, tagName) {
 async function main() {
   const args = process.argv;
   let tagName = "";
-  if (args.length > 2 && args[2] != "") {
+  if (args.length > 2 && args[2]) {
     tagName = args[2];
     console.log("\nLooking for tag: " + tagName + "\n");
   } else {
@@ -221,7 +224,7 @@ async function main() {
   recursiveCheckXmlForTag("", tagName);
 }
 
-// babel-node ./javascript/findBadTags <tagname>
+// tsx ./javascript/findBadTags <tagname>
 
 // Can provide 0 or 1 arguments.
 // If no arguments provided, checks for all invalid tags.
