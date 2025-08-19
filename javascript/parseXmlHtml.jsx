@@ -1,11 +1,11 @@
-import { getChildrenByTagName, ancestorHasTag } from "./utilityFunctions";
+import { getChildrenByTagName, ancestorHasTag } from "./utilityFunctions.js";
 import { allFilepath, tableOfContent } from "./index.js";
 import {
   html_links_part1,
   html_links_part2,
   beforeContentWrapper
-} from "./htmlContent";
-import { recursiveProcessTOC } from "./generateTocHtml";
+} from "./htmlContent.js";
+import { recursiveProcessTOC } from "./generateTocHtml.js";
 
 import {
   replaceTagWithSymbol,
@@ -17,7 +17,7 @@ import {
   processSnippetHtml,
   processSnippetHtmlScheme,
   recursiveProcessPureText
-} from "./processingFunctions";
+} from "./processingFunctions/index.js";
 import LinksHead from "./html/LinksHead.js";
 
 let paragraph_count = 0;
