@@ -1,16 +1,17 @@
 import NavigationElements from "./html/NavigationElements.js";
+import type { WriteBufferElement } from "./types.js";
 import { JsVersionEdition, JsVersionLegend } from "./versions/js.js";
 import { SplitVersionEdition, SplitVersionLegend } from "./versions/split.js";
 
-const shortTitleDefault = `SICP &mdash; JS`;
-const longTitleDefault = `Structure and Interpretation of Computer Programs &mdash; Comparison Edition`;
-let shortTitle = shortTitleDefault;
-let longTitle = longTitleDefault;
-let this_edition = `
+const shortTitleDefault: WriteBufferElement = `SICP &mdash; JS`;
+const longTitleDefault: WriteBufferElement = `Structure and Interpretation of Computer Programs &mdash; Comparison Edition`;
+let shortTitle: WriteBufferElement = shortTitleDefault;
+let longTitle: WriteBufferElement = longTitleDefault;
+let this_edition: WriteBufferElement = `
 <div class="title-text-EDITION">
 	    <span class="title-text-EDITION">Mobile-friendly Web Edition</span>
 	  </div>`;
-let legend = `
+let legend: WriteBufferElement = `
 <div class="title-text-ALSO">
   <span class="title-text-ALSO">also available</span><BR/>
 </div>
