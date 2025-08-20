@@ -1,74 +1,16 @@
-import fs from "fs";
+import fs from "node:fs";
+import path from "node:path";
+import { insert, TrieNode } from "./search/TrieNode.js";
 
 // line 3 to 68: trie implementation and search functions
-class trieNode {
-  constructor() {
-    this.children = {};
-    this.value = [];
-    this.key = "";
-  }
-}
-
-export function insert(keyStr, value, trie) {
-  const keys = [...keyStr];
-  let node = trie;
-  for (let i = 0; i < keys.length; i++) {
-    if (!node.children[keys[i]]) {
-      node.children[keys[i]] = new trieNode();
-    }
-    node = node.children[keys[i]];
-  }
-  node.value.push(value);
-  node.key = keyStr;
-}
-
-export function search(keyStr, trie) {
-  const keys = [...keyStr];
-  let node = trie;
-  for (let i = 0; i < keys.length; i++) {
-    if (node === undefined || node.children === undefined) {
-      console.log("when searching, got undefined node or node.children");
-      console.log("i is " + i);
-      return null;
-    }
-
-    if (!node.children[keys[i]]) {
-      return null;
-    }
-    node = node.children[keys[i]];
-  }
-  return node.value;
-}
-
-export function autoComplete(incompleteKeys, trie, n = 30) {
-  let node = trie;
-  for (let i = 0; i < incompleteKeys.length; i++) {
-    if (!node.children[incompleteKeys[i]]) {
-      return [];
-    }
-    node = node.children[incompleteKeys[i]];
-  }
-  const result = [];
-  const queue = [node];
-  while (queue.length > 0 && result.length < n) {
-    const node = queue.shift();
-    if (node.value.length > 0) {
-      result.push(node.key);
-    }
-    for (const child of Object.values(node.children)) {
-      queue.push(child);
-    }
-  }
-  return result;
-}
 
 export const getUrl = searchResult =>
   `https://sourceacademy.nus.edu.sg/sicpjs/${searchResult.id}`;
 
 // search data, maintaining and updation functions and write function from this line onwards
-export const idToContentMap = {};
-export const textTrie = new trieNode();
-export const indexTrie = new trieNode();
+export const idToContentMap: Record<string, string> = {};
+export const textTrie = new TrieNode();
+export const indexTrie = new TrieNode();
 
 const parseIndexSearchEntryTo = (node, json) => {
   if (node === null) return;
@@ -309,12 +251,12 @@ const buildTextTrie = () => {
   }
 };
 
-export const writeRewritedSearchData = () => {
+export const writeRewritedSearchData = (outputDir: string) => {
   buildTextTrie();
 
   const searchData = { indexTrie, textTrie, idToContentMap };
   fs.writeFile(
-    "json/rewritedSearchData.json",
+    path.join(outputDir, "rewritedSearchData.json"),
     JSON.stringify(searchData),
     err => {
       if (err) {

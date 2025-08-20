@@ -1,33 +1,33 @@
-import replaceTagWithSymbol from "./replaceTagWithSymbol";
-import { getChildrenByTagName } from "../utilityFunctions";
-import processFileInput from "./processFileInput";
-import recursiveProcessPureText from "./recursiveProcessPureText";
+import replaceTagWithSymbol from "./replaceTagWithSymbol.js";
+import { getChildrenByTagName } from "../utilityFunctions.js";
+import processFileInput from "./processFileInput.js";
+import recursiveProcessPureText from "./recursiveProcessPureText.js";
 
-import { recursiveProcessTextLatex } from "../parseXmlLatex";
-import processAttributionPdf from "./processAttributionPdf";
-import processEpigraphPdf from "./processEpigraphPdf";
-import processExercisePdf from "./processExercisePdf";
-import processFigurePdf, { generateImage } from "./processFigurePdf";
-import processSnippetPdf from "./processSnippetPdf";
-import processSnippetJs from "./processSnippetJs";
-import processTablePdf from "./processTablePdf";
+import { recursiveProcessTextLatex } from "../parseXmlLatex.js";
+import processAttributionPdf from "./processAttributionPdf.js";
+import processEpigraphPdf from "./processEpigraphPdf.js";
+import processExercisePdf from "./processExercisePdf.js";
+import processFigurePdf, { generateImage } from "./processFigurePdf.js";
+import processSnippetPdf from "./processSnippetPdf.js";
+import processSnippetJs from "./processSnippetJs.js";
+import processTablePdf from "./processTablePdf.js";
 
-import processEpigraphHtml from "./processEpigraphHtml";
-import processBlockquoteHtml from "./processBlockquoteHtml";
-import processExerciseHtml from "./processExerciseHtml";
-import processFigureHtml from "./processFigureHtml";
-import processReferenceHtml from "./processReferenceHtml";
-import processSnippetHtml from "./processSnippetHtml";
-import processSnippetHtmlScheme from "./processSnippetHtml_scheme";
+import processEpigraphHtml from "./processEpigraphHtml.js";
+import processBlockquoteHtml from "./processBlockquoteHtml.js";
+import processExerciseHtml from "./processExerciseHtml.js";
+import processFigureHtml from "./processFigureHtml.js";
+import processReferenceHtml from "./processReferenceHtml.js";
+import processSnippetHtml from "./processSnippetHtml.js";
+import processSnippetHtmlScheme from "./processSnippetHtml_scheme.js";
 
-import processExerciseJson from "./processExerciseJson";
-import processFigureJson from "./processFigureJson";
+import processExerciseJson from "./processExerciseJson.js";
+import processFigureJson from "./processFigureJson.js";
 import {
   processSnippetJson,
   recursivelyProcessTextSnippetJson
-} from "./processSnippetJson";
-import processEpigraphJson from "./processEpigraphJson";
-import processReferenceJson from "./processReferenceJson";
+} from "./processSnippetJson.js";
+import processEpigraphJson from "./processEpigraphJson.js";
+import processReferenceJson from "./processReferenceJson.js";
 
 export const processList = (node, writeTo) => {
   if (!node) return;

@@ -1,4 +1,4 @@
-export const getChildrenByTagName = (node, tagName) => {
+export const getChildrenByTagName = (node, tagName: string) => {
   let child = node.firstChild;
   const childrenWithTag = [];
   while (child) {
@@ -10,7 +10,7 @@ export const getChildrenByTagName = (node, tagName) => {
   return childrenWithTag;
 };
 
-export const ancestorHasTag = (node, tagName) => {
+export const ancestorHasTag = (node, tagName: string) => {
   let parent = node.parentNode;
   while (parent) {
     if (parent.nodeName === tagName) {
