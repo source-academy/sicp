@@ -18,7 +18,7 @@ PDF_FILE="sicpjs.pdf"
 
 # RESOURCES
 FAVICON="static/assets/sourcepower.ico"
-STYLESHEET="static/assets/sourcepower.ico"
+STYLESHEET="static/assets/styles/stylesheet.css"
 FONTS="static/fonts"
 CSS="static/css"
 IMAGES="static/images"
