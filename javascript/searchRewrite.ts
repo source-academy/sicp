@@ -1,4 +1,5 @@
 import fs from "node:fs";
+import path from "node:path";
 import { insert, TrieNode } from "./search/TrieNode.js";
 
 // line 3 to 68: trie implementation and search functions
@@ -250,12 +251,12 @@ const buildTextTrie = () => {
   }
 };
 
-export const writeRewritedSearchData = () => {
+export const writeRewritedSearchData = (outputDir: string) => {
   buildTextTrie();
 
   const searchData = { indexTrie, textTrie, idToContentMap };
   fs.writeFile(
-    "json/rewritedSearchData.json",
+    path.join(outputDir, "rewritedSearchData.json"),
     JSON.stringify(searchData),
     err => {
       if (err) {

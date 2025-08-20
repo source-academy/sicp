@@ -312,7 +312,7 @@ async function main() {
     console.log("setup snippets and references done\n");
 
     await recursiveXmlToHtmlInOrder("parseXml");
-    writeRewritedSearchData();
+    writeRewritedSearchData(outputDir);
     // this is meant to be temp; also, will remove the original "generateSearchData" after the updation at the frontend is completed.
     //testIndexSearch();
   }
