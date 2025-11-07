@@ -46,6 +46,22 @@ DROP_TAGS = {
 SCHEME_PREFIXES = ("SCHEME",)
 CODE_BLOCK_TAGS = {"SNIPPET", "PROGRAMLISTING", "CODE", "DISPLAY"}
 INLINE_CODE_TAGS = {"JAVASCRIPTINLINE"}
+SENTENCE_END_CHARS = {
+    ".",
+    "?",
+    "!",
+    "\"",
+    "'",
+    "\u00bb",
+    "\u201d",
+    "\u2019",
+    ":",
+    ";",
+    ")",
+    "]",
+    "}",
+    "`",
+}
 
 
 def num_tokens(text: str) -> int:
@@ -95,10 +111,23 @@ def normalize_code(text: str) -> str:
     return "\n".join(lines)
 
 
+def _append_tail(parent: ET.Element, siblings: List[ET.Element], idx: int, tail: Optional[str]) -> None:
+    if not tail:
+        return
+    for prev_idx in range(idx - 1, -1, -1):
+        prev = siblings[prev_idx]
+        if prev in parent:
+            prev.tail = (prev.tail or "") + tail
+            return
+    parent.text = (parent.text or "") + tail
+
+
 def prune_tree(node: ET.Element) -> None:
-    for child in list(node):
+    children = list(node)
+    for idx, child in enumerate(children):
         tag = child.tag.upper()
         if tag in DROP_TAGS or tag.startswith(SCHEME_PREFIXES):
+            _append_tail(node, children, idx, child.tail)
             node.remove(child)
             continue
         prune_tree(child)
@@ -110,8 +139,6 @@ def gather_code(node: ET.Element) -> str:
     def visit(el: ET.Element) -> None:
         tag = el.tag.upper()
         if tag in DROP_TAGS or tag.startswith(SCHEME_PREFIXES):
-            return
-        if tag == "JAVASCRIPT_OUTPUT":
             return
         if el.text:
             parts.append(el.text)
@@ -144,8 +171,9 @@ def extract_segments_from_text(node: ET.Element) -> List[Dict[str, str]]:
             segments.append({"type": "text", "content": text})
         buffer.clear()
 
-    def walk(el: ET.Element) -> None:
+    def walk(el: ET.Element, parent_tag: Optional[str] = None) -> None:
         tag = el.tag.upper()
+        parent_upper = parent_tag.upper() if parent_tag else None
 
         if tag in DROP_TAGS or tag.startswith(SCHEME_PREFIXES):
             return
@@ -173,6 +201,12 @@ def extract_segments_from_text(node: ET.Element) -> List[Dict[str, str]]:
             snippet = gather_code(el)
             if not snippet:
                 return
+            inline_context = parent_upper not in CODE_BLOCK_TAGS
+            if inline_context:
+                inline_snippet = normalize_whitespace(snippet.replace("\n", " "))
+                if inline_snippet:
+                    append_text(inline_snippet)
+                return
             if "\n" in snippet or re.search(r"[;{}=]", snippet):
                 flush_text()
                 segments.append({"type": "code", "content": snippet})
@@ -184,7 +218,7 @@ def extract_segments_from_text(node: ET.Element) -> List[Dict[str, str]]:
             append_text(el.text)
 
         for child in el:
-            walk(child)
+            walk(child, tag)
             if child.tail:
                 append_text(child.tail)
 
@@ -192,7 +226,7 @@ def extract_segments_from_text(node: ET.Element) -> List[Dict[str, str]]:
         append_text(node.text)
 
     for child in node:
-        walk(child)
+        walk(child, node.tag)
         if child.tail:
             append_text(child.tail)
 
@@ -349,6 +383,13 @@ def join_units(units: List[str], types: List[str]) -> str:
     return out.strip()
 
 
+def has_sentence_ending(text: str) -> bool:
+    stripped = text.rstrip()
+    if not stripped:
+        return True
+    return stripped[-1] in SENTENCE_END_CHARS
+
+
 def chunk_units(
     units: List[Dict[str, str]],
     meta: Dict[str, Optional[str]],
@@ -408,14 +449,23 @@ def chunk_units(
         if carry_pending and not buffer:
             seed_carry()
 
-        if current_tokens + unit_tokens > MAX_TOKENS and buffer:
+        overflow = current_tokens + unit_tokens > MAX_TOKENS and buffer
+        allow_overflow = (
+            overflow
+            and ttype == "code"
+            and types
+            and types[-1] == "text"
+            and not has_sentence_ending(buffer[-1])
+        )
+
+        if overflow and not allow_overflow:
             flush()
             if carry_pending and not buffer:
                 seed_carry()
-
-        buffer.append(text)
-        types.append(ttype)
-        current_tokens += unit_tokens
+        else:
+            buffer.append(text)
+            types.append(ttype)
+            current_tokens = current_tokens + unit_tokens
 
     flush()
     return chunks
