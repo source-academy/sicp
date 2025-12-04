@@ -1,0 +1,1914 @@
+<SUBSECTION>
+   <NAME>
+    Example: 符号代数
+  </NAME> 
+
+  <LABEL NAME="sec:symbolic-algebra"></LABEL>
+   <INDEX>符号代数<OPEN></OPEN></INDEX> 
+   <TEXT>
+    符号代数表达式的操控是一个复杂的过程，揭示了在设计大型系统时出现的许多难题。一般来说，代数表达式可视为一个分层结构，即运算符作用于操作数的树形结构。通过从一组原始对象（如常数与变量）出发，并用代数运算符（如加法与乘法）将其组合，我们可以构建代数表达式。如同其他语言，我们形成抽象以便用简单的术语指代复合对象。符号代数中典型的抽象包括线性组合、多项式、有理函数或三角函数等思想。我们可以将这些视为复合类型，它们通常用于引导表达式的处理。例如，我们可以描述表达式
+
+    
+      \[ x^{2}\, \sin (y^2+1)+x\, \cos 2y+\cos (y^3 -2y^2) \]
+    
+    为一个关于 $x$ 的多项式，其系数为 $y$ 中多项式的三角函数，而系数为整数。
+  </TEXT> 
+   <TEXT>
+    我们在此不尝试开发一个完整的代数操控系统。这样的系统是极其复杂的程序，包含深奥的代数知识和优雅的算法。我们将要做的是研究代数操控的一个简单但重要的部分：多项式算术。我们将展示这样的系统设计者所面临的各种决策，以及如何应用抽象数据和通用操作的理念来帮助组织这一工作。
+  </TEXT> 
+
+   <SUBHEADING>
+    <NAME>多项式算术</NAME>
+  </SUBHEADING> 
+
+  <INDEX>polynomial(s)<OPEN></OPEN></INDEX><!-- Error occurred while translating this section -->
+  <INDEX>polynomial arithmetic<OPEN></OPEN></INDEX><!-- Error occurred while translating this section -->
+  <TEXT>
+    Our first task in designing a system for performing arithmetic on
+    polynomials is to decide just what a polynomial is.  Polynomials are
+    normally defined relative to certain variables (the 
+    <INDEX>indeterminate of a polynomial</INDEX>
+    <INDEX>polynomial(s)<SUBINDEX>indeterminate of</SUBINDEX></INDEX>
+    <EM>indeterminates</EM> of the polynomial).  For simplicity, we will
+      restrict ourselves to polynomials having just one indeterminate 
+      <INDEX>univariate polynomial</INDEX>
+      <INDEX>polynomial(s)<SUBINDEX>univariate</SUBINDEX></INDEX>
+      <EM>(univariate polynomials</EM>).<FOOTNOTE>On the other hand, we will
+      allow polynomials whose coefficients are themselves polynomials in other
+      variables.  This will give us essentially the same representational
+      power as a full multivariate system, although it does lead to coercion
+      problems, as discussed below.</FOOTNOTE> We will define a polynomial to
+      be a sum of terms, each of which is either a coefficient, a power of the
+      indeterminate, or a product of a coefficient and a power of the
+      indeterminate.  A coefficient is defined as an algebraic expression
+      that is not dependent upon the indeterminate of the polynomial.  For
+      example,
+      <LATEX>
+        \[ 5x^2 +3x +7 \]
+      </LATEX>
+      is a simple polynomial in <LATEXINLINE>$x$</LATEXINLINE>, and
+      <LATEX>
+        \[ (y^2 +1)x^3 +(2y)x+1 \]
+      </LATEX>
+      is a polynomial in <LATEXINLINE>$x$</LATEXINLINE> whose coefficients are
+      polynomials in <LATEXINLINE>$y$</LATEXINLINE>.
+  </TEXT><!-- Error occurred while translating this section -->
+  <TEXT>
+    Already we are skirting some thorny issues.  Is the first of these
+    polynomials the same as the polynomial
+    <LATEXINLINE>$5y^2 +3y +7$</LATEXINLINE>, or not?  A reasonable answer
+    might be <QUOTE>yes, if we are considering a polynomial purely as a
+    mathematical function, but no, if we are considering a polynomial to be a
+    syntactic form.</QUOTE>  The second polynomial is algebraically equivalent
+    to a polynomial in <LATEXINLINE>$y$</LATEXINLINE> whose coefficients are
+    polynomials in <LATEXINLINE>$x$</LATEXINLINE>.  Should our system recognize
+    this, or not? Furthermore, there are other ways to represent a
+    polynomial<EMDASH></EMDASH>for example, as a product of factors, or (for a
+    univariate polynomial) as the set of roots, or as a listing of the values
+    of the polynomial at a specified set of points.<FOOTNOTE>For univariate
+    polynomials, giving the value of a polynomial at a given set of points can
+    be a particularly good representation.  This makes polynomial arithmetic
+    extremely simple.  To obtain, for example, the sum of two polynomials
+    represented in this way, we need only add the values of the
+    polynomials at corresponding points.  To transform back to a more
+    familiar representation, we can use the 
+    <INDEX>Lagrange interpolation formula</INDEX>
+    Lagrange interpolation formula, which shows how to recover the coefficients
+    of a polynomial of degree <LATEXINLINE>$n$</LATEXINLINE> given the values
+    of the polynomial at <LATEXINLINE>$n+1$</LATEXINLINE> points.</FOOTNOTE>
+    We can finesse these questions by deciding that in our
+    algebraic-manipulation system a <QUOTE>polynomial</QUOTE> will be a
+    particular syntactic form, not its underlying mathematical meaning.
+  </TEXT><!-- Error occurred while translating this section -->
+  <TEXT>
+    Now we must consider how to go about doing arithmetic on polynomials.
+    In this simple system, we will consider only addition and
+    multiplication.  Moreover, we will insist that two polynomials to be
+    combined must have the same indeterminate.
+  </TEXT><!-- Error occurred while translating this section -->
+  <TEXT>
+    We will approach the design of our system by following the familiar
+    discipline of data abstraction.  We will represent polynomials using a
+    data structure called a 
+    <INDEX>poly</INDEX>
+    <EM>poly</EM>, which consists of a variable and a
+    <INDEX>term list of polynomial</INDEX>
+    collection of terms.  We assume that we have selectors
+    <!-- Error occurred while translating this section --><SCHEMEINLINE>variable</SCHEMEINLINE> and
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>term-list</SCHEMEINLINE></SCHEME>
+      <JAVASCRIPT><JAVASCRIPTINLINE>term_list</JAVASCRIPTINLINE></JAVASCRIPT>
+    </SPLITINLINE>
+    that extract those parts from a poly and a constructor
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>make-poly</SCHEMEINLINE></SCHEME>
+      <JAVASCRIPT><JAVASCRIPTINLINE>make_poly</JAVASCRIPTINLINE></JAVASCRIPT>
+    </SPLITINLINE>
+    that assembles a poly from a given variable and a term list.
+    A variable will be just a
+    <SPLITINLINE>
+      <SCHEME>
+	symbol,
+      </SCHEME>
+      <JAVASCRIPT>
+	string,
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    so we can use the 
+     <INDEX><USE>is_same_variable</USE></INDEX> 
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>same-variable?</SCHEMEINLINE></SCHEME>
+      <JAVASCRIPT><JAVASCRIPTINLINE>is_same_variable</JAVASCRIPTINLINE>
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    <SPLITINLINE>
+      <SCHEME>procedure</SCHEME>
+      <JAVASCRIPT>function</JAVASCRIPT>
+    </SPLITINLINE>
+    of section<SPACE></SPACE><REF NAME="sec:symbolic-differentiation"></REF> to compare
+    variables.
+    The following
+    <SPLITINLINE>
+      <SCHEME>procedures</SCHEME>
+      <JAVASCRIPT>functions</JAVASCRIPT>
+    </SPLITINLINE>
+    define
+    <INDEX>polynomial arithmetic<SUBINDEX>addition</SUBINDEX><OPEN></OPEN></INDEX>
+    <INDEX>polynomial arithmetic<SUBINDEX>multiplication</SUBINDEX><OPEN></OPEN></INDEX>
+    addition and multiplication of polys:
+    <!-- Error occurred while translating this section --><SNIPPET CHAP="4">
+      <INDEX><DECLARATION>add_poly</DECLARATION></INDEX> 
+      <INDEX><DECLARATION>mul_poly</DECLARATION></INDEX> 
+      <NAME>add_mul_poly</NAME>
+      <REQUIRES>install_javascript_number_package_usage</REQUIRES>
+      <REQUIRES>make_polynomial_requires</REQUIRES>
+      <REQUIRES>make_polynomial</REQUIRES>
+      <REQUIRES>make_polynomial_example</REQUIRES>
+      <SCHEME>
+(define (add-poly p1 p2)
+  (if (same-variable? (variable p1) (variable p2))
+    (make-poly (variable p1)
+               (add-terms (term-list p1)
+                          (term-list p2)))
+  (error &quot;Polys not in same var - - ADD-POLY&quot;
+         (list p1 p2))))
+
+(define (mul-poly p1 p2)
+  (if (same-variable? (variable p1) (variable p2))
+    (make-poly (variable p1)
+               (mul-terms (term-list p1)
+                          (term-list p2)))
+    (error &quot;Polys not in same var - - MUL-POLY&quot;
+           (list p1 p2))))
+      </SCHEME>
+      <JAVASCRIPT_RUN>
+      </JAVASCRIPT_RUN>
+      <JAVASCRIPT>
+function add_poly(p1, p2) {
+    return is_same_variable(variable(p1), variable(p2))
+           ? make_poly(variable(p1),
+                       add_terms(term_list(p1), term_list(p2)))
+           : error(list(p1, p2), &quot;polys not in same var -- add_poly&quot;);
+}
+function mul_poly(p1, p2) {
+    return is_same_variable(variable(p1), variable(p2))
+           ? make_poly(variable(p1),
+                       mul_terms(term_list(p1), term_list(p2)))
+           : error(list(p1, p2), &quot;polys not in same var -- mul_poly&quot;);
+}
+      </JAVASCRIPT>
+    </SNIPPET>
+  </TEXT>
+  <TEXT>
+    To incorporate polynomials into our generic arithmetic system, we need
+    to supply them with type tags.  We<APOS></APOS>ll use the tag
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>polynomial</SCHEMEINLINE>,</SCHEME>
+      <JAVASCRIPT><JAVASCRIPTINLINE>&quot;polynomial&quot;</JAVASCRIPTINLINE>,
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    and install appropriate operations on tagged polynomials in the operation
+    table.
+    <!-- Error occurred while translating this section --><SPLIT>
+      <SCHEME>
+	We<APOS></APOS>ll embed all our code in an installation procedure
+	for the polynomial package, similar to the ones in
+	section<SPACE></SPACE><REF NAME="sec:generic-arithmetic-operators"></REF>:
+	<SNIPPET LATEX="yes">
+	  <NAME>install_polynomial_package_template_scheme</NAME>
+	  <SCHEME>
+(define (install-polynomial-package)
+  ;; internal procedures
+  ;; representation of poly
+  (define (make-poly variable term-list)
+    (cons variable term-list))
+  (define (variable p) (car p))
+  (define (term-list p) (cdr p))
+  $langle$ procedures same-variable? and variable? from section 2.3.2 $\rangle$
+  ;; representation of terms and term lists
+  $langle$ procedures adjoin-term $\ldots$ coeff from text below $langle$
+  (define (add-poly p1 p2) $\ldots$)
+  $langle$ procedures used by add-poly $langle$
+  (define (mul-poly p1 p2) $\ldots$)
+  $langle$procedures used by mul-poly $langle$
+  ;; interface to rest of the system
+  (define (tag p) (attach-tag &apos;polynomial p))
+  (put &apos;add &apos;(polynomial polynomial) 
+       (lambda (p1 p2) (tag (add-poly p1 p2))))
+  (put &apos;mul &apos;(polynomial polynomial) 
+       (lambda (p1 p2) (tag (mul-poly p1 p2))))
+  (put &apos;make &apos;polynomial
+       (lambda (var terms) (tag (make-poly var terms))))
+  &apos;done)
+	  </SCHEME>
+	</SNIPPET>
+      </SCHEME>
+      <JAVASCRIPT>
+	We<APOS></APOS>ll embed all our code in an installation function
+	for the polynomial package,
+	similar to the installation functions in
+	section<SPACE></SPACE><REF NAME="sec:generic-arithmetic-operators"></REF>:
+	  <!-- Error occurred while translating this section --><SNIPPET EVAL="no" LATEX="yes">
+	    <INDEX>package<SUBINDEX>polynomial</SUBINDEX></INDEX>
+	    <INDEX><USE>polynomial</USE> package</INDEX> 
+	    <INDEX>polynomial arithmetic<SUBINDEX>interfaced to generic arithmetic system</SUBINDEX></INDEX>
+	    <INDEX><DECLARATION>install_polynomial_package</DECLARATION></INDEX> 
+	    <INDEX><DECLARATION>make_poly</DECLARATION></INDEX> 
+	    <INDEX><DECLARATION>variable</DECLARATION></INDEX> 
+	    <INDEX><DECLARATION>term_list</DECLARATION></INDEX> 
+	    <NAME>install_polynomial_package_template</NAME>
+	    <REQUIRES>install_javascript_number_package_usage</REQUIRES>
+	    <REQUIRES>make_polynomial_requires</REQUIRES>
+	    <REQUIRES>make_polynomial</REQUIRES>
+	    <REQUIRES>make_polynomial_example</REQUIRES>
+	    <JAVASCRIPT_RUN>
+	    </JAVASCRIPT_RUN>
+	    <JAVASCRIPT>
+function install_polynomial_package() {
+    // internal functions
+    // representation of poly
+    function make_poly(variable, term_list) {
+        return pair(variable, term_list);
+    }
+    function variable(p) { return head(p); }
+    function term_list(p) { return tail(p); }
+    <METAPHRASE>functions <JAVASCRIPTINLINE>is_same_variable</JAVASCRIPTINLINE> and <JAVASCRIPTINLINE>is_variable</JAVASCRIPTINLINE> from section 2.3.2</METAPHRASE>
+
+    // representation of terms and term lists
+    <METAPHRASE>functions <JAVASCRIPTINLINE>adjoin_term...coeff</JAVASCRIPTINLINE> from text below</METAPHRASE>
+
+    function add_poly(p1, p2) { ... }
+    <METAPHRASE>functions used by <JAVASCRIPTINLINE>add_poly</JAVASCRIPTINLINE></METAPHRASE>
+    function mul_poly(p1, p2) { ... }
+    <METAPHRASE>functions used by <JAVASCRIPTINLINE>mul_poly</JAVASCRIPTINLINE></METAPHRASE>
+
+    // interface to rest of the system
+    function tag(p) { return attach_tag(&quot;polynomial&quot;, p); }
+    put(&quot;add&quot;, list(&quot;polynomial&quot;, &quot;polynomial&quot;),
+        (p1, p2) =&gt; tag(add_poly(p1, p2)));
+    put(&quot;mul&quot;, list(&quot;polynomial&quot;, &quot;polynomial&quot;),
+        (p1, p2) =&gt; tag(mul_poly(p1, p2)));
+    put(&quot;make&quot;, &quot;polynomial&quot;,
+        (variable, terms) =&gt; tag(make_poly(variable, terms)));
+    return &quot;done&quot;;
+}
+	    </JAVASCRIPT>
+	  </SNIPPET>
+      </JAVASCRIPT>
+    </SPLIT>
+  </TEXT>
+  <TEXT>
+    Polynomial addition is performed termwise.  Terms of the same order
+    (i.e., with the same power of the indeterminate) must be combined.
+    This is done by forming a new term of the same order whose coefficient
+    is the sum of the coefficients of the addends.  Terms in one addend
+    for which there are no terms of the same order in the other addend are
+    simply accumulated into the sum polynomial being constructed.
+  </TEXT><!-- Error occurred while translating this section -->
+  <TEXT>
+    In order to manipulate term lists, we will assume that we have a
+    constructor 
+      <!-- Error occurred while translating this section --><INDEX><USE>the_empty_termlist</USE><!-- Error occurred while translating this section --></INDEX>  
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>the-empty-termlist</SCHEMEINLINE></SCHEME>
+      <JAVASCRIPT><JAVASCRIPTINLINE>the_empty_termlist</JAVASCRIPTINLINE>
+      </JAVASCRIPT>
+    <!-- Error occurred while translating this section --></SPLITINLINE>
+    that returns an empty term list and a constructor 
+      <!-- Error occurred while translating this section --><INDEX><USE>adjoin_term</USE><!-- Error occurred while translating this section --></INDEX> 
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>adjoin-term</SCHEMEINLINE></SCHEME>
+      <JAVASCRIPT><JAVASCRIPTINLINE>adjoin_@term</JAVASCRIPTINLINE></JAVASCRIPT>
+    <!-- Error occurred while translating this section --></SPLITINLINE>
+    that adjoins a new term to a term list.  We will also assume that we have
+    a predicate 
+      <!-- Error occurred while translating this section --><INDEX><USE>is_empty_termlist</USE><!-- Error occurred while translating this section --></INDEX> 
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>empty-termlist?</SCHEMEINLINE></SCHEME>
+      <JAVASCRIPT><JAVASCRIPTINLINE>is_empty_termlist</JAVASCRIPTINLINE>
+      </JAVASCRIPT>
+    <!-- Error occurred while translating this section --></SPLITINLINE>
+    that tells if a given term list is empty, a selector
+      <!-- Error occurred while translating this section --><INDEX><USE>first_term</USE><!-- Error occurred while translating this section --></INDEX> 
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>first-term</SCHEMEINLINE></SCHEME>
+      <JAVASCRIPT><JAVASCRIPTINLINE>first_term</JAVASCRIPTINLINE></JAVASCRIPT>
+    <!-- Error occurred while translating this section --></SPLITINLINE>
+    that extracts the highest-order term from a term list, and a selector 
+      <!-- Error occurred while translating this section --><INDEX><USE>rest_terms</USE><!-- Error occurred while translating this section --></INDEX> 
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>rest-terms</SCHEMEINLINE></SCHEME>
+      <JAVASCRIPT><JAVASCRIPTINLINE>rest_terms</JAVASCRIPTINLINE></JAVASCRIPT>
+    <!-- Error occurred while translating this section --></SPLITINLINE>
+    that returns all but the highest-order term.  To manipulate terms,
+    we will suppose that we have a constructor 
+      <!-- Error occurred while translating this section --><INDEX><USE>make_term</USE><!-- Error occurred while translating this section --></INDEX> 
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>make-term</SCHEMEINLINE></SCHEME>
+      <JAVASCRIPT><JAVASCRIPTINLINE>make_term</JAVASCRIPTINLINE></JAVASCRIPT>
+    <!-- Error occurred while translating this section --></SPLITINLINE>
+    that constructs a term with given order and coefficient, and selectors 
+      <!-- Error occurred while translating this section --><INDEX><USE>order</USE><!-- Error occurred while translating this section --></INDEX> 
+    <SCHEMEINLINE>order</SCHEMEINLINE> and 
+      <INDEX><USE>coeff</USE></INDEX> 
+    <!-- Error occurred while translating this section --><SCHEMEINLINE>coeff</SCHEMEINLINE> that return, respectively, the order
+    and the coefficient of the term.  These operations allow us to consider
+    both terms and term lists as data abstractions, whose concrete
+    representations we can worry about separately.
+  <!-- Error occurred while translating this section --></TEXT>
+  <TEXT>
+    Here is the
+    <SPLITINLINE>
+      <SCHEME>procedure</SCHEME>
+      <JAVASCRIPT>function</JAVASCRIPT>
+    </SPLITINLINE>
+    that constructs the term list for the sum of two
+    <SPLITINLINE><SCHEME>polynomials:</SCHEME><JAVASCRIPT>polynomials;</JAVASCRIPT></SPLITINLINE><FOOTNOTE>This operation is very much like the ordered
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>union-set</SCHEMEINLINE></SCHEME>
+      <JAVASCRIPT><JAVASCRIPTINLINE>union_set</JAVASCRIPTINLINE></JAVASCRIPT>
+    </SPLITINLINE>
+    operation we developed in exercise<SPACE></SPACE><REF NAME="ex:union-set"></REF>.
+    In fact, if we think of the terms of the polynomial as a set ordered
+    according to the power of the indeterminate, then the program that
+    produces the term list for a sum is almost identical to
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>union-set</SCHEMEINLINE>.</SCHEME>
+      <JAVASCRIPT><JAVASCRIPTINLINE>union_set</JAVASCRIPTINLINE>.</JAVASCRIPT>
+    </SPLITINLINE></FOOTNOTE>
+    <SPLIT>
+      <JAVASCRIPT>
+	note that we slightly extend the syntax of
+	<INDEX>conditional statement<SUBINDEX>conditional instead of alternative block</SUBINDEX></INDEX>
+	conditional statements described in
+      section<SPACE></SPACE><REF NAME="sec:lambda"></REF> by admitting another conditional
+      statement in place of the block following
+      <JAVASCRIPTINLINE>else</JAVASCRIPTINLINE>:
+      </JAVASCRIPT>
+    </SPLIT>
+    <!-- Error occurred while translating this section --><SNIPPET CHAP="4">
+      <INDEX><DECLARATION>add_terms</DECLARATION></INDEX> 
+      <NAME>add_terms</NAME>
+      <REQUIRES>install_javascript_number_package_usage</REQUIRES>
+      <REQUIRES>make_polynomial_requires</REQUIRES>
+      <REQUIRES>make_polynomial</REQUIRES>
+      <REQUIRES>make_polynomial_example</REQUIRES>
+      <SCHEME>
+          (define (add-terms L1 L2)
+          (cond ((empty-termlist? L1) L2)
+          ((empty-termlist? L2) L1)
+          (else
+          (let ((t1 (first-term L1)) (t2 (first-term L2)))
+          (cond ((&gt; (order t1) (order t2))
+          (adjoin-term
+          t1 (add-terms (rest-terms L1) L2)))
+          ((&lt; (order t1) (order t2))
+          (adjoin-term
+          t2 (add-terms L1 (rest-terms L2))))
+          (else
+          (adjoin-term
+          (make-term (order t1)
+          (add (coeff t1) (coeff t2)))
+          (add-terms (rest-terms L1)
+          (rest-terms L2)))))))))
+      </SCHEME>
+      <JAVASCRIPT_RUN>
+      </JAVASCRIPT_RUN>
+      <JAVASCRIPT>
+function add_terms(L1, L2) {
+    if (is_empty_termlist(L1)) {
+        return L2;
+    } else if (is_empty_termlist(L2)) {
+        return L1;
+    } else {
+        const t1 = first_term(L1);
+        const t2 = first_term(L2);
+        return order(t1) &gt; order(t2)
+               ? adjoin_term(t1, add_terms(rest_terms(L1), L2))
+               : order(t1) &lt; order(t2)
+               ? adjoin_term(t2, add_terms(L1, rest_terms(L2)))
+               : adjoin_term(make_term(order(t1), 
+                                       add(coeff(t1), coeff(t2))),
+                             add_terms(rest_terms(L1),
+                                       rest_terms(L2)));
+    }
+}
+      </JAVASCRIPT>
+    </SNIPPET>
+    The most important point to note here is that we used the generic addition
+    <SPLITINLINE>
+      <SCHEME>procedure</SCHEME>
+      <JAVASCRIPT>function</JAVASCRIPT>
+    </SPLITINLINE>
+     <INDEX><USE>add</USE> (generic)<SUBINDEX>used for polynomial coefficients</SUBINDEX></INDEX>
+    <!-- Error occurred while translating this section --><SCHEMEINLINE>add</SCHEMEINLINE> to add together the coefficients of the
+    terms being combined.  This has powerful consequences, as we will see below.
+  <!-- Error occurred while translating this section --></TEXT>
+  <DO_BREAK_PAGE></DO_BREAK_PAGE><!-- Error occurred while translating this section -->
+  <TEXT>
+    In order to multiply two term lists, we multiply each term of the first
+    list by all the terms of the other list, repeatedly using
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>mul-term-by-all-terms</SCHEMEINLINE>,</SCHEME>
+      <JAVASCRIPT><JAVASCRIPTINLINE>mul_term_by_all_terms</JAVASCRIPTINLINE>,
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    which multiplies a given term by all terms in a given term list.  The
+    resulting term lists (one for each term of the first list) are accumulated
+    into a sum.  Multiplying two terms forms a term whose order is the sum of
+    the orders of the factors and whose coefficient is the product of the
+    coefficients of the factors:
+    <!-- Error occurred while translating this section --><SNIPPET CHAP="4">
+      <INDEX><DECLARATION>mul_terms</DECLARATION></INDEX> 
+      <NAME>mul_terms</NAME>
+      <REQUIRES>install_javascript_number_package_usage</REQUIRES>
+      <REQUIRES>make_polynomial_requires</REQUIRES>
+      <REQUIRES>make_polynomial</REQUIRES>
+      <REQUIRES>make_polynomial_example</REQUIRES>
+      <SCHEME>
+          (define (mul-terms L1 L2)
+          (if (empty-termlist? L1)
+          (the-empty-termlist)
+          (add-terms (mul-term-by-all-terms (first-term L1) L2)
+          (mul-terms (rest-terms L1) L2))))
+
+          (define (mul-term-by-all-terms t1 L)
+          (if (empty-termlist? L)
+          (the-empty-termlist)
+          (let ((t2 (first-term L)))
+          (adjoin-term
+          (make-term (+ (order t1) (order t2))
+          (mul (coeff t1) (coeff t2)))
+          (mul-term-by-all-terms t1 (rest-terms L))))))
+      </SCHEME>
+      <JAVASCRIPT_RUN>
+      </JAVASCRIPT_RUN>
+      <JAVASCRIPT>
+function mul_terms(L1, L2) {
+    return is_empty_termlist(L1)
+           ? the_empty_termlist
+           : add_terms(mul_term_by_all_terms(
+                                 first_term(L1), L2),
+                       mul_terms(rest_terms(L1), L2));
+}
+function mul_term_by_all_terms(t1, L) {
+    if (is_empty_termlist(L)) {
+        return the_empty_termlist;
+    } else {
+        const t2 = first_term(L);
+        return adjoin_term(
+                   make_term(order(t1) + order(t2),
+                             mul(coeff(t1), coeff(t2))),
+                   mul_term_by_all_terms(t1, rest_terms(L)));
+    }
+}
+      </JAVASCRIPT>
+    </SNIPPET>
+  </TEXT>
+  <TEXT>
+    This is really all there is to polynomial addition and multiplication.
+    Notice that, since we operate on terms using the generic
+    <SPLITINLINE>
+      <SCHEME>procedures</SCHEME>
+      <JAVASCRIPT>functions</JAVASCRIPT>
+    </SPLITINLINE>
+    <INDEX><USE>add</USE> (generic)<SUBINDEX>used for polynomial coefficients</SUBINDEX></INDEX>
+    <INDEX><USE>mul</USE> (generic)<SUBINDEX>used for polynomial coefficients</SUBINDEX></INDEX>
+    <SCHEMEINLINE>add</SCHEMEINLINE> and <SCHEMEINLINE>mul</SCHEMEINLINE>,
+    our polynomial package is automatically able to handle any type of
+    coefficient that is known about by the generic arithmetic package.
+    If we include a 
+    <INDEX>coercion<SUBINDEX>in polynomial arithmetic</SUBINDEX></INDEX>
+    coercion mechanism such as one of those discussed in
+    section<SPACE></SPACE><REF NAME="sec:combining-data-of-different-types"></REF>,
+    then we also are automatically able to handle operations on
+    polynomials of different coefficient types, such as
+    <LATEX>
+      \[
+      \begin{array}{l}
+      {\left[3x^2 +(2+3i)x+7\right] \cdot \left[x^4 +\frac{2}{3}x^2
+      +(5+3i)\right]}
+      \end{array}
+      \]
+    </LATEX>
+  </TEXT><!-- Error occurred while translating this section -->
+  <TEXT>
+    Because we installed the polynomial addition and multiplication
+    <SPLITINLINE>
+      <SCHEME>procedures</SCHEME>
+      <JAVASCRIPT>functions</JAVASCRIPT>
+    </SPLITINLINE>
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>add-poly</SCHEMEINLINE></SCHEME>
+    <JAVASCRIPT><JAVASCRIPTINLINE>add_@poly</JAVASCRIPTINLINE></JAVASCRIPT>
+    </SPLITINLINE>
+    and
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>mul-poly</SCHEMEINLINE></SCHEME>
+      <JAVASCRIPT><JAVASCRIPTINLINE>mul_poly</JAVASCRIPTINLINE></JAVASCRIPT>
+    </SPLITINLINE>
+    in the generic arithmetic system as the <!-- Error occurred while translating this section --><SCHEMEINLINE>add</SCHEMEINLINE>
+    and <!-- Error occurred while translating this section --><SCHEMEINLINE>mul</SCHEMEINLINE> operations for type
+    <!-- Error occurred while translating this section --><SCHEMEINLINE>polynomial</SCHEMEINLINE>, our system is also automatically
+    able to handle polynomial operations such as
+    <!-- Error occurred while translating this section --><LATEX>
+      \[
+      \begin{array}{l}
+      {\left[ (y+1)x^2 +(y^2 +1)x+(y-1)\right]\cdot \left[(y-2)x+(y^3 +7)\right]}
+      \end{array}
+      \]
+    </LATEX>
+    The reason is that when the system tries to combine coefficients, it
+    will dispatch through <!-- Error occurred while translating this section --><SCHEMEINLINE>add</SCHEMEINLINE> and
+    <!-- Error occurred while translating this section --><SCHEMEINLINE>mul</SCHEMEINLINE>.  Since the coefficients are themselves
+    polynomials (in <!-- Error occurred while translating this section --><LATEXINLINE>$y$</LATEXINLINE>), these will be combined
+    using
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>add-poly</SCHEMEINLINE></SCHEME>
+      <JAVASCRIPT><JAVASCRIPTINLINE>add_poly</JAVASCRIPTINLINE></JAVASCRIPT>
+    </SPLITINLINE>
+    and
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>mul-poly</SCHEMEINLINE>.</SCHEME>
+      <JAVASCRIPT><JAVASCRIPTINLINE>mul_poly</JAVASCRIPTINLINE>.</JAVASCRIPT>
+    </SPLITINLINE>
+    The result is a kind of 
+    <INDEX>data-directed recursion</INDEX>
+    <INDEX>recursion<SUBINDEX>data-directed</SUBINDEX></INDEX>
+    <QUOTE>data-directed recursion</QUOTE> in which, for example, a call to
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>mul-poly</SCHEMEINLINE></SCHEME>
+      <JAVASCRIPT><JAVASCRIPTINLINE>mul_poly</JAVASCRIPTINLINE></JAVASCRIPT>
+    </SPLITINLINE>
+    will result in recursive calls to
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>mul-poly</SCHEMEINLINE></SCHEME>
+      <JAVASCRIPT><JAVASCRIPTINLINE>mul_poly</JAVASCRIPTINLINE></JAVASCRIPT>
+    </SPLITINLINE>
+    in order to multiply the coefficients.  If the coefficients of the
+    coefficients were themselves polynomials (as might be used to represent
+    polynomials in three variables), the data direction would ensure that the
+    system would follow through another level of recursive calls, and so on
+    through as many levels as the structure of the data dictates.<FOOTNOTE>To
+    make this work completely smoothly, we should also add to our generic
+    arithmetic system the ability to coerce a <QUOTE>number</QUOTE> to a
+    polynomial by regarding it as a polynomial of degree zero whose coefficient
+    is the number.  This is necessary if we are going to perform operations
+    such as
+    <LATEX>
+      \[
+      {\left[ x^2 +(y+1)x+5\right]+ \left[ x^2 +2x+1\right]}
+      \]
+    </LATEX>
+    which requires adding the coefficient <LATEXINLINE>$y+1$</LATEXINLINE> to
+    the coefficient 2.</FOOTNOTE>
+    <INDEX>polynomial arithmetic<SUBINDEX>addition</SUBINDEX><CLOSE></CLOSE></INDEX>
+    <!-- Error occurred while translating this section --><INDEX>polynomial arithmetic<SUBINDEX>multiplication</SUBINDEX><CLOSE></CLOSE></INDEX>
+  <!-- Error occurred while translating this section --></TEXT>
+
+  <SUBHEADING>
+    <NAME>Representing term lists</NAME>
+  </SUBHEADING><!-- Error occurred while translating this section -->
+
+  <INDEX>term list of polynomial<SUBINDEX>representing</SUBINDEX><OPEN></OPEN></INDEX><!-- Error occurred while translating this section -->
+  <TEXT>
+    Finally, we must confront the job of implementing a good
+    representation for term lists.  A term list is, in effect, a set of
+    coefficients keyed by the order of the term.  Hence, any of the
+    methods for representing sets, as discussed in
+    section<SPACE></SPACE><REF NAME="sec:representing-sets"></REF>, can be applied to this
+    task.  On the other hand, our
+    <SPLITINLINE>
+      <SCHEME>procedures</SCHEME>
+      <JAVASCRIPT>functions</JAVASCRIPT>
+    </SPLITINLINE>
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>add-terms</SCHEMEINLINE></SCHEME>
+      <JAVASCRIPT><JAVASCRIPTINLINE>add_terms</JAVASCRIPTINLINE></JAVASCRIPT>
+      </SPLITINLINE> and <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>mul-terms</SCHEMEINLINE></SCHEME>
+      <JAVASCRIPT><JAVASCRIPTINLINE>mul_terms</JAVASCRIPTINLINE></JAVASCRIPT>
+    </SPLITINLINE>
+    always access term lists sequentially from highest to lowest order.
+    Thus, we will use some kind of ordered list representation.
+  </TEXT><!-- Error occurred while translating this section -->
+  <TEXT>
+    How should we structure the list that represents a term list?  One
+    consideration is the <QUOTE>density</QUOTE> of the polynomials we intend
+    to manipulate.  A polynomial is said to be 
+    <INDEX>dense polynomial</INDEX>
+    <INDEX>polynomial(s)<SUBINDEX>dense</SUBINDEX></INDEX>
+    <EM>dense</EM> if it has nonzero coefficients in terms of most orders.
+    If it has many zero terms it is said to be 
+    <INDEX>sparse polynomial</INDEX>
+    <INDEX>polynomial(s)<SUBINDEX>sparse</SUBINDEX></INDEX>
+    <EM>sparse</EM>.  For example,
+    <LATEX>
+      \[ A:\quad x^5 +2x^4 +3x^2 -2x -5 \]
+    </LATEX>
+    is a dense polynomial, whereas
+    <LATEX>
+      \[ B:\quad x^{100} +2x^2 +1 \]
+    </LATEX>
+    is sparse.
+  </TEXT><!-- Error occurred while translating this section -->
+  <TEXT>
+    <SPLITINLINE>
+      <SCHEME>
+	The term lists of dense polynomials are most efficiently represented
+	as lists of the coefficients.
+      </SCHEME>
+      <JAVASCRIPT>
+	The term list of a dense polynomial is most efficiently represented
+	as a list of the coefficients.
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    For example,
+    <SPLITINLINE>
+      <JAVASCRIPT>
+	the polynomial
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    <!-- Error occurred while translating this section --><LATEXINLINE>$A$</LATEXINLINE> above would be nicely represented as
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>(1 2 0 3 -2 -5)</SCHEMEINLINE>.</SCHEME>
+      <JAVASCRIPT><JAVASCRIPTINLINE>list(1, 2, 0, 3, -2, -5)</JAVASCRIPTINLINE>.
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    The order of a term in this representation is the length of the sublist
+    beginning with that term<APOS></APOS>s coefficient, decremented by 1.<FOOTNOTE>In
+    these polynomial examples, we assume that we have implemented the generic
+    arithmetic system using the type mechanism suggested in
+    exercise<SPACE></SPACE><REF NAME="ex:internal-type-system"></REF>. Thus, coefficients
+    that are ordinary numbers will be represented as the numbers themselves
+    rather than as pairs whose
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>car</SCHEMEINLINE></SCHEME>
+      <JAVASCRIPT><JAVASCRIPTINLINE>head</JAVASCRIPTINLINE></JAVASCRIPT>
+    </SPLITINLINE>
+    is the
+    <SPLITINLINE>
+      <SCHEME>symbol <SCHEMEINLINE>scheme-number</SCHEMEINLINE>.</SCHEME>
+      <JAVASCRIPT>string
+      <JAVASCRIPTINLINE>&quot;javascript_number&quot;</JAVASCRIPTINLINE>.
+      </JAVASCRIPT>
+    </SPLITINLINE></FOOTNOTE>  
+    This would be a terrible representation for a sparse polynomial such as
+    <!-- Error occurred while translating this section --><LATEXINLINE>$B$</LATEXINLINE>: There would be a giant list of zeros
+    punctuated by a few lonely nonzero terms.  A more reasonable representation
+    of the term list of a sparse polynomial is as a list of the nonzero terms,
+    where each term is a list containing the order of the term and the
+    coefficient for that order.  In such a scheme, polynomial
+    <!-- Error occurred while translating this section --><LATEXINLINE>$B$</LATEXINLINE> is efficiently represented as
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>((100 1) (2 2) (0 1))</SCHEMEINLINE>.</SCHEME>
+      <JAVASCRIPT>
+	<JAVASCRIPTINLINE>list(list(100, 1), list(2, 2), list(0, 1))</JAVASCRIPTINLINE>.
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    As most polynomial manipulations are performed on sparse polynomials, we
+    will use this method.  We will assume that term lists are represented as
+    lists of terms, arranged from highest-order to lowest-order term. Once we
+    have made this decision, implementing the selectors and constructors for
+    terms and term lists is straightforward:<!-- Error occurred while translating this section --><FOOTNOTE>Although we are assuming
+    that term lists are ordered, we have implemented
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>adjoin-term</SCHEMEINLINE></SCHEME>
+      <JAVASCRIPT><JAVASCRIPTINLINE>adjoin_term</JAVASCRIPTINLINE></JAVASCRIPT>
+    </SPLITINLINE>
+    to simply
+    <SPLITINLINE>
+      <SCHEME>
+	<SCHEMEINLINE>cons</SCHEMEINLINE>
+	the new term onto the existing term list.
+      </SCHEME>
+      <JAVASCRIPT>
+	adjoin the new term to the front of the existing term list.
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    We can get away with this so
+    long as we guarantee that the
+    <SPLITINLINE>
+      <SCHEME>procedures</SCHEME>
+      <JAVASCRIPT>functions</JAVASCRIPT>
+    </SPLITINLINE>
+    (such as
+    <SPLITINLINE>
+      <SCHEME>
+      <SCHEMEINLINE>add-terms</SCHEMEINLINE>)</SCHEME>
+    <JAVASCRIPT><JAVASCRIPTINLINE>add_terms</JAVASCRIPTINLINE>)</JAVASCRIPT>
+    </SPLITINLINE>
+    that use
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>adjoin-term</SCHEMEINLINE></SCHEME>
+      <JAVASCRIPT><JAVASCRIPTINLINE>adjoin_term</JAVASCRIPTINLINE></JAVASCRIPT>
+    </SPLITINLINE>
+    always call it with a higher-order term than appears in the list.  If we
+    did not want to make such a guarantee, we could have implemented
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>adjoin-term</SCHEMEINLINE></SCHEME>
+      <JAVASCRIPT><JAVASCRIPTINLINE>adjoin_term</JAVASCRIPTINLINE></JAVASCRIPT>
+    </SPLITINLINE>
+    to be similar to the
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>adjoin-set</SCHEMEINLINE></SCHEME>
+      <JAVASCRIPT><JAVASCRIPTINLINE>adjoin_set</JAVASCRIPTINLINE></JAVASCRIPT>
+    </SPLITINLINE>
+    constructor for the ordered-list
+    representation of sets
+    (exercise<SPACE></SPACE><REF NAME="ex:adjoin-set"></REF>).
+    <LABEL NAME="foot:adjoin-term"></LABEL></FOOTNOTE>
+    <!-- Error occurred while translating this section --><SNIPPET CHAP="4">
+      <INDEX><DECLARATION>adjoin_term</DECLARATION></INDEX> 
+      <INDEX><DECLARATION>the_empty_termlist</DECLARATION></INDEX> 
+      <INDEX><DECLARATION>first_term</DECLARATION></INDEX> 
+      <INDEX><DECLARATION>rest_terms</DECLARATION></INDEX> 
+      <INDEX><DECLARATION>is_empty_termlist</DECLARATION></INDEX> 
+      <INDEX><DECLARATION>make_term</DECLARATION></INDEX> 
+      <INDEX><DECLARATION>order</DECLARATION></INDEX> 
+      <INDEX><DECLARATION>coeff</DECLARATION></INDEX> 
+      <NAME>adjoin_term</NAME>
+      <REQUIRES>install_javascript_number_package_usage</REQUIRES>
+      <REQUIRES>make_polynomial_requires</REQUIRES>
+      <REQUIRES>make_polynomial</REQUIRES>
+      <REQUIRES>make_polynomial_example</REQUIRES>
+      <SCHEME>
+          (define (adjoin-term term term-list)
+          (if (=zero? (coeff term))
+          term-list
+          (cons term term-list)))
+
+          (define (the-empty-termlist) &apos;())
+          (define (first-term term-list) (car term-list))
+          (define (rest-terms term-list) (cdr term-list))
+          (define (empty-termlist? term-list) (null? term-list))
+
+          (define (make-term order coeff) (list order coeff))
+          (define (order term) (car term))
+          (define (coeff term) (cadr term))
+      </SCHEME>
+      <JAVASCRIPT_RUN>
+      </JAVASCRIPT_RUN>
+      <JAVASCRIPT>
+function adjoin_term(term, term_list) {
+    return is_equal_to_zero(coeff(term))
+           ? term_list
+           : pair(term, term_list);
+}
+
+const the_empty_termlist = null;
+<SHORT_SPACE></SHORT_SPACE>
+function first_term(term_list) { return head(term_list); }
+<SHORT_SPACE></SHORT_SPACE>
+function rest_terms(term_list) { return tail(term_list); }
+<SHORT_SPACE></SHORT_SPACE>
+function is_empty_termlist(term_list) { return is_null(term_list); }
+
+function make_term(order, coeff) { return list(order, coeff); }
+<SHORT_SPACE></SHORT_SPACE>
+function order(term) { return head(term); }
+<SHORT_SPACE></SHORT_SPACE>
+function coeff(term) { return head(tail(term)); }
+      </JAVASCRIPT>
+    </SNIPPET>
+    where
+    <SPLITINLINE><SCHEME><SCHEMEINLINE>=zero?</SCHEMEINLINE></SCHEME>
+    <JAVASCRIPT><JAVASCRIPTINLINE>is_equal_to_zero</JAVASCRIPTINLINE>
+    </JAVASCRIPT>
+    </SPLITINLINE>
+    is as defined in exercise<SPACE></SPACE><REF NAME="ex:=zero?"></REF>.  (See also
+    exercise<SPACE></SPACE><REF NAME="ex:adjoin-term"></REF> below.)
+  <!-- Error occurred while translating this section --></TEXT>
+  <TEXT>
+    Users of the polynomial package will create (tagged) polynomials by means
+    of the
+    <SPLITINLINE>
+      <SCHEME>procedure:</SCHEME>
+      <JAVASCRIPT>function:</JAVASCRIPT>
+    </SPLITINLINE>
+    <!-- Error occurred while translating this section --><SNIPPET HIDE="yes">
+      <NAME>make_polynomial_requires</NAME>
+      <REQUIRES>is_same_variable</REQUIRES>
+      <JAVASCRIPT>
+function install_javascript_number_is_equal_to_zero() {
+    put(&quot;is_equal_to_zero&quot;, list(&quot;javascript_number&quot;), 
+        x =&gt; x === 0);
+    return &quot;done&quot;;
+}
+install_javascript_number_is_equal_to_zero();
+
+function is_equal_to_zero(x) {
+    return apply_generic(&quot;is_equal_to_zero&quot;, list(x));
+}
+
+function install_polynomial_package() {
+
+    // internal functions
+
+    // representation of poly
+    function make_poly(variable, term_list) {
+        return pair(variable, term_list);
+    }
+    function variable(p) { return head(p); }
+    function term_list(p) { return tail(p); }
+
+    // representation of terms and term lists
+    function adjoin_term(term, term_list) {
+        return is_equal_to_zero(coeff(term))
+               ? term_list
+               : pair(term, term_list);
+    }
+    const the_empty_termlist = null;
+    function first_term(term_list) {
+        return head(term_list);
+    }
+    function rest_terms(term_list) {
+        return tail(term_list);
+    }
+    function is_empty_termlist(term_list) {
+        return is_null(term_list);
+    }
+    function make_term(order, coeff) {
+        return list(order, coeff);
+    }
+    function order(term) {
+        return head(term);
+    }
+    function coeff(term) {
+        return head(tail(term));
+    }
+
+    function add_poly(p1, p2) {
+        return is_same_variable(variable(p1), variable(p2))
+               ? make_poly(variable(p1),
+                           add_terms(term_list(p1),
+                                     term_list(p2)))
+               : error(list(p1, p2),
+                       &quot;polys not in same var -- add_poly&quot;);
+    }
+
+    function add_terms(L1, L2) {
+        if (is_empty_termlist(L1)) {
+          return L2;
+        } 
+        else if (is_empty_termlist(L2)) {
+          return L1;
+        } 
+        else {
+            const t1 = first_term(L1);
+            const t2 = first_term(L2);
+            return order(t1) &gt; order(t2)
+                   ? adjoin_term(t1, add_terms(rest_terms(L1), L2))
+                   : order(t1) &lt; order(t2)
+                   ? adjoin_term(t2, add_terms(L1, rest_terms(L2)))
+                   : adjoin_term(make_term(order(t1), 
+                                           add(coeff(t1),
+                                               coeff(t2))),
+                                 add_terms(rest_terms(L1),
+                                           rest_terms(L2)));
+        }
+    }
+    
+    function mul_poly(p1, p2) {
+        return is_same_variable(variable(p1), variable(p2))
+               ? make_poly(variable(p1),
+                           mul_terms(term_list(p1),
+                                     term_list(p2)))
+               : error(list(p1, p2),
+                       &quot;polys not in same var -- mul_poly&quot;);
+    }
+
+    function mul_terms(L1, L2) {
+        return is_empty_termlist(L1)
+               ? the_empty_termlist
+               : add_terms(mul_term_by_all_terms(
+                                     first_term(L1), L2),
+                           mul_terms(rest_terms(L1), L2));
+    }
+    function mul_term_by_all_terms(t1, L) {
+        if (is_empty_termlist(L)) {
+            return the_empty_termlist;
+        } else {
+            const t2 = first_term(L);
+            return adjoin_term(
+                       make_term(order(t1) + order(t2),
+                                 mul(coeff(t1), coeff(t2))),
+                       mul_term_by_all_terms(t1, rest_terms(L)));
+        }
+    }
+		       
+    // interface to rest of the system
+    function tag(p) {
+        return attach_tag(&quot;polynomial&quot;, p);
+    }
+    put(&quot;add&quot;, list(&quot;polynomial&quot;, &quot;polynomial&quot;),
+        (p1, p2) =&gt; tag(add_poly(p1, p2)));
+    put(&quot;mul&quot;, list(&quot;polynomial&quot;, &quot;polynomial&quot;),
+        (p1, p2) =&gt; tag(mul_poly(p1, p2)));
+    put(&quot;make&quot;, &quot;polynomial&quot;,
+        (variable, terms) =&gt;
+            tag(make_poly(variable, terms)));
+    return &quot;done&quot;;
+}
+install_polynomial_package();
+      </JAVASCRIPT>
+    </SNIPPET>
+    <SNIPPET CHAP="4" POSTPADDING="no">
+      <INDEX><DECLARATION>make_polynomial</DECLARATION></INDEX> 
+      <NAME>make_polynomial</NAME>
+      <REQUIRES>install_javascript_number_package_usage</REQUIRES>
+      <REQUIRES>make_polynomial_requires</REQUIRES>
+      <EXAMPLE>make_polynomial_example</EXAMPLE>
+      <EXPECTED>[ 3, [ [ &apos;javascript_number&apos;, 23 ], null ] ]</EXPECTED>
+      <SCHEME>
+          (define (make-polynomial var terms)
+          ((get &apos;make &apos;polynomial) var terms))
+      </SCHEME>
+      <JAVASCRIPT>
+function make_polynomial(variable, terms) {
+    return get(&quot;make&quot;, &quot;polynomial&quot;)(variable, terms);
+}
+      </JAVASCRIPT>
+    </SNIPPET>
+    <SNIPPET HIDE="yes">
+      <NAME>make_polynomial_example</NAME>
+      <JAVASCRIPT>
+const p1 = make_polynomial(&quot;x&quot;,	
+               list(make_term(2, make_javascript_number(4)),
+                    make_term(1, make_javascript_number(3)),
+                    make_term(0, make_javascript_number(7))));
+const p2 = make_polynomial(&quot;x&quot;,	
+               list(make_term(2, make_javascript_number(5)),
+                    make_term(1, make_javascript_number(2)),
+                    make_term(0, make_javascript_number(10))));
+
+mul(p1, p2);		    
+      </JAVASCRIPT>
+      <JAVASCRIPT_TEST>
+const p1 = make_polynomial(&quot;x&quot;,	
+               list(list(2, make_javascript_number(4)),
+                    list(1, make_javascript_number(3)),
+                    list(0, make_javascript_number(7))));
+const p2 = make_polynomial(&quot;x&quot;,	
+               list(list(2, make_javascript_number(5)),
+                    list(1, make_javascript_number(2)),
+                    list(0, make_javascript_number(10))));
+
+head(tail(tail(tail(mul(p1, p2)))));
+      </JAVASCRIPT_TEST>
+    </SNIPPET>
+  </TEXT>
+  <EXERCISE>
+    Install
+    <INDEX><USE>is_equal_to_zero</USE> (generic)<SUBINDEX>for polynomials</SUBINDEX></INDEX>
+    <INDEX>zero test (generic)<SUBINDEX>for polynomials</SUBINDEX></INDEX>
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>=zero?</SCHEMEINLINE></SCHEME>
+      <JAVASCRIPT><JAVASCRIPTINLINE>is_equal_to_zero</JAVASCRIPTINLINE>
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    for polynomials in the generic arithmetic package.  This will allow
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>adjoin-term</SCHEMEINLINE></SCHEME>
+    <JAVASCRIPT><JAVASCRIPTINLINE>adjoin_term</JAVASCRIPTINLINE></JAVASCRIPT>
+    </SPLITINLINE>
+    to work for polynomials with coefficients that are themselves polynomials.
+    <LABEL NAME="ex:adjoin-term"></LABEL>
+  </EXERCISE><!-- Error occurred while translating this section -->
+
+  <EXERCISE>
+    Extend the polynomial system to include
+    <INDEX>polynomial arithmetic<SUBINDEX>subtraction</SUBINDEX></INDEX>
+    subtraction of polynomials.
+    (Hint: You may find it helpful to define a generic negation operation.)
+    <LABEL NAME="ex:sub-poly"></LABEL>
+    <SOLUTION>
+      <SNIPPET EVAL="no">
+	<NAME>ex_2_88_solution</NAME>
+	<JAVASCRIPT>
+function sub_terms(L1, L2) {
+    if (is_empty_termlist(L1)) {
+        return L2;
+    } else if (is_empty_termlist(L2)) {
+        return L1;
+    } else {
+        const t1 = first_term(L1);
+        const t2 = first_term(L2);
+        return order(t1) &gt; order(t2)
+               ? adjoin_term(t1, sub_terms(rest_terms(L1), L2))
+               : order(t1) &lt; order(t2)
+               ? adjoin_term(t2, sub_terms(L1, rest_terms(L2)))
+               : adjoin_term(make_term(order(t1), 
+                                       sub(coeff(t1), coeff(t2))),
+                             sub_terms(rest_terms(L1),
+                                       rest_terms(L2)));
+    }
+}
+function sub_poly(p1, p2) {
+    return is_same_variable(variable(p1), variable(p2))
+           ? make_poly(variable(p1),
+                       sub_terms(term_list(p1), term_list(p2)))
+           : error(list(p1, p2), &quot;polys not in same var -- sub_poly&quot;);
+}
+	</JAVASCRIPT>
+      </SNIPPET>
+    </SOLUTION>
+  </EXERCISE><!-- Error occurred while translating this section -->
+
+  <EXERCISE>
+    <LABEL NAME="ex:5_29"></LABEL>
+    <SPLITINLINE>
+      <SCHEME>Define procedures</SCHEME>
+      <JAVASCRIPT>Declare functions</JAVASCRIPT>
+    </SPLITINLINE>
+    that implement the term-list representation described above as
+    appropriate for dense polynomials.
+  </EXERCISE><!-- Error occurred while translating this section -->
+
+  <EXERCISE>
+    <LABEL NAME="ex:2_90"></LABEL>
+    Suppose we want to have a polynomial system that is efficient for both
+    sparse and dense polynomials.  One way to do this is to allow both
+    kinds of term-list representations in our system.  The situation is
+    analogous to the complex-number example of
+    section<SPACE></SPACE><REF NAME="sec:multiple-reps"></REF>, where we allowed both
+    rectangular and polar representations. To do this we must distinguish
+    different types of term lists and make the operations on term lists
+    generic.  Redesign the polynomial system to implement this generalization.
+    This is a major effort, not a local change.
+  </EXERCISE><!-- Error occurred while translating this section -->
+ 
+  <INDEX>term list of polynomial<SUBINDEX>representing</SUBINDEX><CLOSE></CLOSE></INDEX><!-- Error occurred while translating this section -->
+
+  <EXERCISE>
+    <LABEL NAME="ex:/terms"></LABEL>
+    A univariate polynomial can be divided by another one to produce a
+    <INDEX>polynomial arithmetic<SUBINDEX>division</SUBINDEX></INDEX>
+    polynomial quotient and a polynomial remainder.  For example,
+    <!-- Error occurred while translating this section --><LATEX>
+      \[
+      \begin{array}{lll}
+      \dfrac{x^5-1}{x^2 -1} &amp; = &amp; x^3 +x,\ \text{remainder }x-1
+      \end{array}
+      \]
+    </LATEX>
+    Division can be performed via long division.
+    That is, divide the highest-order term of the dividend by
+    the highest-order term of the divisor.  The result is the first term of the
+    quotient.  Next, multiply the result by the divisor, subtract that
+    from the dividend, and produce the rest of the answer by recursively
+    dividing the difference by the divisor.  Stop when the order of the
+    divisor exceeds the order of the dividend and declare the dividend to
+    be the remainder.  Also, if the dividend ever becomes zero, return
+    zero as both quotient and remainder.
+    <P></P>
+    We can design a
+    <INDEX><USE>div_poly</USE><FRAGILE></FRAGILE></INDEX> 
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>div-poly</SCHEMEINLINE></SCHEME>
+      <JAVASCRIPT><JAVASCRIPTINLINE>div_poly</JAVASCRIPTINLINE></JAVASCRIPT>
+    </SPLITINLINE>
+    <SPLITINLINE>
+      <SCHEME>procedure</SCHEME>
+      <JAVASCRIPT>function</JAVASCRIPT>
+    </SPLITINLINE>
+    on the model of
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>add-poly</SCHEMEINLINE></SCHEME>
+    <JAVASCRIPT><JAVASCRIPTINLINE>add_poly</JAVASCRIPTINLINE></JAVASCRIPT>
+    </SPLITINLINE>
+    and
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>mul-poly</SCHEMEINLINE>.</SCHEME>
+      <JAVASCRIPT><JAVASCRIPTINLINE>mul_poly</JAVASCRIPTINLINE>.</JAVASCRIPT>
+    </SPLITINLINE>
+    The
+    <SPLITINLINE>
+      <SCHEME>procedure</SCHEME>
+      <JAVASCRIPT>function</JAVASCRIPT>
+    </SPLITINLINE>
+    checks to see if the two polys have the same variable.  If so,
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>div-poly</SCHEMEINLINE></SCHEME>
+    <JAVASCRIPT><JAVASCRIPTINLINE>div_poly</JAVASCRIPTINLINE></JAVASCRIPT>
+    </SPLITINLINE>
+    strips off the variable and passes the problem to
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>div-terms</SCHEMEINLINE>,</SCHEME>
+    <JAVASCRIPT><JAVASCRIPTINLINE>div_terms</JAVASCRIPTINLINE>,</JAVASCRIPT>
+    </SPLITINLINE>
+    which performs the division operation on term lists.
+    <!-- Error occurred while translating this section --><SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>Div-poly</SCHEMEINLINE></SCHEME>
+      <JAVASCRIPT>
+	The function
+	<JAVASCRIPTINLINE>div_poly</JAVASCRIPTINLINE>
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    finally reattaches the variable to the result supplied by
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>div-terms</SCHEMEINLINE>.</SCHEME>
+      <JAVASCRIPT><JAVASCRIPTINLINE>div_terms</JAVASCRIPTINLINE>.</JAVASCRIPT>
+    </SPLITINLINE>
+    It is convenient to design
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>div-terms</SCHEMEINLINE></SCHEME>
+      <JAVASCRIPT><JAVASCRIPTINLINE>div_terms</JAVASCRIPTINLINE></JAVASCRIPT>
+    </SPLITINLINE>
+    to compute both the quotient and the remainder of a division.
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>div-terms</SCHEMEINLINE></SCHEME>
+      <JAVASCRIPT>
+	The function <JAVASCRIPTINLINE>div_terms</JAVASCRIPTINLINE>
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    can take two term lists as arguments and return a list of the quotient
+    term list and the remainder term list.
+    <P></P>
+    Complete the following definition of
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>div-terms</SCHEMEINLINE></SCHEME>
+    <JAVASCRIPT><JAVASCRIPTINLINE>div_terms</JAVASCRIPTINLINE></JAVASCRIPT>
+    </SPLITINLINE>
+    by filling in the missing
+    <SPLITINLINE>
+      <SCHEME>
+	expressions.
+      </SCHEME>
+      <JAVASCRIPT>
+	parts.
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    Use this to implement
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>div-poly</SCHEMEINLINE>,</SCHEME>
+      <JAVASCRIPT><JAVASCRIPTINLINE>div_poly</JAVASCRIPTINLINE>,</JAVASCRIPT>
+    </SPLITINLINE>
+    which takes two polys as arguments and returns a list of the quotient and
+    remainder polys.
+    <!-- Error occurred while translating this section --><SNIPPET EVAL="no" LATEX="yes" POSTPADDING="no">
+      <INDEX><DECLARATION>div_terms</DECLARATION><FRAGILE></FRAGILE></INDEX> 
+      <SCHEME>
+(define (div-terms L1 L2)
+  (if (empty-termlist? L1)
+    (list (the-empty-termlist) (the-empty-termlist))
+      (let ((t1 (first-term L1))
+            (t2 (first-term L2)))
+        (if (&gt; (order t2) (order t1))
+          (list (the-empty-termlist) L1)
+          (let ((new-c (div (coeff t1) (coeff t2)))
+            (new-o (- (order t1) (order t2))))
+    (let ((rest-of-result
+           compute rest of result recursively
+          ))
+      form complete result
+            ))))))
+      </SCHEME>
+      <JAVASCRIPT>
+function div_terms(L1, L2) {
+    if (is_empty_termlist(L1)) {
+        return list(the_empty_termlist, the_empty_termlist);
+    } else {
+        const t1 = first_term(L1);
+        const t2 = first_term(L2);
+        if (order(t2) &gt; order(t1)) {
+            return list(the_empty_termlist, L1);
+        } else {
+            const new_c = div(coeff(t1), coeff(t2));
+            const new_o = order(t1) - order(t2);
+            const rest_of_result = <METAPHRASE>compute rest of result recursively</METAPHRASE>;
+            <METAPHRASE>form and return complete result</METAPHRASE>
+        }
+    }
+}
+      </JAVASCRIPT>
+    </SNIPPET>
+  </EXERCISE>
+
+  <SUBHEADING>
+    <NAME>Hierarchies of types in symbolic algebra</NAME>
+  </SUBHEADING><!-- Error occurred while translating this section -->
+
+  <INDEX>hierarchy of types<SUBINDEX><ORDER>symbolic</ORDER>in symbolic algebra<OPEN></OPEN></SUBINDEX></INDEX><!-- Error occurred while translating this section -->
+  <INDEX>polynomial(s)<SUBINDEX>hierarchy of types</SUBINDEX><OPEN></OPEN></INDEX><!-- Error occurred while translating this section -->
+  <INDEX>type(s)<SUBINDEX>hierarchy in symbolic algebra</SUBINDEX><OPEN></OPEN></INDEX><!-- Error occurred while translating this section -->
+  
+  <TEXT>
+    Our polynomial system illustrates how objects of one type
+    (polynomials) may in fact be complex objects that have objects of many
+    different types as parts.  This poses no real difficulty in defining
+    generic operations.  We need only install appropriate generic operations
+    for performing the necessary manipulations of the parts of the
+    compound types.  In fact, we saw that polynomials form a kind of
+    <QUOTE>recursive data abstraction,</QUOTE> in that parts of a polynomial may
+    themselves be polynomials.  Our generic operations and our
+    data-directed programming style can handle this complication without
+    much trouble.
+  </TEXT><!-- Error occurred while translating this section -->
+  <TEXT>
+    On the other hand, polynomial algebra is a system for which the data
+    types cannot be naturally arranged in a tower.  For instance, it is
+    possible to have polynomials in <LATEXINLINE>$x$</LATEXINLINE> whose
+    coefficients are polynomials in <LATEXINLINE>$y$</LATEXINLINE>.  It is also
+    possible to have polynomials in <LATEXINLINE>$y$</LATEXINLINE> whose
+    coefficients are polynomials in <LATEXINLINE>$x$</LATEXINLINE>.  Neither of
+    these types is <QUOTE>above</QUOTE> the other in any natural way, yet it is
+    often necessary to add together elements from each set.  There are several
+    ways to do this.  One possibility is to convert one polynomial to the type
+    of the other by expanding and rearranging terms so that both polynomials
+    have the same principal variable.  One can impose a towerlike structure on
+    this by ordering the variables and thus always converting any polynomial
+    to a 
+    <INDEX>canonical form, for polynomials</INDEX>
+    <INDEX>polynomial(s)<SUBINDEX>canonical form</SUBINDEX></INDEX>
+    <QUOTE>canonical form</QUOTE> with the highest-priority variable
+    dominant and the lower-priority variables buried in the coefficients.
+    This strategy works fairly well, except that the conversion may expand
+    a polynomial unnecessarily, making it hard to read and perhaps less
+    efficient to work with.  The tower strategy is certainly not natural
+    for this domain or for any domain where the user can invent new types
+    dynamically using old types in various combining forms, such as
+    trigonometric functions, power series, and integrals.
+  </TEXT><!-- Error occurred while translating this section -->
+  <TEXT>
+    It should not be surprising that controlling 
+    <INDEX>coercion<SUBINDEX>in algebraic manipulation</SUBINDEX></INDEX>
+    coercion is a serious problem in the design of large-scale
+    algebraic-manipulation systems. Much of the complexity of such systems is
+    concerned with relationships among diverse types.  Indeed, it is fair to
+    say that we do not yet completely understand coercion.  In fact, we do not
+    yet completely understand the concept of a data type.  Nevertheless, what
+    we know provides us with powerful structuring and modularity principles to
+    support the design of large systems.
+  </TEXT><!-- Error occurred while translating this section -->
+
+  <EXERCISE>
+    By imposing an ordering on variables, extend the polynomial package so
+    that addition and multiplication of polynomials works for polynomials
+    in different variables.  (This is not easy!)
+    <LABEL NAME="ex:2_92"></LABEL>
+  </EXERCISE><!-- Error occurred while translating this section -->
+  
+  <INDEX>hierarchy of types<SUBINDEX><ORDER>symbolic</ORDER>in symbolic algebra<CLOSE></CLOSE></SUBINDEX></INDEX><!-- Error occurred while translating this section -->
+  <INDEX>polynomial(s)<SUBINDEX>hierarchy of types</SUBINDEX><CLOSE></CLOSE></INDEX><!-- Error occurred while translating this section -->
+  <INDEX>type(s)<SUBINDEX>hierarchy in symbolic algebra</SUBINDEX><CLOSE></CLOSE></INDEX><!-- Error occurred while translating this section -->
+
+  <SUBHEADING>
+    <NAME>Extended exercise: Rational functions</NAME>
+  </SUBHEADING><!-- Error occurred while translating this section -->
+
+  <INDEX>rational function<OPEN></OPEN></INDEX><!-- Error occurred while translating this section -->
+  <INDEX>function (mathematical)<SUBINDEX>rational</SUBINDEX><OPEN></OPEN></INDEX><!-- Error occurred while translating this section -->
+  <INDEX>polynomial arithmetic<SUBINDEX>rational functions</SUBINDEX><OPEN></OPEN></INDEX><!-- Error occurred while translating this section -->
+  
+  <TEXT>
+    We can extend our generic arithmetic system to include <EM>rational
+    functions</EM>.  These are <QUOTE>fractions</QUOTE> whose numerator and
+    denominator are polynomials, such as
+    <LATEX>
+      \[
+      \begin{array}{l}
+      \dfrac{x+1}{x^3 -1}
+      \end{array}
+      \]
+    </LATEX>
+    The system should be able to add, subtract, multiply, and divide
+    rational functions, and to perform such computations as
+    <LATEX>
+      \[
+      \begin{array}{lll}
+      \dfrac{x+1}{x^3 -1}+\dfrac{x}{x^2 -1} &amp; = &amp; \dfrac{x^3 +2x^2 +3x +1}{x^4 +
+      x^3 -x-1}
+      \end{array}
+      \]
+    </LATEX>
+    (Here the sum has been simplified by removing common factors.
+    Ordinary <QUOTE>cross multiplication</QUOTE> would have produced a 
+    fourth-degree polynomial over a fifth-degree polynomial.)
+  </TEXT><!-- Error occurred while translating this section -->
+  <TEXT>
+    If we modify our rational-arithmetic package so that it uses generic
+    operations, then it will do what we want, except for the problem
+    of reducing fractions to lowest terms.
+  </TEXT><!-- Error occurred while translating this section -->
+
+  <EXERCISE> 
+    Modify the rational-arithmetic package to use generic operations, but
+    change
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>make-rat</SCHEMEINLINE></SCHEME>
+    <JAVASCRIPT><JAVASCRIPTINLINE>make_rat</JAVASCRIPTINLINE></JAVASCRIPT>
+    </SPLITINLINE>
+    so that it does not attempt to reduce fractions to lowest terms.  Test
+    your system by calling
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>make-rational</SCHEMEINLINE></SCHEME>
+      <JAVASCRIPT><JAVASCRIPTINLINE>make_rational</JAVASCRIPTINLINE>
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    on two polynomials to produce a rational function
+    <SNIPPET EVAL="no">
+      <SCHEME>
+            (define p1 (make-polynomial &apos;x &apos;((2 1)(0 1))))
+            (define p2 (make-polynomial &apos;x &apos;((3 1)(0 1))))
+            (define rf (make-rational p2 p1))
+      </SCHEME>
+      <JAVASCRIPT>
+const p1 = make_polynomial(&quot;x&quot;, list(make_term(2, 1), make_term(0, 1)));
+const p2 = make_polynomial(&quot;x&quot;, list(make_term(3, 1), make_term(0, 1)));
+const rf = make_rational(p2, p1);
+      </JAVASCRIPT>
+    </SNIPPET>
+    Now add <SCHEMEINLINE>rf</SCHEMEINLINE> to itself, using
+    <SCHEMEINLINE>add</SCHEMEINLINE>. You will observe that this addition
+    <SPLITINLINE>
+      <SCHEME>procedure</SCHEME>
+      <JAVASCRIPT>function</JAVASCRIPT>
+    </SPLITINLINE>
+    does not reduce fractions to lowest terms.
+    <LABEL NAME="ex:make-rat-poly"></LABEL>
+  </EXERCISE><!-- Error occurred while translating this section -->
+  <EXERCISE_FOLLOWED_BY_TEXT></EXERCISE_FOLLOWED_BY_TEXT><!-- Error occurred while translating this section -->
+  <TEXT>
+    We can reduce polynomial fractions to lowest terms using the same idea
+    we used with integers: modifying
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>make-rat</SCHEMEINLINE></SCHEME>
+      <JAVASCRIPT><JAVASCRIPTINLINE>make_rat</JAVASCRIPTINLINE></JAVASCRIPT>
+    </SPLITINLINE>
+    to divide both the numerator and the denominator by their greatest common
+    divisor. The notion of 
+    <INDEX>greatest common divisor<SUBINDEX>of polynomials</SUBINDEX></INDEX>
+    <INDEX>polynomial arithmetic<SUBINDEX>greatest common divisor</SUBINDEX><OPEN></OPEN></INDEX>
+    <QUOTE>greatest common divisor</QUOTE> makes sense for polynomials.  In
+    fact, we can compute the GCD of two polynomials using essentially the
+    same Euclid<APOS></APOS>s Algorithm that works for integers.<!-- Error occurred while translating this section --><FOOTNOTE>The fact
+    that 
+    <INDEX>Euclid<APOS></APOS>s Algorithm<SUBINDEX><ORDER>polynomials</ORDER>for polynomials</SUBINDEX></INDEX>
+    <INDEX>polynomial arithmetic<SUBINDEX>Euclid<APOS></APOS>s Algorithm</SUBINDEX></INDEX>
+    Euclid<APOS></APOS>s Algorithm works for polynomials is formalized in algebra
+    by saying that polynomials form a kind of algebraic domain called a
+    <INDEX>Euclidean ring</INDEX>
+    <INDEX>measure in a Euclidean ring</INDEX>
+    <EM>Euclidean ring</EM>.  A Euclidean ring is a domain that admits
+    addition, subtraction, and commutative multiplication, together with a
+    way of assigning to each element <LATEXINLINE>$x$</LATEXINLINE> of the
+    ring a positive integer
+    <QUOTE>measure</QUOTE> <LATEXINLINE>$m(x)$</LATEXINLINE> with the
+    properties that <LATEXINLINE>$m(xy)\geq m(x)$</LATEXINLINE> for any nonzero
+    <LATEXINLINE>$x$</LATEXINLINE> and <LATEXINLINE>$y$</LATEXINLINE> and that,
+    given any <LATEXINLINE>$x$</LATEXINLINE> and <LATEXINLINE>$y$</LATEXINLINE>,
+    there exists a <LATEXINLINE>$q$</LATEXINLINE> such that
+    <LATEXINLINE>$y=qx+r$</LATEXINLINE> and either
+    <LATEXINLINE>$r=0$</LATEXINLINE> or
+    <LATEXINLINE>$m(r) &lt; m(x)$</LATEXINLINE>.  From an abstract point of
+    view, this is what is needed to prove that Euclid<APOS></APOS>s Algorithm works.
+    For the domain of integers, the measure <LATEXINLINE>$m$</LATEXINLINE> of an
+    integer is the absolute value of the integer itself.  For the domain of
+    polynomials, the measure of a polynomial is its degree.</FOOTNOTE>  The
+    integer version is
+    <SHORT_PAGE LINES="3"></SHORT_PAGE>
+    <!-- Error occurred while translating this section --><SNIPPET EVAL="no">
+      <SCHEME>
+          (define (gcd a b)
+          (if (= b 0)
+          a
+          (gcd b (remainder a b))))
+      </SCHEME>
+      <JAVASCRIPT>
+function gcd(a, b) {
+    return b === 0
+           ? a
+           : gcd(b, a % b);
+}
+      </JAVASCRIPT>
+    </SNIPPET>
+    Using this, we could make the obvious modification to define a GCD
+    operation that works on term lists:
+    <!-- Error occurred while translating this section --><SNIPPET EVAL="no">
+      <INDEX><DECLARATION>gcd_terms</DECLARATION></INDEX> 
+      <SCHEME>
+          (define (gcd-terms a b)
+          (if (empty-termlist? b)
+          a
+          (gcd-terms b (remainder-terms a b))))
+      </SCHEME>
+      <JAVASCRIPT>
+function gcd_terms(a, b) {
+    return is_empty_termlist(b)
+           ? a
+           : gcd_terms(b, remainder_terms(a, b));
+}
+      </JAVASCRIPT>
+    </SNIPPET>
+    where
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>remainder-terms</SCHEMEINLINE></SCHEME>
+      <JAVASCRIPT><JAVASCRIPTINLINE>remainder_terms</JAVASCRIPTINLINE>
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    picks out the remainder component of the list returned by the term-list
+    division operation
+    <SPLITINLINE>
+      <SCHEME>
+      <SCHEMEINLINE>div-terms</SCHEMEINLINE></SCHEME>
+      <JAVASCRIPT><JAVASCRIPTINLINE>div_terms</JAVASCRIPTINLINE></JAVASCRIPT>
+    </SPLITINLINE>
+    that was implemented in exercise<SPACE></SPACE><REF NAME="ex:/terms"></REF>.
+  <!-- Error occurred while translating this section --></TEXT>
+
+  <EXERCISE>
+    Using
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>div-terms</SCHEMEINLINE>,</SCHEME>
+    <JAVASCRIPT><JAVASCRIPTINLINE>div_terms</JAVASCRIPTINLINE>,</JAVASCRIPT>
+    </SPLITINLINE>
+    implement the
+    <SPLITINLINE>
+      <SCHEME>procedure</SCHEME>
+      <JAVASCRIPT>function</JAVASCRIPT>
+    </SPLITINLINE>
+    <INDEX><USE>remainder_terms</USE></INDEX> 
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>remainder-terms</SCHEMEINLINE></SCHEME>
+      <JAVASCRIPT><JAVASCRIPTINLINE>remainder_terms</JAVASCRIPTINLINE>
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    and use this to define
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>gcd-terms</SCHEMEINLINE></SCHEME>
+      <JAVASCRIPT><JAVASCRIPTINLINE>gcd_@terms</JAVASCRIPTINLINE></JAVASCRIPT>
+    </SPLITINLINE>
+    as above.  Now write a
+    <SPLITINLINE>
+      <SCHEME>procedure</SCHEME>
+      <JAVASCRIPT>function</JAVASCRIPT>
+    </SPLITINLINE>
+    <INDEX>greatest common divisor<SUBINDEX>generic</SUBINDEX></INDEX>
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>gcd-poly</SCHEMEINLINE></SCHEME>
+      <JAVASCRIPT>
+      <JAVASCRIPTINLINE>gcd_poly</JAVASCRIPTINLINE></JAVASCRIPT>
+    </SPLITINLINE>
+    that computes the polynomial GCD of two polys. (The
+    <SPLITINLINE>
+      <SCHEME>procedure</SCHEME>
+      <JAVASCRIPT>function</JAVASCRIPT>
+    </SPLITINLINE>
+    should signal an error if the two polys are not in the same variable.)
+    Install in the system a generic operation
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>greatest-common-divisor</SCHEMEINLINE></SCHEME>
+      <JAVASCRIPT><JAVASCRIPTINLINE>greatest_common_divisor</JAVASCRIPTINLINE>
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    that reduces to
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>gcd-poly</SCHEMEINLINE></SCHEME>
+      <JAVASCRIPT><JAVASCRIPTINLINE>gcd_poly</JAVASCRIPTINLINE></JAVASCRIPT>
+    </SPLITINLINE>
+    for polynomials and to ordinary <!-- Error occurred while translating this section --><SCHEMEINLINE>gcd</SCHEMEINLINE> for
+    ordinary numbers.  As a test, try
+    <!-- Error occurred while translating this section --><SNIPPET EVAL="no">
+      <SCHEME>
+            (define p1 (make-polynomial &apos;x &apos;((4 1) (3 -1) (2 -2) (1 2))))
+            (define p2 (make-polynomial &apos;x &apos;((3 1) (1 -1))))
+            (greatest-common-divisor p1 p2)
+      </SCHEME>
+      <JAVASCRIPT>
+const p1 = make_polynomial(&quot;x&quot;, list(make_term(4, 1), make_term(3, -1),
+                                     make_term(2, -2), make_term(1, 2)));
+const p2 = make_polynomial(&quot;x&quot;, list(make_term(3, 1), make_term(1, -1)));
+greatest_common_divisor(p1, p2);
+      </JAVASCRIPT>
+    </SNIPPET>
+    and check your result by hand.
+    <!-- Error occurred while translating this section --><LABEL NAME="ex:remainder-terms"></LABEL>
+  </EXERCISE>
+
+  <EXERCISE> 
+    Define <!-- Error occurred while translating this section --><LATEXINLINE>$P_{1}$</LATEXINLINE>,
+    <LATEXINLINE>$P_{2}$</LATEXINLINE>, and
+    <!-- Error occurred while translating this section --><LATEXINLINE>$P_{3}$</LATEXINLINE> to be the polynomials
+    <TABLE>
+      <TR>
+	<TD>
+	  <LATEXINLINE>$P_{1}$</LATEXINLINE>:
+	</TD>
+	<TD>
+	  <LATEXINLINE>$x^2 - 2x + 1$</LATEXINLINE>
+	</TD>
+      </TR>
+      <TR>
+	<TD>
+	  <LATEXINLINE>$P_{2}$</LATEXINLINE>:
+	</TD>
+	<TD>
+	  <LATEXINLINE>$11x^2 + 7$</LATEXINLINE>
+	</TD>
+      </TR>
+      <TR>
+	<TD>
+	  <LATEXINLINE>$P_{3}$</LATEXINLINE>:
+	</TD>
+	<TD>
+	  <LATEXINLINE>$13x + 5$</LATEXINLINE>
+	</TD>
+      </TR>
+    </TABLE>
+    Now define <!-- Error occurred while translating this section --><LATEXINLINE>$Q_1$</LATEXINLINE> to be the product of
+    <!-- Error occurred while translating this section --><LATEXINLINE>$P_1$</LATEXINLINE> and <!-- Error occurred while translating this section --><LATEXINLINE>$P_2$</LATEXINLINE> and
+    <!-- Error occurred while translating this section --><LATEXINLINE>$Q_2$</LATEXINLINE> to be the product of
+    <!-- Error occurred while translating this section --><LATEXINLINE>$P_1$</LATEXINLINE> and <!-- Error occurred while translating this section --><LATEXINLINE>$P_3$</LATEXINLINE>, and
+    use
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>greatest-common-divisor</SCHEMEINLINE></SCHEME>
+      <JAVASCRIPT><JAVASCRIPTINLINE>greatest_common_divisor</JAVASCRIPTINLINE>
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    (exercise<SPACE></SPACE><REF NAME="ex:remainder-terms"></REF>) to compute the GCD of
+    <!-- Error occurred while translating this section --><LATEXINLINE>$Q_1$</LATEXINLINE> and <!-- Error occurred while translating this section --><LATEXINLINE>$Q_2$</LATEXINLINE>.
+    Note that the answer is not the same as <!-- Error occurred while translating this section --><LATEXINLINE>$P_1$</LATEXINLINE>.
+    This example introduces noninteger operations into the computation, causing
+    difficulties with the GCD
+    <SPLITINLINE>
+      <SCHEME>
+	algorithm.<FOOTNOTE>In an implementation like MIT Scheme, this produces
+	a polynomial that is indeed a divisor of
+	<LATEXINLINE>$Q_1$</LATEXINLINE> and <LATEXINLINE>$Q_2$</LATEXINLINE>,
+	but with rational coefficients. In many other Scheme systems, in which
+	division of integers can produce limited-precision decimal numbers, we
+	may fail to get a valid divisor.</FOOTNOTE>
+      </SCHEME>
+      <JAVASCRIPT>
+	algorithm.<FOOTNOTE>In JavaScript, division of integers can produce
+	limited-precision decimal numbers, and thus we
+	may fail to get a valid divisor.</FOOTNOTE>
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    To understand what is happening, try tracing
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>gcd-terms</SCHEMEINLINE></SCHEME>
+      <JAVASCRIPT><JAVASCRIPTINLINE>gcd_terms</JAVASCRIPTINLINE></JAVASCRIPT>
+    </SPLITINLINE>
+    while computing the GCD or try performing the division by hand.
+    <!-- Error occurred while translating this section --><LABEL NAME="ex:gcd-of-polys"></LABEL>
+  </EXERCISE>
+  <EXERCISE_FOLLOWED_BY_TEXT></EXERCISE_FOLLOWED_BY_TEXT><!-- Error occurred while translating this section -->
+  <SHORT_PAGE LINES="1"></SHORT_PAGE><!-- Error occurred while translating this section -->
+  <TEXT>
+    We can solve the problem exhibited in
+    exercise<SPACE></SPACE><REF NAME="ex:gcd-of-polys"></REF> if
+    we use the following modification of the GCD algorithm (which really
+    works only in the case of polynomials with integer coefficients).
+    Before performing any polynomial division in the GCD computation, we
+    multiply the dividend by an integer constant factor, chosen to
+    guarantee that no fractions will arise during the division process.
+    Our answer will thus differ from the actual GCD by an integer constant
+    factor, but this does not matter in the case of reducing rational
+    functions to lowest terms; the GCD will be used to divide both the
+    numerator and denominator, so the integer constant factor will cancel
+    out.
+  </TEXT><!-- Error occurred while translating this section -->
+  <TEXT>
+    More precisely, if <LATEXINLINE>$P$</LATEXINLINE> and
+    <LATEXINLINE>$Q$</LATEXINLINE> are polynomials, let
+    <LATEXINLINE>$O_1$</LATEXINLINE> be the order of
+    <LATEXINLINE>$P$</LATEXINLINE> (i.e., the order of the largest term of
+    <LATEXINLINE>$P$</LATEXINLINE>) and let <LATEXINLINE>$O_2$</LATEXINLINE>
+    be the order of <LATEXINLINE>$Q$</LATEXINLINE>.  Let
+    <LATEXINLINE>$c$</LATEXINLINE> be the leading coefficient of
+    <LATEXINLINE>$Q$</LATEXINLINE>.  Then it can be shown that, if we multiply
+    <LATEXINLINE>$P$</LATEXINLINE> by the
+    <INDEX>integerizing factor</INDEX>
+    <EM>integerizing factor</EM>
+    <LATEXINLINE>$c^{1+O_{1} -O_{2}}$</LATEXINLINE>, the resulting polynomial
+    can  be divided by <LATEXINLINE>$Q$</LATEXINLINE> by using the
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>div-terms</SCHEMEINLINE></SCHEME>
+      <JAVASCRIPT><JAVASCRIPTINLINE>div_terms</JAVASCRIPTINLINE></JAVASCRIPT>
+    </SPLITINLINE>
+    algorithm without introducing any fractions.  The operation of multiplying
+    the dividend by this constant and then dividing is sometimes called the 
+    <INDEX>pseudodivision of polynomials</INDEX>
+    <EM>pseudodivision</EM> of <LATEXINLINE>$P$</LATEXINLINE> by
+    <LATEXINLINE>$Q$</LATEXINLINE>.  The remainder of the division is
+    called the
+    <INDEX>pseudoremainder of polynomials</INDEX>
+    <EM>pseudoremainder</EM>.
+  </TEXT><!-- Error occurred while translating this section -->
+
+  <EXERCISE> 
+    <LABEL NAME="ex:pseudoremainder-terms"></LABEL>
+    <OL>
+      <LI>
+        Implement the
+        <SPLITINLINE><SCHEME>procedure</SCHEME>
+	<JAVASCRIPT>function</JAVASCRIPT>
+	</SPLITINLINE>
+        <SPLITINLINE>
+	  <SCHEME><SCHEMEINLINE>pseudoremainder-terms</SCHEMEINLINE>,</SCHEME>
+          <JAVASCRIPT>
+	    <JAVASCRIPTINLINE>pseudoremainder_terms</JAVASCRIPTINLINE>,
+	  </JAVASCRIPT>
+        </SPLITINLINE>
+	which is just like
+        <SPLITINLINE>
+          <SCHEME><SCHEMEINLINE>remainder-terms</SCHEMEINLINE></SCHEME>
+          <JAVASCRIPT><JAVASCRIPTINLINE>remainder_terms</JAVASCRIPTINLINE>
+	  </JAVASCRIPT>
+        </SPLITINLINE>
+	except that it multiplies the dividend by the integerizing factor
+	described above before calling
+	<SPLITINLINE>
+          <SCHEME><SCHEMEINLINE>div-terms</SCHEMEINLINE>.</SCHEME>
+          <JAVASCRIPT><JAVASCRIPTINLINE>div_terms</JAVASCRIPTINLINE>.
+	  </JAVASCRIPT>
+        </SPLITINLINE>
+        Modify
+	<SPLITINLINE>
+	  <SCHEME><SCHEMEINLINE>gcd-terms</SCHEMEINLINE></SCHEME>
+          <JAVASCRIPT><JAVASCRIPTINLINE>gcd_terms</JAVASCRIPTINLINE>
+	  </JAVASCRIPT>
+        </SPLITINLINE>
+	to use
+	<SPLITINLINE>
+	  <SCHEME><SCHEMEINLINE>pseudoremainder-terms</SCHEMEINLINE>,</SCHEME>
+          <JAVASCRIPT>
+	    <JAVASCRIPTINLINE>pseudoremainder_terms</JAVASCRIPTINLINE>,
+	  </JAVASCRIPT>
+        </SPLITINLINE>
+	and verify that
+	<SPLITINLINE>
+          <SCHEME><SCHEMEINLINE>greatest-common-divisor</SCHEMEINLINE></SCHEME>
+          <JAVASCRIPT>
+	    <JAVASCRIPTINLINE>greatest_common_divisor</JAVASCRIPTINLINE>
+	  </JAVASCRIPT>
+        </SPLITINLINE>
+	now produces an answer with integer coefficients on the example in
+	exercise<SPACE></SPACE><REF NAME="ex:gcd-of-polys"></REF>.
+      </LI>
+      <!-- Error occurred while translating this section --><LI>
+        The GCD now has integer coefficients, but they are larger than those
+        of <LATEXINLINE>$P_1$</LATEXINLINE>.  Modify
+	<SPLITINLINE>
+          <SCHEME><SCHEMEINLINE>gcd-terms</SCHEMEINLINE></SCHEME>
+          <JAVASCRIPT><JAVASCRIPTINLINE>gcd_terms</JAVASCRIPTINLINE>
+	  </JAVASCRIPT>
+        </SPLITINLINE>
+	so that it removes common factors from the coefficients of the answer
+	by dividing all the coefficients by their (integer) greatest common
+	divisor.
+      </LI>
+    <!-- Error occurred while translating this section --></OL>
+  </EXERCISE>
+  <INDEX>polynomial arithmetic<SUBINDEX>greatest common divisor</SUBINDEX><CLOSE></CLOSE></INDEX><!-- Error occurred while translating this section -->
+  <INDEX>rational function<SUBINDEX>reducing to lowest terms</SUBINDEX><OPEN></OPEN></INDEX><!-- Error occurred while translating this section -->
+  <INDEX>reducing to lowest terms<OPEN></OPEN></INDEX><!-- Error occurred while translating this section -->
+  <EXERCISE_FOLLOWED_BY_TEXT></EXERCISE_FOLLOWED_BY_TEXT><!-- Error occurred while translating this section -->  
+  <TEXT>
+    Thus, here is how to reduce a rational function to lowest terms:
+    <UL>
+      <LI>
+	Compute the GCD of the numerator and denominator, using
+	the version of
+	<SPLITINLINE>
+	  <SCHEME><SCHEMEINLINE>gcd-terms</SCHEMEINLINE></SCHEME>
+	  <JAVASCRIPT><JAVASCRIPTINLINE>gcd_@terms</JAVASCRIPTINLINE>
+	  </JAVASCRIPT>
+	</SPLITINLINE>
+	from exercise<SPACE></SPACE><REF NAME="ex:pseudoremainder-terms"></REF>.
+      </LI>
+      <LI>
+	When you obtain the GCD, multiply both numerator and
+	denominator by the same integerizing factor before dividing through by
+	the GCD, so that division by the GCD will not introduce any noninteger
+	coefficients.  As the factor you can use the leading coefficient of
+	the GCD raised to the power
+	<LATEXINLINE>$1+O_{1} -O_{2}$</LATEXINLINE>, where
+	<LATEXINLINE>$O_{2}$</LATEXINLINE> is the order of the GCD and
+	<LATEXINLINE>$O_{1}$</LATEXINLINE> is the maximum of the orders of the
+	numerator and denominator.  This will ensure that dividing the
+	numerator and denominator by the GCD will not introduce any fractions.
+      </LI>
+      <LI>
+	The result of this operation will be a numerator and denominator
+	with integer coefficients.  The coefficients will normally be very
+	large because of all of the integerizing factors, so the last step is
+	to remove the redundant factors by computing the (integer) greatest
+	common divisor of all the coefficients of the numerator and the
+	denominator and dividing through by this factor.
+      </LI>
+    </UL>
+  </TEXT><!-- Error occurred while translating this section -->
+
+  <EXERCISE>
+    <LABEL NAME="ex:reduce-poly"></LABEL>
+    <OL>
+      <LI>
+	Implement this algorithm as a
+	<SPLITINLINE>
+	  <SCHEME>procedure</SCHEME>
+	  <JAVASCRIPT>function</JAVASCRIPT>
+	</SPLITINLINE>
+	<SPLITINLINE>
+	  <SCHEME><SCHEMEINLINE>reduce-terms</SCHEMEINLINE></SCHEME>
+	  <JAVASCRIPT><JAVASCRIPTINLINE>reduce_terms</JAVASCRIPTINLINE>
+	  </JAVASCRIPT>
+	</SPLITINLINE>
+	that takes two term lists <SCHEMEINLINE>n</SCHEMEINLINE> and
+	<SCHEMEINLINE>d</SCHEMEINLINE> as arguments and returns a list
+	<SCHEMEINLINE>nn</SCHEMEINLINE>, <SCHEMEINLINE>dd</SCHEMEINLINE>,
+	which are <SCHEMEINLINE>n</SCHEMEINLINE> and
+	<SCHEMEINLINE>d</SCHEMEINLINE> reduced to lowest terms via the
+	algorithm given above. Also write a
+	<SPLITINLINE>
+	  <SCHEME>procedure</SCHEME>
+	  <JAVASCRIPT>function</JAVASCRIPT>
+	</SPLITINLINE>
+	<SPLITINLINE>
+	  <SCHEME><SCHEMEINLINE>reduce-poly</SCHEMEINLINE>,</SCHEME>
+	  <JAVASCRIPT><JAVASCRIPTINLINE>reduce_poly</JAVASCRIPTINLINE>,
+	  </JAVASCRIPT>
+	</SPLITINLINE>
+	analogous to
+	<SPLITINLINE>
+	  <SCHEME><SCHEMEINLINE>add-poly</SCHEMEINLINE>,</SCHEME>
+	  <JAVASCRIPT>
+	    <JAVASCRIPTINLINE>add_poly</JAVASCRIPTINLINE>,
+	  </JAVASCRIPT>
+	</SPLITINLINE>
+	that checks to see if the two polys have the same variable.  If so,
+	<SPLITINLINE>
+	  <SCHEME><SCHEMEINLINE>reduce-poly</SCHEMEINLINE></SCHEME>
+	  <JAVASCRIPT><JAVASCRIPTINLINE>reduce_poly</JAVASCRIPTINLINE>
+	  </JAVASCRIPT>
+	</SPLITINLINE>
+	strips off the variable and passes the problem to
+	<SPLITINLINE>
+	  <SCHEME><SCHEMEINLINE>reduce-terms</SCHEMEINLINE>,</SCHEME>
+	  <JAVASCRIPT><JAVASCRIPTINLINE>reduce_terms</JAVASCRIPTINLINE>,
+	  </JAVASCRIPT>
+	</SPLITINLINE>
+	then reattaches the variable to the two term lists supplied by
+	<SPLITINLINE>
+	  <SCHEME>
+	  <SCHEMEINLINE>reduce-terms</SCHEMEINLINE>.</SCHEME>
+	  <JAVASCRIPT><JAVASCRIPTINLINE>reduce_terms</JAVASCRIPTINLINE>.
+	  </JAVASCRIPT>
+	</SPLITINLINE>
+      </LI>
+      <!-- Error occurred while translating this section --><LI>
+        Define a
+        <SPLITINLINE>
+	  <SCHEME>procedure</SCHEME>
+	  <JAVASCRIPT>function</JAVASCRIPT>
+	</SPLITINLINE>
+        analogous to
+	<SPLITINLINE>
+          <SCHEME><SCHEMEINLINE>reduce-terms</SCHEMEINLINE></SCHEME>
+          <JAVASCRIPT><JAVASCRIPTINLINE>reduce_terms</JAVASCRIPTINLINE>
+	  </JAVASCRIPT>
+	</SPLITINLINE>
+	that does what the original
+	<SPLITINLINE>
+	<SCHEME><SCHEMEINLINE>make-rat</SCHEMEINLINE></SCHEME>
+	<JAVASCRIPT><JAVASCRIPTINLINE>make_rat</JAVASCRIPTINLINE></JAVASCRIPT>
+	</SPLITINLINE>
+	did for integers:
+        <!-- Error occurred while translating this section --><SNIPPET EVAL="no">
+          <SCHEME>
+                (define (reduce-integers n d)
+                (let ((g (gcd n d)))
+                (list (/ n g) (/ d g))))
+          </SCHEME>
+          <JAVASCRIPT>
+function reduce_integers(n, d) {
+    const g = gcd(n, d);
+    return list(n / g, d / g);
+}
+          </JAVASCRIPT>
+        </SNIPPET>
+        and define
+        <!-- Error occurred while translating this section --><SCHEMEINLINE>reduce</SCHEMEINLINE> as a generic operation that calls
+	<SPLITINLINE>
+          <SCHEME><SCHEMEINLINE>apply-generic</SCHEMEINLINE></SCHEME>
+          <JAVASCRIPT><JAVASCRIPTINLINE>apply_generic</JAVASCRIPTINLINE>
+	  </JAVASCRIPT>
+        </SPLITINLINE>
+	to dispatch	
+	<SPLITINLINE>
+          <SCHEME>
+	     to either
+	     <SCHEMEINLINE>reduce-poly</SCHEMEINLINE>
+	  </SCHEME>
+          <JAVASCRIPT>
+	    either to
+	    <JAVASCRIPTINLINE>reduce_poly</JAVASCRIPTINLINE>
+	  </JAVASCRIPT>
+        </SPLITINLINE>
+	(for <!-- Error occurred while translating this section --><SCHEMEINLINE>polynomial</SCHEMEINLINE> arguments) or
+	<SPLITINLINE>
+	  <SCHEME><SCHEMEINLINE>reduce-integers</SCHEMEINLINE></SCHEME>
+          <JAVASCRIPT>to <JAVASCRIPTINLINE>reduce_integers</JAVASCRIPTINLINE>
+	  </JAVASCRIPT>
+        </SPLITINLINE>
+	(for
+	<SPLITINLINE>
+          <SCHEME><SCHEMEINLINE>scheme-number</SCHEMEINLINE></SCHEME>
+          <JAVASCRIPT><JAVASCRIPTINLINE>javascript_@number</JAVASCRIPTINLINE>
+	  </JAVASCRIPT>
+        </SPLITINLINE>
+	arguments). You can now easily make the rational-arithmetic package
+	reduce fractions to lowest terms by having
+	<SPLITINLINE>
+	  <SCHEME><SCHEMEINLINE>make-rat</SCHEMEINLINE></SCHEME>
+          <JAVASCRIPT><JAVASCRIPTINLINE>make_rat</JAVASCRIPTINLINE></JAVASCRIPT>
+        </SPLITINLINE>
+	call <!-- Error occurred while translating this section --><SCHEMEINLINE>reduce</SCHEMEINLINE> before combining the given
+        numerator and denominator to form a rational number. The system now
+        handles rational expressions in either integers or polynomials.
+        To test your program, try the example at the beginning of this
+        extended exercise:
+        <!-- Error occurred while translating this section --><SNIPPET EVAL="no">
+          <SCHEME>
+                (define p1 (make-polynomial &apos;x &apos;((1 1)(0 1))))
+                (define p2 (make-polynomial &apos;x &apos;((3 1)(0 -1))))
+                (define p3 (make-polynomial &apos;x &apos;((1 1))))
+                (define p4 (make-polynomial &apos;x &apos;((2 1)(0 -1))))
+
+                (define rf1 (make-rational p1 p2))
+                (define rf2 (make-rational p3 p4))
+
+                (add rf1 rf2)
+          </SCHEME>
+          <JAVASCRIPT>
+const p1 = make_polynomial(&quot;x&quot;, list(make_term(1, 1), make_term(0, 1)));
+const p2 = make_polynomial(&quot;x&quot;, list(make_term(3, 1), make_term(0, -1)));
+const p3 = make_polynomial(&quot;x&quot;, list(make_term(1, 1)));
+const p4 = make_polynomial(&quot;x&quot;, list(make_term(2, 1), make_term(0, -1)));
+
+const rf1 = make_rational(p1, p2);
+const rf2 = make_rational(p3, p4);
+
+add(rf1, rf2);
+          </JAVASCRIPT>
+        </SNIPPET>
+        See if you get the correct answer, correctly reduced to lowest terms.
+      <!-- Error occurred while translating this section --></LI>
+    </OL>
+  </EXERCISE>
+  <EXERCISE_FOLLOWED_BY_TEXT></EXERCISE_FOLLOWED_BY_TEXT><!-- Error occurred while translating this section -->
+  <TEXT>
+    The GCD computation is at the heart of any system that does operations
+    on rational functions.  The algorithm used above, although
+    mathematically straightforward, is extremely slow.  The slowness is
+    due partly to the large number of division operations and partly to
+    the enormous size of the intermediate coefficients generated by the
+    pseudodivisions.
+    <INDEX>rational function<SUBINDEX>reducing to lowest terms</SUBINDEX><CLOSE></CLOSE></INDEX>
+    <INDEX>reducing to lowest terms<CLOSE></CLOSE></INDEX>
+    One of the active areas in the development of
+    algebraic-manipulation systems is the design of better algorithms for
+    computing polynomial GCDs.<FOOTNOTE>One extremely efficient and
+    elegant method for computing 
+    <INDEX>polynomial arithmetic<SUBINDEX>greatest common divisor</SUBINDEX></INDEX>
+    <INDEX>polynomial arithmetic<SUBINDEX>probabilistic algorithm for GCD</SUBINDEX></INDEX>
+    <INDEX>probabilistic algorithm</INDEX>
+    <INDEX>algorithm<SUBINDEX>probabilistic</SUBINDEX></INDEX>
+    polynomial GCDs was discovered by 
+    <INDEX>Zippel, Richard E.</INDEX>
+    Richard Zippel (1979).  The method is a probabilistic algorithm, as is the
+    fast test for primality that we discussed in chapter<SPACE></SPACE><REF NAME="chap:fun"></REF>.
+    Zippel<APOS></APOS>s book (1993) describes this method, together with other ways
+    to compute polynomial GCDs.</FOOTNOTE>
+    <INDEX>rational function<CLOSE></CLOSE></INDEX>
+    <INDEX>function (mathematical)<SUBINDEX>rational</SUBINDEX><CLOSE></CLOSE></INDEX>
+    <INDEX>polynomial arithmetic<SUBINDEX>rational functions</SUBINDEX><CLOSE></CLOSE></INDEX>
+    <INDEX>symbolic algebra<CLOSE></CLOSE></INDEX>
+    <INDEX>polynomial(s)<CLOSE></CLOSE></INDEX>
+    <INDEX>polynomial arithmetic<CLOSE></CLOSE></INDEX>
+  </TEXT><!-- Error occurred while translating this section -->
+
+</SUBSECTION>
+

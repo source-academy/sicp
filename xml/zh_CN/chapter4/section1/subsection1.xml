@@ -1,0 +1,1467 @@
+<SUBSECTION>
+  <NAME>
+    The Core of the Evaluator
+  </NAME><!-- Error occurred while translating this section -->
+
+  <TEXT>
+    <LABEL NAME="sec:core-of-evaluator"></LABEL>
+
+    <SPLIT>
+      <SCHEME>
+	<INDEX>metacircular evaluator for Scheme<SUBINDEX><ORDER>eval</ORDER><SCHEMEINLINE>eval</SCHEMEINLINE> and <SCHEMEINLINE>apply</SCHEMEINLINE><OPEN></OPEN></SUBINDEX></INDEX>
+
+	<FIGURE>
+	  <FIGURE SCALE="0.65" SRC="img_original/ch4-Z-G-1.svg"></FIGURE>
+	  <LABEL NAME="fig:eval-apply_scheme"></LABEL>
+	  <CAPTION>
+	    The
+	    <SCHEMEINLINE>eval</SCHEMEINLINE><ENDASH></ENDASH><SCHEMEINLINE>apply</SCHEMEINLINE> 
+	    cycle exposes the essence of a computer language.
+	  </CAPTION>
+	</FIGURE>
+      </SCHEME>
+      <JAVASCRIPT>
+	<FIGURE>
+	  <FIGURE SCALE="0.65" SRC="img_javascript/ch4-Z-G-1.svg"></FIGURE>
+	  <LABEL NAME="fig:eval-apply"></LABEL>
+	  <CAPTION>
+	    The
+	    <INDEX>metacircular evaluator for JavaScript<SUBINDEX><ORDER>evaluate</ORDER><JAVASCRIPTINLINE>evaluate</JAVASCRIPTINLINE><ENDASH></ENDASH><JAVASCRIPTINLINE>apply</JAVASCRIPTINLINE> cycle</SUBINDEX></INDEX>
+	    <SCHEMEINLINE>evaluate</SCHEMEINLINE><ENDASH></ENDASH><SCHEMEINLINE>apply</SCHEMEINLINE> 
+	    cycle exposes the essence of a computer language.
+	  </CAPTION>
+	</FIGURE>
+      </JAVASCRIPT>
+    </SPLIT>
+    The evaluation
+    <INDEX>metacircular evaluator for JavaScript<SUBINDEX><ORDER>evaluate</ORDER><SCHEMEINLINE>evaluate</SCHEMEINLINE> and <SCHEMEINLINE>apply</SCHEMEINLINE><OPEN></OPEN></SUBINDEX></INDEX>
+    process can be described as the interplay between two
+    <SPLITINLINE>
+      <SCHEME>procedures:</SCHEME>
+      <JAVASCRIPT>functions:</JAVASCRIPT>
+    </SPLITINLINE>
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>eval</SCHEMEINLINE></SCHEME>
+      <JAVASCRIPT><JAVASCRIPTINLINE>evaluate</JAVASCRIPTINLINE>
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    and <SCHEMEINLINE>apply</SCHEMEINLINE>.
+  </TEXT><!-- Error occurred while translating this section -->
+  
+  <SUBHEADING>
+    <NAME><SPLITINLINE>
+      <SCHEME>Eval</SCHEME>
+      <JAVASCRIPT>The function 
+      <JAVASCRIPTINLINE>evaluate</JAVASCRIPTINLINE></JAVASCRIPT></SPLITINLINE>
+    </NAME>
+  </SUBHEADING><!-- Error occurred while translating this section -->
+
+  <TEXT>
+    <COMMENT>
+      In JavaScript&apos;s strict mode<EMDASH></EMDASH>our preferred way to run JavaScript
+      programs<EMDASH></EMDASH>the name <JAVASCRIPTINLINE>eval</JAVASCRIPTINLINE> cannot
+      be declared in user programs. It is reserved for a related but quite
+      different pre-declared function. We opt for the complete word
+      <JAVASCRIPTINLINE>evaluate</JAVASCRIPTINLINE> as a replacement.
+    </COMMENT>
+  </TEXT><!-- Error occurred while translating this section -->
+  <SHORT_PAGE LINES="2"></SHORT_PAGE><!-- Error occurred while translating this section -->
+  <TEXT>
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>Eval</SCHEMEINLINE></SCHEME>
+      <JAVASCRIPT>The function <JAVASCRIPTINLINE>evaluate</JAVASCRIPTINLINE>
+      </JAVASCRIPT>
+    <!-- Error occurred while translating this section --></SPLITINLINE>
+    takes as arguments
+    <!-- Error occurred while translating this section --><SPLITINLINE>
+      <JAVASCRIPT>
+	a program <EM>component</EM><EMDASH></EMDASH>a statement or
+	expression<FOOTNOTE>There is no
+	need to distinguish between statements and expressions in our evaluator.
+	For example, we do not differentiate between expressions and
+	expression statements; we represent them identically and consequently
+	they are handled in the same way by the
+	<JAVASCRIPTINLINE>evaluate</JAVASCRIPTINLINE>
+	function. Similarly, our evaluator does not enforce JavaScript&apos;s syntactic
+	restriction that statements
+	cannot appear inside expressions other than
+	lambda expressions.</FOOTNOTE><EMDASH></EMDASH>and an environment.
+      </JAVASCRIPT>
+      <!-- Error occurred while translating this section --><SCHEME>
+	and an environment.
+      </SCHEME>
+    </SPLITINLINE>
+    It  classifies the 
+    <!-- Error occurred while translating this section --><SPLITINLINE>
+      <SCHEME>expression</SCHEME>
+      <JAVASCRIPT>component</JAVASCRIPT>
+    <!-- Error occurred while translating this section --></SPLITINLINE> 
+    and directs its evaluation.  
+    <!-- Error occurred while translating this section --><SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>Eval</SCHEMEINLINE></SCHEME>
+      <JAVASCRIPT>The function <JAVASCRIPTINLINE>evaluate</JAVASCRIPTINLINE>
+      </JAVASCRIPT>
+    <!-- Error occurred while translating this section --></SPLITINLINE>
+    is structured as a case analysis of the syntactic type of the
+    <!-- Error occurred while translating this section --><SPLITINLINE>
+      <SCHEME>expression</SCHEME>
+      <JAVASCRIPT>component</JAVASCRIPT>
+    <!-- Error occurred while translating this section --></SPLITINLINE> 
+    to be evaluated.  In order to keep the
+    <!-- Error occurred while translating this section --><SPLITINLINE><SCHEME>procedure</SCHEME>
+    <JAVASCRIPT>function</JAVASCRIPT><!-- Error occurred while translating this section --></SPLITINLINE>
+    general, we express
+    the determination of the type of 
+    <!-- Error occurred while translating this section --><SPLITINLINE><SCHEME>an expression</SCHEME>
+    <JAVASCRIPT>a component</JAVASCRIPT><!-- Error occurred while translating this section --></SPLITINLINE>
+    abstractly, making no
+    commitment to any particular 
+    <!-- Error occurred while translating this section --><INDEX>metacircular evaluator for JavaScript<SUBINDEX>component representation</SUBINDEX><!-- Error occurred while translating this section --></INDEX>
+    representation for the various types of
+    <!-- Error occurred while translating this section --><SPLITINLINE><SCHEME>expressions.</SCHEME>
+    <JAVASCRIPT>components.</JAVASCRIPT></SPLITINLINE>
+    Each type of 
+    <SPLITINLINE><SCHEME>expression</SCHEME>
+    <JAVASCRIPT>component</JAVASCRIPT></SPLITINLINE>
+    has a
+    <SPLITINLINE>
+      <SCHEME>predicate</SCHEME>
+      <JAVASCRIPT><EM>syntax predicate</EM></JAVASCRIPT>
+    </SPLITINLINE>
+    that tests for it and an abstract means for selecting its parts.  This 
+    <INDEX>metacircular evaluator for JavaScript<SUBINDEX>data abstraction in</SUBINDEX></INDEX>
+    <INDEX>abstract syntax<SUBINDEX>in metacircular evaluator</SUBINDEX></INDEX>
+    <EM>abstract syntax</EM>
+    makes it easy to see how we can change the syntax of the language by
+    using the same evaluator, but with a different collection of syntax
+    <SPLITINLINE>
+      <SCHEME>
+	procedures.
+      </SCHEME>
+      <JAVASCRIPT>
+	functions.
+      </JAVASCRIPT>
+    </SPLITINLINE>
+  <!-- Error occurred while translating this section --></TEXT>
+
+	<SUBSUBHEADING>
+	  <NAME>Primitive expressions</NAME>
+	</SUBSUBHEADING><!-- Error occurred while translating this section -->
+
+  <TEXT>
+    <SPLIT>
+      <SCHEME>
+	
+	<UL>
+	  <LI>
+	    <SPLITINLINE>
+	      <SCHEME>
+		For
+		<INDEX>expression<SUBINDEX>self-evaluating</SUBINDEX></INDEX>
+		<INDEX>self-evaluating expression</INDEX>
+		self-evaluating expressions, such as numbers,
+		<SCHEMEINLINE>eval</SCHEMEINLINE>
+		returns the expression itself.
+	      </SCHEME>
+	      <JAVASCRIPT>
+		For
+		<INDEX>expression<SUBINDEX>literal</SUBINDEX></INDEX>
+		<INDEX>literal expression</INDEX>
+		literal expressions, such as numbers,
+		<JAVASCRIPTINLINE>evaluate</JAVASCRIPTINLINE>
+		returns their value.
+	      </JAVASCRIPT>
+	    </SPLITINLINE>
+	  </LI>
+	  <LI>
+	    <SPLITINLINE>
+	      <SCHEME><SCHEMEINLINE>Eval</SCHEMEINLINE></SCHEME>
+	      <JAVASCRIPT>The function
+	      <JAVASCRIPTINLINE>evaluate</JAVASCRIPTINLINE></JAVASCRIPT>
+	    </SPLITINLINE>
+	    must look up
+	    <SPLITINLINE>
+	      <SCHEME>variables</SCHEME>
+	      <JAVASCRIPT>names</JAVASCRIPT>
+	    </SPLITINLINE>
+	    in the environment to find their values.
+	  </LI>
+	</UL>
+      
+	<SUBSUBHEADING>
+	  <NAME>Special forms</NAME>
+	</SUBSUBHEADING>
+	
+          <UL>
+	    <LI>
+	      For quoted expressions, 
+	      <SCHEMEINLINE>eval</SCHEMEINLINE>
+	      returns the expression that was
+	      quoted.
+	    </LI>
+	    <LI>
+	      An assignment to (or a definition of) a variable
+	      must recursively call      
+	      <SCHEMEINLINE>eval</SCHEMEINLINE>
+	      to compute the new value to be associated with the variable.
+	      The environment must be modified to change (or create) the
+	      binding of the variable.
+	    </LI>
+	    <LI>
+	      An if expression requires special processing of its parts, so as to
+	      evaluate the consequent if the predicate is true, and otherwise to
+	      evaluate the alternative.
+	    </LI>
+	    <LI>
+	      A <SCHEMEINLINE>lambda</SCHEMEINLINE> expression
+	      must be transformed into an applicable
+	      procedure by packaging together the parameters and body
+	      specified by the
+	      <SCHEMEINLINE>lambda</SCHEMEINLINE>
+	      expression with the environment of the evaluation.
+	    </LI>
+	    <LI>
+	      A <SCHEMEINLINE>begin</SCHEMEINLINE> expression
+	      requires evaluating its sequence of
+	      expressions in the order in which they appear.
+	    </LI>
+	    <LI>
+	      A case analysis (<SCHEMEINLINE>cond</SCHEMEINLINE>) is transformed
+	      into a nest of <SCHEMEINLINE>if</SCHEMEINLINE>
+	      expressions and then evaluated.
+	    </LI>
+          </UL>
+
+      <SUBSUBHEADING>
+	<NAME>Combinations</NAME>
+      </SUBSUBHEADING>
+      
+      <UL>
+	<LI>
+	  For a procedure application, <SCHEMEINLINE>eval</SCHEMEINLINE>
+	  must recursively evaluate the operator part and the operands of
+	  the combination.  The resulting procedure
+	  and arguments are passed to <SCHEMEINLINE>apply</SCHEMEINLINE>,
+	  which handles the actual procedure application.
+	</LI>
+      </UL>
+    Here is the definition of <SCHEMEINLINE>eval</SCHEMEINLINE>:
+    <SNIPPET PAGE="365">
+      <INDEX><DECLARATION>evaluate</DECLARATION> (metacircular)</INDEX>
+      <NAME>eval_scheme</NAME>
+      <SCHEME>
+(define (eval exp env)
+  (cond ((self-evaluating? exp) exp)
+        ((variable? exp) (lookup-variable-value exp env))
+        ((quoted? exp) (text-of-quotation exp))
+        ((assignment? exp) (eval-assignment exp env))
+        ((definition? exp) (eval-definition exp env))
+        ((if? exp) (eval-if exp env))
+        ((lambda? exp)
+         (make-procedure (lambda-parameters exp)
+                         (lambda-body exp)
+                         env))
+        ((begin? exp) 
+         (eval-sequence (begin-actions exp) env))
+        ((cond? exp) (eval (cond-&gt;if exp) env))
+        ((application? exp)
+         (apply (eval (operator exp) env)
+                (list-of-values (operands exp) env)))
+        (else
+         (error &quot;Unknown expression type - - EVAL&quot; exp))))
+      </SCHEME>
+    </SNIPPET>
+	  
+      </SCHEME>
+
+      <JAVASCRIPT>
+	
+	<UL>
+	  <LI>
+	    For
+	    <INDEX>expression<SUBINDEX>literal</SUBINDEX></INDEX>
+	    <INDEX>literal expression</INDEX>
+	    literal expressions, such as numbers,
+	    <JAVASCRIPTINLINE>evaluate</JAVASCRIPTINLINE>
+	    returns their value.
+	  </LI>
+	  <LI>
+	    The function
+	    <JAVASCRIPTINLINE>evaluate</JAVASCRIPTINLINE>
+	    must look up names in the environment to find their values.
+	  </LI>
+	</UL>
+	
+
+	<SUBSUBHEADING>
+	  <NAME>Combinations</NAME>
+	</SUBSUBHEADING>
+      
+        <UL>
+	  <LI>
+	    For a function application,
+	    <JAVASCRIPTINLINE>evaluate</JAVASCRIPTINLINE> must recursively
+	    evaluate the function expression and the argument expressions of the
+	    application.  The resulting function and arguments are passed to
+	    <SCHEMEINLINE>apply</SCHEMEINLINE>, which handles the actual
+	    function application.
+	  </LI>
+	  <LI>
+	    An operator combination is transformed into a function application
+	    and then evaluated.
+	  </LI>
+        </UL>
+
+	<SUBSUBHEADING>	
+	  <NAME>Syntactic forms</NAME>
+	</SUBSUBHEADING>
+	
+        <!-- Error occurred while translating this section --><UL>
+	  <LI>
+	    A conditional expression or statement requires special processing of
+	    its parts,
+	    so as to evaluate the consequent if the predicate is true, and
+	    otherwise to evaluate the alternative.
+	  </LI>
+	  <LI>
+	    A lambda expression must be transformed into an applicable
+	    function by packaging together the parameters and body specified
+	    by the lambda expression with the environment of the evaluation.
+	  </LI>
+	  <LI>
+	    A sequence of statements requires evaluating its
+	    components in the order in which they appear.
+	  </LI>
+	  <LI>
+	    A block requires evaluating its body in a new environment
+	    that reflects all names declared within the block.
+	  </LI>
+	  <LI>
+	    A return statement must produce a value that becomes the
+	    result of the function call that gave rise to the
+	    evaluation of the return statement.
+	  </LI>
+	  <LI>
+	    A function declaration is transformed into a
+	    constant declaration and then evaluated.
+	  </LI>
+	  <LI>
+	    A constant or variable declaration or an assignment must
+	    call
+	    <JAVASCRIPTINLINE>evaluate</JAVASCRIPTINLINE>
+	    recursively to compute the new
+	    value to be associated with the name being declared or assigned.
+	    The environment must be
+	    modified to reflect the new value of the name.
+	  </LI>
+        </UL>
+  <DO_BREAK_PAGE></DO_BREAK_PAGE>
+	Here is the declaration of
+	<JAVASCRIPTINLINE>evaluate</JAVASCRIPTINLINE>:
+	<!-- Error occurred while translating this section --><SNIPPET PAGE="365" HIDE="yes">
+	  <NAME>headline_4_1_1</NAME>
+	  <JAVASCRIPT>
+// functions from SICP JS 4.1.1
+	  </JAVASCRIPT>
+	</SNIPPET>
+	<SNIPPET PAGE="365">
+	  <INDEX><DECLARATION>evaluate</DECLARATION> (metacircular)</INDEX>
+	  <NAME>eval</NAME>
+	  <EXAMPLE>eval_example</EXAMPLE>
+	  <EXPECTED>3</EXPECTED>
+	  <JAVASCRIPT>
+function evaluate(component, env) {
+    return is_literal(component)
+           ? literal_value(component)
+           : is_name(component)
+           ? lookup_symbol_value(symbol_of_name(component), env)
+           : is_application(component)
+           ? apply(evaluate(function_expression(component), env),
+                   list_of_values(arg_expressions(component), env))
+           : is_operator_combination(component)
+           ? evaluate(operator_combination_to_application(component),
+                      env)
+           : is_conditional(component)
+           ? eval_conditional(component, env)
+           : is_lambda_expression(component)
+           ? make_function(lambda_parameter_symbols(component),
+                           lambda_body(component), env)
+           : is_sequence(component)
+           ? eval_sequence(sequence_statements(component), env)
+           : is_block(component)
+           ? eval_block(component, env)
+           : is_return_statement(component)
+           ? eval_return_statement(component, env)
+           : is_function_declaration(component)
+           ? evaluate(function_decl_to_constant_decl(component), env)
+           : is_declaration(component)
+           ? eval_declaration(component, env)
+           : is_assignment(component)
+           ? eval_assignment(component, env)
+           : error(component, &quot;unknown syntax -- evaluate&quot;);
+}
+	  </JAVASCRIPT>
+	</SNIPPET>
+	<SNIPPET PAGE="365" HIDE="yes">
+	  <NAME>eval_example</NAME>
+	  <REQUIRES>functions_4_1_1</REQUIRES>
+	  <REQUIRES>functions_4_1_2</REQUIRES>
+	  <REQUIRES>functions_4_1_3</REQUIRES>
+	  <REQUIRES>functions_4_1_4</REQUIRES>
+	  <JAVASCRIPT>
+const my_program = parse(&quot;1; { true; 3; }&quot;);
+evaluate(my_program, the_empty_environment);
+	  </JAVASCRIPT>
+	</SNIPPET>
+	
+      </JAVASCRIPT>
+    </SPLIT>
+  </TEXT>
+
+  <TEXT>
+    For clarity, 
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>eval</SCHEMEINLINE></SCHEME>
+      <JAVASCRIPT><JAVASCRIPTINLINE>evaluate</JAVASCRIPTINLINE></JAVASCRIPT>
+    </SPLITINLINE>
+    has been implemented as a
+    <INDEX>data-directed programming<SUBINDEX>case analysis vs.</SUBINDEX></INDEX>
+    <INDEX>case analysis<SUBINDEX>data-directed programming vs.</SUBINDEX></INDEX>
+    case analysis using
+    <SPLITINLINE><SCHEME><SCHEMEINLINE>cond</SCHEMEINLINE>.</SCHEME>
+    <JAVASCRIPT>conditional expressions.</JAVASCRIPT></SPLITINLINE>
+    The disadvantage of this is that our
+    <SPLITINLINE>
+      <SCHEME>procedure</SCHEME>
+      <JAVASCRIPT>function</JAVASCRIPT>
+    </SPLITINLINE>
+    handles only a few distinguishable types of 
+    <SPLITINLINE>
+      <JAVASCRIPT>statements and</JAVASCRIPT>
+    </SPLITINLINE>
+    expressions, and no new ones can be defined without editing the
+    <SPLITINLINE>
+      <SCHEME>
+	definition of 
+	<SCHEMEINLINE>eval</SCHEMEINLINE>.
+      </SCHEME>
+      <JAVASCRIPT>
+	declaration of
+	<JAVASCRIPTINLINE>evaluate</JAVASCRIPTINLINE>.
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    In most
+    <SPLITINLINE>
+      <SCHEME>Lisp</SCHEME>
+      <JAVASCRIPT>interpreter</JAVASCRIPT>
+    </SPLITINLINE>
+    implementations, dispatching on the type of
+    <SPLITINLINE>
+      <SCHEME>an expression</SCHEME>
+      <JAVASCRIPT>a component</JAVASCRIPT>
+    </SPLITINLINE>
+    is done in a data-directed style.  This allows a user to add new types of    
+    <SPLITINLINE>
+      <SCHEME>expressions that <SCHEMEINLINE>eval</SCHEMEINLINE></SCHEME>
+      <JAVASCRIPT>components that
+      <JAVASCRIPTINLINE>evaluate</JAVASCRIPTINLINE>
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    can distinguish, without modifying the 
+    <SPLITINLINE>
+      <SCHEME>
+	definition of <SCHEMEINLINE>eval</SCHEMEINLINE>
+      </SCHEME>
+      <JAVASCRIPT>
+	declaration of
+	<JAVASCRIPTINLINE>evaluate</JAVASCRIPTINLINE>
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    itself. (See exercise<!-- Error occurred while translating this section --><SPACE></SPACE><REF NAME="ex:data-directed-eval"></REF>.)
+  <!-- Error occurred while translating this section --></TEXT>
+  <TEXT>
+    The representation of names is handled by the syntax abstractions. Internally,
+    the evaluator uses strings to represent names, and we refer to such strings as
+    <INDEX>symbol(s)<SUBINDEX><ORDER>in representing</ORDER>representing names in metacircular evaluator</SUBINDEX></INDEX>
+    <EM>symbols</EM>. The function
+    <JAVASCRIPTINLINE>symbol_of_name</JAVASCRIPTINLINE> used in
+    <JAVASCRIPTINLINE>evaluate</JAVASCRIPTINLINE> extracts from a
+    name the symbol by which it is represented.
+  </TEXT><!-- Error occurred while translating this section -->
+  <DO_BREAK_PAGE></DO_BREAK_PAGE><!-- Error occurred while translating this section -->
+  
+  <SUBHEADING>
+    <NAME>Apply</NAME>
+  </SUBHEADING><!-- Error occurred while translating this section -->
+
+  <TEXT>
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>Apply</SCHEMEINLINE></SCHEME>
+      <JAVASCRIPT>The function <JAVASCRIPTINLINE>apply</JAVASCRIPTINLINE>
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    takes two arguments, a
+    <SPLITINLINE>
+      <SCHEME>procedure</SCHEME>
+      <JAVASCRIPT>function</JAVASCRIPT>
+    </SPLITINLINE>
+    and a list of arguments  to which the
+    <SPLITINLINE>
+      <SCHEME>procedure</SCHEME>
+      <JAVASCRIPT>function</JAVASCRIPT>
+    </SPLITINLINE>
+    should be applied.  
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>Apply</SCHEMEINLINE></SCHEME>
+      <JAVASCRIPT>The function <JAVASCRIPTINLINE>apply</JAVASCRIPTINLINE>
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    classifies
+    <SPLITINLINE>
+      <SCHEME>procedures</SCHEME>
+      <JAVASCRIPT>functions</JAVASCRIPT>
+    </SPLITINLINE>
+    into two kinds: It calls 
+    <INDEX><USE>apply_primitive_function</USE></INDEX> 
+    <SPLITINLINE>
+      <SCHEME>
+	<SCHEMEINLINE>apply-primitive-procedure</SCHEMEINLINE>
+      </SCHEME>
+      <JAVASCRIPT>
+	<JAVASCRIPTINLINE>apply_primitive_function</JAVASCRIPTINLINE>
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    to apply primitives; it applies compound
+    <SPLITINLINE>
+      <SCHEME>procedures</SCHEME>
+      <JAVASCRIPT>functions</JAVASCRIPT>
+    </SPLITINLINE>
+    <SPLITINLINE>
+      <SCHEME>
+	by sequentially evaluating the 	
+	expressions that make up the body of the procedure.
+      </SCHEME>
+      <JAVASCRIPT>
+	by evaluating the block that makes up the body
+	of the function.
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    The environment for the evaluation of the body of a compound
+    <SPLITINLINE>
+      <SCHEME>procedure</SCHEME>
+      <JAVASCRIPT>function</JAVASCRIPT>
+    </SPLITINLINE>
+    is constructed by extending the base environment carried by the
+    <SPLITINLINE>
+      <SCHEME>procedure</SCHEME>
+      <JAVASCRIPT>function</JAVASCRIPT>
+    </SPLITINLINE>
+    to include a frame that binds the parameters of the
+    <!-- Error occurred while translating this section --><SPLITINLINE>
+      <SCHEME>procedure</SCHEME>
+      <JAVASCRIPT>function</JAVASCRIPT>
+    </SPLITINLINE>
+    to the arguments to which the
+    <SPLITINLINE>
+      <SCHEME>procedure</SCHEME>
+      <JAVASCRIPT>function</JAVASCRIPT>
+    </SPLITINLINE>
+    is to be applied. 
+    Here is the
+    <SPLITINLINE>
+      <SCHEME>
+	definition
+      </SCHEME>
+      <JAVASCRIPT>
+	declaration
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    of <!-- Error occurred while translating this section --><SCHEMEINLINE>apply</SCHEMEINLINE>:
+    <!-- Error occurred while translating this section --><SNIPPET PAGE="366">
+      <INDEX><DECLARATION>apply</DECLARATION> (metacircular)</INDEX>
+      <NAME>apply</NAME>
+      <EXAMPLE>apply_example</EXAMPLE>
+      <EXPECTED>3</EXPECTED>
+      <SCHEME>
+(define (apply procedure arguments)
+  (cond ((primitive-procedure? procedure)
+         (apply-primitive-procedure procedure arguments))
+        ((compound-procedure? procedure)
+         (eval-sequence
+           (procedure-body procedure)
+           (extend-environment
+             (procedure-parameters procedure)
+             arguments
+             (procedure-environment procedure))))
+        (else
+         (error
+          &quot;Unknown procedure type - - APPLY&quot; procedure))))
+      </SCHEME>
+      <JAVASCRIPT>
+function apply(fun, args) {
+    if (is_primitive_function(fun)) {
+        return apply_primitive_function(fun, args);
+    } else if (is_compound_function(fun)) {
+        const result = evaluate(function_body(fun),
+                                extend_environment(
+                                    function_parameters(fun),
+                                    args,
+                                    function_environment(fun)));
+        return is_return_value(result)
+               ? return_value_content(result)
+               : undefined;
+    } else {
+        error(fun, &quot;unknown function type -- apply&quot;);
+    }
+}
+      </JAVASCRIPT>
+    </SNIPPET>
+    <COMMENT>
+      The name <JAVASCRIPTINLINE>arguments</JAVASCRIPTINLINE>
+      is reserved in JavaScript&apos;s strict mode. We chose
+      <JAVASCRIPTINLINE>args</JAVASCRIPTINLINE> instead.
+    </COMMENT>
+    <!-- Error occurred while translating this section --><SNIPPET PAGE="366" HIDE="yes">
+      <NAME>apply_example</NAME>
+      <REQUIRES>functions_4_1_1</REQUIRES>
+      <REQUIRES>functions_4_1_2</REQUIRES>
+      <REQUIRES>functions_4_1_3</REQUIRES>
+      <REQUIRES>functions_4_1_4</REQUIRES>
+      <JAVASCRIPT>
+const plus = list(&quot;primitive&quot;, (x, y) =&gt; x + y);
+apply(plus, list(1, 2));
+      </JAVASCRIPT>
+    </SNIPPET>
+    
+    <SPLIT>
+      <JAVASCRIPT>
+	In order to return a value, a JavaScript function needs to evaluate a
+	<INDEX>metacircular evaluator for JavaScript<SUBINDEX>return value</SUBINDEX></INDEX>
+	<INDEX>return value<SUBINDEX>representation in metacircular evaluator</SUBINDEX></INDEX>
+	return statement. If a function terminates without evaluating a return
+	statement, the value 
+	<INDEX>return value<SUBINDEX><USE>undefined</USE> as</SUBINDEX></INDEX>
+	<JAVASCRIPTINLINE>undefined</JAVASCRIPTINLINE> is returned.
+	To distinguish the two cases, the evaluation of a return statement
+	will wrap the result of evaluating its return expression into a
+	<EM>return value</EM>. If
+	the evaluation of the function body yields such a return value, the content
+	of the return value is retrieved; otherwise the value
+	<JAVASCRIPTINLINE>undefined</JAVASCRIPTINLINE> is returned.<FOOTNOTE>
+	<LABEL NAME="foot:apply"></LABEL>
+	This test is a deferred operation, and thus our evaluator will give rise to a
+	recursive process even if the interpreted program should give rise to an
+	iterative process according to the description in
+	section<SPACE></SPACE><REF NAME="sec:recursion-and-iteration"></REF>. In other
+	words, our metacircular evaluator implementation of JavaScript is
+	<INDEX><USE>apply</USE> (metacircular)<SUBINDEX>tail recursion and</SUBINDEX></INDEX>
+	<INDEX>metacircular evaluator for JavaScript<SUBINDEX>tail recursion and</SUBINDEX></INDEX>
+	<INDEX>tail recursion<SUBINDEX>metacircular evaluator and</SUBINDEX></INDEX>
+	not tail-recursive.
+	Sections<SPACE></SPACE><REF NAME="sec:tail-recursion-return"></REF>
+	and<SPACE></SPACE><REF NAME="sec:compiling-combinations"></REF>
+	show how to achieve tail recursion using a register machine.
+      </FOOTNOTE>
+      </JAVASCRIPT>
+    </SPLIT>
+  <!-- Error occurred while translating this section --></TEXT>
+
+  <SUBHEADING>
+    <NAME>
+    <SPLITINLINE>
+      <SCHEME>Procedure</SCHEME>
+      <JAVASCRIPT>Function</JAVASCRIPT>
+    </SPLITINLINE>
+      arguments
+    </NAME>
+  </SUBHEADING><!-- Error occurred while translating this section -->
+
+  <SHORT_PAGE LINES="3"></SHORT_PAGE><!-- Error occurred while translating this section -->
+  <TEXT>
+    When
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>eval</SCHEMEINLINE></SCHEME>
+      <JAVASCRIPT><SCHEMEINLINE>evaluate</SCHEMEINLINE></JAVASCRIPT>
+    </SPLITINLINE>
+    processes a
+    <SPLITINLINE>
+      <SCHEME>procedure</SCHEME>
+      <JAVASCRIPT>function</JAVASCRIPT>
+    </SPLITINLINE>
+    application, it uses
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>list-of-values</SCHEMEINLINE></SCHEME>
+      <JAVASCRIPT><JAVASCRIPTINLINE>list_of_values</JAVASCRIPTINLINE>
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    to produce the list of arguments to which the
+    <SPLITINLINE>
+      <SCHEME>procedure</SCHEME>
+      <JAVASCRIPT>function</JAVASCRIPT>
+    </SPLITINLINE>
+    is to be applied.
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>List-of-values</SCHEMEINLINE></SCHEME>
+      <JAVASCRIPT>The function
+      <JAVASCRIPTINLINE>list_of_values</JAVASCRIPTINLINE>
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    takes as an argument the
+    <SPLITINLINE>
+      <SCHEME>operands of the combination.</SCHEME>
+      <JAVASCRIPT>argument expressions of the application.</JAVASCRIPT>
+    </SPLITINLINE>
+    It evaluates each
+    <SPLITINLINE>
+      <SCHEME>operand</SCHEME>
+      <JAVASCRIPT>argument expression</JAVASCRIPT>
+    </SPLITINLINE>
+    and returns a
+    list of the corresponding values:<!-- Error occurred while translating this section --><SPLITINLINE><SCHEME><FOOTNOTE>We could
+    have simplified the 
+    <SCHEMEINLINE>application?</SCHEMEINLINE>
+    clause in
+    <SCHEMEINLINE>eval</SCHEMEINLINE>
+    by using
+    <SCHEMEINLINE>map</SCHEMEINLINE> (and stipulating that
+    <SCHEMEINLINE>operands</SCHEMEINLINE>
+    returns a list) rather than writing
+    an explicit
+    <SCHEMEINLINE>list-of-values</SCHEMEINLINE> procedure.
+    We chose not to use <SCHEMEINLINE>map</SCHEMEINLINE> here to emphasize the
+    fact that the
+    <INDEX>metacircular evaluator for Scheme<SUBINDEX>higher-order procedures in </SUBINDEX></INDEX>
+    <INDEX>higher-order procedures<SUBINDEX>in metacircular evaluator</SUBINDEX></INDEX>
+    evaluator can be implemented without any use of higher-order
+    procedures
+    (and thus could be written in a language that doesn<APOS></APOS>t
+    have higher-order
+    procedures),
+    even though the language that it supports
+    will include higher-order
+    procedures.
+    <LABEL NAME="foot:mceval-higher-order-scheme"></LABEL></FOOTNOTE></SCHEME><JAVASCRIPT><FOOTNOTE>We
+    chose to implement <JAVASCRIPTINLINE>list_of_values</JAVASCRIPTINLINE>
+    using the
+    <INDEX>metacircular evaluator for JavaScript<SUBINDEX>higher-order functions in</SUBINDEX></INDEX>
+    <INDEX>higher-order functions<SUBINDEX><ORDER>metacircular</ORDER>in metacircular evaluator</SUBINDEX></INDEX>
+    higher-order function <JAVASCRIPTINLINE>map</JAVASCRIPTINLINE>, and we will use
+    <JAVASCRIPTINLINE>map</JAVASCRIPTINLINE> in other places as well.
+    However, the evaluator can be implemented without any use of higher-order
+    functions (and thus could be written in a language that doesn&apos;t have
+    higher-order functions), even though the language that it supports
+    will include higher-order functions. For example,
+    <JAVASCRIPTINLINE>list_of_values</JAVASCRIPTINLINE> can be
+    written without <JAVASCRIPTINLINE>map</JAVASCRIPTINLINE> as follows:
+    <SNIPPET PAGE="367">
+      <INDEX><DECLARATION>list_of_values</DECLARATION><SUBINDEX><ORDER>higherorder</ORDER>without higher-order functions</SUBINDEX></INDEX>
+      <NAME>list_of_values_without_map</NAME>
+      <EXAMPLE>list_of_values_example</EXAMPLE>
+      <JAVASCRIPT>
+function list_of_values(exps, env) {
+    return is_null(exps)	
+           ? null
+           : pair(evaluate(head(exps), env), 
+                  list_of_values(tail(exps), env));
+}
+      </JAVASCRIPT>
+    </SNIPPET>
+    <LABEL NAME="foot:mceval-higher-order"></LABEL></FOOTNOTE></JAVASCRIPT><!-- Error occurred while translating this section --></SPLITINLINE>
+    <SNIPPET PAGE="367" POSTPADDING="no">
+      <INDEX><DECLARATION>list_of_values</DECLARATION></INDEX>
+      <NAME>list_of_values</NAME>
+      <EXAMPLE>list_of_values_example</EXAMPLE>
+      <SCHEME>
+(define (list-of-values exps env)
+  (if (no-operands? exps)
+      &apos;()
+      (cons (eval (first-operand exps) env)
+            (list-of-values (rest-operands exps) env))))
+      </SCHEME>
+      <JAVASCRIPT>
+function list_of_values(exps, env) {
+    return map(arg =&gt; evaluate(arg, env), exps);
+}
+      </JAVASCRIPT>
+    </SNIPPET>
+    <SNIPPET PAGE="365" HIDE="yes">
+      <NAME>list_of_values_example</NAME>
+      <REQUIRES>functions_4_1_1</REQUIRES>
+      <REQUIRES>functions_4_1_2</REQUIRES>
+      <REQUIRES>functions_4_1_3</REQUIRES>
+      <REQUIRES>functions_4_1_4</REQUIRES>
+      <SCHEME>
+(define the-global-environment (setup-environment))
+(eval (read) the-global-environment)
+      </SCHEME>
+      <JAVASCRIPT>
+const my_addition_expression = parse(&quot;1 + 2;&quot;);
+list_of_values(list(parse(&quot;1;&quot;), my_addition_expression, parse(&quot;7;&quot;)),
+               the_global_environment);
+      </JAVASCRIPT>
+    </SNIPPET>
+  </TEXT>
+
+  <SUBHEADING>
+    <NAME>
+      Conditionals
+    </NAME>
+  </SUBHEADING><!-- Error occurred while translating this section -->
+
+  <TEXT>
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>Eval-if</SCHEMEINLINE></SCHEME>
+      <JAVASCRIPT>The function
+      <JAVASCRIPTINLINE>eval_conditional</JAVASCRIPTINLINE>
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    evaluates the predicate part of 
+    <SPLITINLINE>
+      <SCHEME>an <SCHEMEINLINE>if</SCHEMEINLINE> expression</SCHEME>
+      <JAVASCRIPT>a conditional component</JAVASCRIPT>
+    </SPLITINLINE>
+    in the given environment.  If the result is true, 
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>eval-if</SCHEMEINLINE>
+      evaluates the consequent, otherwise it evaluates the alternative:
+      </SCHEME>
+      <JAVASCRIPT>
+	the consequent is evaluated, otherwise the alternative is evaluated:
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    <!-- Error occurred while translating this section --><SNIPPET PAGE="367">
+      <INDEX><DECLARATION>eval_conditional</DECLARATION> (metacircular)</INDEX>
+      <NAME>eval_if</NAME>
+      <EXAMPLE>eval_if_example</EXAMPLE>
+      <EXPECTED>1</EXPECTED>
+      <SCHEME>
+(define (eval-if exp env)
+  (if (true? (eval (if-predicate exp) env))
+      (eval (if-consequent exp) env)
+      (eval (if-alternative exp) env)))
+      </SCHEME>
+      <JAVASCRIPT>
+function eval_conditional(component, env) {
+    return is_truthy(evaluate(conditional_predicate(component), env))
+           ? evaluate(conditional_consequent(component), env)
+           : evaluate(conditional_alternative(component), env);
+}
+      </JAVASCRIPT>
+    </SNIPPET>
+    <SNIPPET PAGE="367" HIDE="yes">
+      <NAME>eval_if_example</NAME>
+      <REQUIRES>functions_4_1_1</REQUIRES>
+      <REQUIRES>functions_4_1_2</REQUIRES>
+      <REQUIRES>functions_4_1_3</REQUIRES>
+      <REQUIRES>functions_4_1_4</REQUIRES>
+      <JAVASCRIPT>
+const my_cond_expr = parse(&quot;true ? 1 : 2;&quot;);
+eval_conditional(my_cond_expr, the_empty_environment);
+      </JAVASCRIPT>
+    </SNIPPET>
+    <SPLITINLINE>
+      <JAVASCRIPT>
+	Note that the evaluator does not need to distinguish between
+	conditional expressions and conditional statements.
+      </JAVASCRIPT>
+    </SPLITINLINE>
+  <!-- Error occurred while translating this section --></TEXT>
+
+  <TEXT>
+    The use of
+    <INDEX><USE>is_truthy</USE></INDEX>
+    <INDEX>truthiness</INDEX>
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>true?</SCHEMEINLINE></SCHEME>
+      <JAVASCRIPT><JAVASCRIPTINLINE>is_truthy</JAVASCRIPTINLINE></JAVASCRIPT>
+    </SPLITINLINE>
+    in 
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>eval-if</SCHEMEINLINE></SCHEME>
+      <JAVASCRIPT>
+	<JAVASCRIPTINLINE>eval_conditional</JAVASCRIPTINLINE>
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    <INDEX>metacircular evaluator for JavaScript<SUBINDEX>implemented language vs.<SPACE></SPACE>implementation language</SUBINDEX></INDEX>
+    highlights the issue of the connection between an implemented language and
+    an implementation language.  The 
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>if-predicate</SCHEMEINLINE></SCHEME>
+      <JAVASCRIPT><JAVASCRIPTINLINE>conditional_predicate</JAVASCRIPTINLINE></JAVASCRIPT>
+    </SPLITINLINE>
+    is evaluated in the language being implemented and thus yields a value in
+    that language.  The interpreter predicate 
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>true?</SCHEMEINLINE></SCHEME>
+      <JAVASCRIPT><JAVASCRIPTINLINE>is_truthy</JAVASCRIPTINLINE></JAVASCRIPT>
+    </SPLITINLINE> 
+    translates that value into a value that can be tested by the
+    <SPLITINLINE><SCHEME><SCHEMEINLINE>if</SCHEMEINLINE></SCHEME>
+    <JAVASCRIPT>conditional expression</JAVASCRIPT></SPLITINLINE>
+    in the implementation language: The metacircular representation of truth
+    might not be the same as that of the underlying 
+    <SPLITINLINE><SCHEME>Scheme</SCHEME><JAVASCRIPT>JavaScript</JAVASCRIPT></SPLITINLINE>.<!-- Error occurred while translating this section --><FOOTNOTE>In this case, the language being implemented and the
+    implementation language are the same. Contemplation of the meaning of
+    <SPLITINLINE><SCHEME><SCHEMEINLINE>true?</SCHEMEINLINE></SCHEME>
+    <JAVASCRIPT><JAVASCRIPTINLINE>is_truthy</JAVASCRIPTINLINE></JAVASCRIPT>
+    </SPLITINLINE>
+    here yields
+    <INDEX>consciousness, expansion of</INDEX>
+    expansion of consciousness without the abuse of
+    substance.</FOOTNOTE>
+  <!-- Error occurred while translating this section --></TEXT>
+
+  <SUBHEADING>
+    <NAME>    
+	Sequences
+    </NAME>
+  </SUBHEADING><!-- Error occurred while translating this section -->
+
+  <SHORT_PAGE LINES="4"></SHORT_PAGE><!-- Error occurred while translating this section -->
+  <SPLIT>
+    <SCHEME>
+      <TEXT>
+	<SCHEMEINLINE>Eval-sequence</SCHEMEINLINE> is used by
+	<SCHEMEINLINE>apply</SCHEMEINLINE> to evaluate the sequence of
+	expressions in a procedure body and by <SCHEMEINLINE>eval</SCHEMEINLINE>
+	to evaluate the sequence of expressions in a
+	<SCHEMEINLINE>begin</SCHEMEINLINE> expression.  It takes as arguments a
+	sequence of expressions and an environment, and evaluates the
+	expressions in the order in which they occur.  The value returned is the
+	value of the final expression.
+	<SNIPPET PAGE="367">
+          <NAME>eval_sequence</NAME>
+          <SCHEME>
+(define (eval-sequence exps env)
+  (cond ((last-exp? exps) (eval (first-exp exps) env))
+        (else (eval (first-exp exps) env)
+              (eval-sequence (rest-exps exps) env))))
+          </SCHEME>
+	</SNIPPET>
+      </TEXT>
+    </SCHEME>
+    <JAVASCRIPT>
+      <TEXT>
+	The function <JAVASCRIPTINLINE>eval_sequence</JAVASCRIPTINLINE>
+	is used by <JAVASCRIPTINLINE>evaluate</JAVASCRIPTINLINE>
+	to evaluate a sequence of statements at the top level or in a block.
+	It takes as arguments a sequence of statements and an
+	environment, and evaluates the statements in the order in which they
+	occur. The value returned is the value of the final statement, except
+	that if the evaluation of any statement in the sequence yields
+	a return value, that value is returned and the subsequent statements are
+	ignored.<FOOTNOTE>The treatment of return statements in
+	<JAVASCRIPTINLINE>eval_sequence</JAVASCRIPTINLINE>
+	reflects the proper
+	result of evaluating function applications in JavaScript, but the
+	evaluator presented here does not comply with the ECMAScript
+	specification for the value of a program that consists
+	of a sequence of statements <EM>outside of</EM> any function body.
+	Exercise<SPACE></SPACE><REF NAME="ex:value_producing"></REF> addresses this issue.
+	<LABEL NAME="foot:value_producing"></LABEL>
+      </FOOTNOTE>
+	<!-- Error occurred while translating this section --><SNIPPET PAGE="367" POSTPADDING="no">
+	  <INDEX><DECLARATION>eval_sequence</DECLARATION></INDEX>
+	  <NAME>eval_sequence</NAME>
+	  <EXAMPLE>eval_sequence_example</EXAMPLE>
+	  <EXPECTED>3</EXPECTED>
+          <JAVASCRIPT>
+function eval_sequence(stmts, env) {
+    if (is_empty_sequence(stmts)) {
+        return undefined;
+    } else if (is_last_statement(stmts)) {
+        return evaluate(first_statement(stmts), env);
+    } else {
+        const first_stmt_value = 
+            evaluate(first_statement(stmts), env);
+        if (is_return_value(first_stmt_value)) {
+            return first_stmt_value;
+        } else {
+            return eval_sequence(rest_statements(stmts), env);
+        }
+    }
+}
+          </JAVASCRIPT>
+	</SNIPPET>
+	<SNIPPET PAGE="367" HIDE="yes" POSTPADDING="no">
+	  <NAME>eval_sequence_example</NAME>
+	  <REQUIRES>functions_4_1_1</REQUIRES>
+	  <REQUIRES>functions_4_1_2</REQUIRES>
+	  <REQUIRES>functions_4_1_3</REQUIRES>
+	  <REQUIRES>functions_4_1_4</REQUIRES>
+	  <JAVASCRIPT>
+const my_sequence = head(tail(parse(&quot;1; true; 3;&quot;)));
+eval_sequence(my_sequence, the_empty_environment);
+	  </JAVASCRIPT>
+	</SNIPPET>
+      </TEXT>
+    </JAVASCRIPT>
+  </SPLIT>
+
+  <SPLIT>
+    <SCHEME>
+    </SCHEME>
+    <JAVASCRIPT>
+      <SUBHEADING>
+	<NAME>Blocks</NAME>
+      </SUBHEADING>
+      <!-- Error occurred while translating this section --><LONG_PAGE LINES="2"></LONG_PAGE>
+      <TEXT>
+	The function <JAVASCRIPTINLINE>eval_block</JAVASCRIPTINLINE> handles
+	blocks. The variables and constants (including functions)
+	declared in the block have the whole block as their scope and thus
+	are <QUOTE>scanned out</QUOTE> before the body of the block is
+	evaluated.
+	The body of the	block is evaluated with respect to an environment
+	that extends the current
+	environment by a frame that binds each local name
+	to a special value,
+	<JAVASCRIPTINLINE>&quot;*unassigned*&quot;</JAVASCRIPTINLINE>.
+	This string serves as a placeholder, before
+	the evaluation of the declaration assigns the name 
+	its proper value. An attempt to access the value of the name before its
+	declaration is evaluated leads to an error at run time (see
+	exercise<SPACE></SPACE><REF NAME="ex:access_unassigned"></REF>), as stated in
+	footnote<SPACE></SPACE><REF NAME="foot:tdz"></REF> in chapter<SPACE></SPACE><REF NAME="chap:fun"></REF>.
+	<!-- Error occurred while translating this section --><SNIPPET PAGE="367">
+	  <INDEX><DECLARATION>eval_block</DECLARATION></INDEX>
+          <NAME>eval_block</NAME>
+          <REQUIRES>scan_out_declarations</REQUIRES>
+	  <EXAMPLE>eval_block_example</EXAMPLE>
+	  <EXPECTED>42</EXPECTED>
+          <JAVASCRIPT>
+function eval_block(component, env) {
+    const body = block_body(component);
+    const locals = scan_out_declarations(body);
+    const unassigneds = list_of_unassigned(locals);
+    return evaluate(body, extend_environment(locals,
+                                             unassigneds, 
+                                             env));
+}
+function list_of_unassigned(symbols) {
+    return map(symbol =&gt; &quot;*unassigned*&quot;, symbols);
+}
+          </JAVASCRIPT>
+	</SNIPPET>
+	<!--     dont remove the following; REQUIRED elsewhere     -->
+	<SNIPPET PAGE="367" HIDE="yes">
+          <NAME>list_of_unassigned</NAME>
+          <JAVASCRIPT>
+function list_of_unassigned(symbols) {
+    return map(symbol =&gt; &quot;*unassigned*&quot;, symbols);
+}
+	  </JAVASCRIPT>
+	</SNIPPET>
+	The function <JAVASCRIPTINLINE>scan_out_declarations</JAVASCRIPTINLINE>
+        <INDEX>scanning out declarations<SUBINDEX>in metacircular evaluator</SUBINDEX></INDEX>
+	collects a list of all symbols representing names declared in the body.
+	It uses 
+	<JAVASCRIPTINLINE>declaration_symbol</JAVASCRIPTINLINE>
+	to retrieve the symbol that represents the name
+	from the declaration statements it finds.
+	<!-- Error occurred while translating this section --><SNIPPET>
+	  <INDEX><DECLARATION>scan_out_declarations</DECLARATION></INDEX>
+          <NAME>scan_out_declarations</NAME>
+	  <EXAMPLE>scan_out_declarations_example</EXAMPLE>
+	  <EXPECTED>[ &apos;x&apos;, [ &apos;y&apos;, null ] ]</EXPECTED>
+          <JAVASCRIPT>
+function scan_out_declarations(component) {
+    return is_sequence(component)
+           ? accumulate(append,
+                        null,
+                        map(scan_out_declarations,
+                            sequence_statements(component)))
+           : is_declaration(component)
+           ? list(declaration_symbol(component))
+           : null;
+}
+          </JAVASCRIPT>
+	</SNIPPET>
+	<SNIPPET HIDE="yes">
+          <NAME>scan_out_declarations_example</NAME>
+	  <REQUIRES>functions_4_1_1</REQUIRES>
+	  <REQUIRES>functions_4_1_2</REQUIRES>
+	  <REQUIRES>functions_4_1_3</REQUIRES>
+	  <REQUIRES>functions_4_1_4</REQUIRES>
+          <JAVASCRIPT>
+scan_out_declarations(parse(&quot;const x = 1; let y = 2;&quot;));
+	  </JAVASCRIPT>
+	</SNIPPET>
+	<SNIPPET PAGE="367" HIDE="yes">
+          <NAME>eval_block_example</NAME>
+	  <REQUIRES>functions_4_1_1</REQUIRES>
+	  <REQUIRES>functions_4_1_2</REQUIRES>
+	  <REQUIRES>functions_4_1_3</REQUIRES>
+	  <REQUIRES>functions_4_1_4</REQUIRES>
+          <JAVASCRIPT>
+const my_block = parse(&quot;{ const x = 1; 3; 42; }&quot;);
+eval_block(my_block, the_empty_environment);
+	  </JAVASCRIPT>
+	</SNIPPET>
+	We ignore declarations that are nested in another block,
+	because the evaluation of that block will take care of them.
+	The function <JAVASCRIPTINLINE>scan_out_declarations</JAVASCRIPTINLINE>	
+	looks for declarations only in sequences because 
+	declarations in conditional statements, function declarations, and
+	lambda expressions are always in a nested block.
+      <!-- Error occurred while translating this section --></TEXT>
+
+      <SUBHEADING>
+	<NAME>Return statements</NAME>
+      </SUBHEADING>
+
+      <!-- Error occurred while translating this section --><TEXT>
+	The function <JAVASCRIPTINLINE>eval_return_statement</JAVASCRIPTINLINE>
+	is used to evaluate
+	<INDEX>return statement<SUBINDEX>handling in metacircular evaluator</SUBINDEX></INDEX>
+	return statements. As seen in
+	<JAVASCRIPTINLINE>apply</JAVASCRIPTINLINE> and
+	the evaluation
+	of sequences, the result of evaluation of a return statement
+	needs to be identifiable so that the evaluation of a function
+	body can return immediately, even if there are statements
+	after the return statement. For this purpose,
+	the evaluation of a return statement wraps the result of
+	evaluating the return expression in a return value object.<FOOTNOTE>
+	<INDEX>metacircular evaluator for JavaScript<SUBINDEX>tail recursion and</SUBINDEX></INDEX>
+	<INDEX>tail recursion<SUBINDEX>metacircular evaluator and</SUBINDEX></INDEX>
+	The application of the function
+	<JAVASCRIPTINLINE>make_return_value</JAVASCRIPTINLINE> to the result
+	of evaluating the return expression creates a deferred operation, in
+	addition to the deferred operation created by
+	<JAVASCRIPTINLINE>apply</JAVASCRIPTINLINE>. See
+	footnote<SPACE></SPACE><REF NAME="foot:apply"></REF> for details.</FOOTNOTE>
+	<!-- Error occurred while translating this section --><SNIPPET PAGE="367" POSTPADDING="no">
+	  <INDEX><DECLARATION>eval_return_statement</DECLARATION></INDEX>
+          <NAME>eval_return</NAME>
+	  <EXAMPLE>eval_return_example</EXAMPLE>
+	  <EXPECTED>1</EXPECTED>
+          <JAVASCRIPT>
+function eval_return_statement(component, env) {
+    return make_return_value(evaluate(return_expression(component),
+                                      env));
+}
+          </JAVASCRIPT>
+	</SNIPPET>
+	<SNIPPET PAGE="367" HIDE="yes" POSTPADDING="no">
+          <NAME>eval_return_example</NAME>
+	  <REQUIRES>functions_4_1_1</REQUIRES>
+	  <REQUIRES>functions_4_1_2</REQUIRES>
+	  <REQUIRES>functions_4_1_3</REQUIRES>
+	  <REQUIRES>functions_4_1_4</REQUIRES>
+          <JAVASCRIPT>
+const my_program = parse(&quot;{ function f() { return 1; } f(); }&quot;);
+evaluate(my_program, the_global_environment);
+	  </JAVASCRIPT>
+	</SNIPPET>
+      </TEXT>
+    </JAVASCRIPT>
+  </SPLIT>
+
+  <SUBHEADING>
+    <NAME>Assignments and
+    <SPLITINLINE>
+      <SCHEME>definitions</SCHEME>
+      <JAVASCRIPT>declarations</JAVASCRIPT>
+    </SPLITINLINE></NAME>
+  </SUBHEADING><!-- Error occurred while translating this section -->
+
+  <TEXT>
+    The 
+    <SPLITINLINE>
+      <SCHEME>following procedure</SCHEME>
+      <JAVASCRIPT>
+	function <JAVASCRIPTINLINE>eval_assignment</JAVASCRIPTINLINE>
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    handles assignments to
+    <SPLITINLINE>
+      <SCHEME>variables.</SCHEME>
+      <JAVASCRIPT>
+	names.
+	(To simplify the	presentation of our evaluator,
+	we are allowing assignment not just to variables but
+	also<EMDASH></EMDASH>erroneously<EMDASH></EMDASH>to constants.
+	Exercise<SPACE></SPACE><REF NAME="ex:mutable"></REF>
+	explains how we could
+	distinguish constants from variables and prevent
+	assignment to constants.)
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    <SPLITINLINE>
+      <SCHEME>
+	It calls
+	<SCHEMEINLINE>eval</SCHEMEINLINE>
+	to find the value to be assigned and transmits the variable
+	and the resulting value to
+	<SCHEMEINLINE>set-variable-value!</SCHEMEINLINE>
+	to be installed  in the designated environment.
+      </SCHEME>
+      <JAVASCRIPT>
+	The function
+	<JAVASCRIPTINLINE>eval_assignment</JAVASCRIPTINLINE>
+	calls
+	<SCHEMEINLINE>evaluate</SCHEMEINLINE>
+	on the value expression
+	to find the value to be assigned and calls
+	<JAVASCRIPTINLINE>assignment_symbol</JAVASCRIPTINLINE>
+	to retrieve the symbol that represents the name
+	from the assignment. The function
+	<JAVASCRIPTINLINE>eval_assignment</JAVASCRIPTINLINE>	
+	transmits the symbol and the value to
+	<JAVASCRIPTINLINE>assign_symbol_value</JAVASCRIPTINLINE>
+	to be installed in the designated environment.
+	The evaluation of an assignment returns the value 
+	that was assigned.
+      </JAVASCRIPT>
+    </SPLITINLINE>
+    <!-- Error occurred while translating this section --><SNIPPET PAGE="368">
+      <INDEX><DECLARATION>eval_assignment</DECLARATION></INDEX>
+      <NAME>eval_assignment</NAME>
+      <EXAMPLE>eval_assignment_example</EXAMPLE>
+      <EXPECTED>2</EXPECTED>
+      <SCHEME>
+(define (eval-assignment exp env)
+  (set-variable-value! (assignment-variable exp)
+                       (eval (assignment-value exp) env)
+                       env)
+  &apos;ok)
+      </SCHEME>
+      <JAVASCRIPT>
+function eval_assignment(component, env) {
+    const value = evaluate(assignment_value_expression(component),
+                           env);
+    assign_symbol_value(assignment_symbol(component), value, env);
+    return value;
+}
+      </JAVASCRIPT>
+    </SNIPPET>
+    <SNIPPET PAGE="368" HIDE="yes">
+      <NAME>eval_assignment_example</NAME>
+      <REQUIRES>functions_4_1_1</REQUIRES>
+      <REQUIRES>functions_4_1_2</REQUIRES>
+      <REQUIRES>functions_4_1_3</REQUIRES>
+      <REQUIRES>functions_4_1_4</REQUIRES>
+      <JAVASCRIPT>
+const my_program = parse(&quot;{ let x = 1; x = 2; }&quot;);
+evaluate(my_program, the_global_environment);
+      </JAVASCRIPT>
+    </SNIPPET>
+  </TEXT>
+
+  <SPLIT>
+    <SCHEME>
+      <TEXT>
+	Definitions of variables are handled in a similar manner.<FOOTNOTE>This
+	implementation of <SCHEMEINLINE>define</SCHEMEINLINE> ignores a subtle
+	issue in the handling of internal definitions, although it works
+	correctly in most cases.  We will see what the problem is and how to
+	solve it in
+	section<SPACE></SPACE><REF NAME="sec:internal-definitions"></REF>.</FOOTNOTE>
+	<SNIPPET PAGE="368">
+	  <NAME>eval_definition</NAME>
+	  <REQUIRES>define_variable</REQUIRES>
+	  <REQUIRES>definition</REQUIRES>
+	  <REQUIRES>eval</REQUIRES>
+	  <SCHEME>
+(define (eval-definition exp env)
+  (define-variable! (definition-variable exp)
+                    (eval (definition-value exp) env)
+                    env)
+  &apos;ok)
+	  </SCHEME>
+	</SNIPPET>
+      </TEXT>
+
+      <TEXT>
+	We have chosen here to return the symbol <SCHEMEINLINE>ok</SCHEMEINLINE>
+	as the value of an assignment or a definition.<FOOTNOTE>As we said when
+	we introduced <SCHEMEINLINE>define</SCHEMEINLINE> and 
+        <SCHEMEINLINE>set!</SCHEMEINLINE>, these values
+        are implementation-dependent in Scheme<EMDASH></EMDASH>that is, the implementor
+        can choose what value to return.</FOOTNOTE>
+	<INDEX>metacircular evaluator for Scheme<SUBINDEX><ORDER>eval</ORDER><SCHEMEINLINE>eval</SCHEMEINLINE> and <SCHEMEINLINE>apply</SCHEMEINLINE><CLOSE></CLOSE></SUBINDEX></INDEX>
+      </TEXT>
+    </SCHEME>
+    <JAVASCRIPT>
+      <TEXT>
+	Constant and variable declarations are both recognized by the
+	<JAVASCRIPTINLINE>is_declaration</JAVASCRIPTINLINE> syntax predicate. 
+	They are treated in a manner similar to
+	assignments, because <JAVASCRIPTINLINE>eval_block</JAVASCRIPTINLINE>
+	has already bound their symbols to <JAVASCRIPTINLINE>&quot;*unassigned*&quot;</JAVASCRIPTINLINE>
+	in the current environment.
+	Their evaluation replaces <JAVASCRIPTINLINE>&quot;*unassigned*&quot;</JAVASCRIPTINLINE>
+	with the result of evaluating the value expression.
+	<SNIPPET PAGE="368">
+	  <INDEX><DECLARATION>eval_declaration</DECLARATION></INDEX>
+	  <NAME>eval_definition</NAME>
+	  <EXAMPLE>eval_definition_example</EXAMPLE>
+	  <EXPECTED>3</EXPECTED>
+	  <JAVASCRIPT>
+function eval_declaration(component, env) {
+    assign_symbol_value(
+        declaration_symbol(component), 
+        evaluate(declaration_value_expression(component), env),
+        env);
+    return undefined;
+}
+	  </JAVASCRIPT>
+	</SNIPPET>
+	The result of evaluating the body of a function is determined by
+	return statements, and therefore the return value
+	<JAVASCRIPTINLINE>undefined</JAVASCRIPTINLINE> in
+	<JAVASCRIPTINLINE>eval_declaration</JAVASCRIPTINLINE> only
+	matters when the declaration occurs at the top level,
+	outside of any function body. Here we use the return value
+	<JAVASCRIPTINLINE>undefined</JAVASCRIPTINLINE> to simplify
+	the presentation; exercise<SPACE></SPACE><REF NAME="ex:value_producing"></REF>
+	describes the real result of evaluating top-level components
+	in JavaScript.
+
+	<LABEL NAME="foot:value_producing_2"></LABEL>	
+
+	<SNIPPET PAGE="368" HIDE="yes">
+	  <NAME>eval_definition_example</NAME>
+	  <REQUIRES>functions_4_1_1</REQUIRES>
+	  <REQUIRES>functions_4_1_2</REQUIRES>
+	  <REQUIRES>functions_4_1_3</REQUIRES>
+	  <REQUIRES>functions_4_1_4</REQUIRES>
+	  <JAVASCRIPT>
+const my_program = parse(&quot;{ let x = 1; const y = 2; x + y; }&quot;);
+evaluate(my_program, the_global_environment);
+	  </JAVASCRIPT>
+	</SNIPPET>
+      </TEXT>
+      <!-- Error occurred while translating this section --><TEXT>
+	<INDEX>metacircular evaluator for JavaScript<SUBINDEX><ORDER>evaluate</ORDER><SCHEMEINLINE>evaluate</SCHEMEINLINE> and <SCHEMEINLINE>apply</SCHEMEINLINE><CLOSE></CLOSE></SUBINDEX></INDEX>
+      </TEXT>
+    <!-- Error occurred while translating this section --></JAVASCRIPT>
+  </SPLIT>
+  <SNIPPET PAGE="383" HIDE="yes">
+    <NAME>functions_4_1_1</NAME>
+    <REQUIRES>headline_4_1_1</REQUIRES>
+    <REQUIRES>eval</REQUIRES>
+    <REQUIRES>apply</REQUIRES>
+    <REQUIRES>list_of_values</REQUIRES>
+    <REQUIRES>eval_if</REQUIRES>
+    <REQUIRES>eval_sequence</REQUIRES>
+    <REQUIRES>eval_block</REQUIRES>
+    <REQUIRES>eval_return</REQUIRES>
+    <REQUIRES>eval_assignment</REQUIRES>
+    <REQUIRES>eval_definition</REQUIRES>
+    <JAVASCRIPT></JAVASCRIPT>
+  </SNIPPET>
+
+  <SPLIT>
+    <SCHEME>
+      <EXERCISE>
+	Notice that we cannot tell whether the metacircular evaluator
+	<INDEX>order of evaluation<SUBINDEX><ORDER>metacircular</ORDER>in metacircular evaluator</SUBINDEX></INDEX>
+	<INDEX>metacircular evaluator for Scheme<SUBINDEX>order of operand evaluation</SUBINDEX></INDEX>
+	evaluates operands from left to right or from right to left.  Its
+	evaluation order is inherited from the underlying Lisp:	If the
+	arguments to <SCHEMEINLINE>cons</SCHEMEINLINE> in
+	<SCHEMEINLINE>list-of-values</SCHEMEINLINE> are evaluated from left to
+	right, then <SCHEMEINLINE>list-of-values</SCHEMEINLINE>	will evaluate
+	operands from left to right; and if the arguments to
+	<SCHEMEINLINE>cons</SCHEMEINLINE> are evaluated from right to left, then
+	<SCHEMEINLINE>list-of-values</SCHEMEINLINE> will evaluate operands
+	from right to left.
+	<P></P>
+	Write a version of <SCHEMEINLINE>list-of-values</SCHEMEINLINE> that
+	evaluates <SCHEME>operands</SCHEME> from left to right regardless of the
+	order of evaluation in the underlying Lisp. Also write a version of
+	<SCHEMEINLINE>list-of-values</SCHEMEINLINE> that evaluates
+	operands from right to left.
+	<LABEL NAME="ex:arg-eval-order_scheme"></LABEL>
+      </EXERCISE>
+    </SCHEME>
+    <JAVASCRIPT>
+      <EXERCISE>
+	Notice that we cannot tell whether the metacircular evaluator
+	<INDEX>order of evaluation<SUBINDEX><ORDER>metacircular</ORDER>in metacircular evaluator</SUBINDEX></INDEX>
+	<INDEX>metacircular evaluator for JavaScript<SUBINDEX>order of argument evaluation</SUBINDEX></INDEX>
+	evaluates argument expressions from left to right or from right to left.
+	Its evaluation order is inherited from the underlying JavaScript:
+	If the arguments to <JAVASCRIPTINLINE>pair</JAVASCRIPTINLINE> in
+	<JAVASCRIPTINLINE>map</JAVASCRIPTINLINE> are evaluated from
+	left to	right, then <JAVASCRIPTINLINE>list_of_values</JAVASCRIPTINLINE>
+	will evaluate argument expressions from left to right; and if the
+	arguments to <JAVASCRIPTINLINE>pair</JAVASCRIPTINLINE> are
+	evaluated from right to left, then
+	<JAVASCRIPTINLINE>list_of_values</JAVASCRIPTINLINE> will evaluate
+	argument expressions from right to left.
+	<P></P>
+	Write a version of <JAVASCRIPTINLINE>list_of_values</JAVASCRIPTINLINE>
+	that evaluates argument expressions from left to right regardless of the
+	order of evaluation in the underlying JavaScript. Also write a version of
+	<JAVASCRIPTINLINE>list_of_values</JAVASCRIPTINLINE> that evaluates
+	argument expressions from right to left.
+	<LABEL NAME="ex:arg-eval-order"></LABEL>
+      </EXERCISE>
+    </JAVASCRIPT>
+  <!-- Error occurred while translating this section --></SPLIT>
+
+  <!--  test cases  -->
+  
+  <SNIPPET HIDE="yes">
+    <NAME>parse_and_evaluate</NAME>
+    <REQUIRES>functions_4_1_1</REQUIRES>
+    <REQUIRES>functions_4_1_2</REQUIRES>
+    <REQUIRES>functions_4_1_3</REQUIRES>
+    <REQUIRES>functions_4_1_4</REQUIRES>
+    <JAVASCRIPT>
+function parse_and_evaluate(input) {
+    const program = parse(input);
+    const implicit_top_level_block = make_block(program);
+    return evaluate(implicit_top_level_block,
+                    the_global_environment);
+}
+    </JAVASCRIPT>
+  </SNIPPET>
+
+  <SNIPPET HIDE="yes">
+    <NAME>parse_and_evaluate_test_factorial</NAME>
+    <REQUIRES>parse_and_evaluate</REQUIRES>
+    <EXPECTED>120</EXPECTED>
+    <JAVASCRIPT>
+parse_and_evaluate(&quot;               \
+function factorial(n) {            \
+    return n === 1                 \
+           ? 1                     \
+           : n * factorial(n - 1); \
+}                                  \
+factorial(5);                      &quot;);
+    </JAVASCRIPT>
+  </SNIPPET>
+  <SNIPPET HIDE="yes">
+    <NAME>parse_and_evaluate_test_append</NAME>
+    <REQUIRES>parse_and_evaluate</REQUIRES>
+    <EXPECTED>[ &apos;b&apos;, [ &apos;c&apos;, [ &apos;d&apos;, null ] ] ]</EXPECTED>
+    <JAVASCRIPT>
+parse_and_evaluate(&quot;                                \
+function append(xs, ys) {                           \
+    return is_null(xs)                              \
+           ? ys                                     \
+           : pair(head(xs), append(tail(xs), ys));  \
+}                                                   \
+tail(append(list(&apos;a&apos;, &apos;b&apos;), list(&apos;c&apos;, &apos;d&apos;)));       &quot;);
+    </JAVASCRIPT>
+  </SNIPPET>
+  <SNIPPET HIDE="yes">
+    <NAME>parse_and_evaluate_test_map</NAME>
+    <REQUIRES>parse_and_evaluate</REQUIRES>
+    <EXPECTED>[ 3, [ 4, [ 5, null ] ] ]</EXPECTED>
+    <JAVASCRIPT>
+parse_and_evaluate(&quot;                              \
+function map(f, xs) {                             \
+    return is_null(xs)                            \
+           ? null                                 \
+           : pair(f(head(xs)), map(f, tail(xs))); \
+}                                                 \
+tail(map(x =&gt; x + 1, list(1, 2, 3, 4)));          &quot;);
+    </JAVASCRIPT>
+  </SNIPPET>
+</SUBSECTION>
+
