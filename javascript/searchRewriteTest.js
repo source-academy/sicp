@@ -1,7 +1,7 @@
 // do not know why, I can not run yarn test on my device which leads to binding error.
 // this file is meant to be temporary
 
-/* todos and issues: 
+/* todos and issues:
  propably need to modify the frontend to enable link to snippets
 works fine for things like <= (numeric comparison operator), but not for || (logical disjunction); could not test for " (double quote)
 did not process the "seexml" file, so no see also in index
@@ -166,7 +166,8 @@ averager (constraint), 261 (ex. 3.33)
 // I include 2 out of the 5 columns of all the index with A here.
 
 // manually tested the exercise urls to accumulate and accumulate_n, they are correct
-import { indexTrie, search, getUrl, autoComplete } from "./searchRewrite";
+import { indexTrie, getUrl } from "./searchRewrite.js";
+import { search, autoComplete } from "./search/TrieNode.js";
 import fs from "fs";
 
 const indexSearchTestCase = {
