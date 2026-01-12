@@ -14,12 +14,12 @@ import {
 
 import { getIdForExerciseJson } from "./processingFunctions/processExerciseJson";
 
-import { generateSearchData } from "./generateSearchData";
+import { generateSearchData } from "./generateSearchData.js";
 
 import {
   parseAndInsertToIndexTrie,
   parseAndInsertToIdToContentMap
-} from "./searchRewrite";
+} from "./searchRewrite.js";
 
 let paragraph_count = 0;
 let heading_count = 0;

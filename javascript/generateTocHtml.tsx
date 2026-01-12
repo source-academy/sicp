@@ -3,42 +3,14 @@ import { tableOfContent, allFilepath } from "./index.js";
 import {
   html_links_part1,
   html_links_part2,
-  html_licences,
   indexPage
-} from "./htmlContent";
-
-const generateChapterIndex = filename => {
-  let chapterIndex = "";
-  if (filename.match(/chapter/)) {
-    // match the number after string "chapter"
-    chapterIndex += filename.match(/(?<=chapter)\d+/g)[0];
-  }
-  if (filename.match(/section/)) {
-    // "section"
-    chapterIndex += "." + filename.match(/(?<=section)\d+/g)[0];
-  }
-  if (filename.match(/subsection/)) {
-    // "subsection"
-    chapterIndex += "." + filename.match(/(?<=subsection)\d+/g)[0];
-  }
-  if (filename.match(/foreword/)) {
-    chapterIndex = filename.match(/foreword\d*/g)[0];
-  } else if (filename.match(/prefaces/)) {
-    chapterIndex = filename.match(/prefaces\d*/g)[0];
-  } else if (filename.match(/acknowledgements/)) {
-    chapterIndex = "acknowledgements";
-  } else if (filename.match(/references/)) {
-    chapterIndex = "references";
-  } else if (filename.match(/see/)) {
-    chapterIndex = "see";
-  } else if (filename.match(/indexpreface/)) {
-    chapterIndex = "index";
-  } else if (filename.match(/making/)) {
-    chapterIndex = "making-of";
-  }
-  //console.log(chapterNumber);
-  return chapterIndex;
-};
+} from "./htmlContent.js";
+import LinksHead from "./html/LinksHead.js";
+import Licences from "./html/Licences.js";
+import { generateChapterIndex } from "./tocUtils.js";
+import { IndexHeaderCard, SidebarHeaderCard } from "./TocCards.js";
+import { html, raw } from "hono/html";
+import type { WriteBuffer } from "./types.js";
 
 const truncateTitle = chapterTitle => {
   let truncatedTitle = "";
@@ -96,7 +68,12 @@ export const sortTOC = allFilepath => {
   return head.concat(mid, tail);
 };
 
-export const recursiveProcessTOC = (index, writeTo, option, toIndexFolder) => {
+export const recursiveProcessTOC = (
+  index: number,
+  writeTo: WriteBuffer,
+  option,
+  toIndexFolder
+) => {
   if (index >= allFilepath.length) {
     return;
   }
@@ -121,37 +98,45 @@ export const recursiveProcessTOC = (index, writeTo, option, toIndexFolder) => {
 
   if (filename.match(/others/) || filename.match(/subsection/)) {
     if (option == "index") {
-      writeTo.push(`
+      writeTo.push(html`
         <div class="card card-inverse">
           <div class="card-header" role="tab" id="index-${index + 1}">
             <h5 class="mb-0">
-              <span class="collapsed" data-toggle="collapse" href="#index-collapse-${
-                index + 1
-              }" aria-expanded="false" aria-controls="index-collapse-${
-                index + 1
-              }">
-                <a href="${toIndexFolder}${chapterIndex}.html"> ${displayTitle}</a>
+              <span
+                class="collapsed"
+                data-toggle="collapse"
+                href="#index-collapse-${index + 1}"
+                aria-expanded="false"
+                aria-controls="index-collapse-${index + 1}"
+              >
+                <a href="${raw(toIndexFolder)}${chapterIndex}.html">
+                  ${raw(displayTitle)}</a
+                >
               </span>
             </h5>
           </div>
         </div>
-        `);
+      `);
     } else if (option == "sidebar") {
-      writeTo.push(`
+      writeTo.push(html`
         <div class="card card-inverse">
           <div class="card-header" role="tab" id="sidebar-${index + 1}">
             <h5 class="mb-0">
-              <span class="collapsed" data-toggle="collapse" href="#sidebar-collapse-${
-                index + 1
-              }" aria-expanded="false" aria-controls="sidebar-collapse-${
-                index + 1
-              }">
-                <a href="${toIndexFolder}${chapterIndex}.html"> ${displayTitle}</a>
+              <span
+                class="collapsed"
+                data-toggle="collapse"
+                href="#sidebar-collapse-${index + 1}"
+                aria-expanded="false"
+                aria-controls="sidebar-collapse-${index + 1}"
+              >
+                <a href="${raw(toIndexFolder)}${chapterIndex}.html">
+                  ${raw(displayTitle)}</a
+                >
               </span>
             </h5>
           </div>
         </div>
-        `);
+      `);
     }
 
     if (filename.match(/others/)) {
@@ -165,25 +150,14 @@ export const recursiveProcessTOC = (index, writeTo, option, toIndexFolder) => {
     if (option == "index") {
       writeTo.push(`
         <div class="card card-inverse">
-          <div class="card-header" role="tab" id="index-${index + 1}">
-            <h5 class="mb-0">
-              <a class="index-show collapsed" data-toggle="collapse" href="#index-collapse-${
-                index + 1
-              }" aria-expanded="true" aria-controls="index-collapse-${
-                index + 1
-              }">
-              &#10148;   <!-- ➤ (because this one is rendered blue on mobile: ▶  -->
-              </a>
-              <a class="index-hide collapsed" data-toggle="collapse" href="#index-collapse-${
-                index + 1
-              }" aria-expanded="true" aria-controls="index-collapse-${
-                index + 1
-              }">
-              &#x25BC;    <!-- ▼ (because the corresponding one is not rendered) -->
-              </a>
-              <a href="${toIndexFolder}${chapterIndex}.html">${displayTitle}</a>
-            </h5>
-          </div>
+          ${(
+            <IndexHeaderCard
+              index={index}
+              chapterIndex={chapterIndex}
+              displayTitle={displayTitle}
+              toIndexFolder={toIndexFolder}
+            />
+          )}
 
           <div id="index-collapse-${
             index + 1
@@ -193,25 +167,14 @@ export const recursiveProcessTOC = (index, writeTo, option, toIndexFolder) => {
     } else if (option == "sidebar") {
       writeTo.push(`
             <div class="card card-inverse">
-              <div class="card-header" role="tab" id="sidebar-${index + 1}">
-                <h5 class="mb-0">
-                  <a class="sidebar-show collapsed" data-toggle="collapse" href="#sidebar-collapse-${
-                    index + 1
-                  }" aria-expanded="true" aria-controls="sidebar-collapse-${
-                    index + 1
-                  }">
-                  &#10148;   <!-- ➤ (because this one is rendered blue on mobile: ▶  -->
-                  </a>
-                  <a class="sidebar-hide collapsed" data-toggle="collapse" href="#sidebar-collapse-${
-                    index + 1
-                  }" aria-expanded="true" aria-controls="sidebar-collapse-${
-                    index + 1
-                  }">
-                  &#x25BC;    <!-- ▼ (because the corresponding one is not rendered) -->
-                  </a>
-                  <a href="${toIndexFolder}${chapterIndex}.html">${displayTitle}</a>
-                </h5>
-              </div>
+            ${(
+              <SidebarHeaderCard
+                index={index}
+                chapterIndex={chapterIndex}
+                displayTitle={displayTitle}
+                toIndexFolder={toIndexFolder}
+              />
+            )}
 
               <div id="sidebar-collapse-${
                 index + 1
@@ -245,17 +208,19 @@ export const recursiveProcessTOC = (index, writeTo, option, toIndexFolder) => {
   }
 };
 
-export const indexHtml = writeToIndex => {
+export const indexHtml = (writeToIndex: WriteBuffer) => {
   //let chapArrIndex = 0;
 
   //console.log(tableOfContent);
   writeToIndex.push(html_links_part1);
-  writeToIndex.push(`
-    <meta name="description" content="" />
-        <title>
+  writeToIndex.push(
+    <LinksHead toIndexFolder="" version="js">
+      <meta name="description" content="" />
+      <title>
         Structure and Interpretation of Computer Programs, Comparison Edition
-        </title>
-    `);
+      </title>
+    </LinksHead>
+  );
   html_links_part2(writeToIndex, "", "js");
 
   // TOC at the sidebar
@@ -274,7 +239,7 @@ export const indexHtml = writeToIndex => {
   recursiveProcessTOC(0, writeToIndex, "index", "./chapters/");
   writeToIndex.push("</div>\n"); // <div class='nav-index'>
   writeToIndex.push("</div>\n"); // <div class="chapter-content">
-  writeToIndex.push(html_licences);
+  writeToIndex.push(<Licences />);
   writeToIndex.push("</div>\n"); // <div class="container scroll">
   writeToIndex.push("</body></html>");
 };

@@ -1,5 +1,4 @@
-import fs from "fs";
-import fse from "fs-extra";
+import fs from "node:fs";
 import util from "util";
 import path from "path";
 
@@ -13,39 +12,38 @@ const readFile = util.promisify(fs.readFile);
 import {
   switchParseFunctionsLatex,
   recursiveProcessTextLatex
-} from "./parseXmlLatex";
-import { setupSnippetsPdf } from "./processingFunctions/processSnippetPdf";
-import { preamble, frontmatter, ending } from "./latexContent";
-const latexmkrcContent = `$pdflatex = "xelatex %O %S";
-$pdf_mode = 1;
-$dvi_mode = 0;
-$postscript_mode = 0;`;
+} from "./parseXmlLatex.js";
+import { setupSnippetsPdf } from "./processingFunctions/processSnippetPdf.js";
 
 // html (comparison version)
-import { switchTitle } from "./htmlContent";
-import { switchParseFunctionsHtml, parseXmlHtml } from "./parseXmlHtml";
-import { setupSnippetsHtml } from "./processingFunctions/processSnippetHtml";
-import { setupReferences } from "./processingFunctions/processReferenceHtml";
-import { generateTOC, sortTOC, indexHtml } from "./generateTocHtml";
+import { switchTitle } from "./htmlContent.js";
+import { switchParseFunctionsHtml, parseXmlHtml } from "./parseXmlHtml.js";
+import { setupSnippetsHtml } from "./processingFunctions/processSnippetHtml.js";
+import { setupReferences } from "./processingFunctions/processReferenceHtml.js";
+import { generateTOC, sortTOC, indexHtml } from "./generateTocHtml.js";
 export let allFilepath = [];
 export let tableOfContent = {};
 
 // js (javascript programs)
-import { parseXmlJs } from "./parseXmlJs";
-import { setupSnippetsJs } from "./processingFunctions/processSnippetJs";
-import { getAnswers } from "./processingFunctions/processExercisePdf";
+import { parseXmlJs } from "./parseXmlJs.js";
+import { setupSnippetsJs } from "./processingFunctions/processSnippetJs.js";
+import { getAnswers } from "./processingFunctions/processExercisePdf.js";
 
 // json (for cadet frontend)
-import { testIndexSearch } from "./searchRewriteTest";
-import { parseXmlJson } from "./parseXmlJson";
-import { writeRewritedSearchData } from "./searchRewrite";
-import { setupSnippetsJson } from "./processingFunctions/processSnippetJson";
-import { createTocJson } from "./generateTocJson";
-import { setupReferencesJson } from "./processingFunctions/processReferenceJson";
+import { testIndexSearch } from "./searchRewriteTest.js";
+import { parseXmlJson } from "./parseXmlJson.js";
+import { writeRewritedSearchData } from "./searchRewrite.js";
+import { setupSnippetsJson } from "./processingFunctions/processSnippetJson.js";
+import { createTocJson } from "./generateTocJson.js";
+import { setupReferencesJson } from "./processingFunctions/processReferenceJson.js";
+import { createMain } from "./commands/utils.js";
+import type { WriteBuffer } from "./types.js";
 
 export let parseType;
 let version;
-let outputDir; // depends on parseType
+let outputDir: string; // depends on parseType
+
+const __dirname = path.resolve(import.meta.dirname);
 const inputDir = path.join(__dirname, "../xml");
 
 const ensureDirectoryExists = (path, cb) => {
@@ -232,61 +230,12 @@ async function recursiveTranslateXml(filepath, option) {
 // (to recreate non-split Mobile-friendly Web Edition: remove conditional)
 const createIndexHtml = version => {
   const indexFilepath = path.join(outputDir, "index.html");
-  const writeToIndex = [];
+  const writeToIndex: WriteBuffer = [];
   indexHtml(writeToIndex);
   const stream = fs.createWriteStream(indexFilepath);
   stream.once("open", fd => {
     stream.write(writeToIndex.join(""));
     stream.end();
-  });
-};
-
-const createMain = () => {
-  if (!fs.existsSync(outputDir)) {
-    fs.mkdirSync(outputDir);
-  }
-
-  if (parseType == "js" || parseType == "json") {
-    return;
-  }
-
-  if (parseType == "web") {
-    if (!fs.existsSync(path.join(outputDir, "/chapters"))) {
-      fs.mkdirSync(path.join(outputDir, "/chapters"));
-    }
-    fse.copy(path.join(__dirname, "/../static"), outputDir, err => {
-      if (err) return console.error(err);
-    });
-    return;
-  }
-
-  // for latex version only
-  // create sicpjs.tex file
-  const chaptersFound = [];
-  const files = fs.readdirSync(inputDir);
-  files.forEach(file => {
-    if (file.match(/chapter/)) {
-      chaptersFound.push(file);
-    }
-  });
-  const stream = fs.createWriteStream(path.join(outputDir, "sicpjs.tex"));
-  stream.once("open", fd => {
-    stream.write(preamble);
-    stream.write(frontmatter);
-    chaptersFound.forEach(chapter => {
-      const pathStr = "./" + chapter + "/" + chapter + ".tex";
-      stream.write("\\input{" + pathStr + "}\n");
-    });
-    stream.write(ending);
-    stream.end();
-  });
-  // makes the .latexmkrc file
-  const latexmkrcStream = fs.createWriteStream(
-    path.join(outputDir, ".latexmkrc")
-  );
-  latexmkrcStream.once("open", fd => {
-    latexmkrcStream.write(latexmkrcContent);
-    latexmkrcStream.end();
   });
 };
 
@@ -296,7 +245,7 @@ async function main() {
     outputDir = path.join(__dirname, "../latex_pdf");
 
     switchParseFunctionsLatex(parseType);
-    createMain();
+    createMain(inputDir, outputDir, parseType);
 
     console.log("setup snippets\n");
     await recursiveTranslateXml("", "setupSnippet");
@@ -324,7 +273,7 @@ async function main() {
 
     switchParseFunctionsHtml(version);
     switchTitle(version);
-    createMain();
+    createMain(inputDir, outputDir, parseType);
 
     console.log("\ngenerate table of content\n");
     await recursiveTranslateXml("", "generateTOC");
@@ -343,7 +292,7 @@ async function main() {
   } else if (parseType == "js") {
     outputDir = path.join(__dirname, "../js_programs");
 
-    createMain();
+    createMain(inputDir, outputDir, parseType);
     console.log("setup snippets\n");
     await recursiveTranslateXml("", "setupSnippet");
     console.log("setup snippets done\n");
@@ -351,7 +300,7 @@ async function main() {
   } else if (parseType == "json") {
     outputDir = path.join(__dirname, "../json");
 
-    createMain();
+    createMain(inputDir, outputDir, parseType);
 
     console.log("\ngenerate table of content\n");
     await recursiveTranslateXml("", "generateTOC");
@@ -363,7 +312,7 @@ async function main() {
     console.log("setup snippets and references done\n");
 
     await recursiveXmlToHtmlInOrder("parseXml");
-    writeRewritedSearchData();
+    writeRewritedSearchData(outputDir);
     // this is meant to be temp; also, will remove the original "generateSearchData" after the updation at the frontend is completed.
     //testIndexSearch();
   }
