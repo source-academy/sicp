@@ -1,7 +1,7 @@
 import path from "path";
 import fs from "fs";
 
-import { processSnippetJs } from "./processingFunctions";
+import { processSnippetJs } from "./processingFunctions/index.js";
 
 let snippet_count = 0;
 let relativeFileDirectory = "";

@@ -1,11 +1,11 @@
-import { getChildrenByTagName, ancestorHasTag } from "./utilityFunctions";
+import { getChildrenByTagName, ancestorHasTag } from "./utilityFunctions.js";
 import { allFilepath, tableOfContent } from "./index.js";
 import {
   html_links_part1,
   html_links_part2,
   beforeContentWrapper
-} from "./htmlContent";
-import { recursiveProcessTOC } from "./generateTocHtml";
+} from "./htmlContent.js";
+import { recursiveProcessTOC } from "./generateTocHtml.js";
 
 import {
   replaceTagWithSymbol,
@@ -17,7 +17,10 @@ import {
   processSnippetHtml,
   processSnippetHtmlScheme,
   recursiveProcessPureText
-} from "./processingFunctions";
+} from "./processingFunctions/index.js";
+import LinksHead from "./html/LinksHead.js";
+import type { WriteBuffer } from "./types.js";
+import { raw } from "hono/html";
 
 let paragraph_count = 0;
 let heading_count = 0;
@@ -106,7 +109,7 @@ let processTextFunctionsHtml = {
     writeTo.push(`
       <div class='chapter-title'>
         <div class='permalink'>
-        <a name='top' class='permalink'> 
+        <a name='top' class='permalink'>
     `);
     writeTo.push(displayTitle);
     writeTo.push(`
@@ -159,7 +162,7 @@ let processTextFunctionsHtml = {
     writeTo.push(`
       <div class='chapter-title'>
         <div class='permalink'>
-        <a name='top' class='permalink'> 
+        <a name='top' class='permalink'>
     `);
     writeTo.push(displayTitle);
     writeTo.push(`
@@ -337,7 +340,7 @@ let processTextFunctionsHtml = {
     writeTo.push(`
       <div class='chapter-title'>
         <div class='permalink'>
-        <a name='top' class='permalink'> 
+        <a name='top' class='permalink'>
     `);
     if (ancestorHasTag(node, "MATTER")) {
       recursiveProcessTextHtml(
@@ -473,7 +476,7 @@ let processTextFunctionsHtml = {
     writeTo.push(`
       <div class='chapter-title'>
         <div class='permalink'>
-        <a name='top' class='permalink'> 
+        <a name='top' class='permalink'>
     `);
     writeTo.push(displayTitle);
     writeTo.push(`
@@ -651,7 +654,7 @@ const processTextFunctionsSplit = {
       writeTo.push(`</span>`);
     }
     writeTo.push(`</div>
-    
+
     `);
   },
 
@@ -803,7 +806,7 @@ export const switchParseFunctionsHtml = version => {
   }
 };
 
-export const processTextHtml = (node, writeTo) => {
+export const processTextHtml = (node, writeTo: string[]) => {
   const name = node.nodeName;
   if (processTextFunctionsHtml[name]) {
     processTextFunctionsHtml[name](node, writeTo);
@@ -825,27 +828,27 @@ export const processTextHtml = (node, writeTo) => {
   return false;
 };
 
-export const recursiveProcessTextHtml = (node, writeTo) => {
+export const recursiveProcessTextHtml = (node, writeTo: WriteBuffer) => {
   if (!node) return;
   processTextHtml(node, writeTo);
   return recursiveProcessTextHtml(node.nextSibling, writeTo);
 };
 
-const beforeContent = writeTo => {
+const beforeContent = (writeTo: WriteBuffer) => {
   writeTo.push(html_links_part1);
-  writeTo.push(`
-  <meta name="description" content="${pageTitle}" />
-    <title>
-      ${pageTitle}
-    </title>
-    `);
+  writeTo.push(
+    <LinksHead toIndexFolder={toIndexFolder} version="js">
+      <meta name="description" content={raw(pageTitle)} />
+      <title>{raw(pageTitle)}</title>
+    </LinksHead>
+  );
   html_links_part2(writeTo, toIndexFolder, "js");
   recursiveProcessTOC(0, writeTo, "sidebar", "./");
   writeTo.push("</div>\n");
   writeTo.push(beforeContentWrapper);
 };
 
-const afterContent = writeTo => {
+const afterContent = (writeTo: WriteBuffer) => {
   writeTo.push(`
     <div class='nav'>
   `);
