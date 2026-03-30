@@ -1,21 +1,25 @@
 export const generateChapterIndex = (filename: string) => {
   let chapterIndex = "";
-  if (filename.match(/chapter/)) {
-    // match the number after string "chapter"
-    chapterIndex += filename.match(/(?<=chapter)\d+/g)![0];
+  const chapterMatch = filename.match(/(?<=chapter)\d+/g);
+  if (chapterMatch) {
+    chapterIndex += chapterMatch[0];
   }
-  if (filename.match(/section/)) {
-    // "section"
-    chapterIndex += "." + filename.match(/(?<=section)\d+/g)![0];
+  const sectionMatch = filename.match(/(?<=section)\d+/g);
+  if (sectionMatch) {
+    chapterIndex += "." + sectionMatch[0];
   }
-  if (filename.match(/subsection/)) {
-    // "subsection"
-    chapterIndex += "." + filename.match(/(?<=subsection)\d+/g)![0];
+  const subsectionMatch = filename.match(/(?<=subsection)\d+/g);
+  if (subsectionMatch) {
+    chapterIndex += "." + subsectionMatch[0];
   }
-  if (filename.match(/foreword/)) {
-    chapterIndex = filename.match(/foreword\d*/g)![0];
-  } else if (filename.match(/prefaces/)) {
-    chapterIndex = filename.match(/prefaces\d*/g)![0];
+  const forewordMatch = filename.match(/foreword\d*/g);
+  if (forewordMatch) {
+    chapterIndex = forewordMatch[0];
+  } else {
+    const prefacesMatch = filename.match(/prefaces\d*/g);
+    if (prefacesMatch) {
+      chapterIndex = prefacesMatch[0];
+    }
   } else if (filename.match(/acknowledgements/)) {
     chapterIndex = "acknowledgements";
   } else if (filename.match(/references/)) {
