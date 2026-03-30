@@ -83,52 +83,35 @@ export const processSnippetJs = (node, writeTo, fileFormat) => {
         jsRunSnippet = jsSnippet;
       }
     }
-
     const codeArr_run = [];
     recursiveProcessPureText(jsRunSnippet.firstChild, codeArr_run);
     const codeStr_run = codeArr_run.join("").trim();
 
-    let reqStr = "";
-    let reqArr = [];
+    const reqSet = new Set();
     const snippetName = node.getElementsByTagName("NAME")[0];
-    let nameStr;
     if (snippetName) {
-      nameStr = snippetName.firstChild.nodeValue;
-      const reqSet = new Set();
-      recursiveGetRequires(nameStr, reqSet);
-      const examples = node.getElementsByTagName("EXAMPLE");
-      for (let i = 0; examples[i]; i++) {
-        const exampleString = examples[i].firstChild.nodeValue;
-        const exampleNode = snippetStore[exampleString];
-        if (exampleNode) {
-          const exampleRequires = exampleNode.requireNames;
-          for (let j = 0; exampleRequires[j]; j++) {
-            recursiveGetRequires(exampleRequires[j], reqSet);
-          }
-        }
-      }
-      for (const reqName of reqSet) {
-        const snippetEntry = snippetStore[reqName];
-        if (snippetEntry && reqName !== nameStr) {
-          reqArr.push(snippetEntry.codeStr);
-          reqArr.push("\n");
-        }
-      }
-      reqStr = reqArr.join("");
-    } else {
-      const requirements = node.getElementsByTagName("REQUIRES");
-      for (let i = 0; requirements[i]; i++) {
-        const required = requirements[i].firstChild.nodeValue;
-        if (snippetStore[required]) {
-          reqArr.push(snippetStore[required].codeStr);
-          reqArr.push("\n");
-        } else {
-          missingRequireWarning(required);
-        }
-      }
-      reqStr = reqArr.join("");
+      recursiveGetRequires(snippetName.firstChild.nodeValue, reqSet);
+    }
+    const requirements = node.getElementsByTagName("REQUIRES");
+    for (let i = 0; requirements[i]; i++) {
+      recursiveGetRequires(requirements[i].firstChild.nodeValue, reqSet);
+    }
+    const examples = node.getElementsByTagName("EXAMPLE");
+    for (let i = 0; examples[i]; i++) {
+      const exampleName = examples[i].firstChild.nodeValue;
+      recursiveGetRequires(exampleName, reqSet);
     }
 
+    const reqArr = [];
+    for (const reqName of reqSet) {
+      const snippetEntry = snippetStore[reqName];
+      if (snippetEntry) {
+        reqArr.push(snippetEntry.codeStr);
+        reqArr.push("
+");
+      }
+    }
+    const reqStr = reqArr.join("");
     const examples = node.getElementsByTagName("EXAMPLE");
     const exampleArr = [];
     for (let i = 0; examples[i]; i++) {
