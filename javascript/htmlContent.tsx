@@ -88,7 +88,7 @@ export const indexPage = (writeTo: WriteBuffer) => {
   writeTo.push(<Attribution />);
 };
 
-export const beforeContentWrapper = `<div id='permalink-msg'>
+export const beforeContentWrapper = `<div id='permalink-msg'><div class='snippet-wrapper' id='snippet-{chapter}-{index}' style='position: relative;'>
 <div class='screen'>
   <div class='alert alert-success'>
     <strong>Permalink copied!</strong>
