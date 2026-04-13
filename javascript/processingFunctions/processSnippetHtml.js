@@ -64,7 +64,7 @@ export const processSnippetHtml = (node, writeTo, split) => {
   const jsPromptSnippet = node.getElementsByTagName("JAVASCRIPT_PROMPT")[0];
 
   if (jsPromptSnippet) {
-    writeTo.push("<pre class='prettyprintoutput'>");
+    writeTo.push("<pre class='prettyprint'>");
     writeTo.push(jsPromptSnippet.firstChild.nodeValue.trimRight());
     writeTo.push("</pre>");
   }
@@ -72,7 +72,7 @@ export const processSnippetHtml = (node, writeTo, split) => {
   const jsLonelySnippet = node.getElementsByTagName("JAVASCRIPT_LONELY")[0];
 
   if (jsLonelySnippet) {
-    writeTo.push("<pre class='prettyprintoutput'>");
+    writeTo.push("<pre class='prettyprint'>");
     writeTo.push(jsLonelySnippet.firstChild.nodeValue.trimRight());
     writeTo.push("</pre>");
   }
