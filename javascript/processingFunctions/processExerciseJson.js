@@ -1,57 +1,31 @@
-import { recursiveProcessTextJson } from "../parseXmlJson";
-import { missingExerciseWarning } from "./warnings.js";
-import { referenceStore } from "./processReferenceJson";
+import { getChildrenByTagName } from "../utilityFunctions.js";
+import { recursivelyProcessTextSnippetJson } from "./processSnippetJson.js";
 
-let unlabeledEx = 0;
-const processExerciseJson = (node, obj) => {
-  const label = node.getElementsByTagName("LABEL")[0];
-  let labelName = "";
-  const solution = node.getElementsByTagName("SOLUTION")[0];
-
-  if (!label) {
-    unlabeledEx++;
-    labelName = "ex:unlabeled" + unlabeledEx;
-  } else {
-    labelName = label.getAttribute("NAME");
+const processExerciseJson = (node, writeTo) => {
+  const exercise = {
+    type: "exercise",
+    content: []
+  };
+  const children = Array.from(node.childNodes);
+  for (const child of children) {
+    if (child.nodeName === "SNIPPET") {
+      const snippet = [];
+      recursivelyProcessTextSnippetJson(child.firstChild, snippet);
+      const code = snippet.join("").trim();
+      exercise.content.push({
+        type: "snippet",
+        code: code.replace(/const\s+(\w+)\s*=\s*/g, "$1 = ")
+      });
+    } else if (child.nodeName === "TEXT") {
+      const text = [];
+      recursivelyProcessTextSnippetJson(child.firstChild, text);
+      exercise.content.push({
+        type: "text",
+        content: text.join("").trim()
+      });
+    }
   }
-
-  if (!referenceStore[labelName]) {
-    missingExerciseWarning(labelName);
-    return;
-  }
-
-  const displayName = referenceStore[labelName].displayName;
-
-  obj["tag"] = "EXERCISE";
-  obj["title"] = "Exercise " + displayName;
-  obj["id"] = `#ex-${displayName}`;
-
-  recursiveProcessTextJson(node.firstChild, obj);
-
-  if (solution) {
-    const childObj = {};
-    recursiveProcessTextJson(solution.firstChild, childObj);
-    obj["solution"] = childObj["child"];
-  }
-};
-
-export const getIdForExerciseJson = node => {
-  const label = node.getElementsByTagName("LABEL")[0];
-  let labelName = "";
-
-  if (!label) {
-    labelName = "ex:unlabeled" + unlabeledEx;
-  } else {
-    labelName = label.getAttribute("NAME");
-  }
-
-  if (!referenceStore[labelName]) {
-    missingExerciseWarning(labelName);
-    return undefined;
-  }
-
-  const displayName = referenceStore[labelName].displayName;
-  return `#ex-${displayName}`;
+  writeTo.push(exercise);
 };
 
 export default processExerciseJson;
