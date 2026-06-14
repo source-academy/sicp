@@ -13,13 +13,11 @@ export const generateChapterIndex = (filename: string) => {
     chapterIndex += "." + subsectionMatch[0];
   }
   const forewordMatch = filename.match(/foreword\d*/g);
+  const prefacesMatch = filename.match(/prefaces\d*/g);
   if (forewordMatch) {
     chapterIndex = forewordMatch[0];
-  } else {
-    const prefacesMatch = filename.match(/prefaces\d*/g);
-    if (prefacesMatch) {
-      chapterIndex = prefacesMatch[0];
-    }
+  } else if (prefacesMatch) {
+    chapterIndex = prefacesMatch[0];
   } else if (filename.match(/acknowledgements/)) {
     chapterIndex = "acknowledgements";
   } else if (filename.match(/references/)) {
