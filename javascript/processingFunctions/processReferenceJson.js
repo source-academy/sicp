@@ -126,6 +126,17 @@ export const setupReferencesJson = (node, filename) => {
     const displayName = `${chapter_number}.${ex_count}`;
     const href = `/sicpjs/${chapterIndex}#ex-${displayName}`;
     referenceStore[referenceName] = { href, displayName, chapterIndex };
+
+    // An exercise may carry more than one label (e.g. a semantic label
+    // and an ex:N_M number label). Register every "ex" label as an alias
+    // pointing to the same exercise so all of them can be referenced.
+    const aliasLabels = exercise.getElementsByTagName("LABEL");
+    for (let j = 0; aliasLabels[j]; j++) {
+      const aliasName = aliasLabels[j].getAttribute("NAME");
+      if (aliasName.split(":")[0] === "ex" && !referenceStore[aliasName]) {
+        referenceStore[aliasName] = { href, displayName, chapterIndex };
+      }
+    }
   }
 };
 
