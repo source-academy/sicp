@@ -50,6 +50,12 @@ export const setupReferences = (node, filename) => {
     const ref_type = referenceName.split(":")[0];
     //const ref_name = referenceName.split(":")[1];
 
+    if (ancestorHasTag(label, "PDF_ONLY")) {
+      // PDF-only duplicates (figures repeated in a PDF_ONLY block for
+      // pagination) are not part of the web edition.
+      continue;
+    }
+
     if (referenceStore[referenceName]) {
       console.log(chapterIndex);
       repeatedRefNameWarning(referenceName);
@@ -125,6 +131,17 @@ export const setupReferences = (node, filename) => {
     const href = `${chapterIndex}.html#ex_${displayName}`;
     //console.log(referenceName + " added");
     referenceStore[referenceName] = { href, displayName, chapterIndex };
+
+    // An exercise may carry more than one label (e.g. a semantic label
+    // and an ex:N_M number label). Register every "ex" label as an alias
+    // pointing to the same exercise so all of them can be referenced.
+    const aliasLabels = exercise.getElementsByTagName("LABEL");
+    for (let j = 0; aliasLabels[j]; j++) {
+      const aliasName = aliasLabels[j].getAttribute("NAME");
+      if (aliasName.split(":")[0] === "ex" && !referenceStore[aliasName]) {
+        referenceStore[aliasName] = { href, displayName, chapterIndex };
+      }
+    }
   }
 };
 
