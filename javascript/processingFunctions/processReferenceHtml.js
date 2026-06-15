@@ -50,6 +50,12 @@ export const setupReferences = (node, filename) => {
     const ref_type = referenceName.split(":")[0];
     //const ref_name = referenceName.split(":")[1];
 
+    if (ancestorHasTag(label, "PDF_ONLY")) {
+      // PDF-only duplicates (figures repeated in a PDF_ONLY block for
+      // pagination) are not part of the web edition.
+      continue;
+    }
+
     if (referenceStore[referenceName]) {
       console.log(chapterIndex);
       repeatedRefNameWarning(referenceName);
