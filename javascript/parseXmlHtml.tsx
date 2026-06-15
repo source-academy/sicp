@@ -47,6 +47,7 @@ export const tagsToRemove = new Set([
   "EXCLUDE",
   "HISTORY",
   "ORDER",
+  "SCHEME",
   "SOLUTION",
   "INDEX",
   "CAPTION",
