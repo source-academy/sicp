@@ -1,0 +1,1503 @@
+<SUBSECTION>
+  <NAME>
+    The Core of the Evaluator
+  </NAME>
+
+  <TEXT>
+    <LABEL NAME="sec:core-of-evaluator"/>
+
+    <SPLIT>
+      <SCHEME>
+	<INDEX>metacircular evaluator for Scheme<SUBINDEX><ORDER>eval</ORDER><SCHEMEINLINE>eval</SCHEMEINLINE> and <SCHEMEINLINE>apply</SCHEMEINLINE><OPEN/></SUBINDEX></INDEX>
+
+	<FIGURE>
+	  <FIGURE scale="0.65" src="img_original/ch4-Z-G-1.svg"></FIGURE>
+	  <LABEL NAME="fig:eval-apply_scheme"/>
+	  <CAPTION>
+	    The
+	    <SCHEMEINLINE>eval</SCHEMEINLINE><ENDASH/><SCHEMEINLINE>apply</SCHEMEINLINE> 
+	    cycle exposes the essence of a computer language.
+	  </CAPTION>
+	</FIGURE>
+      </SCHEME>
+      <PYTHON>
+	<FIGURE>
+	  <FIGURE scale="0.65" src="img_javascript/ch4-Z-G-1.svg"></FIGURE>
+	  <LABEL NAME="fig:eval-apply"/>
+	  <CAPTION>
+	    The
+	    <INDEX>metacircular evaluator for JavaScript<SUBINDEX><ORDER>evaluate</ORDER><PYTHONINLINE>evaluate</PYTHONINLINE><ENDASH/><PYTHONINLINE>apply</PYTHONINLINE> cycle</SUBINDEX></INDEX>
+	    <SCHEMEINLINE>evaluate</SCHEMEINLINE><ENDASH/><SCHEMEINLINE>apply</SCHEMEINLINE> 
+	    cycle exposes the essence of a computer language.
+	  </CAPTION>
+	</FIGURE>
+      </PYTHON>
+    </SPLIT>
+    The evaluation
+    <INDEX>metacircular evaluator for JavaScript<SUBINDEX><ORDER>evaluate</ORDER><SCHEMEINLINE>evaluate</SCHEMEINLINE> and <SCHEMEINLINE>apply</SCHEMEINLINE><OPEN/></SUBINDEX></INDEX>
+    process can be described as the interplay between two
+    <SPLITINLINE>
+      <SCHEME>procedures:</SCHEME>
+      <PYTHON>functions:</PYTHON>
+    </SPLITINLINE>
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>eval</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>evaluate</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    and <SCHEMEINLINE>apply</SCHEMEINLINE>.
+  </TEXT>
+  
+  <SUBHEADING>
+    <NAME><SPLITINLINE>
+      <SCHEME>Eval</SCHEME>
+      <PYTHON>The function 
+      <PYTHONINLINE>evaluate</PYTHONINLINE></PYTHON></SPLITINLINE>
+    </NAME>
+  </SUBHEADING>
+
+  <TEXT>
+    <COMMENT>
+      In JavaScript's strict mode<EMDASH/>our preferred way to run JavaScript
+      programs<EMDASH/>the name <PYTHONINLINE>eval</PYTHONINLINE> cannot
+      be declared in user programs. It is reserved for a related but quite
+      different pre-declared function. We opt for the complete word
+      <PYTHONINLINE>evaluate</PYTHONINLINE> as a replacement.
+    </COMMENT>
+  </TEXT>
+  <SHORT_PAGE lines="2"/>
+  <TEXT>
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>Eval</SCHEMEINLINE></SCHEME>
+      <PYTHON>The function <PYTHONINLINE>evaluate</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    takes as arguments
+    <SPLITINLINE>
+      <PYTHON>
+	a program <EM>component</EM><EMDASH/>a statement or
+	expression<FOOTNOTE>There is no
+	need to distinguish between statements and expressions in our evaluator.
+	For example, we do not differentiate between expressions and
+	expression statements; we represent them identically and consequently
+	they are handled in the same way by the
+	<PYTHONINLINE>evaluate</PYTHONINLINE>
+	function. Similarly, our evaluator does not enforce JavaScript's syntactic
+	restriction that statements
+	cannot appear inside expressions other than
+	lambda expressions.</FOOTNOTE><EMDASH/>and an environment.
+      </PYTHON>
+      <SCHEME>
+	and an environment.
+      </SCHEME>
+    </SPLITINLINE>
+    It  classifies the 
+    <SPLITINLINE>
+      <SCHEME>expression</SCHEME>
+      <PYTHON>component</PYTHON>
+    </SPLITINLINE> 
+    and directs its evaluation.  
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>Eval</SCHEMEINLINE></SCHEME>
+      <PYTHON>The function <PYTHONINLINE>evaluate</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    is structured as a case analysis of the syntactic type of the
+    <SPLITINLINE>
+      <SCHEME>expression</SCHEME>
+      <PYTHON>component</PYTHON>
+    </SPLITINLINE> 
+    to be evaluated.  In order to keep the
+    <SPLITINLINE><SCHEME>procedure</SCHEME>
+    <PYTHON>function</PYTHON></SPLITINLINE>
+    general, we express
+    the determination of the type of 
+    <SPLITINLINE><SCHEME>an expression</SCHEME>
+    <PYTHON>a component</PYTHON></SPLITINLINE>
+    abstractly, making no
+    commitment to any particular 
+    <INDEX>metacircular evaluator for JavaScript<SUBINDEX>component representation</SUBINDEX></INDEX>
+    representation for the various types of
+    <SPLITINLINE><SCHEME>expressions.</SCHEME>
+    <PYTHON>components.</PYTHON></SPLITINLINE>
+    Each type of 
+    <SPLITINLINE><SCHEME>expression</SCHEME>
+    <PYTHON>component</PYTHON></SPLITINLINE>
+    has a
+    <SPLITINLINE>
+      <SCHEME>predicate</SCHEME>
+      <PYTHON><EM>syntax predicate</EM></PYTHON>
+    </SPLITINLINE>
+    that tests for it and an abstract means for selecting its parts.  This 
+    <INDEX>metacircular evaluator for JavaScript<SUBINDEX>data abstraction in</SUBINDEX></INDEX>
+    <INDEX>abstract syntax<SUBINDEX>in metacircular evaluator</SUBINDEX></INDEX>
+    <EM>abstract syntax</EM>
+    makes it easy to see how we can change the syntax of the language by
+    using the same evaluator, but with a different collection of syntax
+    <SPLITINLINE>
+      <SCHEME>
+	procedures.
+      </SCHEME>
+      <PYTHON>
+	functions.
+      </PYTHON>
+    </SPLITINLINE>
+  </TEXT>
+
+	<SUBSUBHEADING>
+	  <NAME>Primitive expressions</NAME>
+	</SUBSUBHEADING>
+
+  <TEXT>
+    <SPLIT>
+      <SCHEME>
+	
+	<UL>
+	  <LI>
+	    <SPLITINLINE>
+	      <SCHEME>
+		For
+		<INDEX>expression<SUBINDEX>self-evaluating</SUBINDEX></INDEX>
+		<INDEX>self-evaluating expression</INDEX>
+		self-evaluating expressions, such as numbers,
+		<SCHEMEINLINE>eval</SCHEMEINLINE>
+		returns the expression itself.
+	      </SCHEME>
+	      <PYTHON>
+		For
+		<INDEX>expression<SUBINDEX>literal</SUBINDEX></INDEX>
+		<INDEX>literal expression</INDEX>
+		literal expressions, such as numbers,
+		<PYTHONINLINE>evaluate</PYTHONINLINE>
+		returns their value.
+	      </PYTHON>
+	    </SPLITINLINE>
+	  </LI>
+	  <LI>
+	    <SPLITINLINE>
+	      <SCHEME><SCHEMEINLINE>Eval</SCHEMEINLINE></SCHEME>
+	      <PYTHON>The function
+	      <PYTHONINLINE>evaluate</PYTHONINLINE></PYTHON>
+	    </SPLITINLINE>
+	    must look up
+	    <SPLITINLINE>
+	      <SCHEME>variables</SCHEME>
+	      <PYTHON>names</PYTHON>
+	    </SPLITINLINE>
+	    in the environment to find their values.
+	  </LI>
+	</UL>
+      
+	<SUBSUBHEADING>
+	  <NAME>Special forms</NAME>
+	</SUBSUBHEADING>
+	
+          <UL>
+	    <LI>
+	      For quoted expressions, 
+	      <SCHEMEINLINE>eval</SCHEMEINLINE>
+	      returns the expression that was
+	      quoted.
+	    </LI>
+	    <LI>
+	      An assignment to (or a definition of) a variable
+	      must recursively call      
+	      <SCHEMEINLINE>eval</SCHEMEINLINE>
+	      to compute the new value to be associated with the variable.
+	      The environment must be modified to change (or create) the
+	      binding of the variable.
+	    </LI>
+	    <LI>
+	      An if expression requires special processing of its parts, so as to
+	      evaluate the consequent if the predicate is true, and otherwise to
+	      evaluate the alternative.
+	    </LI>
+	    <LI>
+	      A <SCHEMEINLINE>lambda</SCHEMEINLINE> expression
+	      must be transformed into an applicable
+	      procedure by packaging together the parameters and body
+	      specified by the
+	      <SCHEMEINLINE>lambda</SCHEMEINLINE>
+	      expression with the environment of the evaluation.
+	    </LI>
+	    <LI>
+	      A <SCHEMEINLINE>begin</SCHEMEINLINE> expression
+	      requires evaluating its sequence of
+	      expressions in the order in which they appear.
+	    </LI>
+	    <LI>
+	      A case analysis (<SCHEMEINLINE>cond</SCHEMEINLINE>) is transformed
+	      into a nest of <SCHEMEINLINE>if</SCHEMEINLINE>
+	      expressions and then evaluated.
+	    </LI>
+          </UL>
+
+      <SUBSUBHEADING>
+	<NAME>Combinations</NAME>
+      </SUBSUBHEADING>
+      
+      <UL>
+	<LI>
+	  For a procedure application, <SCHEMEINLINE>eval</SCHEMEINLINE>
+	  must recursively evaluate the operator part and the operands of
+	  the combination.  The resulting procedure
+	  and arguments are passed to <SCHEMEINLINE>apply</SCHEMEINLINE>,
+	  which handles the actual procedure application.
+	</LI>
+      </UL>
+    Here is the definition of <SCHEMEINLINE>eval</SCHEMEINLINE>:
+    <SNIPPET PAGE="365">
+      <INDEX><DECLARATION>evaluate</DECLARATION> (metacircular)</INDEX>
+      <NAME>eval_scheme</NAME>
+      <SCHEME>
+(define (eval exp env)
+  (cond ((self-evaluating? exp) exp)
+        ((variable? exp) (lookup-variable-value exp env))
+        ((quoted? exp) (text-of-quotation exp))
+        ((assignment? exp) (eval-assignment exp env))
+        ((definition? exp) (eval-definition exp env))
+        ((if? exp) (eval-if exp env))
+        ((lambda? exp)
+         (make-procedure (lambda-parameters exp)
+                         (lambda-body exp)
+                         env))
+        ((begin? exp) 
+         (eval-sequence (begin-actions exp) env))
+        ((cond? exp) (eval (cond->if exp) env))
+        ((application? exp)
+         (apply (eval (operator exp) env)
+                (list-of-values (operands exp) env)))
+        (else
+         (error "Unknown expression type - - EVAL" exp))))
+      </SCHEME>
+    </SNIPPET>
+	  
+      </SCHEME>
+
+      <PYTHON>
+	
+	<UL>
+	  <LI>
+	    For
+	    <INDEX>expression<SUBINDEX>literal</SUBINDEX></INDEX>
+	    <INDEX>literal expression</INDEX>
+	    literal expressions, such as numbers,
+	    <PYTHONINLINE>evaluate</PYTHONINLINE>
+	    returns their value.
+	  </LI>
+	  <LI>
+	    The function
+	    <PYTHONINLINE>evaluate</PYTHONINLINE>
+	    must look up names in the environment to find their values.
+	  </LI>
+	</UL>
+	
+
+	<SUBSUBHEADING>
+	  <NAME>Combinations</NAME>
+	</SUBSUBHEADING>
+      
+        <UL>
+	  <LI>
+	    For a function application,
+	    <PYTHONINLINE>evaluate</PYTHONINLINE> must recursively
+	    evaluate the function expression and the argument expressions of the
+	    application.  The resulting function and arguments are passed to
+	    <SCHEMEINLINE>apply</SCHEMEINLINE>, which handles the actual
+	    function application.
+	  </LI>
+	  <LI>
+	    An operator combination is transformed into a function application
+	    and then evaluated.
+	  </LI>
+        </UL>
+
+	<SUBSUBHEADING>	
+	  <NAME>Syntactic forms</NAME>
+	</SUBSUBHEADING>
+	
+        <UL>
+	  <LI>
+	    A conditional expression or statement requires special processing of
+	    its parts,
+	    so as to evaluate the consequent if the predicate is true, and
+	    otherwise to evaluate the alternative.
+	  </LI>
+	  <LI>
+	    A lambda expression must be transformed into an applicable
+	    function by packaging together the parameters and body specified
+	    by the lambda expression with the environment of the evaluation.
+	  </LI>
+	  <LI>
+	    A sequence of statements requires evaluating its
+	    components in the order in which they appear.
+	  </LI>
+	  <LI>
+	    A block requires evaluating its body in a new environment
+	    that reflects all names declared within the block.
+	  </LI>
+	  <LI>
+	    A return statement must produce a value that becomes the
+	    result of the function call that gave rise to the
+	    evaluation of the return statement.
+	  </LI>
+	  <LI>
+	    A function declaration is transformed into a
+	    constant declaration and then evaluated.
+	  </LI>
+	  <LI>
+	    A constant or variable declaration or an assignment must
+	    call
+	    <PYTHONINLINE>evaluate</PYTHONINLINE>
+	    recursively to compute the new
+	    value to be associated with the name being declared or assigned.
+	    The environment must be
+	    modified to reflect the new value of the name.
+	  </LI>
+        </UL>
+  <DO_BREAK_PAGE/>
+	Here is the declaration of
+	<PYTHONINLINE>evaluate</PYTHONINLINE>:
+	<SNIPPET PAGE="365" HIDE="yes">
+	  <NAME>headline_4_1_1</NAME>
+	  <PYTHON>
+// functions from SICP JS 4.1.1
+	  </PYTHON>
+	</SNIPPET>
+	<SNIPPET PAGE="365">
+	  <INDEX><DECLARATION>evaluate</DECLARATION> (metacircular)</INDEX>
+	  <NAME>eval</NAME>
+	  <EXAMPLE>eval_example</EXAMPLE>
+	  <EXPECTED>3</EXPECTED>
+	  <PYTHON>
+function evaluate(component, env) {
+    return is_literal(component)
+           ? literal_value(component)
+           : is_name(component)
+           ? lookup_symbol_value(symbol_of_name(component), env)
+           : is_application(component)
+           ? apply(evaluate(function_expression(component), env),
+                   list_of_values(arg_expressions(component), env))
+           : is_operator_combination(component)
+           ? evaluate(operator_combination_to_application(component),
+                      env)
+           : is_conditional(component)
+           ? eval_conditional(component, env)
+           : is_lambda_expression(component)
+           ? make_function(lambda_parameter_symbols(component),
+                           lambda_body(component), env)
+           : is_sequence(component)
+           ? eval_sequence(sequence_statements(component), env)
+           : is_block(component)
+           ? eval_block(component, env)
+           : is_return_statement(component)
+           ? eval_return_statement(component, env)
+           : is_function_declaration(component)
+           ? evaluate(function_decl_to_constant_decl(component), env)
+           : is_declaration(component)
+           ? eval_declaration(component, env)
+           : is_assignment(component)
+           ? eval_assignment(component, env)
+           : error(component, "unknown syntax -- evaluate");
+}
+	  </PYTHON>
+	</SNIPPET>
+	<SNIPPET PAGE="365" HIDE="yes">
+	  <NAME>eval_example</NAME>
+	  <REQUIRES>functions_4_1_1</REQUIRES>
+	  <REQUIRES>functions_4_1_2</REQUIRES>
+	  <REQUIRES>functions_4_1_3</REQUIRES>
+	  <REQUIRES>functions_4_1_4</REQUIRES>
+	  <PYTHON>
+const my_program = parse("1; { true; 3; }");
+evaluate(my_program, the_empty_environment);
+	  </PYTHON>
+	</SNIPPET>
+	
+      </PYTHON>
+    </SPLIT>
+  </TEXT>
+
+  <TEXT>
+    For clarity, 
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>eval</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>evaluate</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    has been implemented as a
+    <INDEX>data-directed programming<SUBINDEX>case analysis vs.</SUBINDEX></INDEX>
+    <INDEX>case analysis<SUBINDEX>data-directed programming vs.</SUBINDEX></INDEX>
+    case analysis using
+    <SPLITINLINE><SCHEME><SCHEMEINLINE>cond</SCHEMEINLINE>.</SCHEME>
+    <PYTHON>conditional expressions.</PYTHON></SPLITINLINE>
+    The disadvantage of this is that our
+    <SPLITINLINE>
+      <SCHEME>procedure</SCHEME>
+      <PYTHON>function</PYTHON>
+    </SPLITINLINE>
+    handles only a few distinguishable types of 
+    <SPLITINLINE>
+      <PYTHON>statements and</PYTHON>
+    </SPLITINLINE>
+    expressions, and no new ones can be defined without editing the
+    <SPLITINLINE>
+      <SCHEME>
+	definition of 
+	<SCHEMEINLINE>eval</SCHEMEINLINE>.
+      </SCHEME>
+      <PYTHON>
+	declaration of
+	<PYTHONINLINE>evaluate</PYTHONINLINE>.
+      </PYTHON>
+    </SPLITINLINE>
+    In most
+    <SPLITINLINE>
+      <SCHEME>Lisp</SCHEME>
+      <PYTHON>interpreter</PYTHON>
+    </SPLITINLINE>
+    implementations, dispatching on the type of
+    <SPLITINLINE>
+      <SCHEME>an expression</SCHEME>
+      <PYTHON>a component</PYTHON>
+    </SPLITINLINE>
+    is done in a data-directed style.  This allows a user to add new types of    
+    <SPLITINLINE>
+      <SCHEME>expressions that <SCHEMEINLINE>eval</SCHEMEINLINE></SCHEME>
+      <PYTHON>components that
+      <PYTHONINLINE>evaluate</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    can distinguish, without modifying the 
+    <SPLITINLINE>
+      <SCHEME>
+	definition of <SCHEMEINLINE>eval</SCHEMEINLINE>
+      </SCHEME>
+      <PYTHON>
+	declaration of
+	<PYTHONINLINE>evaluate</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    itself. (See exercise<SPACE/><REF NAME="ex:data-directed-eval"/>.)
+  </TEXT>
+  <TEXT>
+    The representation of names is handled by the syntax abstractions. Internally,
+    the evaluator uses strings to represent names, and we refer to such strings as
+    <INDEX>symbol(s)<SUBINDEX><ORDER>in representing</ORDER>representing names in metacircular evaluator</SUBINDEX></INDEX>
+    <EM>symbols</EM>. The function
+    <PYTHONINLINE>symbol_of_name</PYTHONINLINE> used in
+    <PYTHONINLINE>evaluate</PYTHONINLINE> extracts from a
+    name the symbol by which it is represented.
+  </TEXT>
+  <DO_BREAK_PAGE/>
+  
+  <SUBHEADING>
+    <NAME>Apply</NAME>
+  </SUBHEADING>
+
+  <TEXT>
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>Apply</SCHEMEINLINE></SCHEME>
+      <PYTHON>The function <PYTHONINLINE>apply</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    takes two arguments, a
+    <SPLITINLINE>
+      <SCHEME>procedure</SCHEME>
+      <PYTHON>function</PYTHON>
+    </SPLITINLINE>
+    and a list of arguments  to which the
+    <SPLITINLINE>
+      <SCHEME>procedure</SCHEME>
+      <PYTHON>function</PYTHON>
+    </SPLITINLINE>
+    should be applied.  
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>Apply</SCHEMEINLINE></SCHEME>
+      <PYTHON>The function <PYTHONINLINE>apply</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    classifies
+    <SPLITINLINE>
+      <SCHEME>procedures</SCHEME>
+      <PYTHON>functions</PYTHON>
+    </SPLITINLINE>
+    into two kinds: It calls 
+    <INDEX><USE>apply_primitive_function</USE></INDEX> 
+    <SPLITINLINE>
+      <SCHEME>
+	<SCHEMEINLINE>apply-primitive-procedure</SCHEMEINLINE>
+      </SCHEME>
+      <PYTHON>
+	<PYTHONINLINE>apply_primitive_function</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    to apply primitives; it applies compound
+    <SPLITINLINE>
+      <SCHEME>procedures</SCHEME>
+      <PYTHON>functions</PYTHON>
+    </SPLITINLINE>
+    <SPLITINLINE>
+      <SCHEME>
+	by sequentially evaluating the 	
+	expressions that make up the body of the procedure.
+      </SCHEME>
+      <PYTHON>
+	by evaluating the block that makes up the body
+	of the function.
+      </PYTHON>
+    </SPLITINLINE>
+    The environment for the evaluation of the body of a compound
+    <SPLITINLINE>
+      <SCHEME>procedure</SCHEME>
+      <PYTHON>function</PYTHON>
+    </SPLITINLINE>
+    is constructed by extending the base environment carried by the
+    <SPLITINLINE>
+      <SCHEME>procedure</SCHEME>
+      <PYTHON>function</PYTHON>
+    </SPLITINLINE>
+    to include a frame that binds the parameters of the
+    <SPLITINLINE>
+      <SCHEME>procedure</SCHEME>
+      <PYTHON>function</PYTHON>
+    </SPLITINLINE>
+    to the arguments to which the
+    <SPLITINLINE>
+      <SCHEME>procedure</SCHEME>
+      <PYTHON>function</PYTHON>
+    </SPLITINLINE>
+    is to be applied. 
+    Here is the
+    <SPLITINLINE>
+      <SCHEME>
+	definition
+      </SCHEME>
+      <PYTHON>
+	declaration
+      </PYTHON>
+    </SPLITINLINE>
+    of <SCHEMEINLINE>apply</SCHEMEINLINE>:
+    <SNIPPET PAGE="366">
+      <INDEX><DECLARATION>apply</DECLARATION> (metacircular)</INDEX>
+      <NAME>apply</NAME>
+      <EXAMPLE>apply_example</EXAMPLE>
+      <EXPECTED>3</EXPECTED>
+      <SCHEME>
+(define (apply procedure arguments)
+  (cond ((primitive-procedure? procedure)
+         (apply-primitive-procedure procedure arguments))
+        ((compound-procedure? procedure)
+         (eval-sequence
+           (procedure-body procedure)
+           (extend-environment
+             (procedure-parameters procedure)
+             arguments
+             (procedure-environment procedure))))
+        (else
+         (error
+          "Unknown procedure type - - APPLY" procedure))))
+      </SCHEME>
+      <PYTHON>
+function apply(fun, args) {
+    if (is_primitive_function(fun)) {
+        return apply_primitive_function(fun, args);
+    } else if (is_compound_function(fun)) {
+        const result = evaluate(function_body(fun),
+                                extend_environment(
+                                    function_parameters(fun),
+                                    args,
+                                    function_environment(fun)));
+        return is_return_value(result)
+               ? return_value_content(result)
+               : undefined;
+    } else {
+        error(fun, "unknown function type -- apply");
+    }
+}
+      </PYTHON>
+    </SNIPPET>
+    <COMMENT>
+      The name <PYTHONINLINE>arguments</PYTHONINLINE>
+      is reserved in JavaScript's strict mode. We chose
+      <PYTHONINLINE>args</PYTHONINLINE> instead.
+    </COMMENT>
+    <SNIPPET PAGE="366" HIDE="yes">
+      <NAME>apply_example</NAME>
+      <REQUIRES>functions_4_1_1</REQUIRES>
+      <REQUIRES>functions_4_1_2</REQUIRES>
+      <REQUIRES>functions_4_1_3</REQUIRES>
+      <REQUIRES>functions_4_1_4</REQUIRES>
+      <PYTHON>
+const plus = list("primitive", (x, y) => x + y);
+apply(plus, list(1, 2));
+      </PYTHON>
+    </SNIPPET>
+    
+    <SPLIT>
+      <PYTHON>
+	In order to return a value, a JavaScript function needs to evaluate a
+	<INDEX>metacircular evaluator for JavaScript<SUBINDEX>return value</SUBINDEX></INDEX>
+	<INDEX>return value<SUBINDEX>representation in metacircular evaluator</SUBINDEX></INDEX>
+	return statement. If a function terminates without evaluating a return
+	statement, the value 
+	<INDEX>return value<SUBINDEX><USE>undefined</USE> as</SUBINDEX></INDEX>
+	<PYTHONINLINE>undefined</PYTHONINLINE> is returned.
+	To distinguish the two cases, the evaluation of a return statement
+	will wrap the result of evaluating its return expression into a
+	<EM>return value</EM>. If
+	the evaluation of the function body yields such a return value, the content
+	of the return value is retrieved; otherwise the value
+	<PYTHONINLINE>undefined</PYTHONINLINE> is returned.<FOOTNOTE>
+	<LABEL NAME="foot:apply"/>
+	This test is a deferred operation, and thus our evaluator will give rise to a
+	recursive process even if the interpreted program should give rise to an
+	iterative process according to the description in
+	section<SPACE/><REF  NAME="sec:recursion-and-iteration"/>. In other
+	words, our metacircular evaluator implementation of JavaScript is
+	<INDEX><USE>apply</USE> (metacircular)<SUBINDEX>tail recursion and</SUBINDEX></INDEX>
+	<INDEX>metacircular evaluator for JavaScript<SUBINDEX>tail recursion and</SUBINDEX></INDEX>
+	<INDEX>tail recursion<SUBINDEX>metacircular evaluator and</SUBINDEX></INDEX>
+	not tail-recursive.
+	Sections<SPACE/><REF NAME="sec:tail-recursion-return"/>
+	and<SPACE/><REF NAME="sec:compiling-combinations"/>
+	show how to achieve tail recursion using a register machine.
+      </FOOTNOTE>
+      </PYTHON>
+    </SPLIT>
+  </TEXT>
+
+  <SUBHEADING>
+    <NAME>
+    <SPLITINLINE>
+      <SCHEME>Procedure</SCHEME>
+      <PYTHON>Function</PYTHON>
+    </SPLITINLINE>
+      arguments
+    </NAME>
+  </SUBHEADING>
+
+  <SHORT_PAGE lines="3"/>
+  <TEXT>
+    When
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>eval</SCHEMEINLINE></SCHEME>
+      <PYTHON><SCHEMEINLINE>evaluate</SCHEMEINLINE></PYTHON>
+    </SPLITINLINE>
+    processes a
+    <SPLITINLINE>
+      <SCHEME>procedure</SCHEME>
+      <PYTHON>function</PYTHON>
+    </SPLITINLINE>
+    application, it uses
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>list-of-values</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>list_of_values</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    to produce the list of arguments to which the
+    <SPLITINLINE>
+      <SCHEME>procedure</SCHEME>
+      <PYTHON>function</PYTHON>
+    </SPLITINLINE>
+    is to be applied.
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>List-of-values</SCHEMEINLINE></SCHEME>
+      <PYTHON>The function
+      <PYTHONINLINE>list_of_values</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    takes as an argument the
+    <SPLITINLINE>
+      <SCHEME>operands of the combination.</SCHEME>
+      <PYTHON>argument expressions of the application.</PYTHON>
+    </SPLITINLINE>
+    It evaluates each
+    <SPLITINLINE>
+      <SCHEME>operand</SCHEME>
+      <PYTHON>argument expression</PYTHON>
+    </SPLITINLINE>
+    and returns a
+    list of the corresponding values:<SPLITINLINE><SCHEME><FOOTNOTE>We could
+    have simplified the 
+    <SCHEMEINLINE>application?</SCHEMEINLINE>
+    clause in
+    <SCHEMEINLINE>eval</SCHEMEINLINE>
+    by using
+    <SCHEMEINLINE>map</SCHEMEINLINE> (and stipulating that
+    <SCHEMEINLINE>operands</SCHEMEINLINE>
+    returns a list) rather than writing
+    an explicit
+    <SCHEMEINLINE>list-of-values</SCHEMEINLINE> procedure.
+    We chose not to use <SCHEMEINLINE>map</SCHEMEINLINE> here to emphasize the
+    fact that the
+    <INDEX>metacircular evaluator for Scheme<SUBINDEX>higher-order procedures in </SUBINDEX></INDEX>
+    <INDEX>higher-order procedures<SUBINDEX>in metacircular evaluator</SUBINDEX></INDEX>
+    evaluator can be implemented without any use of higher-order
+    procedures
+    (and thus could be written in a language that doesn<APOS/>t
+    have higher-order
+    procedures),
+    even though the language that it supports
+    will include higher-order
+    procedures.
+    <LABEL NAME="foot:mceval-higher-order-scheme"/></FOOTNOTE></SCHEME><PYTHON><FOOTNOTE>We
+    chose to implement <PYTHONINLINE>list_of_values</PYTHONINLINE>
+    using the
+    <INDEX>metacircular evaluator for JavaScript<SUBINDEX>higher-order functions in</SUBINDEX></INDEX>
+    <INDEX>higher-order functions<SUBINDEX><ORDER>metacircular</ORDER>in metacircular evaluator</SUBINDEX></INDEX>
+    higher-order function <PYTHONINLINE>map</PYTHONINLINE>, and we will use
+    <PYTHONINLINE>map</PYTHONINLINE> in other places as well.
+    However, the evaluator can be implemented without any use of higher-order
+    functions (and thus could be written in a language that doesn't have
+    higher-order functions), even though the language that it supports
+    will include higher-order functions. For example,
+    <PYTHONINLINE>list_of_values</PYTHONINLINE> can be
+    written without <PYTHONINLINE>map</PYTHONINLINE> as follows:
+    <SNIPPET PAGE="367">
+      <INDEX><DECLARATION>list_of_values</DECLARATION><SUBINDEX><ORDER>higherorder</ORDER>without higher-order functions</SUBINDEX></INDEX>
+      <NAME>list_of_values_without_map</NAME>
+      <EXAMPLE>list_of_values_example</EXAMPLE>
+      <PYTHON>
+function list_of_values(exps, env) {
+    return is_null(exps)	
+           ? null
+           : pair(evaluate(head(exps), env), 
+                  list_of_values(tail(exps), env));
+}
+      </PYTHON>
+    </SNIPPET>
+    <LABEL NAME="foot:mceval-higher-order"/></FOOTNOTE></PYTHON></SPLITINLINE>
+    <SNIPPET PAGE="367" POSTPADDING="no">
+      <INDEX><DECLARATION>list_of_values</DECLARATION></INDEX>
+      <NAME>list_of_values</NAME>
+      <EXAMPLE>list_of_values_example</EXAMPLE>
+      <SCHEME>
+(define (list-of-values exps env)
+  (if (no-operands? exps)
+      '()
+      (cons (eval (first-operand exps) env)
+            (list-of-values (rest-operands exps) env))))
+      </SCHEME>
+      <PYTHON>
+function list_of_values(exps, env) {
+    return map(arg => evaluate(arg, env), exps);
+}
+      </PYTHON>
+    </SNIPPET>
+    <SNIPPET PAGE="365" HIDE="yes">
+      <NAME>list_of_values_example</NAME>
+      <REQUIRES>functions_4_1_1</REQUIRES>
+      <REQUIRES>functions_4_1_2</REQUIRES>
+      <REQUIRES>functions_4_1_3</REQUIRES>
+      <REQUIRES>functions_4_1_4</REQUIRES>
+      <SCHEME>
+(define the-global-environment (setup-environment))
+(eval (read) the-global-environment)
+      </SCHEME>
+      <PYTHON>
+const my_addition_expression = parse("1 + 2;");
+list_of_values(list(parse("1;"), my_addition_expression, parse("7;")),
+               the_global_environment);
+      </PYTHON>
+    </SNIPPET>
+  </TEXT>
+
+  <SUBHEADING>
+    <NAME>
+      Conditionals
+    </NAME>
+  </SUBHEADING>
+
+  <TEXT>
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>Eval-if</SCHEMEINLINE></SCHEME>
+      <PYTHON>The function
+      <PYTHONINLINE>eval_conditional</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    evaluates the predicate part of 
+    <SPLITINLINE>
+      <SCHEME>an <SCHEMEINLINE>if</SCHEMEINLINE> expression</SCHEME>
+      <PYTHON>a conditional component</PYTHON>
+    </SPLITINLINE>
+    in the given environment.  If the result is true, 
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>eval-if</SCHEMEINLINE>
+      evaluates the consequent, otherwise it evaluates the alternative:
+      </SCHEME>
+      <PYTHON>
+	the consequent is evaluated, otherwise the alternative is evaluated:
+      </PYTHON>
+    </SPLITINLINE>
+    <SNIPPET PAGE="367">
+      <INDEX><DECLARATION>eval_conditional</DECLARATION> (metacircular)</INDEX>
+      <NAME>eval_if</NAME>
+      <EXAMPLE>eval_if_example</EXAMPLE>
+      <EXPECTED>1</EXPECTED>
+      <SCHEME>
+(define (eval-if exp env)
+  (if (true? (eval (if-predicate exp) env))
+      (eval (if-consequent exp) env)
+      (eval (if-alternative exp) env)))
+      </SCHEME>
+      <PYTHON>
+function eval_conditional(component, env) {
+    return is_truthy(evaluate(conditional_predicate(component), env))
+           ? evaluate(conditional_consequent(component), env)
+           : evaluate(conditional_alternative(component), env);
+}
+      </PYTHON>
+    </SNIPPET>
+    <SNIPPET PAGE="367" HIDE="yes">
+      <NAME>eval_if_example</NAME>
+      <REQUIRES>functions_4_1_1</REQUIRES>
+      <REQUIRES>functions_4_1_2</REQUIRES>
+      <REQUIRES>functions_4_1_3</REQUIRES>
+      <REQUIRES>functions_4_1_4</REQUIRES>
+      <PYTHON>
+const my_cond_expr = parse("true ? 1 : 2;");
+eval_conditional(my_cond_expr, the_empty_environment);
+      </PYTHON>
+    </SNIPPET>
+    <SPLITINLINE>
+      <PYTHON>
+	Note that the evaluator does not need to distinguish between
+	conditional expressions and conditional statements.
+      </PYTHON>
+    </SPLITINLINE>
+  </TEXT>
+
+  <TEXT>
+    The use of
+    <INDEX><USE>is_truthy</USE></INDEX>
+    <INDEX>truthiness</INDEX>
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>true?</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>is_truthy</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    in 
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>eval-if</SCHEMEINLINE></SCHEME>
+      <PYTHON>
+	<PYTHONINLINE>eval_conditional</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    <INDEX>metacircular evaluator for JavaScript<SUBINDEX>implemented language vs.<SPACE/>implementation language</SUBINDEX></INDEX>
+    highlights the issue of the connection between an implemented language and
+    an implementation language.  The 
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>if-predicate</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>conditional_predicate</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    is evaluated in the language being implemented and thus yields a value in
+    that language.  The interpreter predicate 
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>true?</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>is_truthy</PYTHONINLINE></PYTHON>
+    </SPLITINLINE> 
+    translates that value into a value that can be tested by the
+    <SPLITINLINE><SCHEME><SCHEMEINLINE>if</SCHEMEINLINE></SCHEME>
+    <PYTHON>conditional expression</PYTHON></SPLITINLINE>
+    in the implementation language: The metacircular representation of truth
+    might not be the same as that of the underlying 
+    <SPLITINLINE><SCHEME>Scheme</SCHEME><PYTHON>JavaScript</PYTHON></SPLITINLINE>.<FOOTNOTE>In this case, the language being implemented and the
+    implementation language are the same. Contemplation of the meaning of
+    <SPLITINLINE><SCHEME><SCHEMEINLINE>true?</SCHEMEINLINE></SCHEME>
+    <PYTHON><PYTHONINLINE>is_truthy</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    here yields
+    <INDEX>consciousness, expansion of</INDEX>
+    expansion of consciousness without the abuse of
+    substance.</FOOTNOTE>
+  </TEXT>
+
+  <SUBHEADING>
+    <NAME>    
+	Sequences
+    </NAME>
+  </SUBHEADING>
+
+  <SHORT_PAGE lines="4"/>
+  <SPLIT>
+    <SCHEME>
+      <TEXT>
+	<SCHEMEINLINE>Eval-sequence</SCHEMEINLINE> is used by
+	<SCHEMEINLINE>apply</SCHEMEINLINE> to evaluate the sequence of
+	expressions in a procedure body and by <SCHEMEINLINE>eval</SCHEMEINLINE>
+	to evaluate the sequence of expressions in a
+	<SCHEMEINLINE>begin</SCHEMEINLINE> expression.  It takes as arguments a
+	sequence of expressions and an environment, and evaluates the
+	expressions in the order in which they occur.  The value returned is the
+	value of the final expression.
+	<SNIPPET PAGE="367">
+          <NAME>eval_sequence</NAME>
+          <SCHEME>
+(define (eval-sequence exps env)
+  (cond ((last-exp? exps) (eval (first-exp exps) env))
+        (else (eval (first-exp exps) env)
+              (eval-sequence (rest-exps exps) env))))
+          </SCHEME>
+	</SNIPPET>
+      </TEXT>
+    </SCHEME>
+    <PYTHON>
+      <TEXT>
+	The function <PYTHONINLINE>eval_sequence</PYTHONINLINE>
+	is used by <PYTHONINLINE>evaluate</PYTHONINLINE>
+	to evaluate a sequence of statements at the top level or in a block.
+	It takes as arguments a sequence of statements and an
+	environment, and evaluates the statements in the order in which they
+	occur. The value returned is the value of the final statement, except
+	that if the evaluation of any statement in the sequence yields
+	a return value, that value is returned and the subsequent statements are
+	ignored.<FOOTNOTE>The treatment of return statements in
+	<PYTHONINLINE>eval_sequence</PYTHONINLINE>
+	reflects the proper
+	result of evaluating function applications in JavaScript, but the
+	evaluator presented here does not comply with the ECMAScript
+	specification for the value of a program that consists
+	of a sequence of statements <EM>outside of</EM> any function body.
+	Exercise<SPACE/><REF NAME="ex:value_producing"/> addresses this issue.
+	<LABEL NAME="foot:value_producing"/>
+      </FOOTNOTE>
+	<SNIPPET PAGE="367" POSTPADDING="no">
+	  <INDEX><DECLARATION>eval_sequence</DECLARATION></INDEX>
+	  <NAME>eval_sequence</NAME>
+	  <EXAMPLE>eval_sequence_example</EXAMPLE>
+	  <EXPECTED>3</EXPECTED>
+          <PYTHON>
+function eval_sequence(stmts, env) {
+    if (is_empty_sequence(stmts)) {
+        return undefined;
+    } else if (is_last_statement(stmts)) {
+        return evaluate(first_statement(stmts), env);
+    } else {
+        const first_stmt_value = 
+            evaluate(first_statement(stmts), env);
+        if (is_return_value(first_stmt_value)) {
+            return first_stmt_value;
+        } else {
+            return eval_sequence(rest_statements(stmts), env);
+        }
+    }
+}
+          </PYTHON>
+	</SNIPPET>
+	<SNIPPET PAGE="367" HIDE="yes" POSTPADDING="no">
+	  <NAME>eval_sequence_example</NAME>
+	  <REQUIRES>functions_4_1_1</REQUIRES>
+	  <REQUIRES>functions_4_1_2</REQUIRES>
+	  <REQUIRES>functions_4_1_3</REQUIRES>
+	  <REQUIRES>functions_4_1_4</REQUIRES>
+	  <PYTHON>
+const my_sequence = head(tail(parse("1; true; 3;")));
+eval_sequence(my_sequence, the_empty_environment);
+	  </PYTHON>
+	</SNIPPET>
+      </TEXT>
+    </PYTHON>
+  </SPLIT>
+
+  <SPLIT>
+    <SCHEME>
+    </SCHEME>
+    <PYTHON>
+      <SUBHEADING>
+	<NAME>Blocks</NAME>
+      </SUBHEADING>
+      <LONG_PAGE lines="2"/>
+      <TEXT>
+	The function <PYTHONINLINE>eval_block</PYTHONINLINE> handles
+	blocks. The variables and constants (including functions)
+	declared in the block have the whole block as their scope and thus
+	are <QUOTE>scanned out</QUOTE> before the body of the block is
+	evaluated.
+	The body of the	block is evaluated with respect to an environment
+	that extends the current
+	environment by a frame that binds each local name
+	to a special value,
+	<PYTHONINLINE>"*unassigned*"</PYTHONINLINE>.
+	This string serves as a placeholder, before
+	the evaluation of the declaration assigns the name 
+	its proper value. An attempt to access the value of the name before its
+	declaration is evaluated leads to an error at run time (see
+	exercise<SPACE/><REF NAME="ex:access_unassigned"/>), as stated in
+	footnote<SPACE/><REF NAME="foot:tdz"/> in chapter<SPACE/><REF NAME="chap:fun"></REF>.
+	<SNIPPET PAGE="367">
+	  <INDEX><DECLARATION>eval_block</DECLARATION></INDEX>
+          <NAME>eval_block</NAME>
+          <REQUIRES>scan_out_declarations</REQUIRES>
+	  <EXAMPLE>eval_block_example</EXAMPLE>
+	  <EXPECTED>42</EXPECTED>
+          <PYTHON>
+function eval_block(component, env) {
+    const body = block_body(component);
+    const locals = scan_out_declarations(body);
+    const unassigneds = list_of_unassigned(locals);
+    return evaluate(body, extend_environment(locals,
+                                             unassigneds, 
+                                             env));
+}
+function list_of_unassigned(symbols) {
+    return map(symbol => "*unassigned*", symbols);
+}
+          </PYTHON>
+	</SNIPPET>
+	<!-- dont remove the following; REQUIRED elsewhere -->
+	<SNIPPET PAGE="367" HIDE="yes">
+          <NAME>list_of_unassigned</NAME>
+          <PYTHON>
+function list_of_unassigned(symbols) {
+    return map(symbol => "*unassigned*", symbols);
+}
+	  </PYTHON>
+	</SNIPPET>
+	The function <PYTHONINLINE>scan_out_declarations</PYTHONINLINE>
+        <INDEX>scanning out declarations<SUBINDEX>in metacircular evaluator</SUBINDEX></INDEX>
+	collects a list of all symbols representing names declared in the body.
+	It uses 
+	<PYTHONINLINE>declaration_symbol</PYTHONINLINE>
+	to retrieve the symbol that represents the name
+	from the declaration statements it finds.
+	<SNIPPET>
+	  <INDEX><DECLARATION>scan_out_declarations</DECLARATION></INDEX>
+          <NAME>scan_out_declarations</NAME>
+	  <EXAMPLE>scan_out_declarations_example</EXAMPLE>
+	  <EXPECTED>[ 'x', [ 'y', null ] ]</EXPECTED>
+          <PYTHON>
+function scan_out_declarations(component) {
+    return is_sequence(component)
+           ? accumulate(append,
+                        null,
+                        map(scan_out_declarations,
+                            sequence_statements(component)))
+           : is_declaration(component)
+           ? list(declaration_symbol(component))
+           : null;
+}
+          </PYTHON>
+	</SNIPPET>
+	<SNIPPET HIDE="yes">
+          <NAME>scan_out_declarations_example</NAME>
+	  <REQUIRES>functions_4_1_1</REQUIRES>
+	  <REQUIRES>functions_4_1_2</REQUIRES>
+	  <REQUIRES>functions_4_1_3</REQUIRES>
+	  <REQUIRES>functions_4_1_4</REQUIRES>
+          <PYTHON>
+scan_out_declarations(parse("const x = 1; let y = 2;"));
+	  </PYTHON>
+	</SNIPPET>
+	<SNIPPET PAGE="367" HIDE="yes">
+          <NAME>eval_block_example</NAME>
+	  <REQUIRES>functions_4_1_1</REQUIRES>
+	  <REQUIRES>functions_4_1_2</REQUIRES>
+	  <REQUIRES>functions_4_1_3</REQUIRES>
+	  <REQUIRES>functions_4_1_4</REQUIRES>
+          <PYTHON>
+const my_block = parse("{ const x = 1; 3; 42; }");
+eval_block(my_block, the_empty_environment);
+	  </PYTHON>
+	</SNIPPET>
+	We ignore declarations that are nested in another block,
+	because the evaluation of that block will take care of them.
+	The function <PYTHONINLINE>scan_out_declarations</PYTHONINLINE>	
+	looks for declarations only in sequences because 
+	declarations in conditional statements, function declarations, and
+	lambda expressions are always in a nested block.
+      </TEXT>
+
+      <SUBHEADING>
+	<NAME>Return statements</NAME>
+      </SUBHEADING>
+
+      <TEXT>
+	The function <PYTHONINLINE>eval_return_statement</PYTHONINLINE>
+	is used to evaluate
+	<INDEX>return statement<SUBINDEX>handling in metacircular evaluator</SUBINDEX></INDEX>
+	return statements. As seen in
+	<PYTHONINLINE>apply</PYTHONINLINE> and
+	the evaluation
+	of sequences, the result of evaluation of a return statement
+	needs to be identifiable so that the evaluation of a function
+	body can return immediately, even if there are statements
+	after the return statement. For this purpose,
+	the evaluation of a return statement wraps the result of
+	evaluating the return expression in a return value object.<FOOTNOTE>
+	<INDEX>metacircular evaluator for JavaScript<SUBINDEX>tail recursion and</SUBINDEX></INDEX>
+	<INDEX>tail recursion<SUBINDEX>metacircular evaluator and</SUBINDEX></INDEX>
+	The application of the function
+	<PYTHONINLINE>make_return_value</PYTHONINLINE> to the result
+	of evaluating the return expression creates a deferred operation, in
+	addition to the deferred operation created by
+	<PYTHONINLINE>apply</PYTHONINLINE>. See
+	footnote<SPACE/><REF NAME="foot:apply"/> for details.</FOOTNOTE>
+	<SNIPPET PAGE="367" POSTPADDING="no">
+	  <INDEX><DECLARATION>eval_return_statement</DECLARATION></INDEX>
+          <NAME>eval_return</NAME>
+	  <EXAMPLE>eval_return_example</EXAMPLE>
+	  <EXPECTED>1</EXPECTED>
+          <PYTHON>
+function eval_return_statement(component, env) {
+    return make_return_value(evaluate(return_expression(component),
+                                      env));
+}
+          </PYTHON>
+	</SNIPPET>
+	<SNIPPET PAGE="367" HIDE="yes" POSTPADDING="no">
+          <NAME>eval_return_example</NAME>
+	  <REQUIRES>functions_4_1_1</REQUIRES>
+	  <REQUIRES>functions_4_1_2</REQUIRES>
+	  <REQUIRES>functions_4_1_3</REQUIRES>
+	  <REQUIRES>functions_4_1_4</REQUIRES>
+          <PYTHON>
+const my_program = parse("{ function f() { return 1; } f(); }");
+evaluate(my_program, the_global_environment);
+	  </PYTHON>
+	</SNIPPET>
+      </TEXT>
+    </PYTHON>
+  </SPLIT>
+
+  <SUBHEADING>
+    <NAME>Assignments and
+    <SPLITINLINE>
+      <SCHEME>definitions</SCHEME>
+      <PYTHON>declarations</PYTHON>
+    </SPLITINLINE></NAME>
+  </SUBHEADING>
+
+  <TEXT>
+    The 
+    <SPLITINLINE>
+      <SCHEME>following procedure</SCHEME>
+      <PYTHON>
+	function <PYTHONINLINE>eval_assignment</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    handles assignments to
+    <SPLITINLINE>
+      <SCHEME>variables.</SCHEME>
+      <PYTHON>
+	names.
+	(To simplify the	presentation of our evaluator,
+	we are allowing assignment not just to variables but
+	also<EMDASH/>erroneously<EMDASH/>to constants.
+	Exercise<SPACE/><REF NAME="ex:mutable"/>
+	explains how we could
+	distinguish constants from variables and prevent
+	assignment to constants.)
+      </PYTHON>
+    </SPLITINLINE>
+    <SPLITINLINE>
+      <SCHEME>
+	It calls
+	<SCHEMEINLINE>eval</SCHEMEINLINE>
+	to find the value to be assigned and transmits the variable
+	and the resulting value to
+	<SCHEMEINLINE>set-variable-value!</SCHEMEINLINE>
+	to be installed  in the designated environment.
+      </SCHEME>
+      <PYTHON>
+	The function
+	<PYTHONINLINE>eval_assignment</PYTHONINLINE>
+	calls
+	<SCHEMEINLINE>evaluate</SCHEMEINLINE>
+	on the value expression
+	to find the value to be assigned and calls
+	<PYTHONINLINE>assignment_symbol</PYTHONINLINE>
+	to retrieve the symbol that represents the name
+	from the assignment. The function
+	<PYTHONINLINE>eval_assignment</PYTHONINLINE>	
+	transmits the symbol and the value to
+	<PYTHONINLINE>assign_symbol_value</PYTHONINLINE>
+	to be installed in the designated environment.
+	The evaluation of an assignment returns the value 
+	that was assigned.
+      </PYTHON>
+    </SPLITINLINE>
+    <SNIPPET PAGE="368">
+      <INDEX><DECLARATION>eval_assignment</DECLARATION></INDEX>
+      <NAME>eval_assignment</NAME>
+      <EXAMPLE>eval_assignment_example</EXAMPLE>
+      <EXPECTED>2</EXPECTED>
+      <SCHEME>
+(define (eval-assignment exp env)
+  (set-variable-value! (assignment-variable exp)
+                       (eval (assignment-value exp) env)
+                       env)
+  'ok)
+      </SCHEME>
+      <PYTHON>
+function eval_assignment(component, env) {
+    const value = evaluate(assignment_value_expression(component),
+                           env);
+    assign_symbol_value(assignment_symbol(component), value, env);
+    return value;
+}
+      </PYTHON>
+    </SNIPPET>
+    <SNIPPET PAGE="368" HIDE="yes">
+      <NAME>eval_assignment_example</NAME>
+      <REQUIRES>functions_4_1_1</REQUIRES>
+      <REQUIRES>functions_4_1_2</REQUIRES>
+      <REQUIRES>functions_4_1_3</REQUIRES>
+      <REQUIRES>functions_4_1_4</REQUIRES>
+      <PYTHON>
+const my_program = parse("{ let x = 1; x = 2; }");
+evaluate(my_program, the_global_environment);
+      </PYTHON>
+    </SNIPPET>
+  </TEXT>
+
+  <SPLIT>
+    <SCHEME>
+      <TEXT>
+	Definitions of variables are handled in a similar manner.<FOOTNOTE>This
+	implementation of <SCHEMEINLINE>define</SCHEMEINLINE> ignores a subtle
+	issue in the handling of internal definitions, although it works
+	correctly in most cases.  We will see what the problem is and how to
+	solve it in
+	section<SPACE/><REF NAME="sec:internal-definitions"/>.</FOOTNOTE>
+	<SNIPPET PAGE="368">
+	  <NAME>eval_definition</NAME>
+	  <REQUIRES>define_variable</REQUIRES>
+	  <REQUIRES>definition</REQUIRES>
+	  <REQUIRES>eval</REQUIRES>
+	  <SCHEME>
+(define (eval-definition exp env)
+  (define-variable! (definition-variable exp)
+                    (eval (definition-value exp) env)
+                    env)
+  'ok)
+	  </SCHEME>
+	</SNIPPET>
+      </TEXT>
+
+      <TEXT>
+	We have chosen here to return the symbol <SCHEMEINLINE>ok</SCHEMEINLINE>
+	as the value of an assignment or a definition.<FOOTNOTE>As we said when
+	we introduced <SCHEMEINLINE>define</SCHEMEINLINE> and 
+        <SCHEMEINLINE>set!</SCHEMEINLINE>, these values
+        are implementation-dependent in Scheme<EMDASH/>that is, the implementor
+        can choose what value to return.</FOOTNOTE>
+	<INDEX>metacircular evaluator for Scheme<SUBINDEX><ORDER>eval</ORDER><SCHEMEINLINE>eval</SCHEMEINLINE> and <SCHEMEINLINE>apply</SCHEMEINLINE><CLOSE/></SUBINDEX></INDEX>
+      </TEXT>
+    </SCHEME>
+    <PYTHON>
+      <TEXT>
+	Constant and variable declarations are both recognized by the
+	<PYTHONINLINE>is_declaration</PYTHONINLINE> syntax predicate. 
+	They are treated in a manner similar to
+	assignments, because <PYTHONINLINE>eval_block</PYTHONINLINE>
+	has already bound their symbols to <PYTHONINLINE>"*unassigned*"</PYTHONINLINE>
+	in the current environment.
+	Their evaluation replaces <PYTHONINLINE>"*unassigned*"</PYTHONINLINE>
+	with the result of evaluating the value expression.
+	<SNIPPET PAGE="368">
+	  <INDEX><DECLARATION>eval_declaration</DECLARATION></INDEX>
+	  <NAME>eval_definition</NAME>
+	  <EXAMPLE>eval_definition_example</EXAMPLE>
+	  <EXPECTED>3</EXPECTED>
+	  <PYTHON>
+function eval_declaration(component, env) {
+    assign_symbol_value(
+        declaration_symbol(component), 
+        evaluate(declaration_value_expression(component), env),
+        env);
+    return undefined;
+}
+	  </PYTHON>
+	</SNIPPET>
+	The result of evaluating the body of a function is determined by
+	return statements, and therefore the return value
+	<PYTHONINLINE>undefined</PYTHONINLINE> in
+	<PYTHONINLINE>eval_declaration</PYTHONINLINE> only
+	matters when the declaration occurs at the top level,
+	outside of any function body. Here we use the return value
+	<PYTHONINLINE>undefined</PYTHONINLINE> to simplify
+	the presentation; exercise<SPACE/><REF NAME="ex:value_producing"/>
+	describes the real result of evaluating top-level components
+	in JavaScript.
+
+	<LABEL NAME="foot:value_producing_2"/>	
+
+	<SNIPPET PAGE="368" HIDE="yes">
+	  <NAME>eval_definition_example</NAME>
+	  <REQUIRES>functions_4_1_1</REQUIRES>
+	  <REQUIRES>functions_4_1_2</REQUIRES>
+	  <REQUIRES>functions_4_1_3</REQUIRES>
+	  <REQUIRES>functions_4_1_4</REQUIRES>
+	  <PYTHON>
+const my_program = parse("{ let x = 1; const y = 2; x + y; }");
+evaluate(my_program, the_global_environment);
+	  </PYTHON>
+	</SNIPPET>
+      </TEXT>
+      <TEXT>
+	<INDEX>metacircular evaluator for JavaScript<SUBINDEX><ORDER>evaluate</ORDER><SCHEMEINLINE>evaluate</SCHEMEINLINE> and <SCHEMEINLINE>apply</SCHEMEINLINE><CLOSE/></SUBINDEX></INDEX>
+      </TEXT>
+    </PYTHON>
+  </SPLIT>
+  <SNIPPET PAGE="383" HIDE="yes">
+    <NAME>functions_4_1_1</NAME>
+    <REQUIRES>headline_4_1_1</REQUIRES>
+    <REQUIRES>eval</REQUIRES>
+    <REQUIRES>apply</REQUIRES>
+    <REQUIRES>list_of_values</REQUIRES>
+    <REQUIRES>eval_if</REQUIRES>
+    <REQUIRES>eval_sequence</REQUIRES>
+    <REQUIRES>eval_block</REQUIRES>
+    <REQUIRES>eval_return</REQUIRES>
+    <REQUIRES>eval_assignment</REQUIRES>
+    <REQUIRES>eval_definition</REQUIRES>
+    <PYTHON></PYTHON>
+  </SNIPPET>
+
+  <SPLIT>
+    <SCHEME>
+      <EXERCISE>
+	Notice that we cannot tell whether the metacircular evaluator
+	<INDEX>order of evaluation<SUBINDEX><ORDER>metacircular</ORDER>in metacircular evaluator</SUBINDEX></INDEX>
+	<INDEX>metacircular evaluator for Scheme<SUBINDEX>order of operand evaluation</SUBINDEX></INDEX>
+	evaluates operands from left to right or from right to left.  Its
+	evaluation order is inherited from the underlying Lisp:	If the
+	arguments to <SCHEMEINLINE>cons</SCHEMEINLINE> in
+	<SCHEMEINLINE>list-of-values</SCHEMEINLINE> are evaluated from left to
+	right, then <SCHEMEINLINE>list-of-values</SCHEMEINLINE>	will evaluate
+	operands from left to right; and if the arguments to
+	<SCHEMEINLINE>cons</SCHEMEINLINE> are evaluated from right to left, then
+	<SCHEMEINLINE>list-of-values</SCHEMEINLINE> will evaluate operands
+	from right to left.
+	<P/>
+	Write a version of <SCHEMEINLINE>list-of-values</SCHEMEINLINE> that
+	evaluates <SCHEME>operands</SCHEME> from left to right regardless of the
+	order of evaluation in the underlying Lisp. Also write a version of
+	<SCHEMEINLINE>list-of-values</SCHEMEINLINE> that evaluates
+	operands from right to left.
+	<LABEL NAME="ex:arg-eval-order_scheme"/>
+      </EXERCISE>
+    </SCHEME>
+    <PYTHON>
+      <EXERCISE>
+	Notice that we cannot tell whether the metacircular evaluator
+	<INDEX>order of evaluation<SUBINDEX><ORDER>metacircular</ORDER>in metacircular evaluator</SUBINDEX></INDEX>
+	<INDEX>metacircular evaluator for JavaScript<SUBINDEX>order of argument evaluation</SUBINDEX></INDEX>
+	evaluates argument expressions from left to right or from right to left.
+	Its evaluation order is inherited from the underlying JavaScript:
+	If the arguments to <PYTHONINLINE>pair</PYTHONINLINE> in
+	<PYTHONINLINE>map</PYTHONINLINE> are evaluated from
+	left to	right, then <PYTHONINLINE>list_of_values</PYTHONINLINE>
+	will evaluate argument expressions from left to right; and if the
+	arguments to <PYTHONINLINE>pair</PYTHONINLINE> are
+	evaluated from right to left, then
+	<PYTHONINLINE>list_of_values</PYTHONINLINE> will evaluate
+	argument expressions from right to left.
+	<P/>
+	Write a version of <PYTHONINLINE>list_of_values</PYTHONINLINE>
+	that evaluates argument expressions from left to right regardless of the
+	order of evaluation in the underlying JavaScript. Also write a version of
+	<PYTHONINLINE>list_of_values</PYTHONINLINE> that evaluates
+	argument expressions from right to left.
+	<LABEL NAME="ex:arg-eval-order"/>
+	<SOLUTION>
+	  The order in which the argument expressions are evaluated must not
+	  depend on the order in which <PYTHONINLINE>pair</PYTHONINLINE>
+	  evaluates its arguments. We therefore name the intermediate results
+	  with constant declarations and place them in the desired order, since
+	  the declarations are evaluated from top to bottom. For left-to-right
+	  evaluation, we evaluate the first argument expression before the rest:
+	  <SNIPPET EVAL="no">
+	    <PYTHON>
+function list_of_values_left_to_right(exps, env) {
+    if (is_null(exps)) {
+        return null;
+    } else {
+        const first = evaluate(head(exps), env);
+        const rest = list_of_values_left_to_right(tail(exps), env);
+        return pair(first, rest);
+    }
+}
+	    </PYTHON>
+	  </SNIPPET>
+	  For right-to-left evaluation, we evaluate the rest of the argument
+	  expressions before the first one:
+	  <SNIPPET EVAL="no">
+	    <PYTHON>
+function list_of_values_right_to_left(exps, env) {
+    if (is_null(exps)) {
+        return null;
+    } else {
+        const rest = list_of_values_right_to_left(tail(exps), env);
+        const first = evaluate(head(exps), env);
+        return pair(first, rest);
+    }
+}
+	    </PYTHON>
+	  </SNIPPET>
+	</SOLUTION>
+      </EXERCISE>
+    </PYTHON>
+  </SPLIT>
+
+  <!-- test cases -->
+  
+  <SNIPPET HIDE="yes">
+    <NAME>parse_and_evaluate</NAME>
+    <REQUIRES>functions_4_1_1</REQUIRES>
+    <REQUIRES>functions_4_1_2</REQUIRES>
+    <REQUIRES>functions_4_1_3</REQUIRES>
+    <REQUIRES>functions_4_1_4</REQUIRES>
+    <PYTHON>
+function parse_and_evaluate(input) {
+    const program = parse(input);
+    const implicit_top_level_block = make_block(program);
+    return evaluate(implicit_top_level_block,
+                    the_global_environment);
+}
+    </PYTHON>
+  </SNIPPET>
+
+  <SNIPPET HIDE="yes">
+    <NAME>parse_and_evaluate_test_factorial</NAME>
+    <REQUIRES>parse_and_evaluate</REQUIRES>
+    <EXPECTED>120</EXPECTED>
+    <PYTHON>
+parse_and_evaluate("               \
+function factorial(n) {            \
+    return n === 1                 \
+           ? 1                     \
+           : n * factorial(n - 1); \
+}                                  \
+factorial(5);                      ");
+    </PYTHON>
+  </SNIPPET>
+  <SNIPPET HIDE="yes">
+    <NAME>parse_and_evaluate_test_append</NAME>
+    <REQUIRES>parse_and_evaluate</REQUIRES>
+    <EXPECTED>[ 'b', [ 'c', [ 'd', null ] ] ]</EXPECTED>
+    <PYTHON>
+parse_and_evaluate("                                \
+function append(xs, ys) {                           \
+    return is_null(xs)                              \
+           ? ys                                     \
+           : pair(head(xs), append(tail(xs), ys));  \
+}                                                   \
+tail(append(list('a', 'b'), list('c', 'd')));       ");
+    </PYTHON>
+  </SNIPPET>
+  <SNIPPET HIDE="yes">
+    <NAME>parse_and_evaluate_test_map</NAME>
+    <REQUIRES>parse_and_evaluate</REQUIRES>
+    <EXPECTED>[ 3, [ 4, [ 5, null ] ] ]</EXPECTED>
+    <PYTHON>
+parse_and_evaluate("                              \
+function map(f, xs) {                             \
+    return is_null(xs)                            \
+           ? null                                 \
+           : pair(f(head(xs)), map(f, tail(xs))); \
+}                                                 \
+tail(map(x => x + 1, list(1, 2, 3, 4)));          ");
+    </PYTHON>
+  </SNIPPET>
+</SUBSECTION>
+

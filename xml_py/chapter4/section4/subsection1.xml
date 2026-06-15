@@ -1,0 +1,2345 @@
+<SUBSECTION>
+  <NAME>
+    Deductive Information Retrieval
+  </NAME>
+
+  <LABEL NAME="sec:deductive-info-retrieval"/>
+
+  <INDEX>query language<OPEN/></INDEX>
+
+  <TEXT>
+    Logic programming excels in providing interfaces to
+    <INDEX>data base<SUBINDEX>logic programming and</SUBINDEX></INDEX>
+    data bases for
+    information retrieval.  The query language we shall implement in this
+    chapter is designed to be used in this way.
+  </TEXT>
+
+  <TEXT>
+    In order to illustrate what the query system does, we will show how it
+    can be used to manage the data base of personnel records for
+    <INDEX>Gargle</INDEX>
+    Gargle, a thriving high-technology company in the
+    Boston area.  The language provides pattern-directed access to
+    personnel information and can also take advantage of general rules in
+    order to make logical deductions.
+  </TEXT>
+
+  <SUBHEADING>
+    <NAME>A sample data base</NAME>
+  </SUBHEADING>
+
+  <INDEX>query language<SUBINDEX>data base<OPEN/></SUBINDEX></INDEX>
+
+  <TEXT>
+    <INDEX>data base<SUBINDEX>Gargle personnel<OPEN/></SUBINDEX></INDEX>
+    The personnel data base for Gargle
+    contains
+    <INDEX>assertion</INDEX>
+    <EM>assertions</EM> about company personnel.  Here is the
+    information about Ben Bitdiddle, the resident computer wizard:
+    <SNIPPET>
+      <NAME>sample_data_base_1</NAME>
+      <REQUIRES>process_query</REQUIRES>
+      <EXAMPLE>sample_data_base_1_example</EXAMPLE>
+      <SCHEME>
+(address (Bitdiddle Ben) (Slumerville (Ridge Road) 10))
+(job (Bitdiddle Ben) (computer wizard))
+(salary (Bitdiddle Ben) 60000)
+      </SCHEME>
+      <PYTHON> 
+address(list("Bitdiddle", "Ben"),
+        list("Slumerville", list("Ridge", "Road"), 10))
+job(list("Bitdiddle", "Ben"), list("computer", "wizard"))
+salary(list("Bitdiddle", "Ben"), 122000)
+      </PYTHON>
+      <PYTHON_RUN>
+process_query(`assert(address(list("Bitdiddle", "Ben"),
+                              list("Slumerville", list("Ridge", "Road"), 10)))`);
+process_query(`assert(job(list("Bitdiddle", "Ben"), 
+                          list("computer", "wizard")))`);
+process_query(`assert(salary(list("Bitdiddle", "Ben"), 122000))`);
+      </PYTHON_RUN>
+    </SNIPPET>
+    <SNIPPET HIDE="yes">
+      <NAME>sample_data_base_1_example</NAME>
+      <REQUIRES>sample_data_base_1</REQUIRES>
+      <REQUIRES>process_query</REQUIRES>
+      <EXPECTED>'salary(list("Bitdiddle", "Ben"), 122000)'</EXPECTED>
+      <PYTHON>
+process_query('salary(list("Bitdiddle", "Ben"), $x)');
+      </PYTHON>
+      <PYTHON_TEST>
+first_answer('salary(list("Bitdiddle", "Ben"), $x)');
+      </PYTHON_TEST>
+    </SNIPPET>
+    <COMMENT>
+      Another option for syntactically representing facts in the data base
+      would have been to use simply lists, also for the top level
+      <QUOTE>predicates</QUOTE>, as in the original book. We did not resist the
+      temptation to syntactically introduce <QUOTE>predicate symbols</QUOTE>,
+      for the following reasons:
+      <UL>
+	<LI>
+	  In JavaScript, facts in a datalog data base look much more natural
+	  when rendered as <PYTHONINLINE>p(x, y)</PYTHONINLINE> rather
+	  than as <PYTHONINLINE>list("p", x, y)</PYTHONINLINE>.
+	</LI>
+	<LI>
+	  The analogy between logic programming and functional programming
+	  comes out much clearer; the predicate is in familiar position
+	  and the reader is reminded of function declarations when reading:
+	  <PYTHONINLINE>append_to_form(list("a", "b"), y, list("a", "b", "c", "d"))</PYTHONINLINE> rather than
+	  <PYTHONINLINE>list("append_to_form", list("a", "b"), y, list("a", "b", "c", "d"))</PYTHONINLINE>.
+	</LI>
+	<LI>
+	  The most decisive argument is that in this treatment, function
+	  symbols (as in the predicate calculus) come for free: We can write
+	  predicates such as <PYTHONINLINE>plus</PYTHONINLINE> without
+	  any additional effort in the interpreter:
+	  <PYTHONINLINE>rule(plus($x, 0, $x)</PYTHONINLINE> and
+	  <PYTHONINLINE>rule(plus($x, s($y), s($z)), plus($x, $y, $z))</PYTHONINLINE>.
+	</LI>
+      </UL>
+    </COMMENT>
+    <SPLIT>
+      <SCHEME>
+	Each assertion is a list (in this case a triple) whose elements can
+	themselves be lists.
+      </SCHEME>
+      <PYTHON>
+	Assertions look just like function applications in JavaScript, but
+	they actually represent information in the data base. The first
+	symbols<EMDASH/>here <PYTHONINLINE>address</PYTHONINLINE>, 
+	<PYTHONINLINE>job</PYTHONINLINE> and
+	<PYTHONINLINE>salary</PYTHONINLINE><EMDASH/>describe the
+	<EM>kind of information</EM> contained in the respective assertion, and
+	the <QUOTE>arguments</QUOTE> are lists or primitive values such as strings
+	and numbers. The first symbols do not need to be declared, as do constants
+	or variables in JavaScript; their scope is global.
+	<COMMENT>
+	  We shy away from calling these symbols
+	  <QUOTE>predicate symbols</QUOTE> instead of
+	  <QUOTE>kind of information</QUOTE> 
+	  because the term
+	  <QUOTE>predicate</QUOTE> is already used, also in this section,
+	  for JavaScript expressions and functions that return boolean values.
+	</COMMENT>
+      </PYTHON>
+    </SPLIT>
+  </TEXT>
+  
+
+  <TEXT>
+    As resident wizard, Ben is in charge of the company<APOS/>s computer
+    division, and he supervises two programmers and one technician.  Here
+    is the information about them:
+    <SNIPPET>
+      <NAME>sample_data_base_2</NAME>
+      <REQUIRES>process_query</REQUIRES>
+      <REQUIRES>sample_data_base_1</REQUIRES>
+      <EXPECTED>'supervisor(list("Tweakit", "Lem", "E"), list("Bitdiddle", "Ben"))'</EXPECTED>
+      <EXAMPLE>sample_data_base_2_example</EXAMPLE>
+      <SCHEME>
+(address (Hacker Alyssa P) (Cambridge (Mass Ave) 78))
+(job (Hacker Alyssa P) (computer programmer))
+(salary (Hacker Alyssa P) 40000)
+(supervisor (Hacker Alyssa P) (Bitdiddle Ben))
+
+(address (Fect Cy D) (Cambridge (Ames Street) 3))
+(job (Fect Cy D) (computer programmer))
+(salary (Fect Cy D) 35000)
+(supervisor (Fect Cy D) (Bitdiddle Ben))
+
+(address (Tweakit Lem E) (Boston (Bay State Road) 22))
+(job (Tweakit Lem E) (computer technician))
+(salary (Tweakit Lem E) 25000)
+(supervisor (Tweakit Lem E) (Bitdiddle Ben))
+      </SCHEME>
+      <PYTHON>
+address(list("Hacker", "Alyssa", "P"), 
+        list("Cambridge", list("Mass", "Ave"), 78))
+job(list("Hacker", "Alyssa", "P"), list("computer", "programmer"))
+salary(list("Hacker", "Alyssa", "P"), 81000)
+supervisor(list("Hacker", "Alyssa", "P"), list("Bitdiddle", "Ben"))
+
+address(list("Fect", "Cy", "D"), 
+        list("Cambridge", list("Ames", "Street"), 3))
+job(list("Fect", "Cy", "D"), list("computer", "programmer"))
+salary(list("Fect", "Cy", "D"), 70000)
+supervisor(list("Fect", "Cy", "D"), list("Bitdiddle", "Ben"))
+
+address(list("Tweakit", "Lem", "E"), 
+        list("Boston", list("Bay", "State", "Road"), 22))
+job(list("Tweakit", "Lem", "E"), list("computer", "technician"))
+salary(list("Tweakit", "Lem", "E"), 51000)
+supervisor(list("Tweakit", "Lem", "E"), list("Bitdiddle", "Ben"))
+      </PYTHON>
+      <PYTHON_RUN>
+process_query('assert(address(list("Hacker", "Alyssa", "P"), list("Cambridge", list("Mass", "Ave"), 78)))');
+process_query('assert(job(list("Hacker", "Alyssa", "P"), list("computer", "programmer")))');
+process_query('assert(salary(list("Hacker", "Alyssa", "P"), 81000))');
+process_query('assert(supervisor(list("Hacker", "Alyssa", "P"), list("Bitdiddle", "Ben")))');
+
+process_query('assert(address(list("Fect", "Cy", "D"), list("Cambridge", list("Ames", "Street"), 3)))');
+process_query('assert(job(list("Fect", "Cy", "D"), list("computer", "programmer")))');
+process_query('assert(salary(list("Fect", "Cy", "D"), 70000))');
+process_query('assert(supervisor(list("Fect", "Cy", "D"), list("Bitdiddle", "Ben")))');
+
+process_query('assert(address(list("Tweakit", "Lem", "E"), list("Boston", list("Bay", "State", "Road"), 22)))');
+process_query('assert(job(list("Tweakit", "Lem", "E"), list("computer", "technician")))');
+process_query('assert(salary(list("Tweakit", "Lem", "E"), 51000))');
+process_query('assert(supervisor(list("Tweakit", "Lem", "E"), list("Bitdiddle", "Ben")))');
+      </PYTHON_RUN>
+    </SNIPPET>
+    <SNIPPET HIDE="yes">
+      <NAME>sample_data_base_2_example</NAME>
+      <PYTHON>
+process_query('supervisor($x, list("Bitdiddle", "Ben"))');
+      </PYTHON>
+      <PYTHON_TEST>
+first_answer('supervisor($x, list("Bitdiddle", "Ben"))');
+      </PYTHON_TEST>
+    </SNIPPET>
+    <PDF_ONLY>\newpage\noindent </PDF_ONLY>There is also a programmer trainee, who is supervised by Alyssa:
+    <SNIPPET>
+      <NAME>sample_data_base_3</NAME>
+      <REQUIRES>process_query</REQUIRES>
+      <REQUIRES>sample_data_base_2</REQUIRES>
+      <EXPECTED>'supervisor(list("Reasoner", "Louis"), list("Hacker", "Alyssa", "P"))'</EXPECTED>
+      <EXAMPLE>sample_data_base_3_example</EXAMPLE>
+      <SCHEME>
+(address (Reasoner Louis) (Slumerville (Pine Tree Road) 80))
+(job (Reasoner Louis) (computer programmer trainee))
+(salary (Reasoner Louis) 30000)
+(supervisor (Reasoner Louis) (Hacker Alyssa P))
+      </SCHEME>
+      <PYTHON>
+address(list("Reasoner", "Louis"), 
+        list("Slumerville", list("Pine", "Tree", "Road"), 80))
+job(list("Reasoner", "Louis"), 
+         list("computer", "programmer", "trainee"))
+salary(list("Reasoner", "Louis"), 62000)
+supervisor(list("Reasoner", "Louis"), list("Hacker", "Alyssa", "P"))
+      </PYTHON>
+      <PYTHON_RUN>
+process_query('assert(address(list("Reasoner", "Louis"), list("Slumerville", list("Pine", "Tree", "Road"), 80)))');
+process_query('assert(job(list("Reasoner", "Louis"), list("computer", "programmer", "trainee")))');
+process_query('assert(salary(list("Reasoner", "Louis"), 62000))');
+process_query('assert(supervisor(list("Reasoner", "Louis"), list("Hacker", "Alyssa", "P")))');
+      </PYTHON_RUN>
+    </SNIPPET>
+    <SNIPPET HIDE="yes">
+      <NAME>sample_data_base_3_example</NAME>
+      <PYTHON>
+process_query('supervisor(list("Reasoner", $x), $y)');
+      </PYTHON>
+      <PYTHON_TEST>
+first_answer('supervisor(list("Reasoner", $x), $y)');
+      </PYTHON_TEST>
+    </SNIPPET>
+    All these people are in the computer division, as indicated by the
+    word
+    <SPLITINLINE>
+      <SCHEME>
+	<SCHEMEINLINE>computer</SCHEMEINLINE>
+      </SCHEME>
+      <PYTHON>
+	<PYTHONINLINE>"computer"</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    as the first item in their job
+    descriptions.
+  </TEXT>
+  <TEXT>
+    Ben is a high-level employee.  His supervisor is the company<APOS/>s big
+    wheel himself:
+    <SNIPPET>
+      <NAME>sample_data_base_4</NAME>
+      <REQUIRES>process_query</REQUIRES>
+      <REQUIRES>sample_data_base_3</REQUIRES>
+      <EXPECTED>'address(list("Warbucks", "Oliver"), list("Swellesley", list("Top", "Heap", "Road")))'</EXPECTED>
+      <EXAMPLE>sample_data_base_4_example</EXAMPLE>
+      <SCHEME>
+(supervisor (Bitdiddle Ben) (Warbucks Oliver))
+
+(address (Warbucks Oliver) (Swellesley (Top Heap Road)))
+(job (Warbucks Oliver) (administration big wheel))
+(salary (Warbucks Oliver) 150000)
+      </SCHEME>
+      <PYTHON>
+supervisor(list("Bitdiddle", "Ben"), list("Warbucks", "Oliver"))
+
+address(list("Warbucks", "Oliver"), 
+        list("Swellesley", list("Top", "Heap", "Road")))
+job(list("Warbucks", "Oliver"), list("administration", "big", "wheel"))
+salary(list("Warbucks", "Oliver"), 314159)
+      </PYTHON>
+      <PYTHON_RUN>
+process_query('assert(supervisor(list("Bitdiddle", "Ben"), list("Warbucks", "Oliver")))');
+
+process_query('assert(address(list("Warbucks", "Oliver"), list("Swellesley", list("Top", "Heap", "Road"))))');
+process_query('assert(job(list("Warbucks", "Oliver"), list("administration", "big", "wheel")))');
+process_query('assert(salary(list("Warbucks", "Oliver"), 314159))');
+      </PYTHON_RUN>
+    </SNIPPET>
+    <SNIPPET HIDE="yes">
+      <NAME>sample_data_base_4_example</NAME>
+      <PYTHON>
+process_query('address($x, list("Swellesley", $y))');
+      </PYTHON>
+      <PYTHON_TEST>
+first_answer('address($x, list("Swellesley", $y))');
+      </PYTHON_TEST>
+    </SNIPPET>
+  </TEXT>
+
+  <TEXT>
+    Besides the computer division supervised by Ben, the company has an
+    accounting division, consisting of a chief accountant and his
+    assistant:
+    <SNIPPET>
+      <NAME>sample_data_base_5</NAME>
+      <REQUIRES>process_query</REQUIRES>
+      <REQUIRES>sample_data_base_4</REQUIRES>
+      <EXPECTED>'job(list("Cratchit", "Robert"), list("accounting", "scrivener"))'</EXPECTED>
+      <EXAMPLE>sample_data_base_5_example</EXAMPLE>
+      <SCHEME>
+(address (Scrooge Eben) (Weston (Shady Lane) 10))
+(job (Scrooge Eben) (accounting chief accountant))
+(salary (Scrooge Eben) 75000)
+(supervisor (Scrooge Eben) (Warbucks Oliver))
+
+(address (Cratchet Robert) (Allston (N Harvard Street) 16))
+(job (Cratchet Robert) (accounting scrivener))
+(salary (Cratchet Robert) 18000)
+(supervisor (Cratchet Robert) (Scrooge Eben))
+      </SCHEME>
+      <PYTHON>
+address(list("Scrooge", "Eben"),
+        list("Weston", list("Shady", "Lane"), 10))
+job(list("Scrooge", "Eben"), list("accounting", "chief", "accountant"))
+salary(list("Scrooge", "Eben"), 141421)
+supervisor(list("Scrooge", "Eben"), list("Warbucks", "Oliver"))
+
+address(list("Cratchit", "Robert"), 
+        list("Allston", list("N", "Harvard", "Street"), 16))
+job(list("Cratchit", "Robert"), list("accounting", "scrivener"))
+salary(list("Cratchit", "Robert"), 26100)
+supervisor(list("Cratchit", "Robert"), list("Scrooge", "Eben"))
+      </PYTHON>
+      <PYTHON_RUN>
+process_query('assert(address(list("Scrooge", "Eben"), list("Weston", list("Shady", "Lane"), 10)))');
+process_query('assert(job(list("Scrooge", "Eben"), list("accounting", "chief", "accountant")))');
+process_query('assert(salary(list("Scrooge", "Eben"), 141421))');
+process_query('assert(supervisor(list("Scrooge", "Eben"), list("Warbucks", "Oliver")))');
+
+process_query('assert(address(list("Cratchit", "Robert"), list("Allston", list("N", "Harvard", "Street"), 16)))');
+process_query('assert(job(list("Cratchit", "Robert"), list("accounting", "scrivener")))');
+process_query('assert(salary(list("Cratchit", "Robert"), 26100))');
+process_query('assert(supervisor(list("Cratchit", "Robert"), list("Scrooge", "Eben")))');
+      </PYTHON_RUN>
+    </SNIPPET>
+    <SNIPPET HIDE="yes">
+      <NAME>sample_data_base_5_example</NAME>
+      <PYTHON>
+process_query('job($x, pair("accounting", $y))');
+      </PYTHON>
+      <PYTHON_TEST>
+first_answer('job($x, pair("accounting", $y))');
+      </PYTHON_TEST>
+      
+    </SNIPPET>
+    There is also
+    <SPLITINLINE>
+      <SCHEME>
+	a secretary
+      </SCHEME>
+      <PYTHON>
+	an administrative assistant
+      </PYTHON>
+    </SPLITINLINE>
+    for the big wheel:
+    <SNIPPET>
+      <NAME>sample_data_base_6</NAME>
+      <REQUIRES>process_query</REQUIRES>
+      <REQUIRES>sample_data_base_5</REQUIRES>
+      <EXPECTED>'address(list("Aull", "DeWitt"), list("Slumerville", list("Onion", "Square"), 5))'</EXPECTED>
+      <EXAMPLE>sample_data_base_6_example</EXAMPLE>
+      <SCHEME>
+(address (Aull DeWitt) (Slumerville (Onion Square) 5))
+(job (Aull DeWitt) (administration secretary))
+(salary (Aull DeWitt) 25000)
+(supervisor (Aull DeWitt) (Warbucks Oliver))
+      </SCHEME>
+      <PYTHON>
+address(list("Aull", "DeWitt"), 
+        list("Slumerville", list("Onion", "Square"), 5))
+job(list("Aull", "DeWitt"), list("administration", "assistant"))
+salary(list("Aull", "DeWitt"), 42195)
+supervisor(list("Aull", "DeWitt"), list("Warbucks", "Oliver"))
+      </PYTHON>
+      <PYTHON_RUN>
+process_query('assert(address(list("Aull", "DeWitt"), list("Slumerville", list("Onion", "Square"), 5)))');
+process_query('assert(job(list("Aull", "DeWitt"), list("administration", "assistant")))');
+process_query('assert(salary(list("Aull", "DeWitt"), 42195))');
+process_query('assert(supervisor(list("Aull", "DeWitt"), list("Warbucks", "Oliver")))');
+      </PYTHON_RUN>
+    </SNIPPET>
+    <SNIPPET HIDE="yes">
+      <NAME>sample_data_base_6_example</NAME>
+      <PYTHON>
+process_query('address($x, list(y, list("Onion", "Square"), $n))');
+      </PYTHON>
+      <PYTHON_TEST>
+first_answer('address($x, list(y, list("Onion", "Square"), $n))');
+      </PYTHON_TEST>
+    </SNIPPET>
+  </TEXT>
+
+  <TEXT>
+    The data base also contains assertions about which kinds of jobs can
+    be done by people holding other kinds of jobs.  For instance, a
+    computer wizard can do the jobs of both a computer programmer and a
+    computer technician:
+    <SNIPPET>
+      <NAME>sample_data_base_7</NAME>
+      <REQUIRES>process_query</REQUIRES>
+      <REQUIRES>sample_data_base_6</REQUIRES>
+      <EXPECTED>'can_do_job(list("computer", "wizard"), list("computer", "technician"))'</EXPECTED>
+      <EXAMPLE>sample_data_base_7_example</EXAMPLE>
+      <SCHEME>
+(can-do-job (computer wizard) (computer programmer))
+(can-do-job (computer wizard) (computer technician))
+      </SCHEME>
+      <PYTHON>
+can_do_job(list("computer", "wizard"), 
+           list("computer", "programmer"))
+can_do_job(list("computer", "wizard"), 
+           list("computer", "technician"))
+      </PYTHON>
+      <PYTHON_RUN>
+process_query('assert(can_do_job(list("computer", "wizard"), list("computer", "programmer")))');
+process_query('assert(can_do_job(list("computer", "wizard"), list("computer", "technician")))');
+      </PYTHON_RUN>
+    </SNIPPET>
+    <SNIPPET HIDE="yes">
+      <NAME>sample_data_base_7_example</NAME>
+      <PYTHON>
+process_query('can_do_job($x, list("computer", $y))');
+      </PYTHON>
+      <PYTHON_TEST>
+first_answer('can_do_job($x, list("computer", $y))');
+      </PYTHON_TEST>
+    </SNIPPET>
+    A computer programmer could fill in for a trainee:
+    <SNIPPET>
+      <NAME>sample_data_base_8</NAME>
+      <REQUIRES>process_query</REQUIRES>
+      <REQUIRES>sample_data_base_7</REQUIRES>
+      <EXPECTED>'can_do_job(list("computer", "programmer"), list("computer", "programmer", "trainee"))'</EXPECTED>
+      <EXAMPLE>sample_data_base_8_example</EXAMPLE>
+      <SCHEME>
+(can-do-job (computer programmer)
+            (computer programmer trainee))
+      </SCHEME>
+      <PYTHON>
+can_do_job(list("computer", "programmer"),
+           list("computer", "programmer", "trainee"))
+      </PYTHON>
+      <PYTHON_RUN>
+process_query('assert(can_do_job(list("computer", "programmer"), list("computer", "programmer", "trainee")))');
+      </PYTHON_RUN>
+    </SNIPPET>
+    <SNIPPET HIDE="yes">
+      <NAME>sample_data_base_8_example</NAME>
+      <PYTHON>
+process_query('can_do_job($x, pair("computer", $y))');
+      </PYTHON>
+      <PYTHON_TEST>
+first_answer('can_do_job($x, pair("computer", $y))');
+      </PYTHON_TEST>
+    </SNIPPET>
+    <SPLITINLINE>
+      <SCHEME>
+	<INDEX>secretary, importance of</INDEX>
+      </SCHEME>
+      <PYTHON>
+	<INDEX>administrative assistant, importance of</INDEX>
+      </PYTHON>
+    </SPLITINLINE>
+    Also, as is well known,
+    <SNIPPET POSTPADDING="no">
+      <NAME>sample_data_base_9</NAME>
+      <REQUIRES>process_query</REQUIRES>
+      <REQUIRES>sample_data_base_8</REQUIRES>
+      <EXPECTED>'can_do_job(list("administration", "assistant"), list("administration", "big", "wheel"))'</EXPECTED>
+      <EXAMPLE>sample_data_base_9_example</EXAMPLE>
+      <SCHEME>
+(can-do-job (administration secretary)
+            (administration big wheel))
+      </SCHEME>
+      <PYTHON>
+can_do_job(list("administration", "assistant"),
+           list("administration", "big", "wheel"))
+      </PYTHON>
+      <PYTHON_RUN>
+process_query('assert(can_do_job(list("administration", "assistant"), list("administration", "big", "wheel")))');
+      </PYTHON_RUN>
+      
+    </SNIPPET>
+    <SNIPPET HIDE="yes">
+      <NAME>sample_data_base_9_example</NAME>
+      <PYTHON>
+process_query('can_do_job(list($x, "assistant"), $y)');
+      </PYTHON>
+      <PYTHON_TEST>
+first_answer('can_do_job(list($x, "assistant"), $y)');
+      </PYTHON_TEST>
+    </SNIPPET>
+  </TEXT>
+
+  <INDEX>data base<SUBINDEX>Gargle personnel<CLOSE/></SUBINDEX></INDEX>
+  <INDEX>query language<SUBINDEX>data base<CLOSE/></SUBINDEX></INDEX>
+
+  <SUBHEADING>
+    <NAME>Simple queries</NAME>
+  </SUBHEADING>
+
+  <INDEX>simple query<OPEN/></INDEX>
+
+  <TEXT>
+    The query language allows users to retrieve information from the data
+    base by posing queries in response to the system<APOS/>s prompt.
+    For example, to find all computer programmers one can say
+    <SNIPPET EVAL="no" HIDE="yes">
+      <NAME>simple_queries_input</NAME>
+      <SCHEMEOUTPUT>
+;;; Query input:
+      </SCHEMEOUTPUT>
+    </SNIPPET>
+    <SNIPPET>
+      <NAME>simple_queries_1</NAME>
+      <REQUIRES>process_query</REQUIRES>
+      <REQUIRES>sample_data_base_9</REQUIRES>
+      <REQUIRES>query_driver_loop</REQUIRES>
+      <EXPECTED>'job(list("Fect", "Cy", "D"), list("computer", "programmer"))'</EXPECTED>
+      <EXAMPLE>simple_queries_1_example</EXAMPLE>
+      <SCHEME>
+      (job ?x (computer programmer))
+      </SCHEME>
+      <PYTHON_PROMPT>
+Query input:
+      </PYTHON_PROMPT>
+      <PYTHON>
+job($x, list("computer", "programmer"))
+      </PYTHON>
+      <PYTHON_RUN>
+      </PYTHON_RUN>
+    </SNIPPET>
+    <SNIPPET HIDE="yes">
+      <NAME>simple_queries_1_example</NAME>
+      <PYTHON_TEST>
+first_answer('job($x, list("computer", "programmer"))');
+      </PYTHON_TEST>
+      <PYTHON>
+process_query('job($x, list("computer", "programmer"))');
+
+// Query input:	
+// job($x, list("computer", "programmer"))
+// Query results:
+// job(list("Hacker", "Alyssa", "P"), list("computer", "programmer"))
+// job(list("Fect", "Cy", "D"), list("computer", "programmer"))
+      </PYTHON>
+    </SNIPPET>
+    The system will respond with the following items:
+    <SNIPPET EVAL="no">
+      <SCHEMEOUTPUT>
+;;; Query results:
+(job (Hacker Alyssa P) (computer programmer))
+(job (Fect Cy D) (computer programmer))
+      </SCHEMEOUTPUT>
+      <PYTHON_OUTPUT>
+Query results:
+job(list("Hacker", "Alyssa", "P"), list("computer", "programmer"))
+job(list("Fect", "Cy", "D"), list("computer", "programmer"))
+      </PYTHON_OUTPUT>
+    </SNIPPET>
+  </TEXT>
+
+  <TEXT>
+    The input query specifies that we are looking for entries in the data
+    base that match a certain
+    <INDEX>pattern<OPEN/></INDEX>
+    <EM>pattern</EM>.
+    <SPLIT>
+      <SCHEME>
+	In this example, the pattern
+	specifies entries consisting of three items, of which the first is the
+	literal symbol <SCHEMEINLINE>job</SCHEMEINLINE>, the second can be
+	anything, and the third is the literal list
+	<SCHEMEINLINE>(computer programmer)</SCHEMEINLINE>.
+	The <QUOTE>anything</QUOTE> that can be the second item in the matching
+	list is specified by a 
+	<INDEX>pattern variable</INDEX>
+	<EM>pattern variable</EM>,
+	    <SCHEMEINLINE>?x</SCHEMEINLINE>.
+	The general form of a pattern variable is a symbol, taken to be the name
+	of the variable, preceded by a question mark. We will see below why it
+	is useful to specify names for pattern variables rather than just putting
+	<SCHEMEINLINE>?</SCHEMEINLINE>
+	into patterns to represent <QUOTE>anything.</QUOTE>
+      </SCHEME>
+      <PYTHON>
+	In this example, the pattern
+	specifies <SCHEMEINLINE>job</SCHEMEINLINE> as the kind of information
+	that we are looking for. The first item can be
+	anything, and the second is the literal list
+	<PYTHONINLINE>list("computer", "programmer")</PYTHONINLINE>.
+	The <QUOTE>anything</QUOTE> that can be the first item in the matching
+	assertion is specified by a 
+	<INDEX>pattern variable</INDEX>
+	<EM>pattern variable</EM>,
+	<PYTHONINLINE>$x</PYTHONINLINE>. As pattern variables, we use
+	<INDEX>naming conventions<SUBINDEX><ORDER>;x</ORDER>$\$$ for pattern variables</SUBINDEX><FRAGILE/></INDEX>
+	<INDEX><ORDER>0a4</ORDER>$\$$, pattern variables starting with<FRAGILE/></INDEX>
+	JavaScript names that start with a dollar sign.
+	We will see below why
+	it is useful to specify names for pattern variables rather than just
+	putting a single symbol such as <SCHEMEINLINE>$</SCHEMEINLINE>
+	into patterns to represent <QUOTE>anything.</QUOTE>
+      </PYTHON>
+    </SPLIT>
+    The system responds to a simple query by showing all entries in the data
+    base that match the specified pattern.
+  </TEXT>
+
+  <TEXT>
+    A pattern can have more than one variable.  For example, the query
+    <SNIPPET>
+      <NAME>simple_queries_2</NAME>
+      <REQUIRES>process_query</REQUIRES>
+      <REQUIRES>sample_data_base_9</REQUIRES>
+      <REQUIRES>query_driver_loop</REQUIRES>
+      <EXPECTED>'address(list("Aull", "DeWitt"), list("Slumerville", list("Onion", "Square"), 5))'</EXPECTED>
+      <EXAMPLE>simple_queries_2_example</EXAMPLE>
+      <SCHEME>
+(address ?x ?y)
+      </SCHEME>
+      <PYTHON>
+address($x, $y)
+      </PYTHON>
+      <PYTHON_RUN>
+      </PYTHON_RUN>
+    </SNIPPET>
+    <SNIPPET HIDE="yes">
+      <NAME>simple_queries_2_example</NAME>
+      <PYTHON_TEST>
+first_answer('address($x, $y)');
+      </PYTHON_TEST>
+      <PYTHON>
+process_query('address($x, $y)');
+
+// query input:	
+// address($x, $y)
+// query results:
+// all employees' addresses
+      </PYTHON>
+    </SNIPPET>
+    will list all the employees<APOS/> addresses.
+  </TEXT>
+
+  <TEXT>
+    A pattern can have no variables, in which case the query simply
+    determines whether that pattern is an entry in the data base.  If so,
+    there will be one match; if not, there will be no matches.
+  </TEXT>
+
+  <TEXT>
+    The same pattern variable can appear more than once in a query,
+    specifying that the same <QUOTE>anything</QUOTE> must appear in each
+    position. This is why variables have names.  For example,
+    <SNIPPET>
+      <NAME>simple_queries_3</NAME>
+      <REQUIRES>process_query</REQUIRES>
+      <REQUIRES>sample_data_base_9</REQUIRES>
+      <REQUIRES>query_driver_loop</REQUIRES>
+      <EXPECTED>'supervisor(list("Julius", "Caesar"), list("Julius", "Caesar"))'</EXPECTED>
+      <EXAMPLE>simple_queries_3_example</EXAMPLE>
+      <SCHEME>
+(supervisor ?x ?x)
+      </SCHEME>
+      <PYTHON>
+supervisor($x, $x)
+      </PYTHON>
+      <PYTHON_RUN>
+      </PYTHON_RUN>
+    </SNIPPET>
+    <SNIPPET HIDE="yes">
+      <NAME>simple_queries_3_example</NAME>
+      <PYTHON_TEST>
+process_query('assert(supervisor(list("Julius", "Caesar"), list("Julius", "Caesar")))');
+first_answer('supervisor($x, $x)');
+      </PYTHON_TEST>
+      <PYTHON>
+process_query('supervisor($x, $x)');
+
+// query input:	
+// supervisor($x, $x)
+// query results:
+// none
+      </PYTHON>
+    </SNIPPET>
+    finds all people who supervise themselves (though there are no
+    such assertions in our sample data base).
+  </TEXT>
+
+  <TEXT>
+    The query
+    <SNIPPET>
+      <NAME>simple_queries_4</NAME>
+      <REQUIRES>process_query</REQUIRES>
+      <REQUIRES>sample_data_base_9</REQUIRES>
+      <REQUIRES>query_driver_loop</REQUIRES>
+      <EXPECTED>'job(list("Tweakit", "Lem", "E"), list("computer", "technician"))'</EXPECTED>
+      <EXAMPLE>simple_queries_4_example</EXAMPLE>
+      <SCHEME>
+(job ?x (computer ?type))
+      </SCHEME>
+      <PYTHON>
+job($x, list("computer", $type))
+      </PYTHON>
+      <PYTHON_RUN>
+      </PYTHON_RUN>
+    </SNIPPET>
+    <SNIPPET HIDE="yes">
+      <NAME>simple_queries_4_example</NAME>
+      <PYTHON_TEST>
+first_answer('job($x, list("computer",  $type))');
+      </PYTHON_TEST>
+      <PYTHON>
+process_query('job($x, list("computer",  $type))');
+
+// query input:	
+// job($x, list("computer",  $type))
+// query results:
+// job(list("Bitdiddle", "Ben"), list("computer", "wizard"))
+// job(list("Hacker", "Alyssa", "P"), list("computer", "programmer"))
+// job(list("Fect", "Cy", "D"), list("computer", "programmer"))
+// job(list("Tweakit", "Lem", "E"), list("computer", "technician"))
+      </PYTHON>
+    </SNIPPET>
+    matches all job entries whose
+    <SPLITINLINE>
+      <SCHEME>
+	third
+      </SCHEME>
+      <PYTHON>
+	second
+      </PYTHON>
+    </SPLITINLINE>
+    item is a two-element list whose
+    first item is
+    <SPLITINLINE>
+      <SCHEME>
+	<SCHEMEINLINE>computer</SCHEMEINLINE>:
+      </SCHEME>
+      <PYTHON>
+	<PYTHONINLINE>"computer"</PYTHONINLINE>:
+      </PYTHON>
+    </SPLITINLINE>
+    <SNIPPET EVAL="no">
+      <SCHEME>
+(job (Bitdiddle Ben) (computer wizard))
+(job (Hacker Alyssa P) (computer programmer))
+(job (Fect Cy D) (computer programmer))
+(job (Tweakit Lem E) (computer technician))
+      </SCHEME>
+      <PYTHON>
+job(list("Bitdiddle", "Ben"), list("computer", "wizard"))
+job(list("Hacker", "Alyssa", "P"), list("computer", "programmer"))
+job(list("Fect", "Cy", "D"), list("computer", "programmer"))
+job(list("Tweakit", "Lem", "E"), list("computer", "technician"))
+      </PYTHON>
+    </SNIPPET>
+    <SPLIT>
+      <SCHEME>
+	This same pattern does <EM>not</EM> match
+	<SNIPPET EVAL="no">
+	  <SCHEME>
+(job (Reasoner Louis) (computer programmer trainee))
+	  </SCHEME>
+	</SNIPPET>
+	because the third item in the entry is a list of three elements, and
+	the pattern<APOS/>s third item specifies that there should be two
+	elements. If we wanted to change the pattern so that the third item
+	could be any
+	<INDEX>dotted-tail notation<SUBINDEX><ORDER>query</ORDER>in query pattern</SUBINDEX></INDEX>
+	list beginning with
+	<SCHEMEINLINE>computer</SCHEMEINLINE>,
+	we could
+	specify<SPLITINLINE><SCHEME><FOOTNOTE>This uses the dotted-tail
+	notation introduced in
+	exercise<SPACE/><REF NAME="ex:dotted-arglist"/>.</FOOTNOTE>
+      </SCHEME></SPLITINLINE>
+      </SCHEME>
+      <PYTHON>
+	This same pattern does <EM>not</EM> match
+	<SNIPPET EVAL="no">
+	  <PYTHON>
+job(list("Reasoner", "Louis"),
+    list("computer", "programmer", "trainee"))
+	  </PYTHON>
+	</SNIPPET>
+	because the second item in the assertion is a list of three
+	elements, and the pattern<APOS/>s second item specifies that there
+	should be two elements. If we wanted to change the pattern so that the
+	second item could be any
+	list beginning with
+	<PYTHONINLINE>"computer"</PYTHONINLINE>,
+	we could 
+	specify
+	<COMMENT>
+	  There is no need for <QUOTE>dotted-tail notation</QUOTE> in the
+	  JavaScript edition: We simply use
+	  <PYTHONINLINE>pair</PYTHONINLINE> instead of
+	  <PYTHONINLINE>list</PYTHONINLINE> where needed.
+	</COMMENT>
+      </PYTHON>
+    </SPLIT>
+    <SNIPPET>
+      <NAME>simple_queries_5</NAME>
+      <REQUIRES>process_query</REQUIRES>
+      <REQUIRES>sample_data_base_9</REQUIRES>
+      <REQUIRES>query_driver_loop</REQUIRES>
+      <EXPECTED>'job(list("Reasoner", "Louis"), list("computer", "programmer", "trainee"))'</EXPECTED>
+      <EXAMPLE>simple_queries_5_example</EXAMPLE>
+      <SCHEME>
+(job ?x (computer . ?type))
+      </SCHEME>
+      <PYTHON>
+job($x, pair("computer", $type))
+      </PYTHON>
+      <PYTHON_RUN>
+      </PYTHON_RUN>
+    </SNIPPET>
+    <SNIPPET HIDE="yes">
+      <NAME>simple_queries_5_example</NAME>
+      <PYTHON_TEST>
+first_answer('job($x, pair("computer", $type))');
+      </PYTHON_TEST>
+      <PYTHON>
+process_query('job($x, pair("computer", $type))');
+
+// query input:	
+// job($x, pair("computer", $type))
+// query results:
+// job(list("Bitdiddle", "Ben"), list("computer", "wizard"))
+// job(list("Hacker", "Alyssa", "P"), list("computer", "programmer"))
+// job(list("Fect", "Cy", "D"), list("computer", "programmer"))
+// job(list("Tweakit", "Lem", "E"), list("computer", "technician"))
+// job(list("Reasoner", "Louis"), list("computer", "programmer", "trainee"))
+      </PYTHON>
+    </SNIPPET>
+    For example,
+    <SNIPPET EVAL="no">
+      <SCHEME>
+(computer . ?type)
+      </SCHEME>
+      <PYTHON>
+pair("computer", $type)      
+      </PYTHON>
+    </SNIPPET>
+    matches the data
+    <SNIPPET EVAL="no">
+      <SCHEME>
+(computer programmer trainee)
+      </SCHEME>
+      <PYTHON>
+list("computer", "programmer", "trainee")
+      </PYTHON>
+    </SNIPPET>
+    with
+    <SPLITINLINE>
+      <SCHEME>
+	<SCHEMEINLINE>?type</SCHEMEINLINE>
+      </SCHEME>
+      <PYTHON>
+	<PYTHONINLINE>$type</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    as 
+    <SPLITINLINE>
+      <SCHEME>the list <SCHEMEINLINE>(programmer trainee)</SCHEMEINLINE>.</SCHEME>
+      <PYTHON>
+	<PYTHONINLINE>list("programmer", "trainee")</PYTHONINLINE>.
+      </PYTHON>
+    </SPLITINLINE>
+    It also matches the data
+    <SNIPPET EVAL="no">
+      <SCHEME>
+(computer programmer)
+      </SCHEME>
+      <PYTHON>
+list("computer", "programmer")
+      </PYTHON>
+    </SNIPPET>
+    with
+    <SPLITINLINE>
+      <SCHEME>
+	<SCHEMEINLINE>?type</SCHEMEINLINE>
+      </SCHEME>
+      <PYTHON><PYTHONINLINE>$type</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    as 
+    <SPLITINLINE>
+      <SCHEME>the list <SCHEMEINLINE>(programmer)</SCHEMEINLINE>,</SCHEME>
+      <PYTHON><PYTHONINLINE>list("programmer")</PYTHONINLINE>,
+      </PYTHON>
+    </SPLITINLINE>
+    and matches the data
+    <SNIPPET EVAL="no">
+      <SCHEME>
+(computer)
+      </SCHEME>
+      <PYTHON>
+list("computer")      
+      </PYTHON>
+    </SNIPPET>
+    with
+    <SPLITINLINE>
+      <SCHEME>
+	<SCHEMEINLINE>?type</SCHEMEINLINE>
+      </SCHEME>
+      <PYTHON><PYTHONINLINE>$type</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    as the empty 
+    <SPLITINLINE>
+      <SCHEME>list <SCHEMEINLINE>()</SCHEMEINLINE>.</SCHEME>
+      <PYTHON>list, <PYTHONINLINE>null</PYTHONINLINE>.</PYTHON>
+    </SPLITINLINE>
+  </TEXT>
+
+  <INDEX>pattern<CLOSE/></INDEX>
+  
+  <TEXT>
+    We can describe the query language<APOS/>s processing of simple queries as
+    follows:
+    <UL>
+      <LI>
+	The system finds all assignments to variables in the query
+	pattern that
+	<INDEX>satisfy a pattern (simple query)</INDEX>
+	<EM>satisfy</EM> the pattern<EMDASH/>that is, all sets
+	of values for the variables such that if the pattern variables are 
+	<INDEX>instantiate a pattern</INDEX>
+	<EM>instantiated with</EM> (replaced by) the values, the result is
+	in the data base.
+      </LI>
+      <LI>
+	The system responds to the query by listing all instantiations of the
+	query pattern with the variable assignments that satisfy it.
+      </LI>
+    </UL>
+    Note that if the pattern has no variables, the query reduces to a
+    determination of whether that pattern is in the data base.  If so, the
+    empty assignment, which assigns no values to variables, satisfies that
+    pattern for that data base.
+  </TEXT>
+
+  <EXERCISE>
+    Give simple queries that retrieve the following information from the
+    data base:
+    <OL>
+      <LI>
+	all people supervised by Ben Bitdiddle;
+      </LI>
+      <LI>
+	the names and jobs of all people in the accounting division;
+      </LI>
+      <LI>
+	the names and addresses of all people who live 
+	in Slumerville.
+      </LI>
+    </OL>
+    <LABEL NAME="ex:4_53"/>
+  </EXERCISE>
+
+  <INDEX>simple query<CLOSE/></INDEX>
+
+  <SUBHEADING>
+    <NAME>Compound queries</NAME>
+  </SUBHEADING>
+
+  <INDEX>compound query<OPEN/></INDEX>
+
+  <TEXT>
+    Simple queries form the primitive operations of the query language.
+    In order to form compound operations, the query language provides
+    means of combination.  One thing that makes the query language a logic
+    programming language is that the means of combination mirror the means
+    of combination used in forming logical expressions:
+    <SCHEMEINLINE>and</SCHEMEINLINE>, <SCHEMEINLINE>or</SCHEMEINLINE>, and
+    <SCHEMEINLINE>not</SCHEMEINLINE>.
+    <SPLITINLINE>
+      <SCHEME>
+	(Here <SCHEMEINLINE>and</SCHEMEINLINE>,	<SCHEMEINLINE>or</SCHEMEINLINE>,
+	and <SCHEMEINLINE>not</SCHEMEINLINE> are not the Lisp primitives, but
+	rather operations built into the query language.)
+      </SCHEME>
+    </SPLITINLINE>
+  </TEXT>
+
+  <TEXT>
+    We can use
+    <INDEX><USE>and</USE> (query language)</INDEX>
+    <SCHEMEINLINE>and</SCHEMEINLINE> as follows to find the addresses
+    of all the computer programmers:
+    <SNIPPET>
+      <NAME>compound_queries_1</NAME>
+      <REQUIRES>query_driver_loop</REQUIRES>
+      <REQUIRES>process_query</REQUIRES>
+      <REQUIRES>sample_data_base_9</REQUIRES>
+      <EXAMPLE>compound_queries_1_example</EXAMPLE>
+      <EXPECTED>'and(job(list("Fect", "Cy", "D"), list("computer", "programmer")), address(list("Fect", "Cy", "D"), list("Cambridge", list("Ames", "Street"), 3)))'</EXPECTED>
+      <SCHEME>
+(and (job ?person (computer programmer))
+     (address ?person ?where))
+      </SCHEME>
+      <PYTHON>
+and(job($person, list("computer", "programmer")),
+    address($person, $where))
+      </PYTHON>
+      <PYTHON_RUN>
+      </PYTHON_RUN>
+    </SNIPPET>
+    <SNIPPET HIDE="yes">
+      <NAME>compound_queries_1_example</NAME>
+      <PYTHON_TEST>
+first_answer('and(job($person, list("computer", "programmer")), address($person, $where))');
+      </PYTHON_TEST>
+      <PYTHON>
+process_query('and(job($person, list("computer", "programmer")), address($person, $where))');
+
+// query input:	
+// and(job($person, list("computer", "programmer")), address($person, $where))
+// query results:
+// and(job(list("Hacker", "Alyssa", "P"), list("computer", "programmer")),
+//    address(list("Hacker", "Alyssa", "P"), list("Cambridge", list("Mass", "Ave"), 78)))
+// and(job(list("Fect", "Cy", "D"), list("computer", "programmer")),
+//    address(list("Fect", "Cy", "D"), list("Cambridge", list("Ames", "Street"), 3)))
+      </PYTHON>
+    </SNIPPET>
+    The resulting output is
+    <SNIPPET EVAL="no">
+      <SCHEME>
+(and (job (Hacker Alyssa P) (computer programmer))
+     (address (Hacker Alyssa P) (Cambridge (Mass Ave) 78)))
+
+(and (job (Fect Cy D) (computer programmer))
+     (address (Fect Cy D) (Cambridge (Ames Street) 3)))
+      </SCHEME>
+      <PYTHON_OUTPUT>
+and(job(list("Hacker", "Alyssa", "P"), list("computer", "programmer")),
+    address(list("Hacker", "Alyssa", "P"), 
+            list("Cambridge", list("Mass", "Ave"), 78)))
+
+and(job(list("Fect", "Cy", "D"), list("computer", "programmer")),
+    address(list("Fect", "Cy", "D"), 
+            list("Cambridge", list("Ames", "Street"), 3)))
+      </PYTHON_OUTPUT>
+    </SNIPPET>
+    <SPLIT>
+      <SCHEME>
+	In general,
+	<SNIPPET LATEX="yes">
+	  <SCHEME>
+(and $\langle \textit{query}_{1}\rangle$ $\langle \textit{query}_{2} \rangle$ $\ldots$ $\langle \textit{query}_{n} \rangle$)
+	  </SCHEME>
+	</SNIPPET>
+	is
+	<INDEX>satisfy a compound query<OPEN/></INDEX>
+	satisfied by all sets of values for the pattern variables that
+	simultaneously satisfy
+	<LATEXINLINE>$\langle\textit{query}_{1}\rangle\ldots \langle\textit{query}_{n}\rangle$</LATEXINLINE>.
+      </SCHEME>
+      <PYTHON>
+	In general,
+	<SNIPPET LATEX="yes">
+	  <PYTHON>
+and(<META>query</META>$_{1}$, <META>query</META>$_{2}$, $\ldots$, <META>query</META>$_{n})$
+	  </PYTHON>
+	</SNIPPET>
+	is
+	<INDEX>satisfy a compound query<OPEN/></INDEX>
+	satisfied by all sets of values for the pattern variables that
+	simultaneously satisfy
+	<META>query</META><LATEXINLINE>$_{1}, \ldots,$</LATEXINLINE> <META>query</META><LATEXINLINE>$_{n}$</LATEXINLINE>.
+      </PYTHON>
+    </SPLIT>
+    </TEXT>
+
+  <TEXT>
+    As for simple queries, the system processes a compound query by
+    finding all assignments to the pattern variables that satisfy the
+    query, then displaying instantiations of the query with those values.
+  </TEXT>
+
+  <LONG_PAGE lines="2"/>
+  <TEXT>
+    Another means of constructing compound queries is through
+    <INDEX><USE>or</USE> (query language)</INDEX>
+    <SCHEMEINLINE>or</SCHEMEINLINE>. For example,
+    <SNIPPET>
+      <NAME>compound_queries_2</NAME>
+      <REQUIRES>process_query</REQUIRES>
+      <REQUIRES>query_driver_loop</REQUIRES>
+      <REQUIRES>sample_data_base_9</REQUIRES>
+      <EXAMPLE>compound_queries_2_example</EXAMPLE>
+      <EXPECTED>'or(supervisor(list("Tweakit", "Lem", "E"), list("Bitdiddle", "Ben")), supervisor(list("Tweakit", "Lem", "E"), list("Hacker", "Alyssa", "P")))'</EXPECTED>
+      <SCHEME>
+(or (supervisor ?x (Bitdiddle Ben))
+    (supervisor ?x (Hacker Alyssa P)))
+      </SCHEME>
+      <PYTHON>
+or(supervisor($x, list("Bitdiddle", "Ben")),
+   supervisor($x, list("Hacker", "Alyssa", "P")))
+      </PYTHON>
+      <PYTHON_RUN>
+      </PYTHON_RUN>      
+    </SNIPPET>
+    <SNIPPET HIDE="yes">
+      <NAME>compound_queries_2_example</NAME>
+      <PYTHON_TEST>
+first_answer('or(supervisor($x, list("Bitdiddle", "Ben")), supervisor($x, list("Hacker", "Alyssa", "P")))');
+      </PYTHON_TEST>
+      <PYTHON>
+process_query('or(supervisor($x, list("Bitdiddle", "Ben")), supervisor($x, list("Hacker", "Alyssa", "P")))');
+
+// query input:	
+// or(supervisor($x, list("Bitdiddle", "Ben")), supervisor($x, list("Hacker", "Alyssa", "P")))
+// query results:
+// or(supervisor(list("Hacker", "Alyssa", "P"), list("Bitdiddle", "Ben")),
+//    supervisor(list("Hacker", "Alyssa", "P"), list("Hacker", "Alyssa", "P")))
+// or(supervisor(list("Fect", "Cy", "D"), list("Bitdiddle", "Ben")),
+//    supervisor(list("Fect", "Cy", "D"), list("Hacker", "Alyssa", "P")))
+// or(supervisor(list("Tweakit", "Lem", "E"), list("Bitdiddle", "Ben")),
+//    supervisor(list("Tweakit", "Lem", "E"), list("Hacker", "Alyssa", "P")))
+// or(supervisor(list("Reasoner", "Louis"), list("Bitdiddle", "Ben")),
+//    supervisor(list("Reasoner", "Louis"), list("Hacker", "Alyssa", "P")))
+      </PYTHON>
+    </SNIPPET>
+    will find all employees supervised by Ben Bitdiddle or Alyssa P.
+    Hacker:
+    <SNIPPET EVAL="no">
+      <SCHEME>
+(or (supervisor (Hacker Alyssa P) (Bitdiddle Ben))
+    (supervisor (Hacker Alyssa P) (Hacker Alyssa P)))
+
+(or (supervisor (Fect Cy D) (Bitdiddle Ben))
+    (supervisor (Fect Cy D) (Hacker Alyssa P)))
+
+(or (supervisor (Tweakit Lem E) (Bitdiddle Ben))
+    (supervisor (Tweakit Lem E) (Hacker Alyssa P)))
+
+(or (supervisor (Reasoner Louis) (Bitdiddle Ben))
+    (supervisor (Reasoner Louis) (Hacker Alyssa P)))
+      </SCHEME>
+      <PYTHON_OUTPUT>
+or(supervisor(list("Hacker", "Alyssa", "P"), 
+              list("Bitdiddle", "Ben")),
+   supervisor(list("Hacker", "Alyssa", "P"),
+              list("Hacker", "Alyssa", "P")))
+
+or(supervisor(list("Fect", "Cy", "D"), 
+              list("Bitdiddle", "Ben")),
+   supervisor(list("Fect", "Cy", "D"), 
+              list("Hacker", "Alyssa", "P")))
+   
+or(supervisor(list("Tweakit", "Lem", "E"), 
+              list("Bitdiddle", "Ben")),
+   supervisor(list("Tweakit", "Lem", "E"), 
+              list("Hacker", "Alyssa", "P")))
+
+or(supervisor(list("Reasoner", "Louis"),
+              list("Bitdiddle", "Ben")),
+   supervisor(list("Reasoner", "Louis"), 
+              list("Hacker", "Alyssa", "P")))
+      </PYTHON_OUTPUT>
+    </SNIPPET>
+    <SPLIT>
+      <SCHEME>
+	In general,
+	<SNIPPET LATEX="yes">
+	  <SCHEME>
+(or $\langle \textit{query}_{1}\rangle$ $\langle \textit{query}_{2}\rangle$ $\ldots$ $\langle \textit{query}_{n}\rangle$)
+	  </SCHEME>
+	</SNIPPET>
+	is satisfied by all sets of values for the pattern variables that
+	satisfy at least one of
+	<LATEXINLINE>$\langle \textit{query}_{1}\rangle \ldots \langle \textit{query}_{n}\rangle$</LATEXINLINE>.
+      </SCHEME>
+      <PYTHON>
+	In general,
+	<SNIPPET LATEX="yes">
+	  <PYTHON>
+or(<META>query</META>$_{1}$, <META>query</META>$_{2}$, $\ldots$, <META>query</META>$_{n}$)
+	  </PYTHON>
+	</SNIPPET>
+	is satisfied by all sets of values for the pattern variables that
+	satisfy at least one of
+	<META>query</META><LATEXINLINE>$_{1} \ldots$</LATEXINLINE> <META>query</META><LATEXINLINE>$_{n}$</LATEXINLINE>.
+      </PYTHON>
+    </SPLIT>
+  </TEXT>
+
+  <TEXT>
+    Compound queries can also be formed with
+    <INDEX><USE>not</USE> (query language)</INDEX>
+    <SCHEMEINLINE>not</SCHEMEINLINE>.
+    For example,
+    <SNIPPET>
+      <NAME>compound_queries_3</NAME>      
+      <REQUIRES>process_query</REQUIRES>
+      <REQUIRES>sample_data_base_9</REQUIRES>
+      <REQUIRES>query_driver_loop</REQUIRES>
+      <EXPECTED>'and(supervisor(list("Tweakit", "Lem", "E"), list("Bitdiddle", "Ben")), not(job(list("Tweakit", "Lem", "E"), list("computer", "programmer"))))'</EXPECTED>
+      <EXAMPLE>compound_queries_3_example</EXAMPLE>
+      <SCHEME>
+(and (supervisor ?x (Bitdiddle Ben))
+     (not (job ?x (computer programmer))))
+      </SCHEME>
+      <PYTHON>
+and(supervisor($x, list("Bitdiddle", "Ben")),
+    not(job($x, list("computer", "programmer"))))
+      </PYTHON>
+      <PYTHON_RUN>
+      </PYTHON_RUN>      
+    </SNIPPET>
+    <SNIPPET HIDE="yes">
+      <NAME>compound_queries_3_example</NAME>
+      <PYTHON_TEST>
+first_answer('and(supervisor($x, list("Bitdiddle", "Ben")), not(job($x, list("computer", "programmer"))))');
+      </PYTHON_TEST>
+      <PYTHON>
+process_query('and(supervisor($x, list("Bitdiddle", "Ben")), not(job($x, list("computer", "programmer"))))');
+
+// query input:	
+// and(supervisor($x, list("Bitdiddle", "Ben")), not(job($x, list("computer", "programmer"))))
+// query results:
+// all people supervised by Ben Bitdiddle who are not computer programmers
+      </PYTHON>
+    </SNIPPET>
+    finds all people supervised by Ben Bitdiddle who are not computer
+    programmers.  In general,
+    <SPLIT>
+      <SCHEME>
+	<SNIPPET EVAL="no" LATEX="yes">
+	  <SCHEME>
+(not $\langle \textit{query}_{1}\rangle$)
+	  </SCHEME>
+	</SNIPPET>
+      </SCHEME>
+      <PYTHON>
+	<SNIPPET EVAL="no" LATEX="yes">
+	  <PYTHON>
+not(<META>query</META>$_{1}$)
+	  </PYTHON>
+	</SNIPPET>
+      </PYTHON>
+    </SPLIT>
+    is satisfied by all assignments to the pattern variables that do not
+    satisfy
+    <SPLITINLINE><SCHEME><LATEXINLINE>$\langle \textit{query}_{1} \rangle$</LATEXINLINE></SCHEME><PYTHON><META>query</META><LATEXINLINE>$_{1}$</LATEXINLINE></PYTHON></SPLITINLINE>.<FOOTNOTE>Actually, this description of
+    <SCHEMEINLINE>not</SCHEMEINLINE> is valid only for simple cases. The real
+    behavior of <SCHEMEINLINE>not</SCHEMEINLINE> is more complex.  We will
+    examine <SCHEMEINLINE>not</SCHEMEINLINE><APOS/>s  peculiarities
+    in sections<SPACE/><REF NAME="sec:how-query-works"/>
+    and<SPACE/><REF NAME="sec:math-logic"/>.</FOOTNOTE>
+  </TEXT>
+
+  <SPLIT>
+    <SCHEME>
+      <TEXT>
+	The final combining form is called
+	<INDEX><USE>lisp-value</USE> (query language)</INDEX>
+	<SCHEMEINLINE>lisp-value</SCHEMEINLINE>. When
+	<SCHEMEINLINE>lisp-value</SCHEMEINLINE> is the first element of a
+	pattern, it specifies that the next element is a Lisp predicate to be
+	applied to the rest of the (instantiated) elements as arguments.
+	In general,
+	<SNIPPET EVAL="no" LATEX="yes">
+	  <SCHEME>
+(lisp-value $\langle \textit{predicate}\rangle$ $\langle \textit{arg}_{1}\rangle$ $\ldots$ $\langle \textit{arg}_{n} \rangle$)
+	  </SCHEME>
+	</SNIPPET>
+	will be satisfied by assignments to the pattern variables for which the
+	<LATEXINLINE>$\langle \textit{predicate} \rangle$</LATEXINLINE> applied
+	to the instantiated
+	<LATEXINLINE>$\langle \textit{arg}_{1} \rangle, \ldots, \langle \textit{arg}_{n}\rangle$</LATEXINLINE>
+	is true.  For example, to find all people whose salary is greater than
+	<DOLLAR/>30,000 we could write<FOOTNOTE>Lisp-value
+	should be used only to perform an operation not
+	provided in the query language.  In particular, it should not
+	be used to
+	<INDEX>query language<SUBINDEX>equality testing in</SUBINDEX></INDEX>
+	test equality (since that is what the matching in the
+	query language is designed to do) or inequality (since that can
+	be done with the <SCHEMEINLINE>same</SCHEMEINLINE> rule shown
+	below).</FOOTNOTE>
+	<SNIPPET EVAL="no">
+	  <SCHEME>
+(and (salary ?person ?amount)
+     (lisp-value &gt; ?amount 30000))
+	  </SCHEME>
+	</SNIPPET>
+	<INDEX>satisfy a compound query<CLOSE/></INDEX>
+      </TEXT>
+    </SCHEME>
+    <PYTHON>
+      <TEXT>
+	The final combining form starts with
+	<INDEX><USE>javascript_predicate</USE> (query language)</INDEX>
+	<PYTHONINLINE>javascript_predicate</PYTHONINLINE> and
+	contains a JavaScript predicate. In general,
+	<SNIPPET EVAL="no" LATEX="yes">
+	  <PYTHON>
+javascript_predicate(<META>predicate</META>)
+	  </PYTHON>
+	</SNIPPET>
+	will be satisfied by assignments to the pattern variables
+	in the <META>predicate</META> for which the
+	instantiated 
+	<META>predicate</META> is true.
+	For example, to find all people whose salary is greater than
+	<DOLLAR/>50,000 we could write<FOOTNOTE>
+	A query should use
+	<PYTHONINLINE>javascript_predicate</PYTHONINLINE>
+	only to perform an operation not
+	provided in the query language.  In particular,
+	<PYTHONINLINE>javascript_predicate</PYTHONINLINE>
+	should not be used to
+	<INDEX>query language<SUBINDEX>equality testing in</SUBINDEX></INDEX>
+	test equality (since that is what the matching in the
+	query language is designed to do) or inequality (since that can
+	be done with the <SCHEMEINLINE>same</SCHEMEINLINE> rule shown
+	below).</FOOTNOTE>
+	<SNIPPET POSTPADDING="no">
+	  <NAME>compound_queries_4</NAME>      
+	  <REQUIRES>process_query</REQUIRES>
+	  <REQUIRES>sample_data_base_9</REQUIRES>
+	  <REQUIRES>query_driver_loop</REQUIRES>
+	  <EXAMPLE>compound_queries_4_example</EXAMPLE>
+	  <EXPECTED>'and(salary(list("Scrooge", "Eben"), 141421), javascript_predicate((141421 > 50000)))'</EXPECTED>
+	  <PYTHON>
+and(salary($person, $amount), javascript_predicate($amount &gt; 50000))
+	  </PYTHON>
+	  <PYTHON_RUN>
+	  </PYTHON_RUN>      
+	</SNIPPET>
+	<SNIPPET HIDE="yes">
+	  <NAME>compound_queries_4_example</NAME>
+	  <PYTHON_TEST>
+first_answer('and(salary($person, $amount), javascript_predicate($amount &gt; 50000))');
+	  </PYTHON_TEST>
+	  <PYTHON>
+process_query('and(salary($person, $amount), javascript_predicate($amount &gt; 50000))');
+
+// query input:	
+// and(salary($person, $amount), javascript_predicate($amount &gt; 50000))
+// query results:
+// people whose salary is greater than 50000
+	  </PYTHON>
+	</SNIPPET>
+      </TEXT>
+      <INDEX>satisfy a compound query<CLOSE/></INDEX>
+    </PYTHON>
+  </SPLIT>
+  <EXERCISE>
+    Formulate compound queries that retrieve the following information:
+    <OL>
+      <LI>
+	the names of all people who are supervised by Ben Bitdiddle, together
+	with their addresses;
+      </LI>
+      <LI>
+	all people whose salary is less than Ben Bitdiddle<APOS/>s, together
+	with their salary and Ben Bitdiddle<APOS/>s salary;
+      </LI>
+      <LI>
+	all people who are supervised by someone who is not in the computer
+	division, together with the supervisor<APOS/>s name and job.
+      </LI>
+    </OL>
+    <LABEL NAME="ex:4_54"/>
+  </EXERCISE>
+
+  <INDEX>compound query<CLOSE/></INDEX>
+
+  <DO_BREAK_PAGE/>
+  <SUBHEADING>
+    <NAME>Rules</NAME>
+  </SUBHEADING>
+
+  <INDEX>rule (query language)<OPEN/></INDEX>
+
+  <TEXT>
+    In addition to primitive queries and compound queries, the query
+    language provides means for
+    <INDEX>query language<SUBINDEX>abstraction in</SUBINDEX></INDEX>
+    abstracting queries.  These are given by
+    <EM>rules</EM>.  The rule
+    <SNIPPET>
+      <INDEX><DECLARATION>lives_near</DECLARATION> (rule)</INDEX>
+      <NAME>rules_1</NAME>      
+      <REQUIRES>process_query</REQUIRES>
+      <REQUIRES>sample_data_base_9</REQUIRES>
+      <REQUIRES>rule_same</REQUIRES>
+      <EXPECTED>'lives_near(list("Reasoner", "Louis"), list("Aull", "DeWitt"))'</EXPECTED>
+      <EXAMPLE>rules_1_example</EXAMPLE>
+      <SCHEME>
+(rule (lives-near ?person-1 ?person-2)
+      (and (address ?person-1 (?town . ?rest-1))
+           (address ?person-2 (?town . ?rest-2))
+           (not (same ?person-1 ?person-2))))
+      </SCHEME>
+      <PYTHON>
+rule(lives_near($person_1, $person_2),
+     and(address($person_1, pair($town, $rest_1)),
+         address($person_2, pair($town, $rest_2)),
+         not(same($person_1, $person_2))))
+      </PYTHON>
+      <PYTHON_RUN>
+process_query(`assert(
+rule(lives_near($person_1, $person_2),
+     and(address($person_1, pair($town, $rest_1)),
+         address($person_2, pair($town, $rest_2)),
+         not(same($person_1, $person_2)))))`);
+      </PYTHON_RUN>
+    </SNIPPET>
+    <SNIPPET HIDE="yes">
+      <NAME>rules_1_example</NAME>
+      <PYTHON_TEST>
+first_answer('lives_near(list("Reasoner", "Louis"), $who)');	
+      </PYTHON_TEST>
+      <PYTHON>
+process_query('lives_near(list("Reasoner", "Louis"), $who)');
+      </PYTHON>
+    </SNIPPET>
+    specifies that two people live near each other if they live in the
+    same town.  The final <SCHEMEINLINE>not</SCHEMEINLINE> clause prevents the
+    rule from saying that all people live near themselves.  The
+    <SCHEMEINLINE>same</SCHEMEINLINE> relation is defined by a very simple
+    rule:<FOOTNOTE>Notice that we do not need <SCHEMEINLINE>same</SCHEMEINLINE>
+    in order to make two things be the same: We just use the same pattern
+    variable for each<EMDASH/>in effect, we have one thing instead of two things
+    in the first place.  For example, see
+    <SPLITINLINE>
+      <SCHEME>
+	<SCHEMEINLINE>?town</SCHEMEINLINE>
+      </SCHEME>
+      <PYTHON>
+	<PYTHONINLINE>$town</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    in the
+    <SPLITINLINE>
+      <SCHEME>
+	<SCHEMEINLINE>lives-near</SCHEMEINLINE>
+      </SCHEME>
+      <PYTHON>
+	<SCHEMEINLINE>lives_near</SCHEMEINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    rule and
+    <SPLITINLINE>
+      <SCHEME>
+	<SCHEMEINLINE>?middle-manager</SCHEMEINLINE>
+      </SCHEME>
+      <PYTHON>
+	<PYTHONINLINE>$middle_manager</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    in the
+    <SCHEMEINLINE>wheel</SCHEMEINLINE>
+    rule below.
+    <SPLITINLINE>
+      <SCHEME>
+	<SCHEMEINLINE>Same</SCHEMEINLINE>
+      </SCHEME>
+      <PYTHON>
+	The <PYTHONINLINE>same</PYTHONINLINE> relation
+      </PYTHON>
+    </SPLITINLINE>
+    is useful when we want to force two things to be
+    different, such as
+    <SPLITINLINE>
+      <SCHEME>
+	<SCHEMEINLINE>?person-1</SCHEMEINLINE>
+      </SCHEME>
+      <PYTHON>
+	<PYTHONINLINE>$person_1</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    and
+    <SPLITINLINE>
+      <SCHEME>
+	<SCHEMEINLINE>?person-2</SCHEMEINLINE>
+      </SCHEME>
+      <PYTHON>
+	<PYTHONINLINE>$person_2</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    in the
+    <SPLITINLINE>
+      <SCHEME>
+	<SCHEMEINLINE>lives-near</SCHEMEINLINE>
+      </SCHEME>
+      <PYTHON>
+	<PYTHONINLINE>lives_near</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    rule.  Although using the same pattern variable in two
+    parts of a query forces the same value to appear in both places, using
+    different pattern variables does not force different values to appear.
+    (The values assigned to different pattern variables may be the same or
+    different.)</FOOTNOTE>
+    <SNIPPET>
+      <INDEX><DECLARATION>same</DECLARATION> (rule)</INDEX>
+      <NAME>rule_same</NAME>      
+      <REQUIRES>process_query</REQUIRES>
+      <REQUIRES>sample_data_base_9</REQUIRES>
+      <EXPECTED>'same(list("Reasoner", "Louis"), list("Reasoner", "Louis"))'</EXPECTED>
+      <EXAMPLE>rule_same_example</EXAMPLE>
+      <SCHEME>
+(rule (same ?x ?x))
+      </SCHEME>
+      <PYTHON>
+rule(same($x, $x))
+      </PYTHON>
+      <PYTHON_RUN>
+process_query('assert(rule(same($x, $x)))');
+      </PYTHON_RUN>
+    </SNIPPET>
+    <SNIPPET HIDE="yes">
+      <NAME>rule_same_example</NAME>
+      <REQUIRES>rule_same</REQUIRES>
+      <REQUIRES>process_query</REQUIRES>
+      <PYTHON_TEST>
+first_answer('same(list("Reasoner", $first_name), list($surname, "Louis"))');
+      </PYTHON_TEST>
+      <PYTHON>
+process_query('same(list("Reasoner", $first_name), list($surname, "Louis"))');
+      </PYTHON>
+    </SNIPPET>
+  </TEXT>
+
+  <TEXT>
+    The following rule declares that a person is a <QUOTE>wheel</QUOTE> in an
+    organization if he supervises someone who is in turn a supervisor:
+    <SNIPPET>
+      <INDEX><DECLARATION>wheel</DECLARATION> (rule)</INDEX>
+      <NAME>rules_2</NAME>
+      <REQUIRES>process_query</REQUIRES>
+      <REQUIRES>sample_data_base_9</REQUIRES>
+      <REQUIRES>rule_same</REQUIRES>
+      <EXPECTED>'wheel(list("Warbucks", "Oliver"))'</EXPECTED>
+      <EXAMPLE>rules_2_example</EXAMPLE>
+      <SCHEME>
+(rule (wheel ?person)
+      (and (supervisor ?middle-manager ?person)
+           (supervisor ?x ?middle-manager)))
+      </SCHEME>
+      <PYTHON>
+rule(wheel($person),
+     and(supervisor($middle_manager, $person),
+         supervisor($x, $middle_manager)))
+      </PYTHON>
+      <PYTHON_RUN>
+process_query(`assert(
+rule(wheel($person),
+     and(supervisor($middle_manager, $person),
+         supervisor($x, $middle_manager))))`);     
+      </PYTHON_RUN>
+    </SNIPPET>
+    <SNIPPET HIDE="yes">
+      <NAME>rules_2_example</NAME>
+      <PYTHON_TEST>
+first_answer('wheel($who)');
+      </PYTHON_TEST>
+      <PYTHON>
+process_query('wheel($who)');
+      </PYTHON>
+    </SNIPPET>
+  </TEXT>
+
+  <TEXT>
+    <SPLIT>
+      <SCHEME>
+	The general form of a rule is
+	<SNIPPET LATEX="yes">
+	  <SCHEME>
+(rule $\langle \textit{conclusion} \rangle$ $\langle \textit{body} \rangle$)
+	  </SCHEME>
+	</SNIPPET>
+	where <LATEXINLINE>$\langle \textit{conclusion}\rangle$</LATEXINLINE> is
+	a pattern and <LATEXINLINE>$\langle \textit{body} \rangle$</LATEXINLINE>
+	is any query.<FOOTNOTE>We will also allow
+	<INDEX>rule (query language)<SUBINDEX>without body</SUBINDEX></INDEX>
+	rules without bodies, as in
+	<SCHEMEINLINE>same</SCHEMEINLINE>, and we will interpret such a rule to
+	mean that the rule conclusion is satisfied by any values of the
+	variables.</FOOTNOTE>
+      </SCHEME>
+      <PYTHON>
+	The general form of a rule is
+	<SNIPPET LATEX="yes">
+	  <PYTHON>
+rule(<META>conclusion</META>, <META>body</META>)
+	  </PYTHON>
+	</SNIPPET>
+	where <META>conclusion</META> is a pattern and
+	<META>body</META> is any query.<FOOTNOTE>We will
+	also allow
+	<INDEX>rule (query language)<SUBINDEX>without body</SUBINDEX></INDEX>
+	rules without bodies, as in
+	<SCHEMEINLINE>same</SCHEMEINLINE>, and we will interpret such a rule to
+	mean that the rule conclusion is satisfied by any values of the
+	variables.</FOOTNOTE>
+      </PYTHON>
+    </SPLIT>
+    We can think of a rule as representing a large (even
+    infinite) set of assertions, namely all instantiations of the rule conclusion
+    with variable assignments that satisfy the rule body.  When we described
+    simple queries (patterns), we said that an assignment to variables satisfies
+    a pattern if the instantiated pattern is in the data base.  But the pattern
+    needn<APOS/>t be explicitly in the data base as an assertion.  It
+    can be an
+    <INDEX>assertion<SUBINDEX>implicit</SUBINDEX></INDEX>
+    implicit assertion implied by a rule.  For example, the
+    query<DO_BREAK_PAGE/>
+    <SNIPPET>
+      <NAME>rules_3</NAME>
+      <REQUIRES>query_driver_loop</REQUIRES>
+      <REQUIRES>sample_data_base_9</REQUIRES>
+      <REQUIRES>rules_1</REQUIRES>
+      <REQUIRES>process_query</REQUIRES>
+      <EXPECTED>'lives_near(list("Aull", "DeWitt"), list("Bitdiddle", "Ben"))'</EXPECTED>
+      <PYTHON_TEST>
+first_answer('lives_near($x, list("Bitdiddle", "Ben"))');	
+      </PYTHON_TEST>
+      <SCHEME>
+      (lives-near ?x (Bitdiddle Ben))
+      </SCHEME>
+      <PYTHON>
+lives_near($x, list("Bitdiddle", "Ben"))
+      </PYTHON>
+      <PYTHON_RUN>
+process_query('lives_near($x, list("Bitdiddle", "Ben"))');
+
+// query input:	
+// lives_near($x, list("Bitdiddle", "Ben"))
+// query results:
+// lives_near(list("Reasoner", "Louis"), list("Bitdiddle", "Ben"))            
+// lives_near(list("Aull", "DeWitt"), list("Bitdiddle", "Ben"))
+      </PYTHON_RUN>
+    </SNIPPET>
+    results in
+    <SNIPPET EVAL="no">
+      <SCHEME>
+(lives-near (Reasoner Louis) (Bitdiddle Ben))
+(lives-near (Aull DeWitt) (Bitdiddle Ben))
+      </SCHEME>
+      <PYTHON_OUTPUT>
+lives_near(list("Reasoner", "Louis"), list("Bitdiddle", "Ben"))
+lives_near(list("Aull", "DeWitt"), list("Bitdiddle", "Ben"))            
+      </PYTHON_OUTPUT>
+    </SNIPPET>
+    To find all computer programmers who live near Ben Bitdiddle, we can
+    ask
+    <SNIPPET>
+      <NAME>rules_4</NAME>
+      <REQUIRES>query_driver_loop</REQUIRES>
+      <REQUIRES>sample_data_base_9</REQUIRES>
+      <REQUIRES>rules_1</REQUIRES>
+      <REQUIRES>process_query</REQUIRES>
+      <EXPECTED>'and(job(list("Reasoner", "Louis"), list("computer", "programmer", "trainee")), lives_near(list("Reasoner", "Louis"), list("Bitdiddle", "Ben")))'</EXPECTED>
+      <PYTHON_TEST>
+first_answer('and(job($x, pair("computer", $something)), lives_near($x, list("Bitdiddle", "Ben")))');
+      </PYTHON_TEST>
+      <SCHEME>
+(and (job ?x (computer programmer))
+     (lives-near ?x (Bitdiddle Ben)))
+      </SCHEME>
+      <PYTHON>
+and(job($x, list("computer", "programmer")),
+    lives_near($x, list("Bitdiddle", "Ben")))
+      </PYTHON>
+      <PYTHON_RUN>
+process_query('and(job($x, list("computer", "programmer")), lives_near($x, list("Bitdiddle", "Ben")))');
+
+// query input:	
+// and(job($x, list("computer", "programmer")), lives_near($x, list("Bitdiddle", "Ben")))
+// query results:
+      </PYTHON_RUN>
+    </SNIPPET>
+  </TEXT>
+
+  <TEXT>
+    As in the case of compound
+    <SPLITINLINE>
+      <SCHEME>procedures,</SCHEME>
+      <PYTHON>functions,</PYTHON>
+    </SPLITINLINE>
+    rules can be used as parts of other rules (as we saw with the
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>lives-near</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>lives_near</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    rule above) or even be defined
+    <INDEX>recursion<SUBINDEX><ORDER>rules</ORDER>in rules</SUBINDEX></INDEX>
+    recursively.  For instance, the rule
+    <SNIPPET>
+      <INDEX><DECLARATION>outranked_by</DECLARATION> (rule)</INDEX>
+      <NAME>rules_5</NAME>
+      <REQUIRES>query_driver_loop</REQUIRES>
+      <REQUIRES>sample_data_base_9</REQUIRES>
+      <EXAMPLE>rules_5_example</EXAMPLE>
+      <SCHEME>
+(rule (outranked-by ?staff-person ?boss)
+      (or (supervisor ?staff-person ?boss)
+          (and (supervisor ?staff-person ?middle-manager)
+               (outranked-by ?middle-manager ?boss))))
+      </SCHEME>
+      <PYTHON>
+rule(outranked_by($staff_person, $boss),
+     or(supervisor($staff_person, $boss),
+        and(supervisor($staff_person, $middle_manager),
+            outranked_by($middle_manager, $boss))))
+      </PYTHON>
+      <PYTHON_RUN>
+process_query(`assert(
+rule(outranked_by($staff_person, $boss),
+     or(supervisor($staff_person, $boss),
+        and(supervisor($staff_person, $middle_manager),
+            outranked_by($middle_manager, $boss)))))`);
+      </PYTHON_RUN>
+    </SNIPPET>
+    <SNIPPET HIDE="yes">
+      <NAME>rules_5_example</NAME>
+      <REQUIRES>rules_5</REQUIRES>
+      <REQUIRES>process_query</REQUIRES>
+      <EXPECTED>'outranked_by(list("Bitdiddle", "Ben"), list("Warbucks", "Oliver"))'</EXPECTED>
+      <PYTHON_TEST>
+process_query(`assert(
+rule(outranked_by($staff_person, $boss),
+     or(supervisor($staff_person, $boss),
+        and(supervisor($staff_person, $middle_manager),
+            outranked_by($middle_manager, $boss)))))`);
+first_answer('outranked_by(list($who, "Ben"), $the_boss)');
+      </PYTHON_TEST>
+      <PYTHON>
+process_query('outranked_by(list($who, "Ben"), $the_boss)');
+
+// query input:	
+// outranked_by(list($who, "Ben"), $the_boss)
+// query results:
+// outranked_by(list("Bitdiddle", "Ben"), list("Warbucks", "Oliver"))
+      </PYTHON>
+    </SNIPPET>
+    says that a staff person is outranked by a boss in the organization if
+    the boss is the person<APOS/>s supervisor or (recursively) if the
+    <SHRINK_PARAGRAPH lines="1"/>
+    person<APOS/>s supervisor is outranked by the boss.
+  </TEXT>
+
+  <EXERCISE>
+    Define a rule that says that person 1 can replace person 2 if either
+    person 1 does the same job as person 2 or someone who does person 1<APOS/>s
+    job can also do person<SPACE/>2<APOS/>s job, and if person 1 and person 2
+    are not the same person. Using your rule, give queries that find the
+    following:
+    <OL>
+      <LI>
+	all people who can replace Cy D. Fect;
+      </LI>
+      <LI>
+	all people who can replace someone who is being paid more than they
+	are, together with the two salaries.
+      </LI>
+    </OL>
+    <LABEL NAME="ex:4_55"/>
+  </EXERCISE>
+
+  <EXERCISE>
+    Define a rule that says that a person is a <QUOTE>big shot</QUOTE> in a
+    division if the person works in the division but does not have a supervisor
+    who works in the division.
+    <LABEL NAME="ex:4_56"/>
+  </EXERCISE>
+
+<!-- %Exercise source: Spring '84 Final - -&gt; manual M4.28 - - &gt; here-->
+
+  <EXERCISE>
+    Ben Bitdiddle has missed one meeting too many. Fearing that his habit of
+    forgetting meetings could cost him his job, Ben decides to do something about
+    it.  He adds all the weekly meetings of the firm to the Gargle data base
+    by asserting the following:
+    <SNIPPET EVAL="no">
+      <SCHEME>
+(meeting accounting (Monday 9am))
+(meeting administration (Monday 10am))
+(meeting computer (Wednesday 3pm))
+(meeting administration (Friday 1pm))
+      </SCHEME>
+      <PYTHON>
+meeting("accounting", list("Monday", "9am"))
+meeting("administration", list("Monday", "10am"))
+meeting("computer", list("Wednesday", "3pm"))
+meeting("administration", list("Friday", "1pm"))
+    </PYTHON>
+    </SNIPPET>
+      <LONG_PAGE lines="1"/>Each of the above assertions is for a meeting of an entire division.
+    Ben also adds an entry for the company-wide meeting that spans all the
+    divisions.  All of the company<APOS/>s employees attend this meeting.
+    <SNIPPET EVAL="no">
+      <SCHEME>
+(meeting whole-company (Wednesday 4pm))
+      </SCHEME>
+      <PYTHON>
+meeting("whole-company", list("Wednesday", "4pm"))
+      </PYTHON>
+    </SNIPPET>
+    <OL>
+      <LI>
+	On Friday morning, Ben wants to query the data base for all the meetings
+	that occur that day.  What query should he use?
+      </LI>
+      <LI>
+	Alyssa P. Hacker is unimpressed.  She thinks it would be much more
+	useful to be able to ask for her meetings by specifying her name.  So
+	she designs a rule that says that a person<APOS/>s meetings include all
+	<SPLITINLINE>
+	  <SCHEME>
+	    <SCHEMEINLINE>whole-company</SCHEMEINLINE>
+	  </SCHEME>
+	  <PYTHON>
+	    <PYTHONINLINE>"whole-company"</PYTHONINLINE>
+	  </PYTHON>
+	</SPLITINLINE>
+	meetings plus all meetings of that person<APOS/>s division.
+	Fill in the body of Alyssa<APOS/>s rule.
+	<SPLIT>
+	  <SCHEME>
+	    <SNIPPET EVAL="no" LATEX="yes">
+              <SCHEME>
+(rule (meeting-time ?person ?day-and-time)
+      rule-body)
+              </SCHEME>
+	    </SNIPPET>
+	  </SCHEME>
+	  <PYTHON>
+	    <SNIPPET EVAL="no" LATEX="yes">
+	      <PYTHON>
+rule(meeting_time($\texttt{\$}$person, $\texttt{\$}$day_and_time),
+     $rule$-$body$)
+	      </PYTHON>
+	    </SNIPPET>
+	  </PYTHON>
+	</SPLIT>
+      </LI>
+      <LI>
+	Alyssa arrives at work on Wednesday morning and wonders what meetings she
+	has to attend that day.  Having defined the above rule, what query should
+	she make to find this out?
+      </LI>
+    </OL>
+    <LABEL NAME="ex:4_57"/>
+  </EXERCISE>
+
+  <EXERCISE>
+    By giving the query
+    <SNIPPET EVAL="no">
+      <INDEX><USE>lives_near</USE> (rule)</INDEX>
+      <SCHEME>
+(lives-near ?person (Hacker Alyssa P))
+      </SCHEME>
+      <PYTHON>
+lives_near($person, list("Hacker", "Alyssa", "P"))
+      </PYTHON>
+    </SNIPPET>
+    Alyssa P. Hacker is able to find people who live near her, with whom
+    she can ride to work.  On the other hand, when she tries to find all
+    pairs of people who live near each other by querying
+    <SNIPPET EVAL="no">
+      <SCHEME>
+(lives-near ?person-1 ?person-2)
+      </SCHEME>
+      <PYTHON>
+lives_near($person_1, $person_2)
+      </PYTHON>
+    </SNIPPET>
+    she notices that each pair of people who live near each other is
+    listed twice; for example,
+    <SNIPPET EVAL="no">
+      <SCHEME>
+(lives-near (Hacker Alyssa P) (Fect Cy D))
+(lives-near (Fect Cy D) (Hacker Alyssa P))
+      </SCHEME>
+      <PYTHON>
+lives_near(list("Hacker", "Alyssa", "P"), list("Fect", "Cy", "D"))
+lives_near(list("Fect", "Cy", "D"), list("Hacker", "Alyssa", "P"))
+      </PYTHON>
+    </SNIPPET>
+    Why does this happen?
+    Is there a way to find a list of people who live near each other, in
+    which each pair appears only once?  Explain.
+    <LABEL NAME="ex:lives-near"/>
+  </EXERCISE>
+
+  <SUBHEADING>
+    <NAME>Logic as programs</NAME>
+  </SUBHEADING>
+
+  <INDEX>query language<SUBINDEX>logical deductions<OPEN/></SUBINDEX></INDEX>
+
+  <TEXT>
+    We can regard a rule as a kind of logical implication: <EM>If</EM> an
+    assignment of values to pattern variables satisfies the body, <EM>
+    then</EM> it satisfies the conclusion.  Consequently, we can regard the
+    query language as having the ability to perform <EM>logical
+    deductions</EM> based upon the rules.  As an example, consider the
+    <SCHEMEINLINE>append</SCHEMEINLINE> operation described at the beginning of
+    section<SPACE/><REF NAME="sec:logic-programming"/>.  As we said,
+    <SCHEMEINLINE>append</SCHEMEINLINE> can be characterized by the following
+    two rules:
+    <UL>
+      <LI>
+	For any list <SCHEMEINLINE>y</SCHEMEINLINE>, the empty list and
+	<SCHEMEINLINE>y</SCHEMEINLINE> <SCHEMEINLINE>append</SCHEMEINLINE> to
+	form <SCHEMEINLINE>y</SCHEMEINLINE>.
+      </LI>
+      <LI>
+	For any <SCHEMEINLINE>u</SCHEMEINLINE>, <SCHEMEINLINE>v</SCHEMEINLINE>,
+	<SCHEMEINLINE>y</SCHEMEINLINE>, and <SCHEMEINLINE>z</SCHEMEINLINE>,
+        <SPLITINLINE>
+	  <SCHEME><SCHEMEINLINE>(cons u v)</SCHEMEINLINE></SCHEME>
+	  <PYTHON><PYTHONINLINE>pair(u, v)</PYTHONINLINE>
+	  </PYTHON>
+	</SPLITINLINE>
+	and <SCHEMEINLINE>y</SCHEMEINLINE> <SCHEMEINLINE>append</SCHEMEINLINE>
+	to form
+	<SPLITINLINE>
+	  <SCHEME><SCHEMEINLINE>(cons<SPACE/>u<SPACE/>z)</SCHEMEINLINE></SCHEME>
+	  <PYTHON><PYTHONINLINE>pair(u, z)</PYTHONINLINE>
+	  </PYTHON>
+	</SPLITINLINE>
+	if <SCHEMEINLINE>v</SCHEMEINLINE> and <SCHEMEINLINE>y</SCHEMEINLINE>
+	<SCHEMEINLINE>append</SCHEMEINLINE> to form
+	<SCHEMEINLINE>z</SCHEMEINLINE>.
+      </LI>
+    </UL>
+  </TEXT>
+
+  <TEXT>
+    To express this in our query language, we define two rules for a relation
+    <SNIPPET EVAL="no">
+      <SCHEME>
+(append-to-form x y z)
+      </SCHEME>
+      <PYTHON>
+append_to_form(x, y, z)      
+      </PYTHON>
+    </SNIPPET>
+    which we can interpret to mean <QUOTE><SCHEMEINLINE>x</SCHEMEINLINE> and
+    <SCHEMEINLINE>y</SCHEMEINLINE> <SCHEMEINLINE>append</SCHEMEINLINE> to
+    form <SCHEMEINLINE>z</SCHEMEINLINE></QUOTE>:
+    <SNIPPET>
+      <INDEX><DECLARATION>append_to_form</DECLARATION> (rules)</INDEX>
+      <NAME>append_to_form</NAME>
+      <REQUIRES>process_query</REQUIRES>
+      <EXPECTED>'append_to_form(list(1, 2), list(3, 4), list(1, 2, 3, 4))'</EXPECTED>
+      <EXAMPLE>append_to_form_example_1</EXAMPLE>
+      <SCHEME>
+(rule (append-to-form () ?y ?y))
+
+(rule (append-to-form (?u . ?v) ?y (?u . ?z))
+      (append-to-form ?v ?y ?z))
+      </SCHEME>
+      <PYTHON>
+rule(append_to_form(null, $y, $y))
+
+rule(append_to_form(pair($u, $v), $y, pair($u, $z)),
+     append_to_form($v, $y, $z))
+      </PYTHON>
+      <PYTHON_RUN>
+process_query(`assert(
+rule(append_to_form(null, $y, $y)))`);
+process_query(`assert(
+rule(append_to_form(pair($u, $v), $y, pair($u, $z)),
+     append_to_form($v, $y, $z)))`);
+      </PYTHON_RUN>
+    </SNIPPET>
+    <SNIPPET HIDE="yes">
+      <NAME>append_to_form_just_the_rules</NAME>
+      <PYTHON>
+process_query(`assert(
+rule(append_to_form(null, $y, $y)))`);
+process_query(`assert(
+rule(append_to_form(pair($u, $v), $y, pair($u, $z)),
+     append_to_form($v, $y, $z)))`);
+      </PYTHON>
+    </SNIPPET>
+    <SNIPPET HIDE="yes">
+      <NAME>append_to_form_example_1</NAME>
+      <PYTHON_TEST>
+first_answer('append_to_form(list(1, 2), list(3, 4), $xs)');
+      </PYTHON_TEST>
+      <PYTHON>
+process_query('append_to_form(list(1, 2), list(3, 4), $xs)');
+
+// query input:	
+// append_to_form(list(1, 2), list(3, 4), $xs)
+// query results:
+// append_to_form(list(1, 2), list(3, 4), list(1, 2, 3, 4))
+      </PYTHON>
+    </SNIPPET>
+    The first rule has
+    <INDEX>rule (query language)<SUBINDEX>without body</SUBINDEX></INDEX>
+    no body, which means that the conclusion holds for
+    any value of
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>?y</SCHEMEINLINE>.</SCHEME>
+      <PYTHON><PYTHONINLINE>$y</PYTHONINLINE>.</PYTHON>
+    </SPLITINLINE>
+    Note how the second rule makes use of
+    <SPLITINLINE>
+      <SCHEME>
+	<INDEX>dotted-tail notation<SUBINDEX><ORDER>query</ORDER>in query-language rule</SUBINDEX></INDEX>
+	dotted-tail notation to name the
+      </SCHEME>
+      <PYTHON>
+	<PYTHONINLINE>pair</PYTHONINLINE> to name the
+      </PYTHON>
+    </SPLITINLINE>
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>car</SCHEMEINLINE></SCHEME>
+      <PYTHON>head</PYTHON>
+    </SPLITINLINE>
+    and
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>cdr</SCHEMEINLINE></SCHEME>
+      <PYTHON>tail</PYTHON>
+    </SPLITINLINE>
+    of a list.
+  </TEXT>
+
+  <TEXT>
+    Given these two rules, we can formulate queries that compute the
+    <SCHEMEINLINE>append</SCHEMEINLINE> of two lists:
+    <SNIPPET>
+      <NAME>append_to_form_example_2</NAME>
+      <REQUIRES>process_query</REQUIRES>
+      <REQUIRES>append_to_form_just_the_rules</REQUIRES>
+      <EXPECTED>'append_to_form(list("a", "b"), list("c", "d"), list("a", "b", "c", "d"))'</EXPECTED>
+      <SCHEMEPROMPT>
+;;; Query input:
+      </SCHEMEPROMPT>
+      <PYTHON_PROMPT>
+Query input:
+      </PYTHON_PROMPT>
+      <PYTHON_TEST>
+first_answer('append_to_form(list("a", "b"), list("c", "d"), z)');
+      </PYTHON_TEST>
+      <SCHEME>
+      (append-to-form (a b) (c d) ?z)
+      </SCHEME>
+      <PYTHON>
+append_to_form(list("a", "b"), list("c", "d"), $z)
+      </PYTHON>
+      <PYTHON_RUN>
+process_query('append_to_form(list("a", "b"), list("c", "d"), $z)');
+
+// query input:	
+// append_to_form(list("a", "b"), list("c", "d"), $z)
+// query results:
+// append_to_form(list("a", "b"), list("c", "d"), list("a", "b", "c", "d"))
+      </PYTHON_RUN>
+      <SCHEMEOUTPUT>
+;;; Query results:
+(append-to-form (a b) (c d) (a b c d))
+      </SCHEMEOUTPUT>
+      <PYTHON_OUTPUT>
+Query results:
+append_to_form(list("a", "b"), list("c", "d"), list("a", "b", "c", "d"))
+      </PYTHON_OUTPUT>
+    </SNIPPET>
+    What is more striking, we can use the same rules to ask the question
+    <SPLITINLINE>
+      <SCHEME>
+	<QUOTE>
+	  Which list, when <SCHEMEINLINE>append</SCHEMEINLINE>ed to
+	  <SCHEMEINLINE>(a b)</SCHEMEINLINE>, yields
+	  <SCHEMEINLINE>(a b c d)</SCHEMEINLINE>?</QUOTE>
+      </SCHEME>
+      <PYTHON>
+	<QUOTE>Which list, when <SCHEMEINLINE>append</SCHEMEINLINE>ed to
+	<PYTHONINLINE>list("a", "b")</PYTHONINLINE>, yields
+	<PYTHONINLINE>list("a", "b", "c", "d")</PYTHONINLINE>?
+	</QUOTE>
+      </PYTHON>
+    </SPLITINLINE>
+    This is done as follows:
+    <SNIPPET>
+      <NAME>append_to_form_example_3</NAME>
+      <REQUIRES>process_query</REQUIRES>
+      <REQUIRES>append_to_form_just_the_rules</REQUIRES>
+      <EXPECTED>'append_to_form(list("a", "b"), list("c", "d"), list("a", "b", "c", "d"))'</EXPECTED>
+      <PYTHON_TEST>
+first_answer('append_to_form(list("a", "b"), y, list("a", "b", "c", "d"))');
+      </PYTHON_TEST>
+      <SCHEMEPROMPT>
+;;; Query input:
+      </SCHEMEPROMPT>
+      <PYTHON_PROMPT>
+Query input:
+      </PYTHON_PROMPT>
+      <SCHEME>
+      (append-to-form (a b) ?y (a b c d))
+      </SCHEME>
+      <PYTHON>
+append_to_form(list("a", "b"), $y, list("a", "b", "c", "d"))
+      </PYTHON>
+      <PYTHON_RUN>
+process_query('append_to_form(list("a", "b"), $y, list("a", "b", "c", "d"))');
+
+// query input:	
+// append_to_form(list("a", "b"), $y, list("a", "b", "c", "d"))
+// query results:
+// append_to_form(list("a", "b"), list("c", "d"), list("a", "b", "c", "d"))
+      </PYTHON_RUN>
+      <SCHEMEOUTPUT>
+      ;;; Query results:
+      (append-to-form (a b) (c d) (a b c d))
+      </SCHEMEOUTPUT>
+      <PYTHON_OUTPUT>
+Query results:
+append_to_form(list("a", "b"), list("c", "d"), list("a", "b", "c", "d"))
+      </PYTHON_OUTPUT>
+    </SNIPPET>
+    We can
+    <SPLITINLINE>
+      <SCHEME>
+	also
+      </SCHEME>
+    </SPLITINLINE>
+    ask for all pairs of lists that
+    <SCHEMEINLINE>append</SCHEMEINLINE> to form
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>(a b c d)</SCHEMEINLINE>:</SCHEME>
+      <PYTHON><PYTHONINLINE>list("a", "b", "c", "d")</PYTHONINLINE>:
+      </PYTHON>
+    </SPLITINLINE>
+    <SNIPPET>
+      <NAME>append_to_form_example_4</NAME>
+      <REQUIRES>process_query</REQUIRES>
+      <REQUIRES>append_to_form_just_the_rules</REQUIRES>
+      <EXPECTED>'append_to_form(list("a", "b", "c", "d"), null, list("a", "b", "c", "d"))'</EXPECTED>
+      <PYTHON_TEST>
+first_answer('append_to_form($x, $y, list("a", "b", "c", "d"))');
+      </PYTHON_TEST>
+      <SCHEMEPROMPT>
+;;; Query input:
+      </SCHEMEPROMPT>
+      <PYTHON_PROMPT>
+Query input:
+      </PYTHON_PROMPT>
+      <SCHEME>
+      (append-to-form ?x ?y (a b c d))
+      </SCHEME>
+      <PYTHON>
+append_to_form($x, $y, list("a", "b", "c", "d"))
+      </PYTHON>
+      <PYTHON_RUN>
+process_query('append_to_form($x, $y, list("a", "b", "c", "d"))');
+
+// query input:	
+// append_to_form($x, $y, list("a", "b", "c", "d"))
+// query results:
+// append_to_form(null, list("a", "b", "c", "d"), list("a", "b", "c", "d"))
+// append_to_form(list("a"), list("b", "c", "d"), list("a", "b", "c", "d"))
+// append_to_form(list("a", "b"), list("c", "d"), list("a", "b", "c", "d"))
+// append_to_form(list("a", "b", "c"), list("d"), list("a", "b", "c", "d"))
+// append_to_form(list("a", "b", "c", "d"), null, list("a", "b", "c", "d"))
+      </PYTHON_RUN>
+      <SCHEMEOUTPUT>
+;;; Query results:
+(append-to-form () (a b c d) (a b c d))
+(append-to-form (a) (b c d) (a b c d))
+(append-to-form (a b) (c d) (a b c d))
+(append-to-form (a b c) (d) (a b c d))
+(append-to-form (a b c d) () (a b c d))
+      </SCHEMEOUTPUT>
+      <PYTHON_OUTPUT>
+Query results:
+append_to_form(null, list("a", "b", "c", "d"), list("a", "b", "c", "d"))
+append_to_form(list("a"), list("b", "c", "d"), list("a", "b", "c", "d"))
+append_to_form(list("a", "b"), list("c", "d"), list("a", "b", "c", "d"))
+append_to_form(list("a", "b", "c"), list("d"), list("a", "b", "c", "d"))
+append_to_form(list("a", "b", "c", "d"), null, list("a", "b", "c", "d"))
+      </PYTHON_OUTPUT>
+    </SNIPPET>
+  </TEXT>
+
+  <TEXT>
+    The query system may seem to exhibit quite a bit of intelligence in
+    using the rules to deduce the answers to the queries above.  Actually,
+    as we will see in the next section, the system is following a
+    well-determined algorithm in unraveling the rules.  Unfortunately,
+    although the system works impressively in the
+    <SCHEMEINLINE>append</SCHEMEINLINE> case, the general methods may break down
+    in more complex cases, as we will see
+    in section<SPACE/><REF NAME="sec:math-logic"/>.
+  </TEXT>
+    
+  <!-- %Exercise source: Manual p.147 &amp;&amp; ex M4.30-->
+  <EXERCISE>
+    <LABEL NAME="ex:next-to"/>
+    The following rules implement a
+    <SPLITINLINE>
+      <SCHEME>
+	<SCHEMEINLINE>next-to</SCHEMEINLINE>
+      </SCHEME>
+      <PYTHON>
+	<SCHEMEINLINE>next_to_in</SCHEMEINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    relation that finds adjacent elements of a list:
+    <SNIPPET EVAL="no">
+      <INDEX><DECLARATION>next_to_in</DECLARATION> (rules)</INDEX>
+      <SCHEME>
+(rule (?x next-to ?y in (?x ?y . ?u)))
+
+(rule (?x next-to ?y in (?v . ?z))
+      (?x next-to ?y in ?z))
+      </SCHEME>
+      <PYTHON>
+rule(next_to_in($x, $y, pair($x, pair($y, $u))))
+
+rule(next_to_in($x, $y, pair($v, $z)),
+     next_to_in($x, $y, $z))
+      </PYTHON>
+    </SNIPPET>
+    <PDF_ONLY>\newpage\noindent </PDF_ONLY>What will the response be to the following queries?
+    <SNIPPET EVAL="no" POSTPADDING="no">
+      <SCHEME>
+(?x next-to ?y in (1 (2 3) 4))
+
+(?x next-to 1 in (2 1 3 1))
+      </SCHEME>
+      <PYTHON>
+next_to_in($x, $y, list(1, list(2, 3), 4))
+
+next_to_in($x, 1, list(2, 1, 3, 1))
+      </PYTHON>
+    </SNIPPET>
+  </EXERCISE>
+
+  <EXERCISE>
+    Define rules to implement the
+    <INDEX><USE>last_pair</USE><SUBINDEX>rules</SUBINDEX></INDEX>
+    <SPLITINLINE>
+      <SCHEME>
+	<SCHEMEINLINE>last-pair</SCHEMEINLINE>
+      </SCHEME>
+      <PYTHON>
+	<PYTHONINLINE>last_pair</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    operation of exercise<SPACE/><REF NAME="ex:last"/>,
+    which returns a list
+    containing the last element of a nonempty list.  Check your rules on
+    <SPLIT>
+      <SCHEME>
+	queries such as
+	<SCHEMEINLINE>(last-pair (3) ?x)</SCHEMEINLINE>,
+	<SCHEMEINLINE>(last-pair (1 2 3) ?x)</SCHEMEINLINE>,
+	and
+	<SCHEMEINLINE>(last-pair (2 ?x) (3))</SCHEMEINLINE>.
+      </SCHEME>
+      <PYTHON>
+	the following queries:
+	<UL>
+	  <LI> <PYTHONINLINE>last_pair(list(3), $x)</PYTHONINLINE></LI>
+	  <LI> <PYTHONINLINE>last_pair(list(1, 2, 3), $x)</PYTHONINLINE></LI>
+	  <LI> <PYTHONINLINE>last_pair(list(2, $x), list(3))</PYTHONINLINE></LI>
+	</UL>
+	</PYTHON>
+    </SPLIT>
+    Do your rules work correctly on queries such as
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>(last-pair ?x (3))</SCHEMEINLINE>?</SCHEME>
+      <PYTHON><PYTHONINLINE>last_pair($x, list(3))</PYTHONINLINE>?
+      </PYTHON>
+    </SPLITINLINE>
+    <LABEL NAME="ex:last-pair-rules"/>
+  </EXERCISE>
+
+  <EXERCISE>
+    The following data base (see Genesis 4) traces the genealogy of the
+    descendants of
+    <INDEX>Ada</INDEX><INDEX>Genesis</INDEX>
+    Ada back to Adam, by way of Cain:
+
+    <SNIPPET EVAL="no">
+      <SCHEME>
+(son Adam Cain)
+(son Cain Enoch)
+(son Enoch Irad)
+(son Irad Mehujael)
+(son Mehujael Methushael)
+(son Methushael Lamech)
+(wife Lamech Ada)
+(son Ada Jabal)
+(son Ada Jubal)
+      </SCHEME>
+      <PYTHON>
+son("Adam", "Cain")
+son("Cain", "Enoch")
+son("Enoch", "Irad")
+son("Irad", "Mehujael")
+son("Mehujael", "Methushael")
+son("Methushael", "Lamech")
+wife("Lamech", "Ada")
+son("Ada", "Jabal")
+son("Ada", "Jubal")
+      </PYTHON>
+    </SNIPPET>
+    Formulate rules such as <QUOTE>If <EM>S</EM> is the son of <EM>F</EM>, and
+    <EM>F</EM> is the son of <EM>G</EM>, then <EM>S</EM> is the grandson of
+    <EM>G</EM></QUOTE> and <QUOTE>If <EM>W</EM> is the wife of <EM>M</EM>, and
+    <EM>S</EM> is the son of <EM>W</EM>, then <EM>S</EM> is the son of
+    <EM>M</EM></QUOTE> (which was supposedly more true in biblical times than
+    today) that will enable the query system to find the grandson of Cain; the
+    sons of Lamech; the grandsons of Methushael.
+    (See
+    <SPLITINLINE>
+      <SCHEME>
+	exercise<SPACE/><REF NAME="ex:great-grandson_scheme"/>
+      </SCHEME>
+      <PYTHON>
+	exercise<SPACE/><REF NAME="ex:great-grandson"/>
+      </PYTHON>
+    </SPLITINLINE>
+    for some rules to deduce more complicated relationships.)
+    <LABEL NAME="ex:genesis"/>
+  </EXERCISE>
+
+  <INDEX>rule (query language)<CLOSE/></INDEX>
+  <INDEX>query language<SUBINDEX>logical deductions<CLOSE/></SUBINDEX></INDEX>
+  <INDEX>query language<CLOSE/></INDEX>
+
+</SUBSECTION>

@@ -1,0 +1,1356 @@
+<SUBSECTION>
+  <NAME>
+    Running the Evaluator
+  </NAME>
+
+  <LABEL NAME="sec:running-evaluator"/>
+
+  <INDEX>explicit-control evaluator for JavaScript<SUBINDEX>running<OPEN/></SUBINDEX></INDEX>
+
+  <TEXT>
+    With the implementation of the explicit-control evaluator we come to
+    the end of a development, begun in chapter<SPACE/><REF NAME="chap:fun"></REF>, in which we have
+    explored successively more precise
+    <INDEX>models of evaluation</INDEX>
+    <INDEX>evaluation<SUBINDEX>models of</SUBINDEX></INDEX>
+    models of the evaluation process.
+    We started with the relatively informal substitution model, then
+    extended this in chapter<SPACE/><REF NAME="chap:state"></REF> to the environment model, which enabled us
+    to deal with state and change.  In the metacircular evaluator of
+    chapter<SPACE/><REF NAME="chap:meta"></REF>, we used
+    <SPLITINLINE>
+      <SCHEME>Scheme</SCHEME>
+      <PYTHON>JavaScript</PYTHON>
+    </SPLITINLINE>
+    itself as a language for making more
+    explicit the environment structure constructed during evaluation of an
+    <SPLITINLINE>
+      <SCHEME>expression.</SCHEME>
+      <PYTHON>component.</PYTHON>
+      </SPLITINLINE>
+    Now, with register machines, we have taken a close look
+    at the evaluator<APOS/>s mechanisms for storage management,
+    argument passing, and control.  At
+    each new level of description, we have had to raise issues and resolve
+    ambiguities that were not apparent at the previous, less precise
+    treatment of evaluation.  To understand the behavior of the
+    explicit-control evaluator, we can simulate it and monitor its
+    performance.
+  </TEXT>
+
+  <TEXT>
+    We will install a
+    <INDEX>explicit-control evaluator for JavaScript<SUBINDEX>driver loop</SUBINDEX></INDEX>
+    <INDEX>driver loop<SUBINDEX><ORDER>explicit</ORDER>in explicit-control evaluator</SUBINDEX></INDEX>
+    driver loop in our evaluator machine.  This plays
+    the role of the
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>driver-loop</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>driver_loop</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    <SPLITINLINE>
+      <SCHEME>procedure</SCHEME>
+      <PYTHON>function</PYTHON>
+    </SPLITINLINE>
+    of section<SPACE/><REF NAME="sec:running-eval"/>. The evaluator
+    will repeatedly print a prompt, read 
+    <SPLITINLINE>
+      <SCHEME>an expression,</SCHEME>
+      <PYTHON>a program,</PYTHON>
+    </SPLITINLINE>
+    evaluate
+    <SPLITINLINE>
+      <SCHEME>the expression</SCHEME>
+      <PYTHON>the program</PYTHON>
+    </SPLITINLINE>
+    by going to
+    <SPLITINLINE>
+      <SCHEME>
+	<SCHEMEINLINE>eval-dispatch</SCHEMEINLINE>,
+      </SCHEME>
+      <PYTHON>
+	<PYTHONINLINE>eval_dispatch</PYTHONINLINE>,
+      </PYTHON>
+    </SPLITINLINE>
+    and print the result.
+    <SPLITINLINE>
+      <PYTHON>
+        If nothing is entered at the prompt, we jump to the label
+        <PYTHONINLINE>evaluator_done</PYTHONINLINE>, which is
+        the last entry point in the controller. 
+      </PYTHON>
+    </SPLITINLINE>
+    The following instructions form the beginning of the
+    explicit-control evaluator<APOS/>s controller sequence:<FOOTNOTE>We assume
+    here that
+    <SPLITINLINE>
+      <SCHEME>
+	      <SCHEMEINLINE>read</SCHEMEINLINE>
+      </SCHEME>
+      <PYTHON>
+	      <PYTHONINLINE>user_read</PYTHONINLINE>,
+	      <PYTHONINLINE>parse</PYTHONINLINE>,
+      </PYTHON>
+    </SPLITINLINE>
+    and the various printing
+    operations are available as primitive machine operations, which is useful
+    for our simulation, but completely unrealistic in practice.  These are
+    actually extremely complex operations.  In practice,
+    <SPLITINLINE>
+      <SCHEME>they</SCHEME>
+      <PYTHON>reading and printing</PYTHON>
+    </SPLITINLINE>
+    would be
+    implemented using low-level input-output operations such as transferring
+    single characters to and from a device.
+    <SPLIT>
+      <SCHEME>
+	<P/>
+	To support the
+	<SCHEMEINLINE>get-global-environment</SCHEMEINLINE> operation we define
+	<SNIPPET EVAL="no">
+	  <INDEX><DECLARATION>the-global-environment</DECLARATION></INDEX> 
+	  <INDEX><DECLARATION>get-global-environment</DECLARATION></INDEX> 
+	  <NAME>the_global</NAME>
+	  <SCHEME>
+	    (define the-global-environment (setup-environment))
+
+	    (define (get-global-environment)
+	    the-global-environment)
+	  </SCHEME>
+	</SNIPPET>
+      </SCHEME>
+    </SPLIT>
+  </FOOTNOTE>
+    <SNIPPET EVAL="no" LATEX="yes">
+      <INDEX>prompts<SUBINDEX>explicit-control evaluator</SUBINDEX></INDEX>
+      <INDEX><DECLARATION>read_evaluate_print_loop</DECLARATION></INDEX> 
+      <INDEX><DECLARATION>print_result</DECLARATION></INDEX> 
+      <SCHEME>
+      read-eval-print-loop
+      (perform (op initialize-stack))
+      (perform
+      (op prompt-for-input) (const ";;; EC-Eval input:"))
+      (assign exp (op read))
+      (assign env (op get-global-environment))
+      (assign continue (label print-result))
+      (goto (label eval-dispatch))
+      print-result
+      (perform
+      (op announce-output) (const ";;; EC-Eval value:"))
+      (perform (op user-print) (reg val))
+      (goto (label read-eval-print-loop))
+      </SCHEME>
+      <PYTHON>
+"read_evaluate_print_loop",
+  perform(list(op("initialize_stack"))),
+  assign("comp", list(op("user_read"),
+                      constant("EC-evaluate input:"))),
+  assign("comp", list(op("parse"), reg("comp"))),
+  test(list(op("is_null"), reg("comp"))),
+  branch(label("evaluator_done")),
+  assign("env", list(op("get_current_environment"))),
+  assign("val", list(op("scan_out_declarations"), reg("comp"))),
+  save("comp"),    // so we can use it to temporarily hold $\texttt{*unassigned*}$ values
+  assign("comp", list(op("list_of_unassigned"), reg("val"))),
+  assign("env", list(op("extend_environment"), 
+                     reg("val"), reg("comp"), reg("env"))),
+  perform(list(op("set_current_environment"), reg("env"))),
+  restore("comp"), // the program 
+  assign("continue", label("print_result")),
+  go_to(label("eval_dispatch")),
+"print_result",
+  perform(list(op("user_print"),
+               constant("EC-evaluate value:"), reg("val"))),
+  go_to(label("read_evaluate_print_loop")), 
+  </PYTHON>
+    </SNIPPET>
+
+    <SPLIT>
+      <SCHEME>
+      </SCHEME>
+      <PYTHON>
+        We store the current environment, initially the global environment,
+        in the variable <PYTHONINLINE>current_@environment</PYTHONINLINE>
+        and update it each time around the loop to remember past declarations.
+        The operations
+	<PYTHONINLINE>get_@current_@environment</PYTHONINLINE> and
+	<PYTHONINLINE>set_@current_@environment</PYTHONINLINE> 
+	simply get and set this variable.
+    <SNIPPET EVAL="no">
+      <INDEX><DECLARATION>get_current_environment</DECLARATION></INDEX>
+      <INDEX><DECLARATION>set_current_environment</DECLARATION></INDEX>
+      <NAME>the_global</NAME>
+      <PYTHON>
+let current_environment = the_global_environment;
+<SHORT_SPACE/>
+function get_current_environment() {
+    return current_environment;
+}
+<SHORT_SPACE/>
+function set_current_environment(env) {
+    current_environment = env;
+}
+      </PYTHON>
+      </SNIPPET>
+      </PYTHON>
+    </SPLIT>
+  </TEXT>
+
+  <TEXT>
+    When we encounter an
+    <INDEX>error handling<SUBINDEX>in explicit-control evaluator</SUBINDEX></INDEX>
+    <INDEX>explicit-control evaluator for JavaScript<SUBINDEX>error handling</SUBINDEX></INDEX>
+    error in a
+    <SPLITINLINE>
+      <SCHEME>procedure</SCHEME>
+      <PYTHON>function</PYTHON>
+    </SPLITINLINE>
+    (such as the 
+    <SPLITINLINE>
+      <SCHEME><QUOTE>unknown procedure type error</QUOTE></SCHEME>
+      <PYTHON><QUOTE>unknown function type</QUOTE> error</PYTHON>
+    </SPLITINLINE>
+    indicated at
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>apply-dispatch</SCHEMEINLINE>),</SCHEME>
+      <PYTHON><PYTHONINLINE>apply_dispatch</PYTHONINLINE>),
+      </PYTHON>
+    </SPLITINLINE>
+    we print an error message and return to the driver loop.<FOOTNOTE>There are
+    other errors that we would like the interpreter to handle, but these are not
+    so simple.  See exercise<SPACE/><REF NAME="ex:interp-errors"/>.</FOOTNOTE>
+    <SNIPPET EVAL="no" LATEX="yes">
+      <INDEX><DECLARATION>unknown_component_type</DECLARATION></INDEX> 
+      <INDEX><DECLARATION>unknown_function_type</DECLARATION></INDEX> 
+      <INDEX><DECLARATION>signal_error</DECLARATION></INDEX> 
+      <SCHEME>
+      unknown-expression-type
+      (assign val (const unknown-expression-type-error))
+      (goto (label signal-error))
+
+      unknown-procedure-type
+      (restore continue)    <EM>; clean up stack (from <SCHEMEINLINE>apply-dispatch</SCHEMEINLINE>)</EM>
+      (assign val (const unknown-procedure-type-error))
+      (goto (label signal-error))
+
+      signal-error
+      (perform (op user-print) (reg val))
+      (goto (label read-eval-print-loop))
+      </SCHEME>
+      <PYTHON>
+"unknown_component_type",
+  assign("val", constant("unknown syntax")),
+  go_to(label("signal_error")),
+      
+"unknown_function_type",
+  restore("continue"), // clean up stack (from $\texttt{apply_dispatch}$)
+  assign("val", constant("unknown function type")),
+  go_to(label("signal_error")),
+      
+"signal_error",
+  perform(list(op("user_print"),
+               constant("EC-evaluator error:"), reg("val"))),
+  go_to(label("read_evaluate_print_loop")),
+      </PYTHON>
+    </SNIPPET>
+  </TEXT>
+
+  <TEXT>
+    For the purposes of the simulation, we initialize the stack each time
+    through the driver loop, since it might not be empty after an error
+    <SPLITINLINE>
+      <SCHEME>
+	(such as an undefined variable)
+      </SCHEME>
+      <PYTHON>
+	(such as an undeclared name)
+      </PYTHON>
+    </SPLITINLINE>
+    interrupts an evaluation.<FOOTNOTE>We
+    could perform the stack initialization only after errors, but doing it in
+    the driver loop will be convenient for monitoring the evaluator<APOS/>s
+    performance, as described below.</FOOTNOTE>
+  </TEXT>
+
+  <INDEX>explicit-control evaluator for JavaScript<SUBINDEX>controller<CLOSE/></SUBINDEX></INDEX>
+  
+  <TEXT>
+    If we combine all the code fragments presented in sections
+    <REF NAME="sec:eceval-core"/><ENDASH/><REF NAME="sec:running-evaluator"/>,
+    we can create an
+    <INDEX>explicit-control evaluator for JavaScript<SUBINDEX>machine model</SUBINDEX></INDEX>
+    evaluator machine model that we can run using the
+    register-machine simulator of section<SPACE/><REF NAME="sec:simulator"/>.
+
+    <SNIPPET EVAL="no" LATEX="yes">
+      <INDEX><DECLARATION>eceval</DECLARATION></INDEX>
+      <SCHEME>
+      (define eceval
+      (make-machine
+      '(exp env val proc argl continue unev)
+      eceval-operations
+      '(
+      read-eval-print-loop
+      $\langle$entire machine controller as given above$\rangle$
+      )))
+      </SCHEME>
+      <PYTHON>
+const eceval = make_machine(list("comp", "env", "val", "fun",
+                                 "argl", "continue", "unev"),
+                            eceval_operations,
+                            list("read_evaluate_print_loop",
+                                 <METAPHRASE>entire machine controller as given above</METAPHRASE>
+                                 "evaluator_done"));
+      </PYTHON>
+    </SNIPPET>
+    <SNIPPET HIDE="yes">
+      <NAME>eceval</NAME>
+      <REQUIRES>functions_4_1_1</REQUIRES>
+      <REQUIRES>functions_4_1_2</REQUIRES>
+      <REQUIRES>functions_4_1_3</REQUIRES>
+      <REQUIRES>functions_4_1_4</REQUIRES>
+      <REQUIRES>user_print</REQUIRES>
+      <REQUIRES>the_global</REQUIRES>
+      <REQUIRES>make_machine</REQUIRES>
+      <REQUIRES>start</REQUIRES>
+      <REQUIRES>eceval_operations</REQUIRES>
+      <REQUIRES>eceval_controller</REQUIRES>
+      <PYTHON>
+const eceval =
+    make_machine(list("comp", "env", "val", "fun",
+                      "argl", "continue", "unev"),
+                 eceval_operations,
+                 eceval_controller);
+      </PYTHON>
+    </SNIPPET>
+    <SNIPPET HIDE="yes">
+      <NAME>eceval_controller</NAME>
+      <PYTHON>
+const eceval_controller =	
+    list(
+      "read_evaluate_print_loop",
+      perform(list(op("initialize_stack"))),
+      assign("comp", list(op("user_read"), constant("EC-evaluate input:"))),
+      test(list(op("is_null"), reg("comp"))),
+      branch(label("evaluator_done")),
+      assign("comp", list(op("parse"), reg("comp"))),
+      assign("env", list(op("get_current_environment"))),
+      assign("val", list(op("scan_out_declarations"), reg("comp"))),
+      save("comp"), // temporarily store to comp
+      assign("comp", list(op("list_of_unassigned"), reg("val"))),
+      assign("env", list(op("extend_environment"), 
+                         reg("val"), reg("comp"), reg("env"))),
+      perform(list(op("set_current_environment"), reg("env"))),
+      restore("comp"),
+      assign("continue", label("print_result")),
+      go_to(label("eval_dispatch")),
+
+      "print_result",
+      perform(list(op("user_print"),
+                   constant("EC-evaluate value:"), reg("val"))),
+      go_to(label("read_evaluate_print_loop")), 
+
+      "eval_dispatch",
+      test(list(op("is_literal"), reg("comp"))),
+      branch(label("ev_literal")),
+      test(list(op("is_name"), reg("comp"))),
+      branch(label("ev_name")),
+      // Unsorted
+      test(list(op("is_operator_combination"), reg("comp"))),
+      branch(label("ev_operator_combination")),
+      test(list(op("is_function_declaration"), reg("comp"))),
+      branch(label("ev_function_declaration")),
+      test(list(op("is_operator_combination"), reg("comp"))),
+      branch(label("ev_operator_combination")),
+      // Treat let/const the same
+      test(list(op("is_declaration"), reg("comp"))),
+      branch(label("ev_declaration")),
+      test(list(op("is_assignment"), reg("comp"))),
+      branch(label("ev_assignment")),
+      test(list(op("is_return_statement"), reg("comp"))),
+      branch(label("ev_return")),
+      test(list(op("is_conditional"), reg("comp"))),
+      branch(label("ev_conditional")),
+      test(list(op("is_lambda_expression"), reg("comp"))),
+      branch(label("ev_lambda")),
+      test(list(op("is_sequence"), reg("comp"))),
+      branch(label("ev_sequence_start")),
+      test(list(op("is_block"), reg("comp"))),
+      branch(label("ev_block")),
+      test(list(op("is_application"), reg("comp"))),
+      branch(label("ev_application")),
+      go_to(label("unknown_component_type")),
+
+      "ev_return",
+      revert_stack_to_marker(),
+      restore("continue"),
+      assign("comp", list(op("return_expression"), reg("comp"))),
+      go_to(label("eval_dispatch")),
+
+      "ev_literal",
+      assign("val", list(op("literal_value"), reg("comp"))),
+      go_to(reg("continue")),
+      
+      "ev_name",
+      assign("val", list(op("symbol_of_name"), reg("comp"))),
+      assign("val", list(op("lookup_symbol_value"), reg("val"), reg("env"))),
+      go_to(reg("continue")),
+      
+      "ev_lambda",
+      assign("unev", list(op("lambda_parameter_symbols"), reg("comp"))),
+      assign("comp", list(op("lambda_body"), reg("comp"))),
+      assign("val", list(op("make_function"),
+                         reg("unev"), reg("comp"), reg("env"))),
+      go_to(reg("continue")),
+
+      "ev_operator_combination",
+      assign("comp", list(op("operator_combination_to_application"),
+                          reg("comp"))),
+      
+      "ev_application",
+      save("continue"),
+      save("env"),
+      assign("unev", list(op("arg_expressions"), reg("comp"))),
+      save("unev"),
+      assign("comp", list(op("function_expression"), reg("comp"))),
+      assign("continue", label("ev_appl_did_function_expression")),
+      go_to(label("eval_dispatch")),
+      
+      "ev_appl_did_function_expression",
+      restore("unev"), // the args
+      restore("env"),
+      assign("argl", list(op("empty_arglist"))),
+      assign("fun", reg("val")), // the function_expression
+      test(list(op("is_null"),
+                reg("unev"))),
+      branch(label("apply_dispatch")),
+      save("fun"),
+      
+      "ev_appl_argument_expression_loop",
+      save("argl"),
+      assign("comp", list(op("head"), reg("unev"))),
+      test(list(op("is_last_argument_expression"),
+                reg("unev"))),
+      branch(label("ev_appl_last_arg")),
+      save("env"),
+      save("unev"),
+      assign("continue", label("ev_appl_accumulate_arg")),
+      go_to(label("eval_dispatch")),
+      
+      "ev_appl_accumulate_arg",
+      restore("unev"),
+      restore("env"),
+      restore("argl"),
+      assign("argl", list(op("adjoin_arg"),
+                          reg("val"), reg("argl"))),
+      assign("unev", list(op("tail"), reg("unev"))),
+      go_to(label("ev_appl_argument_expression_loop")),
+      
+      "ev_appl_last_arg",
+      assign("continue", label("ev_appl_accum_last_arg")),
+      go_to(label("eval_dispatch")),
+      
+      "ev_appl_accum_last_arg",
+      restore("argl"),
+      assign("argl", list(op("adjoin_arg"),
+                          reg("val"), reg("argl"))),
+      restore("fun"),
+      go_to(label("apply_dispatch")),
+      
+      "apply_dispatch",
+      test(list(op("is_primitive_function"),
+                reg("fun"))),
+      branch(label("primitive_apply")),
+      test(list(op("is_compound_function"),
+                reg("fun"))),
+      branch(label("compound_apply")),
+      go_to(label("unknown_function_type")),
+
+      "primitive_apply",
+      assign("val", list(op("apply_primitive_function"), 
+                         reg("fun"), 
+                         reg("argl"))),
+      restore("continue"),
+      go_to(reg("continue")),
+
+      "compound_apply",
+      assign("unev", list(op("function_parameters"), reg("fun"))),
+      assign("env", list(op("function_environment"), reg("fun"))),
+      assign("env", list(op("extend_environment"), 
+                         reg("unev"), reg("argl"), reg("env"))),
+      assign("comp", list(op("function_body"), reg("fun"))),
+      push_marker_to_stack(),
+      assign("continue", label("return_undefined")),
+      go_to(label("eval_dispatch")),
+
+      "return_undefined",
+      assign("val", constant(undefined)),
+      revert_stack_to_marker(),
+      restore("continue"),
+      go_to(reg("continue")),
+
+      "ev_block",
+      assign("comp", list(op("block_body"), reg("comp"))),
+      assign("val", list(op("scan_out_declarations"), reg("comp"))),
+
+      save("comp"), // temporarily store to comp
+      assign("comp", list(op("list_of_unassigned"), reg("val"))),
+      assign("env", list(op("extend_environment"), 
+                         reg("val"), 
+                         reg("comp"), 
+                         reg("env"))),
+      restore("comp"),
+      go_to(label("eval_dispatch")),
+
+"ev_sequence_start",
+      assign("unev", list(op("sequence_statements"), reg("comp"))),
+      test(list(op("is_empty_sequence"), reg("unev"))),
+      branch(label("ev_empty_sequence")),
+      save("continue"),
+
+"ev_sequence",
+      assign("comp", list(op("first_statement"), reg("unev"))),
+      test(list(op("is_last_statement"), reg("unev"))),
+      branch(label("ev_sequence_last_statement")),
+      save("unev"),
+      save("env"),
+      assign("continue", label("ev_sequence_continue")),
+      go_to(label("eval_dispatch")),
+      
+"ev_sequence_continue",
+      restore("env"),
+      restore("unev"),
+      assign("unev", list(op("rest_statements"), reg("unev"))),
+      go_to(label("ev_sequence")),
+ 
+"ev_sequence_last_statement",
+      restore("continue"),
+      go_to(label("eval_dispatch")),
+
+"ev_sequence_empty",
+      assign("val", constant(undefined)),
+      go_to(reg("continue")), 
+
+      "ev_conditional",
+      save("comp"), // save expression for later
+      save("env"),
+      save("continue"),
+      assign("continue", label("ev_conditional_decide")),
+      assign("comp", list(op("conditional_predicate"), reg("comp"))),
+      go_to(label("eval_dispatch")), // evaluate the predicate
+      
+      "ev_conditional_decide",
+      restore("continue"),
+      restore("env"),
+      restore("comp"),
+      test(list(op("is_falsy"), reg("val"))),
+      branch(label("ev_conditional_alternative")),
+      
+      "ev_conditional_consequent",
+      assign("comp", list(op("conditional_consequent"), reg("comp"))),
+      go_to(label("eval_dispatch")),
+      
+      "ev_conditional_alternative",
+      assign("comp", list(op("conditional_alternative"), reg("comp"))),
+      go_to(label("eval_dispatch")),
+      
+      "ev_assignment",
+      assign("unev", list(op("assignment_symbol"), reg("comp"))),
+      save("unev"), // save variable for later
+      assign("comp", list(op("assignment_value_expression"), reg("comp"))),
+      save("env"),
+      save("continue"),
+      assign("continue", label("ev_assignment_1")),
+      go_to(label("eval_dispatch")), // evaluate assignment value
+      
+      "ev_assignment_1",
+      restore("continue"),
+      restore("env"),
+      restore("unev"),
+      perform(list(op("assign_symbol_value"),
+                   reg("unev"), reg("val"), reg("env"))),
+      go_to(reg("continue")),
+      
+      "ev_function_declaration",
+      assign("comp", list(op("function_decl_to_constant_decl"), reg("comp"))),
+      
+      "ev_declaration",
+      assign("unev", list(op("declaration_symbol"),
+                          reg("comp"))),
+      save("unev"), // save variable for later
+      assign("comp", list(op("declaration_value_expression"),
+                          reg("comp"))),
+      save("env"),
+      save("continue"),
+      assign("continue", label("ev_declaration_assign")),
+      go_to(label("eval_dispatch")), // evaluate declaration value
+      
+      "ev_declaration_assign",
+      restore("continue"),
+      restore("env"),
+      restore("unev"),
+      perform(list(op("assign_symbol_value"),
+                   reg("unev"), reg("val"), reg("env"))),
+      assign("val", constant(undefined)),
+      go_to(reg("continue")),
+      
+      // Error handling
+      "unknown_component_type",
+      assign("val", constant("Unknown expression type")),
+      go_to(label("signal_error")),
+      
+      "unknown_function_type",
+      restore("continue"), /// clean up stack (from apply_dispatch)
+      assign("val", constant("Unknown function type")),
+      go_to(label("signal_error")),
+      
+      "signal_error",
+      perform(list(op("user_print"),
+                   constant("EC-evaluator error:"), reg("comp"))),
+      go_to(label("read_evaluate_print_loop")),
+      
+      "evaluator_done"
+     );
+      </PYTHON>
+    </SNIPPET>
+
+    We must define 
+    <SPLITINLINE>
+      <SCHEME>Scheme procedures</SCHEME>
+      <PYTHON>JavaScript functions</PYTHON>
+    </SPLITINLINE>
+    to simulate the operations used as primitives by the evaluator.  These are
+    the same
+    <SPLITINLINE>
+      <SCHEME>procedures</SCHEME>
+      <PYTHON>functions</PYTHON>
+    </SPLITINLINE>
+    we used for the metacircular evaluator in
+    section<SPACE/><REF NAME="sec:mc-eval"/>, together with the few additional
+    ones defined in footnotes throughout section<SPACE/><REF NAME="sec:eceval"/>.
+    <SNIPPET EVAL="no" LATEX="yes">
+      <SCHEME>
+(define eceval-operations
+  (list (list 'self-evaluating? self-evaluating)
+        <EM><LATEXINLINE>\textit{complete list of operations for eceval machine}</LATEXINLINE></EM>))
+      </SCHEME>
+      <PYTHON>
+const eceval_operations = list(list("is_literal", is_literal),
+                               $\langle\mathit{complete}\;\,\mathit{list}\;\,\mathit{of}\;\mathit{operations}\:\,\mathit{for}\;\,\mathit{eceval}\;\,\mathit{machine}\rangle$);
+      </PYTHON>
+    </SNIPPET>
+    <SNIPPET HIDE="yes">
+      <NAME>prompt_for_input</NAME>
+      <PYTHON>
+function prompt_for_input(input_prompt) {
+    const input = prompt(input_prompt);
+    if (is_null(input)) {
+        display("--- evaluator terminated ---");
+        return null;
+    } else {
+        display(input_prompt + "\n" + input + "\n----------------------------");
+        return parse(input);
+    }
+}
+      </PYTHON>
+    </SNIPPET>
+    <!-- FIXME: remove no_args, first_arg etc -->
+    <SNIPPET HIDE="yes">
+      <NAME>eceval_operations</NAME>
+      <REQUIRES>user_read</REQUIRES>
+      <REQUIRES>empty_arglist</REQUIRES>
+      <REQUIRES>is_last_argument_expression</REQUIRES>
+      <PYTHON>
+const eceval_operations = 
+    list(
+      // args
+      list("arg_expressions"      , arg_expressions),
+      list("function_expression"  , function_expression),
+      list("is_null"
+                                  , is_null),
+      list("head"        , head),
+      list("is_last_argument_expression", is_last_argument_expression),
+      list("tail"        , tail),
+
+      //arg
+      list("empty_arglist"        , empty_arglist),
+      list("adjoin_arg"           , adjoin_arg),
+
+      // comp (sequence)
+      list("first_statement"     , first_statement),
+      list("rest_statements"     , rest_statements),
+      list("is_last_statement"   , is_last_statement),
+      list("is_empty_sequence"   , is_empty_sequence),
+      list("sequence_statements" , sequence_statements),
+
+      // eval functions from meta-circular evaluator
+      list("is_literal"  , is_literal),
+      list("literal_value"       , literal_value),
+      list("is_name"             , is_name),
+      list("symbol_of_name"      , symbol_of_name),
+      list("is_assignment"       , is_assignment),
+      list("assignment_symbol"   , assignment_symbol),
+      list("assignment_value_expression"
+                                 , assignment_value_expression),
+      list("assign_symbol_value" , assign_symbol_value),
+      list("is_declaration"      , is_declaration),
+      list("declaration_symbol"  , declaration_symbol),
+      list("declaration_value_expression"
+                                 , declaration_value_expression),
+      list("assign_symbol_value" , assign_symbol_value),
+      list("is_lambda_expression", is_lambda_expression),
+      list("lambda_parameter_symbols"
+                                 , lambda_parameter_symbols),
+      list("lambda_body"         , lambda_body),
+      list("is_return_statement" , is_return_statement),
+      list("return_expression"   , return_expression),
+      list("is_conditional"
+                                 , is_conditional),
+      list("conditional_predicate"
+				 , conditional_predicate),
+      list("conditional_consequent"
+                                 , conditional_consequent),
+      list("conditional_alternative"
+                                 , conditional_alternative),
+      list("is_sequence"         , is_sequence),
+      list("is_block"            , is_block),
+      list("block_body"          , block_body),
+      list("scan_out_declarations"
+                                 , scan_out_declarations),
+      list("list_of_unassigned"  , list_of_unassigned),
+      list("is_application"      , is_application),
+      list("is_primitive_function"
+                                 , is_primitive_function),
+      list("apply_primitive_function"
+                                 , apply_primitive_function),
+      list("is_compound_function", is_compound_function),
+      list("function_parameters" , function_parameters),
+      list("function_environment", function_environment),
+      list("function_body"       , function_body),
+      list("extend_environment"  , extend_environment),
+      list("make_function"       , make_function),
+
+      list("lookup_symbol_value" , lookup_symbol_value),
+
+      list("get_current_environment"
+                                 , get_current_environment),
+      list("set_current_environment"
+                                 , set_current_environment),
+
+      // Unsorted
+      list("is_function_declaration"  , is_function_declaration),
+      list("function_declaration_body"  , function_declaration_body),
+      list("function_declaration_parameters"  , function_declaration_parameters),
+      list("function_declaration_name"  , function_declaration_name),
+      list("function_decl_to_constant_decl", function_decl_to_constant_decl),
+      list("declaration_symbol"  , declaration_symbol),
+      list("is_operator_combination", is_operator_combination),
+      list("operator_combination_to_application", operator_combination_to_application),
+      list("parse", parse),
+
+      // generic helpers
+      list("is_truthy", is_truthy),
+      list("is_falsy", v => !is_truthy(v)),
+      list("is_null", is_null),
+
+      list("user_read", user_read),
+      list("user_print", user_print),
+      list("display", display),
+      list("list", list)
+    );
+    </PYTHON>
+  </SNIPPET>
+  </TEXT>
+
+  
+  <TEXT>
+    Finally, we can initialize the global environment and run the evaluator:
+    <SNIPPET>
+      <INDEX><DECLARATION>the_global_environment</DECLARATION></INDEX>
+      <NAME>ec_eval_all</NAME>
+      <REQUIRES>eceval</REQUIRES>
+      <REQUIRES>user_read</REQUIRES>
+      <REQUIRES>type_function</REQUIRES>
+      <SCHEME>
+      (define the-global-environment (setup-environment))
+
+      (start eceval)
+      </SCHEME>
+      <SCHEMEOUTPUT>
+;;; EC-Eval input:
+(define (append x y)
+(if (null? x)
+y
+(cons (car x)
+    (append (cdr x) y))))
+;;; EC-Eval value:
+ok
+
+;;; EC-Eval input:
+(append '(a b c) '(d e f))
+;;; EC-Eval value:
+(a b c d e f)
+      </SCHEMEOUTPUT>
+      <PYTHON_RUN>
+const test_program_1 = "                       \
+function test1() {                             \
+    display('A 1');                            \
+    const result = test2();                    \
+    return display(stringify(result) + ' 3');  \
+    display('I should not be printed 7');      \
+}                                              \
+function test2() {                             \
+    display('B 2');                            \
+    return 'C';                                \
+    display('I should not be printed 4');      \
+}                                              \
+function test3() {                             \
+    display('Hello from test3');               \
+}                                              \
+function test4() {                             \
+    return display('Hello from test4');        \
+}                                              \
+display('5 ' + stringify(test1()));                           \
+display('6 ' + stringify(test3())); // Should print undefined \
+display('8 ' + stringify(test4()));                           \
+";
+
+const test_program_2 = "           \
+function adder(a, b) {             \
+    return                         \
+        a === 0                    \
+      ? b                          \
+      : adder(a - 1, b + 1);       \
+ 42;                               \
+}                                  \
+display(\"7 + 5 = \" + stringify(adder(7, 5)); \
+";
+
+start(eceval);
+get_register_contents(eceval, "val");
+</PYTHON_RUN>
+      <PYTHON>
+const the_global_environment = setup_environment();
+start(eceval);
+      </PYTHON>
+    </SNIPPET>
+    <SNIPPET EVAL="no">
+      <PYTHON_PROMPT>
+EC-evaluate input:
+      </PYTHON_PROMPT>
+      <PYTHON>
+function append(x, y) {
+    return is_null(x)	
+           ? y
+           : pair(head(x), append(tail(x), y));
+}
+      </PYTHON>
+      <PYTHON_OUTPUT>
+EC-evaluate value:
+undefined
+      </PYTHON_OUTPUT>
+    </SNIPPET>
+    <SNIPPET EVAL="no">
+      <PYTHON_PROMPT>
+EC-evaluate input:
+      </PYTHON_PROMPT>
+      <PYTHON>
+append(list("a", "b", "c"), list("d", "e", "f"));
+      </PYTHON>
+      <PYTHON_OUTPUT>
+EC-evaluate value:
+["a", ["b", ["c", ["d", ["e", ["f", null]]]]]]
+      </PYTHON_OUTPUT>
+    </SNIPPET>
+  </TEXT>
+
+  <TEXT>
+    Of course, evaluating
+    <SPLITINLINE>
+      <SCHEME>expressions</SCHEME>
+      <PYTHON>programs</PYTHON>
+    </SPLITINLINE>
+    in this way will take much longer
+    than if we had directly typed them into
+    <SPLITINLINE>
+      <SCHEME>Scheme,</SCHEME>
+      <PYTHON>JavaScript,</PYTHON>
+    </SPLITINLINE>
+    because of the
+    multiple levels of simulation involved.  Our
+    <SPLITINLINE>
+      <SCHEME>expressions</SCHEME>
+      <PYTHON>programs</PYTHON>
+    </SPLITINLINE>
+    are evaluated
+    by the explicit-control-evaluator machine, which is being simulated by
+    a
+    <SPLITINLINE>
+      <SCHEME>Scheme</SCHEME>
+      <PYTHON>JavaScript</PYTHON>
+    </SPLITINLINE>
+    program, which is itself being evaluated by the
+    <SPLITINLINE>
+      <SCHEME>Scheme</SCHEME>
+      <PYTHON>JavaScript</PYTHON>
+    </SPLITINLINE>
+    interpreter.
+  </TEXT>
+
+  <INDEX>explicit-control evaluator for JavaScript<SUBINDEX>running<CLOSE/></SUBINDEX></INDEX>
+  
+  <SUBHEADING> 
+    <NAME>Monitoring the performance of the evaluator</NAME>
+  </SUBHEADING>
+
+  <INDEX>explicit-control evaluator for JavaScript<SUBINDEX>monitoring performance (stack use)<OPEN/></SUBINDEX></INDEX>
+  
+  <SHORT_PAGE lines="2"/>
+  <TEXT>
+    Simulation can be a powerful tool to guide the implementation of
+    evaluators.
+    <INDEX>simulation<SUBINDEX><ORDER>machine</ORDER>as machine-design tool</SUBINDEX></INDEX>
+    Simulations make it easy not only to explore variations
+    of the register-machine design but also to monitor the performance of
+    the simulated evaluator.  For example, one important factor in
+    performance is how efficiently the evaluator uses the stack.  We can
+    observe the number of stack operations required to evaluate various
+    <SPLITINLINE>
+      <SCHEME>expressions</SCHEME>
+      <PYTHON>programs</PYTHON>
+    </SPLITINLINE>
+    by defining the evaluator register machine with the
+    version of the simulator that collects statistics on stack use
+    (section<SPACE/><REF NAME="sec:monitor"/>), and adding an instruction at the
+    evaluator<APOS/>s
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>print-result</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>print_result</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    entry point to print the statistics:
+    <SNIPPET LATEX="yes">
+      <INDEX><DECLARATION>print_result</DECLARATION><SUBINDEX>monitored-stack version</SUBINDEX></INDEX>
+      <SCHEME EVAL="no">
+      print-result
+      (perform (op print-stack-statistics))<EM>; added instruction</EM>
+      (perform
+      (op announce-output) (const "EC-Eval value:"))
+      $\ldots$ ; same as before
+      </SCHEME>
+      <PYTHON>
+"print_result",
+  perform(list(op("print_stack_statistics"))), // added instruction
+  // rest is same as before
+  perform(list(op("user_print"),
+               constant("EC-evaluate value:"), reg("val"))),
+  go_to(label("read_evaluate_print_loop")),
+      </PYTHON>
+    </SNIPPET>
+    Interactions with the evaluator now look like this:
+    <SNIPPET EVAL="no">
+      <SCHEMEOUTPUT>
+;;; EC-Eval input:
+(define (factorial n)
+(if (= n 1)
+1
+(* (factorial (- n 1)) n)))
+(total-pushes = 3 maximum-depth = 3)
+;;; EC-Eval value:
+ok
+
+;;; EC-Eval input:
+(factorial 5)
+(total-pushes = 144 maximum-depth = 28)
+;;; EC-Eval value:
+120
+      </SCHEMEOUTPUT>
+    </SNIPPET>
+    <SNIPPET EVAL="no">
+      <PYTHON_PROMPT>
+EC-evaluate input:
+      </PYTHON_PROMPT>
+      <PYTHON BREAK_AFTER="yes">
+function factorial (n) {
+    return n === 1
+           ? 1
+           : factorial(n - 1) * n;
+}
+      </PYTHON>
+      <PYTHON_OUTPUT>
+total pushes = 4 
+maximum depth = 3
+EC-evaluate value:
+undefined
+      </PYTHON_OUTPUT>
+    </SNIPPET>
+    <SNIPPET EVAL="no">
+      <PYTHON_PROMPT>
+EC-evaluate input:
+      </PYTHON_PROMPT>
+      <PYTHON>      
+factorial(5);
+      </PYTHON>
+      <PYTHON_OUTPUT>
+total pushes = 151 
+maximum depth = 28
+EC-evaluate value:
+120
+      </PYTHON_OUTPUT>
+    </SNIPPET>
+
+    Note that the driver loop of the evaluator reinitializes the stack
+    at the start of
+    each interaction, so that the statistics printed will refer only to
+    stack operations used to evaluate the previous
+    <SPLITINLINE>
+      <SCHEME>expression.</SCHEME>
+      <PYTHON>program.</PYTHON>
+      </SPLITINLINE>
+  </TEXT>
+
+  <EXERCISE>
+    <LABEL NAME="ex:tail-rec-fact"/>
+    Use the monitored stack to explore the
+    <INDEX>explicit-control evaluator for JavaScript<SUBINDEX>tail recursion</SUBINDEX></INDEX>
+    <INDEX>tail recursion<SUBINDEX>explicit-control evaluator and</SUBINDEX></INDEX>
+    tail-recursive property of the
+    evaluator (section<SPACE/><REF NAME="sec:tail-recursion-return"/>).  Start the
+    evaluator and define the
+    <INDEX><USE>factorial</USE><SUBINDEX>stack usage, interpreted</SUBINDEX></INDEX>
+    iterative <SCHEMEINLINE>factorial</SCHEMEINLINE>
+    <SPLITINLINE>
+      <SCHEME>procedure</SCHEME>
+    <PYTHON>function</PYTHON></SPLITINLINE>
+    from section<SPACE/><REF NAME="sec:recursion-and-iteration"/>:
+    <SNIPPET EVAL="no">
+      <SCHEME>
+      (define (factorial n)
+      (define (iter product counter)
+      (if (&gt; counter n)
+            product
+            (iter (* counter product)
+            (+ counter 1))))
+      (iter 1 1))
+      </SCHEME>
+      <PYTHON>
+function factorial(n) {
+    function iter(product, counter) {
+        return counter &gt; n
+               ? product
+               : iter(counter * product,
+                      counter + 1);
+    }
+    return iter(1, 1);
+}
+      </PYTHON>
+    </SNIPPET>
+    Run the
+    <SPLITINLINE><SCHEME>procedure</SCHEME>
+    <PYTHON>function</PYTHON>
+    </SPLITINLINE>
+    with some small values of <LATEXINLINE>$n$</LATEXINLINE>.  Record the
+    maximum stack depth and the number of pushes required to compute
+    <LATEXINLINE>$n!$</LATEXINLINE> for each of these values.
+    <OL>
+      <LI>
+	You will find that the maximum depth required to evaluate
+	<LATEXINLINE>$n!$</LATEXINLINE> is independent of
+	<LATEXINLINE>$n$</LATEXINLINE>.  What is that depth?
+      </LI>
+      <LI>
+	Determine from your data a formula in terms of
+	<LATEXINLINE>$n$</LATEXINLINE> for the total number of push operations
+	used in evaluating <LATEXINLINE>$n!$</LATEXINLINE> for any
+	<LATEXINLINE>$n \geq 1$</LATEXINLINE>. Note that the number of
+	operations used is a linear function of <LATEXINLINE>$n$</LATEXINLINE>
+	and is thus determined by two constants.
+      </LI>
+    </OL>
+  </EXERCISE>
+
+  <SHORT_PAGE lines="2"/>
+  <EXERCISE>
+    <LABEL NAME="ex:rec-fact"/>
+    For comparison with exercise<SPACE/><REF NAME="ex:tail-rec-fact"/>, explore
+    the behavior of the following
+    <SPLITINLINE>
+      <SCHEME>procedure</SCHEME>
+      <PYTHON>function</PYTHON>
+    </SPLITINLINE>
+    for computing
+    <INDEX><USE>factorial</USE><SUBINDEX>stack usage, interpreted</SUBINDEX></INDEX>
+    factorials recursively:
+    <SNIPPET EVAL="no">
+      <SCHEME>
+      (define (factorial n)
+      (if (= n 1)
+      1
+      (* (factorial (- n 1)) n)))
+      </SCHEME>
+      <PYTHON>
+function factorial(n) {
+    return n === 1 
+           ? 1
+           : factorial(n - 1) * n;
+}
+      </PYTHON>
+    </SNIPPET>
+    By running this
+    <SPLITINLINE>
+      <SCHEME>procedure</SCHEME>
+      <PYTHON>function</PYTHON>
+    </SPLITINLINE>
+    with the monitored stack, determine, as a function of
+    <LATEXINLINE>$n$</LATEXINLINE>, the maximum depth of the stack and the total
+    number of pushes used in evaluating <LATEXINLINE>$n!$</LATEXINLINE> for
+    <LATEXINLINE>$n \geq 1$</LATEXINLINE>.  (Again, these functions will be
+    linear.)  Summarize your experiments by filling in the following table with
+    the appropriate expressions in terms of <LATEXINLINE>$n$</LATEXINLINE>:
+    <WEB_ONLY>
+      <FIGURE src="img_original/527table.svg">
+	<LABEL NAME="527table"/>
+      </FIGURE>
+    </WEB_ONLY>
+    <PDF_ONLY>
+      <BLOCKQUOTE>
+      <LATEX>
+        \begin{center}
+        \smallskip
+      \begin{tabular}{l|l|l}
+ &amp; Maximum depth &amp; Number of pushes \\ \hline
+ \rule{0pt}{7mm} Recursive factorial &amp; &amp; \\ \hline
+ \rule{0pt}{7mm} Iterative factorial &amp; &amp; \\ \hline
+ \end{tabular}
+        \smallskip
+        \end{center}
+     </LATEX>
+      </BLOCKQUOTE>
+    </PDF_ONLY>
+    The maximum depth is a measure of the amount of space used by the
+    evaluator in carrying out the computation, and the number of pushes
+    correlates well with the time required.
+  </EXERCISE>
+      
+  <EXERCISE>
+    Modify the definition of the evaluator by changing
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>eval-sequence</SCHEMEINLINE>
+      as described in section<SPACE/><REF NAME="sec:sequence-evaluation"/> 
+      </SCHEME>
+      <PYTHON><PYTHONINLINE>ev_return</PYTHONINLINE>
+      as described in section<SPACE/><REF NAME="sec:tail-recursion-return"/> 
+      </PYTHON>
+    </SPLITINLINE>
+    so that the evaluator is no longer
+    <INDEX>explicit-control evaluator for JavaScript<SUBINDEX>tail recursion</SUBINDEX></INDEX>
+    <INDEX>tail recursion<SUBINDEX>explicit-control evaluator and</SUBINDEX></INDEX>
+    tail-recursive.  Rerun your experiments from
+    exercises<SPACE/><REF NAME="ex:tail-rec-fact"/>
+    and<SPACE/><REF NAME="ex:rec-fact"/> to demonstrate that both versions of
+    the <SCHEMEINLINE>factorial</SCHEMEINLINE>
+    <SPLITINLINE>
+      <SCHEME>procedure</SCHEME>
+      <PYTHON>function</PYTHON>
+    </SPLITINLINE>
+    now require space that grows linearly with their input.
+    <LABEL NAME="ex:5_29"/>
+  </EXERCISE>
+
+  <EXERCISE>
+    Monitor the stack operations in the tree-recursive
+    <INDEX><USE>fib</USE><SUBINDEX>stack usage, interpreted</SUBINDEX></INDEX>
+    Fibonacci computation:
+    <SNIPPET EVAL="no">
+      <INDEX><DECLARATION>fib</DECLARATION><SUBINDEX>tree-recursive version</SUBINDEX><FRAGILE/></INDEX>
+      <SCHEME>
+      (define (fib n)
+      (if (&lt; n 2)
+      n
+      (+ (fib (- n 1)) (fib (- n 2)))))
+      </SCHEME>
+      <PYTHON>
+function fib(n) {
+    return n &lt; 2 ? n : fib(n - 1) + fib(n - 2);
+}
+      </PYTHON>
+    </SNIPPET>
+    <OL>
+      <LI>
+	Give a formula in terms of <LATEXINLINE>$n$</LATEXINLINE> for the
+	maximum depth of the stack required to compute
+	<LATEXINLINE>${\textrm{Fib}}(n)$</LATEXINLINE> for
+	<LATEXINLINE>$n \geq 2$</LATEXINLINE>.  Hint: In
+	section<SPACE/><REF NAME="sec:tree-recursion"/> we argued that the space
+	used by this process grows linearly with <LATEXINLINE>$n$</LATEXINLINE>.
+      </LI>
+      <LI>
+	Give a formula for the total number of pushes used to compute
+	<LATEXINLINE>${\textrm{Fib}}(n)$</LATEXINLINE> for
+	<LATEXINLINE>$n \geq 2$</LATEXINLINE>.  You should find that the number
+	of pushes (which correlates well with the time used) grows exponentially
+	with <LATEXINLINE>$n$</LATEXINLINE>.  Hint: Let
+	<LATEXINLINE>$S(n)$</LATEXINLINE> be the number of pushes used in
+	computing <LATEXINLINE>${\textrm{Fib}}(n)$</LATEXINLINE>.  You should be
+	able to argue that there is a formula that expresses
+	<LATEXINLINE>$S(n)$</LATEXINLINE> in terms of
+	<LATEXINLINE>$S(n-1)$</LATEXINLINE>, <LATEXINLINE>$S(n-2)$</LATEXINLINE>,
+	and some fixed <QUOTE>overhead</QUOTE> constant
+	<LATEXINLINE>$k$</LATEXINLINE> that is independent of
+	<LATEXINLINE>$n$</LATEXINLINE>.  Give the formula, and say what
+	<LATEXINLINE>$k$</LATEXINLINE> is.  Then show that
+	<LATEXINLINE>$S(n)$</LATEXINLINE> can be expressed as
+	<LATEXINLINE>$a {\textrm{Fib}}(n+1) + b$</LATEXINLINE> and give the
+	values of <LATEXINLINE>$a$</LATEXINLINE> and
+	<LATEXINLINE>$b$</LATEXINLINE>.
+      </LI>
+    </OL>
+    <LABEL NAME="ex:rec-fib"/>
+  </EXERCISE>
+
+  <INDEX>explicit-control evaluator for JavaScript<SUBINDEX>monitoring performance (stack use)<CLOSE/></SUBINDEX></INDEX>
+
+  <EXERCISE>
+    <LABEL NAME="ex:interp-errors"/>
+    Our evaluator currently catches and signals only two kinds of
+    <INDEX>error handling<SUBINDEX>in explicit-control evaluator</SUBINDEX></INDEX>
+    <INDEX>explicit-control evaluator for JavaScript<SUBINDEX>error handling</SUBINDEX></INDEX>
+    errors<EMDASH/>unknown
+    <SPLITINLINE>
+      <SCHEME>
+        expression
+      </SCHEME>
+      <PYTHON>
+        component
+      </PYTHON>
+    </SPLITINLINE>
+    types and unknown
+    <SPLITINLINE>
+      <SCHEME>procedure</SCHEME>
+      <PYTHON>function</PYTHON>
+    </SPLITINLINE>
+    types.  Other errors will take us out of the evaluator
+    <SPLITINLINE>
+      <SCHEME>
+	read-eval-print
+      </SCHEME>
+      <PYTHON>
+	read-evaluate-print
+      </PYTHON>
+    </SPLITINLINE>
+    loop.
+    When we run the evaluator using the register-machine simulator, these
+    errors are caught by the underlying
+    <SPLITINLINE>
+      <SCHEME>Scheme</SCHEME>
+      <PYTHON>JavaScript</PYTHON>
+    </SPLITINLINE>
+    system.  This is analogous
+    to the computer crashing when a user program makes an error.<FOOTNOTE>
+    <SPLIT>
+      <SCHEME>
+	Regrettably, this is the normal state of affairs in
+	<INDEX>C<SUBINDEX>error handling</SUBINDEX></INDEX>
+	conventional compiler-based language systems such as C.  
+	<INDEX>UNIX</INDEX>
+	In UNIX<LATEXINLINE>$^{\textrm{TM}}$</LATEXINLINE><WEB_ONLY><SPACE/><SPACE/></WEB_ONLY> the system <QUOTE>dumps
+	core,</QUOTE> and in
+	<INDEX>DOS/Windows</INDEX>
+	DOS/Windows<LATEXINLINE>$^{\textrm{TM}}$</LATEXINLINE><WEB_ONLY><SPACE/><SPACE/></WEB_ONLY>
+	it becomes catatonic. The
+	<INDEX>Macintosh</INDEX>
+	Macintosh<LATEXINLINE>$^{\textrm{TM}}$</LATEXINLINE><WEB_ONLY><SPACE/><SPACE/></WEB_ONLY> displays a picture of
+	an exploding bomb and offers you the opportunity to reboot the
+	computer<EMDASH/>if you<APOS/>re lucky.
+      </SCHEME>
+      <PYTHON>
+        This manifests itself as, for example, a <QUOTE>kernel panic</QUOTE> or a <QUOTE>blue
+        screen of death</QUOTE> or even a reboot. Automatic rebooting is an approach
+        typically used on phones and tablets. Most modern operating systems do a
+        decent job of preventing user programs from causing an entire machine to
+        crash.
+      </PYTHON>
+    </SPLIT></FOOTNOTE>
+    It is a large project to
+    make a real error system work, but it is well worth the effort to understand
+    what is involved here.
+    <OL>
+      <LI>
+	Errors that occur in the evaluation process, such as an attempt to
+	access an unbound
+	<SPLITINLINE>
+	  <SCHEME>variable,</SCHEME>
+	  <PYTHON>name,</PYTHON>
+	</SPLITINLINE>
+	could be caught by changing the lookup
+	operation to make it return a distinguished condition code, which cannot
+	be a possible value of any user
+	<SPLITINLINE>
+	  <SCHEME>variable.</SCHEME>
+	  <PYTHON>name.</PYTHON>
+	</SPLITINLINE>
+	The evaluator can test
+	for this condition code and then do what is necessary to go to
+	<SPLITINLINE>
+	  <SCHEME><SCHEMEINLINE>signal-error</SCHEMEINLINE>.</SCHEME>
+	  <PYTHON><PYTHONINLINE>signal_error</PYTHONINLINE>.
+	  </PYTHON>
+	</SPLITINLINE>
+	Find all of the places in the evaluator where such a
+	change is necessary and fix them.  This is lots of work.
+      </LI>
+      <LI>
+	Much worse is the problem of handling errors that are signaled by
+	applying primitive
+	<SPLITINLINE>
+	  <SCHEME>procedures</SCHEME>
+	  <PYTHON>functions</PYTHON>
+	</SPLITINLINE>
+	such as an attempt to divide by zero or an attempt to extract the
+	<SPLITINLINE>
+	  <SCHEME>
+	    <SCHEMEINLINE>car</SCHEMEINLINE>
+	    of a symbol.	    
+	  </SCHEME>
+	  <PYTHON>
+	    <PYTHONINLINE>head</PYTHONINLINE>
+	    of a string.
+	  </PYTHON>
+	</SPLITINLINE>
+	In a professionally written high-quality system, each
+	primitive application is checked for safety as part of the primitive.
+	For example, every call to
+	<SPLITINLINE>
+	  <SCHEME><SCHEMEINLINE>car</SCHEMEINLINE></SCHEME>
+	  <PYTHON><PYTHONINLINE>head</PYTHONINLINE></PYTHON>
+	</SPLITINLINE>
+	could first check that the argument is a pair.  If the argument is not
+	a pair, the application would return a distinguished condition code to
+	the evaluator, which would then report the failure.  We could arrange
+	for this in our register-machine simulator by making each primitive
+	<SPLITINLINE>
+	  <SCHEME>procedure</SCHEME>
+	  <PYTHON>function</PYTHON>
+	</SPLITINLINE>
+	check for applicability and returning an appropriate distinguished
+	condition code on failure. Then the
+	<SPLITINLINE>
+	  <SCHEME><SCHEMEINLINE>primitive-apply</SCHEMEINLINE></SCHEME>
+	  <PYTHON><PYTHONINLINE>primitive_apply</PYTHONINLINE>
+	  </PYTHON>
+	</SPLITINLINE>
+	code in the evaluator can check for the condition code and go to
+	<SPLITINLINE>
+	  <SCHEME><SCHEMEINLINE>signal-error</SCHEMEINLINE></SCHEME>
+	  <PYTHON><PYTHONINLINE>signal_error</PYTHONINLINE>
+	  </PYTHON>
+	</SPLITINLINE>
+	if necessary.  Build this structure and make it work.
+	This is a major project.
+      </LI>
+    </OL>
+  </EXERCISE>
+
+  <INDEX>explicit-control evaluator for JavaScript<CLOSE/></INDEX>
+  
+</SUBSECTION>

@@ -1,0 +1,476 @@
+<SUBSECTION>
+  <NAME>
+    Combining Instruction Sequences
+  </NAME>
+
+  <LABEL NAME="sec:combining-instruction-sequences"/>
+
+  <INDEX>instruction sequence<OPEN/></INDEX>
+
+  <TEXT>
+    This section describes the details on how instruction sequences are
+    represented and combined.  Recall from
+    section<SPACE/><REF NAME="sec:instruction-sequences"/> that an instruction
+    sequence is represented as a list of the registers needed, the registers
+    modified, and the actual instructions.  We will also consider a label
+    <SPLITINLINE><SCHEME>(symbol)</SCHEME><PYTHON>(string)</PYTHON></SPLITINLINE>
+    to be a degenerate case of an instruction sequence, which
+    doesn<APOS/>t need or modify any registers.
+    So to determine the registers needed
+    and modified by instruction sequences we use the selectors
+    <SNIPPET EVAL="no">
+      <INDEX><DECLARATION>registers_needed</DECLARATION></INDEX>
+      <INDEX><DECLARATION>registers_modified</DECLARATION></INDEX>
+      <INDEX><DECLARATION>instructions</DECLARATION></INDEX>
+      <NAME>registers_needed</NAME>
+      <SCHEME>
+(define (registers-needed s)
+  (if (symbol? s) '() (car s)))
+
+ (define (registers-modified s)
+   (if (symbol? s) '() (cadr s)))
+
+(define (statements s)
+  (if (symbol? s) (list s) (caddr s)))
+      </SCHEME>
+      <PYTHON>
+function registers_needed(s) {
+    return is_string(s) ? null : head(s);
+}
+function registers_modified(s) {
+    return is_string(s) ? null : head(tail(s));
+}
+function instructions(s) {
+    return is_string(s) ? list(s) : head(tail(tail(s)));
+}
+      </PYTHON>
+    </SNIPPET>
+    and to determine whether a given
+    sequence needs or modifies a given register we use the predicates
+    <SNIPPET EVAL="no">
+      <INDEX><DECLARATION>needs_register</DECLARATION></INDEX>
+      <INDEX><DECLARATION>modifies_register</DECLARATION></INDEX>
+      <NAME>needs_register</NAME>
+      <SCHEME>
+(define (needs-register? seq reg)
+  (memq reg (registers-needed seq)))
+
+(define (modifies-register? seq reg)
+  (memq reg (registers-modified seq)))
+      </SCHEME>
+      <PYTHON>
+function needs_register(seq, reg) {
+    return ! is_null(member(reg, registers_needed(seq)));
+}
+function modifies_register(seq, reg) {
+    return ! is_null(member(reg, registers_modified(seq)));
+}
+      </PYTHON>
+    </SNIPPET>
+    In terms of these predicates and selectors, we can implement the
+    various instruction sequence combiners used throughout the compiler.
+  </TEXT>
+
+  <TEXT>
+    The basic combiner is
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>append-instruction-sequences</SCHEMEINLINE>.
+      </SCHEME>
+      <PYTHON>
+	<PYTHONINLINE>append_instruction_sequences</PYTHONINLINE>.
+      </PYTHON>
+    </SPLITINLINE>
+    This takes as
+    arguments
+    <SPLITINLINE>
+      <SCHEME>an arbitrary number of</SCHEME>
+      <PYTHON>two</PYTHON>
+    </SPLITINLINE>
+    instruction sequences that are to be
+    executed sequentially and returns an instruction sequence whose statements
+    are the statements of
+    <SPLITINLINE>
+      <SCHEME>all the</SCHEME>
+      <PYTHON>the two</PYTHON>
+    </SPLITINLINE>
+    sequences appended together.
+    The subtle point is to determine the registers that are needed and modified by the resulting sequence.
+    It modifies those registers that
+    <SPLITINLINE>
+      <SCHEME>are modified by any of the sequences;</SCHEME>
+      <PYTHON>are modified by either sequence;</PYTHON>
+    </SPLITINLINE>
+    it needs those registers that must be initialized before the
+    first sequence can be run (the registers needed by the first sequence), together with those registers needed by
+    <SPLITINLINE>
+      <SCHEME>any of the other sequences that are not initialized (modified) by sequences preceding it.</SCHEME>
+      <PYTHON>the second sequence that are not initialized (modified) by the first sequence.</PYTHON>
+    </SPLITINLINE>
+  </TEXT>
+
+  <TEXT>
+    <SPLITINLINE>
+      <SCHEME>
+	The sequences are appended two at a time by
+      <SCHEMEINLINE>append-2-sequences</SCHEMEINLINE>. This
+      </SCHEME>
+      <PYTHON>The function <PYTHONINLINE>append_instruction_sequences</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    is given two instruction sequences <SCHEMEINLINE>seq1</SCHEMEINLINE> and
+    <SCHEMEINLINE>seq2</SCHEMEINLINE> and returns the instruction sequence whose
+    <SPLITINLINE>
+      <SCHEME>
+        statements
+      </SCHEME>
+      <PYTHON>
+        instructions
+      </PYTHON>
+    </SPLITINLINE>
+    are the
+    <SPLITINLINE>
+      <SCHEME>
+        statements
+      </SCHEME>
+      <PYTHON>
+        instructions
+      </PYTHON>
+    </SPLITINLINE>
+    of <SCHEMEINLINE>seq1</SCHEMEINLINE> followed
+    by the
+    <SPLITINLINE>
+      <SCHEME>
+        statements
+      </SCHEME>
+      <PYTHON>
+        instructions
+      </PYTHON>
+    </SPLITINLINE>
+    of <SCHEMEINLINE>seq2</SCHEMEINLINE>, whose modified
+    registers are those registers that are modified by either
+    <SCHEMEINLINE>seq1</SCHEMEINLINE> or <SCHEMEINLINE>seq2</SCHEMEINLINE>, and
+    whose needed registers are the registers needed by
+    <SCHEMEINLINE>seq1</SCHEMEINLINE> together with those registers needed by
+    <SCHEMEINLINE>seq2</SCHEMEINLINE> that are not modified by
+    <SCHEMEINLINE>seq1</SCHEMEINLINE>.  (In terms of set operations, the new set
+    of needed registers is the union of the set of registers needed by
+    <SCHEMEINLINE>seq1</SCHEMEINLINE> with the set difference of the registers
+    needed by <SCHEMEINLINE>seq2</SCHEMEINLINE> and the registers modified by
+    <SCHEMEINLINE>seq1</SCHEMEINLINE>.)  Thus,
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>append-instruction-sequences</SCHEMEINLINE></SCHEME>
+      <PYTHON>
+	<PYTHONINLINE>append_instruction_sequences</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    is implemented as follows:
+    <SNIPPET EVAL="no">
+      <INDEX><DECLARATION>append_instruction_sequences</DECLARATION></INDEX>
+      <NAME>append_instruction_sequences</NAME>
+      <SCHEME>
+(define (append-instruction-sequences . seqs)
+  (define (append-2-sequences seq1 seq2)
+    (make-instruction-sequence
+     (list-union (registers-needed seq1)
+                 (list-difference (registers-needed seq2)
+                                  (registers-modified seq1)))
+     (list-union (registers-modified seq1)
+                 (registers-modified seq2))
+     (append (statements seq1) (statements seq2))))
+  (define (append-seq-list seqs)
+    (if (null? seqs)
+        (empty-instruction-sequence)
+        (append-2-sequences (car seqs)
+                            (append-seq-list (cdr seqs)))))
+  (append-seq-list seqs))
+      </SCHEME>
+      <PYTHON>
+function append_instruction_sequences(seq1, seq2) {
+    return make_instruction_sequence(
+               list_union(registers_needed(seq1),
+                          list_difference(registers_needed(seq2),
+                                          registers_modified(seq1))),
+               list_union(registers_modified(seq1),
+                          registers_modified(seq2)),
+               append(instructions(seq1), instructions(seq2)));
+}
+      </PYTHON>
+    </SNIPPET>
+  </TEXT>
+  <TEXT>
+    This
+    <SPLITINLINE>
+      <SCHEME>procedure</SCHEME>
+      <PYTHON>function</PYTHON>
+    </SPLITINLINE>
+    uses some simple operations for manipulating sets
+    represented as lists, similar to the (unordered) set representation
+    described in section<SPACE/><REF NAME="sec:representing-sets"/>:
+    <SNIPPET EVAL="no">
+      <INDEX><DECLARATION>list_union</DECLARATION></INDEX>
+      <INDEX><DECLARATION>list_difference</DECLARATION></INDEX>
+      <NAME>list_union</NAME>
+      <SCHEME>
+(define (list-union s1 s2)
+  (cond ((null? s1) s2)
+        ((memq (car s1) s2) (list-union (cdr s1) s2))
+        (else (cons (car s1) (list-union (cdr s1) s2)))))
+
+(define (list-difference s1 s2)
+  (cond ((null? s1) '())
+        ((memq (car s1) s2) (list-difference (cdr s1) s2))
+        (else (cons (car s1)
+                    (list-difference (cdr s1) s2)))))
+      </SCHEME>
+      <PYTHON>
+function list_union(s1, s2) {
+    return is_null(s1)
+           ? s2
+           : is_null(member(head(s1), s2))
+           ? pair(head(s1), list_union(tail(s1), s2))
+           : list_union(tail(s1), s2);
+}
+function list_difference(s1, s2) {
+    return is_null(s1)
+           ? null
+           : is_null(member(head(s1), s2))
+           ? pair(head(s1), list_difference(tail(s1), s2))
+           : list_difference(tail(s1), s2);
+}
+      </PYTHON>
+    </SNIPPET>
+  </TEXT>
+  <TEXT>
+    <SPLITINLINE>
+      <SCHEME>
+        <SCHEMEINLINE>Preserving</SCHEMEINLINE>,
+      </SCHEME>
+      <PYTHON>
+        The function <PYTHONINLINE>preserving</PYTHONINLINE>,
+      </PYTHON>
+    </SPLITINLINE>
+    the second major instruction
+    sequence combiner, takes a list of registers
+    <SCHEMEINLINE>regs</SCHEMEINLINE> and two instruction sequences
+    <SCHEMEINLINE>seq1</SCHEMEINLINE> and <SCHEMEINLINE>seq2</SCHEMEINLINE> that
+    are to be executed sequentially.  It returns an instruction sequence whose
+    <SPLITINLINE>
+      <SCHEME>
+        statements
+      </SCHEME>
+      <PYTHON>
+        instructions
+      </PYTHON>
+    </SPLITINLINE>
+    are the
+    <SPLITINLINE>
+      <SCHEME>
+        statements
+      </SCHEME>
+      <PYTHON>
+        instructions
+      </PYTHON>
+    </SPLITINLINE>
+    of <SCHEMEINLINE>seq1</SCHEMEINLINE> followed
+    by the
+    <SPLITINLINE>
+      <SCHEME>
+        statements
+      </SCHEME>
+      <PYTHON>
+        instructions
+      </PYTHON>
+    </SPLITINLINE>
+    of <SCHEMEINLINE>seq2</SCHEMEINLINE>, with appropriate
+    <SCHEMEINLINE>save</SCHEMEINLINE> and <SCHEMEINLINE>restore</SCHEMEINLINE>
+    instructions around <SCHEMEINLINE>seq1</SCHEMEINLINE> to protect the
+    registers in <SCHEMEINLINE>regs</SCHEMEINLINE> that are modified by
+    <SCHEMEINLINE>seq1</SCHEMEINLINE> but needed by
+    <SCHEMEINLINE>seq2</SCHEMEINLINE>.  To accomplish this,
+    <SCHEMEINLINE>preserving</SCHEMEINLINE> first creates a sequence that has
+    the required <SCHEMEINLINE>save</SCHEMEINLINE>s followed by the
+    <SPLITINLINE>
+      <SCHEME>
+        statements
+      </SCHEME>
+      <PYTHON>
+        instructions
+      </PYTHON>
+    </SPLITINLINE>
+    of <SCHEMEINLINE>seq1</SCHEMEINLINE> followed by the required
+    <SCHEMEINLINE>restore</SCHEMEINLINE>s.  This sequence needs the registers
+    being saved and restored in addition to the registers needed by
+    <SCHEMEINLINE>seq1</SCHEMEINLINE>, and modifies the registers modified by
+    <SCHEMEINLINE>seq1</SCHEMEINLINE> except for the ones being saved and
+    restored.  This augmented sequence and <SCHEMEINLINE>seq2</SCHEMEINLINE>
+    are then appended in the usual way.  The following
+    <SPLITINLINE>
+      <SCHEME>procedure</SCHEME>
+      <PYTHON>function</PYTHON>
+    </SPLITINLINE>
+    implements this strategy recursively, walking down the list of registers to
+    be preserved:<SPLITINLINE><SCHEME><FOOTNOTE>Note that <SCHEMEINLINE>preserving</SCHEMEINLINE>
+    calls <SCHEMEINLINE>append</SCHEMEINLINE> with three
+    <INDEX><USE>append</USE><SUBINDEX><ORDER>arbitrary</ORDER>with arbitrary number of arguments</SUBINDEX></INDEX>
+    arguments.  Though the definition of <SCHEMEINLINE>append</SCHEMEINLINE>
+    shown in this book accepts only two arguments, Scheme standardly provides an
+    <SCHEMEINLINE>append</SCHEMEINLINE> procedure
+    that takes an arbitrary number of arguments.</FOOTNOTE></SCHEME></SPLITINLINE>
+    <SNIPPET EVAL="no">
+      <INDEX><DECLARATION>preserving</DECLARATION></INDEX>
+      <NAME>preserving</NAME>
+      <SCHEME>
+(define (preserving regs seq1 seq2)
+  (if (null? regs)
+      (append-instruction-sequences seq1 seq2)
+      (let ((first-reg (car regs)))
+        (if (and (needs-register? seq2 first-reg)
+                 (modifies-register? seq1 first-reg))
+            (preserving (cdr regs)
+             (make-instruction-sequence
+              (list-union (list first-reg)
+                          (registers-needed seq1))
+              (list-difference (registers-modified seq1)
+                               (list first-reg))
+              (append `((save ,first-reg))
+                      (statements seq1)
+                      `((restore ,first-reg))))
+             seq2)
+            (preserving (cdr regs) seq1 seq2)))))
+      </SCHEME>
+      <PYTHON>
+function preserving(regs, seq1, seq2) {
+    if (is_null(regs)) {
+        return append_instruction_sequences(seq1, seq2);
+    } else {
+        const first_reg = head(regs);
+        return needs_register(seq2, first_reg) &amp;&amp;
+               modifies_register(seq1, first_reg)
+               ? preserving(tail(regs),
+                     make_instruction_sequence(
+                         list_union(list(first_reg),
+                                    registers_needed(seq1)),
+                         list_difference(registers_modified(seq1),
+                                         list(first_reg)),
+                         append(list(save(first_reg)),
+                                append(instructions(seq1),
+                                       list(restore(first_reg))))),
+                     seq2)
+               : preserving(tail(regs), seq1, seq2);
+    }
+}
+      </PYTHON>
+    </SNIPPET>
+  </TEXT>
+
+  <TEXT>
+    Another sequence combiner,
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>tack-on-instruction-sequence</SCHEMEINLINE>,
+      </SCHEME>
+      <PYTHON>
+	<PYTHONINLINE>tack_on_instruction_sequence</PYTHONINLINE>,
+      </PYTHON>
+    </SPLITINLINE>
+    is used by
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>compile-lambda</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>compile_lambda_expression</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    to append a
+    <SPLITINLINE>
+      <SCHEME>procedure</SCHEME>
+      <PYTHON>function</PYTHON>
+    </SPLITINLINE>
+    body to another sequence.  Because the
+    <SPLITINLINE>
+      <SCHEME>procedure</SCHEME>
+      <PYTHON>function</PYTHON>
+    </SPLITINLINE>
+    body is not <QUOTE>in line</QUOTE> to be executed as part of the combined
+    sequence, its register use has no impact on the register use of the sequence
+    in which it is embedded. We thus ignore the
+    <SPLITINLINE>
+      <SCHEME>procedure</SCHEME>
+      <PYTHON>function</PYTHON>
+    </SPLITINLINE>
+    body<APOS/>s sets of needed and modified
+    registers when we tack it onto the other sequence.
+    <SNIPPET EVAL="no">
+      <INDEX><DECLARATION>tack_on_instruction_sequence</DECLARATION></INDEX>
+      <NAME>tack_on_instruction_sequence</NAME>
+      <SCHEME>
+(define (tack-on-instruction-sequence seq body-seq)
+  (make-instruction-sequence
+   (registers-needed seq)
+   (registers-modified seq)
+   (append (statements seq) (statements body-seq))))
+      </SCHEME>
+      <PYTHON>
+function tack_on_instruction_sequence(seq, body_seq) {
+    return make_instruction_sequence(
+               registers_needed(seq),
+               registers_modified(seq),
+               append(instructions(seq), instructions(body_seq)));
+}
+      </PYTHON>
+    </SNIPPET>
+  </TEXT>
+
+  <TEXT>
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>Compile-if</SCHEMEINLINE></SCHEME>
+      <PYTHON>The functions
+      <PYTHONINLINE>compile_conditional</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    and
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>compile-procedure-call</SCHEMEINLINE>
+      </SCHEME>
+      <PYTHON><PYTHONINLINE>compile_function_call</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    use a special combiner called
+    <SPLITINLINE>
+      <SCHEME>
+	<SCHEMEINLINE>parallel-instruction-sequences</SCHEMEINLINE>
+      </SCHEME>
+      <PYTHON>
+	<PYTHONINLINE>parallel_instruction_sequences</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    to append the two alternative branches that follow a test.  The two branches
+    will never be executed sequentially; for any particular evaluation of the
+    test, one branch or the other will be entered.  Because of this, the
+    registers needed by the second branch are still needed by the combined
+    sequence, even if these are modified by the first branch.
+    <SNIPPET EVAL="no" POSTPADDING="no">
+      <INDEX><DECLARATION>parallel_instruction_sequences</DECLARATION></INDEX>
+      <NAME>parallel_instruction_sequences</NAME>
+      <SCHEME>
+(define (parallel-instruction-sequences seq1 seq2)
+  (make-instruction-sequence
+   (list-union (registers-needed seq1)
+               (registers-needed seq2))
+   (list-union (registers-modified seq1)
+               (registers-modified seq2))
+   (append (statements seq1) (statements seq2))))
+      </SCHEME>
+      <PYTHON>
+function parallel_instruction_sequences(seq1, seq2) {
+    return make_instruction_sequence(
+               list_union(registers_needed(seq1),
+                          registers_needed(seq2)),
+               list_union(registers_modified(seq1),
+                          registers_modified(seq2)),
+               append(instructions(seq1), instructions(seq2)));
+}
+      </PYTHON>
+    </SNIPPET>
+  </TEXT>
+
+  <INDEX>instruction sequence<CLOSE/></INDEX>
+
+</SUBSECTION>
