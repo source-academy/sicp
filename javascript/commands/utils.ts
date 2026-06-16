@@ -15,7 +15,7 @@ export const createMain = (
     fs.mkdirSync(outputDir);
   }
 
-  if (parseType == "js" || parseType == "json") {
+  if (parseType == "programs" || parseType == "json") {
     return;
   }
 

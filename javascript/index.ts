@@ -133,7 +133,7 @@ async function translateXml(filepath, filename, option) {
     return;
   }
 
-  if (parseType == "js") {
+  if (parseType == "programs") {
     if (option == "setupSnippet") {
       setupSnippetsJs(doc.documentElement);
       return;
@@ -299,7 +299,7 @@ async function main() {
     console.log("setup snippets and references done\n");
 
     recursiveXmlToHtmlInOrder("parseXml");
-  } else if (parseType == "js") {
+  } else if (parseType == "programs") {
     outputDir = path.join(
       __dirname,
       "..",
