@@ -744,7 +744,7 @@ export const frontmatter = `
 \\HalfTitle{\\fontsize{16}{20}\\selectfont Structure and Interpretation of Computer Programs
 \\begin{minipage}{12cm}
 \\vspace{3.5mm}
-\\normalsize {\\fontsize{13}{18}\\selectfont JavaScript Edition}
+\\normalsize {\\fontsize{13}{18}\\selectfont ${languageName} Edition}
 \\end{minipage}
 }
 
@@ -754,7 +754,7 @@ export const frontmatter = `
 
 \\Title{\\fontsize{16}{20}\\selectfont Structure and Interpretation of Computer Programs}
 
-\\edition{\\fontsize{13}{18}\\selectfont JavaScript Edition}
+\\edition{\\fontsize{13}{18}\\selectfont ${languageName} Edition}
 
 \\BookAuthor{\\fontsize{13}{18}\\selectfont Harold Abelson and Gerald Jay Sussman
 \\begin{minipage}{12cm}
@@ -898,7 +898,7 @@ you were first led up to it, that you can make it more.''\\end{minipage}}{\\norm
 \\HalfTitle{\\fontsize{16}{20}\\selectfont Structure and Interpretation of Computer Programs
 \\begin{minipage}{12cm}
 \\vspace{3.5mm}
-\\normalsize {\\fontsize{13}{18}\\selectfont JavaScript Edition}
+\\normalsize {\\fontsize{13}{18}\\selectfont ${languageName} Edition}
 \\end{minipage}
 }
 \\halftitlepage
