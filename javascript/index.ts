@@ -244,7 +244,7 @@ const createIndexHtml = version => {
 async function main() {
   parseType = process.argv[2];
   if (parseType == "pdf") {
-    outputDir = path.join(__dirname, "..", "latex_pdf" + edition.outputSuffix);
+    outputDir = path.join(__dirname, "..", "latex_pdf_" + edition.language.key);
 
     switchParseFunctionsLatex(parseType);
     createMain(inputDir, outputDir, parseType);
@@ -271,13 +271,13 @@ async function main() {
       outputDir = path.join(
         __dirname,
         "..",
-        "html_split" + edition.outputSuffix
+        "html_split_" + edition.language.key
       );
     } else if (version == "scheme") {
       outputDir = path.join(
         __dirname,
         "..",
-        "html_scheme" + edition.outputSuffix
+        "html_scheme_" + edition.language.key
       );
     }
 
@@ -300,11 +300,9 @@ async function main() {
 
     recursiveXmlToHtmlInOrder("parseXml");
   } else if (parseType == "programs") {
-    outputDir = path.join(
-      __dirname,
-      "..",
-      "js_programs" + edition.outputSuffix
-    );
+    // Programs dir carries the language marker for both editions
+    // (programs_js, programs_py) rather than using the "" / "_py" suffix.
+    outputDir = path.join(__dirname, "..", "programs_" + edition.language.key);
 
     createMain(inputDir, outputDir, parseType);
     console.log("setup snippets\n");
@@ -312,7 +310,7 @@ async function main() {
     console.log("setup snippets done\n");
     recursiveTranslateXml("", "parseXml");
   } else if (parseType == "json") {
-    outputDir = path.join(__dirname, "..", "json" + edition.outputSuffix);
+    outputDir = path.join(__dirname, "..", "json_" + edition.language.key);
 
     createMain(inputDir, outputDir, parseType);
 

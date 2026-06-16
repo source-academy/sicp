@@ -33,10 +33,10 @@ const indexParsers = {
     json["text"] += "operators";
   },
   PARSING: (node, json) => {
-    json["text"] += "parsing JavaScript";
+    json["text"] += "parsing " + lang.languageName;
   },
   FUNCTION: (node, json) => {
-    json["text"] += "function (JavaScript)";
+    json["text"] += "function (" + lang.languageName + ")";
   },
   PRIMITIVE: (node, json) => {
     json["text"] +=

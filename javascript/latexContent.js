@@ -1,3 +1,40 @@
+import { getEdition } from "./editions.js";
+
+const edition = getEdition();
+
+// Base name of the edition's index file (sicpjs / sicpy), matching the root
+// .tex written by commands/utils.ts and the makeindex call in scripts/latexmkrc.
+const outputBaseName = edition.outputBaseName;
+
+// Name of the lstlisting language and the listing environments/styles
+// (JavaScript* / Python*). The non-Scheme language's display name.
+const languageName = edition.language.languageName;
+
+// listings syntax-highlighting definition for the edition's language. Kept
+// edition-specific (different keywords / comment markers) but byte-identical
+// for SICP JS.
+const lstLanguageDefinition =
+  languageName === "JavaScript"
+    ? `\\lstdefinelanguage{JavaScript}{
+  keywords={function,if,else,return,const,let,break,for,while,true,false,var,null}, %% removing continue for now
+  %% keywords={const, let, break, case, catch, continue, debugger, default, delete, do, else, finally, for, function, if, in, instanceof, return, switch, this, throw, try, typeof, var, void, while, with},
+  morecomment=[l]{//},
+  morecomment=[s]{/*}{*/},
+  morestring=[b]\`,
+  morestring=[b]',
+  morestring=[b]",
+  columns=fullflexible,
+  sensitive=true
+}`
+    : `\\lstdefinelanguage{Python}{
+  keywords={def,lambda,return,if,elif,else,for,while,in,is,not,and,or,break,continue,pass,class,import,from,as,with,yield,global,nonlocal,del,raise,try,except,finally,assert,async,await,None,True,False},
+  morecomment=[l]{\\#},
+  morestring=[b]',
+  morestring=[b]",
+  columns=fullflexible,
+  sensitive=true
+}`;
+
 export const preamble = `\\documentclass[nocrop,7x10]{../mitpress/mit}
 % use: option nocrop to remove cropmarks
 % also remember: hyperref in mitpress/mit.cls: switch to black/black/black (line 1851)
@@ -5,9 +42,12 @@ export const preamble = `\\documentclass[nocrop,7x10]{../mitpress/mit}
 % for index proofreading: edit parseXmlLatex.js
 % change: const indexAnnotations = true;
 
-% This switches build to use final.ind for indexing
-\\UseHandEditedIndex{}
-% Note: latexmk still builds a new index but the file does not use it
+% Index: by default the freshly generated ${outputBaseName}.ind (built by
+% latexmk's makeindex) is used. Hand-pagination of the index is a manual step
+% performed only just before sending the JS PDF to MIT Press; see GitHub
+% issue #1236. To use a hand-edited index, put hand-paginated.ind in the
+% edition's latex_pdf*/ folder and uncomment the next line:
+% \\UseHandEditedIndex{}
 
 \\synctex=1
 
@@ -283,17 +323,7 @@ export const preamble = `\\documentclass[nocrop,7x10]{../mitpress/mit}
 \\newcommand{\\JSBreakNoEscape}{\\lstinline[mathescape=false,literate={@}{}{0\\discretionary{}{}{}},basicstyle=\\usefont{T1}{lmtt}{m}{n}\\protect\\inlinecodesize,keywordstyle=\\usefont{T1}{lmtt}{b}{n}\\protect\\inlinecodesize]}
 
 
-\\lstdefinelanguage{JavaScript}{
-  keywords={function,if,else,return,const,let,break,for,while,true,false,var,null}, %% removing continue for now
-  %% keywords={const, let, break, case, catch, continue, debugger, default, delete, do, else, finally, for, function, if, in, instanceof, return, switch, this, throw, try, typeof, var, void, while, with},
-  morecomment=[l]{//},
-  morecomment=[s]{/*}{*/},
-  morestring=[b]\`,
-  morestring=[b]',
-  morestring=[b]",
-  columns=fullflexible,
-  sensitive=true
-}
+${lstLanguageDefinition}
 
 %% \\newcommand{\\PreBoxCmd}{\\par\\vspace{4pt plus 2pt minus 2pt}\\noindent}
 %% \\newcommand{\\PostBoxCmd}{\\par\\vspace{6pt plus 2pt minus 2pt}\\noindent}
@@ -341,7 +371,7 @@ export const preamble = `\\documentclass[nocrop,7x10]{../mitpress/mit}
 \\newcommand{\\DontBreakPage}{\\nopagebreak}
 
 \\lstset{
-   language=JavaScript,
+   language=${languageName},
    basicstyle=\\usefont{T1}{lmtt}{m}{n},
    keywordstyle=\\usefont{T1}{lmtt}{b}{n},
    commentstyle=\\usefont{T1}{ptm}{m}{it},
@@ -364,8 +394,8 @@ export const preamble = `\\documentclass[nocrop,7x10]{../mitpress/mit}
 %% \\usepackage[svgnames]{xcolor} %% This line moved into times.cls
 \\definecolor{LeftBarClickable}{RGB}{187, 187, 187}
 
-\\lstdefinestyle{JavaScriptLatex}{
-   language=JavaScript,
+\\lstdefinestyle{${languageName}Latex}{
+   language=${languageName},
    basicstyle=\\normalcodesize\\usefont{T1}{lmtt}{m}{n},
    keywordstyle=\\usefont{T1}{lmtt}{b}{n},
    commentstyle=\\usefont{T1}{ptm}{m}{it},
@@ -380,10 +410,10 @@ export const preamble = `\\documentclass[nocrop,7x10]{../mitpress/mit}
    rulecolor=\\color{LeftBarClickable},
    escapechar=^
 }
-\\lstnewenvironment{JavaScriptLatex}{\\lstset{style=JavaScriptLatex}}{}
+\\lstnewenvironment{${languageName}Latex}{\\lstset{style=${languageName}Latex}}{}
 
-\\lstdefinestyle{JavaScriptLatexSmall}{
-   language=JavaScript,
+\\lstdefinestyle{${languageName}LatexSmall}{
+   language=${languageName},
    basicstyle=\\exercisecodesize\\usefont{T1}{lmtt}{m}{n},
    keywordstyle=\\usefont{T1}{lmtt}{b}{n},
    commentstyle=\\usefont{T1}{ptm}{m}{it},
@@ -399,10 +429,10 @@ export const preamble = `\\documentclass[nocrop,7x10]{../mitpress/mit}
    resetmargins=true,
    escapechar=^
 }
-\\lstnewenvironment{JavaScriptLatexSmall}{\\lstset{style=JavaScriptLatexSmall}}{}
+\\lstnewenvironment{${languageName}LatexSmall}{\\lstset{style=${languageName}LatexSmall}}{}
 
-\\lstdefinestyle{JavaScriptLatexFootnote}{
-   language=JavaScript,
+\\lstdefinestyle{${languageName}LatexFootnote}{
+   language=${languageName},
    basicstyle=\\footnotecodesize\\usefont{T1}{lmtt}{m}{n},
    keywordstyle=\\usefont{T1}{lmtt}{b}{n},
    commentstyle=\\usefont{T1}{ptm}{m}{it},
@@ -417,10 +447,10 @@ export const preamble = `\\documentclass[nocrop,7x10]{../mitpress/mit}
    rulecolor=\\color{LeftBarClickable},
    escapechar=^
 }
-\\lstnewenvironment{JavaScriptLatexFootnote}{\\lstset{style=JavaScriptLatexFootnote}}{}
+\\lstnewenvironment{${languageName}LatexFootnote}{\\lstset{style=${languageName}LatexFootnote}}{}
 
-\\lstdefinestyle{JavaScript}{
-   language=JavaScript,
+\\lstdefinestyle{${languageName}}{
+   language=${languageName},
    basicstyle=\\normalcodesize\\usefont{T1}{lmtt}{m}{n},
    keywordstyle=\\usefont{T1}{lmtt}{b}{n},
    commentstyle=\\usefont{T1}{ptm}{m}{it},
@@ -435,11 +465,11 @@ export const preamble = `\\documentclass[nocrop,7x10]{../mitpress/mit}
    rulecolor=\\color{LeftBarClickable},
    escapechar=^
 }
-\\lstnewenvironment{JavaScript}{\\lstset{style=JavaScript}}{}
-\\lstnewenvironment{JavaScriptClickable}{\\lstset{style=JavaScript,escapeinside={/*!}{!*/}}}{}
+\\lstnewenvironment{${languageName}}{\\lstset{style=${languageName}}}{}
+\\lstnewenvironment{${languageName}Clickable}{\\lstset{style=${languageName},escapeinside={/*!}{!*/}}}{}
 
-\\lstdefinestyle{JavaScriptSmall}{
-   language=JavaScript,
+\\lstdefinestyle{${languageName}Small}{
+   language=${languageName},
    basicstyle=\\exercisecodesize\\usefont{T1}{lmtt}{m}{n},
    keywordstyle=\\usefont{T1}{lmtt}{b}{n},
    commentstyle=\\usefont{T1}{ptm}{m}{it},
@@ -455,11 +485,11 @@ export const preamble = `\\documentclass[nocrop,7x10]{../mitpress/mit}
    resetmargins=true,
    escapechar=^
 }
-\\lstnewenvironment{JavaScriptSmall}{\\lstset{style=JavaScriptSmall}}{}
-\\lstnewenvironment{JavaScriptClickableSmall}{\\lstset{style=JavaScriptSmall,escapeinside={/*!}{!*/}}}{}
+\\lstnewenvironment{${languageName}Small}{\\lstset{style=${languageName}Small}}{}
+\\lstnewenvironment{${languageName}ClickableSmall}{\\lstset{style=${languageName}Small,escapeinside={/*!}{!*/}}}{}
 
-\\lstdefinestyle{JavaScriptFootnote}{
-   language=JavaScript,
+\\lstdefinestyle{${languageName}Footnote}{
+   language=${languageName},
    basicstyle=\\footnotecodesize\\usefont{T1}{lmtt}{m}{n},
    keywordstyle=\\usefont{T1}{lmtt}{b}{n},
    commentstyle=\\usefont{T1}{ptm}{m}{it},
@@ -474,11 +504,11 @@ export const preamble = `\\documentclass[nocrop,7x10]{../mitpress/mit}
    rulecolor=\\color{LeftBarClickable},
    escapechar=^
 }
-\\lstnewenvironment{JavaScriptFootnote}{\\lstset{style=JavaScriptFootnote}}{}
-\\lstnewenvironment{JavaScriptClickableFootnote}{\\lstset{style=JavaScriptFootnote,escapeinside={/*!}{!*/}}}{}
+\\lstnewenvironment{${languageName}Footnote}{\\lstset{style=${languageName}Footnote}}{}
+\\lstnewenvironment{${languageName}ClickableFootnote}{\\lstset{style=${languageName}Footnote,escapeinside={/*!}{!*/}}}{}
 
-\\lstdefinestyle{JavaScriptOutput}{
-   language=JavaScript,
+\\lstdefinestyle{${languageName}Output}{
+   language=${languageName},
    basicstyle=\\normaloutputcodesize\\usefont{T1}{lmtt}{m}{sl},
 %   keywordstyle=\\fontsize{11}{12}\\usefont{T1}{lmtt}{b}{sl},
    showstringspaces=false,
@@ -494,8 +524,8 @@ export const preamble = `\\documentclass[nocrop,7x10]{../mitpress/mit}
    rulecolor=\\color{LeftBarClickable},
    escapechar=^
 }
-\\lstdefinestyle{JavaScriptOutputLatex}{
-   language=JavaScript,
+\\lstdefinestyle{${languageName}OutputLatex}{
+   language=${languageName},
    basicstyle=\\normaloutputcodesize\\usefont{T1}{lmtt}{m}{sl},
 %   keywordstyle=\\fontsize{11}{12}\\usefont{T1}{lmtt}{b}{sl},
    showstringspaces=false,
@@ -512,30 +542,30 @@ export const preamble = `\\documentclass[nocrop,7x10]{../mitpress/mit}
    escapechar=^
 }
 
-\\lstnewenvironment{JavaScriptOutput}{\\lstset{style=JavaScriptOutput}}{}
-\\lstnewenvironment{JavaScriptOutputLatex}{\\lstset{style=JavaScriptOutputLatex}}{}
-\\lstnewenvironment{JavaScriptPrompt}{\\lstset{style=JavaScriptOutput}}{}
-\\lstnewenvironment{JavaScriptPromptLatex}{\\lstset{style=JavaScriptOutputLatex}}{}
-\\lstnewenvironment{JavaScriptLonely}{\\lstset{style=JavaScriptOutput,aboveskip=1ex,belowskip=1ex}}{}
-\\lstnewenvironment{JavaScriptLonelyLatex}{\\lstset{style=JavaScriptOutputLatex,aboveskip=1ex,belowskip=1ex}}{}
+\\lstnewenvironment{${languageName}Output}{\\lstset{style=${languageName}Output}}{}
+\\lstnewenvironment{${languageName}OutputLatex}{\\lstset{style=${languageName}OutputLatex}}{}
+\\lstnewenvironment{${languageName}Prompt}{\\lstset{style=${languageName}Output}}{}
+\\lstnewenvironment{${languageName}PromptLatex}{\\lstset{style=${languageName}OutputLatex}}{}
+\\lstnewenvironment{${languageName}Lonely}{\\lstset{style=${languageName}Output,aboveskip=1ex,belowskip=1ex}}{}
+\\lstnewenvironment{${languageName}LonelyLatex}{\\lstset{style=${languageName}OutputLatex,aboveskip=1ex,belowskip=1ex}}{}
 
-\\lstnewenvironment{JavaScriptOutputSmall}{\\lstset{style=JavaScriptOutputSmall}}{}
-\\lstnewenvironment{JavaScriptOutputLatexSmall}{\\lstset{style=JavaScriptOutputLatexSmall}}{}
-\\lstnewenvironment{JavaScriptPromptSmall}{\\lstset{style=JavaScriptOutputSmall}}{}
-\\lstnewenvironment{JavaScriptPromptLatexSmall}{\\lstset{style=JavaScriptOutputLatexSmall}}{}
-\\lstnewenvironment{JavaScriptLonelySmall}{\\lstset{style=JavaScriptOutputSmall,aboveskip=1ex,belowskip=1ex}}{}
-\\lstnewenvironment{JavaScriptLonelyLatexSmall}{\\lstset{style=JavaScriptOutputLatexSmall,aboveskip=1ex,belowskip=1ex}}{}
+\\lstnewenvironment{${languageName}OutputSmall}{\\lstset{style=${languageName}OutputSmall}}{}
+\\lstnewenvironment{${languageName}OutputLatexSmall}{\\lstset{style=${languageName}OutputLatexSmall}}{}
+\\lstnewenvironment{${languageName}PromptSmall}{\\lstset{style=${languageName}OutputSmall}}{}
+\\lstnewenvironment{${languageName}PromptLatexSmall}{\\lstset{style=${languageName}OutputLatexSmall}}{}
+\\lstnewenvironment{${languageName}LonelySmall}{\\lstset{style=${languageName}OutputSmall,aboveskip=1ex,belowskip=1ex}}{}
+\\lstnewenvironment{${languageName}LonelyLatexSmall}{\\lstset{style=${languageName}OutputLatexSmall,aboveskip=1ex,belowskip=1ex}}{}
 
-\\lstnewenvironment{JavaScriptOutputFootnote}{\\lstset{style=JavaScriptOutputFootnote}}{}
-\\lstnewenvironment{JavaScriptOutputLatexFootnote}{\\lstset{style=JavaScriptOutputLatexFootnote}}{}
-\\lstnewenvironment{JavaScriptPromptFootnote}{\\lstset{style=JavaScriptOutputFootnote}}{}
-\\lstnewenvironment{JavaScriptPromptLatexFootnote}{\\lstset{style=JavaScriptOutputLatexFootnote}}{}
-\\lstnewenvironment{JavaScriptLonelyFootnote}{\\lstset{style=JavaScriptOutputFootnote,aboveskip=1ex,belowskip=1ex}}{}
-\\lstnewenvironment{JavaScriptLonelyLatexFootnote}{\\lstset{style=JavaScriptOutputLatexFootnote,aboveskip=1ex,belowskip=1ex}}{}
+\\lstnewenvironment{${languageName}OutputFootnote}{\\lstset{style=${languageName}OutputFootnote}}{}
+\\lstnewenvironment{${languageName}OutputLatexFootnote}{\\lstset{style=${languageName}OutputLatexFootnote}}{}
+\\lstnewenvironment{${languageName}PromptFootnote}{\\lstset{style=${languageName}OutputFootnote}}{}
+\\lstnewenvironment{${languageName}PromptLatexFootnote}{\\lstset{style=${languageName}OutputLatexFootnote}}{}
+\\lstnewenvironment{${languageName}LonelyFootnote}{\\lstset{style=${languageName}OutputFootnote,aboveskip=1ex,belowskip=1ex}}{}
+\\lstnewenvironment{${languageName}LonelyLatexFootnote}{\\lstset{style=${languageName}OutputLatexFootnote,aboveskip=1ex,belowskip=1ex}}{}
 
 
-\\lstdefinestyle{JavaScriptOutputSmall}{
-   language=JavaScript,
+\\lstdefinestyle{${languageName}OutputSmall}{
+   language=${languageName},
    basicstyle=\\exercisecodesize\\usefont{T1}{lmtt}{m}{sl},
    showstringspaces=false,
    showspaces=false,
@@ -551,8 +581,8 @@ export const preamble = `\\documentclass[nocrop,7x10]{../mitpress/mit}
    resetmargins=true,
    escapechar=^
 }
-\\lstdefinestyle{JavaScriptOutputLatexSmall}{
-   language=JavaScript,
+\\lstdefinestyle{${languageName}OutputLatexSmall}{
+   language=${languageName},
    basicstyle=\\exercisecodesize\\usefont{T1}{lmtt}{m}{sl},
    showstringspaces=false,
    showspaces=false,
@@ -569,8 +599,8 @@ export const preamble = `\\documentclass[nocrop,7x10]{../mitpress/mit}
    escapechar=^
 }
 
-\\lstdefinestyle{JavaScriptOutputFootnote}{
-   language=JavaScript,
+\\lstdefinestyle{${languageName}OutputFootnote}{
+   language=${languageName},
    basicstyle=\\footnotecodesize\\usefont{T1}{lmtt}{m}{sl},
    showstringspaces=false,
    showspaces=false,
@@ -585,8 +615,8 @@ export const preamble = `\\documentclass[nocrop,7x10]{../mitpress/mit}
    rulecolor=\\color{LeftBarClickable},
    escapechar=^
 }
-\\lstdefinestyle{JavaScriptOutputLatexFootnote}{
-   language=JavaScript,
+\\lstdefinestyle{${languageName}OutputLatexFootnote}{
+   language=${languageName},
    basicstyle=\\footnotecodesize\\usefont{T1}{lmtt}{m}{sl},
    showstringspaces=false,
    showspaces=false,
@@ -602,8 +632,8 @@ export const preamble = `\\documentclass[nocrop,7x10]{../mitpress/mit}
    escapechar=^
 }
 
-\\lstdefinestyle{JavaScriptSmaller}{
-   language=JavaScript,
+\\lstdefinestyle{${languageName}Smaller}{
+   language=${languageName},
    basicstyle=\\exercisecodesize\\usefont{T1}{lmtt}{m}{n}, %\\fontsize{8.5}{9.5pt}\\selectfont
    keywordstyle=\\usefont{T1}{lmtt}{b}{n},
    commentstyle=\\usefont{T1}{ptm}{m}{it},
@@ -616,7 +646,7 @@ export const preamble = `\\documentclass[nocrop,7x10]{../mitpress/mit}
    resetmargins=true,
    escapechar=^
 }
-\\lstnewenvironment{JavaScriptSmaller}{\\lstset{style=JavaScriptLatexSmall}}{}
+\\lstnewenvironment{${languageName}Smaller}{\\lstset{style=${languageName}LatexSmall}}{}
 
 \\usepackage{epigraph}
 %\\renewcommand{\\textflush}{flushepinormal} %% Uncomment to get justified epigraphs
@@ -714,7 +744,7 @@ export const frontmatter = `
 \\HalfTitle{\\fontsize{16}{20}\\selectfont Structure and Interpretation of Computer Programs
 \\begin{minipage}{12cm}
 \\vspace{3.5mm}
-\\normalsize {\\fontsize{13}{18}\\selectfont JavaScript Edition}
+\\normalsize {\\fontsize{13}{18}\\selectfont ${languageName} Edition}
 \\end{minipage}
 }
 
@@ -724,7 +754,7 @@ export const frontmatter = `
 
 \\Title{\\fontsize{16}{20}\\selectfont Structure and Interpretation of Computer Programs}
 
-\\edition{\\fontsize{13}{18}\\selectfont JavaScript Edition}
+\\edition{\\fontsize{13}{18}\\selectfont ${languageName} Edition}
 
 \\BookAuthor{\\fontsize{13}{18}\\selectfont Harold Abelson and Gerald Jay Sussman
 \\begin{minipage}{12cm}
@@ -868,7 +898,7 @@ you were first led up to it, that you can make it more.''\\end{minipage}}{\\norm
 \\HalfTitle{\\fontsize{16}{20}\\selectfont Structure and Interpretation of Computer Programs
 \\begin{minipage}{12cm}
 \\vspace{3.5mm}
-\\normalsize {\\fontsize{13}{18}\\selectfont JavaScript Edition}
+\\normalsize {\\fontsize{13}{18}\\selectfont ${languageName} Edition}
 \\end{minipage}
 }
 \\halftitlepage
@@ -909,7 +939,7 @@ export const ending = `
 \\phantomsection
 \\addcontentsline{toc}{chapter}{Index}
 \\renewcommand{\\addcontentsline}[3]{}
-\\printindex{sicpjs}{\\vbox{Index\\vspace{8mm}\\newline \\small \\normalfont Page numbers for JavaScript declarations are in \\textit{italics}.\\newline Page numbers followed by \\textit{n} indicate footnotes.}}
+\\printindex{${outputBaseName}}{\\vbox{Index\\vspace{8mm}\\newline \\small \\normalfont Page numbers for JavaScript declarations are in \\textit{italics}.\\newline Page numbers followed by \\textit{n} indicate footnotes.}}
 \\renewcommand{\\addcontentsline}[3]{\\oldaddcontentsline{#1}{#2}{#3}}
 
 %% Restore code size

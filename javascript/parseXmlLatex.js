@@ -310,12 +310,12 @@ const processTextFunctionsDefaultLatex = {
       marginStr += "operators (...)";
     }
     if (functioN) {
-      indexStr += "function (JavaScript)";
-      marginStr += "function (JavaScript)";
+      indexStr += "function (" + lang.languageName + ")";
+      marginStr += "function (" + lang.languageName + ")";
     }
     if (parsing) {
-      indexStr += "parsing JavaScript";
-      marginStr += "parsing JavaScript";
+      indexStr += "parsing " + lang.languageName;
+      marginStr += "parsing " + lang.languageName;
     }
 
     // handle explicit order commands ORDER, DECLARATION, USE
