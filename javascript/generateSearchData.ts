@@ -93,7 +93,7 @@ type TrieTree = {
 export const trieTree: TrieTree = {};
 export const trieTreeText = {};
 export const writeSearchData = () => {
-  const outputDir = path.join(__dirname, "..", "json" + edition.outputSuffix);
+  const outputDir = path.join(__dirname, "..", "json_" + lang.key);
   const outputFile = path.join(outputDir, "searchData.json");
   const searchData = {
     textbook: textBook,
