@@ -12,13 +12,13 @@
 
 // The XML tag names that carry the non-Scheme language's code.
 export type LanguageDescriptor = {
-  key: string; // short identifier, also used in output naming, e.g. "js"
-  blockTag: string; // code block, e.g. "JAVASCRIPT"
-  inlineTag: string; // inline code, e.g. "JAVASCRIPTINLINE"
-  runTag: string; // "JAVASCRIPT_RUN"
-  testTag: string; // "JAVASCRIPT_TEST"
-  outputTag: string; // "JAVASCRIPT_OUTPUT"
-  promptTag: string; // "JAVASCRIPT_PROMPT"
+  readonly key: string; // short identifier, also used in output naming, e.g. "js"
+  readonly blockTag: string; // code block, e.g. "JAVASCRIPT"
+  readonly inlineTag: string; // inline code, e.g. "JAVASCRIPTINLINE"
+  readonly runTag: string; // "JAVASCRIPT_RUN"
+  readonly testTag: string; // "JAVASCRIPT_TEST"
+  readonly outputTag: string; // "JAVASCRIPT_OUTPUT"
+  readonly promptTag: string; // "JAVASCRIPT_PROMPT"
 };
 
 export const javascriptLanguage: LanguageDescriptor = {
@@ -33,9 +33,9 @@ export const javascriptLanguage: LanguageDescriptor = {
 
 // An edition ties a language to its source tree and output naming.
 export type Edition = {
-  language: LanguageDescriptor;
-  inputDirName: string; // source tree relative to repo root, e.g. "xml"
-  outputSuffix: string; // appended to output dir names, e.g. "" or "_py"
+  readonly language: LanguageDescriptor;
+  readonly inputDirName: string; // source tree relative to repo root, e.g. "xml"
+  readonly outputSuffix: string; // appended to output dir names, e.g. "" or "_py"
 };
 
 export const javascriptEdition: Edition = {
