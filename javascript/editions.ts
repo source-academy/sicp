@@ -6,9 +6,16 @@
 // of the build that are specific to that language are collected here behind a
 // descriptor, instead of being hardcoded throughout the pipeline.
 //
-// This module defines the JavaScript edition (the default) and the Python
-// edition. The build selects JavaScript unless the SICP_EDITION environment
-// variable requests another edition, so existing output is unchanged.
+// This module defines the JavaScript edition (the default), the Python
+// edition, and the Scheme edition. The build selects JavaScript unless the
+// SICP_EDITION environment variable requests another edition, so existing
+// output is unchanged.
+//
+// Each XML source tree pairs Scheme with one non-Scheme language inside
+// <SPLIT>/<SPLITINLINE> (so the prose is correct for both). An edition keeps
+// its own language and strips the companion (see getCompanionLanguage). The
+// JavaScript and Scheme editions both read from xml/ (the Scheme content lives
+// in the JS source tree); only the Python-style editions use xml_<lang>/.
 
 // Language-specific details of the edition's non-Scheme language.
 export type LanguageDescriptor = {
@@ -55,6 +62,24 @@ export const pythonLanguage: LanguageDescriptor = {
   fileExtension: ".py"
 };
 
+// Scheme is the comparison anchor in the XML; the Scheme edition makes it the
+// primary language. There are no SCHEME_RUN / SCHEME_TEST tags (those are
+// execution concepts for the playground languages); the names below simply
+// don't match anything, which is harmless.
+export const schemeLanguage: LanguageDescriptor = {
+  key: "scheme",
+  blockTag: "SCHEME",
+  inlineTag: "SCHEMEINLINE",
+  runTag: "SCHEME_RUN",
+  testTag: "SCHEME_TEST",
+  outputTag: "SCHEMEOUTPUT",
+  promptTag: "SCHEMEPROMPT",
+  commentPrefix: ";",
+  displayName: "SICP Scheme",
+  languageName: "Scheme",
+  fileExtension: ".scm"
+};
+
 // An edition ties a language to its source tree and output naming.
 // Output dirs are named `<base>_<language.key>` (e.g. json_js / json_py),
 // so the key carries the edition marker for every dir.
@@ -76,6 +101,26 @@ export const pythonEdition: Edition = {
   outputBaseName: "sicpy"
 };
 
+// The Scheme edition reuses the JavaScript source tree (xml/), extracting the
+// Scheme side of every split instead of the JavaScript side.
+export const schemeEdition: Edition = {
+  language: schemeLanguage,
+  inputDirName: "xml",
+  outputBaseName: "sicpscheme"
+};
+
+// In each source tree the prose is split between Scheme and one non-Scheme
+// language. An edition keeps its own language and strips the companion: the
+// JavaScript/Python editions strip Scheme, while the Scheme edition strips the
+// JavaScript of its (xml/) source tree.
+export function getCompanionLanguage(
+  edition: Edition = getEdition()
+): LanguageDescriptor {
+  return edition.language.key === schemeLanguage.key
+    ? javascriptLanguage
+    : schemeLanguage;
+}
+
 // Selects the edition to build, via the SICP_EDITION environment variable.
 // Defaults to the JavaScript edition when unset, so existing builds are
 // byte-for-byte unchanged. An unrecognized value is rejected rather than
@@ -89,9 +134,11 @@ export function getEdition(): Edition {
       return javascriptEdition;
     case "py":
       return pythonEdition;
+    case "scheme":
+      return schemeEdition;
     default:
       throw new Error(
-        `Unknown SICP_EDITION "${process.env.SICP_EDITION}" (expected "js" or "py")`
+        `Unknown SICP_EDITION "${process.env.SICP_EDITION}" (expected "js", "py", or "scheme")`
       );
   }
 }

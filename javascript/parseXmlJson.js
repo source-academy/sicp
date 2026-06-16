@@ -21,10 +21,13 @@ import {
   parseAndInsertToIdToContentMap
 } from "./searchRewrite.js";
 
-import { getEdition } from "./editions.js";
+import { getEdition, getCompanionLanguage } from "./editions.js";
 
-// Tag names of the edition's non-Scheme language (JAVASCRIPT* by default).
+// Tag names of the edition's primary language (JAVASCRIPT* by default) and of
+// the companion language whose blocks are stripped (Scheme by default; the JS
+// language for the Scheme edition).
 const lang = getEdition().language;
+const companion = getCompanionLanguage();
 
 let paragraph_count = 0;
 let heading_count = 0;
@@ -49,7 +52,7 @@ export const tagsToRemove = new Set([
   "EXCLUDE",
   "HISTORY",
   "ORDER",
-  "SCHEME",
+  companion.blockTag, // the other language's code block is stripped ("SCHEME" by default)
   "SOLUTION", // SOLUTION tag handled by processExerciseJson
   "INDEX",
   "CAPTION",
@@ -327,7 +330,12 @@ const processTextFunctions = {
     processReferenceJson(node, obj, chapterIndex);
   },
 
-  SCHEMEINLINE: (node, obj) => processTextFunctions[lang.inlineTag](node, obj),
+  // The companion language's inline code is rendered the same way as the
+  // primary's (SCHEMEINLINE -> JAVASCRIPTINLINE handler by default; JAVASCRIPTINLINE
+  // -> SCHEMEINLINE handler for the Scheme edition). Companion != primary, so
+  // this never self-references.
+  [companion.inlineTag]: (node, obj) =>
+    processTextFunctions[lang.inlineTag](node, obj),
 
   [lang.inlineTag]: (node, obj) => {
     if (
