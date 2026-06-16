@@ -1,0 +1,963 @@
+<SUBSECTION>
+  <NAME>
+    <SPLITINLINE>
+      <SCHEME>
+        Sequence Evaluation and Tail Recursion
+      </SCHEME>
+      <PYTHON>
+        Evaluating Function Applications
+      </PYTHON>
+    </SPLITINLINE>    
+  </NAME>
+
+  <SPLIT>
+    <SCHEME>
+      <LABEL NAME="sec:sequence-evaluation"/>
+      <TEXT>
+        The portion of the explicit-control evaluator at
+        <SCHEMEINLINE>ev-sequence</SCHEMEINLINE> is analogous to the metacircular
+        evaluator<APOS/>s <SCHEMEINLINE>eval-sequence</SCHEMEINLINE> procedure. It
+        handles sequences of expressions in procedure bodies or in explicit
+        <SCHEMEINLINE>begin</SCHEMEINLINE> expressions.
+      </TEXT>
+
+      <TEXT>
+        Explicit<SCHEMEINLINE>begin</SCHEMEINLINE> expressions are evaluated by
+        placing the sequence of expressions to be evaluated in
+        <SCHEMEINLINE>unev</SCHEMEINLINE>, saving
+        <SCHEMEINLINE>continue</SCHEMEINLINE> on the stack, and jumping to
+        <SCHEMEINLINE>ev-sequence</SCHEMEINLINE>.
+        <SNIPPET EVAL="no">
+          <INDEX><DECLARATION>ev_sequence_start</DECLARATION></INDEX>
+          <SCHEME>
+ev-begin
+  (assign unev (op begin-actions) (reg exp))
+  (save continue)
+  (goto (label ev-sequence))
+          </SCHEME>
+        </SNIPPET>
+    
+        The implicit sequences in procedure bodies are handled by jumping to
+        <SCHEMEINLINE>ev-sequence</SCHEMEINLINE> from
+        <SCHEMEINLINE>compound-apply</SCHEMEINLINE>, at which point
+        <SCHEMEINLINE>continue</SCHEMEINLINE> is already on the stack, having
+        been saved at <SCHEMEINLINE>ev-application</SCHEMEINLINE>.
+      </TEXT>
+
+      <TEXT>
+        The entries at <SCHEMEINLINE>ev-sequence</SCHEMEINLINE> and
+        <SCHEMEINLINE>ev-sequence-continue</SCHEMEINLINE> form a loop that successively
+        evaluates each expression in a sequence. The list of unevaluated expressions is
+        kept in <SCHEMEINLINE>unev</SCHEMEINLINE>. Before evaluating each expression, we
+        check to see if there are additional expressions to be evaluated in the
+        sequence. If so, we save the rest of the unevaluated expressions (held in
+        <SCHEMEINLINE>unev</SCHEMEINLINE>) and the environment in which these must be
+        evaluated (held in <SCHEMEINLINE>env</SCHEMEINLINE>) and call
+        <SCHEMEINLINE>eval-dispatch</SCHEMEINLINE> to evaluate the expression. The two
+        saved registers are restored upon the return from this evaluation, at
+        <SCHEMEINLINE>ev-sequence-continue</SCHEMEINLINE>.
+      </TEXT>
+
+      <TEXT>
+        The final expression in the sequence is handled differently, at the entry point
+        <SCHEMEINLINE>ev-sequence-last-exp</SCHEMEINLINE>. Since there are no more
+        expressions to be evaluated after this one, we need not save
+        <SCHEMEINLINE>unev</SCHEMEINLINE> or <SCHEMEINLINE>env</SCHEMEINLINE> before
+        going to <SCHEMEINLINE>eval-dispatch</SCHEMEINLINE>. expression, so after the
+        evaluation of the last expression there is nothing left to do except continue at
+        the entry point currently held on the stack (which was saved by
+        <SCHEMEINLINE>ev-application</SCHEMEINLINE> or
+        <SCHEMEINLINE>ev-begin</SCHEMEINLINE>.) Rather than setting up
+        <SCHEMEINLINE>continue</SCHEMEINLINE> to arrange for
+        <SCHEMEINLINE>eval-dispatch</SCHEMEINLINE> to return here and then restoring
+        <SCHEMEINLINE>continue</SCHEMEINLINE> from the stack and continuing at that
+        entry point, we restore <SCHEMEINLINE>continue</SCHEMEINLINE> from the stack
+        before going to <SCHEMEINLINE>eval-dispatch</SCHEMEINLINE>, so that
+        <SCHEMEINLINE>eval-dispatch</SCHEMEINLINE> will continue at that entry point
+        after evaluating the expression.
+        <SNIPPET EVAL="no">
+          <INDEX><DECLARATION>ev_sequence</DECLARATION></INDEX>
+          <SCHEME>
+ev-sequence
+  (assign exp (op first-exp) (reg unev))
+  (test (op last-exp?) (reg unev))
+  (branch (label ev-sequence-last-exp))
+  (save unev)
+  (save env)
+  (assign continue (label ev-sequence-continue))
+  (goto (label eval-dispatch))
+ev-sequence-continue
+  (restore env)
+  (restore unev)
+  (assign unev (op rest-exps) (reg unev))
+  (goto (label ev-sequence))
+ev-sequence-last-exp
+  (restore continue)
+  (goto (label eval-dispatch))
+          </SCHEME>
+        </SNIPPET>
+      </TEXT>
+    </SCHEME>
+    <PYTHON>
+      <LABEL NAME="sec:evaluating-function-applications"/>
+
+      <INDEX>explicit-control evaluator for JavaScript<SUBINDEX>function application<OPEN/></SUBINDEX></INDEX>
+      <INDEX>explicit-control evaluator for JavaScript<SUBINDEX>combinations<OPEN/></SUBINDEX></INDEX>
+
+      <TEXT>
+        A function application is specified by a combination containing a function
+        expression and argument expressions. The function expression is a subexpression
+        whose value is a function, and the argument expressions are subexpressions whose
+        values are the arguments to which the function should be applied. The metacircular
+        <PYTHONINLINE>evaluate</PYTHONINLINE> handles applications by calling
+        itself recursively to evaluate each element of the combination, and then passing
+        the results to <PYTHONINLINE>apply</PYTHONINLINE>, which performs the
+        actual function application. The explicit-control evaluator does the same thing;
+        these recursive calls are implemented by
+        <PYTHONINLINE>go_to</PYTHONINLINE> instructions, together with use of the
+        stack to save registers that will be restored after the recursive call returns.
+        Before each call we will be
+	<INDEX>explicit-control evaluator for JavaScript<SUBINDEX>stack usage</SUBINDEX></INDEX>
+	careful to identify which registers must be saved
+        (because their values will be needed later).<FOOTNOTE>This is an important but
+        subtle point in translating algorithms from a procedural language, such as
+        JavaScript, to a register-machine language. As an alternative to saving only what
+        is needed, we could save all the registers (except
+        <PYTHONINLINE>val</PYTHONINLINE>) before each recursive call. This is
+        called a
+	<INDEX>framed-stack discipline</INDEX>
+        <INDEX>stack<SUBINDEX>framed</SUBINDEX></INDEX>
+	<EM>framed-stack</EM> discipline.
+        This would work but might save more registers than necessary; this could be an
+        important consideration in a system where stack operations are expensive. Saving
+        registers whose contents will not be needed later may also hold on to useless data
+        that could otherwise be garbage-collected, freeing space to be reused.</FOOTNOTE>
+      </TEXT>
+
+      <TEXT>
+        As in the metacircular evaluator, operator combinations are transformed into
+        applications of primitive functions corresponding to the operators. This takes
+        place at <PYTHONINLINE>ev_operator_combination</PYTHONINLINE>, which
+        performs this transformation in place in <PYTHONINLINE>comp</PYTHONINLINE>
+        and falls through to
+        <PYTHONINLINE>ev_application</PYTHONINLINE>.<!-- 
+        --><FOOTNOTE>
+        We assume that the syntax transformer
+        <PYTHONINLINE>operator_combination_to_application</PYTHONINLINE> is
+        available as a machine operation. In an actual implementation built from
+        scratch, we would use our explicit-control evaluator to interpret a JavaScript
+        program that performs source-level transformations like this one and
+        <PYTHONINLINE>function_decl_to_constant_decl</PYTHONINLINE>
+	in a syntax phase that runs before execution.
+        <LABEL NAME="foot:syntax-transformer"/>
+      </FOOTNOTE>
+      </TEXT>
+    
+      <TEXT>
+        We begin the evaluation of an application by evaluating the function expression to
+        produce a function, which will later be applied to the evaluated argument
+        expressions. To evaluate the function expression, we move it to the
+        <PYTHONINLINE>comp</PYTHONINLINE> register and go to
+        <PYTHONINLINE>eval_dispatch</PYTHONINLINE>. The environment in the
+        <PYTHONINLINE>env</PYTHONINLINE> register is already the correct one in
+        which to evaluate the function expression. However, we save
+        <PYTHONINLINE>env</PYTHONINLINE> because we will need it later to evaluate
+        the argument expressions. We also extract the argument expressions into
+        <PYTHONINLINE>unev</PYTHONINLINE> and save this on the stack. We set up
+        <PYTHONINLINE>continue</PYTHONINLINE> so that
+        <PYTHONINLINE>eval_dispatch</PYTHONINLINE> will resume at
+        <PYTHONINLINE>ev_appl_did_function_expression</PYTHONINLINE> after the
+        function expression has been evaluated. First, however, we save the old value of
+        <PYTHONINLINE>continue</PYTHONINLINE>, which tells the controller where to
+        continue after the application.
+
+        <SNIPPET EVAL="no">
+	  <INDEX><DECLARATION>ev_operator_combination</DECLARATION></INDEX>
+	  <INDEX><DECLARATION>ev_application</DECLARATION></INDEX>
+          <PYTHON>
+"ev_operator_combination",
+  assign("comp", list(op("operator_combination_to_application"),
+                      reg("comp"), reg("env"))),
+"ev_application",
+  save("continue"),
+  save("env"),
+  assign("unev", list(op("arg_expressions"), reg("comp"))),
+  save("unev"),
+  assign("comp", list(op("function_expression"), reg("comp"))),
+  assign("continue", label("ev_appl_did_function_expression")),
+  go_to(label("eval_dispatch")),
+          </PYTHON>
+        </SNIPPET>
+      </TEXT>
+
+      <INDEX>explicit-control evaluator for JavaScript<SUBINDEX>argument evaluation<OPEN/></SUBINDEX></INDEX>
+      
+      <TEXT>
+        Upon returning from evaluating the function expression, we proceed to evaluate the
+        argument expressions of the application and to accumulate the resulting arguments
+        in a list, held in <PYTHONINLINE>argl</PYTHONINLINE>. (This is like the
+        evaluation of a sequence of statements, except that we collect the values.) First
+        we restore the unevaluated argument expressions and the environment. We initialize
+        <PYTHONINLINE>argl</PYTHONINLINE> to an empty list. Then we assign to the
+        <PYTHONINLINE>fun</PYTHONINLINE> register the function that was produced
+        by evaluating the function expression. If there are no argument expressions, we go
+        directly to <PYTHONINLINE>apply_dispatch</PYTHONINLINE>. Otherwise we save
+        <PYTHONINLINE>fun</PYTHONINLINE> on the stack and start the
+        argument-evaluation loop:<!-- 
+        --><FOOTNOTE>We add to the evaluator data-structure
+        functions in section<SPACE/><REF NAME="sec:eval-data-structures"/> the following
+        two functions for manipulating argument lists:
+        <SNIPPET EVAL="no">
+          <INDEX><DECLARATION>empty_arglist</DECLARATION></INDEX> 
+          <INDEX><DECLARATION>adjoin_arg</DECLARATION></INDEX>
+          <NAME>empty_arglist</NAME>
+          <PYTHON>
+function empty_arglist() { return null; }
+<SHORT_SPACE/>
+function adjoin_arg(arg, arglist) {
+    return append(arglist, list(arg));
+}
+          </PYTHON>
+        </SNIPPET>
+        We also make use of an additional syntax function to test for the last argument expression
+        in an application:
+        <SNIPPET EVAL="no">
+          <INDEX><DECLARATION>is_last_argument_expression</DECLARATION></INDEX> 
+          <NAME>is_last_argument_expression</NAME>
+          <PYTHON>
+function is_last_argument_expression(arg_expression) {
+    return is_null(tail(arg_expression));
+}
+          </PYTHON>
+        </SNIPPET></FOOTNOTE>
+	<SNIPPET EVAL="no">
+          <PYTHON>
+"ev_appl_did_function_expression",
+  restore("unev"), // the argument expressions
+  restore("env"),
+  assign("argl", list(op("empty_arglist"))),
+  assign("fun", reg("val")), // the function
+  test(list(op("is_null"), reg("unev"))),
+  branch(label("apply_dispatch")),
+  save("fun"),
+          </PYTHON>
+	</SNIPPET>
+      </TEXT>
+
+      <TEXT>
+        Each cycle of the argument-evaluation loop evaluates an argument expression from
+        the list in <PYTHONINLINE>unev</PYTHONINLINE> and accumulates the result
+        into <PYTHONINLINE>argl</PYTHONINLINE>. To evaluate an argument
+        expression, we place it in the <PYTHONINLINE>comp</PYTHONINLINE> register
+        and go to <PYTHONINLINE>eval_dispatch</PYTHONINLINE>, after setting
+        <PYTHONINLINE>continue</PYTHONINLINE> so that execution will resume with
+        the argument-accumulation phase. But first we save the arguments accumulated so
+        far (held in <PYTHONINLINE>argl</PYTHONINLINE>), the environment (held in
+        <PYTHONINLINE>env</PYTHONINLINE>), and the remaining argument expressions
+        to be evaluated (held in <PYTHONINLINE>unev</PYTHONINLINE>). A special
+        case is made for the evaluation of the last argument expression, which is handled
+        at <PYTHONINLINE>ev_appl_last_arg</PYTHONINLINE>.
+
+        <SNIPPET EVAL="no">
+          <PYTHON>
+"ev_appl_argument_expression_loop",
+  save("argl"),
+  assign("comp", list(op("head"), reg("unev"))),
+  test(list(op("is_last_argument_expression"), reg("unev"))),
+  branch(label("ev_appl_last_arg")),
+  save("env"),
+  save("unev"),
+  assign("continue", label("ev_appl_accumulate_arg")),
+  go_to(label("eval_dispatch")),
+          </PYTHON>
+        </SNIPPET>
+      </TEXT>
+
+      <TEXT>
+        When an argument expression has been evaluated, the value is accumulated into the
+        list held in <PYTHONINLINE>argl</PYTHONINLINE>. The argument expression is
+        then removed from the list of unevaluated argument expressions in
+        <PYTHONINLINE>unev</PYTHONINLINE>, and the argument-evaluation loop
+        continues.
+
+        <SNIPPET EVAL="no">
+          <PYTHON>
+"ev_appl_accumulate_arg",
+  restore("unev"),
+  restore("env"),
+  restore("argl"),
+  assign("argl", list(op("adjoin_arg"), reg("val"), reg("argl"))),
+  assign("unev", list(op("tail"), reg("unev"))),
+  go_to(label("ev_appl_argument_expression_loop")),
+          </PYTHON>
+        </SNIPPET>
+      </TEXT>
+
+      <TEXT>
+        Evaluation of the last argument expression is handled differently, as is the last
+        statement in a sequence. There is no need to save the environment or the list of
+        unevaluated argument expressions before going to
+        <PYTHONINLINE>eval_dispatch</PYTHONINLINE>, since they will not be
+        required after the last argument expression is evaluated. Thus, we return from the
+        evaluation to a special entry point
+        <PYTHONINLINE>ev_appl_accum_last_arg</PYTHONINLINE>, which restores the
+        argument list, accumulates the new argument, restores the saved function, and goes
+        off to perform the application.<FOOTNOTE>The optimization of treating the last
+        argument expression specially is known as
+	<INDEX>evlis tail recursion</INDEX>
+	<EM>evlis tail recursion</EM> (see
+	<INDEX>Wand, Mitchell</INDEX>
+	<CITATION>Wand 1980</CITATION>).
+        We could be somewhat more efficient in the argument evaluation loop if we made
+        evaluation of the first argument expression a special case too. This would permit
+        us to postpone initializing <PYTHONINLINE>argl</PYTHONINLINE> until after
+        evaluating the first argument expression, so as to avoid saving
+        <PYTHONINLINE>argl</PYTHONINLINE> in this case. The compiler in
+        section<SPACE/><REF NAME="sec:compilation"/> performs this optimization. (Compare
+        the <PYTHONINLINE>construct_arglist</PYTHONINLINE> function of
+        section<SPACE/><REF NAME="sec:compiling-combinations"/>.)</FOOTNOTE>
+
+        <SNIPPET EVAL="no">
+          <PYTHON>
+"ev_appl_last_arg",
+  assign("continue", label("ev_appl_accum_last_arg")),
+  go_to(label("eval_dispatch")),
+"ev_appl_accum_last_arg",
+  restore("argl"),
+  assign("argl", list(op("adjoin_arg"), reg("val"), reg("argl"))),
+  restore("fun"),
+  go_to(label("apply_dispatch")),
+          </PYTHON>
+        </SNIPPET>
+      </TEXT>
+
+      <TEXT>
+        The details of the argument-evaluation loop determine the
+        <INDEX>order of evaluation<SUBINDEX>in explicit-control evaluator</SUBINDEX></INDEX>
+	order in which the
+        interpreter evaluates the argument expressions of a combination (e.g., left to
+        right or right to left—see exercise<SPACE/><REF NAME="ex:order-of-evaluation"/>).
+        This order is not determined by the metacircular evaluator, which inherits its
+        control structure from the underlying JavaScript in which it is implemented.<!-- 
+        --><FOOTNOTE>
+        The order of argument-expression evaluation by the function
+        <PYTHONINLINE>list_of_values</PYTHONINLINE> in the metacircular
+        evaluator is determined by the order of evaluation of the arguments to
+        <PYTHONINLINE>pair</PYTHONINLINE>, which is used to construct the
+        argument list.
+	<INDEX>order of evaluation<SUBINDEX>in metacircular evaluator</SUBINDEX></INDEX>
+	The version of
+        <PYTHONINLINE>list_of_values</PYTHONINLINE> in footnote<SPACE/><REF
+        NAME="foot:mceval-higher-order"/> of section<SPACE/><REF NAME="sec:mc-eval"/>
+        calls <PYTHONINLINE>pair</PYTHONINLINE> directly; the version in the
+        text uses <PYTHONINLINE>map</PYTHONINLINE>, which calls
+        <PYTHONINLINE>pair</PYTHONINLINE>. (See exercise<SPACE/><REF
+        NAME="ex:arg-eval-order"/>.)</FOOTNOTE>
+
+        Because we use <PYTHONINLINE>head</PYTHONINLINE> in <PYTHONINLINE>ev_appl_argument_expression_loop</PYTHONINLINE>
+        to extract successive argument expressions from <PYTHONINLINE>unev</PYTHONINLINE>
+        and <PYTHONINLINE>tail</PYTHONINLINE> at
+        <PYTHONINLINE>ev_appl_@accumulate_arg</PYTHONINLINE> to extract the rest of the argument expressions,
+        the explicit-control evaluator will
+	      evaluate the argument expressions of a combination in left-to-right order,
+        as required by the ECMAScript specification.
+      </TEXT>
+
+      <INDEX>explicit-control evaluator for JavaScript<SUBINDEX>argument evaluation<CLOSE/></SUBINDEX></INDEX>
+
+      <SUBHEADING> 
+        <NAME>
+          Function Application
+        </NAME>
+      </SUBHEADING>
+
+      <LABEL NAME="sec:procedure-application"/>
+
+      <TEXT>
+        The entry point <PYTHONINLINE>apply_dispatch</PYTHONINLINE> corresponds to
+        the <PYTHONINLINE>apply</PYTHONINLINE> function of the metacircular
+        evaluator. By the time we get to
+        <PYTHONINLINE>apply_dispatch</PYTHONINLINE>, the
+        <PYTHONINLINE>fun</PYTHONINLINE> register contains the function to apply
+        and <PYTHONINLINE>argl</PYTHONINLINE> contains the list of evaluated
+        arguments to which it must be applied. The saved value of
+        <PYTHONINLINE>continue</PYTHONINLINE> (originally passed to
+        <PYTHONINLINE>eval_dispatch</PYTHONINLINE> and saved at
+        <PYTHONINLINE>ev_application</PYTHONINLINE>), which tells where to return
+        with the result of the function application, is on the stack. When the application
+        is complete, the controller transfers to the entry point specified by the saved
+        <PYTHONINLINE>continue</PYTHONINLINE>, with the result of the application
+        in <PYTHONINLINE>val</PYTHONINLINE>. As with the metacircular
+        <PYTHONINLINE>apply</PYTHONINLINE>, there are two cases to consider.
+        Either the function to be applied is a primitive or it is a compound function.
+
+        <SNIPPET EVAL="no">
+          <INDEX><DECLARATION>apply_dispatch</DECLARATION></INDEX>
+          <PYTHON>
+"apply_dispatch",
+  test(list(op("is_primitive_function"), reg("fun"))),
+  branch(label("primitive_apply")),
+  test(list(op("is_compound_function"), reg("fun"))),
+  branch(label("compound_apply")),
+  go_to(label("unknown_function_type")),
+          </PYTHON>
+        </SNIPPET>
+      </TEXT>
+
+      <TEXT>
+        We assume that each
+        <INDEX>explicit-control evaluator for JavaScript<SUBINDEX>primitive functions</SUBINDEX></INDEX>
+	primitive is implemented so as to obtain its arguments from
+        <PYTHONINLINE>argl</PYTHONINLINE> and place its result in
+        <PYTHONINLINE>val</PYTHONINLINE>. To specify how the machine handles
+        primitives, we would have to provide a sequence of controller instructions to
+        implement each primitive and arrange for
+        <PYTHONINLINE>primitive_apply</PYTHONINLINE> to dispatch to the
+        instructions for the primitive identified by the contents of
+        <PYTHONINLINE>fun</PYTHONINLINE>. Since we are interested in the structure
+        of the evaluation process rather than the details of the primitives, we will
+        instead just use an <PYTHONINLINE>apply_primitive_function</PYTHONINLINE>
+        operation that applies the function in fun to the arguments in
+        <PYTHONINLINE>argl</PYTHONINLINE>. For the purpose of simulating the
+        evaluator with the simulator of section<SPACE/><REF NAME="sec:simulator"/> we use
+        the function <PYTHONINLINE>apply_primitive_function</PYTHONINLINE>, which
+        calls on the underlying JavaScript system to perform the application, just as we
+        did for the metacircular evaluator in section<SPACE/><REF
+        NAME="sec:core-of-evaluator"/>. After computing the value of the primitive
+        application, we restore <PYTHONINLINE>continue</PYTHONINLINE> and go to
+        the designated entry point.
+        <SNIPPET EVAL="no">
+          <INDEX><DECLARATION>primitive_apply</DECLARATION></INDEX>
+          <PYTHON>
+"primitive_apply",
+  assign("val", list(op("apply_primitive_function"),
+                     reg("fun"), reg("argl"))),
+  restore("continue"),
+  go_to(reg("continue")),
+          </PYTHON>
+        </SNIPPET>
+      </TEXT>
+
+      <TEXT>
+        The sequence of instructions labeled
+        <PYTHONINLINE>compound_apply</PYTHONINLINE> specifies the application of
+        <INDEX>explicit-control evaluator for JavaScript<SUBINDEX>compound functions</SUBINDEX></INDEX>
+        compound functions. To apply a compound function, we proceed in a way similar to
+        what we did in the metacircular evaluator. We construct a frame that binds the
+        function's parameters to the arguments, use this frame to extend the environment
+        carried by the function, and evaluate in this extended environment the body of the
+        function.
+      </TEXT>
+
+      <TEXT>
+        At this point the compound function is in register
+        <PYTHONINLINE>fun</PYTHONINLINE> and its arguments are in
+        <PYTHONINLINE>argl</PYTHONINLINE>. We extract the function's parameters
+        into <PYTHONINLINE>unev</PYTHONINLINE> and its environment into
+        <PYTHONINLINE>env</PYTHONINLINE>. We then replace the environment in
+        <PYTHONINLINE>env</PYTHONINLINE> with the environment constructed by
+        extending it with bindings of the parameters to the given arguments. We then
+        extract the body of the function into <PYTHONINLINE>comp</PYTHONINLINE>.
+        The natural next step would be to restore the saved
+        <PYTHONINLINE>continue</PYTHONINLINE> and proceed to
+        <PYTHONINLINE>eval_dispatch</PYTHONINLINE> to evaluate the body and go to
+        the restored continuation with the result in
+        <PYTHONINLINE>val</PYTHONINLINE>, as is done for the last statement of a
+        sequence. But there is a complication!
+      </TEXT>
+
+      <TEXT>
+	The complication has two aspects. One is that
+        at any point in the evaluation of the body, a
+        <INDEX>explicit-control evaluator for JavaScript<SUBINDEX>return statements</SUBINDEX><OPEN/></INDEX>
+	return statement may require the
+        function to return the value of the return expression as the value of the body.
+        But a return statement may be nested arbitrarily deeply in the body; so the stack
+        at the moment the return statement is encountered is not necessarily the stack
+        that is needed for a return from the function. One way to make it possible to
+        adjust the stack for the return is to put a \emph{marker} on the stack that can be
+        found by the return code. This is implemented by the
+	<INDEX>register-machine language<SUBINDEX><USE>push_marker_to_stack</USE></SUBINDEX></INDEX>
+	<INDEX><USE>push_marker_to_stack</USE> (in register machine)</INDEX>
+        <PYTHONINLINE>push_marker_to_stack</PYTHONINLINE> instruction. The return
+        code can then use the
+	<INDEX>register-machine language<SUBINDEX><USE>revert_stack_to_marker</USE></SUBINDEX></INDEX>
+	<INDEX><USE>revert_stack_to_marker</USE> (in register machine)</INDEX>
+	<PYTHONINLINE>revert_stack_to_marker</PYTHONINLINE>
+        instruction to restore the stack to the place indicated by the marker before
+        evaluating the return expression.<FOOTNOTE>The special instructions
+        <PYTHONINLINE>push_marker_to_stack</PYTHONINLINE> and
+        <PYTHONINLINE>revert_stack_to_marker</PYTHONINLINE> are not strictly
+        necessary and could be implemented by explicitly pushing and popping a marker
+        value onto and off the stack. Anything that could not be confused with a value in
+        the program can be used as a marker. See exercise<SPACE/><REF
+        NAME="ex:push_marker_to_stack1"/>.</FOOTNOTE>
+      </TEXT>
+
+      <LONG_PAGE lines="2"/>
+      <TEXT>
+        The other aspect of the complication is that if the evaluation of the body
+        terminates without executing a return statement, the value of the body must be
+        <PYTHONINLINE>undefined</PYTHONINLINE>. To handle this, we set up the
+        <PYTHONINLINE>continue</PYTHONINLINE> register to point to the entry point
+        <PYTHONINLINE>return_undefined</PYTHONINLINE> before going off to
+        <PYTHONINLINE>eval_dispatch</PYTHONINLINE> to evaluate the body. If a
+        return statement is not encountered during evaluation of the body, evaluation of
+        the body will continue at <PYTHONINLINE>return_undefined</PYTHONINLINE>.
+        <SNIPPET EVAL="no">
+          <INDEX><DECLARATION>compound_apply</DECLARATION></INDEX>
+          <PYTHON>
+"compound_apply",
+  assign("unev", list(op("function_parameters"), reg("fun"))),
+  assign("env", list(op("function_environment"), reg("fun"))),
+  assign("env", list(op("extend_environment"), 
+                     reg("unev"), reg("argl"), reg("env"))),
+  assign("comp", list(op("function_body"), reg("fun"))),
+  push_marker_to_stack(),
+  assign("continue", label("return_undefined")),
+  go_to(label("eval_dispatch")),
+          </PYTHON>
+        </SNIPPET>
+      </TEXT>
+
+      <TEXT>
+        The only places in the interpreter where the
+        <PYTHONINLINE>env</PYTHONINLINE> register is assigned a new value are
+        <PYTHONINLINE>compound_apply</PYTHONINLINE> and
+        <PYTHONINLINE>ev_block</PYTHONINLINE> (section<SPACE/><REF
+        NAME="sec:block-assign-def-evaluation"/>). Just as in the metacircular evaluator,
+        the new environment for evaluation of a function body is constructed from the
+        environment carried by the function, together with the argument list and the
+        corresponding list of names to be bound.
+      </TEXT>
+
+      <INDEX>explicit-control evaluator for JavaScript<SUBINDEX>function application<CLOSE/></SUBINDEX></INDEX>
+      <INDEX>explicit-control evaluator for JavaScript<SUBINDEX>combinations<CLOSE/></SUBINDEX></INDEX>
+      
+      <TEXT>
+        When a return statement is evaluated at
+        <PYTHONINLINE>ev_return</PYTHONINLINE>, we use the
+        <PYTHONINLINE>revert_stack_@to_marker</PYTHONINLINE> instruction to restore
+        the stack to its state at the beginning of the function call by removing all
+        values from the stack down to and including the marker. As a consequence,
+        <PYTHONINLINE>restore("continue")</PYTHONINLINE> will restore the
+        continuation of the function call, which was saved at
+        <PYTHONINLINE>ev_application</PYTHONINLINE>. We then proceed to evaluate
+        the return expression, whose result will be placed in
+        <PYTHONINLINE>val</PYTHONINLINE> and thus be the value returned from the
+        function when we continue after the evaluation of the return expression.
+
+        <SNIPPET EVAL="no">
+	  <INDEX><DECLARATION>ev_return</DECLARATION></INDEX>
+          <PYTHON>
+"ev_return",
+  revert_stack_to_marker(),
+  restore("continue"),
+  assign("comp", list(op("return_expression"), reg("comp"))),
+  go_to(label("eval_dispatch")),
+          </PYTHON>
+        </SNIPPET>
+      </TEXT>
+
+      <TEXT>
+        If no return statement is encountered during evaluation of the function body,
+ 	<INDEX>return value<SUBINDEX><USE>undefined</USE> as</SUBINDEX></INDEX>
+	evaluation continues at <PYTHONINLINE>return_undefined</PYTHONINLINE>, the
+        continuation that was set up at
+        <PYTHONINLINE>compound_apply</PYTHONINLINE>. To return
+        <PYTHONINLINE>undefined</PYTHONINLINE> from the function, we put
+        <PYTHONINLINE>undefined</PYTHONINLINE> into
+        <PYTHONINLINE>val</PYTHONINLINE> and go to the entry point that was put
+        onto the stack at <PYTHONINLINE>ev_application</PYTHONINLINE>. Before we
+        can restore that continuation from the stack, however, we must remove the marker
+        that was saved at <PYTHONINLINE>compound_apply</PYTHONINLINE>.
+
+      <SNIPPET EVAL="no" POSTPADDING="no">
+	  <INDEX><DECLARATION>return_undefined</DECLARATION></INDEX>
+        <PYTHON>
+"return_undefined",
+  revert_stack_to_marker(),
+  restore("continue"),
+  assign("val", constant(undefined)),
+  go_to(reg("continue")),
+        </PYTHON>
+      </SNIPPET>
+      </TEXT>
+    </PYTHON>
+  </SPLIT>
+
+  <SUBHEADING> 
+    <NAME>
+      <SPLITINLINE>
+        <PYTHON>
+          Return Statements and 
+        </PYTHON>
+      </SPLITINLINE>
+      Tail Recursion
+    </NAME>
+  </SUBHEADING>
+
+  <LABEL NAME="sec:tail-recursion-return"/>
+
+  <SPLIT>
+    <PYTHON>
+      <INDEX>explicit-control evaluator for JavaScript<SUBINDEX>tail recursion<OPEN/></SUBINDEX></INDEX>
+    </PYTHON>
+  </SPLIT>
+  <INDEX>tail recursion<SUBINDEX>explicit-control evaluator and<OPEN/></SUBINDEX></INDEX>
+  <INDEX>return statement<SUBINDEX>handling in explicit-control evaluator</SUBINDEX></INDEX>
+
+  <TEXT>
+    In chapter<SPACE/><REF NAME="chap:fun"></REF> we said that the process described by a
+    <SPLITINLINE>
+      <SCHEME>procedure</SCHEME>
+      <PYTHON>function</PYTHON>
+    </SPLITINLINE>
+    such as
+        
+    <SNIPPET EVAL="no">
+      <SCHEME>
+(define (sqrt-iter guess x)
+  (if (good-enough? guess x)
+      guess
+      (sqrt-iter (improve guess x)
+                 x)))
+      </SCHEME>
+      <PYTHON>
+function sqrt_iter(guess, x) {
+    return is_good_enough(guess, x)
+           ? guess
+           : sqrt_iter(improve(guess, x), x);
+}
+      </PYTHON>
+    </SNIPPET>
+
+    is an iterative process.  Even though the
+    <SPLITINLINE>
+      <SCHEME>procedure</SCHEME>
+      <PYTHON>function</PYTHON>
+    </SPLITINLINE>
+    is syntactically recursive (defined in terms of itself), it is not logically
+    necessary for an evaluator to save information in passing from one call to
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>sqrt-iter</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>sqrt_iter</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    to the next.<FOOTNOTE>We saw in
+    section<SPACE/><REF NAME="sec:designing-register-machines"/> how to
+    implement such a process with a register machine that had no stack; the
+    state of the process was stored in a fixed set of registers.</FOOTNOTE> An
+    evaluator that can execute a
+    <SPLITINLINE>
+      <SCHEME>procedure</SCHEME>
+      <PYTHON>function</PYTHON>
+    </SPLITINLINE>
+    such as
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>sqrt-iter</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>sqrt_iter</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    without requiring increasing storage as the
+    <SPLITINLINE>
+      <SCHEME>procedure</SCHEME>
+      <PYTHON>function</PYTHON>
+    </SPLITINLINE>
+    continues to call itself is called a 
+    <INDEX>tail-recursive evaluator</INDEX>
+    <INDEX>metacircular evaluator for JavaScript<SUBINDEX>tail recursion and</SUBINDEX></INDEX>
+    <INDEX>tail recursion<SUBINDEX>metacircular evaluator and</SUBINDEX></INDEX>
+    <INDEX>return statement<SUBINDEX>tail recursion and</SUBINDEX></INDEX>
+    <EM>tail-recursive</EM> evaluator.  
+  </TEXT>
+            
+  <SPLIT>
+      <SCHEME>
+        The metacircular implementation of the evaluator in chapter<SPACE/><REF NAME="chap:meta"></REF>
+        does not specify whether the evaluator is tail-recursive, because that
+        evaluator inherits its mechanism for saving state from the underlying
+        Scheme. With the explicit-control evaluator, however, we can trace
+        through the evaluation process to see when procedure calls cause a net
+        accumulation of information on the stack.
+      </SCHEME>
+    <PYTHON>
+      <TEXT>
+        The metacircular implementation of the evaluator in chapter<SPACE/><REF NAME="chap:meta"></REF> isn't
+        tail-recursive. It implements a return statement as a
+        constructor of a return value object containing the value to be
+        returned and inspects the result of a function call to see whether it is
+        such an object. If the evaluation of a function body produces a return value
+        object, the return value of the function is the contents of that object;
+        otherwise, the return value is
+        <PYTHONINLINE>undefined</PYTHONINLINE>. Both the construction of the
+        return value object and the eventual inspection of the result of the
+        function call are deferred operations, which lead to an accumulation of
+        information on the stack.
+      </TEXT>
+    </PYTHON>
+  </SPLIT>
+
+  <SPLIT>
+    <SCHEME>
+      <TEXT>
+        Our evaluator is tail-recursive, because in order to evaluate the final
+        expression of a sequence we transfer directly to
+        <SCHEMEINLINE>eval-dispatch</SCHEMEINLINE> without saving any information on the
+        stack. Hence, evaluating the final expression in a sequence<EMDASH/>even if it
+        is a procedure call (as in <SCHEMEINLINE>sqrt-iter</SCHEMEINLINE>, where the
+        <SCHEMEINLINE>if</SCHEMEINLINE> expression, which is the last expression in the
+        procedure body, reduces to a call to
+        <SCHEMEINLINE>sqrt-iter</SCHEMEINLINE>)<EMDASH/>will not cause any information
+        to be accumulated on the stack.
+
+        If we did not think to take advantage of the fact that it was unnecessary to
+        save information in this case, we might have implemented
+        <SCHEMEINLINE>eval-sequence</SCHEMEINLINE> by treating all the expressions in a
+        sequence in the same way<EMDASH/>saving the registers, evaluating the
+        expression, returning to restore the registers, and repeating this until all the
+        expressions have been evaluated:<FOOTNOTE>We can define
+        <SCHEMEINLINE>no-more-exps?</SCHEMEINLINE> as follows:
+
+        <SNIPPET EVAL="no">
+          <SCHEME>
+(define (no-more-exps? seq) (null? seq))
+          </SCHEME>
+        </SNIPPET></FOOTNOTE>
+        <SNIPPET EVAL="no">
+          <INDEX><DECLARATION>ev-sequence</DECLARATION><SUBINDEX>without tail recursion</SUBINDEX></INDEX>
+          <SCHEME>
+ev-sequence
+  (test (op no-more-exps?) (reg unev))
+  (branch (label ev-sequence-end))
+  (assign exp (op first-exp) (reg unev))
+  (save unev)
+  (save env)
+  (assign continue (label ev-sequence-continue))
+  (goto (label eval-dispatch))
+ev-sequence-continue
+  (restore env)
+  (restore unev)
+  (assign unev (op rest-exps) (reg unev))
+  (goto (label ev-sequence))
+ev-sequence-end
+  (restore continue)
+  (goto (reg continue))
+          </SCHEME>
+        </SNIPPET>
+      </TEXT>
+    </SCHEME>
+    <PYTHON>
+      <TEXT>
+        Our explicit-control evaluator <EM>is</EM> tail-recursive, because it does not need to wrap up
+        return values for inspection and thus avoids the buildup of stack from deferred operations.
+        At <PYTHONINLINE>ev_return</PYTHONINLINE>, in order to evaluate the expression that
+        computes the return value of a function, we transfer directly to
+        <PYTHONINLINE>eval_dispatch</PYTHONINLINE> with nothing more on the stack
+        than right before the function call. We accomplish this by undoing any saves to
+        the stack by the function (which are useless because we are returning) using
+        <PYTHONINLINE>revert_stack_to_marker</PYTHONINLINE>. Then, rather than arranging
+        for <PYTHONINLINE>eval_dispatch</PYTHONINLINE> to come back here and <EM>then</EM>
+        restoring <PYTHONINLINE>continue</PYTHONINLINE> from the stack and
+        continuing at that entry point, we restore
+        <PYTHONINLINE>continue</PYTHONINLINE> from the stack <EM>before</EM> going to
+        <PYTHONINLINE>eval_dispatch</PYTHONINLINE> so that
+        <PYTHONINLINE>eval_dispatch</PYTHONINLINE> will continue at that entry
+        point after evaluating the expression. Finally, we transfer to
+        <PYTHONINLINE>eval_dispatch</PYTHONINLINE> without saving any information
+        on the stack. Thus, when we proceed to evaluate a return expression, the stack is
+        the same as just before the call to the function whose return value we are about
+        to compute. Hence, evaluating a return expression—even if it is a function call
+        (as in <PYTHONINLINE>sqrt_iter</PYTHONINLINE>, where the conditional
+        expression reduces to a call to
+        <PYTHONINLINE>sqrt_iter</PYTHONINLINE>)—will not cause any information to
+        accumulate on the stack.<FOOTNOTE>This implementation of tail recursion is one
+        variety of a well-known optimization technique used by many compilers. In
+        compiling a function that ends with a function call, one can replace the call by a
+        jump to the called function's entry point. Building this strategy into the
+        interpreter, as we have done in this section, provides the optimization uniformly
+        throughout the language.</FOOTNOTE>
+      </TEXT>
+
+      <TEXT>
+        If we did not think to take advantage of the fact that it is unnecessary to
+        hold on to the useless information on the stack while evaluating a return
+        expression, we might have taken the straightforward approach of evaluating
+	the return expression, coming back to restore the stack, and finally
+	continuing at
+        the entry point that is waiting for the result of the function call:
+
+        <SNIPPET EVAL="no" LATEX="yes">
+          <PYTHON>
+"ev_return",  // alternative implementation: not tail-recursive
+  assign("comp", list(op("return_expression"), reg("comp"))),
+  assign("continue", label("ev_restore_stack")),
+  go_to(label("eval_dispatch")),
+"ev_restore_stack",
+  revert_stack_to_marker(),    // undo saves in current function
+  restore("continue"),         // undo save at $\texttt{ev\char`_application}$
+  go_to(reg("continue")),
+          </PYTHON>
+        </SNIPPET>
+      </TEXT>
+
+    </PYTHON>
+  </SPLIT>
+
+  <SHORT_PAGE lines="2"/>
+  <TEXT>
+    This may seem like a minor change to our previous code for evaluation of 
+    <SPLITINLINE><SCHEME>a sequence</SCHEME><PYTHON>return statements</PYTHON></SPLITINLINE>:
+    
+    The only difference is that we <SPLITINLINE><SCHEME>go through the save-restore
+    cycle for the last expression in a sequence as well as for the
+    others</SCHEME><PYTHON>delay undoing any register saves to the stack until
+    after the evaluation of the return expression</PYTHON></SPLITINLINE>.
+
+    The interpreter will still give the same value for any expression. But this change
+    is fatal to the tail-recursive implementation, because we must now come back after
+    evaluating the <SPLITINLINE><SCHEME>final expression in a
+    sequence</SCHEME><PYTHON>return expression</PYTHON></SPLITINLINE> in order
+    to undo the (useless) register saves.
+
+    These extra saves will accumulate during a nest of
+    <SPLITINLINE><SCHEME>procedure</SCHEME><PYTHON>function</PYTHON></SPLITINLINE>
+    calls.
+
+    Consequently, processes such as
+    <SPLITINLINE><SCHEME><SCHEMEINLINE>sqrt-iter</SCHEMEINLINE></SCHEME><PYTHON><PYTHONINLINE>sqrt_iter</PYTHONINLINE></PYTHON></SPLITINLINE>
+    will require space proportional to the number of iterations rather than requiring
+    constant space.
+
+    This difference can be significant. For example,
+    <INDEX>iterative process<SUBINDEX>implemented by <SPLITINLINE><SCHEME>procedure</SCHEME><PYTHON>function</PYTHON></SPLITINLINE> call</SUBINDEX></INDEX>
+    with tail recursion, an infinite loop can be expressed using only the
+    <SPLITINLINE>
+      <SCHEME>procedure-call mechanism:</SCHEME>
+      <PYTHON>function-call and return mechanisms:</PYTHON>
+    </SPLITINLINE>
+    <SNIPPET EVAL="no">
+      <SCHEME>
+(define (count n)
+  (newline)
+  (display n)
+  (count (+ n 1)))
+      </SCHEME>
+      <PYTHON>
+function count(n) {
+    display(n);
+    return count(n + 1);
+}
+      </PYTHON>
+    </SNIPPET>
+
+    Without tail recursion, such a
+    <SPLITINLINE>
+      <SCHEME>procedure</SCHEME>
+      <PYTHON>function</PYTHON>
+    </SPLITINLINE>
+    would eventually run out of stack space, and expressing a true iteration
+    would require some control mechanism other than
+    <SPLITINLINE>
+      <SCHEME>procedure</SCHEME>
+      <PYTHON>function</PYTHON>
+    </SPLITINLINE>
+    call.
+  </TEXT>
+
+  <SPLIT>
+    <PYTHON>
+      <TEXT>
+        Note that our JavaScript implementation requires the use of
+	<INDEX>tail recursion<SUBINDEX>return statement necessary for</SUBINDEX></INDEX>
+        <PYTHONINLINE>return</PYTHONINLINE> in order to be tail-recursive.
+        Because the undoing of the register saves takes place at
+        <PYTHONINLINE>ev_return</PYTHONINLINE>, removing
+        <PYTHONINLINE>return</PYTHONINLINE> from the
+        <PYTHONINLINE>count</PYTHONINLINE> function above will cause it to
+        eventually run out of stack space. This explains the use of
+        <PYTHONINLINE>return</PYTHONINLINE> in the infinite driver loops in
+        chapter<SPACE/><REF NAME="chap:meta"></REF>.
+      </TEXT>
+
+      <INDEX>explicit-control evaluator for JavaScript<SUBINDEX>return statements</SUBINDEX><CLOSE/></INDEX>
+      
+    </PYTHON>
+  </SPLIT>
+
+  <SPLIT>
+    <PYTHON>
+      <EXERCISE>
+        Explain how the
+        <INDEX>explicit-control evaluator for JavaScript<SUBINDEX>tail recursion</SUBINDEX></INDEX>
+        <INDEX>tail recursion<SUBINDEX>explicit-control evaluator and</SUBINDEX></INDEX>
+	stack builds up if <PYTHONINLINE>return</PYTHONINLINE> is
+        removed from <PYTHONINLINE>count</PYTHONINLINE>:
+        <SNIPPET EVAL="no" POSTPADDING="no">
+          <PYTHON>
+function count(n) {
+    display(n);
+    count(n + 1);
+}
+          </PYTHON>
+        </SNIPPET>
+        <LABEL NAME="ex:missing-return"/>
+      </EXERCISE>
+
+      <EXERCISE>
+        <LABEL NAME="ex:push_marker_to_stack1"/>
+        Implement the equivalent of <PYTHONINLINE>push_marker_to_stack</PYTHONINLINE> by
+        using <PYTHONINLINE>save</PYTHONINLINE> at
+        <PYTHONINLINE>compound_apply</PYTHONINLINE> to store a special marker
+        value on the stack. Implement the equivalent of
+        <PYTHONINLINE>revert_@stack_@to_@marker</PYTHONINLINE> at
+        <PYTHONINLINE>ev_return</PYTHONINLINE> and
+        <PYTHONINLINE>return_undefined</PYTHONINLINE> as a loop that repeatedly
+        performs a <PYTHONINLINE>restore</PYTHONINLINE> until it hits the
+        marker. Note that this will require restoring a value to a register other than the one it
+        was saved from. (Although we are careful to avoid that in our evaluator, our stack
+        implementation actually allows it. See exercise <REF NAME="ex:stack-behavior"/>.)
+        This is necessary because the only way to pop from the stack is by
+        restoring to a register.
+
+        Hint: You will need to create a unique constant to serve as the marker, for
+        example with <PYTHONINLINE>const marker = list("marker")</PYTHONINLINE>.
+        Because <PYTHONINLINE>list</PYTHONINLINE> creates a new pair, it cannot be
+        <PYTHONINLINE>===</PYTHONINLINE> to anything else on the stack.
+      </EXERCISE>
+
+
+      <EXERCISE>
+        <!-- FIXME:     \index{explicit-control evaluator for JavaScript!syntactic forms (additional)|xx{\theExercise}}% -->
+        <LABEL NAME="ex:push_marker_to_stack2"/>
+        Implement
+	<INDEX>register-machine language<SUBINDEX><USE>push_marker_to_stack</USE></SUBINDEX></INDEX>
+	<INDEX><USE>push_marker_to_stack</USE> (in register machine)</INDEX>
+	<PYTHONINLINE>push_marker_to_stack</PYTHONINLINE> and
+	<INDEX>register-machine language<SUBINDEX><USE>revert_stack_to_marker</USE></SUBINDEX></INDEX>
+	<INDEX><USE>revert_stack_to_marker</USE> (in register machine)</INDEX>
+        <PYTHONINLINE>revert_stack_to_marker</PYTHONINLINE> as register-machine
+        instructions, following the implementation of
+        <PYTHONINLINE>save</PYTHONINLINE> and
+        <PYTHONINLINE>restore</PYTHONINLINE> in section<SPACE/><REF NAME="sec:ex-proc"/>. Add functions
+        <PYTHONINLINE>push_marker</PYTHONINLINE> and
+        <PYTHONINLINE>pop_marker</PYTHONINLINE> to access stacks, mirroring the
+        implementation of <PYTHONINLINE>push</PYTHONINLINE> and
+        <PYTHONINLINE>pop</PYTHONINLINE> in section<SPACE/><REF NAME="sec:machine-model"/>. Note that you do not
+        need to actually insert a marker into the stack. Instead, you can add a local
+        state variable to the stack model to keep track of the position of the last <PYTHONINLINE>save</PYTHONINLINE>
+        before each <PYTHONINLINE>push_marker_to_stack</PYTHONINLINE>.
+        If you choose to put a marker on the stack, see the hint in
+        exercise<SPACE/><REF NAME="ex:push_marker_to_stack1"/>.
+      </EXERCISE>
+
+      <INDEX>tail recursion<SUBINDEX>explicit-control evaluator and<CLOSE/></SUBINDEX></INDEX>
+
+    </PYTHON>
+  </SPLIT>
+
+  <SPLIT>
+    <PYTHON>
+      <INDEX>explicit-control evaluator for JavaScript<SUBINDEX>tail recursion<CLOSE/></SUBINDEX></INDEX>
+    </PYTHON>
+  </SPLIT>
+
+</SUBSECTION>

@@ -1,0 +1,351 @@
+<SUBSECTION>
+  <NAME>
+    Monitoring Machine Performance
+  </NAME>
+
+  <LABEL NAME="sec:monitor"/>
+
+  <INDEX>register machine<SUBINDEX>monitoring performance<OPEN/></SUBINDEX></INDEX>
+
+  <TEXT>
+    Simulation is useful not only for verifying the correctness of a
+    proposed machine design but also for measuring the machine<APOS/>s
+    <INDEX>simulation<SUBINDEX><ORDER>monitor</ORDER>for monitoring performance of register machine</SUBINDEX></INDEX>
+    performance.  For example, we can install in our simulation program a
+    <QUOTE>meter</QUOTE> that measures the number of stack operations used in a
+    computation.  To do this, we modify our simulated stack to keep track
+    of the number of times registers are saved on the stack and the
+    maximum depth reached by the stack, and add a message to the stack<APOS/>s
+    interface that prints the statistics, as shown below.
+    We also add an operation to the basic machine model to print the
+    stack statistics, by initializing
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>the-ops</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>the_ops</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    in
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>make-new-machine</SCHEMEINLINE></SCHEME>
+      <PYTHON>
+      <PYTHONINLINE>make_new_machine</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    to
+    <SNIPPET EVAL="no">
+      <INDEX><USE>initialize_stack</USE> operation in register machine</INDEX>
+      <INDEX><USE>print_stack_statistics</USE> operation in register machine</INDEX>
+      <SCHEME>
+(list (list 'initialize-stack
+            (lambda () (stack 'initialize)))
+      (list 'print-stack-statistics
+            (lambda () (stack 'print-statistics))))
+      </SCHEME>
+      <PYTHON>
+list(list("initialize_stack", 
+          () => stack("initialize")),
+     list("print_stack_statistics", 
+          () => stack("print_statistics")));
+      </PYTHON>
+    </SNIPPET>
+
+    Here is the new version of<DONT_BREAK_PAGE strength="4"/>
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>make-stack</SCHEMEINLINE>:</SCHEME>
+      <PYTHON>
+      <PYTHONINLINE>make_stack</PYTHONINLINE>:</PYTHON>
+    </SPLITINLINE>
+    <SNIPPET>
+      <INDEX><DECLARATION>make_stack</DECLARATION><SUBINDEX>with monitored stack</SUBINDEX></INDEX>
+      <SCHEME>
+(define (make-stack)
+  (let ((s '())
+        (number-pushes 0)
+        (max-depth 0)
+        (current-depth 0))
+    (define (push x)
+      (set! s (cons x s))
+      (set! number-pushes (+ 1 number-pushes))
+      (set! current-depth (+ 1 current-depth))
+      (set! max-depth (max current-depth max-depth)))
+    (define (pop)
+      (if (null? s)
+          (error "Empty stack - - POP")
+          (let ((top (car s)))
+            (set! s (cdr s))
+            (set! current-depth (- current-depth 1))
+            top)))    
+    (define (initialize)
+      (set! s '())
+      (set! number-pushes 0)
+      (set! max-depth 0)
+      (set! current-depth 0)
+      'done)
+    (define (print-statistics)
+      (newline)
+      (display (list 'total-pushes  '= number-pushes
+                     'maximum-depth '= max-depth)))
+    (define (dispatch message)
+      (cond ((eq? message 'push) push)
+            ((eq? message 'pop) (pop))
+            ((eq? message 'initialize) (initialize))
+            ((eq? message 'print-statistics)
+             (print-statistics))
+            (else
+             (error "Unknown request - - STACK" message))))
+    dispatch))
+      </SCHEME>
+      <PYTHON>
+function make_stack() { 
+    let stack = null;
+    let number_pushes = 0;
+    let max_depth = 0;
+    let current_depth = 0;
+    function push(x) {
+        stack = pair(x, stack);
+        number_pushes = number_pushes + 1;
+        current_depth = current_depth + 1;
+        max_depth = math_max(current_depth, max_depth);
+        return "done";
+    }
+    function pop() {
+        if (is_null(stack)) {
+            error("empty stack -- pop");
+        } else {
+            const top = head(stack);
+            stack = tail(stack);
+            current_depth = current_depth - 1;
+            return top;
+        }
+    }
+    function initialize() {
+        stack = null;
+        number_pushes = 0;
+        max_depth = 0;
+        current_depth = 0;
+        return "done";
+    }
+    function print_statistics() {
+        display("total pushes = " + stringify(number_pushes));
+        display("maximum depth = " + stringify(max_depth));
+    }
+    function dispatch(message) {
+        return message === "push"
+               ? push
+               : message === "pop"
+               ? pop()
+               : message === "initialize"
+               ? initialize()
+               : message === "print_statistics"
+               ? print_statistics()
+               : error(message, "unknown request -- stack");
+    }
+    return dispatch;
+}
+      </PYTHON>
+    </SNIPPET>
+  </TEXT>
+
+  <DO_BREAK_PAGE/>
+  <SHORT_PAGE lines="1"/>
+  <TEXT>
+    Exercises<SPACE/><REF NAME="ex:instruction-count"/>
+    through<SPACE/><REF NAME="ex:breakpoints"/>
+    describe other useful monitoring and debugging features that can be
+    added to the register-machine simulator.
+  </TEXT>
+  
+  <EXERCISE>
+    Measure the number of pushes and the maximum stack depth required to
+    compute
+    <INDEX><USE>factorial</USE><SUBINDEX>stack usage, register machine</SUBINDEX></INDEX>
+    <LATEXINLINE>$n!$</LATEXINLINE> for various small values of
+    <LATEXINLINE>$n$</LATEXINLINE> using the factorial
+    machine shown in Figure<SPACE/><REF NAME="fig:fact-machine"/>.  From your
+    data determine formulas in terms of <LATEXINLINE>$n$</LATEXINLINE> for the
+    total number of push operations and the maximum stack depth used in
+    computing <LATEXINLINE>$n!$</LATEXINLINE> for any
+    <LATEXINLINE>$n &gt; 1$</LATEXINLINE>. Note that each of these is a linear
+    function of <LATEXINLINE>$n$</LATEXINLINE> and is thus determined by two
+    constants.  In order to get the statistics printed, you will have to augment
+    the factorial machine with instructions to initialize the stack and print
+    the statistics. You may want to also modify the machine so that it
+    repeatedly reads a value for <LATEXINLINE>$n$</LATEXINLINE>, computes the
+    factorial, and prints
+    the result (as we did for the GCD machine in
+    figure<SPACE/><REF NAME="fig:gcd-with-io"/>), so that you will not have to
+    repeatedly invoke
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>get-register-contents</SCHEMEINLINE>,</SCHEME>
+      <PYTHON><PYTHONINLINE>get_register_contents</PYTHONINLINE>,
+      </PYTHON>
+    </SPLITINLINE>
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>set-register-contents!</SCHEMEINLINE>,</SCHEME>
+      <PYTHON>
+	<PYTHONINLINE>set_register_contents</PYTHONINLINE>,
+      </PYTHON>
+    </SPLITINLINE>
+    and
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>start</SCHEMEINLINE>.</SCHEME>
+      <PYTHON><PYTHONINLINE>start</PYTHONINLINE>.</PYTHON>
+      </SPLITINLINE>
+    <LABEL NAME="ex:measure-fact"/>
+  </EXERCISE>
+
+  <EXERCISE>
+    Add 
+    <INDEX>instruction counting</INDEX>
+    <EM>instruction counting</EM>
+    to the register machine simulation.
+    That is, have the machine model keep track of the number of
+    instructions executed.  Extend the machine model<APOS/>s interface to
+    accept a new message that prints the value of the instruction count and
+    resets the count to zero.
+    <LABEL NAME="ex:instruction-count"/>
+  </EXERCISE>
+
+  <EXERCISE>
+    Augment the simulator to provide for 
+    <INDEX>instruction tracing</INDEX>
+    <INDEX>tracing<SUBINDEX>instruction execution</SUBINDEX></INDEX>
+    <EM>instruction tracing</EM>.
+    That is, before each instruction is executed, the simulator should print
+    the <SPLITINLINE><SCHEME>text of the</SCHEME></SPLITINLINE> instruction.  Make the machine model accept
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>trace-on</SCHEMEINLINE></SCHEME>
+      <PYTHON>
+	<PYTHONINLINE>trace_on</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    and
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>trace-off</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>trace_off</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    messages to turn tracing on and off.
+    <LABEL NAME="ex:reg-machine-instruction-trace"/>
+  </EXERCISE>
+
+  <EXERCISE>
+    Extend the instruction tracing of
+    exercise<SPACE/><REF NAME="ex:reg-machine-instruction-trace"/> so that
+    before printing an instruction, the simulator prints any labels that
+    immediately precede that instruction in the controller sequence.  Be
+    careful to do this in a way that does not interfere with instruction
+    counting (exercise<SPACE/><REF NAME="ex:instruction-count"/>).
+    You will have to make the simulator retain the necessary label information.
+    <LABEL NAME="ex:5_16"/>
+  </EXERCISE>
+
+  <EXERCISE>
+    Modify the
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>make-register</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>make_register</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    <SPLITINLINE>
+      <SCHEME>procedure</SCHEME>
+      <PYTHON>function</PYTHON>
+    </SPLITINLINE>
+    of section<SPACE/><REF NAME="sec:machine-model"/> so that registers can be
+    <INDEX>register(s)<SUBINDEX>tracing</SUBINDEX></INDEX>
+    <INDEX>tracing<SUBINDEX>register assignment</SUBINDEX></INDEX>
+    traced. Registers should accept messages that turn tracing on and off.  When
+    a register is traced, assigning a value to the register should print the
+    name of the register, the old contents of the register, and the new contents
+    being assigned.  Extend the interface to the machine model to permit you to
+    turn tracing on and off for designated machine registers.
+    <LABEL NAME="ex:5_17"/>
+  </EXERCISE>
+
+  <EXERCISE>
+    <LABEL NAME="ex:breakpoints"/>
+    Alyssa P. Hacker wants a 
+    <INDEX>breakpoint</INDEX>
+    <EM>breakpoint</EM> feature in the simulator to help her debug her machine
+    designs.  You have been hired to install this feature for her.  She wants to
+    be able to specify a place in the controller sequence where the simulator
+    will stop and allow her to examine the state of the machine.  You are to
+    implement a
+    <SPLITINLINE>
+      <SCHEME>procedure</SCHEME>
+      <PYTHON>function</PYTHON>
+    </SPLITINLINE>
+    <SNIPPET EVAL="no" LATEX="yes">
+      <SCHEME>
+(set-breakpoint $machine$ $label$ $n$)
+      </SCHEME>
+      <PYTHON>
+set_breakpoint($machine$, $label$, $n$)
+      </PYTHON>
+    </SNIPPET>
+    that sets a breakpoint just before the <LATEXINLINE>$n$</LATEXINLINE>th
+    instruction after the given label.  For example,
+    <SNIPPET EVAL="no">
+      <SCHEME>
+(set-breakpoint gcd-machine 'test-b 4)
+      </SCHEME>
+      <PYTHON>
+set_breakpoint(gcd_machine, "test_b", 4)
+      </PYTHON>
+    </SNIPPET>
+    installs a breakpoint in
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>gcd-machine</SCHEMEINLINE></SCHEME>
+      <PYTHON>
+	<PYTHONINLINE>gcd_machine</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    just before the assignment to register <SCHEMEINLINE>a</SCHEMEINLINE>.
+    When the simulator reaches the breakpoint it should print the label and the
+    offset of the breakpoint and stop executing instructions.  Alyssa can then
+    use
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>get-register-contents</SCHEMEINLINE></SCHEME>
+      <PYTHON>
+	<PYTHONINLINE>get_register_contents</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    and
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>set-register-contents!</SCHEMEINLINE></SCHEME>
+      <PYTHON>
+	<PYTHONINLINE>set_register_contents</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    to manipulate the state of the simulated machine.  She should then be able
+    to continue execution by saying
+    <SNIPPET EVAL="no" LATEX="yes">
+      <SCHEME>
+(proceed-machine $machine$)
+      </SCHEME>
+      <PYTHON>
+proceed_machine($machine$)
+      </PYTHON>
+    </SNIPPET>
+    She should also be able to remove a specific breakpoint by means of
+    <SNIPPET EVAL="no" LATEX="yes">
+      <SCHEME>
+(cancel-breakpoint $machine$ $label$ $n$)
+      </SCHEME>
+      <PYTHON>
+cancel_breakpoint($machine$, $label$, $n$)
+      </PYTHON>
+    </SNIPPET>
+    or to remove all breakpoints by means of
+    <SNIPPET EVAL="no" LATEX="yes" POSTPADDING="no">
+      <SCHEME>
+(cancel-all-breakpoints $machine$)
+      </SCHEME>
+      <PYTHON>
+cancel_all_breakpoints($machine$)
+      </PYTHON>
+    </SNIPPET>
+  </EXERCISE>
+
+  <INDEX>register machine<SUBINDEX>simulator<CLOSE/></SUBINDEX></INDEX>
+  <INDEX>register-machine simulator<CLOSE/></INDEX>
+  <INDEX>simulation<SUBINDEX><ORDER>register</ORDER>of register machine<CLOSE/></SUBINDEX></INDEX>
+  <INDEX>register machine<SUBINDEX>monitoring performance<CLOSE/></SUBINDEX></INDEX>
+
+</SUBSECTION>

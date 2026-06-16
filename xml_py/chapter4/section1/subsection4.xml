@@ -1,0 +1,906 @@
+<SUBSECTION>
+  <NAME>
+    Running the Evaluator as a Program
+  </NAME>
+
+  <LABEL NAME="sec:running-eval"/>
+
+  <INDEX>metacircular evaluator for JavaScript<SUBINDEX>running<OPEN/></SUBINDEX></INDEX>
+
+  <TEXT>
+    Given the evaluator, we have in our hands a description
+    <SPLITINLINE>
+      <SCHEME>(expressed in Lisp)</SCHEME>
+      <PYTHON>(expressed in JavaScript)</PYTHON>
+    </SPLITINLINE>
+    of the process by which
+    <SPLITINLINE>
+      <SCHEME>Lisp expressions</SCHEME>
+      <PYTHON>JavaScript statements and expressions</PYTHON>
+    </SPLITINLINE>
+    are evaluated.  One advantage of expressing the evaluator as a program is
+    that we can run the program.  This gives us, running within
+    <SPLITINLINE>
+      <SCHEME>Lisp,</SCHEME>
+      <PYTHON>JavaScript,</PYTHON>
+    </SPLITINLINE>
+    a working model of how
+    <SPLITINLINE>
+      <SCHEME>Lisp</SCHEME>
+      <PYTHON>JavaScript</PYTHON>
+    </SPLITINLINE>
+    itself evaluates expressions.  This can serve as a framework for
+    experimenting with evaluation rules, as we shall do later in this chapter.
+  </TEXT>
+
+  <TEXT>
+    Our evaluator program reduces expressions ultimately to the application of
+    <SPLITINLINE>
+      <SCHEME>
+	<INDEX>metacircular evaluator for Scheme<SUBINDEX>primitive procedures<OPEN/></SUBINDEX></INDEX>
+      </SCHEME>
+      <PYTHON>
+	<INDEX>metacircular evaluator for JavaScript<SUBINDEX>primitive functions<OPEN/></SUBINDEX></INDEX>
+      </PYTHON>
+    </SPLITINLINE>
+    primitive
+    <SPLITINLINE>
+      <SCHEME>procedures.</SCHEME>
+      <PYTHON>functions.</PYTHON>
+    </SPLITINLINE>
+    Therefore, all that we need to run the evaluator is to create a mechanism
+    that calls on the underlying
+    <SPLITINLINE>
+      <SCHEME>Lisp</SCHEME>
+      <PYTHON>JavaScript</PYTHON>
+    </SPLITINLINE>
+    system to model the application of primitive
+    <SPLITINLINE>
+      <SCHEME>procedures.</SCHEME>
+      <PYTHON>functions.</PYTHON>
+    </SPLITINLINE>
+  </TEXT>
+
+  <TEXT>
+    There must be a binding for each primitive
+    <SPLITINLINE>
+      <SCHEME>procedure</SCHEME>
+      <PYTHON>function</PYTHON>
+    </SPLITINLINE>
+    name and operator, so that when
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>eval</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>evaluate</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    evaluates the
+    <SPLITINLINE>
+      <SCHEME>operator</SCHEME>
+      <PYTHON>function expression</PYTHON>
+    </SPLITINLINE>
+    of an application of a primitive, it will find an
+    object to pass to <SCHEMEINLINE>apply</SCHEMEINLINE>.  We thus set up a 
+    <INDEX>metacircular evaluator for JavaScript<SUBINDEX>global environment</SUBINDEX></INDEX>
+    <INDEX>global environment<SUBINDEX><ORDER>metacircular</ORDER>in metacircular evaluator</SUBINDEX></INDEX>
+    global environment that associates unique objects with the names of the
+    primitive
+    <SPLITINLINE>
+      <SCHEME>procedures</SCHEME>
+      <PYTHON>functions and operators</PYTHON>
+    </SPLITINLINE>
+    that can appear in the expressions we will be evaluating.  
+    <INDEX>symbol(s)<SUBINDEX>in global environment</SUBINDEX></INDEX>
+    <SPLIT>
+      <SCHEME>
+	The global environment also includes bindings for the symbols 
+	<INDEX>metacircular evaluator for Scheme<SUBINDEX><ORDER>true and false</ORDER><SCHEMEINLINE>true</SCHEMEINLINE> and <SCHEMEINLINE>false</SCHEMEINLINE></SUBINDEX></INDEX>
+	<SCHEMEINLINE>true</SCHEMEINLINE> and <SCHEMEINLINE>false</SCHEMEINLINE>,
+      </SCHEME>
+      <PYTHON>
+	The global environment also includes bindings for
+	<INDEX>metacircular evaluator for JavaScript<SUBINDEX><ORDER>undefined</ORDER><USE>undefined</USE></SUBINDEX></INDEX>
+	<PYTHONINLINE>undefined</PYTHONINLINE>
+	and other names,
+      </PYTHON>
+    </SPLIT>
+    so that they can be used as constants in expressions to be evaluated.
+    <SNIPPET PAGE="365" HIDE="yes" EVAL="no">
+      <NAME>headline_4_1_4</NAME>
+      <PYTHON>
+// functions from SICP JS 4.1.4
+      </PYTHON>
+    </SNIPPET>
+    <SNIPPET PAGE="381">
+      <INDEX><DECLARATION>setup_environment</DECLARATION></INDEX>
+      <NAME>setup_environment</NAME>
+      <EXAMPLE>setup_environment_example</EXAMPLE>
+      <REQUIRES>tagged_list</REQUIRES>
+      <REQUIRES>extend_environment</REQUIRES>
+      <REQUIRES>enclosing_environment</REQUIRES>
+      <REQUIRES>make_frame</REQUIRES>
+      <REQUIRES>primitive_constants</REQUIRES>
+      <REQUIRES>primitive_procedures</REQUIRES>
+      <REQUIRES>primitive_procedure</REQUIRES>
+      <EXPECTED>'/'</EXPECTED>
+      <SCHEME>
+(define (setup-environment)
+  (let ((initial-env
+         (extend-environment (primitive-procedure-names)
+                             (primitive-procedure-objects)
+                             the-empty-environment)))
+    (define-variable! 'true true initial-env)
+    (define-variable! 'false false initial-env)
+    initial-env))
+      </SCHEME>
+      <PYTHON>
+function setup_environment() {
+    return extend_environment(append(primitive_function_symbols,
+                                     primitive_constant_symbols),
+                              append(primitive_function_objects, 
+                                     primitive_constant_values),
+                              the_empty_environment);
+}
+      </PYTHON>
+    </SNIPPET>
+    <SNIPPET PAGE="381" HIDE="yes">
+      <NAME>setup_environment_example</NAME>
+      <PYTHON>
+const the_global_environment = setup_environment();
+
+the_global_environment;
+      </PYTHON>
+      <PYTHON_TEST>
+const the_global_environment = setup_environment();
+
+list_ref(head(head(the_global_environment)), 12);
+      </PYTHON_TEST>
+    </SNIPPET>
+    <SNIPPET PAGE="381">
+      <INDEX><DECLARATION>the_global_environment</DECLARATION></INDEX>
+      <NAME>the_global_environment</NAME>
+      <REQUIRES>setup_environment</REQUIRES>
+      <EXAMPLE>the_global_environment_example</EXAMPLE>
+      <SCHEME>
+(define the-global-environment (setup-environment))
+      </SCHEME>
+      <PYTHON>
+const the_global_environment = setup_environment();
+      </PYTHON>
+    </SNIPPET>
+    <SNIPPET PAGE="381" HIDE="yes">
+      <NAME>the_global_environment_example</NAME>
+      <PYTHON>
+the_global_environment;
+      </PYTHON>
+    </SNIPPET>
+  </TEXT>
+
+  <SPLIT>
+    <SCHEME>
+      <TEXT>
+	It does not matter how we represent the primitive procedure objects, so
+	long as <SCHEMEINLINE>apply</SCHEMEINLINE> can identify and apply them
+	by using the procedures <SCHEMEINLINE>primitive-procedure?</SCHEMEINLINE>
+	and <SCHEMEINLINE>apply-primitive-procedure</SCHEMEINLINE>. We have
+	chosen to represent a primitive procedure as a list beginning with the
+	symbol <SCHEMEINLINE>primitive</SCHEMEINLINE> and containing a procedure
+	in the underlying Lisp that implements that primitive.
+	<SNIPPET PAGE="382">
+	  <NAME>primitive_procedure</NAME>
+	  <SCHEME>
+(define (primitive-procedure? proc)
+  (tagged-list? proc 'primitive))
+
+(define (primitive-implementation proc) (cadr proc))
+	  </SCHEME>
+	</SNIPPET>
+      </TEXT>
+    </SCHEME>
+    <PYTHON>
+      <TEXT>
+	It does not matter how we represent primitive function objects, so long
+	as <SCHEMEINLINE>apply</SCHEMEINLINE> can identify and apply them using
+	the functions <PYTHONINLINE>is_primitive_function</PYTHONINLINE>
+	and <PYTHONINLINE>apply_primitive_function</PYTHONINLINE>.  We
+	have chosen to represent a primitive function as a list beginning with
+	the string <PYTHONINLINE>"primitive"</PYTHONINLINE> and
+	containing a function in the underlying JavaScript that implements that
+	primitive.
+	<SNIPPET PAGE="382">
+	  <INDEX><DECLARATION>is_primitive_function</DECLARATION></INDEX>
+	  <INDEX><DECLARATION>primitive_implementation</DECLARATION></INDEX>
+	  <NAME>primitive_procedure</NAME>
+	  <REQUIRES>tagged_list</REQUIRES>
+	  <EXAMPLE>primitive_procedure_example</EXAMPLE>
+	  <EXPECTED>true</EXPECTED>
+	  <PYTHON>
+function is_primitive_function(fun) {
+    return is_tagged_list(fun, "primitive");
+}
+<SHORT_SPACE/>
+function primitive_implementation(fun) { return head(tail(fun)); }
+	  </PYTHON>
+	</SNIPPET>
+	<SNIPPET PAGE="382" HIDE="yes">
+	  <NAME>primitive_procedure_example</NAME>
+	  <PYTHON>
+const my_primitive_plus =
+    list("primitive", (x, y) => x + y );
+display(is_primitive_function(my_primitive_plus));
+display(primitive_implementation(my_primitive_plus));
+	  </PYTHON>
+	  <PYTHON_TEST>
+const my_primitive_plus =
+    list("primitive", (x, y) => x + y );
+primitive_implementation(my_primitive_plus);
+is_primitive_function(my_primitive_plus);
+	  </PYTHON_TEST>
+	</SNIPPET>
+      </TEXT>
+    </PYTHON>
+  </SPLIT>
+
+  <TEXT>
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>Setup-environment</SCHEMEINLINE></SCHEME>
+      <PYTHON>The function
+      <PYTHONINLINE>setup_environment</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    will get the primitive names and implementation 
+    <SPLITINLINE>
+      <SCHEME>procedures</SCHEME>
+      <PYTHON>functions</PYTHON>
+    </SPLITINLINE>
+    from a list:<FOOTNOTE>Any
+    <SPLITINLINE>
+      <SCHEME>procedure</SCHEME>
+      <PYTHON>function</PYTHON>
+    </SPLITINLINE>
+    defined in the underlying
+    <SPLITINLINE>
+      <SCHEME>Lisp</SCHEME>
+      <PYTHON>JavaScript</PYTHON>
+    </SPLITINLINE>
+    can be used as a primitive for the metacircular evaluator.  The name of a
+    primitive installed in the evaluator need not be the same as the name of its
+    implementation in the underlying
+    <SPLITINLINE>
+      <SCHEME>Lisp;</SCHEME>
+      <PYTHON>JavaScript;</PYTHON>
+      </SPLITINLINE>
+    the names are the same here because the metacircular evaluator implements
+    <SPLITINLINE>
+      <SCHEME>Scheme</SCHEME>
+      <PYTHON>JavaScript</PYTHON>
+    </SPLITINLINE>    
+    itself.
+    Thus, for example, we could put 
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>(list 'first car)</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>list("first", head)</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE> 
+    or 
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>(list 'square (lambda (x) (* x x)))</SCHEMEINLINE>
+      </SCHEME>
+      <PYTHON>
+	<PYTHONINLINE>list("square", x => x * x)</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    in the list of 
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>primitive-procedures</SCHEMEINLINE>.</SCHEME>
+      <PYTHON><PYTHONINLINE>primitive_functions</PYTHONINLINE>.
+      </PYTHON>
+    </SPLITINLINE></FOOTNOTE>
+    <SNIPPET PAGE="382" EVAL="no" LATEX="yes">
+      <INDEX><DECLARATION>primitive_function_symbols</DECLARATION></INDEX>
+      <INDEX><DECLARATION>primitive_function_objects</DECLARATION></INDEX>
+      <NAME>primitive_procedures</NAME>
+      <EXAMPLE>primitive_procedures_example</EXAMPLE>
+      <EXPECTED>20</EXPECTED>
+      <SCHEME>
+(define primitive-procedures
+  (list (list 'car car)
+        (list 'cdr cdr)
+        (list 'cons cons)
+        (list 'null? null?)
+        (list 'display display)
+        (list 'read read)
+        (list '+ +)
+        (list '- -)
+        (list '* *)
+;;      more primitives
+        ))
+
+(define (primitive-procedure-names)
+  (map car
+       primitive-procedures))
+
+(define (primitive-procedure-objects)
+  (map (lambda (proc) (list 'primitive (cadr proc)))
+       primitive-procedures))
+      </SCHEME>
+      <PYTHON>
+const primitive_functions = list(list("head",    head             ),
+                                 list("tail",    tail             ),
+                                 list("pair",    pair             ),
+                                 list("is_null", is_null          ),
+                                 list("+",       (x, y) =&gt; x + y  ),
+                                 <METAPHRASE>more primitive functions</METAPHRASE>
+                                );
+<SHORT_SPACE/>
+const primitive_function_symbols =
+    map(f => head(f), primitive_functions);
+<SHORT_SPACE/>
+const primitive_function_objects =
+    map(f => list("primitive", head(tail(f))),
+        primitive_functions);
+      </PYTHON>
+      <PYTHON_RUN>
+const primitive_functions = list(
+       list("head",    head             ),
+       list("tail",    tail             ),
+       list("pair",    pair             ),
+       list("list",    list             ),
+       list("is_null", is_null          ),
+       list("display", display          ),
+       list("error",   error            ),
+       list("math_abs",math_abs         ),
+       list("+",       (x, y) =&gt; x + y  ),
+       list("-",       (x, y) =&gt; x - y  ),
+       list("-unary",   x     =&gt;   - x  ),
+       list("*",       (x, y) =&gt; x * y  ),
+       list("/",       (x, y) =&gt; x / y  ),
+       list("%",       (x, y) =&gt; x % y  ),
+       list("===",     (x, y) =&gt; x === y),
+       list("!==",     (x, y) =&gt; x !== y),
+       list("&lt;",       (x, y) =&gt; x &lt;   y),
+       list("&lt;=",      (x, y) =&gt; x &lt;=  y),
+       list("&gt;",       (x, y) =&gt; x &gt;   y),
+       list("&gt;=",      (x, y) =&gt; x &gt;=  y),
+       list("!",        x     =&gt;   !   x)
+       );
+const primitive_function_symbols =
+    map(head, primitive_functions);
+const primitive_function_objects =
+    map(fun => list("primitive", head(tail(fun))),
+        primitive_functions);
+      </PYTHON_RUN>
+    </SNIPPET>
+    <SNIPPET PAGE="382" HIDE="yes">
+      <NAME>primitive_procedures_example</NAME>
+      <PYTHON>
+primitive_functions;
+      </PYTHON>
+      <PYTHON_TEST>
+length(primitive_functions);
+      </PYTHON_TEST>
+    </SNIPPET>
+  </TEXT>
+
+  <SPLIT>
+    <SCHEME>
+    </SCHEME>
+    <PYTHON>
+      <TEXT>
+	Similar to primitive functions, we define other primitive constants that are
+	installed in the global environment by the function
+	<PYTHONINLINE>setup_environment</PYTHONINLINE>.
+	<SNIPPET PAGE="382" EVAL="no" LATEX="yes">
+	  <NAME>primitive_constants</NAME>
+	  <EXAMPLE>primitive_constants_example</EXAMPLE>
+	  <EXPECTED>5</EXPECTED>
+	  <PYTHON>
+const primitive_constants = list(list("undefined", undefined),
+                                 list("math_PI",   math_PI)
+                                 <METAPHRASE>more primitive constants</METAPHRASE>
+                                );
+<SHORT_SPACE/>				 
+const primitive_constant_symbols =
+    map(c => head(c), primitive_constants);
+<SHORT_SPACE/>
+const primitive_constant_values =
+    map(c => head(tail(c)), primitive_constants);
+	  </PYTHON>
+	  <PYTHON_RUN>
+const primitive_constants = list(list("undefined", undefined),
+                                 list("Infinity",  Infinity),
+                                 list("math_PI",   math_PI),
+                                 list("math_E",    math_E),
+                                 list("NaN",       NaN)
+                                );
+const primitive_constant_symbols =
+    map(c => head(c), primitive_constants);
+const primitive_constant_values =
+    map(c => head(tail(c)), primitive_constants);
+	  </PYTHON_RUN>
+	</SNIPPET>
+
+	<SNIPPET PAGE="382" HIDE="yes">
+	  <NAME>primitive_constants_example</NAME>
+	  <PYTHON>
+primitive_constants;
+	  </PYTHON>
+	  <PYTHON_TEST>
+length(primitive_constants);
+	  </PYTHON_TEST>
+	</SNIPPET>
+      </TEXT>
+    </PYTHON>
+  </SPLIT>
+  
+  <TEXT>
+    To apply a 
+    <SPLITINLINE>
+      <SCHEME>primitive procedure,</SCHEME>
+      <PYTHON>primitive function,</PYTHON>
+    </SPLITINLINE>
+    we simply apply the implementation
+    <SPLITINLINE>
+      <SCHEME>procedure</SCHEME>
+      <PYTHON>function</PYTHON>
+    </SPLITINLINE>
+    to the arguments, using the underlying
+    <SPLITINLINE>
+      <SCHEME>Lisp</SCHEME>
+      <PYTHON>JavaScript</PYTHON>
+    </SPLITINLINE>
+    system:<FOOTNOTE>
+    <SPLIT>
+      <SCHEME>    
+	<SCHEMEINLINE>Apply-in-underlying-scheme</SCHEMEINLINE> is the
+	<SCHEMEINLINE>apply</SCHEMEINLINE> procedure we have used in earlier
+	chapters.  The metacircular evaluator<APOS/>s
+	<SCHEMEINLINE>apply</SCHEMEINLINE> procedure
+	(section<SPACE/><REF NAME="sec:core-of-evaluator"/>) models the	working
+	of this primitive.  Having two different things called
+	<SCHEMEINLINE>apply</SCHEMEINLINE> leads to a technical problem in
+	running the metacircular evaluator, because defining the metacircular
+	evaluator<APOS/>s <SCHEMEINLINE>apply</SCHEMEINLINE> will mask the
+	definition of the primitive.  One way around this is to	rename the
+	metacircular <SCHEMEINLINE>apply</SCHEMEINLINE> to avoid conflict with
+	the name of the primitive procedure. We have assumed instead that we
+	have saved a reference to the underlying
+	<SCHEMEINLINE>apply</SCHEMEINLINE> by doing
+	<SNIPPET>
+	  <NAME>apply_in_underlying</NAME>
+	  <SCHEME>
+(define apply-in-underlying-scheme apply)
+	  </SCHEME>
+	</SNIPPET>
+	before defining the metacircular <SCHEMEINLINE>apply</SCHEMEINLINE>.
+	This allows us to access the original version of
+	<SCHEMEINLINE>apply</SCHEMEINLINE> under a different name.
+      </SCHEME>
+      <PYTHON>
+	<LABEL NAME="foot:vector-array"/>
+        JavaScript<APOS/>s <PYTHONINLINE>apply</PYTHONINLINE> method 
+	expects the function arguments in a <EM>vector</EM>. (Vectors
+	are called <QUOTE>arrays</QUOTE> in JavaScript.)
+	Thus, the <PYTHONINLINE>arglist</PYTHONINLINE> is transformed into 
+        a
+	<INDEX>vector (data structure)<SUBINDEX><ORDER>arguments</ORDER>for arguments of <PYTHONINLINE>apply</PYTHONINLINE></SUBINDEX></INDEX>
+	vector<EMDASH/>here using a while
+	loop (see exercise<SPACE/><REF NAME="ex:while_loop"/>):
+	<SNIPPET PAGE="382"  EVAL="no" LATEX="yes">
+	  <INDEX><DECLARATION>apply_in_underlying_javascript</DECLARATION></INDEX>
+	  <INDEX><USE>apply</USE> (primitive method)</INDEX>
+	  <INDEX><PRIMITIVE/><SUBINDEX><USE>apply</USE><ECMA>apply</ECMA></SUBINDEX></INDEX>
+	  <NAME>apply_in_underlying</NAME>
+	  <PYTHON>
+function apply_in_underlying_javascript(prim, arglist) {
+    const arg_vector = [];               // empty vector
+    let i = 0;
+    while (!is_null(arglist)) {
+        arg_vector[i] = head(arglist);   // store value at index $\texttt{i}$
+        i = i + 1;
+        arglist = tail(arglist);
+    }
+    return prim.apply(prim, arg_vector); // $\texttt{apply}$ is accessed via $\texttt{prim}$
+}
+	  </PYTHON>
+	</SNIPPET>
+	We also made use of
+	<PYTHONINLINE>apply_in_underlying_javascript</PYTHONINLINE>
+	to declare the function
+	<PYTHONINLINE>apply_@generic</PYTHONINLINE>
+	in section<SPACE/><REF NAME="sec:data-directed"/>.
+      </PYTHON>
+    </SPLIT></FOOTNOTE>
+    <SNIPPET PAGE="382">
+      <INDEX><DECLARATION>apply_primitive_function</DECLARATION></INDEX> 
+      <NAME>apply_primitive_procedure</NAME>
+      <EXAMPLE>apply_primitive_procedure_example</EXAMPLE>
+      <EXPECTED>3</EXPECTED>
+      <SCHEME>
+(define (apply-primitive-procedure proc args)
+  (apply-in-underlying-scheme
+   (primitive-implementation proc) args))
+      </SCHEME>
+      <PYTHON>
+function apply_primitive_function(fun, arglist) {
+    return apply_in_underlying_javascript(
+               primitive_implementation(fun), arglist);
+}
+      </PYTHON>
+    </SNIPPET>
+    <SNIPPET PAGE="382" HIDE="yes">
+      <NAME>apply_primitive_procedure_example</NAME>
+      <REQUIRES>primitive_procedure</REQUIRES>
+      <REQUIRES>primitive_procedure_example</REQUIRES>
+      <PYTHON>
+apply_primitive_function(my_primitive_plus, list(1, 2));
+      </PYTHON>
+    </SNIPPET>
+
+    <INDEX>metacircular evaluator for JavaScript<SUBINDEX>primitive <SPLITINLINE><SCHEME>procedures</SCHEME><PYTHON>functions</PYTHON></SPLITINLINE><CLOSE/></SUBINDEX></INDEX>
+    
+  </TEXT>
+
+  <SNIPPET PAGE="383" HIDE="yes">
+    <NAME>functions_4_1_4</NAME>
+    <REQUIRES>headline_4_1_4</REQUIRES>
+    <REQUIRES>true</REQUIRES>
+    <REQUIRES>primitive_procedure</REQUIRES>
+    <REQUIRES>primitive_procedures</REQUIRES>
+    <REQUIRES>primitive_constants</REQUIRES>
+    <REQUIRES>apply_primitive_procedure</REQUIRES>
+    <REQUIRES>setup_environment</REQUIRES>
+    <REQUIRES>the_global_environment</REQUIRES>
+    <PYTHON></PYTHON>
+  </SNIPPET>
+
+  <TEXT>
+  <SPLIT>
+    <SCHEME>
+	For convenience in running the metacircular evaluator, we provide a
+	<INDEX>metacircular evaluator for Scheme<SUBINDEX>driver loop</SUBINDEX></INDEX>
+	<INDEX>driver loop<SUBINDEX><ORDER>metacircular</ORDER>in metacircular evaluator</SUBINDEX></INDEX>
+	<EM>driver loop</EM> that models the read-eval-print loop of the
+	underlying Lisp system.  It prints a 
+	<INDEX>prompts</INDEX>
+	<EM>prompt</EM>, reads an input expression, evaluates this expression in
+	the global environment, and prints the result.  We precede each printed
+	result by an <EM>output prompt</EM> so as to distinguish the value of
+	the expression from other output that may be printed.<FOOTNOTE>The
+	primitive procedure
+	<INDEX><DECLARATION>read</DECLARATION></INDEX>
+	<INDEX><DECLARATION>primitive <SPLITINLINE><SCHEME>procedures</SCHEME><PYTHON>functions</PYTHON></SPLITINLINE> (those marked <EM>ns</EM> are not in the IEEE Scheme standard)</DECLARATION><SUBINDEX><ORDER>read</ORDER><SCHEMEINLINE>read</SCHEMEINLINE></SUBINDEX></INDEX>
+	<SCHEMEINLINE>read</SCHEMEINLINE> waits for input from the user, and
+	returns the next complete expression that is typed. For example, if the
+	user types <SCHEMEINLINE>(+ 23 x)</SCHEMEINLINE>,
+	<SCHEMEINLINE>read</SCHEMEINLINE> returns a three-element list
+	containing the symbol <SCHEMEINLINE>+</SCHEMEINLINE>, the number 23, and
+	the symbol <SCHEMEINLINE>x</SCHEMEINLINE>.
+	<INDEX><USE>'</USE> (single quote)<SUBINDEX><ORDER>read</ORDER><SCHEMEINLINE>read</SCHEMEINLINE> and</SUBINDEX></INDEX>
+	<INDEX><DECLARATION>quote</DECLARATION><SUBINDEX><ORDER>read</ORDER><SCHEMEINLINE>read</SCHEMEINLINE> and</SUBINDEX></INDEX>
+	If the user types <SCHEMEINLINE>'x</SCHEMEINLINE>,
+	<SCHEMEINLINE>read</SCHEMEINLINE> returns a two-element list containing
+	the symbol <SCHEMEINLINE>quote</SCHEMEINLINE> and the symbol
+	<SCHEMEINLINE>x</SCHEMEINLINE>.</FOOTNOTE>
+	<SNIPPET PAGE="383">
+	  <NAME>driver_loop</NAME>
+	  <REQUIRES>functions_4_1_1</REQUIRES>
+	  <REQUIRES>functions_4_1_2</REQUIRES>
+	  <REQUIRES>functions_4_1_3</REQUIRES>
+	  <REQUIRES>functions_4_1_4</REQUIRES>
+	  <REQUIRES>user_print</REQUIRES>
+	  <EXAMPLE>driver_loop_example</EXAMPLE>
+	  <SCHEME>
+(define input-prompt ";;; M-Eval input:\n")
+(define output-prompt ";;; M-Eval value:\n")
+
+(define (driver-loop)
+  (prompt-for-input input-prompt)
+  (let ((input (read)))
+    (if (null? input)
+      'EVALUATOR-TERMINATED
+      (let ((output (eval input the-global-environment)))
+        (announce-output output-prompt)
+        (user-print output)
+        (driver-loop)))))
+
+(define (prompt-for-input string)
+  (newline) (display string))
+
+(define (announce-output string)
+  (newline) (display string))
+	  </SCHEME>
+	</SNIPPET>
+    </SCHEME>
+    <PYTHON>
+	For convenience in running the metacircular evaluator, we provide a
+	<INDEX>metacircular evaluator for JavaScript<SUBINDEX>driver loop</SUBINDEX></INDEX>
+	<INDEX>driver loop<SUBINDEX><ORDER>metacircular</ORDER>in metacircular evaluator</SUBINDEX></INDEX>
+	<EM>driver loop</EM> that models the read-evaluate-print loop of 
+	the underlying JavaScript system. It prints a 
+	<INDEX>prompts</INDEX>
+	<INDEX>prompts<SUBINDEX>metacircular evaluator</SUBINDEX></INDEX>
+	<EM>prompt</EM> and reads an input program as a string.
+	It transforms the program string
+	into a tagged-list representation of the statement as described in
+	section<SPACE/><REF NAME="sec:representing-expressions"/><EMDASH/>a
+	process called parsing and accomplished by the primitive function
+	<PYTHONINLINE>parse</PYTHONINLINE>.
+	We precede each printed result by
+	an <EM>output prompt</EM> so as to distinguish the value of the
+	program from other output that may be printed. The driver loop gets
+	the program environment of the previous program as argument.
+	As described at the end of section<SPACE/><REF NAME="sec:env-internal-def"/>, the
+	driver loop treats the program as if it were in a block: It
+	scans out the declarations, extends the given environment by a frame
+	containing a binding of each name to
+	<PYTHONINLINE>"*unassigned*"</PYTHONINLINE>, and evaluates
+	the program with respect to the extended environment, which
+	is then passed as argument to the next iteration of the driver loop.
+	<SNIPPET PAGE="383">
+	  <INDEX><DECLARATION>driver_loop</DECLARATION><SUBINDEX>for metacircular evaluator</SUBINDEX></INDEX>
+	  <NAME>driver_loop</NAME>
+	  <REQUIRES>functions_4_1_1</REQUIRES>
+	  <REQUIRES>functions_4_1_2</REQUIRES>
+	  <REQUIRES>functions_4_1_3</REQUIRES>
+	  <REQUIRES>functions_4_1_4</REQUIRES>
+	  <REQUIRES>user_print</REQUIRES>
+	  <REQUIRES>user_read</REQUIRES>
+	  <EXAMPLE>driver_loop_example</EXAMPLE>
+	  <PYTHON>
+const input_prompt = "M-evaluate input: ";
+const output_prompt = "M-evaluate value: ";
+
+function driver_loop(env) {
+    const input = user_read(input_prompt);
+    if (is_null(input)) {
+       display("evaluator terminated");
+    } else {
+       const program = parse(input);
+       const locals = scan_out_declarations(program);
+       const unassigneds = list_of_unassigned(locals);
+       const program_env = extend_environment(locals, unassigneds, env);
+       const output = evaluate(program, program_env);
+       user_print(output_prompt, output);
+       return driver_loop(program_env);
+    }
+}
+	  </PYTHON>
+	  <PYTHON_RUN>
+const input_prompt = "\nM-evaluate input:\n";
+const output_prompt = "\nM-evaluate value:\n";
+
+function driver_loop(env, history) {
+    const input = user_read(history);
+    if (is_null(input)) {
+        display("", history + "\n--- session end ---\n");
+    } else {
+        const program = parse(input);
+        const locals = scan_out_declarations(program);
+        const unassigneds = list_of_unassigned(locals);
+        const program_env = extend_environment(
+                                locals, unassigneds, env);
+        const output = evaluate(program, program_env);
+        const new_history = history +
+              input_prompt +
+              input +
+              output_prompt +
+              to_string(output);
+        return driver_loop(program_env, new_history);
+    }
+}
+
+"metacircular evaluator loaded";
+	  </PYTHON_RUN>
+	</SNIPPET>
+    </PYTHON>
+  </SPLIT>
+    <SPLIT>
+      <SCHEME>
+      </SCHEME>
+      <PYTHON>
+	We use JavaScript's <PYTHONINLINE>prompt</PYTHONINLINE> function
+	to request and read the input string from the user:
+	<SNIPPET PAGE="383">
+	  <INDEX><DECLARATION>user_read</DECLARATION></INDEX>
+	  <NAME>user_read</NAME>
+	  <PYTHON>
+function user_read(prompt_string) {
+    return prompt(prompt_string);
+}
+	  </PYTHON>
+	</SNIPPET>
+      </PYTHON>
+    </SPLIT>
+    The function
+    <INDEX><USE>prompt</USE> (primitive function)</INDEX>
+    <INDEX><PRIMITIVE/><SUBINDEX><USE>prompt</USE> (\textit{ns})</SUBINDEX></INDEX>
+    <PYTHONINLINE>prompt</PYTHONINLINE> returns
+    <PYTHONINLINE>null</PYTHONINLINE> when the user cancels the
+    input. We use a special printing
+    <SPLITINLINE>
+      <SCHEME>procedure <SCHEMEINLINE>user-print</SCHEMEINLINE>,</SCHEME>
+      <PYTHON>function <PYTHONINLINE>user_print</PYTHONINLINE>,
+      </PYTHON>
+    </SPLITINLINE>
+    to avoid printing the environment part of a compound
+    <SPLITINLINE>
+      <SCHEME>procedure,</SCHEME>
+      <PYTHON>function,</PYTHON>
+    </SPLITINLINE>
+    which may be a very long list (or may even contain cycles).
+    <SNIPPET PAGE="383">
+      <INDEX><DECLARATION>user_print</DECLARATION></INDEX>
+      <NAME>user_print</NAME>
+      <EXAMPLE>user_print_example</EXAMPLE>
+      <SCHEME>
+(define (user-print object)
+  (if (compound-procedure? object)
+      (display (list 'compound-procedure
+                     (procedure-parameters object)
+                     (procedure-body object)
+                     '&lt;-procedure-env-&gt;))
+      (display object)))
+      </SCHEME>
+      <PYTHON>
+function user_print(string, object) {
+    function prepare(object) {
+        return is_compound_function(object)
+               ? "&lt; compound-function &gt;"
+               : is_primitive_function(object)
+               ? "&lt; primitive-function &gt;"
+               : is_pair(object)
+               ? pair(prepare(head(object)),
+                      prepare(tail(object)))
+               : object;
+    }
+    display(string + " " + stringify(prepare(object)));
+}
+      </PYTHON>
+      <PYTHON_RUN>
+function to_string(object) {
+    return is_compound_function(object)
+           ? "&lt;compound-function&gt;"
+           : is_primitive_function(object)
+           ? "&lt;primitive-function&gt;"
+           : is_pair(object)
+           ? "[" + to_string(head(object)) + ", "
+                 + to_string(tail(object)) + "]"
+           : stringify(object);
+}
+
+function user_print(prompt_string, object) {
+    display("----------------------------",
+            prompt_string + "\n" + to_string(object) + "\n");
+}
+      </PYTHON_RUN>
+    </SNIPPET>
+    <SNIPPET PAGE="383" HIDE="yes">
+      <NAME>user_print_example</NAME>
+      <REQUIRES>functions_4_1_1</REQUIRES>
+      <REQUIRES>functions_4_1_2</REQUIRES>
+      <REQUIRES>functions_4_1_3</REQUIRES>
+      <REQUIRES>functions_4_1_4</REQUIRES>
+      <PYTHON> 
+user_print("output: ", 
+           evaluate(parse("1 + 2;"),
+                    the_global_environment)); 
+      </PYTHON>
+    </SNIPPET>
+  </TEXT>
+  <TEXT>
+    Now all we need to do to run the evaluator is to initialize the global
+    environment and start the driver loop.  Here is a sample interaction:
+    <SNIPPET PAGE="383-384">
+      <NAME>driver_loop_example</NAME>
+      <REQUIRES>driver_loop</REQUIRES>
+      <SCHEME>
+(define the-global-environment (setup-environment))
+(driver-loop)
+      </SCHEME>
+      <PYTHON>
+const the_global_environment = setup_environment();
+driver_loop(the_global_environment);
+      </PYTHON>
+      <PYTHON_RUN>
+driver_loop(the_global_environment, "--- session start ---");
+      </PYTHON_RUN>
+    </SNIPPET>
+
+    <SNIPPET>
+      <NAME>meta_append</NAME>
+      <REQUIRES>driver_loop</REQUIRES>
+      <REQUIRES>driver_loop_example</REQUIRES>
+      <SCHEMEPROMPT>
+;;; M-Eval input:
+      </SCHEMEPROMPT>
+      <SCHEME>
+(define (append x y)
+   (if (null? x)
+       y
+       (cons (car x)
+         (append (cdr x) y))))
+      </SCHEME>
+      <SCHEMEOUTPUT>
+;;; M-Eval value:
+ok
+      </SCHEMEOUTPUT>
+      <PYTHON_PROMPT>
+M-evaluate input:
+      </PYTHON_PROMPT>
+      <PYTHON>
+function append(xs, ys) { 
+    return is_null(xs)
+           ? ys
+           : pair(head(xs), append(tail(xs), ys)); 
+}
+      </PYTHON>
+      <PYTHON_RUN>
+// press "Run" to start the driver loop
+// M-evaluate input:
+// function append(xs, ys) { return is_null(xs) ? ys : pair(head(xs), append(tail(xs), ys)); }
+// M-evaluate value:
+// undefined
+
+// M-evaluate input:
+// append(list("a", "b", "c"), list("d", "e", "f"));
+// M-evaluate value:
+// ["a", ["b", ["c", ["d", ["e", ["f", null]]]]]]
+      </PYTHON_RUN>
+      <PYTHON_OUTPUT>
+M-evaluate value:
+undefined
+      </PYTHON_OUTPUT>
+    </SNIPPET>
+    <SNIPPET POSTPADDING="no">
+      <NAME>meta_append_example</NAME>
+      <REQUIRES>driver_loop</REQUIRES>
+      <REQUIRES>driver_loop_example</REQUIRES>
+      <SCHEMEPROMPT>
+;;; M-Eval input:
+      </SCHEMEPROMPT>
+      <SCHEME>
+(append '(a b c) '(d e f))
+      </SCHEME>
+      <SCHEMEOUTPUT>
+;;; M-Eval value:
+(a b c d e f)
+      </SCHEMEOUTPUT>
+      <PYTHON_PROMPT>
+M-evaluate input:    
+      </PYTHON_PROMPT>
+      <PYTHON>
+append(list("a", "b", "c"), list("d", "e", "f"));
+      </PYTHON>
+      <PYTHON_RUN>
+// press "Run" to start the driver loop
+// M-evaluate input:
+// function append(xs, ys) { return is_null(xs) ? ys : pair(head(xs), append(tail(xs), ys)); }
+// M-evaluate value:
+// undefined
+
+// M-evaluate input:
+// append(list("a", "b", "c"), list("d", "e", "f"));
+// M-evaluate value:
+// ["a", ["b", ["c", ["d", ["e", ["f", null]]]]]]
+      </PYTHON_RUN>
+      <PYTHON_OUTPUT>
+M-evaluate value: 
+["a", ["b", ["c", ["d", ["e", ["f", null]]]]]]
+      </PYTHON_OUTPUT>
+    </SNIPPET>
+  </TEXT>
+
+  <EXERCISE>
+    Eva Lu Ator and Louis Reasoner are each experimenting with the
+    metacircular evaluator.  Eva types in the definition of
+    <SCHEMEINLINE>map</SCHEMEINLINE>, and runs some test programs that use it.
+    They work fine.  Louis, in contrast, has installed the system version of
+    <SCHEMEINLINE>map</SCHEMEINLINE> as a primitive for the metacircular
+    evaluator.  When he tries it, things go terribly wrong.  Explain why
+    Louis<APOS/>s <SCHEMEINLINE>map</SCHEMEINLINE> fails even though
+    Eva<APOS/>s works.
+    <LABEL NAME="ex:mceval-map"/>
+  </EXERCISE>
+
+  <INDEX>metacircular evaluator for JavaScript<SUBINDEX>running<CLOSE/></SUBINDEX></INDEX>
+
+</SUBSECTION>
