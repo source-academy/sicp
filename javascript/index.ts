@@ -37,14 +37,16 @@ import { setupSnippetsJson } from "./processingFunctions/processSnippetJson.js";
 import { createTocJson } from "./generateTocJson.js";
 import { setupReferencesJson } from "./processingFunctions/processReferenceJson.js";
 import { createMain } from "./commands/utils.js";
+import { getEdition } from "./editions.js";
 import type { WriteBuffer } from "./types.js";
 
 export let parseType;
 let version;
 let outputDir: string; // depends on parseType
 
+const edition = getEdition();
 const __dirname = path.resolve(import.meta.dirname);
-const inputDir = path.join(__dirname, "../xml");
+const inputDir = path.join(__dirname, "..", edition.inputDirName);
 
 const ensureDirectoryExists = (path, cb) => {
   fs.mkdir(path, err => {
@@ -242,7 +244,7 @@ const createIndexHtml = version => {
 async function main() {
   parseType = process.argv[2];
   if (parseType == "pdf") {
-    outputDir = path.join(__dirname, "../latex_pdf");
+    outputDir = path.join(__dirname, "..", "latex_pdf" + edition.outputSuffix);
 
     switchParseFunctionsLatex(parseType);
     createMain(inputDir, outputDir, parseType);
@@ -266,9 +268,17 @@ async function main() {
     version = process.argv[3];
 
     if (version == "split") {
-      outputDir = path.join(__dirname, "../html_split");
+      outputDir = path.join(
+        __dirname,
+        "..",
+        "html_split" + edition.outputSuffix
+      );
     } else if (version == "scheme") {
-      outputDir = path.join(__dirname, "../html_scheme");
+      outputDir = path.join(
+        __dirname,
+        "..",
+        "html_scheme" + edition.outputSuffix
+      );
     }
 
     switchParseFunctionsHtml(version);
@@ -290,7 +300,11 @@ async function main() {
 
     recursiveXmlToHtmlInOrder("parseXml");
   } else if (parseType == "js") {
-    outputDir = path.join(__dirname, "../js_programs");
+    outputDir = path.join(
+      __dirname,
+      "..",
+      "js_programs" + edition.outputSuffix
+    );
 
     createMain(inputDir, outputDir, parseType);
     console.log("setup snippets\n");
@@ -298,7 +312,7 @@ async function main() {
     console.log("setup snippets done\n");
     recursiveTranslateXml("", "parseXml");
   } else if (parseType == "json") {
-    outputDir = path.join(__dirname, "../json");
+    outputDir = path.join(__dirname, "..", "json" + edition.outputSuffix);
 
     createMain(inputDir, outputDir, parseType);
 
