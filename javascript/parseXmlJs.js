@@ -64,7 +64,10 @@ const processTextFunctions = {
       ? snippet_count_string + "_" + nameNode.firstChild.nodeValue
       : snippet_count_string;
 
-    const outputFile = path.join(relativeFileDirectory, fileName + `.js`);
+    const outputFile = path.join(
+      relativeFileDirectory,
+      fileName + lang.fileExtension
+    );
 
     const stream = fs.createWriteStream(outputFile);
     stream.once("open", fd => {
