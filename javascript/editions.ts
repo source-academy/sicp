@@ -67,7 +67,7 @@ export const pythonLanguage: LanguageDescriptor = {
 // execution concepts for the playground languages); the names below simply
 // don't match anything, which is harmless.
 export const schemeLanguage: LanguageDescriptor = {
-  key: "scheme",
+  key: "scm",
   blockTag: "SCHEME",
   inlineTag: "SCHEMEINLINE",
   runTag: "SCHEME_RUN",
@@ -75,7 +75,7 @@ export const schemeLanguage: LanguageDescriptor = {
   outputTag: "SCHEMEOUTPUT",
   promptTag: "SCHEMEPROMPT",
   commentPrefix: ";",
-  displayName: "SICP Scheme",
+  displayName: "SICP", // the original
   languageName: "Scheme",
   fileExtension: ".scm"
 };
@@ -106,7 +106,7 @@ export const pythonEdition: Edition = {
 export const schemeEdition: Edition = {
   language: schemeLanguage,
   inputDirName: "xml",
-  outputBaseName: "sicpscheme"
+  outputBaseName: "sicp" // the original SICP
 };
 
 // In each source tree the prose is split between Scheme and one non-Scheme
@@ -134,11 +134,11 @@ export function getEdition(): Edition {
       return javascriptEdition;
     case "py":
       return pythonEdition;
-    case "scheme":
+    case "scm":
       return schemeEdition;
     default:
       throw new Error(
-        `Unknown SICP_EDITION "${process.env.SICP_EDITION}" (expected "js", "py", or "scheme")`
+        `Unknown SICP_EDITION "${process.env.SICP_EDITION}" (expected "js", "py", or "scm")`
       );
   }
 }

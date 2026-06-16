@@ -1,7 +1,7 @@
 import { getChildrenByTagName, ancestorHasTag } from "./utilityFunctions";
 
 import { parseType } from "./index";
-import { getEdition } from "./editions.js";
+import { getEdition, getCompanionLanguage } from "./editions.js";
 
 import {
   replaceTagWithSymbol,
@@ -22,8 +22,10 @@ import {
 // in the margins of the text
 const indexAnnotations = false;
 
-// Tag names of the edition's non-Scheme language (JAVASCRIPT* by default).
+// Tag names of the edition's primary language (JAVASCRIPT* by default) and of
+// the companion language whose blocks are stripped (Scheme by default).
 const lang = getEdition().language;
+const companion = getCompanionLanguage();
 
 const tagsToRemove = new Set([
   "#comment",
@@ -44,7 +46,7 @@ const tagsToRemove = new Set([
   "SEEALSO",
   "OPEN",
   "CLOSE",
-  "SCHEME",
+  companion.blockTag, // the other language's code block is stripped ("SCHEME" by default)
   "WEB_ONLY",
   "SOLUTION"
 ]);
@@ -94,8 +96,8 @@ const processTextFunctionsDefaultLatex = {
     if (getChildrenByTagName(node, lang.inlineTag)[0]) {
       console.error("remove 'INLINE' from tag " + lang.inlineTag);
     }
-    if (getChildrenByTagName(node, "SCHEMEINLINE")[0]) {
-      console.error("remove 'INLINE' from tag SCHEMEINLINE");
+    if (getChildrenByTagName(node, companion.inlineTag)[0]) {
+      console.error("remove 'INLINE' from tag " + companion.inlineTag);
     }
     recursiveProcessTextLatex(node.firstChild, writeTo);
   },
@@ -335,12 +337,17 @@ const processTextFunctionsDefaultLatex = {
         // ORDER overrides
         recursiveProcessTextLatex(order.firstChild, writeTo);
       } else {
-        declaration.firstChild.data = declaration.firstChild.data.replace(
-          /_/g,
-          " "
-        );
-        declaration.firstChild.nodeValue =
-          declaration.firstChild.nodeValue.replace(/_/g, " ");
+        // Underscore->space only applies to a text declaration name (JS-style
+        // identifiers). Some Scheme index declarations wrap an element instead,
+        // which has no .data — render it as-is.
+        if (declaration.firstChild && declaration.firstChild.data != null) {
+          declaration.firstChild.data = declaration.firstChild.data.replace(
+            /_/g,
+            " "
+          );
+          declaration.firstChild.nodeValue =
+            declaration.firstChild.nodeValue.replace(/_/g, " ");
+        }
         recursiveProcessTextLatex(declaration.firstChild, writeTo);
       }
       writeTo.push("@");
@@ -652,7 +659,7 @@ const processTextFunctionsDefaultLatex = {
     recursiveProcessTextLatex(node.firstChild, writeTo);
   },
 
-  SCHEMEINLINE: (node, writeTo) =>
+  [companion.inlineTag]: (node, writeTo) =>
     processTextFunctionsLatex[lang.inlineTag](node, writeTo),
   DECLARATION: (node, writeTo) =>
     processTextFunctionsLatex[lang.inlineTag](node, writeTo),
@@ -732,6 +739,25 @@ const processTextFunctionsDefaultLatex = {
     writeTo.push("\\begin{itemize}");
     processList(node.firstChild, writeTo);
     writeTo.push("\\end{itemize}%\n");
+  }
+};
+
+// Make <INDEX> processing fail-soft. The index tags were not maintained as
+// carefully as the prose across the Scheme/JS split, so a malformed entry
+// should warn (identifying the entry so it can be fixed) and be skipped,
+// rather than crashing the whole build.
+const rawIndexLatex = processTextFunctionsDefaultLatex.INDEX;
+processTextFunctionsDefaultLatex.INDEX = (node, writeTo) => {
+  const startLen = writeTo.length;
+  try {
+    rawIndexLatex(node, writeTo);
+  } catch (err) {
+    writeTo.length = startLen; // discard this entry's partial \index{...} output
+    let text = "";
+    try {
+      text = (node.textContent ?? "").replace(/\s+/g, " ").trim().slice(0, 80);
+    } catch (_) {}
+    console.warn(`Skipping malformed INDEX entry "${text}": ${err.message}`);
   }
 };
 
