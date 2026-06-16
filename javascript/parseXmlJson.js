@@ -21,6 +21,11 @@ import {
   parseAndInsertToIdToContentMap
 } from "./searchRewrite.js";
 
+import { getEdition } from "./editions.js";
+
+// Tag names of the edition's non-Scheme language (JAVASCRIPT* by default).
+const lang = getEdition().language;
+
 let paragraph_count = 0;
 let heading_count = 0;
 let footnote_count = 0;
@@ -73,7 +78,7 @@ const ignoreTags = new Set([
   "CHAPTERCONTENT",
   "SPLIT",
   "SPLITINLINE",
-  "JAVASCRIPT",
+  lang.blockTag,
   "CITATION",
   "SECTIONCONTENT",
   "p",
@@ -322,10 +327,9 @@ const processTextFunctions = {
     processReferenceJson(node, obj, chapterIndex);
   },
 
-  SCHEMEINLINE: (node, obj) =>
-    processTextFunctions["JAVASCRIPTINLINE"](node, obj),
+  SCHEMEINLINE: (node, obj) => processTextFunctions[lang.inlineTag](node, obj),
 
-  JAVASCRIPTINLINE: (node, obj) => {
+  [lang.inlineTag]: (node, obj) => {
     if (
       node.firstChild &&
       node.firstChild.data &&
@@ -341,7 +345,7 @@ const processTextFunctions = {
     });
 
     addArrayToObj(obj, node, writeTo);
-    obj["tag"] = "JAVASCRIPTINLINE";
+    obj["tag"] = lang.inlineTag;
   },
 
   SNIPPET: (node, obj) => {
@@ -356,19 +360,19 @@ const processTextFunctions = {
 
       const writeTo = [];
 
-      const textprompt = getChildrenByTagName(node, "JAVASCRIPT_PROMPT")[0];
+      const textprompt = getChildrenByTagName(node, lang.promptTag)[0];
       if (textprompt) {
         recursivelyProcessTextSnippetJson(textprompt.firstChild, writeTo);
       }
 
-      const textit = getChildrenByTagName(node, "JAVASCRIPT")[0];
+      const textit = getChildrenByTagName(node, lang.blockTag)[0];
       if (textit) {
         recursivelyProcessTextSnippetJson(textit.firstChild, writeTo);
       } else {
         recursivelyProcessTextSnippetJson(node.firstChild, writeTo);
       }
 
-      const textoutput = getChildrenByTagName(node, "JAVASCRIPT_OUTPUT")[0];
+      const textoutput = getChildrenByTagName(node, lang.outputTag)[0];
       if (textoutput) {
         recursivelyProcessTextSnippetJson(textoutput.firstChild, writeTo);
       }
