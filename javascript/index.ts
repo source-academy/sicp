@@ -300,11 +300,9 @@ async function main() {
 
     recursiveXmlToHtmlInOrder("parseXml");
   } else if (parseType == "programs") {
-    outputDir = path.join(
-      __dirname,
-      "..",
-      "js_programs" + edition.outputSuffix
-    );
+    // Programs dir carries the language marker for both editions
+    // (programs_js, programs_py) rather than using the "" / "_py" suffix.
+    outputDir = path.join(__dirname, "..", "programs_" + edition.language.key);
 
     createMain(inputDir, outputDir, parseType);
     console.log("setup snippets\n");

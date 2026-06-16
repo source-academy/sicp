@@ -12,7 +12,7 @@ DOCS="docs_out"
 # temp folders for different editions
 LATEX_PDF="latex_pdf"
 GENERATED_HTML="html_split"
-GENERATED_JS="js_programs"
+GENERATED_JS="programs_js"
 GENERATED_JSON="json"
 PDF_FILE="sicpjs.pdf"
 
