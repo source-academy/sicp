@@ -6,9 +6,9 @@
 // of the build that are specific to that language are collected here behind a
 // descriptor, instead of being hardcoded throughout the pipeline.
 //
-// This module currently defines only the JavaScript edition, and the build
-// selects it by default, so existing output is unchanged. The Python edition
-// descriptor will be added here once the parsers consume the `language` tags.
+// This module defines the JavaScript edition (the default) and the Python
+// edition. The build selects JavaScript unless the SICP_EDITION environment
+// variable requests another edition, so existing output is unchanged.
 
 // Language-specific details of the edition's non-Scheme language.
 export type LanguageDescriptor = {
@@ -41,10 +41,19 @@ export const javascriptLanguage: LanguageDescriptor = {
   fileExtension: ".js"
 };
 
-// The Python edition will add (in a later step):
-//   key: "py", blockTag: "PYTHON", inlineTag: "PYTHONINLINE", ...,
-//   commentPrefix: "#", displayName: "SICPy", languageName: "Python",
-//   fileExtension: ".py"
+export const pythonLanguage: LanguageDescriptor = {
+  key: "py",
+  blockTag: "PYTHON",
+  inlineTag: "PYTHONINLINE",
+  runTag: "PYTHON_RUN",
+  testTag: "PYTHON_TEST",
+  outputTag: "PYTHON_OUTPUT",
+  promptTag: "PYTHON_PROMPT",
+  commentPrefix: "#",
+  displayName: "SICPy",
+  languageName: "Python",
+  fileExtension: ".py"
+};
 
 // An edition ties a language to its source tree and output naming.
 export type Edition = {
@@ -59,9 +68,28 @@ export const javascriptEdition: Edition = {
   outputSuffix: ""
 };
 
-// Selects the edition to build. Defaults to the JavaScript edition so that
-// existing builds are byte-for-byte unchanged. A Python edition will be
-// selectable here (e.g. via an environment variable) in a later step.
+export const pythonEdition: Edition = {
+  language: pythonLanguage,
+  inputDirName: "xml_py",
+  outputSuffix: "_py"
+};
+
+// Selects the edition to build, via the SICP_EDITION environment variable.
+// Defaults to the JavaScript edition when unset, so existing builds are
+// byte-for-byte unchanged. An unrecognized value is rejected rather than
+// silently falling back, to catch typos (e.g. SICP_EDITION=pyton).
 export function getEdition(): Edition {
-  return javascriptEdition;
+  const requested = process.env.SICP_EDITION;
+  switch (requested) {
+    case undefined:
+    case "":
+    case "js":
+      return javascriptEdition;
+    case "py":
+      return pythonEdition;
+    default:
+      throw new Error(
+        `Unknown SICP_EDITION "${requested}" (expected "js" or "py")`
+      );
+  }
 }
