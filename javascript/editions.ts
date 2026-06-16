@@ -23,6 +23,7 @@ export type LanguageDescriptor = {
   // Surface strings emitted into generated output.
   readonly commentPrefix: string; // line-comment marker, e.g. "//" (Python: "#")
   readonly displayName: string; // edition name in headers, e.g. "SICP JS" (Python: "SICPy")
+  readonly fileExtension: string; // extracted-program extension, e.g. ".js" (Python: ".py")
 };
 
 export const javascriptLanguage: LanguageDescriptor = {
@@ -34,12 +35,13 @@ export const javascriptLanguage: LanguageDescriptor = {
   outputTag: "JAVASCRIPT_OUTPUT",
   promptTag: "JAVASCRIPT_PROMPT",
   commentPrefix: "//",
-  displayName: "SICP JS"
+  displayName: "SICP JS",
+  fileExtension: ".js"
 };
 
 // The Python edition will add (in a later step):
 //   key: "py", blockTag: "PYTHON", inlineTag: "PYTHONINLINE", ...,
-//   commentPrefix: "#", displayName: "SICPy"
+//   commentPrefix: "#", displayName: "SICPy", fileExtension: ".py"
 
 // An edition ties a language to its source tree and output naming.
 export type Edition = {
