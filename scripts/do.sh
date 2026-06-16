@@ -74,16 +74,29 @@ clean() {
 }
 
 prepare() {
- 	[ ! -f ${FAVICON} ] || cp ${FAVICON} ${DOCS}/favicon.ico
- 	[ ! -f ${STYLESHEET} ] || cp ${STYLESHEET} ${DOCS}/assets/stylesheet.css
+	# The JavaScript edition publishes at the docs_out root. Other editions
+	# publish under their own subfolders (split_<lang>/, json_<lang>/) and
+	# under distinct artifact names (sicpy.pdf / sicpy.zip), so they are purely
+	# additive and never disturb the JS site.
+	if [ "${LANG_KEY}" = "js" ]; then
+		WEB_DEST="${DOCS}"
+		JSON_DEST="${DOCS}/json"
+	else
+		WEB_DEST="${DOCS}/split_${LANG_KEY}"
+		JSON_DEST="${DOCS}/json_${LANG_KEY}"
+	fi
+	# ensure the stylesheet's destination exists for either edition
+	mkdir -p "${WEB_DEST}/assets"
+ 	[ ! -f ${FAVICON} ] || cp ${FAVICON} ${WEB_DEST}/favicon.ico
+ 	[ ! -f ${STYLESHEET} ] || cp ${STYLESHEET} ${WEB_DEST}/assets/stylesheet.css
  	[ ! -f ${LATEX_PDF}/${PDF_FILE} ] || cp ${LATEX_PDF}/${PDF_FILE} ${DOCS}
 	PDF_BASENAME="$(basename "${PDF_FILE}" .pdf)"
 	cp "${LATEX_PDF}/${PDF_BASENAME}."{log,ilg,ind,idx} ${DOCS} || :
- 	[ ! -f ${GENERATED_HTML}/index.html ] || cp -rf ${GENERATED_HTML}/* ${DOCS}
+ 	[ ! -f ${GENERATED_HTML}/index.html ] || cp -rf ${GENERATED_HTML}/* ${WEB_DEST}
  	[ ! -d ${GENERATED_PROGRAMS} ] || ( zip -r ${ZIP_FILE} ${GENERATED_PROGRAMS}; \
  	                              cp ${ZIP_FILE} ${DOCS} )
-	[ ! -d ${GENERATED_JSON} ] || ( rm -rf ${DOCS}/json; \
-                                    cp -rf ${GENERATED_JSON} ${DOCS}/json )
+	[ ! -d ${GENERATED_JSON} ] || ( rm -rf ${JSON_DEST}; \
+                                    cp -rf ${GENERATED_JSON} ${JSON_DEST} )
 }
 
 main $1
