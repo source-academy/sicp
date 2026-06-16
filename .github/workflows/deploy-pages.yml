@@ -30,17 +30,35 @@ jobs:
           sudo apt-get install -y texlive texlive-fonts-extra latexmk
       - name: Fetch Yarn dependencies
         run: yarn install --frozen-lockfile
-      - name: Build
+      - name: Build (JavaScript edition)
         run: |
           set -euxo pipefail
           yarn run pdf || (cat latex_pdf_js/sicpjs.log && false)
           yarn run split
           yarn run programs
           yarn run json
-      - name: Package
+      - name: Package (JavaScript edition)
+        run: yarn run prepare
+      # The Python edition is published additively (split_py/, json_py/,
+      # sicpy.pdf, sicpy.zip). Best-effort: any failure here must never block
+      # the already-assembled JavaScript deploy.
+      - name: Build (Python edition)
+        continue-on-error: true
+        env:
+          SICP_EDITION: py
         run: |
-          yarn run prepare
-          find docs_out -name .gitignore -delete -print
+          set -euxo pipefail
+          yarn run split
+          yarn run json
+          yarn run programs
+          yarn run pdf || (cat latex_pdf_py/sicpy.log && false)
+      - name: Package (Python edition)
+        continue-on-error: true
+        env:
+          SICP_EDITION: py
+        run: yarn run prepare
+      - name: Strip build .gitignore files
+        run: find docs_out -name .gitignore -delete -print
       - name: Deploy
         uses: peaceiris/actions-gh-pages@v4
         with:
