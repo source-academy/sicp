@@ -107,7 +107,7 @@ const indexParsers = {
   DECLARATION: (node, json) => {
     if (node.firstChild.nodeName !== "#text") {
       console.log(
-        "when parsing USE, got this unknown node name " +
+        "when parsing DECLARATION, got this unknown node name " +
           node.firstChild.nodeName
       );
       return;
