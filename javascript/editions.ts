@@ -12,7 +12,7 @@
 
 // Language-specific details of the edition's non-Scheme language.
 export type LanguageDescriptor = {
-  readonly key: string; // short identifier, also used in output naming, e.g. "js"
+  readonly key: string; // short identifier, also used in output naming and as the footnote "version" marker, e.g. "js"
   // XML tag names that carry the language's code.
   readonly blockTag: string; // code block, e.g. "JAVASCRIPT"
   readonly inlineTag: string; // inline code, e.g. "JAVASCRIPTINLINE"
@@ -23,6 +23,7 @@ export type LanguageDescriptor = {
   // Surface strings emitted into generated output.
   readonly commentPrefix: string; // line-comment marker, e.g. "//" (Python: "#")
   readonly displayName: string; // edition name in headers, e.g. "SICP JS" (Python: "SICPy")
+  readonly languageName: string; // language name in the comparison-edition column header, e.g. "JavaScript" (Python: "Python")
   readonly fileExtension: string; // extracted-program extension, e.g. ".js" (Python: ".py")
 };
 
@@ -36,12 +37,14 @@ export const javascriptLanguage: LanguageDescriptor = {
   promptTag: "JAVASCRIPT_PROMPT",
   commentPrefix: "//",
   displayName: "SICP JS",
+  languageName: "JavaScript",
   fileExtension: ".js"
 };
 
 // The Python edition will add (in a later step):
 //   key: "py", blockTag: "PYTHON", inlineTag: "PYTHONINLINE", ...,
-//   commentPrefix: "#", displayName: "SICPy", fileExtension: ".py"
+//   commentPrefix: "#", displayName: "SICPy", languageName: "Python",
+//   fileExtension: ".py"
 
 // An edition ties a language to its source tree and output naming.
 export type Edition = {
