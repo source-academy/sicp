@@ -84,8 +84,9 @@ prepare() {
 	else
 		WEB_DEST="${DOCS}/split_${LANG_KEY}"
 		JSON_DEST="${DOCS}/json_${LANG_KEY}"
-		mkdir -p "${WEB_DEST}/assets"
 	fi
+	# ensure the stylesheet's destination exists for either edition
+	mkdir -p "${WEB_DEST}/assets"
  	[ ! -f ${FAVICON} ] || cp ${FAVICON} ${WEB_DEST}/favicon.ico
  	[ ! -f ${STYLESHEET} ] || cp ${STYLESHEET} ${WEB_DEST}/assets/stylesheet.css
  	[ ! -f ${LATEX_PDF}/${PDF_FILE} ] || cp ${LATEX_PDF}/${PDF_FILE} ${DOCS}
