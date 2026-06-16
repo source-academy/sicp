@@ -76,7 +76,7 @@ const indexParsers = {
       console.log(
         "when parsing " +
           lang.inlineTag +
-          ", got this unknown node name" +
+          ", got this unknown node name " +
           node.firstChild.nodeName
       );
       return;
