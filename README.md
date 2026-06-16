@@ -10,7 +10,7 @@ Available versions:
 
 Details how to generate these versions are in the [repo wiki](https://github.com/source-academy/sicp/wiki).
 
-**Platform requirement:** Generating the JSON and HTML editions (`yarn json`, `yarn js`) works on any platform with Node.js. Generating the PDF edition and running the full build require Unix/macOS; Windows users can use [WSL](https://learn.microsoft.com/en-us/windows/wsl/) to run the shell scripts involved.
+**Platform requirement:** Generating the JSON edition and extracting the programs (`yarn json`, `yarn programs`) works on any platform with Node.js. Generating the PDF edition and running the full build require Unix/macOS; Windows users can use [WSL](https://learn.microsoft.com/en-us/windows/wsl/) to run the shell scripts involved.
 
 Check out our [Resources for Learners, Educators and Researchers](https://about.sourceacademy.org/), and read more [About the SICP JS Project](https://sourceacademy.org/sicpjs/making-of) in Interactive SICP JS.
 
