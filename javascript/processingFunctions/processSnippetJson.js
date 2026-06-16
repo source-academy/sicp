@@ -218,7 +218,10 @@ export const processSnippetJson = (node, snippet) => {
       }
 
       const compressed = lzString.compressToEncodedURIComponent(
-        "// SICP JS " +
+        lang.commentPrefix +
+          " " +
+          lang.displayName +
+          " " +
           chapterIndex +
           importStatement +
           reqStr +
