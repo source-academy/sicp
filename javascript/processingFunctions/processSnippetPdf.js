@@ -122,7 +122,6 @@ export const processSnippetPdf = (node, writeTo) => {
   const midSpace = inFigure ? "\\smallskip" : "";
 
   const jsPromptSnippet = node.getElementsByTagName("JAVASCRIPT_PROMPT")[0];
-  const jsLonelySnippet = node.getElementsByTagName("JAVASCRIPT_LONELY")[0];
   const jsSnippet = node.getElementsByTagName("JAVASCRIPT")[0];
   const jsOutputSnippet = node.getElementsByTagName("JAVASCRIPT_OUTPUT")[0];
   const allowBreakAfter =
@@ -160,7 +159,7 @@ export const processSnippetPdf = (node, writeTo) => {
     writeTo.push("\\end{lrbox}");
     writeTo.push("\\Usebox{\\UnbreakableBox}");
 
-    if (jsLonelySnippet || jsSnippet || jsOutputSnippet) {
+    if (jsSnippet || jsOutputSnippet) {
       if (inList) {
         /// writeTo.push("****\\\\");
         writeTo.push("\\\\"); // FIXME: when we remove the use of \par from PromptInputSpace this edge case goes away
@@ -170,36 +169,6 @@ export const processSnippetPdf = (node, writeTo) => {
       outputAdjacent = true;
     } else {
       writeTo.push("\\PostBoxCmd\n");
-    }
-  }
-
-  if (jsLonelySnippet) {
-    if (ancestorHasTag(node, "FOOTNOTE")) {
-      writeTo.push("\n\\begin{JavaScriptLonely" + LatexString + "Footnote}");
-    } else if (ancestorHasTag(node, "EXERCISE")) {
-      writeTo.push("\n\\begin{JavaScriptLonely" + LatexString + "Small}");
-    } else {
-      writeTo.push("\n\\begin{JavaScriptLonely" + LatexString + "}");
-    }
-
-    const lonelyArr = [];
-    recursiveProcessTextLatex(jsLonelySnippet.firstChild, lonelyArr);
-    const lonelyStr = lonelyArr.join("").trimRight();
-
-    writeTo.push(lonelyStr);
-
-    if (ancestorHasTag(node, "FOOTNOTE")) {
-      writeTo.push("\n\\end{JavaScriptLonely" + LatexString + "Footnote}");
-    } else if (ancestorHasTag(node, "EXERCISE")) {
-      writeTo.push("\n\\end{JavaScriptLonelySmall" + LatexString + "}");
-    } else {
-      writeTo.push("\n\\end{JavaScriptLonely" + LatexString + "}");
-    }
-
-    if (!(jsSnippet || jsOutputSnippet) && indexTerms.length > 0) {
-      writeTo.push("\\nopagebreak");
-      writeTo.push(indexTerms.pop());
-      writeTo.push("\\nopagebreak%\n");
     }
   }
 
@@ -450,7 +419,7 @@ export const processSnippetPdf = (node, writeTo) => {
   if (jsOutputSnippet) {
     if (jsPromptSnippet) {
       writeTo.push("\\InputOutputSpace");
-    } else if (jsPromptSnippet || jsLonelySnippet || jsSnippet) {
+    } else if (jsPromptSnippet || jsSnippet) {
       writeTo.push("\\InputOutputNoSpace");
     }
 
