@@ -56,24 +56,23 @@ export const pythonLanguage: LanguageDescriptor = {
 };
 
 // An edition ties a language to its source tree and output naming.
+// Output dirs are named `<base>_<language.key>` (e.g. json_js / json_py),
+// so the key carries the edition marker for every dir.
 export type Edition = {
   readonly language: LanguageDescriptor;
   readonly inputDirName: string; // source tree relative to repo root, e.g. "xml"
-  readonly outputSuffix: string; // appended to output dir names, e.g. "" or "_py"
   readonly outputBaseName: string; // base name of the PDF/deploy artifacts, e.g. "sicpjs" (Python: "sicpy")
 };
 
 export const javascriptEdition: Edition = {
   language: javascriptLanguage,
   inputDirName: "xml",
-  outputSuffix: "",
   outputBaseName: "sicpjs"
 };
 
 export const pythonEdition: Edition = {
   language: pythonLanguage,
   inputDirName: "xml_py",
-  outputSuffix: "_py",
   outputBaseName: "sicpy"
 };
 
