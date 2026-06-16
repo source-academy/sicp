@@ -60,7 +60,7 @@ const indexParsers = {
   ECMA: (node, json) => {
     if (node.firstChild.nodeName !== "#text") {
       console.log(
-        "when parsing ECMA, got this unknown node name" +
+        "when parsing ECMA, got this unknown node name " +
           node.firstChild.nodeName
       );
       return;
@@ -80,7 +80,7 @@ const indexParsers = {
   QUOTE: (node, json) => {
     if (node.firstChild.nodeName !== "#text") {
       console.log(
-        "when parsing QUOTE, got this unknown node name" +
+        "when parsing QUOTE, got this unknown node name " +
           node.firstChild.nodeName
       );
       return;
@@ -90,7 +90,7 @@ const indexParsers = {
   USE: (node, json) => {
     if (node.firstChild.nodeName !== "#text") {
       console.log(
-        "when parsing USE, got this unknown node name" +
+        "when parsing USE, got this unknown node name " +
           node.firstChild.nodeName
       );
       return;
@@ -101,7 +101,7 @@ const indexParsers = {
   DECLARATION: (node, json) => {
     if (node.firstChild.nodeName !== "#text") {
       console.log(
-        "when parsing USE, got this unknown node name" +
+        "when parsing USE, got this unknown node name " +
           node.firstChild.nodeName
       );
       return;
@@ -112,7 +112,7 @@ const indexParsers = {
   ORDER: (node, json) => {
     if (node.firstChild.nodeName !== "#text") {
       console.log(
-        "when parsing ORDER, got this unknown node name" +
+        "when parsing ORDER, got this unknown node name " +
           node.firstChild.nodeName
       );
       return;
