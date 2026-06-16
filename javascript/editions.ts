@@ -79,7 +79,7 @@ export const pythonEdition: Edition = {
 // byte-for-byte unchanged. An unrecognized value is rejected rather than
 // silently falling back, to catch typos (e.g. SICP_EDITION=pyton).
 export function getEdition(): Edition {
-  const requested = process.env.SICP_EDITION;
+  const requested = process.env.SICP_EDITION?.trim().toLowerCase();
   switch (requested) {
     case undefined:
     case "":
@@ -89,7 +89,7 @@ export function getEdition(): Edition {
       return pythonEdition;
     default:
       throw new Error(
-        `Unknown SICP_EDITION "${requested}" (expected "js" or "py")`
+        `Unknown SICP_EDITION "${process.env.SICP_EDITION}" (expected "js" or "py")`
       );
   }
 }
