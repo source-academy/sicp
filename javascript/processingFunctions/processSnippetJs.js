@@ -142,7 +142,7 @@ export const processSnippetJs = (node, writeTo, fileFormat) => {
       );
     }
 
-    if (fileFormat == "js") {
+    if (fileFormat === lang.key) {
       writeTo.push(reqStr);
       writeTo.push(codeStr_run);
       writeTo.push(exampleStr);
