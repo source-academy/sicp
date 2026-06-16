@@ -214,7 +214,11 @@ const processTextFunctionsDefaultLatex = {
 
   EM: (node, writeTo) => processTextFunctionsLatex["em"](node, writeTo),
   em: (node, writeTo) => {
-    writeTo.push("{\\em ");
+    // Use the command form \emph{...} rather than the declaration form
+    // {\em ...}: inside a \index{} argument makeindex eats the space after
+    // "\em", turning "{\em ns}" into the undefined "\emns". \emph{...} is safe
+    // and renders identically.
+    writeTo.push("\\emph{");
     recursiveProcessTextLatex(node.firstChild, writeTo);
     writeTo.push("}");
   },
