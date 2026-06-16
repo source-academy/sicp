@@ -4,11 +4,14 @@
 set -euo pipefail
 
 # Select the edition to match javascript/editions.ts (SICP_EDITION env var).
-# Unset or anything other than "py" -> JavaScript edition (default).
+# Unset or anything unrecognized -> JavaScript edition (default).
 EDITION="$(printf '%s' "${SICP_EDITION:-}" | tr '[:upper:]' '[:lower:]' | tr -d '[:space:]')"
 if [ "${EDITION}" = "py" ]; then
     LANG_KEY="py"
     OUTPUT_BASE="sicpy"
+elif [ "${EDITION}" = "scm" ]; then
+    LANG_KEY="scm"
+    OUTPUT_BASE="sicp"
 else
     LANG_KEY="js"
     OUTPUT_BASE="sicpjs"
