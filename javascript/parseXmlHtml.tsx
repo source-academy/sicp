@@ -577,7 +577,7 @@ const processTextFunctionsSplit = {
         <tr>
           <td class="meta" style = "color:grey; text-align: center">Original</td>
           <td></td>
-          <td class="meta" style = "color:grey; text-align: center">JavaScript</td>
+          <td class="meta" style = "color:grey; text-align: center">${lang.languageName}</td>
         </tr>`);
     writeTo.push(`
         <tr><td>`);
@@ -618,7 +618,7 @@ const processTextFunctionsSplit = {
     if (ancestorHasTag(node, "SCHEME")) {
       cloneNode.setAttribute("version", "scheme");
     } else if (ancestorHasTag(node, lang.blockTag)) {
-      cloneNode.setAttribute("version", "js");
+      cloneNode.setAttribute("version", lang.key);
     }
 
     let parent = node.parentNode;
@@ -639,14 +639,14 @@ const processTextFunctionsSplit = {
     <div class='footnote'>`);
     if (node.getAttribute("version") == "scheme") {
       writeTo.push(`<span style="color:green">`);
-    } else if (node.getAttribute("version") == "js") {
+    } else if (node.getAttribute("version") == lang.key) {
       writeTo.push(`<span style="color:blue">`);
     }
     writeTo.push(`
       <a class='footnote-number' id='footnote-${display_footnote_count}' href='#footnote-link-${display_footnote_count}' `);
     if (node.getAttribute("version") == "scheme") {
       writeTo.push(`style="color:green"`);
-    } else if (node.getAttribute("version") == "js") {
+    } else if (node.getAttribute("version") == lang.key) {
       writeTo.push(`style="color:blue"`);
     }
     writeTo.push(`>[${display_footnote_count}] </a>
@@ -686,7 +686,7 @@ const processTextFunctionsSplit = {
       writeTo.push(`
           <tr>
             <td class="meta" style = "color:grey; text-align: center">Original</td>
-            <td class="meta" style = "color:grey; text-align: center">JavaScript</td>
+            <td class="meta" style = "color:grey; text-align: center">${lang.languageName}</td>
           </tr>
           <tr>
             <td>`);
