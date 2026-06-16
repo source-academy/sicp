@@ -73,16 +73,6 @@ export const processSnippetHtml = (node, writeTo, split) => {
     writeTo.push("</pre>");
   }
 
-  const jsLonelySnippet = node.getElementsByTagName(
-    lang.blockTag + "_LONELY"
-  )[0];
-
-  if (jsLonelySnippet) {
-    writeTo.push("<pre class='prettyprintoutput'>");
-    writeTo.push(jsLonelySnippet.firstChild.nodeValue.trimRight());
-    writeTo.push("</pre>");
-  }
-
   const jsSnippet = node.getElementsByTagName(lang.blockTag)[0];
   const jsOutputSnippet = node.getElementsByTagName(lang.outputTag)[0];
 
