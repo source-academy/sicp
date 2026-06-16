@@ -10,15 +10,19 @@
 // selects it by default, so existing output is unchanged. The Python edition
 // descriptor will be added here once the parsers consume the `language` tags.
 
-// The XML tag names that carry the non-Scheme language's code.
+// Language-specific details of the edition's non-Scheme language.
 export type LanguageDescriptor = {
   readonly key: string; // short identifier, also used in output naming, e.g. "js"
+  // XML tag names that carry the language's code.
   readonly blockTag: string; // code block, e.g. "JAVASCRIPT"
   readonly inlineTag: string; // inline code, e.g. "JAVASCRIPTINLINE"
   readonly runTag: string; // "JAVASCRIPT_RUN"
   readonly testTag: string; // "JAVASCRIPT_TEST"
   readonly outputTag: string; // "JAVASCRIPT_OUTPUT"
   readonly promptTag: string; // "JAVASCRIPT_PROMPT"
+  // Surface strings emitted into generated output.
+  readonly commentPrefix: string; // line-comment marker, e.g. "//" (Python: "#")
+  readonly displayName: string; // edition name in headers, e.g. "SICP JS" (Python: "SICPy")
 };
 
 export const javascriptLanguage: LanguageDescriptor = {
@@ -28,8 +32,14 @@ export const javascriptLanguage: LanguageDescriptor = {
   runTag: "JAVASCRIPT_RUN",
   testTag: "JAVASCRIPT_TEST",
   outputTag: "JAVASCRIPT_OUTPUT",
-  promptTag: "JAVASCRIPT_PROMPT"
+  promptTag: "JAVASCRIPT_PROMPT",
+  commentPrefix: "//",
+  displayName: "SICP JS"
 };
+
+// The Python edition will add (in a later step):
+//   key: "py", blockTag: "PYTHON", inlineTag: "PYTHONINLINE", ...,
+//   commentPrefix: "#", displayName: "SICPy"
 
 // An edition ties a language to its source tree and output naming.
 export type Edition = {
