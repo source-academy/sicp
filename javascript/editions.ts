@@ -60,18 +60,21 @@ export type Edition = {
   readonly language: LanguageDescriptor;
   readonly inputDirName: string; // source tree relative to repo root, e.g. "xml"
   readonly outputSuffix: string; // appended to output dir names, e.g. "" or "_py"
+  readonly outputBaseName: string; // base name of the PDF/deploy artifacts, e.g. "sicpjs" (Python: "sicpy")
 };
 
 export const javascriptEdition: Edition = {
   language: javascriptLanguage,
   inputDirName: "xml",
-  outputSuffix: ""
+  outputSuffix: "",
+  outputBaseName: "sicpjs"
 };
 
 export const pythonEdition: Edition = {
   language: pythonLanguage,
   inputDirName: "xml_py",
-  outputSuffix: "_py"
+  outputSuffix: "_py",
+  outputBaseName: "sicpy"
 };
 
 // Selects the edition to build, via the SICP_EDITION environment variable.

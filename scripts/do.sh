@@ -3,18 +3,31 @@
 # Fail early
 set -euo pipefail
 
+# Select the edition to match javascript/editions.ts (SICP_EDITION env var).
+# Unset or anything other than "py" -> JavaScript edition (default).
+EDITION="$(printf '%s' "${SICP_EDITION:-}" | tr '[:upper:]' '[:lower:]' | tr -d '[:space:]')"
+if [ "${EDITION}" = "py" ]; then
+    EDITION_SUFFIX="_py"
+    PROGRAMS_LANG="py"
+    OUTPUT_BASE="sicpy"
+else
+    EDITION_SUFFIX=""
+    PROGRAMS_LANG="js"
+    OUTPUT_BASE="sicpjs"
+fi
+
 # hand-paginated index file for LaTeX => PDF
 HAND_PAGINATED="hand-paginated.ind"
 
 # DOCS is the local target folder, before deployment
 DOCS="docs_out"
 
-# temp folders for different editions
-LATEX_PDF="latex_pdf"
-GENERATED_HTML="html_split"
-GENERATED_JS="programs_js"
-GENERATED_JSON="json"
-PDF_FILE="sicpjs.pdf"
+# temp folders for the selected edition
+LATEX_PDF="latex_pdf${EDITION_SUFFIX}"
+GENERATED_HTML="html_split${EDITION_SUFFIX}"
+GENERATED_JS="programs_${PROGRAMS_LANG}"
+GENERATED_JSON="json${EDITION_SUFFIX}"
+PDF_FILE="${OUTPUT_BASE}.pdf"
 
 # RESOURCES
 FAVICON="static/assets/sourcepower.ico"
@@ -24,8 +37,8 @@ CSS="static/css"
 IMAGES="static/images"
 
 # NAMES OF GENERATED FILES
-OUTPUT_FILE="sicpjs"
-ZIP_FILE="sicpjs.zip"
+OUTPUT_FILE="${OUTPUT_BASE}"
+ZIP_FILE="${OUTPUT_BASE}.zip"
 
 
 main() {

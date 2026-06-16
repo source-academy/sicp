@@ -1,3 +1,9 @@
+import { getEdition } from "./editions.js";
+
+// Base name of the edition's index file (sicpjs / sicpy), matching the root
+// .tex written by commands/utils.ts and the makeindex call in scripts/latexmkrc.
+const outputBaseName = getEdition().outputBaseName;
+
 export const preamble = `\\documentclass[nocrop,7x10]{../mitpress/mit}
 % use: option nocrop to remove cropmarks
 % also remember: hyperref in mitpress/mit.cls: switch to black/black/black (line 1851)
@@ -909,7 +915,7 @@ export const ending = `
 \\phantomsection
 \\addcontentsline{toc}{chapter}{Index}
 \\renewcommand{\\addcontentsline}[3]{}
-\\printindex{sicpjs}{\\vbox{Index\\vspace{8mm}\\newline \\small \\normalfont Page numbers for JavaScript declarations are in \\textit{italics}.\\newline Page numbers followed by \\textit{n} indicate footnotes.}}
+\\printindex{${outputBaseName}}{\\vbox{Index\\vspace{8mm}\\newline \\small \\normalfont Page numbers for JavaScript declarations are in \\textit{italics}.\\newline Page numbers followed by \\textit{n} indicate footnotes.}}
 \\renewcommand{\\addcontentsline}[3]{\\oldaddcontentsline{#1}{#2}{#3}}
 
 %% Restore code size
