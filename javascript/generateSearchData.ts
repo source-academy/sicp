@@ -1,5 +1,6 @@
 import { getChildrenByTagName, ancestorHasTag } from "./utilityFunctions.js";
 import { allFilepath, tableOfContent } from "./index.js";
+import { getEdition } from "./editions.js";
 import path from "path";
 import fs from "fs";
 
@@ -14,6 +15,9 @@ import {
   recursivelyProcessTextSnippetJson
 } from "./processingFunctions/index.js";
 import type { WriteBuffer } from "./types.js";
+
+// Tag names of the edition's non-Scheme language (JAVASCRIPT* by default).
+const lang = getEdition().language;
 
 let paragraph_count = 0;
 let heading_count = 0;
@@ -69,7 +73,7 @@ const ignoreTags = new Set([
   "CHAPTERCONTENT",
   "SPLIT",
   "SPLITINLINE",
-  "JAVASCRIPT",
+  lang.blockTag,
   "CITATION",
   "SECTIONCONTENT",
   "p",
@@ -190,8 +194,8 @@ function maintainIndexTrie() {
     if (obj["parse"] == null || obj["parse"]["value"] == null) {
       if (obj["parse"]["DECLARATION"]) {
         obj["parse"]["value"] = obj["parse"]["DECLARATION"]["value"];
-      } else if (obj["parse"]["JAVASCRIPTINLINE"]) {
-        obj["parse"]["value"] = obj["parse"]["JAVASCRIPTINLINE"]["value"];
+      } else if (obj["parse"][lang.inlineTag]) {
+        obj["parse"]["value"] = obj["parse"][lang.inlineTag]["value"];
       } else if (obj["parse"]["USE"]) {
         obj["parse"]["value"] = obj["parse"]["USE"]["value"];
       } else if (obj["parse"]["FUNCTION"]) {
@@ -230,9 +234,9 @@ function maintainIndexTrie() {
         } else if (obj["parse"]["SUBINDEX"]["ORDER"]) {
           obj["parse"]["SUBINDEX"]["value"] =
             obj["parse"]["SUBINDEX"]["ORDER"]["value"];
-        } else if (obj["parse"]["SUBINDEX"]["JAVASCRIPTINLINE"]) {
+        } else if (obj["parse"]["SUBINDEX"][lang.inlineTag]) {
           obj["parse"]["SUBINDEX"]["value"] =
-            obj["parse"]["SUBINDEX"]["JAVASCRIPTINLINE"]["value"];
+            obj["parse"]["SUBINDEX"][lang.inlineTag]["value"];
         } else if (obj["parse"]["SUBINDEX"]["USE"]) {
           obj["parse"]["SUBINDEX"]["value"] =
             obj["parse"]["SUBINDEX"]["USE"]["value"];
@@ -537,10 +541,9 @@ const processTextFunctions = {
     processReferenceJson(node, obj, chapterIndex);
   },
 
-  SCHEMEINLINE: (node, obj) =>
-    processTextFunctions["JAVASCRIPTINLINE"](node, obj),
+  SCHEMEINLINE: (node, obj) => processTextFunctions[lang.inlineTag](node, obj),
 
-  JAVASCRIPTINLINE: (node, obj) => {
+  [lang.inlineTag]: (node, obj) => {
     if (
       node.firstChild &&
       node.firstChild.data &&
@@ -556,7 +559,7 @@ const processTextFunctions = {
     });
 
     addArrayToObj(obj, node, writeTo);
-    obj["tag"] = "JAVASCRIPTINLINE";
+    obj["tag"] = lang.inlineTag;
   },
 
   SNIPPET: (node, obj) => {
@@ -569,19 +572,19 @@ const processTextFunctions = {
 
       const writeTo = [];
 
-      const textprompt = getChildrenByTagName(node, "JAVASCRIPT_PROMPT")[0];
+      const textprompt = getChildrenByTagName(node, lang.promptTag)[0];
       if (textprompt) {
         recursivelyProcessTextSnippetJson(textprompt.firstChild, writeTo);
       }
 
-      const textit = getChildrenByTagName(node, "JAVASCRIPT")[0];
+      const textit = getChildrenByTagName(node, lang.blockTag)[0];
       if (textit) {
         recursivelyProcessTextSnippetJson(textit.firstChild, writeTo);
       } else {
         recursivelyProcessTextSnippetJson(node.firstChild, writeTo);
       }
 
-      const textoutput = getChildrenByTagName(node, "JAVASCRIPT_OUTPUT")[0];
+      const textoutput = getChildrenByTagName(node, lang.outputTag)[0];
       if (textoutput) {
         recursivelyProcessTextSnippetJson(textoutput.firstChild, writeTo);
       }
