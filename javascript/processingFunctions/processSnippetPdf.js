@@ -465,7 +465,7 @@ export const processSnippetPdf = (node, writeTo) => {
       writeTo.push(
         "\n\\end{" + lang.languageName + "Output" + LatexString + "Footnote}"
       );
-    } else if (ancestorHasTag(node, "EXERCISE")) {
+    } else if (ancestorHasTag(node, "EXERCISE") || isSmall) {
       writeTo.push(
         "\n\\end{" + lang.languageName + "Output" + LatexString + "Small}"
       );
