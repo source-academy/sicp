@@ -20,7 +20,7 @@ DOCS="docs_out"
 # temp folders for the selected edition (named <base>_<lang>, matching index.ts)
 LATEX_PDF="latex_pdf_${LANG_KEY}"
 GENERATED_HTML="html_split_${LANG_KEY}"
-GENERATED_JS="programs_${LANG_KEY}"
+GENERATED_PROGRAMS="programs_${LANG_KEY}"
 GENERATED_JSON="json_${LANG_KEY}"
 PDF_FILE="${OUTPUT_BASE}.pdf"
 
@@ -68,7 +68,7 @@ clean() {
 			! -name '.*' ! -name 'hand-paginated*.ind' -exec rm -rf {} +
 	fi
 	rm -rf ${GENERATED_HTML}/*
-	rm -rf ${GENERATED_JS}/*
+	rm -rf ${GENERATED_PROGRAMS}/*
 	rm -rf ${GENERATED_JSON}/*
 	rm -f ${ZIP_FILE}
 }
@@ -80,7 +80,7 @@ prepare() {
 	PDF_BASENAME="$(basename "${PDF_FILE}" .pdf)"
 	cp "${LATEX_PDF}/${PDF_BASENAME}."{log,ilg,ind,idx} ${DOCS} || :
  	[ ! -f ${GENERATED_HTML}/index.html ] || cp -rf ${GENERATED_HTML}/* ${DOCS}
- 	[ ! -d ${GENERATED_JS} ] || ( zip -r ${ZIP_FILE} ${GENERATED_JS}; \
+ 	[ ! -d ${GENERATED_PROGRAMS} ] || ( zip -r ${ZIP_FILE} ${GENERATED_PROGRAMS}; \
  	                              cp ${ZIP_FILE} ${DOCS} )
 	[ ! -d ${GENERATED_JSON} ] || ( rm -rf ${DOCS}/json; \
                                     cp -rf ${GENERATED_JSON} ${DOCS}/json )
