@@ -89,7 +89,6 @@ const HtmlHeadPart2: FC<HtmlHeadPart2Props> = ({ toIndexFolder }) => {
     <!-- Rendering inline LaTeX -->
     <script type="text/x-mathjax-config">
       MathJax.Hub.Config({
-        jax: ["input/TeX","output/HTML-CSS"],
         tex2jax: {
           inlineMath: [ ['$','$'], ["\\\\(","\\\\)"] ],
           processEscapes: true,
