@@ -268,9 +268,17 @@ async function main() {
     version = process.argv[3];
 
     if (version == "split") {
-      outputDir = path.join(__dirname, "..", "html_split" + edition.outputSuffix);
+      outputDir = path.join(
+        __dirname,
+        "..",
+        "html_split" + edition.outputSuffix
+      );
     } else if (version == "scheme") {
-      outputDir = path.join(__dirname, "..", "html_scheme" + edition.outputSuffix);
+      outputDir = path.join(
+        __dirname,
+        "..",
+        "html_scheme" + edition.outputSuffix
+      );
     }
 
     switchParseFunctionsHtml(version);
@@ -292,7 +300,11 @@ async function main() {
 
     recursiveXmlToHtmlInOrder("parseXml");
   } else if (parseType == "js") {
-    outputDir = path.join(__dirname, "..", "js_programs" + edition.outputSuffix);
+    outputDir = path.join(
+      __dirname,
+      "..",
+      "js_programs" + edition.outputSuffix
+    );
 
     createMain(inputDir, outputDir, parseType);
     console.log("setup snippets\n");
