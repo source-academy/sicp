@@ -16,9 +16,6 @@ else
     OUTPUT_BASE="sicpjs"
 fi
 
-# hand-paginated index file for LaTeX => PDF
-HAND_PAGINATED="hand-paginated.ind"
-
 # DOCS is the local target folder, before deployment
 DOCS="docs_out"
 
@@ -64,9 +61,14 @@ pdf() {
 
 clean() {
 	rm -rf ${DOCS}/*
-	mv ${LATEX_PDF}/${HAND_PAGINATED} .
-	rm -rf ${LATEX_PDF}/*
-	mv ${HAND_PAGINATED} ${LATEX_PDF}
+	# Wipe generated artifacts in ${LATEX_PDF} but keep the tracked files:
+	# .gitignore and any hand-paginated*.ind used by the manual pre-MIT-Press
+	# index workflow (GitHub issue #1236). The hand-paginated files may be
+	# absent (e.g. the Python edition). Done in place so nothing is stranded.
+	if [ -d "${LATEX_PDF}" ]; then
+		find "${LATEX_PDF}" -mindepth 1 -maxdepth 1 \
+			! -name '.*' ! -name 'hand-paginated*.ind' -exec rm -rf {} +
+	fi
 	rm -rf ${GENERATED_HTML}/*
 	rm -rf ${GENERATED_JS}/*
 	rm -rf ${GENERATED_JSON}/*
