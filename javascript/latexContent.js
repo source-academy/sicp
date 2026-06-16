@@ -11,9 +11,12 @@ export const preamble = `\\documentclass[nocrop,7x10]{../mitpress/mit}
 % for index proofreading: edit parseXmlLatex.js
 % change: const indexAnnotations = true;
 
-% This switches build to use final.ind for indexing
-\\UseHandEditedIndex{}
-% Note: latexmk still builds a new index but the file does not use it
+% Index: by default the freshly generated ${outputBaseName}.ind (built by
+% latexmk's makeindex) is used. Hand-pagination of the index is a manual step
+% performed only just before sending the JS PDF to MIT Press; see GitHub
+% issue #1236. To use a hand-edited index, put hand-paginated.ind in the
+% edition's latex_pdf*/ folder and uncomment the next line:
+% \\UseHandEditedIndex{}
 
 \\synctex=1
 
