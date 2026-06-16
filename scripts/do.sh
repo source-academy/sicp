@@ -61,13 +61,13 @@ pdf() {
 
 clean() {
 	rm -rf ${DOCS}/*
-	# Preserve any tracked hand-pagination index files across the wipe of
-	# ${LATEX_PDF}/*; they are used only for the manual pre-MIT-Press index
-	# workflow (GitHub issue #1236) and may be absent (e.g. Python edition).
-	if [ -d ${LATEX_PDF} ]; then
-		find ${LATEX_PDF} -maxdepth 1 -name 'hand-paginated*.ind' -exec mv {} . \;
-		rm -rf ${LATEX_PDF}/*
-		find . -maxdepth 1 -name 'hand-paginated*.ind' -exec mv {} ${LATEX_PDF}/ \;
+	# Wipe generated artifacts in ${LATEX_PDF} but keep the tracked files:
+	# .gitignore and any hand-paginated*.ind used by the manual pre-MIT-Press
+	# index workflow (GitHub issue #1236). The hand-paginated files may be
+	# absent (e.g. the Python edition). Done in place so nothing is stranded.
+	if [ -d "${LATEX_PDF}" ]; then
+		find "${LATEX_PDF}" -mindepth 1 -maxdepth 1 \
+			! -name '.*' ! -name 'hand-paginated*.ind' -exec rm -rf {} +
 	fi
 	rm -rf ${GENERATED_HTML}/*
 	rm -rf ${GENERATED_JS}/*
