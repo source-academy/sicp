@@ -16,8 +16,9 @@ import {
 } from "./processingFunctions/index.js";
 import type { WriteBuffer } from "./types.js";
 
-// Tag names of the edition's non-Scheme language (JAVASCRIPT* by default).
-const lang = getEdition().language;
+// The edition being built (JavaScript by default) and its language tags.
+const edition = getEdition();
+const lang = edition.language;
 
 let paragraph_count = 0;
 let heading_count = 0;
@@ -92,7 +93,7 @@ type TrieTree = {
 export const trieTree: TrieTree = {};
 export const trieTreeText = {};
 export const writeSearchData = () => {
-  const outputDir = path.join(__dirname, "../json");
+  const outputDir = path.join(__dirname, "..", "json" + edition.outputSuffix);
   const outputFile = path.join(outputDir, "searchData.json");
   const searchData = {
     textbook: textBook,
