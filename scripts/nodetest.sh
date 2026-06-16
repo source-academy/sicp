@@ -10,7 +10,7 @@ EXP_WRITER="test_node_env/expected_writer.js"
 # must use BSD awk
 AWK="awk"
 
-SOURCEFILES=js_programs/*/*/*/*.js
+SOURCEFILES=programs_js/*/*/*/*.js
 
 DEFAULT_CHAPTER=4
 DEFAULT_VARIANT="default"
@@ -61,7 +61,7 @@ test_source() {
 main() {
     for s in ${SOURCEFILES}
     do
-        # DIR is full path including js_programs
+        # DIR is full path including programs_js
         DIR=$(dirname ${s})
         # CHAPTERDIR is path starting with chapterx
         CHAPTERDIR=${DIR#*/}
