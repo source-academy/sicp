@@ -59,6 +59,7 @@ const validTags = new Set([
   lang.runTag,
   lang.testTag,
   lang.outputTag,
+  lang.promptTag,
   "ORDER",
   "SCHEME",
   "SOLUTION",
