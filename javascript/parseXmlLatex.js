@@ -1,6 +1,7 @@
 import { getChildrenByTagName, ancestorHasTag } from "./utilityFunctions";
 
 import { parseType } from "./index";
+import { getEdition } from "./editions.js";
 
 import {
   replaceTagWithSymbol,
@@ -20,6 +21,9 @@ import {
 // set true to generate index annotations
 // in the margins of the text
 const indexAnnotations = false;
+
+// Tag names of the edition's non-Scheme language (JAVASCRIPT* by default).
+const lang = getEdition().language;
 
 const tagsToRemove = new Set([
   "#comment",
@@ -48,7 +52,7 @@ const tagsToRemove = new Set([
 
 const ignoreTags = new Set([
   "CHAPTERCONTENT",
-  "JAVASCRIPT",
+  lang.blockTag,
   "SECTIONCONTENT",
   "span",
   "SPLIT",
@@ -63,12 +67,12 @@ const processTextFunctionsDefaultLatex = {
     } else {
       trimedValue = node.nodeValue;
       if (
-        node.parentNode.nodeName === "JAVASCRIPTINLINE" &&
+        node.parentNode.nodeName === lang.inlineTag &&
         node.parentNode.parentNode.nodeName === "CAPTION"
       ) {
         trimedValue = trimedValue.replace(/\{/g, "\\{").replace(/\}/g, "\\}");
       } else {
-        if (node.parentNode.nodeName !== "JAVASCRIPTINLINE") {
+        if (node.parentNode.nodeName !== lang.inlineTag) {
           trimedValue = trimedValue.replace(/%/g, "\\%");
         }
       }
@@ -87,8 +91,8 @@ const processTextFunctionsDefaultLatex = {
   },
 
   SPLITINLINE: (node, writeTo) => {
-    if (getChildrenByTagName(node, "JAVASCRIPTINLINE")[0]) {
-      console.error("remove 'INLINE' from tag JAVASCRIPTINLINE");
+    if (getChildrenByTagName(node, lang.inlineTag)[0]) {
+      console.error("remove 'INLINE' from tag " + lang.inlineTag);
     }
     if (getChildrenByTagName(node, "SCHEMEINLINE")[0]) {
       console.error("remove 'INLINE' from tag SCHEMEINLINE");
@@ -252,7 +256,7 @@ const processTextFunctionsDefaultLatex = {
   },
 
   META: (node, writeTo) => {
-    if (ancestorHasTag(node, "JAVASCRIPT_OUTPUT")) {
+    if (ancestorHasTag(node, lang.outputTag)) {
       writeTo.push("^");
     }
     writeTo.push("$\\mathit{");
@@ -260,7 +264,7 @@ const processTextFunctionsDefaultLatex = {
     s = s.replace(/-/g, "\\mhyphen{}").replace(/ /g, "\\ ");
     writeTo.push(s);
     writeTo.push("}$");
-    if (ancestorHasTag(node, "JAVASCRIPT_OUTPUT")) {
+    if (ancestorHasTag(node, lang.outputTag)) {
       writeTo.push("^");
     }
   },
@@ -649,13 +653,13 @@ const processTextFunctionsDefaultLatex = {
   },
 
   SCHEMEINLINE: (node, writeTo) =>
-    processTextFunctionsLatex["JAVASCRIPTINLINE"](node, writeTo),
+    processTextFunctionsLatex[lang.inlineTag](node, writeTo),
   DECLARATION: (node, writeTo) =>
-    processTextFunctionsLatex["JAVASCRIPTINLINE"](node, writeTo),
+    processTextFunctionsLatex[lang.inlineTag](node, writeTo),
   USE: (node, writeTo) =>
-    processTextFunctionsLatex["JAVASCRIPTINLINE"](node, writeTo),
+    processTextFunctionsLatex[lang.inlineTag](node, writeTo),
   ECMA: (node, writeTo) => {},
-  JAVASCRIPTINLINE: (node, writeTo) => {
+  [lang.inlineTag]: (node, writeTo) => {
     if (ancestorHasTag(node, "METAPHRASE")) {
       writeTo.push("}$");
       recursiveProcessPureText(node.firstChild, writeTo, { type: parseType });
