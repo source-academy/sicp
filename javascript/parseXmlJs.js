@@ -2,6 +2,10 @@ import path from "path";
 import fs from "fs";
 
 import { processSnippetJs } from "./processingFunctions/index.js";
+import { getEdition } from "./editions.js";
+
+// Tag names of the edition's non-Scheme language (JAVASCRIPT* by default).
+const lang = getEdition().language;
 
 let snippet_count = 0;
 let relativeFileDirectory = "";
@@ -24,7 +28,7 @@ const ignoreTags = new Set([
   "CHAPTERCONTENT",
   "span",
   "SPLITINLINE",
-  "JAVASCRIPT"
+  lang.blockTag
 ]);
 
 const preserveTags = new Set([
@@ -52,7 +56,7 @@ const processTextFunctions = {
 
     const snippet_count_string =
       snippet_count < 10 ? "0" + snippet_count : snippet_count;
-    processSnippetJs(node, writeTojs, "js");
+    processSnippetJs(node, writeTojs, lang.key);
 
     const nameNode = node.getElementsByTagName("NAME")[0];
 
@@ -60,7 +64,10 @@ const processTextFunctions = {
       ? snippet_count_string + "_" + nameNode.firstChild.nodeValue
       : snippet_count_string;
 
-    const outputFile = path.join(relativeFileDirectory, fileName + `.js`);
+    const outputFile = path.join(
+      relativeFileDirectory,
+      fileName + lang.fileExtension
+    );
 
     const stream = fs.createWriteStream(outputFile);
     stream.once("open", fd => {

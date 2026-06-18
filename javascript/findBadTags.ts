@@ -3,13 +3,18 @@ import util from "node:util";
 import path from "node:path";
 
 import { DOMParser as dom } from "xmldom";
+import { getEdition } from "./editions.js";
 
 const readdir = util.promisify(fs.readdir);
 const open = util.promisify(fs.open);
 const readFile = util.promisify(fs.readFile);
 
+// Source tree and tag names of the edition being checked (JS / "xml" by default).
+const edition = getEdition();
+const lang = edition.language;
+
 const __dirname = path.resolve(import.meta.dirname);
-const inputDir = path.join(__dirname, "../xml");
+const inputDir = path.join(__dirname, "..", edition.inputDirName);
 
 const validTags = new Set([
   // symbols
@@ -51,16 +56,17 @@ const validTags = new Set([
   "HISTORY",
   "NAME",
   "EXPECTED",
-  "JAVASCRIPT_RUN",
-  "JAVASCRIPT_TEST",
-  "JAVASCRIPT_OUTPUT",
+  lang.runTag,
+  lang.testTag,
+  lang.outputTag,
+  lang.promptTag,
   "ORDER",
   "SCHEME",
   "SOLUTION",
 
   // ignoreTags (treat tag as meaningless wrapper)
   "CHAPTERCONTENT",
-  "JAVASCRIPT",
+  lang.blockTag,
   "SECTIONCONTENT",
   "span",
   "SPLIT",
@@ -102,7 +108,7 @@ const validTags = new Set([
   "SECTION",
   "SUBSUBSECTION",
   "SCHEMEINLINE",
-  "JAVASCRIPTINLINE",
+  lang.inlineTag,
   "SNIPPET",
   "SUBHEADING",
   "SUBINDEX",

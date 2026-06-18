@@ -1,0 +1,1110 @@
+<SUBSECTION>
+  <NAME>
+    Evaluator Data Structures
+  </NAME>
+
+  <LABEL NAME="sec:eval-data-structures"/>
+  <TEXT>
+    In addition to defining the 
+    <SPLITINLINE>
+      <SCHEME>external syntax of expressions,</SCHEME>
+      <PYTHON>representation of components,</PYTHON>
+    </SPLITINLINE>
+    the evaluator implementation must also define the data structures that the
+    evaluator manipulates internally, as part of the execution of a
+    program, such as the representation of
+    <SPLITINLINE>
+      <SCHEME>procedures</SCHEME>
+      <PYTHON>functions</PYTHON>
+    </SPLITINLINE>
+    and environments and the representation of true and false.
+  </TEXT>
+
+  <SUBHEADING>
+    <NAME>Testing of predicates</NAME>
+  </SUBHEADING>
+
+  <INDEX>metacircular evaluator for Python<SUBINDEX>representation of true and false</SUBINDEX></INDEX>
+
+  <LONG_PAGE lines="3"/>
+  <TEXT>
+    <SPLIT>
+      <SCHEME>
+	For conditionals, we accept anything to be true that is not the explicit
+	<SCHEMEINLINE>false</SCHEMEINLINE> object.
+      </SCHEME>
+      <PYTHON>
+	In order to limit the predicate expressions of conditionals to proper
+	predicates (expressions that evaluate to a boolean value) as we do throughout
+	this book, we insist here that the function 
+	<INDEX>metacircular evaluator for Python<SUBINDEX>representation of true and false</SUBINDEX></INDEX>
+	<PYTHONINLINE>is_truthy</PYTHONINLINE> gets applied only to
+	boolean values, and we accept only the boolean value
+	<PYTHONINLINE>true</PYTHONINLINE> to be truthy.
+      The opposite of
+      <PYTHONINLINE>is_truthy</PYTHONINLINE> is called
+      <PYTHONINLINE>is_falsy</PYTHONINLINE>.<FOOTNOTE>Conditionals
+      <LABEL NAME="foot:truthy"/>
+      in full Python accept <EM>any</EM> value, not just a boolean,
+      as the result of evaluating the
+	<QUOTE>predicate</QUOTE> expression. Python's notion of
+	truthiness and falsiness is captured by the following variants of 
+	<PYTHONINLINE>is_truthy</PYTHONINLINE> and
+	<PYTHONINLINE>is_falsy</PYTHONINLINE>:
+	<INDEX>truthiness</INDEX>
+	<INDEX>falsiness</INDEX>
+	<SNIPPET PAGE="377">
+	  <INDEX><USE>is_boolean</USE></INDEX>
+	  <INDEX><DECLARATION>is_truthy</DECLARATION><SUBINDEX>full Python version</SUBINDEX></INDEX>
+	  <INDEX><DECLARATION>is_falsy</DECLARATION><SUBINDEX>full Python version</SUBINDEX></INDEX>
+	  <NAME>true_2</NAME>
+	  <PYTHON>
+function is_truthy(x) { return ! is_falsy(x); }
+<SHORT_SPACE/>
+function is_falsy(x) {
+    return (is_boolean(x) &amp;&amp; !x )                  ||
+           (is_number(x) &amp;&amp; (x === 0 || x !== x )) ||
+           (is_string(x) &amp;&amp; x === "")              ||
+           is_null(x)                              ||
+           is_undefined(x);
+}
+	  </PYTHON>
+	</SNIPPET>
+	The test <PYTHONINLINE>x !== x</PYTHONINLINE> is not a typo;
+	the only Python value for which
+	<PYTHONINLINE>x !== x</PYTHONINLINE> yields true is the value
+	<PYTHONINLINE>NaN</PYTHONINLINE> (<QUOTE>Not a Number</QUOTE>),
+	<INDEX>NaN, not a typo</INDEX>
+	which is considered to be a falsy number (also not a typo), along with<SPACE/>0.
+	The numerical value
+	<PYTHONINLINE>NaN</PYTHONINLINE> is the result of certain
+	arithmetic border cases such as
+	<PYTHONINLINE>0 / 0</PYTHONINLINE>.
+	<TEXT>
+	  The terms <QUOTE>truthy</QUOTE> and <QUOTE>falsy</QUOTE> were coined
+	  by
+	  <INDEX>good parts of Python</INDEX>
+	  <INDEX>Python<SUBINDEX>good parts</SUBINDEX></INDEX>
+	  <INDEX>Crockford, Douglas</INDEX>
+	  Douglas Crockford, one of whose books
+	  (<CITATION>Crockford 2008</CITATION>) inspired this JavaScript adaptation.
+	</TEXT>
+      </FOOTNOTE>
+      </PYTHON>
+    </SPLIT>
+    <SNIPPET PAGE="365" HIDE="yes" EVAL="no">
+      <NAME>headline_4_1_3</NAME>
+      <PYTHON>
+// functions from SICP JS 4.1.3
+      </PYTHON>
+    </SNIPPET>
+    <SNIPPET PAGE="377" POSTPADDING="no">
+      <INDEX><DECLARATION>is_truthy</DECLARATION></INDEX>
+      <INDEX><DECLARATION>is_falsy</DECLARATION></INDEX>
+      <NAME>true</NAME>
+      <EXAMPLE>true_example</EXAMPLE>
+      <EXPECTED>false</EXPECTED>
+      <SCHEME>
+(define (true? x)
+  (not (eq? x false)))
+
+(define (false? x)
+  (eq? x false))
+      </SCHEME>
+      <PYTHON>
+function is_truthy(x) {
+    return is_boolean(x) 
+           ? x
+           : error(x, "boolean expected, received");
+}
+function is_falsy(x) { return ! is_truthy(x); }
+      </PYTHON>
+    </SNIPPET>
+    <SNIPPET PAGE="377" HIDE="yes">
+      <NAME>true_example</NAME>
+      <PYTHON>
+is_truthy(false); // should return false because only true is truthy
+      </PYTHON>
+    </SNIPPET>
+  </TEXT>
+
+  <SUBHEADING>
+    <NAME>Representing
+    <SPLITINLINE>
+      <SCHEME>procedures</SCHEME>
+    <PYTHON>functions</PYTHON></SPLITINLINE>
+    </NAME>
+  </SUBHEADING>
+
+  <TEXT>
+    To handle primitives, we assume that we have available the following
+    <INDEX>metacircular evaluator for Python<SUBINDEX>representation of <SPLITINLINE><SCHEME>procedures</SCHEME><PYTHON>functions</PYTHON></SPLITINLINE></SUBINDEX></INDEX>
+    <SPLITINLINE>
+      <SCHEME>procedures:</SCHEME>
+      <PYTHON>functions:</PYTHON>
+    </SPLITINLINE>
+    <UL>
+      <LI>
+	<SPLITINLINE>
+	  <SCHEME>
+	    <SCHEMEINLINE>(apply-primitive-procedure</SCHEMEINLINE>
+	    <LATEXINLINE>proc args</LATEXINLINE><SCHEMEINLINE>)</SCHEMEINLINE>
+	  </SCHEME>
+	  <PYTHON>
+	    <PYTHONINLINE>apply_primitive_function(</PYTHONINLINE><META>fun</META><PYTHONINLINE>,</PYTHONINLINE> <META>args</META><PYTHONINLINE>)</PYTHONINLINE>
+	  </PYTHON>
+	</SPLITINLINE>
+	<INDEX><USE>apply_primitive_function</USE></INDEX> 
+	<BREAK/>
+	applies the given primitive
+	<SPLITINLINE>
+	  <SCHEME>procedure</SCHEME>
+	  <PYTHON>function</PYTHON>
+	</SPLITINLINE>
+	to the argument values in the list <META>args</META> and returns the result of
+	the application.
+      </LI>
+      <LI>
+        <SPLITINLINE>
+	  <SCHEME><SCHEMEINLINE>(primitive-procedure?</SCHEMEINLINE>
+	  <LATEXINLINE>proc</LATEXINLINE><SCHEMEINLINE>)</SCHEMEINLINE></SCHEME>
+	  <PYTHON>
+	    <PYTHONINLINE>is_primitive_function(</PYTHONINLINE><META>fun</META><PYTHONINLINE>)</PYTHONINLINE>
+	  </PYTHON>
+	</SPLITINLINE>
+	<INDEX><USE>is_primitive_function</USE></INDEX> 
+	<BREAK/>
+	tests whether
+	<SPLITINLINE>
+	  <SCHEME><LATEXINLINE>proc</LATEXINLINE></SCHEME>
+          <PYTHON><META>fun</META></PYTHON>
+	</SPLITINLINE>
+        is a primitive
+        <SPLITINLINE>
+          <SCHEME>procedure.</SCHEME>
+          <PYTHON>function.</PYTHON>
+        </SPLITINLINE>
+      </LI>
+    </UL>
+
+    These mechanisms for handling primitives are further described in
+    section<SPACE/><REF NAME="sec:running-eval"/>.
+  </TEXT>
+
+  <TEXT>
+    Compound
+    <SPLITINLINE>
+      <SCHEME>procedures</SCHEME>
+      <PYTHON>functions</PYTHON>
+    </SPLITINLINE>
+    are constructed from parameters,
+    <SPLITINLINE>
+      <SCHEME>procedure</SCHEME>
+      <PYTHON>function</PYTHON>
+    </SPLITINLINE>
+    bodies, and environments using the constructor 
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>make-procedure</SCHEMEINLINE>:</SCHEME>
+      <PYTHON><PYTHONINLINE>make_function</PYTHONINLINE>:
+      </PYTHON>
+    </SPLITINLINE>
+    <SNIPPET PAGE="377" POSTPADDING="no">
+      <INDEX><DECLARATION>make_function</DECLARATION></INDEX>
+      <INDEX><DECLARATION>is_compound_function</DECLARATION></INDEX>
+      <INDEX><DECLARATION>function_parameters</DECLARATION></INDEX>
+      <INDEX><DECLARATION>function_body</DECLARATION></INDEX>
+      <INDEX><DECLARATION>function_environment</DECLARATION></INDEX>
+      <NAME>make_procedure</NAME>
+      <REQUIRES>tagged_list</REQUIRES>
+      <EXAMPLE>make_procedure_example</EXAMPLE>
+      <EXPECTED>[ 'x', [ 'y', null ] ]</EXPECTED>
+      <SCHEME>
+(define (make-procedure parameters body env)
+  (list 'procedure parameters body env))
+
+(define (compound-procedure? p)
+  (tagged-list? p 'procedure))
+
+(define (procedure-parameters p) (cadr p))
+(define (procedure-body p) (caddr p))
+(define (procedure-environment p) (cadddr p))
+      </SCHEME>
+      <PYTHON>
+function make_function(parameters, body, env) {
+    return list("compound_function", parameters, body, env);
+}
+function is_compound_function(f) {
+    return is_tagged_list(f, "compound_function");
+}
+function function_parameters(f) { return list_ref(f, 1); }
+<SHORT_SPACE/>
+function function_body(f) { return list_ref(f, 2); }
+<SHORT_SPACE/>
+function function_environment(f) { return list_ref(f, 3); }
+      </PYTHON>
+    </SNIPPET>
+    <SNIPPET PAGE="377"  HIDE="yes">
+      <NAME>make_procedure_example</NAME>
+      <REQUIRES>enclosing_environment</REQUIRES>
+      <PYTHON>
+const my_function = 
+    make_function(
+        list("x", "y"),
+        list("return_statement", parse("x + y;")),
+        the_empty_environment);
+display(is_compound_function(my_function));
+display(function_parameters(my_function));
+display(function_body(my_function));
+display(function_environment(my_function));
+      </PYTHON>
+      <PYTHON_TEST>
+const my_function = 
+    make_function(
+        list("x", "y"),
+        list("return_statement", parse("x + y;")),
+        the_empty_environment);
+is_compound_function(my_function);
+function_body(my_function);
+function_environment(my_function);
+function_parameters(my_function);
+      </PYTHON_TEST>
+    </SNIPPET>
+  </TEXT>
+
+  <SPLIT>
+    <SCHEME>
+    </SCHEME>
+    
+    <PYTHON>
+      
+      <SUBHEADING>
+	<NAME>Representing return values</NAME>
+      </SUBHEADING>
+
+      <TEXT>
+	We saw in section<SPACE/><REF NAME="sec:core-of-evaluator"/> that the
+	evaluation of a sequence terminates when a return statement
+	is encountered, and that the evaluation of a function application needs
+	to return the value <PYTHONINLINE>undefined</PYTHONINLINE> if
+	the evaluation of the function body does not encounter a
+	return statement. In order to recognize that a value resulted from a
+	<INDEX>return value<SUBINDEX>representation in metacircular evaluator</SUBINDEX></INDEX>
+	return statement, we introduce <EM>return values</EM> as evaluator data
+	structures.
+	<SNIPPET PAGE="366" POSTPADDING="no">
+	  <INDEX><DECLARATION>make_return_value</DECLARATION></INDEX>
+	  <INDEX><DECLARATION>is_return_value</DECLARATION></INDEX>
+	  <INDEX><DECLARATION>return_value_content</DECLARATION></INDEX>
+	  <NAME>return_value</NAME>
+	  <REQUIRES>tagged_list</REQUIRES>
+	  <EXAMPLE>return_value_example</EXAMPLE>
+	  <EXPECTED>42</EXPECTED>
+	  <PYTHON>
+function make_return_value(content) {
+    return list("return_value", content);
+}
+function is_return_value(value) {
+    return is_tagged_list(value, "return_value");
+}
+function return_value_content(value) {
+    return head(tail(value));
+}
+	  </PYTHON>
+	</SNIPPET>
+	<SNIPPET PAGE="377"  HIDE="yes">
+	  <NAME>return_value_example</NAME>
+	  <REQUIRES>enclosing_environment</REQUIRES>
+	  <PYTHON>
+const my_return_value = make_return_value(42);
+display(is_return_value(my_return_value));
+display(return_value_content(my_return_value));
+	  </PYTHON>
+	  <PYTHON_TEST>
+const my_return_value = make_return_value(42);
+is_return_value(my_return_value);
+return_value_content(my_return_value);
+	  </PYTHON_TEST>
+	</SNIPPET>
+      </TEXT>
+    </PYTHON>
+  </SPLIT>
+
+  <SUBHEADING>
+    <NAME>Operations on Environments</NAME>
+  </SUBHEADING>
+
+  <LABEL NAME="sec:operations-on-environments"/>
+
+  <TEXT>
+    The evaluator needs operations for
+    <INDEX>metacircular evaluator for Python<SUBINDEX>environment operations</SUBINDEX></INDEX>
+    <INDEX>symbol(s)<SUBINDEX>in environment operations</SUBINDEX></INDEX>
+    manipulating environments.  As explained
+    in section<SPACE/><REF NAME="sec:environment-model"/>, an environment is a
+    sequence of frames, where each frame is a table of bindings that associate
+    <SPLITINLINE>
+      <SCHEME>variables</SCHEME>
+      <PYTHON>symbols</PYTHON>
+    </SPLITINLINE>
+    with their corresponding values.  We use the following operations for
+    manipulating environments:
+    <SPLIT>
+      <SCHEME>
+	<UL>
+	  <LI>
+	    <SCHEMEINLINE>(lookup-variable-value </SCHEMEINLINE>
+	    <LATEXINLINE>var env</LATEXINLINE><SCHEMEINLINE>)</SCHEMEINLINE>
+	  <INDEX><USE>lookup-variable-value</USE></INDEX> 
+	  <P>
+	    returns the value that is bound to the symbol
+	    <LATEXINLINE>var</LATEXINLINE> in the environment
+	    <LATEXINLINE>env</LATEXINLINE>, or signals an error if the variable
+	    is unbound.
+	  </P>
+	  </LI>
+	  <LI>
+	    <SCHEMEINLINE>(extend-environment </SCHEMEINLINE>
+	    <LATEXINLINE>variables values base-env</LATEXINLINE>
+	    <SCHEMEINLINE>)</SCHEMEINLINE>
+	    <INDEX><USE>extend-environment</USE></INDEX> 
+	    <P>
+	      returns a new environment, consisting of a new frame in which the
+	      symbols in the list <LATEXINLINE>variables</LATEXINLINE> are bound
+	      to the corresponding elements in the list
+	      <LATEXINLINE>values</LATEXINLINE>, where the enclosing environment
+	      is the environment <LATEXINLINE>base-env</LATEXINLINE>.
+	    </P>
+	  </LI>
+	  <LI>
+	    <SCHEMEINLINE>(define-variable! </SCHEMEINLINE>
+	    <LATEXINLINE>var value env</LATEXINLINE>
+	    <SCHEMEINLINE>)</SCHEMEINLINE>
+	    <INDEX><USE>define-variable!</USE></INDEX> 
+	    <P>
+	      adds to the first frame in the environment
+	      <LATEXINLINE>env</LATEXINLINE> a new binding that associates the
+	      variable <LATEXINLINE>var</LATEXINLINE> with the value
+	      <LATEXINLINE>value</LATEXINLINE>.
+	    </P>
+	  </LI>
+	  <LI>
+	    <SCHEMEINLINE>(set-variable-value! </SCHEMEINLINE>
+	    <LATEXINLINE>var value env</LATEXINLINE>
+	    <SCHEMEINLINE>)</SCHEMEINLINE>
+	    <INDEX><USE>set-variable-value!</USE></INDEX> 
+	    <P>
+	      changes the binding of the variable <LATEXINLINE>var</LATEXINLINE>
+	      in the environment <LATEXINLINE>env</LATEXINLINE> so that the
+	      variable is now bound to the value
+	      <LATEXINLINE>value</LATEXINLINE>, or signals an error if the
+	      variable is unbound.
+	    </P>
+	  </LI>
+
+	</UL>
+      </SCHEME>
+      <PYTHON>
+	<UL>
+	  <LI>
+	    <PYTHONINLINE>lookup_symbol_value(</PYTHONINLINE><META>symbol</META><PYTHONINLINE>,</PYTHONINLINE> <META>env</META><PYTHONINLINE>)</PYTHONINLINE>
+	    <INDEX><USE>lookup_symbol_value</USE></INDEX> 
+	  <BREAK/>
+	  returns the value that is bound to
+	  <META>symbol</META> in the environment
+	  <META>env</META>, or signals an error if
+	  <META>symbol</META> is unbound.
+	  </LI>
+	  <LI>
+	    <PYTHONINLINE>extend_environment(</PYTHONINLINE><META>symbols</META><PYTHONINLINE>,</PYTHONINLINE> <META>values</META><PYTHONINLINE>,</PYTHONINLINE> <META>base-env</META><PYTHONINLINE>)</PYTHONINLINE>
+	    <INDEX><USE>extend_environment</USE></INDEX> 
+	    <BREAK/>
+	    returns a new environment, consisting of a new frame in which the
+	    symbols in the list <META>symbols</META>
+	    are bound to the corresponding elements in the list
+	    <META>values</META>, where the enclosing
+	    environment is the environment
+	    <META>base-env</META>.
+	  </LI>
+	  <LI>
+	    <PYTHONINLINE>assign_symbol_value(</PYTHONINLINE><META>symbol</META><PYTHONINLINE>,</PYTHONINLINE> <META>value</META><PYTHONINLINE>,</PYTHONINLINE> <META>env</META><PYTHONINLINE>)</PYTHONINLINE>
+	    <INDEX><USE>assign_symbol_value</USE></INDEX> 
+	    <BREAK/>
+	    finds the innermost frame of
+	    <META>env</META>
+	    in which <META>symbol</META>
+	    is bound, and changes that frame
+	    so that
+	    <META>symbol</META>
+	    is now bound to 
+	    <META>value</META>, or signals an
+	    error if <META>symbol</META> is
+	    unbound.
+	  </LI>
+	</UL>
+      </PYTHON>
+    </SPLIT>
+  </TEXT>
+  <TEXT>
+    To implement these operations we
+    <INDEX>metacircular evaluator for Python<SUBINDEX>representation of environments<OPEN/></SUBINDEX></INDEX>
+    represent an environment as a list of
+    frames.  The enclosing environment of an environment is the
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>cdr</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>tail</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    of the list.  The empty environment is simply the empty list.
+    <SNIPPET PAGE="378">
+      <INDEX><DECLARATION>enclosing_environment</DECLARATION></INDEX>
+      <INDEX><DECLARATION>first_frame</DECLARATION></INDEX>
+      <INDEX><DECLARATION>the_empty_environment</DECLARATION></INDEX>
+      <NAME>enclosing_environment</NAME>
+      <EXAMPLE>enclosing_environment_example</EXAMPLE>
+      <EXPECTED>null</EXPECTED>
+      <SCHEME>
+(define (enclosing-environment env) (cdr env))
+
+(define (first-frame env) (car env))
+
+(define the-empty-environment '())
+      </SCHEME>
+      <PYTHON>
+function enclosing_environment(env) { return tail(env); }
+<SHORT_SPACE/>
+function first_frame(env) { return head(env); }
+<SHORT_SPACE/>
+const the_empty_environment = null;
+      </PYTHON>  
+    </SNIPPET>
+    <SNIPPET PAGE="378" HIDE="yes">
+      <NAME>enclosing_environment_example</NAME>
+      <PYTHON>
+the_empty_environment;	
+      </PYTHON>
+    </SNIPPET>
+    Each frame of an environment is represented as a pair of lists: a list
+    of the
+    <SPLITINLINE>
+      <SCHEME>variables</SCHEME>
+      <PYTHON>names</PYTHON>
+    </SPLITINLINE>
+    bound in that frame and a list of the associated
+    values.<FOOTNOTE>Frames are not really a data
+    <SPLITINLINE>
+      <SCHEME>
+	abstraction in the following code:
+      </SCHEME>
+      <PYTHON>
+	abstraction:
+      </PYTHON>
+    </SPLITINLINE>
+    <SPLITINLINE>
+      <SCHEME>
+	<SCHEMEINLINE>set-variable-value!</SCHEMEINLINE>
+	and 
+	<SCHEMEINLINE>define-variable!</SCHEMEINLINE>
+	use <SCHEMEINLINE>set-car!</SCHEMEINLINE>
+	to directly modify the values in a frame.
+      </SCHEME>
+      <PYTHON>
+	The function
+	<PYTHONINLINE>assign_symbol_value</PYTHONINLINE>
+	below uses
+	<PYTHONINLINE>set_head</PYTHONINLINE>
+	to directly modify the values in a frame.
+      </PYTHON>
+    </SPLITINLINE>
+    The purpose of the frame
+    <SPLITINLINE><SCHEME>procedures</SCHEME>
+    <PYTHON>functions</PYTHON></SPLITINLINE>
+    is to make the environment-manipulation
+    <SPLITINLINE><SCHEME>procedures</SCHEME>
+    <PYTHON>functions</PYTHON></SPLITINLINE>
+    easy to read.</FOOTNOTE>
+    <SNIPPET PAGE="378" HIDE="yes">
+      <NAME>make_frame_example</NAME>
+      <PYTHON>
+const my_frame = make_frame(list("x", "y"), list(1, 2));
+frame_symbols(my_frame);
+      </PYTHON>
+    </SNIPPET>
+    <SNIPPET PAGE="378">
+      <INDEX><DECLARATION>make_frame</DECLARATION></INDEX>
+      <INDEX><DECLARATION>frame_symbols</DECLARATION></INDEX>
+      <INDEX><DECLARATION>frame_values</DECLARATION></INDEX>
+      <NAME>make_frame</NAME>
+      <EXAMPLE>make_frame_example</EXAMPLE>
+      <EXPECTED>[ 'x', [ 'y', null ] ]</EXPECTED>
+      <SCHEME>
+(define (make-frame variables values)
+  (cons variables values))
+
+(define (frame-variables frame) (car frame))
+(define (frame-values frame) (cdr frame))
+
+(define (add-binding-to-frame! var val frame)
+  (set-car! frame (cons var (car frame)))
+  (set-cdr! frame (cons val (cdr frame))))
+      </SCHEME>
+      <PYTHON>
+function make_frame(symbols, values) { return pair(symbols, values); }
+<SHORT_SPACE/>
+function frame_symbols(frame) { return head(frame); }
+<SHORT_SPACE/>
+function frame_values(frame) { return tail(frame); }
+      </PYTHON>
+    </SNIPPET>
+  </TEXT>
+
+  <TEXT>
+    To extend an environment by a new frame that associates
+    <SPLITINLINE>
+      <SCHEME>variables</SCHEME>
+      <PYTHON>symbols</PYTHON>
+    </SPLITINLINE>
+    with values, we make a frame consisting of the list of
+    <SPLITINLINE>
+      <SCHEME>variables</SCHEME>
+      <PYTHON>symbols</PYTHON>
+    </SPLITINLINE>
+    and the list of values, and we adjoin this to the environment.  We signal
+    an error if the number of
+    <SPLITINLINE>
+      <SCHEME>variables</SCHEME>
+      <PYTHON>symbols</PYTHON>
+    </SPLITINLINE>
+    does not match the number of values.
+    <SNIPPET PAGE="379">
+      <INDEX><DECLARATION>extend_environment</DECLARATION></INDEX> 
+      <NAME>extend_environment</NAME>
+      <EXAMPLE>extend_environment_example</EXAMPLE>
+      <EXPECTED>[ 1, [ 2, [ 3, null ] ] ]</EXPECTED>
+      <SCHEME>
+(define (extend-environment vars vals base-env)
+  (if (= (length vars) (length vals))
+      (cons (make-frame vars vals) base-env)
+      (if (&lt; (length vars) (length vals))
+          (error "Too many arguments supplied" vars vals)
+          (error "Too few arguments supplied" vars vals))))
+      </SCHEME>
+      <PYTHON>
+function extend_environment(symbols, vals, base_env) {
+    return length(symbols) === length(vals)
+           ? pair(make_frame(symbols, vals), base_env)
+           : error(pair(symbols, vals), 
+                   length(symbols) &lt; length(vals)
+                   ? "too many arguments supplied"
+                   : "too few arguments supplied");
+}
+      </PYTHON>
+      <PYTHON_RUN>
+function extend_environment(symbols, vals, base_env) {
+    return length(symbols) === length(vals)
+           ? pair(make_frame(symbols, vals), base_env)
+           : length(symbols) &lt; length(vals)
+           ? error("too many arguments supplied: " + 
+                   stringify(symbols) + ", " + 
+                   stringify(vals))
+           : error("too few arguments supplied: " + 
+                   stringify(symbols) + ", " + 
+                   stringify(vals));
+}
+      </PYTHON_RUN>
+    </SNIPPET>
+    <SNIPPET PAGE="378" HIDE="yes">
+      <NAME>extend_environment_example</NAME>
+      <REQUIRES>enclosing_environment</REQUIRES>
+      <REQUIRES>make_frame</REQUIRES>
+      <SCHEME>
+      </SCHEME>
+      <PYTHON>
+extend_environment(list("x", "y", "z"),
+                   list(1, 2, 3),
+                   the_empty_environment);
+      </PYTHON>
+      <PYTHON_TEST>
+tail(head(extend_environment(list("x", "y", "z"),
+                   list(1, 2, 3),
+                   the_empty_environment)));
+      </PYTHON_TEST>
+    </SNIPPET>
+    <SPLITINLINE>
+      <PYTHON>
+	This is used by <PYTHONINLINE>apply</PYTHONINLINE> in
+	section<SPACE/><REF NAME="sec:core-of-evaluator"/> to bind the
+	parameters of a function to its arguments. 
+      </PYTHON>
+    </SPLITINLINE>
+  </TEXT>
+
+  <TEXT>
+    To look up a
+    <SPLITINLINE>
+      <SCHEME>variable</SCHEME>
+      <PYTHON>symbol</PYTHON>
+    </SPLITINLINE>
+    in an environment, we scan the list of
+    <SPLITINLINE>
+      <SCHEME>variables</SCHEME>
+      <PYTHON>symbols</PYTHON>
+    </SPLITINLINE>
+    in the first frame.  If we find the desired
+    <SPLITINLINE>
+      <SCHEME>variable,</SCHEME>
+      <PYTHON>symbol,</PYTHON>
+    </SPLITINLINE>
+    we return the corresponding element in the list of values. If we do not
+    find the
+    <SPLITINLINE>
+      <SCHEME>variable</SCHEME>
+      <PYTHON>symbol</PYTHON>
+    </SPLITINLINE>
+    in the current frame, we search the enclosing environment, and so on.
+    If we reach the empty environment, we signal an
+    <SPLITINLINE>
+      <SCHEME>
+	<QUOTE>unbound
+	variable</QUOTE>
+      </SCHEME>
+      <PYTHON>
+	<PYTHONINLINE>"unbound name"</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>  
+    error.
+    <SNIPPET PAGE="379">
+      <INDEX><DECLARATION>lookup_symbol_value</DECLARATION></INDEX>
+      <NAME>lookup_variable_value</NAME>
+      <EXAMPLE>lookup_variable_value_example</EXAMPLE>
+      <EXPECTED>1</EXPECTED>
+      <SCHEME>
+(define (lookup-variable-value var env)
+  (define (env-loop env)
+    (define (scan vars vals)
+      (cond ((null? vars)
+             (env-loop (enclosing-environment env)))
+            ((eq? var (car vars))
+             (car vals))
+            (else (scan (cdr vars) (cdr vals)))))
+    (if (eq? env the-empty-environment)
+        (error "Unbound variable" var)
+        (let ((frame (first-frame env)))
+          (scan (frame-variables frame)
+                (frame-values frame)))))
+  (env-loop env))
+      </SCHEME>
+      <PYTHON>
+function lookup_symbol_value(symbol, env) {
+    function env_loop(env) {
+        function scan(symbols, vals) {
+            return is_null(symbols)
+                   ? env_loop(enclosing_environment(env))
+                   : symbol === head(symbols)
+                   ? head(vals)
+                   : scan(tail(symbols), tail(vals));
+        }
+        if (env === the_empty_environment) {
+            error(symbol, "unbound name");
+        } else {
+            const frame = first_frame(env);
+            return scan(frame_symbols(frame), frame_values(frame));
+        }
+    }
+    return env_loop(env);
+}
+      </PYTHON>
+    </SNIPPET>
+    <SNIPPET PAGE="378" HIDE="yes">
+      <NAME>lookup_variable_value_example</NAME>
+      <REQUIRES>enclosing_environment</REQUIRES>
+      <REQUIRES>extend_environment</REQUIRES>
+      <REQUIRES>make_frame</REQUIRES>
+      <SCHEME>
+      </SCHEME>
+      <PYTHON>
+const my_environment =
+    extend_environment(list("x", "y", "z"),
+                       list(1, 2, 3),
+                       the_empty_environment);
+
+lookup_symbol_value("x", my_environment);
+      </PYTHON>
+    </SNIPPET>
+  </TEXT>
+
+  <TEXT>
+    <SPLIT>
+      <SCHEME>To set a variable
+      to a new value in a specified environment, we scan
+      for the variable, just as in 
+      <SCHEMEINLINE>lookup-variable-value</SCHEMEINLINE>,
+      and change the corresponding value when we find it.
+      </SCHEME>
+      <PYTHON>To assign 
+      a new value to a symbol in a specified environment, we scan
+      for the symbol, just as in 
+      <PYTHONINLINE>lookup_symbol_value</PYTHONINLINE>,
+      and change the corresponding value when we find it.
+      </PYTHON>
+    </SPLIT>
+    <SNIPPET PAGE="379">
+      <INDEX><DECLARATION>assign_symbol_value</DECLARATION></INDEX>
+      <NAME>assign_name_value</NAME>
+      <EXAMPLE>assign_name_value_example</EXAMPLE>
+      <EXPECTED>2</EXPECTED>
+      <SCHEME>
+(define (set-variable-value! var val env)
+  (define (env-loop env)
+    (define (scan vars vals)
+      (cond ((null? vars)
+             (env-loop (enclosing-environment env)))
+            ((eq? var (car vars))
+             (set-car! vals val))
+            (else (scan (cdr vars) (cdr vals)))))
+    (if (eq? env the-empty-environment)
+        (error "Unbound variable - - SET!" var)
+        (let ((frame (first-frame env)))
+          (scan (frame-variables frame)
+                (frame-values frame)))))
+  (env-loop env))
+      </SCHEME>
+      <PYTHON>
+function assign_symbol_value(symbol, val, env) {
+    function env_loop(env) {
+        function scan(symbols, vals) {
+            return is_null(symbols)
+                   ? env_loop(enclosing_environment(env))
+                   : symbol === head(symbols)
+                   ? set_head(vals, val)
+                   : scan(tail(symbols), tail(vals));
+        } 
+        if (env === the_empty_environment) {
+            error(symbol, "unbound name -- assignment");
+        } else {
+            const frame = first_frame(env);
+            return scan(frame_symbols(frame), frame_values(frame));
+        }
+    }
+    return env_loop(env);
+}
+      </PYTHON>
+    </SNIPPET>
+    <SNIPPET PAGE="378" HIDE="yes">
+      <NAME>assign_name_value_example</NAME>
+      <REQUIRES>functions_4_1_1</REQUIRES>
+      <REQUIRES>functions_4_1_2</REQUIRES>
+      <REQUIRES>functions_4_1_3</REQUIRES>
+      <REQUIRES>functions_4_1_4</REQUIRES>
+      <SCHEME>
+      </SCHEME>
+      <PYTHON>
+const my_block = parse("{ let x = 1; x = 2; }");
+evaluate(my_block, the_global_environment);
+      </PYTHON>
+    </SNIPPET>
+  </TEXT>
+
+  <SPLIT>
+    <SCHEME>
+      <TEXT>
+        To define a variable,
+        we search the first frame for a binding for
+        the variable, and change the binding if it exists
+	(just as in 
+	<SCHEMEINLINE>set-variable-value!</SCHEMEINLINE>.
+	If no such binding exists, we adjoin one to the first frame.
+	<SNIPPET PAGE="380">
+	  <NAME>define_variable</NAME>
+	  <SCHEME>
+(define (define-variable! var val env)
+  (let ((frame (first-frame env)))
+    (define (scan vars vals)
+      (cond ((null? vars)
+             (add-binding-to-frame! var val frame))
+            ((eq? var (car vars))
+             (set-car! vals val))
+            (else (scan (cdr vars) (cdr vals)))))
+    (scan (frame-variables frame)
+          (frame-values frame))))
+	  </SCHEME>
+	</SNIPPET>
+      </TEXT>
+    </SCHEME>
+    <PYTHON>
+    </PYTHON>
+  </SPLIT>
+
+  <SHORT_PAGE lines="2"/>
+  <TEXT>
+    The method described here is only one of many plausible ways to represent
+    environments.  Since we used
+    <INDEX>metacircular evaluator for Python<SUBINDEX>data abstraction in</SUBINDEX></INDEX>
+    data abstraction to isolate the rest of the
+    evaluator from the detailed choice of representation, we could change the
+    environment representation if we wanted to.  (See
+    exercise<SPACE/><REF NAME="ex:alternate-frame-representation"/>.)  In a
+    production-quality
+    <SPLITINLINE>
+      <SCHEME>Lisp</SCHEME>
+      <PYTHON>Python</PYTHON>
+    </SPLITINLINE>
+    system, the speed of the evaluator<APOS/>s environment
+    operations<EMDASH/>especially that of
+    <SPLITINLINE>
+      <SCHEME>variable</SCHEME>
+      <PYTHON>symbol</PYTHON>
+    </SPLITINLINE>
+    lookup<EMDASH/>has a major
+    impact on the performance of the system.  The representation described here,
+    although conceptually simple, is not efficient and would not ordinarily be
+    used in a production system.<FOOTNOTE>The drawback of this representation (as
+    well as the variant in
+    exercise<SPACE/><REF NAME="ex:alternate-frame-representation"/>) is that the
+    evaluator may have to search through many frames in order to find the binding
+    for a given variable.
+    (Such an approach is referred to as
+    <INDEX>deep binding</INDEX>
+    <INDEX>binding<SUBINDEX>deep</SUBINDEX></INDEX>
+    <EM>deep binding</EM>.) One way to avoid
+    this inefficiency is to make use of a strategy called
+	<EM>lexical addressing</EM>, which will be discussed in
+	section<SPACE/><REF NAME="sec:lexical-addressing"/>.
+  </FOOTNOTE>
+
+  <INDEX>metacircular evaluator for Python<SUBINDEX>representation of environments<CLOSE/></SUBINDEX></INDEX>
+
+  </TEXT>
+
+  <SNIPPET PAGE="383" HIDE="yes">
+    <NAME>functions_4_1_3</NAME>
+    <REQUIRES>headline_4_1_3</REQUIRES>
+    <REQUIRES>true</REQUIRES>
+    <REQUIRES>make_procedure</REQUIRES>
+    <REQUIRES>return_value</REQUIRES>
+    <REQUIRES>enclosing_environment</REQUIRES>
+    <REQUIRES>make_frame</REQUIRES>
+    <REQUIRES>extend_environment</REQUIRES>
+    <REQUIRES>lookup_variable_value</REQUIRES>
+    <REQUIRES>assign_name_value</REQUIRES>
+    <PYTHON></PYTHON>
+  </SNIPPET>
+
+  <EXERCISE>
+    <LABEL NAME="ex:alternate-frame-representation"/>
+    Instead of representing a frame as a pair of lists, we can represent a frame
+    as a list of bindings, where each binding is a symbol-value pair. Rewrite the
+    environment operations to use this alternative representation.            
+  </EXERCISE>
+
+  <EXERCISE>
+    The
+    <SPLITINLINE>
+      <SCHEME>procedures</SCHEME>
+      <PYTHON>functions</PYTHON>
+    </SPLITINLINE>
+    <SPLITINLINE>
+      <SCHEME>
+	<SCHEMEINLINE>set-variable-value!</SCHEMEINLINE>,
+	<SCHEMEINLINE>define-variable!</SCHEMEINLINE>, and
+	<SCHEMEINLINE>lookup-variable-value</SCHEMEINLINE> 
+      </SCHEME>
+      <PYTHON>
+	<PYTHONINLINE>lookup_symbol_value</PYTHONINLINE> and
+	<PYTHONINLINE>assign_symbol_value</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    can be expressed in terms of 
+    <SPLITINLINE>
+      <SCHEME>more abstract procedures</SCHEME>
+      <PYTHON>a more abstract function</PYTHON>
+    </SPLITINLINE>
+    for traversing the environment structure. 
+    <SPLITINLINE>
+      <SCHEME>
+	Define abstractions that capture the common patterns and redefine the
+	three procedures in terms of these abstractions.
+      </SCHEME>
+      <PYTHON>
+	Define an abstraction that captures the common pattern and redefine the
+	two functions in terms of this abstraction.
+      </PYTHON>
+    </SPLITINLINE>
+    <LABEL NAME="ex:4_10"/>
+  </EXERCISE>
+  
+  <EXERCISE>
+    <LABEL NAME="ex:mutable"/>
+    <SPLIT>
+      <SCHEME>
+	Scheme allows us to create new bindings for variables by means of
+	<SCHEMEINLINE>define</SCHEMEINLINE>, but provides no way to get rid of
+	bindings.  Implement for the evaluator a special form
+	<SCHEMEINLINE>make-unbound!</SCHEMEINLINE> that removes the binding of a
+	given symbol from the environment in which the
+	<SCHEMEINLINE>make-unbound!</SCHEMEINLINE> expression is evaluated. This
+	problem is not completely specified.  For example, should we remove only
+	the binding in the first frame of the environment?  Complete the
+	specification and justify any choices you make.
+	<LABEL NAME="ex:make-unbound_scheme"/>
+      </SCHEME>
+      <PYTHON>
+	Our language distinguishes constants from variables by using 
+	different keywords<EMDASH/><PYTHONINLINE>const</PYTHONINLINE>
+	and <PYTHONINLINE>let</PYTHONINLINE><EMDASH/>and prevents
+	assignment to constants. However, our interpreter
+	does not make use of this distinction; the function
+	<PYTHONINLINE>assign_symbol_value</PYTHONINLINE> will happily
+	assign a new value to a given symbol, regardless whether it is declared
+	as a constant or a variable.
+	<INDEX>constant (in Python)<SUBINDEX>detecting assignment to</SUBINDEX></INDEX>
+	Correct this flaw by calling the function
+	<PYTHONINLINE>error</PYTHONINLINE> whenever an attempt is
+	made to use a constant on the left-hand side of an assignment.
+	You may proceed as follows:
+	<UL>
+	  <LI>
+	    Introduce predicates
+	    <PYTHONINLINE>is_constant_declaration</PYTHONINLINE>
+	    and
+	    <PYTHONINLINE>is_variable_declaration</PYTHONINLINE>
+	    that allow you to distinguish the two kinds. As shown in
+	    section<SPACE/><REF NAME="sec:representing-expressions"/>,
+	    <PYTHONINLINE>parse</PYTHONINLINE> 
+	    distinguishes them by using the tags
+	    <PYTHONINLINE>"constant_declaration"</PYTHONINLINE>
+	    and
+	    <PYTHONINLINE>"variable_declaration"</PYTHONINLINE>.
+	  </LI>
+	  <LI>
+	    Change 
+	    <PYTHONINLINE>scan_out_declarations</PYTHONINLINE>
+	    and (if necessary)
+	    <PYTHONINLINE>extend_environment</PYTHONINLINE>
+	    such that constants are distinguishable from variables in
+	    the frames in which they are bound.
+	  </LI>
+	  <LI>
+	    Change 
+	    <PYTHONINLINE>assign_symbol_value</PYTHONINLINE> such
+	    that it checks whether the given symbol has been declared as
+	    a variable or as a constant, and in the latter case signals
+	    an error that assignment operations are not allowed on constants.
+	  </LI>
+	  <LI>
+	    Change
+	    <PYTHONINLINE>eval_declaration</PYTHONINLINE>
+	    such that when it encounters a constant declaration,
+	    it calls a new function, 
+	    <PYTHONINLINE>assign_constant_value</PYTHONINLINE>, which
+	    does not perform the check that you introduced in
+	    <PYTHONINLINE>assign_symbol_value</PYTHONINLINE>.
+	  </LI>
+	  <LI>
+	    If necessary, change
+	    <PYTHONINLINE>apply</PYTHONINLINE> to ensure that
+	    assignment to function parameters remains possible.
+	  </LI>
+	</UL>
+      </PYTHON>
+    </SPLIT>
+  </EXERCISE>
+
+  <EXERCISE>
+    <LABEL NAME="ex:access_unassigned"/>    
+    <OL>
+	  <LI>
+	    Python's specification requires an implementation to
+	    signal a runtime error upon an attempt to access the
+	    value of a name before its declaration is evaluated (see
+	    the end of section<SPACE/><REF NAME="sec:env-internal-def"/>).
+	    To achieve this behavior in the evaluator,
+	    <INDEX><USE>lookup_symbol_value</USE><SUBINDEX>for scanned-out declarations</SUBINDEX><FRAGILE/></INDEX>
+	    change <PYTHONINLINE>lookup_symbol_value</PYTHONINLINE>
+	    to signal an error if the value it finds is
+	    <PYTHONINLINE>"*unassigned*"</PYTHONINLINE>.
+	  </LI>
+	  <LI>
+	    Similarly, we must not assign a new value to a variable if
+	    we have not evaluated its <PYTHONINLINE>let</PYTHONINLINE>
+	    declaration yet. Change the evaluation of assignment
+	    such that assignment to a variable declared with
+	    <PYTHONINLINE>let</PYTHONINLINE> signals an error
+	    in this case.
+	  </LI>
+	  <!-- Julie and Martin agree that this part of the question is impenetrable -->
+	  <!--
+	  <LI>
+	    Following good programming practice, Eva Lu Ator declares a constant
+	    at the beginning of her evaluator for parts (a) and (b) to specify
+	    the string to use to indicate that a name is not assigned yet:
+	    <SNIPPET EVAL="no">
+	      <PYTHON>
+const unassigned_string = "*unassigned*";
+...
+	      </PYTHON>
+	    </SNIPPET>
+	    She updates the function
+	    <PYTHONINLINE>list_of_unassigned</PYTHONINLINE> and
+	    her modified functions for parts (a) and (b) accordingly.
+	    She then tries to apply the metacircular evaluator to
+	    itself (why not?), by passing the whole evaluator as argument
+	    to
+	    <PYTHONINLINE>evaluate</PYTHONINLINE>. Along with
+	    the evaluator, she passes an application of the (interpreted)
+	    <PYTHONINLINE>evaluate</PYTHONINLINE> function to
+	    the result of parsing a program <LATEXINLINE>$p$</LATEXINLINE>
+	    in which she includes the declaration of a name.
+	    She observes strange errors when running <LATEXINLINE>$p$</LATEXINLINE>
+	    in her meta-metacircular evaluator that stem from her decision
+	    to declare the name
+	    <PYTHONINLINE>unassigned_string</PYTHONINLINE>.
+	    Explain the problem.
+	  </LI> 
+	  -->
+    </OL>
+  </EXERCISE>
+  
+  <SPLIT>
+    <PYTHON>
+	<EXERCISE>
+	  <LABEL NAME="ex:var_js"/>
+	  Prior to ECMAScript 2015's strict mode that we are using in this book,
+	  Python variables
+	  worked quite differently from Scheme variables, which would have made
+	this adaptation to Python considerably less compelling.
+	<OL>
+	  <LI>
+	    Before ECMAScript 2015, the only way to declare a local variable in
+	    Python was using the keyword
+	    <PYTHONINLINE>var</PYTHONINLINE>
+	    instead of the keyword <PYTHONINLINE>let</PYTHONINLINE>.
+	    The scope of variables declared with
+	    <PYTHONINLINE>var</PYTHONINLINE> is the entire body of the
+	    immediately surrounding function declaration or lambda expression,
+	    rather than just the immediately enclosing block. Modify
+	    <PYTHONINLINE>scan_out_declarations</PYTHONINLINE> and 
+	    <PYTHONINLINE>eval_block</PYTHONINLINE> such that
+	    names declared with <PYTHONINLINE>const</PYTHONINLINE> and
+	    <PYTHONINLINE>let</PYTHONINLINE> follow the scoping rules
+	    of <PYTHONINLINE>var</PYTHONINLINE>.
+	  </LI>
+	  <LI>
+	    When not in strict mode, Python permits undeclared
+	    names to appear to the left of the
+	    <PYTHONINLINE>=</PYTHONINLINE> in assignments. 
+	    Such an assignment adds the new binding to the global
+	    environment. Modify the function 
+	    <PYTHONINLINE>assign_symbol_value</PYTHONINLINE>
+	    to make assignment behave this way. The strict mode, which forbids
+	    such assignments, was introduced
+	    in Python in order to make programs more secure. What
+	    security issue is addressed by preventing assignment from
+	    adding bindings to the global environment?
+	  </LI>
+	</OL>
+	</EXERCISE>
+    </PYTHON>
+  </SPLIT>
+  
+  
+</SUBSECTION>
+

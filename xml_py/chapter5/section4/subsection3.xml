@@ -1,0 +1,363 @@
+<SUBSECTION>
+  <NAME>
+    <SPLITINLINE>
+      <SCHEME>
+        Conditionals, Assignments and Definitions
+      </SCHEME>
+      <PYTHON>
+        Blocks, Assignments, and Declarations
+      </PYTHON>
+    </SPLITINLINE>
+  </NAME>
+
+  <LABEL NAME="sec:block-assign-def-evaluation"/>
+  
+  <SPLIT>
+    <SCHEME>
+  
+  <LABEL NAME="sec:cond-assign-def-evaluation"/>
+  <TEXT>
+    As with the metacircular evaluator, special syntactic forms are handled by selectively
+    evaluating fragments of the expression. For an <SCHEMEINLINE>if</SCHEMEINLINE>
+    expression, we must evaluate the predicate and decide, based on the value of
+    predicate, whether to evaluate the consequent or the alternative.
+  </TEXT>
+
+  <TEXT>
+    Before evaluating the predicate, we save the <SCHEMEINLINE>if</SCHEMEINLINE>
+    expression itself so that we can later extract the consequent or alternative. We also
+    save the environment, which we will need later in order to evaluate the consequent or
+    the alternative, and we save <SCHEMEINLINE>continue</SCHEMEINLINE>, which we will need
+    later in order to return to the evaluation of the expression that is waiting for the
+    value of the <SCHEMEINLINE>if</SCHEMEINLINE>.
+    <SNIPPET EVAL="no">
+      <SCHEME>
+ev-if
+(save exp)                    <EM>; save expression for later</EM>
+(save env)
+(save continue)
+(assign continue (label ev-if-decide))
+(assign exp (op if-predicate) (reg exp))
+(goto (label eval-dispatch))  <EM>; evaluate the predicate</EM>
+      </SCHEME>
+    </SNIPPET>
+  </TEXT>
+
+  <TEXT>
+    When we return from evaluating the predicate, we test whether it was true or false
+    and, depending on the result, place either the consequent or the alternative in
+    <SCHEMEINLINE>exp</SCHEMEINLINE> before going to
+    <SCHEMEINLINE>eval-dispatch</SCHEMEINLINE>. Notice that restoring
+    <SCHEMEINLINE>env</SCHEMEINLINE> and <SCHEMEINLINE>continue</SCHEMEINLINE> here sets
+    up <SCHEMEINLINE>eval-dispatch</SCHEMEINLINE> to have the correct environment and to
+    continue at the right place to receive the value of the
+    <SCHEMEINLINE>if</SCHEMEINLINE> expression.
+    <SNIPPET EVAL="no">
+      <SCHEME>
+ev-if-decide
+(restore continue)
+(restore env)
+(restore exp)
+(test (op true?) (reg val))
+(branch (label ev-if-consequent))
+ev-if-alternative
+(assign exp (op if-alternative) (reg exp))
+(goto (label eval-dispatch))
+ev-if-consequent
+(assign exp (op if-consequent) (reg exp))
+(goto (label eval-dispatch))
+      </SCHEME>
+    </SNIPPET>
+  </TEXT>
+    </SCHEME>
+    <PYTHON>
+      <SUBHEADING> 
+        <NAME>Blocks</NAME>
+      </SUBHEADING>
+
+      <INDEX>explicit-control evaluator for Python<SUBINDEX>blocks</SUBINDEX></INDEX>
+      <INDEX>explicit-control evaluator for Python<SUBINDEX>declarations</SUBINDEX></INDEX>
+
+      <TEXT>
+        The body of a block is evaluated with respect to the current environment
+	extended by a frame that binds all local names to the value
+	<PYTHONINLINE>"*unassigned*"</PYTHONINLINE>. We temporarily
+        make use of the <PYTHONINLINE>val</PYTHONINLINE> register to
+	hold the list of all variables declared in the block, which is obtained
+	by 
+	<INDEX>scanning out declarations<SUBINDEX>in explicit-control evaluator</SUBINDEX></INDEX>
+	<PYTHONINLINE>scan_out_declarations</PYTHONINLINE>
+	from section<SPACE/><REF NAME="sec:core-of-evaluator"/>. The functions
+  <PYTHONINLINE>scan_@out_@declarations</PYTHONINLINE> and
+  <PYTHONINLINE>list_of_unassigned</PYTHONINLINE> are assumed
+  to be available as machine operations.<FOOTNOTE>
+	Footnote<SPACE/><REF NAME="foot:syntax-transformer"/>
+	suggests that an actual implementation would perform
+	syntax transformations before program execution.
+  In the same vein, names declared in blocks should be scanned out
+  in a preprocessing step rather than each time a block is evaluated.
+	</FOOTNOTE>
+	<SNIPPET EVAL="no" LATEX="yes" POSTPADDING="no">
+	  <INDEX><DECLARATION>ev_block</DECLARATION></INDEX>
+	  <PYTHON>
+"ev_block",
+  assign("comp", list(op("block_body"), reg("comp"))),
+  assign("val", list(op("scan_out_declarations"), reg("comp"))),
+
+  save("comp"),    // so we can use it to temporarily hold $\texttt{*unassigned*}$ values
+  assign("comp", list(op("list_of_unassigned"), reg("val"))),
+  assign("env", list(op("extend_environment"),
+                     reg("val"), reg("comp"), reg("env"))),
+  restore("comp"), // the block body
+  go_to(label("eval_dispatch")),
+	  </PYTHON>
+	</SNIPPET>
+      </TEXT>
+      <!-- Removed based on email with subject SICP JS: 5.4 Parse from Julie 2021-02-06 
+      <TEXT>
+    According to section<SPACE/><REF NAME="sec:representing-expressions"/>, all lambda
+    expressions and functions have a block as their body. However,
+    <PYTHONINLINE>compound_apply</PYTHONINLINE> does not jump to
+    <PYTHONINLINE>ev_block</PYTHONINLINE> but to the dispatcher, seemingly an
+    additional hoop. By deferring to the dispatcher rather than using a fixed label, we
+    open up for more flexible parsing, such as forgoing blocks when there are no variable
+    declarations (so no need to scan out declarations), or forgoing sequences where there
+    is only a single statement. If the parser follows the specification in
+    section<SPACE/><REF NAME="sec:representing-expressions"/>,
+    <PYTHONINLINE>compound_apply</PYTHONINLINE> will always jump (via the
+    dispatcher) to <PYTHONINLINE>ev_block</PYTHONINLINE>, and
+    <PYTHONINLINE>ev_block</PYTHONINLINE> will always jump (via the dispatcher) to
+    <PYTHONINLINE>ev_sequence</PYTHONINLINE>.
+      </TEXT>
+      -->
+    </PYTHON>
+  </SPLIT>
+  
+  <SUBHEADING> 
+    <NAME>
+      Assignments and
+      <SPLITINLINE>
+	<SCHEME>definitions</SCHEME>
+	<PYTHON>declarations</PYTHON>
+      </SPLITINLINE>
+    </NAME>
+  </SUBHEADING>
+
+  <TEXT>
+    Assignments
+    <INDEX>explicit-control evaluator for Python<SUBINDEX>assignments</SUBINDEX></INDEX>
+    are handled by
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>ev-assignment</SCHEMEINLINE>, which is</SCHEME>
+      <PYTHON><PYTHONINLINE>ev_assignment</PYTHONINLINE>,
+      </PYTHON>
+    </SPLITINLINE>
+    reached from
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>eval-dispatch</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>eval_@dispatch</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    with the assignment expression in <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>exp</SCHEMEINLINE>.</SCHEME>
+      <PYTHON><PYTHONINLINE>comp</PYTHONINLINE>.</PYTHON>
+    </SPLITINLINE> The
+    code at
+    <SPLITINLINE>
+      <SCHEME>
+      <SCHEMEINLINE>ev-assignment</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>ev_assignment</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    first evaluates the value part of the expression and then installs the new
+    value in the environment.
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>Set-variable-value!</SCHEMEINLINE></SCHEME>
+      <PYTHON>
+	The function
+	<PYTHONINLINE>assign_symbol_value</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    is assumed to be available as a machine operation.
+    <SNIPPET EVAL="no">
+      <INDEX><DECLARATION>ev_assignment</DECLARATION></INDEX> 
+      <SCHEME>
+ev-assignment
+(assign unev (op assignment-variable) (reg exp))
+(save unev)                   <EM>; save variable for later</EM>
+(assign exp (op assignment-value) (reg exp))
+(save env)
+(save continue)
+(assign continue (label ev-assignment-1))
+(goto (label eval-dispatch))  <EM>; evaluate the assignment value</EM>
+ev-assignment-1
+(restore continue)
+(restore env)
+(restore unev)
+(perform
+(op set-variable-value!) (reg unev) (reg val) (reg env))
+(assign val (const ok))
+(goto (reg continue))
+      </SCHEME>
+      <PYTHON>
+"ev_assignment",
+  assign("unev", list(op("assignment_symbol"), reg("comp"))),
+  save("unev"), // save variable for later
+  assign("comp", list(op("assignment_value_expression"), reg("comp"))),
+  save("env"),
+  save("continue"),
+  assign("continue", label("ev_assignment_install")),
+  go_to(label("eval_dispatch")), // evaluate assignment value
+"ev_assignment_install",
+  restore("continue"),
+  restore("env"),
+  restore("unev"),
+  perform(list(op("assign_symbol_value"),
+               reg("unev"), reg("val"), reg("env"))),
+  go_to(reg("continue")),
+      </PYTHON>
+    </SNIPPET>
+  </TEXT>
+
+  <TEXT>
+    <SPLIT>
+      <SCHEME>
+        Definitions are handled in a similar way:
+      </SCHEME>
+      <PYTHON>
+        Declarations
+	<INDEX>explicit-control evaluator for Python<SUBINDEX>declarations</SUBINDEX></INDEX>
+	of variables and constants are handled in a similar way.
+        Note that whereas the value of an assignment is the value that was assigned,
+        the value of a declaration is
+        <PYTHONINLINE>undefined</PYTHONINLINE>. This is handled by
+        setting <PYTHONINLINE>val</PYTHONINLINE> to
+        <PYTHONINLINE>undefined</PYTHONINLINE> before continuing. 
+        As in the metacircular evaluator, we transform a function declaration
+        into a constant declaration whose value expression is a lambda expression. This happens at
+        <PYTHONINLINE>ev_function_declaration</PYTHONINLINE>, which makes the
+        transformation in place in <PYTHONINLINE>comp</PYTHONINLINE> and
+        falls through to <PYTHONINLINE>ev_declaration</PYTHONINLINE>.
+      </PYTHON>
+    </SPLIT>
+    <SNIPPET EVAL="no" POSTPADDING="no">
+      <INDEX><DECLARATION>ev_function_declaration</DECLARATION></INDEX> 
+      <INDEX><DECLARATION>ev_declaration</DECLARATION></INDEX> 
+      <SCHEME>
+ev-definition
+(assign unev (op definition-variable) (reg exp))
+(save unev)                   <EM>; save variable for later</EM>
+(assign exp (op definition-value) (reg exp))
+(save env)
+(save continue)
+(assign continue (label ev-definition-1))
+(goto (label eval-dispatch))  <EM>; evaluate the definition value</EM>
+ev-definition-1
+(restore continue)
+(restore env)
+(restore unev)
+(perform
+(op define-variable!) (reg unev) (reg val) (reg env))
+(assign val (const ok))
+(goto (reg continue))
+      </SCHEME>
+      <PYTHON>
+"ev_function_declaration",
+  assign("comp", 
+         list(op("function_decl_to_constant_decl"), reg("comp"))),
+"ev_declaration",
+  assign("unev", list(op("declaration_symbol"), reg("comp"))),
+  save("unev"), // save declared name
+  assign("comp",
+         list(op("declaration_value_expression"), reg("comp"))),
+  save("env"),
+  save("continue"),
+  assign("continue", label("ev_declaration_assign")),
+  go_to(label("eval_dispatch")), // evaluate declaration value
+"ev_declaration_assign",
+  restore("continue"),
+  restore("env"),
+  restore("unev"),
+  perform(list(op("assign_symbol_value"),
+               reg("unev"), reg("val"), reg("env"))),
+  assign("val", constant(undefined)),
+  go_to(reg("continue")),
+      </PYTHON>
+    </SNIPPET>
+  </TEXT>
+  
+  <EXERCISE>
+    <LABEL NAME="ex:derived-expressions"/>
+    <SPLIT>
+      <SCHEME>
+	<INDEX>derived component<SUBINDEX>adding to explicit-control evaluator</SUBINDEX></INDEX>
+	<INDEX>explicit-control evaluator for Scheme<SUBINDEX>derived expressions</SUBINDEX></INDEX>
+	<INDEX>explicit-control evaluator for Scheme<SUBINDEX>special forms (additional)</SUBINDEX></INDEX>
+	Extend the evaluator to handle derived expressions such as
+	<SCHEMEINLINE>cond</SCHEMEINLINE>,
+	<SCHEMEINLINE>let</SCHEMEINLINE>, and so on
+	(section<SPACE/><REF NAME="sec:representing-expressions"/>).
+	You may <QUOTE>cheat</QUOTE> and assume that the syntax
+	transformers such as <SCHEMEINLINE>cond-&gt;if</SCHEMEINLINE> are available
+	as machine operations.<FOOTNOTE>This isn<APOS/>t really cheating.  In an
+	actual implementation built from scratch, we would use our explicit-control
+	evaluator to interpret a Scheme program that performs source-level
+	transformations
+	<SPLITINLINE>
+	  <SCHEME><SCHEMEINLINE>like cond-&gt;if</SCHEMEINLINE></SCHEME>
+	  <PYTHON><PYTHONINLINE></PYTHONINLINE></PYTHON>
+	  </SPLITINLINE> in a syntax phase that runs before execution.</FOOTNOTE>
+      </SCHEME>
+      <PYTHON>
+	Extend the evaluator to handle
+	<INDEX>derived component<SUBINDEX>adding to explicit-control evaluator</SUBINDEX></INDEX>
+	<INDEX>explicit-control evaluator for Python<SUBINDEX>derived components</SUBINDEX></INDEX>
+	<INDEX>explicit-control evaluator for Python<SUBINDEX>syntactic forms (additional)</SUBINDEX></INDEX>
+	while loops, by translating them to applications of a function
+	<PYTHONINLINE>while_loop</PYTHONINLINE>, as shown in
+	exercise<SPACE/><REF NAME="ex:while_loop"/>.
+	You can paste the declaration of the function
+	<PYTHONINLINE>while_loop</PYTHONINLINE> in front of user programs.
+	You may <QUOTE>cheat</QUOTE> by assuming that the syntax transformer
+	<PYTHONINLINE>while_to_application</PYTHONINLINE> is available
+	as a machine operation.<!--<FOOTNOTE>This isn<APOS/>t really cheating.  In an
+	actual implementation built from scratch, we would use our explicit-control
+	evaluator to interpret a Python program that performs source-level
+	transformations like
+	<PYTHONINLINE>while_to_application</PYTHONINLINE>
+	in a syntax phase that runs before execution.</FOOTNOTE>--> Refer to
+	exercise<SPACE/><REF NAME="ex:while_loop"/> to discuss whether
+	this approach works if return, break, and continue statements are allowed
+	inside the while loop. If not,
+	how can you modify the explicit-control evaluator to run programs 
+	with while loops that include these statements?
+      </PYTHON>
+    </SPLIT>
+  </EXERCISE>
+
+  <SPLIT>
+    <SCHEME>
+      <EXERCISE>
+	Implement <SCHEMEINLINE>cond</SCHEMEINLINE> as a new basic
+        <INDEX>explicit-control evaluator for Scheme<SUBINDEX>syntactic forms (additional)</SUBINDEX></INDEX>
+	special form
+	without reducing it to <SCHEMEINLINE>if</SCHEMEINLINE>. You will have to
+	construct a loop that tests the predicates of successive
+	<SCHEMEINLINE>cond</SCHEMEINLINE> clauses until you find one that is
+	true, and then use <SCHEMEINLINE>ev-sequence</SCHEMEINLINE> to evaluate
+	the actions of the clause.
+        <LABEL NAME="ex:eceval-cond"/>
+      </EXERCISE>
+    </SCHEME>
+  </SPLIT>
+
+  <EXERCISE>
+    Modify the evaluator so that it uses
+    <INDEX>explicit-control evaluator for Python<SUBINDEX>normal-order evaluation</SUBINDEX></INDEX>
+    <INDEX>normal-order evaluation<SUBINDEX><ORDER>explicit</ORDER>in explicit-control evaluator</SUBINDEX></INDEX>
+    normal-order evaluation,
+    based on the lazy evaluator of
+    section<SPACE/><REF NAME="sec:lazy-evaluation"/>.
+    <LABEL NAME="ex:5_26"/>
+  </EXERCISE>
+</SUBSECTION>

@@ -2,6 +2,7 @@ import fs from "node:fs";
 import fse from "fs-extra";
 import path from "node:path";
 import { ending, frontmatter, preamble } from "../latexContent.js";
+import { getEdition } from "../editions.js";
 
 const __dirname = path.resolve(import.meta.dirname);
 
@@ -15,7 +16,7 @@ export const createMain = (
     fs.mkdirSync(outputDir);
   }
 
-  if (parseType == "js" || parseType == "json") {
+  if (parseType == "programs" || parseType == "json") {
     return;
   }
 
@@ -30,7 +31,7 @@ export const createMain = (
   }
 
   // for latex version only
-  // create sicpjs.tex file
+  // create the root <edition>.tex file (sicpjs.tex / sicpy.tex)
   // FIXME: Remove any
   const chaptersFound: any[] = [];
   const files = fs.readdirSync(inputDir);
@@ -39,7 +40,9 @@ export const createMain = (
       chaptersFound.push(file);
     }
   });
-  const stream = fs.createWriteStream(path.join(outputDir, "sicpjs.tex"));
+  const stream = fs.createWriteStream(
+    path.join(outputDir, getEdition().outputBaseName + ".tex")
+  );
   stream.once("open", fd => {
     stream.write(preamble);
     stream.write(frontmatter);

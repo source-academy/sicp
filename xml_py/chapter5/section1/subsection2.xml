@@ -1,0 +1,216 @@
+<SUBSECTION>
+  <NAME>
+    Abstraction in Machine Design
+  </NAME>
+
+  <INDEX>abstraction<SUBINDEX><ORDER>register</ORDER>in register-machine design<OPEN/></SUBINDEX></INDEX>
+
+  <TEXT>
+    We will often define a machine to include <QUOTE>primitive</QUOTE>
+    operations that are actually very complex.  For example, in
+    sections<SPACE/><REF NAME="sec:eceval"/> and <REF NAME="sec:compilation"/>
+    we will treat
+    <SPLITINLINE>
+      <SCHEME>Scheme<APOS/>s</SCHEME>
+      <PYTHON>Python<APOS/>s</PYTHON>
+    </SPLITINLINE>
+    environment manipulations as primitive.  Such abstraction is valuable
+    because it allows us to ignore the details of parts of a machine so that we
+    can concentrate on other aspects of the design.  The fact that we have
+    swept a lot of complexity under the rug, however, does not mean that a
+    machine design is unrealistic.  We can always replace the complex
+    <QUOTE>primitives</QUOTE> by simpler primitive operations.
+  </TEXT>
+
+  <TEXT>
+    Consider the GCD machine. The machine has an instruction that computes
+    the remainder of the contents of registers <SCHEMEINLINE>a</SCHEMEINLINE>
+    and <SCHEMEINLINE>b</SCHEMEINLINE> and assigns the result to register
+    <SCHEMEINLINE>t</SCHEMEINLINE>.  If we want to construct the GCD machine
+    without using a primitive remainder operation, we must specify how to
+    compute remainders in terms of simpler operations, such as subtraction.
+    Indeed, we can write a 
+    <SPLITINLINE>
+      <SCHEME>Scheme procedure</SCHEME>
+      <PYTHON>Python function</PYTHON>
+    </SPLITINLINE>
+    that finds remainders in this way:
+    <SNIPPET HIDE="yes">
+      <NAME>remainder_example</NAME>
+      <PYTHON>
+remainder(29, 5);
+      </PYTHON>
+    </SNIPPET>
+    <SNIPPET>
+      <NAME>remainder</NAME>
+      <EXAMPLE>remainder_example</EXAMPLE>
+      <SCHEME>
+(define (remainder n d)
+  (if (&lt; n d)
+      n
+      (remainder (- n d) d)))
+      </SCHEME>
+      <PYTHON>
+function remainder(n, d) {
+    return n &lt; d
+           ? n
+           : remainder(n - d, d);
+}
+      </PYTHON>
+    </SNIPPET>
+
+    We can thus replace the remainder operation in the GCD machine<APOS/>s
+    data paths with a subtraction operation and a comparison test.
+    Figure<SPACE/><REF NAME="fig:gcd-machine-rem"/> shows the data paths and
+    controller for the elaborated machine. The instruction
+    <FIGURE>
+      <FIGURE web_scale="0.3" src="img_original/Fig5.5b.std.svg"/>
+      <LABEL NAME="fig:gcd-machine-rem"/>
+      <CAPTION>
+	Data paths and controller for the elaborated GCD  machine.
+      </CAPTION>
+    </FIGURE>
+    <SNIPPET EVAL="no">
+      <SCHEME>
+(assign t (op rem) (reg a) (reg b))
+      </SCHEME>
+      <PYTHON>
+assign("t", list(op("rem"), reg("a"), reg("b")))
+      </PYTHON>
+    </SNIPPET>
+    in the GCD controller definition is replaced by a sequence of
+    instructions that contains a loop, as shown in
+    figure<SPACE/><REF NAME="fig:gcd-machine-rem-controller"/>.
+    <!--  %(registers a b t) %(operations &lt; - =) -->
+    <FIGURE CENTER="no">
+      <SNIPPET>
+	<NAME>gcd_elaborated</NAME>
+	<EXAMPLE>gcd_elaborated_example</EXAMPLE>
+	<EXPECTED>2</EXPECTED>
+	<SCHEME>
+(controller
+ test-b
+   (test (op =) (reg b) (const 0))
+   (branch (label gcd-done))
+   (assign t (reg a))
+ rem-loop
+   (test (op &lt;) (reg t) (reg b))
+   (branch (label rem-done))
+   (assign t (op -) (reg t) (reg b))
+   (goto (label rem-loop))
+ rem-done
+   (assign a (reg b))
+   (assign b (reg t))
+   (goto (label test-b))
+ gcd-done)
+	</SCHEME>
+	<PYTHON>
+controller(
+  list(
+    "test_b",
+      test(list(op("="), reg("b"), constant(0))),
+      branch(label("gcd_done")),
+      assign("t", reg("a")),
+    "rem_loop",
+      test(list(op("&lt;"), reg("t"), reg("b"))),
+      branch(label("rem_done")),
+      assign("t", list(op("-"), reg("t"), reg("b"))),
+      go_to(label("rem_loop")),
+    "rem_done",
+      assign("a", reg("b")),
+      assign("b", reg("t")),
+      go_to(label("test_b")),
+    "gcd_done"))
+	</PYTHON>
+      </SNIPPET>
+      <SNIPPET HIDE="yes">
+	<NAME>gcd_elaborated_example</NAME>
+	<REQUIRES>controller</REQUIRES>
+	<REQUIRES>make_machine</REQUIRES>
+	<REQUIRES>start</REQUIRES>
+	<REQUIRES>gcd_elaborated_declaration</REQUIRES>
+	<PYTHON>
+;
+	  
+const gcd_elaborated_machine =
+    make_machine(
+        list("a", "b", "t"),
+        list(list("=", (a, b) => a === b),
+             list("&lt;", (a, b) => a &lt; b),
+             list("-", (a, b) => a - b)),
+        controller_sequence(gcd_elaborated_controller));
+
+set_register_contents(gcd_elaborated_machine, "a", 206);
+set_register_contents(gcd_elaborated_machine, "b", 40);
+start(gcd_elaborated_machine);
+get_register_contents(gcd_elaborated_machine, "a");
+	</PYTHON>
+      </SNIPPET>
+      <SNIPPET HIDE="yes">
+	<NAME>gcd_elaborated_declaration</NAME>
+	<PYTHON>
+const gcd_elaborated_controller =
+	</PYTHON>
+      </SNIPPET>
+
+      <CAPTION>Controller instruction sequence for the GCD machine in
+      figure<SPACE/><REF NAME="fig:gcd-machine-rem"/>.</CAPTION>
+      <LABEL NAME="fig:gcd-machine-rem-controller"/>
+    </FIGURE>
+  </TEXT>
+
+  <EXERCISE>
+    Design a machine to compute
+    <INDEX><USE>sqrt</USE><SUBINDEX>register machine for</SUBINDEX></INDEX>
+    square roots using Newton<APOS/>s method, as
+    described in section <REF NAME="sec:sqrt"/> and implemented with the following code in section<SPACE/><REF NAME="sec:block-structure"/>:
+    <SNIPPET>
+      <REQUIRES>square_definition</REQUIRES>
+      <REQUIRES>average_definition</REQUIRES>
+      <EXAMPLE>sqrt_example_2</EXAMPLE>
+      <EXPECTED>2.2360688956433634</EXPECTED>
+      <SCHEME>
+(define (sqrt x)
+  (define (good-enough? guess)
+    (&lt; (abs (- (square guess) x)) 0.001))
+  (define (improve guess)
+    (average guess (/ x guess)))
+  (define (sqrt-iter guess)
+    (if (good-enough? guess)
+        guess
+        (sqrt-iter (improve guess))))
+  (sqrt-iter 1.0))
+      </SCHEME>
+      <PYTHON>
+function sqrt(x) {
+    function is_good_enough(guess) {
+        return math_abs(square(guess) - x) &lt; 0.001;
+    }
+    function improve(guess) {
+        return average(guess, x / guess);
+    }
+    function sqrt_iter(guess) {
+        return is_good_enough(guess)
+               ? guess
+               : sqrt_iter(improve(guess));
+    }
+    return  sqrt_iter(1);
+}
+      </PYTHON>
+    </SNIPPET>
+    Begin by assuming that
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>good-enough?</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>is_good_enough</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    and <SCHEMEINLINE>improve</SCHEMEINLINE> operations are available as
+    primitives.  Then show how to expand these in terms of arithmetic
+    operations.  Describe each version of the <SCHEMEINLINE>sqrt</SCHEMEINLINE>
+    machine design by drawing a data-path diagram and writing a controller
+    definition in the register-machine language.
+    <LABEL NAME="ex:sqrt-machine"/>
+  </EXERCISE>
+
+  <INDEX>abstraction<SUBINDEX><ORDER>register</ORDER>in register-machine design<CLOSE/></SUBINDEX></INDEX>
+
+</SUBSECTION>

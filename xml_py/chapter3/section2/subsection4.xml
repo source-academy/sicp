@@ -1,0 +1,694 @@
+<SUBSECTION> 
+  <LONG_PAGE lines="2"/>
+  <NAME>
+    Internal
+    <SPLITINLINE>
+      <SCHEME>Definitions</SCHEME>
+      <PYTHON>Declarations</PYTHON>
+    </SPLITINLINE>
+  </NAME>
+
+  <LABEL NAME="sec:env-internal-def"/>
+  <INDEX>block structure<SUBINDEX><ORDER>environment</ORDER>in environment model<OPEN/></SUBINDEX></INDEX>
+  <INDEX>environment model of evaluation<SUBINDEX>internal declarations<OPEN/></SUBINDEX></INDEX>
+  <INDEX>internal declaration<SUBINDEX><ORDER>environment</ORDER>in environment model<OPEN/></SUBINDEX></INDEX>
+
+  <SPLIT>
+    <PYTHON>
+      <TEXT>
+	In this section we handle the evaluation of function bodies or other
+	blocks (such as the branches of conditional statements) that contain
+	declarations.
+	Each block opens a new scope for names declared in the block.
+	In order to evaluate a block in a given environment, we extend that
+	environment by a new frame that contains all names declared directly
+	(that is, outside of nested blocks) in the body of the block and
+	then evaluate the body in the newly constructed environment.
+      </TEXT>
+    </PYTHON>
+  </SPLIT>
+  <TEXT>
+    Section<SPACE/><REF NAME="sec:black-box"/> introduced the idea that
+    <SPLITINLINE>
+      <SCHEME>procedures</SCHEME>
+      <PYTHON>functions</PYTHON>
+    </SPLITINLINE>
+    can have internal
+    <SPLITINLINE>
+      <SCHEME>
+	definitions,
+      </SCHEME>
+      <PYTHON>
+	declarations,
+      </PYTHON>
+    </SPLITINLINE>
+    thus leading to a block structure as in the
+    <INDEX><USE>sqrt</USE><SUBINDEX><ORDER>environment</ORDER>in environment model<OPEN/></SUBINDEX></INDEX>
+    following
+    <SPLITINLINE>
+      <SCHEME>procedure</SCHEME>
+      <PYTHON>function</PYTHON>
+    </SPLITINLINE>
+    to compute square roots:
+    <SNIPPET EVAL="yes">
+      <NAME>another_sqrt</NAME>
+      <REQUIRES>abs_definition</REQUIRES>
+      <REQUIRES>square_definition</REQUIRES>
+      <REQUIRES>average_definition</REQUIRES>
+      <EXAMPLE>sqrt_example7</EXAMPLE>
+      <EXPECTED>2.2360688956433634</EXPECTED>
+      <SCHEME>
+(define (sqrt x)
+  (define (good-enough? guess)
+    (&lt; (abs (- (square guess) x)) 0.001))
+  (define (improve guess)
+    (average guess (/ x guess)))
+  (define (sqrt-iter guess)
+    (if (good-enough? guess)
+        guess
+        (sqrt-iter (improve guess))))
+  (sqrt-iter 1.0))
+      </SCHEME>
+      <PYTHON>
+function sqrt(x) {
+    function is_good_enough(guess) {
+        return abs(square(guess) - x) &lt; 0.001;
+    }
+    function improve(guess) {
+        return average(guess, x / guess);
+    }
+    function sqrt_iter(guess){
+        return is_good_enough(guess)
+               ? guess
+               : sqrt_iter(improve(guess));
+    }
+    return sqrt_iter(1);
+}
+      </PYTHON>
+    </SNIPPET>
+    Now we can use the environment model to see why these internal
+    <SPLITINLINE>
+      <SCHEME>
+	definitions
+      </SCHEME>
+      <PYTHON>
+	declarations
+      </PYTHON>
+    </SPLITINLINE>
+    behave as desired.
+    <SPLITINLINE>
+      <SCHEME>
+    Figure<SPACE/><REF NAME="fig:sqrt-internal_scheme"/>
+      </SCHEME>
+      <PYTHON>
+    Figure<SPACE/><REF NAME="fig:sqrt-internal"/>
+      </PYTHON>
+    </SPLITINLINE>
+    shows the point in the evaluation of the expression
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>(sqrt 2)</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>sqrt(2)</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    where the internal
+    <SPLITINLINE>
+      <SCHEME>procedure</SCHEME>
+      <PYTHON>function</PYTHON>
+    </SPLITINLINE>
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>good-enough?</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>is_good_enough</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    has been called for the first time with
+    <SCHEMEINLINE>guess</SCHEMEINLINE> equal to<SPACE/>1.
+    <SPLIT>
+      <SCHEME>
+        <FIGURE>
+          <FIGURE src="img_original/ch3-Z-G-12.svg"></FIGURE>
+          <CAPTION>
+	    <SCHEMEINLINE>sqrt</SCHEMEINLINE> procedure with internal
+	    definitions.
+	  </CAPTION>
+          <LABEL NAME="fig:sqrt-internal_scheme"/>
+        </FIGURE>
+      </SCHEME>
+      <PYTHON>
+        <FIGURE>
+          <FIGURE src="img_javascript/ch3-Z-G-12.svg"></FIGURE>
+          <CAPTION>The
+	    <SCHEMEINLINE>sqrt</SCHEMEINLINE> function with internal
+	    declarations.
+	  </CAPTION>
+          <LABEL NAME="fig:sqrt-internal"/>
+        </FIGURE>
+      </PYTHON>
+    </SPLIT>
+  </TEXT>
+
+  <TEXT>
+    Observe the structure of the environment.
+    <SPLITINLINE>
+      <SCHEME>
+	<SCHEMEINLINE>Sqrt</SCHEMEINLINE> is a
+	symbol in the
+	global
+	environment that is bound
+      </SCHEME>
+      <PYTHON>
+      The name
+      <SCHEMEINLINE>sqrt</SCHEMEINLINE> is bound
+      in the program environment
+      </PYTHON>
+    </SPLITINLINE>
+    to a
+    <SPLITINLINE>
+      <SCHEME>procedure</SCHEME>
+      <PYTHON>function</PYTHON>
+    </SPLITINLINE>
+    object whose associated environment is the
+    <SPLITINLINE>
+      <SCHEME>global</SCHEME>
+      <PYTHON>program</PYTHON>
+    </SPLITINLINE>
+    environment.  When <SCHEMEINLINE>sqrt</SCHEMEINLINE> was called, a new
+    environment, E1, was formed, subordinate to the
+    <SPLITINLINE>
+      <SCHEME>global</SCHEME>
+      <PYTHON>program</PYTHON>
+    </SPLITINLINE>
+    environment, in which the parameter <SCHEMEINLINE>x</SCHEMEINLINE> is bound
+    to<SPACE/>2. The body of <SCHEMEINLINE>sqrt</SCHEMEINLINE> was then
+    evaluated in<SPACE/>E1. 
+    <SPLIT>
+      <SCHEME>
+	Since the first expression
+	in the body of <SCHEMEINLINE>sqrt</SCHEMEINLINE> is
+      </SCHEME>
+      <PYTHON>
+	That body is a block with local
+	function declarations and therefore E1 was extended with a new frame for
+	those declarations, resulting in the new environment E2. The body
+	of the block was then evaluated in E2. Since the first statement
+	in the body is
+      </PYTHON>
+    </SPLIT>
+    <SNIPPET EVAL="no">
+      <REQUIRES>abs_definition</REQUIRES>
+      <REQUIRES>square_definition</REQUIRES>
+      <SCHEME>
+(define (good-enough? guess)
+  (&lt; (abs (- (square guess) x)) 0.001))
+      </SCHEME>
+      <PYTHON>
+function is_good_enough(guess) {
+    return abs(square(guess) - x) &lt; 0.001;
+}
+      </PYTHON>
+    </SNIPPET>
+    <SPLIT>
+      <SCHEME>
+	evaluating this expression defined the procedure
+	<SCHEMEINLINE>good-enough?</SCHEMEINLINE>
+	in the environment<SPACE/>E1.
+      </SCHEME>
+      <PYTHON>
+	evaluating this declaration created the function
+	<PYTHONINLINE>is_good_enough</PYTHONINLINE>
+	in the environment<SPACE/>E2.
+      </PYTHON>
+    </SPLIT>
+    <SPLIT>
+      <SCHEME>
+	To<SPACE/>be more precise, the symbol 
+	<SCHEMEINLINE>good-enough?</SCHEMEINLINE> was added to the first frame
+	of E1, bound to a procedure
+	object whose associated environment is E1.
+      </SCHEME>
+      <PYTHON>
+	To<SPACE/>be more precise, 
+	the name <PYTHONINLINE>is_good_enough</PYTHONINLINE>
+	in the first frame of E2 was bound to a function
+	object whose associated environment is E2.
+      </PYTHON>
+    </SPLIT>
+    Similarly,
+    <SCHEMEINLINE>improve</SCHEMEINLINE> and 
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>sqrt-iter</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>sqrt_iter</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    were defined as
+    <SPLITINLINE>
+      <SCHEME>procedures in E1.</SCHEME>
+      <PYTHON>functions in E2.</PYTHON>
+    </SPLITINLINE>
+    For conciseness,
+    <SPLITINLINE>
+      <SCHEME>
+	figure<SPACE/><REF NAME="fig:sqrt-internal_scheme"/>
+      </SCHEME>
+      <PYTHON>
+	figure<SPACE/><REF NAME="fig:sqrt-internal"/>
+      </PYTHON>
+    </SPLITINLINE>
+    shows only the
+    <SPLITINLINE>
+      <SCHEME>procedure</SCHEME>
+      <PYTHON>function</PYTHON>
+    </SPLITINLINE>
+    object for 
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>good-enough?</SCHEMEINLINE>.</SCHEME>
+      <PYTHON><PYTHONINLINE>is_good_enough</PYTHONINLINE>.</PYTHON>
+    </SPLITINLINE>
+  </TEXT>
+
+  <TEXT>
+    After the local
+    <SPLITINLINE>
+      <SCHEME>procedures</SCHEME>
+      <PYTHON>functions</PYTHON>
+    </SPLITINLINE>
+    were defined, the expression
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>(sqrt-iter 1.0)</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>sqrt_@iter(1)</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    was evaluated, still in environment
+    <SPLITINLINE>
+      <SCHEME>E1.</SCHEME>
+      <PYTHON>E2.</PYTHON>
+    </SPLITINLINE>
+    So the
+    <SPLITINLINE>
+      <SCHEME>procedure</SCHEME>
+      <PYTHON>function</PYTHON>
+    </SPLITINLINE>
+    object bound to 
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>sqrt-iter</SCHEMEINLINE>
+      in E1 was called with 1 as an argument.  This created an environment E2
+      in which
+      </SCHEME>
+      <PYTHON><PYTHONINLINE>sqrt_@iter</PYTHONINLINE>
+      in E2 was called with 1 as an argument.  This created an environment E3
+      in which
+      </PYTHON>
+    </SPLITINLINE>
+    <SCHEMEINLINE>guess</SCHEMEINLINE>, the parameter of 
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>sqrt-iter</SCHEMEINLINE>,</SCHEME>
+      <PYTHON><PYTHONINLINE>sqrt_@iter</PYTHONINLINE>,</PYTHON>
+    </SPLITINLINE>
+    is bound to 1.  
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>sqrt-iter</SCHEMEINLINE></SCHEME>
+      <PYTHON>The function <PYTHONINLINE>sqrt_@iter</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    in turn called 
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>good-enough?</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>is_@good_@enough</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    with the value of <SCHEMEINLINE>guess</SCHEMEINLINE>
+    <SPLITINLINE>
+      <SCHEME>
+	(from E2) as the argument for 
+	<SCHEMEINLINE>good-enough?</SCHEMEINLINE>.
+      </SCHEME>
+      <PYTHON>
+	(from E3) as the argument for 
+	<PYTHONINLINE>is_@good_@enough</PYTHONINLINE>.
+      </PYTHON>
+    </SPLITINLINE>
+    This set up another environment,
+    <SPLITINLINE>
+      <SCHEME>
+	E3, in which
+	<SCHEMEINLINE>guess</SCHEMEINLINE> (the parameter of 
+	<SCHEMEINLINE>good-enough?</SCHEMEINLINE>)
+      </SCHEME>
+      <PYTHON>
+	E4, in which
+	<SCHEMEINLINE>guess</SCHEMEINLINE> (the parameter of 
+	<PYTHONINLINE>is_@good_@enough</PYTHONINLINE>)
+      </PYTHON>
+    </SPLITINLINE>
+    is bound to 1. Although 
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>sqrt-iter</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>sqrt_@iter</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    and 
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>good-enough?</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>is_@good_@enough</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    both have a parameter named <SCHEMEINLINE>guess</SCHEMEINLINE>, these are two
+    distinct local variables located in different frames.
+    <SPLIT>
+      <SCHEME>
+	Also, E2 and E3 both have E1 as their enclosing environment, because the 
+	<SCHEMEINLINE>sqrt-iter</SCHEMEINLINE> and 
+	<SCHEMEINLINE>good-enough?</SCHEMEINLINE> procedures
+	both have E1 as their environment part.
+      </SCHEME>
+      <PYTHON>
+	Also, E3 and E4 both have E2 as their enclosing environment, because the 
+	<PYTHON><PYTHONINLINE>sqrt_@iter</PYTHONINLINE></PYTHON>
+	and 
+	<PYTHONINLINE>is_@good_@enough</PYTHONINLINE> functions
+	both have E2 as their environment part.
+      </PYTHON>
+    </SPLIT>
+    One consequence of this is that the
+    <SPLITINLINE>
+      <SCHEME>
+	symbol
+      </SCHEME>
+      <PYTHON>
+	name
+      </PYTHON>
+    </SPLITINLINE>
+    <SCHEMEINLINE>x</SCHEMEINLINE> that appears in the body of 
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>good-enough?</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>is_@good_@enough</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    will reference the binding of <SCHEMEINLINE>x</SCHEMEINLINE> that appears in
+    E1, namely the value of <SCHEMEINLINE>x</SCHEMEINLINE> with which the
+    original <SCHEMEINLINE>sqrt</SCHEMEINLINE>
+    <SPLITINLINE>
+      <SCHEME>procedure</SCHEME>
+      <PYTHON>function</PYTHON>
+    </SPLITINLINE>
+    was called.
+    <INDEX><USE>sqrt</USE><SUBINDEX><ORDER>environment</ORDER>in environment model<CLOSE/></SUBINDEX></INDEX>
+  </TEXT>
+
+  <TEXT>
+    The environment model thus explains the two key properties that make local
+    <SPLITINLINE>
+      <SCHEME>procedure definitions</SCHEME>
+      <PYTHON>function declarations</PYTHON>
+    </SPLITINLINE>
+    a useful technique for modularizing programs:
+    <UL>
+      <LI>
+	The names of the local
+	<SPLITINLINE>
+	  <SCHEME>procedures</SCHEME>
+	  <PYTHON>functions</PYTHON>
+	</SPLITINLINE>
+	do not interfere with
+	names external to the enclosing
+	<SPLITINLINE>
+	  <SCHEME>procedure,</SCHEME>
+	  <PYTHON>function,</PYTHON>
+	</SPLITINLINE>
+	because the local
+	<SPLITINLINE>
+	  <SCHEME>procedure</SCHEME>
+	  <PYTHON>function</PYTHON>
+	</SPLITINLINE>
+	names will be bound in the frame that the
+	<SPLITINLINE>
+	  <SCHEME>procedure creates when it is run,</SCHEME>
+	  <PYTHON>block creates when it is evaluated,</PYTHON>
+	</SPLITINLINE>
+	rather than being bound in the
+	<SPLITINLINE>
+	  <SCHEME>global</SCHEME>
+	  <PYTHON>program</PYTHON>
+	</SPLITINLINE>
+	environment.
+      </LI>
+      <LI>
+	The local
+	<SPLITINLINE>
+	  <SCHEME>procedures</SCHEME>
+	  <PYTHON>functions</PYTHON>
+	</SPLITINLINE>
+	can access the arguments of the enclosing
+	<SPLITINLINE>
+	  <SCHEME>procedure,</SCHEME>
+	  <PYTHON>function,</PYTHON>
+	</SPLITINLINE>
+	simply by using parameter names as free
+	<SPLITINLINE>
+	  <SCHEME>variables.</SCHEME>
+	  <PYTHON>names.</PYTHON>
+	</SPLITINLINE>
+	This is
+	because the body of the local
+	<SPLITINLINE>
+	  <SCHEME>procedure</SCHEME>
+	  <PYTHON>function</PYTHON>
+	</SPLITINLINE>
+	is evaluated in an environment that is subordinate to the
+	evaluation environment for the enclosing
+	<SPLITINLINE>
+	  <SCHEME>procedure.</SCHEME>
+	  <PYTHON>function.</PYTHON>
+	</SPLITINLINE>
+      </LI>
+    </UL>
+  </TEXT>
+  <EXERCISE>
+    In section<SPACE/><REF NAME="sec:env-local-state"/> we saw how the
+    environment model described the behavior of
+    <SPLITINLINE>
+      <SCHEME>procedures</SCHEME>
+      <PYTHON>functions</PYTHON>
+    </SPLITINLINE>
+    with local state.  Now we have seen how internal
+    <SPLITINLINE>
+      <SCHEME>
+	definitions
+      </SCHEME>
+      <PYTHON>
+	declarations
+      </PYTHON>
+    </SPLITINLINE>
+    work.
+    <INDEX>environment model of evaluation<SUBINDEX>message passing</SUBINDEX></INDEX>
+    <INDEX>message passing<SUBINDEX>environment model and</SUBINDEX></INDEX>
+    A typical message-passing
+    <SPLITINLINE>
+      <SCHEME>procedure</SCHEME>
+      <PYTHON>function</PYTHON>
+    </SPLITINLINE>
+    contains both of these aspects.  Consider the
+    <INDEX>bank account</INDEX>
+    bank account
+    <SPLITINLINE>
+      <SCHEME>procedure</SCHEME>
+      <PYTHON>function</PYTHON>
+    </SPLITINLINE>
+    of section<SPACE/><REF NAME="sec:local-state-variables"/>:
+    <SHORT_PAGE lines="1"/>
+    <SNIPPET EVAL="yes">
+      <INDEX><USE>make_account</USE><SUBINDEX><ORDER>environment</ORDER>in environment model</SUBINDEX><FRAGILE/></INDEX>
+      <NAME>another_make_account</NAME>
+      <EXAMPLE>another_make_account_example</EXAMPLE>
+      <EXPECTED>30</EXPECTED>
+      <SCHEME>
+(define (make-account balance)
+  (define (withdraw amount)
+    (if (&gt;= balance amount)
+        (begin (set! balance (- balance amount))
+               balance)
+        "Insufficient funds"))
+  (define (deposit amount)
+    (set! balance (+ balance amount))
+    balance)
+  (define (dispatch m)
+    (cond ((eq? m 'withdraw) withdraw)
+          ((eq? m 'deposit) deposit)
+          (else (error "Unknown request - - MAKE-ACCOUNT"
+                       m))))
+  dispatch)
+      </SCHEME>
+      <PYTHON>
+function make_account(balance) {
+    function withdraw(amount) {
+        if (balance &gt;= amount) {
+            balance = balance - amount;
+            return balance;
+        } else {
+            return "Insufficient funds";
+        }
+    }
+    function deposit(amount) {
+        balance = balance + amount;
+        return balance;  
+    }
+    function dispatch(m) {
+        return m === "withdraw"
+               ? withdraw
+               : m === "deposit"
+               ? deposit
+               : error(m, "Unknown request: make_account");
+    }
+    return dispatch;
+}
+      </PYTHON>
+    </SNIPPET>
+    Show the environment structure generated by the sequence of
+    interactions
+    <SNIPPET EVAL="no">
+      <NAME>another_make_account_example</NAME>
+      <SCHEME>
+            (define acc (make-account 50))
+      </SCHEME>
+      <PYTHON>
+const acc = make_account(50);
+      </PYTHON>
+      <PYTHON_TEST>
+const acc = make_account(50);
+acc("withdraw")(20);
+      </PYTHON_TEST>
+    </SNIPPET>
+    <SNIPPET EVAL="no">
+      <NAME>another_make_account_example_2</NAME>
+      <SCHEME>
+            ((acc 'deposit) 40)
+      </SCHEME>
+      <SCHEMEOUTPUT>
+	90
+      </SCHEMEOUTPUT>
+      <PYTHON>
+acc("deposit")(40);
+      </PYTHON>
+      <PYTHON_OUTPUT>
+90
+      </PYTHON_OUTPUT>
+    </SNIPPET>
+    <SNIPPET EVAL="no">
+      <NAME>another_make_account_example_3</NAME>
+      <SCHEME>
+            ((acc 'withdraw) 60)
+      </SCHEME>
+      <SCHEMEOUTPUT>
+	30
+      </SCHEMEOUTPUT>
+      <PYTHON>
+acc("withdraw")(60);
+      </PYTHON>
+      <PYTHON_OUTPUT>
+30
+      </PYTHON_OUTPUT>
+    </SNIPPET>
+    Where is the local state for <SCHEMEINLINE>acc</SCHEMEINLINE> kept?
+    Suppose we define another account
+    <SNIPPET EVAL="no"> 
+      <SCHEME>
+            (define acc2 (make-account 100))
+      </SCHEME>
+      <PYTHON>
+const acc2 = make_account(100);
+      </PYTHON>
+    </SNIPPET>
+    How are the local states for the two accounts kept distinct?  Which parts
+    of the environment structure are shared between
+    <SCHEMEINLINE>acc</SCHEMEINLINE> and <SCHEMEINLINE>acc2</SCHEMEINLINE>?
+    <LABEL NAME="ex:two-accounts"/>
+  </EXERCISE>
+
+  <SUBHEADING><NAME>More about blocks</NAME></SUBHEADING>
+
+  <TEXT>
+    As we saw, the scope of the names declared in
+    <PYTHONINLINE>sqrt</PYTHONINLINE> is the whole body of
+    <PYTHONINLINE>sqrt</PYTHONINLINE>. This explains why
+    <INDEX>mutual recursion</INDEX>
+    <INDEX>recursion<SUBINDEX>mutual</SUBINDEX></INDEX>
+    <EM>mutual recursion</EM> works, as in this (quite
+    wasteful) way of checking whether a nonnegative
+    integer is even.
+    <SNIPPET LATEX="yes">
+      <NAME>f_is_even_is_odd</NAME>
+      <PYTHON>
+function f(x) {
+    function is_even(n) {
+        return n === 0
+               ? true
+               : is_odd(n - 1);
+    }
+    function is_odd(n) {
+        return n === 0
+               ? false
+               : is_even(n - 1);
+    }
+    return is_even(x);
+}
+      </PYTHON>
+    </SNIPPET>
+    At the time when 
+    <PYTHONINLINE>is_even</PYTHONINLINE> is called during a call to
+    <PYTHONINLINE>f</PYTHONINLINE>, the environment diagram looks
+    like the one in figure<SPACE/><REF NAME="fig:sqrt-internal"/> when
+    <PYTHONINLINE>sqrt_iter</PYTHONINLINE> is called. The functions
+    <PYTHONINLINE>is_even</PYTHONINLINE> and
+    <PYTHONINLINE>is_odd</PYTHONINLINE> are bound in E2 to function objects
+    that point to E2 as the environment in which to evaluate calls to those
+    functions. Thus
+    <PYTHONINLINE>is_odd</PYTHONINLINE> in the body of
+    <PYTHONINLINE>is_even</PYTHONINLINE> refers to the right function.
+    Although
+    <PYTHONINLINE>is_odd</PYTHONINLINE>
+    is defined after
+    <PYTHONINLINE>is_even</PYTHONINLINE>,
+    this is no different from how in the body of
+    <PYTHONINLINE>sqrt_iter</PYTHONINLINE>
+    the name
+    <PYTHONINLINE>improve</PYTHONINLINE>
+    and the name
+    <PYTHONINLINE>sqrt_iter</PYTHONINLINE>
+    itself refer to the right functions.
+  </TEXT>
+  <TEXT>
+    Equipped with a way to handle declarations within blocks, we can
+    revisit declarations of names at the top level. In
+    section<SPACE/><REF NAME="sec:env-model-rules"/>, we saw
+    that the names declared at the top level are added to the program
+    frame. A better explanation is that the whole program is placed in
+    an implicit block, which is evaluated in the global environment.
+    The treatment of blocks described above then handles the top
+    level:
+    The global environment is extended by a frame that contains the
+    bindings of all names declared in the implicit block. That frame is
+    the program frame and the resulting
+    environment is the
+    <INDEX>program environment</INDEX>
+    program environment.
+  </TEXT>
+  <TEXT>
+    We said that a block<APOS/>s body is evaluated in an environment that
+    contains all names declared directly in the body of the block.
+    A locally declared name is put into the environment when the block is
+    entered, but without an associated value. The evaluation of its
+    declaration during evaluation of the block body then assigns to the
+    name the result of evaluating the expression to the right of the
+    <PYTHONINLINE>=</PYTHONINLINE>, as if the declaration were
+    an assignment. Since the addition of the name to the environment is
+    separate from the evaluation of the declaration, and the whole block
+    is in the scope of the name, an erroneous program could attempt to
+    <INDEX>declaration<SUBINDEX>use of name before</SUBINDEX></INDEX>
+    access the value of a name before its declaration is evaluated;
+    the evaluation of an unassigned name signals an error.<FOOTNOTE>
+    <LABEL NAME="foot:tdz_explained"/>
+    This explains why the program in
+    footnote<SPACE/><REF NAME="foot:tdz"/> of chapter 1 goes wrong.
+    The time between creating the binding for a name and evaluating
+    the declaration of the name is called the
+    <INDEX>temporal dead zone (TDZ)</INDEX>
+    <INDEX>TDZ (temporal dead zone)</INDEX>
+    <EM>temporal dead zone</EM> (TDZ).</FOOTNOTE>
+  </TEXT>
+  <INDEX>environment model of evaluation<CLOSE/></INDEX>
+  <INDEX>block structure<SUBINDEX><ORDER>environment</ORDER>in environment model<CLOSE/></SUBINDEX></INDEX>
+  <INDEX>environment model of evaluation<SUBINDEX>internal declarations<CLOSE/></SUBINDEX></INDEX>
+  <INDEX>internal declaration<SUBINDEX><ORDER>environment</ORDER>in environment model<CLOSE/></SUBINDEX></INDEX>
+</SUBSECTION>

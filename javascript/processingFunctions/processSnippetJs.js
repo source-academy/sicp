@@ -5,6 +5,10 @@ import {
 } from "./warnings.js";
 import recursiveProcessPureText from "./recursiveProcessPureText";
 import { processRuneModule } from "./processModuleImports.js";
+import { getEdition } from "../editions.js";
+
+// Language-specific details of the edition (JAVASCRIPT* tags, "//" by default).
+const lang = getEdition().language;
 
 const snippetStore = {};
 
@@ -12,9 +16,9 @@ export const setupSnippetsJs = node => {
   const snippets = node.getElementsByTagName("SNIPPET");
   for (let i = 0; snippets[i]; i++) {
     const snippet = snippets[i];
-    const jsSnippet = snippet.getElementsByTagName("JAVASCRIPT")[0];
-    let jsRunSnippet = snippet.getElementsByTagName("JAVASCRIPT_RUN")[0];
-    let jsTestSnippet = snippet.getElementsByTagName("JAVASCRIPT_TEST")[0];
+    const jsSnippet = snippet.getElementsByTagName(lang.blockTag)[0];
+    let jsRunSnippet = snippet.getElementsByTagName(lang.runTag)[0];
+    let jsTestSnippet = snippet.getElementsByTagName(lang.testTag)[0];
     if (jsTestSnippet) {
       jsRunSnippet = jsTestSnippet;
     } else {
@@ -60,10 +64,10 @@ const recursiveGetRequires = (name, seen) => {
 };
 
 export const processSnippetJs = (node, writeTo, fileFormat) => {
-  const jsSnippet = node.getElementsByTagName("JAVASCRIPT")[0];
+  const jsSnippet = node.getElementsByTagName(lang.blockTag)[0];
   if (jsSnippet) {
     if (node.getAttribute("CHAP") || node.getAttribute("VARIANT")) {
-      writeTo.push("// ");
+      writeTo.push(lang.commentPrefix + " ");
       if (node.getAttribute("CHAP")) {
         writeTo.push("chapter=" + node.getAttribute("CHAP") + " ");
       }
@@ -74,8 +78,8 @@ export const processSnippetJs = (node, writeTo, fileFormat) => {
     }
 
     // JavaScript source for running. Overrides JAVASCRIPT if present.
-    let jsRunSnippet = node.getElementsByTagName("JAVASCRIPT_RUN")[0];
-    let jsTestSnippet = node.getElementsByTagName("JAVASCRIPT_TEST")[0];
+    let jsRunSnippet = node.getElementsByTagName(lang.runTag)[0];
+    let jsTestSnippet = node.getElementsByTagName(lang.testTag)[0];
     if (jsTestSnippet) {
       jsRunSnippet = jsTestSnippet;
     } else {
@@ -83,53 +87,39 @@ export const processSnippetJs = (node, writeTo, fileFormat) => {
         jsRunSnippet = jsSnippet;
       }
     }
-
     const codeArr_run = [];
     recursiveProcessPureText(jsRunSnippet.firstChild, codeArr_run);
     const codeStr_run = codeArr_run.join("").trim();
 
-    let reqStr = "";
-    let reqArr = [];
+    const reqSet = new Set();
     const snippetName = node.getElementsByTagName("NAME")[0];
-    let nameStr;
-    if (snippetName) {
-      nameStr = snippetName.firstChild.nodeValue;
-      const reqSet = new Set();
+    const nameStr = snippetName ? snippetName.firstChild.nodeValue : undefined;
+    if (nameStr) {
       recursiveGetRequires(nameStr, reqSet);
-      const examples = node.getElementsByTagName("EXAMPLE");
-      for (let i = 0; examples[i]; i++) {
-        const exampleString = examples[i].firstChild.nodeValue;
-        const exampleNode = snippetStore[exampleString];
-        if (exampleNode) {
-          const exampleRequires = exampleNode.requireNames;
-          for (let j = 0; exampleRequires[j]; j++) {
-            recursiveGetRequires(exampleRequires[j], reqSet);
-          }
+    }
+    const requirements = node.getElementsByTagName("REQUIRES");
+    for (let i = 0; requirements[i]; i++) {
+      recursiveGetRequires(requirements[i].firstChild.nodeValue, reqSet);
+    }
+    const examples = node.getElementsByTagName("EXAMPLE");
+    for (let i = 0; examples[i]; i++) {
+      const exampleNode = snippetStore[examples[i].firstChild.nodeValue];
+      if (exampleNode) {
+        for (const requirement of exampleNode.requireNames) {
+          recursiveGetRequires(requirement, reqSet);
         }
       }
-      for (const reqName of reqSet) {
-        const snippetEntry = snippetStore[reqName];
-        if (snippetEntry && reqName !== nameStr) {
-          reqArr.push(snippetEntry.codeStr);
-          reqArr.push("\n");
-        }
-      }
-      reqStr = reqArr.join("");
-    } else {
-      const requirements = node.getElementsByTagName("REQUIRES");
-      for (let i = 0; requirements[i]; i++) {
-        const required = requirements[i].firstChild.nodeValue;
-        if (snippetStore[required]) {
-          reqArr.push(snippetStore[required].codeStr);
-          reqArr.push("\n");
-        } else {
-          missingRequireWarning(required);
-        }
-      }
-      reqStr = reqArr.join("");
     }
 
-    const examples = node.getElementsByTagName("EXAMPLE");
+    const reqArr = [];
+    for (const reqName of reqSet) {
+      const snippetEntry = snippetStore[reqName];
+      if (snippetEntry && reqName !== nameStr) {
+        reqArr.push(snippetEntry.codeStr);
+        reqArr.push("\n");
+      }
+    }
+    let reqStr = reqArr.join("");
     const exampleArr = [];
     for (let i = 0; examples[i]; i++) {
       const example = examples[i].firstChild.nodeValue;
@@ -152,13 +142,15 @@ export const processSnippetJs = (node, writeTo, fileFormat) => {
       );
     }
 
-    if (fileFormat == "js") {
+    if (fileFormat === lang.key) {
       writeTo.push(reqStr);
       writeTo.push(codeStr_run);
       writeTo.push(exampleStr);
       if (node.getElementsByTagName("EXPECTED")[0]) {
         writeTo.push(
-          "\n// expected: " +
+          "\n" +
+            lang.commentPrefix +
+            " expected: " +
             node.getElementsByTagName("EXPECTED")[0].firstChild.nodeValue +
             "\n"
         );

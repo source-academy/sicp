@@ -92,7 +92,7 @@ const HtmlHeadPart2: FC<HtmlHeadPart2Props> = ({ toIndexFolder }) => {
         tex2jax: {
           inlineMath: [ ['$','$'], ["\\\\(","\\\\)"] ],
           processEscapes: true,
-          jax: ["input/TeX","output/HTML-CSS"]
+          skipTags: ["kbd", "script", "noscript", "style", "textarea", "pre", "code"]
         }
       });
     </script>

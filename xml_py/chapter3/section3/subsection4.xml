@@ -1,0 +1,2001 @@
+<SUBSECTION> 
+  <NAME>
+    A Simulator for Digital Circuits
+  </NAME>
+
+  <LABEL NAME="sec:circuit-simulator"/>
+  <INDEX>digital-circuit simulation<OPEN/></INDEX>
+
+  <TEXT>
+    Designing complex digital systems, such as computers, is an important
+    engineering activity.  Digital systems are constructed by
+    interconnecting simple elements.  Although the behavior of these
+    individual elements is simple, networks of them can have very complex
+    behavior.  Computer simulation of proposed circuit designs is an
+    important tool used by digital systems engineers.  In this section we
+    design a system for performing digital logic simulations.  This system
+    typifies a kind of program called an 
+    <INDEX>event-driven simulation</INDEX>
+    <INDEX>simulation<SUBINDEX>event-driven</SUBINDEX></INDEX>
+    <EM>event-driven simulation</EM>, in
+    which actions (<QUOTE>events</QUOTE>) trigger further events that happen
+    at a later time, which in turn trigger more events, and so on.
+  </TEXT>
+
+  <TEXT>
+    Our computational model of a circuit will be composed of objects that
+    correspond to the elementary components from which the circuit is
+    constructed.  There are 
+    <INDEX>wire, in digital circuit</INDEX>
+    <EM>wires</EM>, which carry 
+    <INDEX>signal, digital</INDEX>
+    <INDEX>digital signal</INDEX>
+    <EM>digital signals</EM>.  A<SPACE/>digital signal may at any moment have only one of two
+    possible values,
+    0 and 1.  There are also various types of digital 
+    <INDEX>function box, in digital circuit</INDEX>
+    <EM>function boxes</EM>, which connect wires carrying input signals to other output
+    wires.  Such boxes produce output signals computed from their input
+    signals.  The output signal is 
+    <INDEX><ORDER>delay</ORDER>delay, in digital circuit</INDEX>
+    delayed by a time that depends on the
+    type of the function box.  For example, an 
+    <INDEX>inverter</INDEX>
+    <EM>inverter</EM> is a
+    primitive function box that inverts its input.  If the
+    input signal to an inverter changes to 0, then one <EM>inverter-delay</EM>
+    later the inverter will change its output signal to 1.  If the input
+    signal to an inverter changes to 1, then one <EM>inverter-delay</EM> later
+    the inverter will change its output signal to 0.  We draw an inverter
+    symbolically as in figure<SPACE/><REF NAME="fig:logic-gates"/>.  An 
+    <INDEX>and-gate</INDEX>
+    <EM>and-gate</EM>,
+    also shown in figure<SPACE/><REF NAME="fig:logic-gates"/>, is a primitive
+    function box with two inputs and one output.  It drives its output signal
+    to a value that is the 
+    <INDEX>logical and (digital logic)</INDEX>
+    <EM>logical and</EM> of the inputs.  That is, if both
+    of its input signals become<SPACE/>1, then one <EM>and-gate-delay</EM> time
+    later the and-gate will force its output signal to be 1; otherwise the
+    output will be 0.  An 
+    <INDEX>or-gate</INDEX>
+    <EM>or-gate</EM> is a similar two-input primitive function
+    box that drives its output signal to a value that is the 
+    <INDEX>logical or (digital logic)</INDEX>
+    <EM>logical or</EM> of the inputs.  That is, the output will become 1 if at least one
+    of the input signals is 1; otherwise the output will become<SPACE/>0.
+  </TEXT>
+
+    <FIGURE>
+      <FIGURE src="img_original/ch3-Z-G-24.svg"></FIGURE>
+      <CAPTION>Primitive functions in the digital logic simulator.
+      </CAPTION>
+      <LABEL NAME="fig:logic-gates"/>
+    </FIGURE>
+
+  <TEXT>
+    We can connect primitive functions together to construct more complex
+    functions.  To accomplish this we wire the outputs of some
+    function boxes to the inputs of other function boxes.  For example,
+    the 
+    <INDEX>half-adder</INDEX>
+    <INDEX>adder<SUBINDEX>half</SUBINDEX></INDEX>
+    <EM>half-adder</EM> circuit shown in
+    figure<SPACE/><REF NAME="fig:half-adder"/> consists of an
+    or-gate, two and-gates, and an inverter.  It takes two input signals,
+    <LATEXINLINE>$A$</LATEXINLINE> and <LATEXINLINE>$B$</LATEXINLINE>, and has
+    two output signals, <LATEXINLINE>$S$</LATEXINLINE> and <LATEXINLINE>$C$</LATEXINLINE>.
+    <LATEXINLINE>$S$</LATEXINLINE> will become 1
+    whenever precisely one of <LATEXINLINE>$A$</LATEXINLINE> and <LATEXINLINE>$B$</LATEXINLINE>
+    is<SPACE/>1, and <LATEXINLINE>$C$</LATEXINLINE> will become 1 whenever
+    <LATEXINLINE>$A$</LATEXINLINE> and <LATEXINLINE>$B$</LATEXINLINE> are both 1.  We can see
+    from the figure that, because of the
+    delays involved, the outputs may be generated at different times.
+    Many of the difficulties in the design of digital circuits arise from
+    this fact.
+    <FIGURE>
+      <FIGURE split_scale="0.5" web_scale="0.8" src="img_original/ch3-Z-G-25.svg"></FIGURE>
+      <CAPTION>A half-adder circuit.
+      </CAPTION>
+      <LABEL NAME="fig:half-adder"/>
+    </FIGURE>
+  </TEXT>
+
+  <TEXT>
+    We will now build a program for modeling the digital logic circuits we
+    wish to study.  The program will construct computational objects
+    modeling the wires, which will <QUOTE>hold</QUOTE> the signals.  Function
+    boxes will be modeled by
+    <SPLITINLINE>
+      <SCHEME>procedures</SCHEME>
+      <PYTHON>functions</PYTHON>
+    </SPLITINLINE>
+    that enforce the correct relationships among the signals.
+  </TEXT>
+
+  <TEXT>
+    One basic element of our simulation will be a
+    <SPLITINLINE>
+      <SCHEME>procedure</SCHEME>
+      <PYTHON>function</PYTHON>
+    </SPLITINLINE>
+    <INDEX><USE>make_wire</USE></INDEX> 
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>make-wire</SCHEMEINLINE>,</SCHEME>
+      <PYTHON><PYTHONINLINE>make_wire</PYTHONINLINE>,</PYTHON>
+    </SPLITINLINE>
+    which constructs wires.  For example, we can construct six wires as follows:
+    <SNIPPET>
+      <NAME>make_wire_usage</NAME>
+      <REQUIRES>make_wire</REQUIRES>
+      <SCHEME>
+(define a (make-wire))
+(define b (make-wire))
+(define c (make-wire))
+(define d (make-wire))
+(define e (make-wire))
+(define s (make-wire))
+      </SCHEME>
+      <PYTHON>
+const a = make_wire();
+const b = make_wire();
+const c = make_wire();
+const d = make_wire();
+const e = make_wire();
+const s = make_wire();
+      </PYTHON>
+    </SNIPPET>
+    We attach a function box to a set of wires by calling a
+    <SPLITINLINE>
+      <SCHEME>procedure</SCHEME>
+      <PYTHON>function</PYTHON>
+    </SPLITINLINE>
+    that constructs that kind of box.  The arguments to the constructor
+    <SPLITINLINE>
+      <SCHEME>procedure</SCHEME>
+      <PYTHON>function</PYTHON>
+    </SPLITINLINE>
+    are the wires to be attached to the box.  For example, given
+    that we can construct and-gates, or-gates, and inverters, we can wire
+    together the half-adder shown in figure<SPACE/><REF NAME="fig:half-adder"/>:
+    <SNIPPET>
+      <NAME>or_gate_example</NAME>
+      <REQUIRES>or_gate</REQUIRES>
+      <REQUIRES>make_wire_usage</REQUIRES>
+      <EXPECTED>'ok'</EXPECTED>
+      <SCHEME>
+(or-gate a b d)
+      </SCHEME>
+      <SCHEMEOUTPUT>
+ok
+      </SCHEMEOUTPUT>
+      <PYTHON>
+or_gate(a, b, d);   
+      </PYTHON>
+      <PYTHON_OUTPUT>
+"ok"
+      </PYTHON_OUTPUT>
+    </SNIPPET>
+    <SNIPPET>
+      <NAME>and_gate_example</NAME>
+      <REQUIRES>and_gate</REQUIRES>
+      <REQUIRES>make_wire_usage</REQUIRES>
+      <EXPECTED>'ok'</EXPECTED>
+      <SCHEME>
+(and-gate a b c)
+      </SCHEME>
+      <SCHEMEOUTPUT>
+ok
+      </SCHEMEOUTPUT>
+      <PYTHON>
+and_gate(a, b, c);  
+      </PYTHON>
+      <PYTHON_OUTPUT>
+"ok"	
+      </PYTHON_OUTPUT>
+    </SNIPPET>
+    <SNIPPET>
+      <NAME>inverter_example</NAME>
+      <REQUIRES>inverter</REQUIRES>
+      <REQUIRES>make_wire_usage</REQUIRES>
+      <EXPECTED>'ok'</EXPECTED>
+      <SCHEME>
+(inverter c e)
+      </SCHEME>
+      <SCHEMEOUTPUT>
+ok
+      </SCHEMEOUTPUT>
+      <PYTHON>
+inverter(c, e);     
+      </PYTHON>
+      <PYTHON_OUTPUT>
+"ok"	
+      </PYTHON_OUTPUT>
+    </SNIPPET>
+    <SNIPPET>
+      <NAME>and_gate_example_2</NAME>
+      <REQUIRES>and_gate</REQUIRES>
+      <REQUIRES>make_wire_usage</REQUIRES>
+      <EXPECTED>'ok'</EXPECTED>
+      <SCHEME>
+(and-gate d e s)
+      </SCHEME>
+      <SCHEMEOUTPUT>
+ok
+      </SCHEMEOUTPUT>
+      <PYTHON>
+and_gate(d, e, s);  
+      </PYTHON>
+      <PYTHON_OUTPUT>
+"ok"	
+      </PYTHON_OUTPUT>
+    </SNIPPET>
+  </TEXT>
+
+  <TEXT>
+    Better yet, we can explicitly name this operation by defining a
+    <SPLITINLINE>
+      <SCHEME>procedure</SCHEME>
+      <PYTHON>function</PYTHON>
+    </SPLITINLINE>
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>half-adder</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>half_@adder</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    that constructs this circuit, given the four
+    external wires to be attached to the half-adder:
+    <SNIPPET HIDE="yes">
+      <NAME>half_adder_example</NAME>
+      <REQUIRES>half_adder</REQUIRES>
+      <PYTHON>
+const a = make_wire();
+const b = make_wire();
+const s = make_wire();	
+const c = make_wire();
+half_adder(a, b, s, c);
+      </PYTHON>
+    </SNIPPET>
+    <SNIPPET>
+      <INDEX>half-adder<SUBINDEX><DECLARATION>half_adder</DECLARATION></SUBINDEX></INDEX>
+      <NAME>half_adder</NAME>
+      <REQUIRES>make_wire</REQUIRES>
+      <REQUIRES>or_gate</REQUIRES>
+      <REQUIRES>and_gate</REQUIRES>
+      <REQUIRES>inverter</REQUIRES>
+      <EXAMPLE>half_adder_example</EXAMPLE>
+      <EXPECTED>'ok'</EXPECTED>
+      <SCHEME>
+(define (half-adder a b s c)
+  (let ((d (make-wire)) (e (make-wire)))
+    (or-gate a b d)
+    (and-gate a b c)
+    (inverter c e)
+    (and-gate d e s)
+    'ok))
+      </SCHEME>
+      <PYTHON>
+function half_adder(a, b, s, c) {
+    const d = make_wire();
+    const e = make_wire();
+    or_gate(a, b, d);
+    and_gate(a, b, c);
+    inverter(c, e);
+    and_gate(d, e, s);
+    return "ok";
+}
+      </PYTHON>
+    </SNIPPET>
+    The advantage of making this definition is that we can use <SPLITINLINE>
+    <SCHEME><SCHEMEINLINE>half-adder</SCHEMEINLINE></SCHEME>
+    <PYTHON><PYTHONINLINE>half_adder</PYTHONINLINE></PYTHON>
+    </SPLITINLINE> itself as a building block in creating more complex
+    circuits.  Figure<SPACE/><REF NAME="fig:full-adder"/>, for example, shows a
+    <INDEX>full-adder</INDEX>
+    <INDEX>adder<SUBINDEX>full</SUBINDEX></INDEX>
+    <EM>full-adder</EM> composed of two half-adders and an or-gate.<FOOTNOTE>A
+      full-adder is a basic circuit element used in adding two binary
+      numbers.  Here <LATEXINLINE>$A$</LATEXINLINE> and <LATEXINLINE>$B$</LATEXINLINE>
+      are the bits at corresponding positions in the
+      two numbers to be added, and <LATEXINLINE>$C_{\mathit{in}}$</LATEXINLINE> is the
+      carry bit from the addition one place to the right.  The circuit generates
+      <LATEXINLINE>$\mathit{SUM}$</LATEXINLINE>, which is the sum bit in the corresponding position, and
+      <LATEXINLINE>$C_{\mathit{out}}$</LATEXINLINE>, which is the
+      carry bit to be propagated to the left.</FOOTNOTE> We can construct a
+      full-adder as follows:
+    <SNIPPET HIDE="yes">
+      <NAME>full_adder_example</NAME>
+      <REQUIRES>full_adder</REQUIRES>
+      <PYTHON>
+const a     = make_wire();
+const b     = make_wire();
+const c_in  = make_wire();
+const sum   = make_wire();	
+const c_out = make_wire();
+full_adder(a, b, c_in, sum, c_out);
+      </PYTHON>
+    </SNIPPET>
+    <SNIPPET>
+      <INDEX>full-adder<SUBINDEX><DECLARATION>full_adder</DECLARATION></SUBINDEX></INDEX>
+      <NAME>full_adder</NAME>
+      <REQUIRES>make_wire</REQUIRES>
+      <REQUIRES>half_adder</REQUIRES>
+      <REQUIRES>or_gate</REQUIRES>
+      <EXAMPLE>full_adder_example</EXAMPLE>
+      <EXPECTED>'ok'</EXPECTED>
+      <SCHEME>
+(define (full-adder a b c-in sum c-out)
+  (let ((s (make-wire))
+        (c1 (make-wire))
+        (c2 (make-wire)))
+    (half-adder b c-in s c1)
+    (half-adder a s sum c2)
+    (or-gate c1 c2 c-out)
+    'ok))
+      </SCHEME>
+      <PYTHON>
+function full_adder(a, b, c_in, sum, c_out) {
+    const s = make_wire();
+    const c1 = make_wire();
+    const c2 = make_wire();
+    half_adder(b, c_in, s, c1);
+    half_adder(a, s, sum, c2);
+    or_gate(c1, c2, c_out);
+    return "ok";
+}
+      </PYTHON>
+    </SNIPPET>
+    Having defined
+    <SPLITINLINE>
+    <SCHEME><SCHEMEINLINE>full-adder</SCHEMEINLINE></SCHEME>
+    <PYTHON><PYTHONINLINE>full_adder</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    as a
+    <SPLITINLINE>
+      <SCHEME>procedure,</SCHEME>
+      <PYTHON>function,</PYTHON>
+    </SPLITINLINE>
+    we can now use it as a building block for creating still more complex
+    circuits.  (For example, see exercise<SPACE/><REF NAME="ex:ripple-carry"/>.)
+  <WEB_ONLY>
+    <!-- Figure moved later for SICP JS pagination -->
+    <!-- Figure code is duplicated later in this file in a PDF_ONLY -->
+    <FIGURE>
+      <FIGURE split_scale="0.5" web_scale="0.8" src="img_original/ch3-Z-G-26.svg"></FIGURE>
+      <CAPTION>A full-adder circuit.
+      </CAPTION>
+      <LABEL NAME="fig:full-adder"/>
+    </FIGURE>
+  </WEB_ONLY>
+  </TEXT>
+
+  <TEXT>
+    In essence, our simulator provides us with the tools to construct a
+    language of circuits.  If we adopt the general perspective on
+    languages with which we approached the study of
+    <SPLITINLINE>
+      <SCHEME>Lisp</SCHEME>
+      <PYTHON>Python</PYTHON>
+    </SPLITINLINE>
+    in section<SPACE/><REF NAME="sec:elements-of-programming"/>,
+    we can say that the primitive function boxes form the primitive
+    elements of the language, that wiring boxes together provides a means
+    of combination, and that specifying wiring patterns as
+    <SPLITINLINE>
+      <SCHEME>procedures</SCHEME>
+      <PYTHON>functions</PYTHON>
+    </SPLITINLINE>
+    serves as a means of abstraction.
+  </TEXT>
+
+  <SUBHEADING> 
+    <NAME>Primitive function boxes</NAME>
+  </SUBHEADING>
+
+
+  <TEXT>
+    The primitive function boxes
+    <INDEX>digital-circuit simulation<SUBINDEX>primitive function boxes<OPEN/></SUBINDEX></INDEX>
+    implement the <QUOTE>forces</QUOTE> by which a
+    change in the signal on one wire influences the signals on other
+    wires.  To build function boxes, we use the following operations on
+    wires:
+    <UL>
+      <LI>
+	<SPLITINLINE>
+	  <SCHEME><SCHEMEINLINE>(get-signal wire)</SCHEMEINLINE>:</SCHEME>
+	  <PYTHON>
+	    <PYTHONINLINE>get_signal(</PYTHONINLINE><META>wire</META><PYTHONINLINE>)</PYTHONINLINE>
+	  </PYTHON>
+	</SPLITINLINE>
+	<INDEX><USE>get_signal</USE></INDEX> 
+	<BR/>
+	returns the current value of the signal on the wire.
+      </LI>
+      <LI>
+        <SPLITINLINE>
+	  <SCHEME><SCHEMEINLINE>(set-signal! wire new-value)</SCHEMEINLINE>:
+	  </SCHEME>
+	  <PYTHON>
+	    <PYTHONINLINE>set_signal(</PYTHONINLINE><META>wire</META><PYTHONINLINE>,</PYTHONINLINE> <META>new-value</META><PYTHONINLINE>)</PYTHONINLINE>:
+	  </PYTHON>
+	</SPLITINLINE>
+        <INDEX><USE>set_signal</USE></INDEX> 
+	<BR/>
+        changes the value of the signal on the wire to the new value.
+      </LI>
+      <LI>
+        <SPLITINLINE>
+	  <SCHEME>
+	    <SCHEMEINLINE>(add-action! wire procedure-of-no-arguments)</SCHEMEINLINE>:
+	  </SCHEME>
+	  <PYTHON>
+	    <PYTHONINLINE>add_action(</PYTHONINLINE><META>wire</META><PYTHONINLINE>,</PYTHONINLINE> <META>function-of-no-arguments</META><PYTHONINLINE>)</PYTHONINLINE>:
+	  </PYTHON>
+	</SPLITINLINE>
+        <INDEX><USE>add_action</USE></INDEX> 
+	<BR/>
+        asserts that the designated
+        <SPLITINLINE>
+	  <SCHEME>procedure</SCHEME>
+	  <PYTHON>function</PYTHON>
+	</SPLITINLINE>
+        should be run whenever the signal on the wire changes value.  Such
+        <SPLITINLINE>
+	  <SCHEME>procedures</SCHEME>
+	  <PYTHON>functions</PYTHON>
+	</SPLITINLINE>
+        are the vehicles by which changes in the signal value on the wire are
+	communicated to other wires.
+      </LI>
+    </UL>
+    In addition, we will make use of a
+    <SPLITINLINE>
+      <SCHEME>procedure</SCHEME>
+      <PYTHON>function</PYTHON>
+    </SPLITINLINE>
+    <INDEX><USE>after_delay</USE></INDEX> 
+    <SPLITINLINE>
+      <SCHEME>
+	<SCHEMEINLINE>after-delay</SCHEMEINLINE>
+      </SCHEME>
+      <PYTHON>
+	<PYTHONINLINE>after_delay</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    that takes a time delay and a
+    <SPLITINLINE>
+      <SCHEME>procedure</SCHEME>
+      <PYTHON>function</PYTHON>
+    </SPLITINLINE>
+    to be run and executes the given
+    <SPLITINLINE>
+      <SCHEME>procedure</SCHEME>
+      <PYTHON>function</PYTHON>
+    </SPLITINLINE>
+    after the given delay.
+  </TEXT>
+
+  <TEXT>
+    Using these
+    <SPLITINLINE>
+      <SCHEME>procedures,</SCHEME>
+      <PYTHON>functions,</PYTHON>
+    </SPLITINLINE>
+    we can define the primitive digital logic functions.  To connect an input
+    to an output through an inverter, we use
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>add-action!</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>add_action</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    to associate with the input wire a
+    <SPLITINLINE>
+      <SCHEME>procedure</SCHEME>
+      <PYTHON>function</PYTHON>
+    </SPLITINLINE>
+    that will be run whenever the signal on the input wire changes value.
+    The
+    <SPLITINLINE>
+      <SCHEME>procedure</SCHEME>
+      <PYTHON>function</PYTHON>
+    </SPLITINLINE>
+    computes the
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>logical-not</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>logical_not</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    of the input signal, and then, after one
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>inverter-delay</SCHEMEINLINE>,</SCHEME>
+      <PYTHON><PYTHONINLINE>inverter_delay</PYTHONINLINE>,
+      </PYTHON>
+    </SPLITINLINE>
+    sets the output signal to be this new value:
+    <SNIPPET>
+      <INDEX>inverter<SUBINDEX><DECLARATION>inverter</DECLARATION></SUBINDEX></INDEX>
+      <INDEX><DECLARATION>logical_not</DECLARATION></INDEX> 
+      <NAME>inverter</NAME>
+      <REQUIRES>get_signal</REQUIRES>
+      <REQUIRES>after_delay</REQUIRES>
+      <EXAMPLE>inverter_example</EXAMPLE>
+      <EXPECTED>'ok'</EXPECTED>
+      <SCHEME>
+(define (inverter input output)
+  (define (invert-input)
+    (let ((new-value (logical-not (get-signal input))))
+      (after-delay inverter-delay
+                   (lambda ()
+                     (set-signal! output new-value)))))
+  (add-action! input invert-input)
+  'ok)
+                
+(define (logical-not s)
+  (cond ((= s 0) 1)
+        ((= s 1) 0)
+        (else (error "Invalid signal" s))))
+      </SCHEME>
+      <PYTHON>
+function inverter(input, output) {
+    function invert_input() {
+        const new_value = logical_not(get_signal(input));
+        after_delay(inverter_delay, 
+                    () => set_signal(output, new_value));
+    }
+    add_action(input, invert_input);
+    return "ok";
+}
+function logical_not(s) {
+    return s === 0
+           ? 1
+           : s === 1
+           ? 0
+           : error(s, "invalid signal");
+}
+      </PYTHON>
+    </SNIPPET>
+  </TEXT>
+
+  <SNIPPET HIDE="yes">
+    <NAME>logical_and</NAME>
+    <PYTHON>
+function logical_and(s1, s2) {
+    return s1 === 1 &amp;&amp; s2 === 1
+           ? 1
+           : s1 === 0 || s1 === 1
+           ? s2 === 0 || s2 === 1
+             ? 0
+             : error(s2, "invalid signal")
+           : error(s1, "invalid signal");
+}
+    </PYTHON>
+  </SNIPPET>
+  <PDF_ONLY>
+    <!-- Figure moved here from earlier for SICP JS pagination -->
+    <!-- Figure code is copy of code earlier in this file in a WEB_ONLY -->
+    <FIGURE>
+      <FIGURE split_scale="0.5" web_scale="0.8" src="img_original/ch3-Z-G-26.svg"></FIGURE>
+      <CAPTION>A full-adder circuit.
+      </CAPTION>
+      <LABEL NAME="fig:full-adder"/>
+    </FIGURE>
+  </PDF_ONLY>
+
+  <TEXT>
+    An and-gate is a little more complex.  The action
+    <SPLITINLINE>
+      <SCHEME>procedure</SCHEME>
+      <PYTHON>function</PYTHON>
+    </SPLITINLINE>
+    must be run if
+    either of the inputs to the gate changes.  It computes the
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>logical-and</SCHEMEINLINE>
+      (using a procedure analogous to
+      <SCHEMEINLINE>logical-not</SCHEMEINLINE>)
+      </SCHEME>
+      <PYTHON>
+	<PYTHONINLINE>logical_and</PYTHONINLINE>
+	(using a function analogous to
+	<PYTHONINLINE>logical_not</PYTHONINLINE>)
+      </PYTHON>
+    </SPLITINLINE>
+    of the values of the signals on the input wires and sets up a change
+    to the new value to occur on the output wire after one
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>and-gate-delay</SCHEMEINLINE>.</SCHEME>
+      <PYTHON><PYTHONINLINE>and_gate_delay</PYTHONINLINE>.
+      </PYTHON>
+    </SPLITINLINE>
+    <SNIPPET POSTPADDING="no">
+      <INDEX>and-gate<SUBINDEX><DECLARATION>and_gate</DECLARATION></SUBINDEX></INDEX>
+      <NAME>and_gate</NAME>
+      <REQUIRES>get_signal</REQUIRES>
+      <REQUIRES>after_delay</REQUIRES>
+      <REQUIRES>logical_and</REQUIRES>
+      <EXAMPLE>and_gate_example</EXAMPLE>
+      <EXPECTED>'ok'</EXPECTED>
+      <SCHEME>
+(define (and-gate a1 a2 output)
+  (define (and-action-procedure)
+    (let ((new-value
+          (logical-and (get-signal a1) (get-signal a2))))
+      (after-delay and-gate-delay
+                   (lambda ()
+                     (set-signal! output new-value)))))
+  (add-action! a1 and-action-procedure)
+  (add-action! a2 and-action-procedure)
+  'ok)
+      </SCHEME>
+      <PYTHON>
+function and_gate(a1, a2, output) {
+    function and_action_function() {
+        const new_value = logical_and(get_signal(a1),
+                                      get_signal(a2));
+        after_delay(and_gate_delay, 
+                    () => set_signal(output, new_value));
+    }
+    add_action(a1, and_action_function);
+    add_action(a2, and_action_function);
+    return "ok";
+}
+      </PYTHON>
+    </SNIPPET>
+  </TEXT>
+
+  <EXERCISE>
+    Define an
+    <INDEX>or-gate<SUBINDEX><ORDER>or gate</ORDER><SPLITINLINE><SCHEME><SCHEMEINLINE>or-gate</SCHEMEINLINE></SCHEME><PYTHON><PYTHONINLINE>or_gate</PYTHONINLINE></PYTHON></SPLITINLINE></SUBINDEX></INDEX>
+    or-gate as a primitive function box.  Your
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>or-gate</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>or_gate</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    constructor should be similar to
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>and-gate</SCHEMEINLINE>.</SCHEME>
+      <PYTHON><PYTHONINLINE>and_gate</PYTHONINLINE>.
+      </PYTHON>
+    </SPLITINLINE>
+    <LABEL NAME="ex:3_28"/>
+    <SOLUTION>
+      <SNIPPET>
+	<NAME>logical_or</NAME>
+	<PYTHON>
+// contributed by GitHub user clean99
+
+function logical_or(s1, s2) {
+    return s1 === 0 &amp;&amp; s2 === 0
+           ? 0
+           : s1 === 0 || s1 === 1
+           ? s2 === 0 || s2 === 1
+             ? 1
+             : error(s2, "invalid signal")
+           : error(s1, "invalid signal");
+}
+	</PYTHON>
+      </SNIPPET>
+      <SNIPPET>
+	<NAME>or_gate</NAME>
+	<REQUIRES>get_signal</REQUIRES>
+	<REQUIRES>after_delay</REQUIRES>
+	<REQUIRES>logical_or</REQUIRES>
+	<PYTHON>
+// contributed by GitHub user clean99
+
+function or_gate(a1, a2, output) {
+    function or_action_function() {
+        const new_value = logical_or(get_signal(a1),
+                                     get_signal(a2));
+        after_delay(or_gate_delay, 
+                    () => set_signal(output, new_value));
+    }
+    add_action(a1, or_action_function);
+    add_action(a2, or_action_function);
+    return "ok";
+}
+	</PYTHON>
+      </SNIPPET>
+    </SOLUTION>
+  </EXERCISE>
+  
+  <EXERCISE>
+    Another way to construct an
+    <INDEX>or-gate<SUBINDEX><ORDER>or gate</ORDER><SPLITINLINE><SCHEME><SCHEMEINLINE>or-gate</SCHEMEINLINE></SCHEME><PYTHON><PYTHONINLINE>or_gate</PYTHONINLINE></PYTHON></SPLITINLINE></SUBINDEX></INDEX>
+    or-gate is as a compound digital logic
+    device, built from and-gates and inverters.  Define a
+    <SPLITINLINE>
+      <SCHEME>procedure</SCHEME>
+      <PYTHON>function</PYTHON>
+    </SPLITINLINE>
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>or-gate</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>or_gate</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    that accomplishes this.  What is the delay time of the
+    or-gate in terms of
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>and-gate-delay</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>and_gate_delay</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    and
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>inverter-delay</SCHEMEINLINE>?</SCHEME>
+      <PYTHON><PYTHONINLINE>inverter_delay</PYTHONINLINE>?
+      </PYTHON>
+    </SPLITINLINE>
+    <SOLUTION>
+      (contributed by github user <LINK address="https://github.com/taimoon">taimoon</LINK>)
+      <BREAK/>
+      Idea: ~(~a &amp; ~b) = nand(~a, ~b) = ~~a | ~~b = a | b
+      <SNIPPET EVAL="no">
+	<PYTHON>
+function nand_gate(a1, a2, out){
+    const tmp = make_wire();
+    and_gate(a1, a2, tmp);
+    inverter(tmp, out);
+}
+
+function or_gate(a1, a2, out){
+    const not_a1 = make_wire();
+    const not_a2 = make_wire();
+    inverter(a1, not_a1);
+    inverter(a2, not_a2);
+    nand_gate(not_a1, not_a2, out);
+}
+	</PYTHON>
+      </SNIPPET>
+      The delay time of the nand-gate is
+      <PYTHONINLINE>nand_gate_delay = and_gate_delay + inverter_delay</PYTHONINLINE> and the delay time of the or-gate above is
+      <PYTHONINLINE>or_gate_delay = nand_gate_delay + inverter_delay = and_gate_delay + 2 * inverter_delay</PYTHONINLINE>.
+    </SOLUTION>
+    <LABEL NAME="ex:3_29"/>
+  </EXERCISE>
+  <SHORT_PAGE lines="1"/>
+  <EXERCISE>
+    Figure<SPACE/><REF NAME="fig:ripple-carry"/> shows a 
+    <INDEX>ripple-carry adder</INDEX>
+    <INDEX>adder<SUBINDEX>ripple-carry</SUBINDEX></INDEX>
+    <EM>ripple-carry adder</EM> formed by stringing
+    together <LATEXINLINE>$n$</LATEXINLINE> full-adders.
+    This is the simplest form of parallel adder
+    for adding two <LATEXINLINE>$n$</LATEXINLINE>-bit binary numbers.
+    The inputs <LATEXINLINE>$A_{1}$</LATEXINLINE>,
+    <LATEXINLINE>$A_{2}$</LATEXINLINE>,
+    <LATEXINLINE>$A_{3}$</LATEXINLINE>, <ELLIPSIS/>,
+    <LATEXINLINE>$A_{n}$</LATEXINLINE> and
+    <LATEXINLINE>$B_{1}$</LATEXINLINE>,
+    <LATEXINLINE>$B_{2}$</LATEXINLINE>,
+    <LATEXINLINE>$B_{3}$</LATEXINLINE>, <ELLIPSIS/>,
+    <LATEXINLINE>$B_{n}$</LATEXINLINE>
+    are the two binary numbers to be added (each
+    <LATEXINLINE>$A_{k}$</LATEXINLINE> and
+    <LATEXINLINE>$B_{k}$</LATEXINLINE>
+    is a 0 or a 1).  The circuit generates
+    <LATEXINLINE>$S_{1}$</LATEXINLINE>,
+    <LATEXINLINE>$S_{2}$</LATEXINLINE>,
+    <LATEXINLINE>$S_{3}$</LATEXINLINE>,
+    <ELLIPSIS/>,
+    <LATEXINLINE>$S_{n}$</LATEXINLINE>,
+    the <LATEXINLINE>$n$</LATEXINLINE> bits of the sum, and
+    <LATEXINLINE>$C$</LATEXINLINE>, the carry from
+    the addition.  Write a
+    <SPLITINLINE>
+      <SCHEME>procedure</SCHEME>
+      <PYTHON>function</PYTHON>
+    </SPLITINLINE>
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>ripple-carry-adder</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>ripple_carry_adder</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    that generates this circuit.  The
+    <SPLITINLINE>
+      <SCHEME>procedure</SCHEME>
+      <PYTHON>function</PYTHON>
+    </SPLITINLINE>
+    should take as arguments three lists of
+    <LATEXINLINE>$n$</LATEXINLINE> wires each<EMDASH/>the
+    <LATEXINLINE>$A_{k}$</LATEXINLINE>, the
+    <LATEXINLINE>$B_{k}$</LATEXINLINE>, and the
+    <LATEXINLINE>$S_{k}$</LATEXINLINE><EMDASH/>and
+    also another wire <LATEXINLINE>$C$</LATEXINLINE>.
+    The major drawback of the ripple-carry adder is the need to wait for the
+    carry signals to propagate.  What is the delay needed to obtain the
+    complete output from an <LATEXINLINE>$n$</LATEXINLINE>-bit ripple-carry
+    adder, expressed in terms of the delays for and-gates, or-gates, and
+    inverters?
+    <LABEL NAME="ex:ripple-carry"/>
+  </EXERCISE>
+
+  <FIGURE>
+    <FIGURE split_scale="0.5" web_scale="0.8" src="img_original/ch3-Z-G-27.svg"></FIGURE>
+    <CAPTION>
+      A ripple-carry adder for <LATEXINLINE>$n$</LATEXINLINE>-bit numbers.
+    </CAPTION>
+    <LABEL NAME="fig:ripple-carry"/>
+  </FIGURE>
+
+  <INDEX>digital-circuit simulation<SUBINDEX>primitive function boxes<CLOSE/></SUBINDEX></INDEX>
+
+  <SUBHEADING> 
+    <NAME>Representing wires</NAME>
+  </SUBHEADING>
+  <TEXT>
+    A wire
+    <INDEX>digital-circuit simulation<SUBINDEX>representing wires<OPEN/></SUBINDEX></INDEX>
+    in our simulation will be a computational object with two local
+    state variables:
+    <SPLITINLINE>
+      <SCHEME>a<SPACE/><SCHEMEINLINE>signal-value</SCHEMEINLINE></SCHEME>
+      <PYTHON>a<SPACE/><PYTHONINLINE>signal_value</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    (initially taken to be 0) and a collection of
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>action-procedures</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>action_functions</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    to be run when the signal changes value.  We implement the wire,
+    using
+    <INDEX>message passing<SUBINDEX>in digital-circuit simulation</SUBINDEX></INDEX>
+    message-passing style, as
+    a collection of local
+    <SPLITINLINE>
+      <SCHEME>procedures</SCHEME>
+      <PYTHON>functions</PYTHON>
+    </SPLITINLINE>
+    together with a <SCHEMEINLINE>dispatch</SCHEMEINLINE>
+    <SPLITINLINE><SCHEME>procedure</SCHEME>
+    <PYTHON>function</PYTHON>
+    </SPLITINLINE>
+    that selects the appropriate local operation, just as we did
+    with the simple bank-account object in section
+    <SPACE/><REF NAME="sec:local-state-variables"/>:
+    <SNIPPET>
+      <INDEX><DECLARATION>make_wire</DECLARATION></INDEX> 
+      <NAME>make_wire</NAME>
+      <REQUIRES>call_each</REQUIRES>
+      <EXAMPLE>make_wire_usage</EXAMPLE>
+      <SCHEME>
+(define (make-wire)
+  (let ((signal-value 0) (action-procedures '()))
+    (define (set-my-signal! new-value)
+      (if (not (= signal-value new-value))
+          (begin (set! signal-value new-value)
+            (call-each action-procedures))
+            'done))
+                
+(define (accept-action-procedure! proc)
+  (set! action-procedures (cons proc action-procedures))
+  (proc))
+               
+(define (dispatch m)
+  (cond ((eq? m 'get-signal) signal-value)
+        ((eq? m 'set-signal!) set-my-signal!)
+        ((eq? m 'add-action!) accept-action-procedure!)
+        (else (error "Unknown operation -- WIRE" m))))
+  dispatch))
+      </SCHEME>
+      <PYTHON>
+function make_wire() {
+    let signal_value = 0;
+    let action_functions = null;
+    function set_my_signal(new_value) {
+        if (signal_value !== new_value) {
+            signal_value = new_value;
+            return call_each(action_functions);
+        } else {
+            return "done";
+        }
+    }
+    function accept_action_function(fun) {
+        action_functions = pair(fun, action_functions);
+        fun();
+    }
+    function dispatch(m) {
+        return m === "get_signal"
+               ? signal_value
+               : m === "set_signal"
+               ? set_my_signal
+               : m === "add_action"
+               ? accept_action_function
+               : error(m, "unknown operation -- wire");
+    }
+    return dispatch;
+}
+      </PYTHON>
+    </SNIPPET>
+    The local
+    <SPLITINLINE>
+      <SCHEME>procedure</SCHEME>
+      <PYTHON>function</PYTHON>
+    </SPLITINLINE>
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>set-my-signal</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>set_my_signal</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    tests whether the new signal value changes the signal on the wire.
+    If so, it runs each of the action
+    <SPLITINLINE>
+      <SCHEME>procedures,</SCHEME>
+      <PYTHON>functions,</PYTHON>
+    </SPLITINLINE>
+    using the following
+    <SPLITINLINE>
+      <SCHEME>procedure</SCHEME>
+      <PYTHON>function</PYTHON>
+    </SPLITINLINE>
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>call-each</SCHEMEINLINE>,</SCHEME>
+      <PYTHON><PYTHONINLINE>call_each</PYTHONINLINE>,</PYTHON>
+    </SPLITINLINE>
+    which calls each of the items in a list of no-argument
+    <SPLITINLINE>
+      <SCHEME>procedures:</SCHEME>
+      <PYTHON>functions:</PYTHON>
+    </SPLITINLINE>
+    <SNIPPET>
+      <INDEX><DECLARATION>call_each</DECLARATION></INDEX> 
+      <NAME>call_each</NAME>
+      <SCHEME>
+(define (call-each procedures)
+  (if (null? procedures)
+      'done
+      (begin
+        ((car procedures))
+        (call-each (cdr procedures)))))
+      </SCHEME>
+      <PYTHON>
+function call_each(functions) {
+    if (is_null(functions)) {
+        return "done";
+    } else {
+        head(functions)();
+        return call_each(tail(functions));
+    }
+}
+      </PYTHON>
+    </SNIPPET>
+    The local
+    <SPLITINLINE>
+      <SCHEME>procedure</SCHEME>
+      <PYTHON>function</PYTHON>
+    </SPLITINLINE>
+    <SPLITINLINE>
+      <SCHEME>
+      <SCHEMEINLINE>accept-action-procedure</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>accept_action_function</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    adds the given
+    <SPLITINLINE>
+      <SCHEME>procedure</SCHEME>
+      <PYTHON>function</PYTHON>
+    </SPLITINLINE>
+    to the list of
+    <SPLITINLINE>
+      <SCHEME>procedures</SCHEME>
+      <PYTHON>functions</PYTHON>
+    </SPLITINLINE>
+    to be run, and then runs the new
+    <SPLITINLINE>
+      <SCHEME>procedure</SCHEME>
+      <PYTHON>function</PYTHON>
+    </SPLITINLINE>
+    once.  (See exercise<SPACE/><REF NAME="ex:accept-action"/>.)
+  </TEXT>
+
+  <TEXT>
+    With the local <SCHEMEINLINE>dispatch</SCHEMEINLINE>
+    <SPLITINLINE>
+      <SCHEME>procedure</SCHEME>
+      <PYTHON>function</PYTHON>
+    </SPLITINLINE>
+    set up as specified, we can
+    provide the following
+    <SPLITINLINE>
+      <SCHEME>procedures</SCHEME>
+      <PYTHON>functions</PYTHON>
+    </SPLITINLINE>
+    to access the local operations on
+    wires:<FOOTNOTE>These
+    <SPLITINLINE>
+      <SCHEME>procedures</SCHEME>
+      <PYTHON>functions</PYTHON>
+    </SPLITINLINE>
+    are simply syntactic sugar that allow
+    <SPLITINLINE>
+      <SCHEME>	
+        <INDEX>syntactic sugar<SUBINDEX>procedure vs.<SPACE/>data as</SUBINDEX></INDEX>
+      </SCHEME>
+      <PYTHON>
+        <INDEX>syntactic sugar<SUBINDEX>function vs.<SPACE/>data as</SUBINDEX></INDEX>
+      </PYTHON>
+    </SPLITINLINE>
+    <INDEX>syntax interface</INDEX>
+    us to use ordinary 
+    <SPLITINLINE>
+      <SCHEME>
+        procedural 
+      </SCHEME>
+      <PYTHON>
+        functional
+      </PYTHON>
+    </SPLITINLINE>
+    syntax to access the local
+    <SPLITINLINE>
+      <SCHEME>procedures</SCHEME>
+      <PYTHON>functions</PYTHON>
+    </SPLITINLINE>
+    of objects.  It is striking that we can interchange the role of
+    <SPLITINLINE><SCHEME><QUOTE>procedures</QUOTE></SCHEME>
+    <PYTHON><QUOTE>functions</QUOTE></PYTHON>
+    </SPLITINLINE>
+    and
+    <QUOTE>data</QUOTE> in such a simple way.  For example, if we write
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>(wire 'get-signal)</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>wire("get_signal")</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    we think of <SCHEMEINLINE>wire</SCHEMEINLINE> as a
+    <SPLITINLINE>
+      <SCHEME>procedure</SCHEME>
+      <PYTHON>function</PYTHON>
+    </SPLITINLINE>
+    that is called with the message
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>get-signal</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>"get_signal"</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    as input. Alternatively, writing
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>(get-signal wire)</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>get_signal(wire)</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    encourages us to think of <SCHEMEINLINE>wire</SCHEMEINLINE> as a data
+    object that is the input to a
+    <SPLITINLINE>
+      <SCHEME>procedure</SCHEME>
+      <PYTHON>function</PYTHON>
+    </SPLITINLINE>
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>get-signal</SCHEMEINLINE>.</SCHEME>
+      <PYTHON><PYTHONINLINE>get_signal</PYTHONINLINE>.
+      </PYTHON>
+    </SPLITINLINE>
+    The truth of the matter is that, in a language in which we can deal with
+    <SPLITINLINE><SCHEME>procedures</SCHEME>
+    <PYTHON>functions</PYTHON>
+    </SPLITINLINE>
+    as objects, there is no fundamental difference between
+    <QUOTE><SPLITINLINE><SCHEME>procedures</SCHEME><PYTHON>functions</PYTHON></SPLITINLINE></QUOTE>
+    and <QUOTE>data,</QUOTE> and we can choose our syntactic sugar to allow us
+    to program in whatever style we choose.
+    <LABEL NAME="foot:object-syntax"/></FOOTNOTE>
+    <SNIPPET>
+      <INDEX><DECLARATION>get_signal</DECLARATION></INDEX> 
+      <INDEX><DECLARATION>set_signal</DECLARATION></INDEX> 
+      <INDEX><DECLARATION>add_action</DECLARATION></INDEX> 
+      <NAME>get_signal</NAME>
+      <SCHEME>
+(define (get-signal wire)
+  (wire 'get-signal))
+                
+(define (set-signal! wire new-value)
+  ((wire 'set-signal!) new-value))
+                
+
+(define (add-action! wire action-procedure)
+  ((wire 'add-action!) action-procedure))
+      </SCHEME>
+      <PYTHON>
+function get_signal(wire) {
+    return wire("get_signal");
+}
+function set_signal(wire, new_value) {
+    return wire("set_signal")(new_value);
+}
+function add_action(wire, action_function) {
+    return wire("add_action")(action_function);
+}
+      </PYTHON>
+    </SNIPPET>
+  </TEXT>
+
+  <TEXT>
+    Wires, which have time-varying signals and may be incrementally attached to
+    devices, are typical of mutable objects.  We have modeled them as
+    <SPLITINLINE>
+      <SCHEME>procedures</SCHEME>
+      <PYTHON>functions</PYTHON>
+    </SPLITINLINE>
+    with local state variables that are modified by assignment.  When a new
+    wire is created, a new set of state variables is allocated (by the
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>let</SCHEMEINLINE> expression in</SCHEME>
+      <PYTHON>
+	<PYTHONINLINE>let</PYTHONINLINE> statements in
+      </PYTHON>
+    </SPLITINLINE>
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>make-wire</SCHEMEINLINE>)</SCHEME>
+      <PYTHON><PYTHONINLINE>make_wire</PYTHONINLINE>)</PYTHON>
+    </SPLITINLINE>
+    and a new <SCHEMEINLINE>dispatch</SCHEMEINLINE>
+    <SPLITINLINE>
+      <SCHEME>procedure</SCHEME>
+      <PYTHON>function</PYTHON>
+    </SPLITINLINE>
+    is constructed and returned, capturing
+    the environment with the new state variables.
+  </TEXT>
+
+  <TEXT>
+    The wires are shared among the various devices that have been
+    connected to them.  Thus, a change made by an interaction with one
+    device will affect all the other devices attached to the wire.  The
+    wire communicates the change to its neighbors by calling the action
+    <SPLITINLINE>
+      <SCHEME>procedures</SCHEME>
+      <PYTHON>functions</PYTHON>
+    </SPLITINLINE>
+    provided to it when the connections were established.
+  </TEXT>
+
+  <INDEX>digital-circuit simulation<SUBINDEX>representing wires<CLOSE/></SUBINDEX></INDEX>
+  
+  <SUBHEADING> 
+    <NAME>The agenda</NAME>
+  </SUBHEADING>
+
+  <INDEX>digital-circuit simulation<SUBINDEX>agenda<OPEN/></SUBINDEX></INDEX>
+
+  <TEXT>
+    The only thing needed to complete the simulator is
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>after-delay</SCHEMEINLINE>.</SCHEME>
+      <PYTHON><PYTHONINLINE>after_delay</PYTHONINLINE>.</PYTHON>
+    </SPLITINLINE>
+    The idea here is that we maintain a data structure, called an
+    <EM>agenda</EM>, that contains a schedule of things to do.
+    The following operations are defined for agendas:
+    <UL>
+      <LI>
+        <SPLITINLINE>
+	  <SCHEME><SCHEMEINLINE>(make-agenda)</SCHEMEINLINE>:</SCHEME>
+	  <PYTHON><PYTHONINLINE>make_agenda()</PYTHONINLINE>:
+	  </PYTHON>
+	</SPLITINLINE>
+        <INDEX><USE>make_agenda</USE></INDEX> 
+	<BR/>
+	returns a new empty agenda.
+      </LI>
+      <LI>
+        <SPLITINLINE>
+	  <SCHEME><SCHEMEINLINE>(empty-agenda? agenda)</SCHEMEINLINE>:
+	  </SCHEME>
+	  <PYTHON>
+	    <PYTHONINLINE>is_empty_agenda(</PYTHONINLINE><META>agenda</META><PYTHONINLINE>)</PYTHONINLINE>
+	  </PYTHON>
+	</SPLITINLINE>
+        <INDEX><USE>is_empty_agenda</USE></INDEX> 
+	<BR/>
+	is true if the specified agenda is empty.
+      </LI>
+      <LI>
+        <SPLITINLINE>
+	  <SCHEME><SCHEMEINLINE>(first-agenda-item agenda)</SCHEMEINLINE>:
+	  </SCHEME>
+	  <PYTHON>
+	    <PYTHONINLINE>first_agenda_item(</PYTHONINLINE><META>agenda</META><PYTHONINLINE>)</PYTHONINLINE>
+	  </PYTHON>
+	</SPLITINLINE>
+        <INDEX><USE>first_agenda_item</USE></INDEX> 
+	<BR/>
+	returns the first item on the agenda.
+      </LI>
+      <LI>
+        <SPLITINLINE>
+	  <SCHEME>
+	    <SCHEMEINLINE>(remove-first-agenda-item! agenda)</SCHEMEINLINE>:
+	  </SCHEME>
+	  <PYTHON>
+            <PYTHONINLINE>remove_first_agenda_item(</PYTHONINLINE><META>agenda</META><PYTHONINLINE>)</PYTHONINLINE>
+	  </PYTHON>
+	</SPLITINLINE>
+        <INDEX><USE>remove_first_agenda_item</USE></INDEX> 
+	<BR/>
+        modifies the agenda by removing the first item.
+      </LI>
+      <LI>
+        <SPLITINLINE>
+	  <SCHEME>
+	    <SCHEMEINLINE>(add-to-agenda! time action agenda)</SCHEMEINLINE>:
+	  </SCHEME>
+	  <PYTHON>
+	    <PYTHONINLINE>add_to_agenda(</PYTHONINLINE><META>time</META><PYTHONINLINE>,</PYTHONINLINE> <META>action</META><PYTHONINLINE>,</PYTHONINLINE> <META>agenda</META><PYTHONINLINE>)</PYTHONINLINE>
+	  </PYTHON>
+	</SPLITINLINE>
+        <INDEX><USE>add_to_agenda</USE></INDEX> 
+	<BR/>
+        modifies the agenda by adding the given action
+        <SPLITINLINE>
+	  <SCHEME>procedure</SCHEME>
+	  <PYTHON>function</PYTHON>
+	</SPLITINLINE>
+        to be run at the specified time.
+      </LI>
+      <LI>
+        <SPLITINLINE>
+	  <SCHEME><SCHEMEINLINE>(current-time agenda)</SCHEMEINLINE>:
+	  </SCHEME>
+	  <PYTHON>
+	    <PYTHONINLINE>current_time(</PYTHONINLINE><META>agenda</META><PYTHONINLINE>)</PYTHONINLINE>
+	  </PYTHON>
+	</SPLITINLINE>
+        <INDEX><USE>current_time</USE></INDEX> 
+	<BR/>
+        returns the current simulation time.
+      </LI>
+    </UL>
+  </TEXT>
+
+  <TEXT>
+    The particular agenda that we use is denoted by
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>the-agenda</SCHEMEINLINE>.</SCHEME>
+      <PYTHON><PYTHONINLINE>the_agenda</PYTHONINLINE>.</PYTHON>
+    </SPLITINLINE>
+    The
+    <SPLITINLINE>
+      <SCHEME>procedure</SCHEME>
+      <PYTHON>function</PYTHON>
+    </SPLITINLINE>
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>after-delay</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>after_delay</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    adds new elements to
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>the-agenda</SCHEMEINLINE>:</SCHEME>
+      <PYTHON><PYTHONINLINE>the_agenda</PYTHONINLINE>:</PYTHON>
+    </SPLITINLINE>
+    <SNIPPET>
+      <INDEX><DECLARATION>after_delay</DECLARATION></INDEX> 
+      <NAME>after_delay</NAME>
+      <REQUIRES>add_to_agenda</REQUIRES>
+      <REQUIRES>make_agenda</REQUIRES>
+      <REQUIRES>the_agenda</REQUIRES>
+      <SCHEME>
+(define (after-delay delay action)
+  (add-to-agenda! (+ delay (current-time the-agenda))
+                  action
+                  the-agenda))
+      </SCHEME>
+      <PYTHON>
+function after_delay(delay, action) {
+    add_to_agenda(delay + current_time(the_agenda),
+                  action,
+                  the_agenda);
+}
+      </PYTHON>
+    </SNIPPET>
+  </TEXT>
+
+  <TEXT>
+    <SPLIT>
+      <SCHEME>
+	The simulation is driven by the procedure
+	<SCHEMEINLINE>propagate</SCHEMEINLINE>, which operates on
+	<SCHEMEINLINE>the-agenda</SCHEMEINLINE>,
+	executing each procedure on the agenda in sequence.
+      </SCHEME>
+      <PYTHON>
+	The simulation is driven by the function
+	<SCHEMEINLINE>propagate</SCHEMEINLINE>, which executes each
+	function on
+	<PYTHONINLINE>the_agenda</PYTHONINLINE>
+	in sequence.
+      </PYTHON>
+    </SPLIT>
+    In general, as the simulation runs, new items
+    will be added to the agenda, and <SCHEMEINLINE>propagate</SCHEMEINLINE>
+    will continue the simulation as long as there are items on the agenda:
+    <SNIPPET POSTPADDING="no">
+      <INDEX><DECLARATION>propagate</DECLARATION></INDEX> 
+      <NAME>propagate</NAME>
+      <REQUIRES>remove_first_agenda_item</REQUIRES>
+      <REQUIRES>first_agenda_item</REQUIRES>
+      <REQUIRES>the_agenda</REQUIRES>
+      <SCHEME>
+(define (propagate)
+  (if (empty-agenda? the-agenda)
+      'done
+      (let ((first-item (first-agenda-item the-agenda)))
+        (first-item)
+        (remove-first-agenda-item! the-agenda)
+        (propagate))))
+      </SCHEME>
+      <PYTHON>
+function propagate() {
+    if (is_empty_agenda(the_agenda)) {
+        return "done";
+    } else {
+        const first_item = first_agenda_item(the_agenda);
+        first_item();
+        remove_first_agenda_item(the_agenda);
+        return propagate();
+    }
+}
+      </PYTHON>
+    </SNIPPET>
+  </TEXT>
+
+  <INDEX>digital-circuit simulation<SUBINDEX>agenda<CLOSE/></SUBINDEX></INDEX>
+  
+  <LONG_PAGE lines="1"/>
+  <SUBHEADING> 
+    <NAME>A sample simulation</NAME>
+  </SUBHEADING>
+
+  <INDEX>digital-circuit simulation<SUBINDEX>sample simulation<OPEN/></SUBINDEX></INDEX>
+  <INDEX>half-adder<SUBINDEX>simulation of<OPEN/></SUBINDEX></INDEX>
+
+  <TEXT>
+    The following
+    <SPLITINLINE>
+      <SCHEME>procedure,</SCHEME>
+      <PYTHON>function,</PYTHON>
+    </SPLITINLINE>
+    which places a <QUOTE>probe</QUOTE> on a wire, shows the simulator in
+    action.  The probe tells the wire that, whenever its signal changes value,
+    it should print the new signal value, together with the current time and
+    a name that identifies the
+    <SPLITINLINE>
+      <SCHEME>wire:</SCHEME>
+      <PYTHON>
+	wire. 
+      </PYTHON>
+    </SPLITINLINE>
+    <SNIPPET>
+      <INDEX><DECLARATION>probe</DECLARATION><SUBINDEX>in digital-circuit simulator</SUBINDEX></INDEX>
+      <NAME>probe</NAME>
+      <REQUIRES>the_agenda</REQUIRES>
+      <REQUIRES>get_signal</REQUIRES>
+      <SCHEME>
+(define (probe name wire)
+  (add-action! wire
+               (lambda ()
+                 (newline)
+                 (display name)
+                 (display " ")
+                 (display (current-time the-agenda))
+                 (display "  New-value = ")
+                 (display (get-signal wire)))))
+      </SCHEME>
+      <PYTHON>
+function probe(name, wire) {
+    add_action(wire, 
+               () => display(name + " " +
+                             stringify(current_time(the_agenda)) + 
+                             ", new value = " + 
+                             stringify(get_signal(wire))));
+}
+      </PYTHON>
+      <PYTHON_TEST>
+function probe(name, wire) {
+    add_action(wire, 
+               () => name + " " +
+                     stringify(current_time(the_agenda)) + 
+                     ", new value = " + 
+                     stringify(get_signal(wire)));
+}
+      </PYTHON_TEST>
+    </SNIPPET>
+  </TEXT>
+
+  <TEXT>
+    We begin by initializing the agenda and specifying delays for the
+    primitive function boxes:
+    <SNIPPET>
+      <NAME>the_agenda</NAME>
+      <REQUIRES>make_agenda</REQUIRES>
+      <SCHEME>
+(define the-agenda (make-agenda))
+(define inverter-delay 2)
+(define and-gate-delay 3)
+(define or-gate-delay 5)
+      </SCHEME>
+      <PYTHON>
+const the_agenda = make_agenda();
+const inverter_delay = 2;
+const and_gate_delay = 3;
+const or_gate_delay = 5;
+      </PYTHON>
+    </SNIPPET>
+    Now we define four wires, placing probes on two of them:
+    <SNIPPET>
+      <NAME>probing_two_wires</NAME>
+      <REQUIRES>make_wire</REQUIRES>
+      <REQUIRES>probe</REQUIRES>
+      <SCHEME>
+(define input-1 (make-wire))
+(define input-2 (make-wire))
+(define sum (make-wire))
+(define carry (make-wire))
+    
+(probe 'sum sum)
+      </SCHEME>
+      <SCHEMEOUTPUT>
+    sum 0  New-value = 0
+      </SCHEMEOUTPUT>
+      <PYTHON>
+const input_1 = make_wire();
+const input_2 = make_wire();
+const sum = make_wire();
+const carry = make_wire();
+
+probe("sum", sum);
+      </PYTHON>
+      <PYTHON_OUTPUT>
+"sum 0, new value = 0"
+      </PYTHON_OUTPUT>
+    </SNIPPET>
+    <SNIPPET>
+      <NAME>probe_carry</NAME>
+      <REQUIRES>probing_two_wires</REQUIRES>
+      <SCHEME>
+(probe 'carry carry)
+      </SCHEME>
+      <SCHEMEOUTPUT>
+carry 0  New-value = 0
+      </SCHEMEOUTPUT>
+      <PYTHON>
+probe("carry", carry);
+      </PYTHON>
+      <PYTHON_OUTPUT>
+"carry 0, new value = 0"
+      </PYTHON_OUTPUT>
+    </SNIPPET>
+    Next we connect the wires in a half-adder circuit (as in
+    figure<SPACE/><REF NAME="fig:half-adder"/>), set the signal on
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>input-1</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>input_1</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    to 1, and run the simulation:
+    <SNIPPET>
+      <NAME>half_adder_example_2</NAME>
+      <REQUIRES>half_adder</REQUIRES>
+      <REQUIRES>probe_carry</REQUIRES>
+      <EXPECTED>'ok'</EXPECTED>
+      <SCHEME>
+(half-adder input-1 input-2 sum carry)
+      </SCHEME>
+      <SCHEMEOUTPUT>
+ok
+      </SCHEMEOUTPUT>
+      <PYTHON>
+half_adder(input_1, input_2, sum, carry);
+      </PYTHON>
+      <PYTHON_OUTPUT>
+"ok"
+      </PYTHON_OUTPUT>
+    </SNIPPET>
+    <SNIPPET>
+      <NAME>set_signal_example</NAME>
+      <REQUIRES>half_adder_example_2</REQUIRES>
+      <EXPECTED>'done'</EXPECTED>
+      <SCHEME>
+(set-signal! input-1 1)
+      </SCHEME>
+      <SCHEMEOUTPUT>
+done
+      </SCHEMEOUTPUT>
+      <PYTHON>
+set_signal(input_1, 1);
+      </PYTHON>
+      <PYTHON_OUTPUT>
+"done"	
+      </PYTHON_OUTPUT>
+    </SNIPPET>
+    <SNIPPET>
+      <NAME>propagate_example_1</NAME>
+      <REQUIRES>set_signal_example</REQUIRES>
+      <REQUIRES>propagate</REQUIRES>
+      <EXPECTED>'done'</EXPECTED>
+      <SCHEME>
+(propagate)
+      </SCHEME>
+      <SCHEMEOUTPUT>
+sum 8  New-value = 1
+done
+      </SCHEMEOUTPUT>
+      <PYTHON>
+propagate();
+      </PYTHON>
+      <PYTHON_OUTPUT>
+"sum 8, new value = 1"
+"done"	
+      </PYTHON_OUTPUT>
+    </SNIPPET>
+    The <SCHEMEINLINE>sum</SCHEMEINLINE> signal changes to 1 at time 8.
+    We are now eight time units from the beginning of the simulation.
+    At this point, we can set the signal on
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>input-2</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>input_2</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    to 1 and allow the values to propagate:
+    <SNIPPET>
+      <NAME>set_signal_example_2</NAME>
+      <REQUIRES>propagate_example_1</REQUIRES>
+      <EXPECTED>'done'</EXPECTED>
+      <SCHEME>
+(set-signal! input-2 1)
+      </SCHEME>
+      <SCHEMEOUTPUT>
+                done
+      </SCHEMEOUTPUT>
+      <PYTHON>
+set_signal(input_2, 1);
+      </PYTHON>
+      <PYTHON_OUTPUT>
+"done"	
+      </PYTHON_OUTPUT>
+      </SNIPPET>
+    <SNIPPET>
+      <NAME>propagate_example_2</NAME>
+      <REQUIRES>set_signal_example_2</REQUIRES>
+      <EXPECTED>'done'</EXPECTED>
+      <SCHEME>
+(propagate)
+      </SCHEME>
+      <SCHEMEOUTPUT>
+carry 11  New value = 1
+sum 16  New value = 0
+done
+      </SCHEMEOUTPUT>
+      <PYTHON>
+propagate();
+      </PYTHON>
+      <PYTHON_OUTPUT>
+"carry 11, new value = 1"
+"sum 16, new value = 0"
+"done"
+      </PYTHON_OUTPUT>
+    </SNIPPET>
+    <LONG_PAGE lines="2"/>The <SCHEMEINLINE>carry</SCHEMEINLINE> changes to 1 at time 11 and the
+    <SCHEMEINLINE>sum</SCHEMEINLINE> changes to 0 at time 16.
+  </TEXT>
+
+  <INDEX>digital-circuit simulation<SUBINDEX>sample simulation<CLOSE/></SUBINDEX></INDEX>
+  <INDEX>half-adder<SUBINDEX>simulation of<CLOSE/></SUBINDEX></INDEX>
+
+  <EXERCISE>
+    <LABEL NAME="ex:accept-action"/>
+    The internal
+    <SPLITINLINE>
+      <SCHEME>procedure</SCHEME>
+      <PYTHON>function</PYTHON>
+    </SPLITINLINE>
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>accept-action-procedure!</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>accept_action_function</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    defined in
+    <INDEX><USE>make_wire</USE></INDEX>
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>make-wire</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>make_wire</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    specifies that when a new action
+    <SPLITINLINE>
+      <SCHEME>procedure</SCHEME>
+      <PYTHON>function</PYTHON>
+    </SPLITINLINE>
+    is added to
+    a wire, the
+    <SPLITINLINE>
+      <SCHEME>procedure</SCHEME>
+      <PYTHON>function</PYTHON>
+    </SPLITINLINE>
+    is immediately run.  Explain why this initialization
+    is necessary.  In particular, trace through the half-adder example in
+    the paragraphs above and say how the system<APOS/>s response would differ
+    if we had defined
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>accept-action-procedure!</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>accept_action_function</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    as
+    <SNIPPET EVAL="no" POSTPADDING="no">
+      <SCHEME>
+(define (accept-action-procedure! proc)
+  (set! action-procedures (cons proc action-procedures)))
+      </SCHEME>
+      <PYTHON>
+function accept_action_function(fun) {
+   action_functions = pair(fun, action_functions);
+}
+      </PYTHON>
+    </SNIPPET>
+  </EXERCISE>
+      
+  <SUBHEADING> 
+    <NAME>Implementing the agenda</NAME>
+  </SUBHEADING>
+
+  <INDEX>digital-circuit simulation<SUBINDEX>agenda implementation<OPEN/></SUBINDEX></INDEX>
+
+  <TEXT>
+    Finally, we give details of the agenda data structure, which holds the
+    <SPLITINLINE>
+      <SCHEME>procedures</SCHEME>
+      <PYTHON>functions</PYTHON>
+    </SPLITINLINE>
+    that are scheduled for future execution.
+  </TEXT>
+
+  <TEXT>
+    The agenda is made up of 
+    <INDEX>time segment, in agenda</INDEX>
+    <EM>time segments</EM>.  Each time segment is a
+    pair consisting of a number (the time) and a 
+    <INDEX>queue<SUBINDEX><ORDER>simulation</ORDER>in simulation agenda</SUBINDEX></INDEX>
+    queue (see
+    exercise<SPACE/><REF NAME="ex:agenda-list"/>) that holds the
+    <SPLITINLINE>
+      <SCHEME>procedures</SCHEME>
+      <PYTHON>functions</PYTHON>
+    </SPLITINLINE>
+    that are scheduled to be run during that time segment.
+    <SNIPPET>
+      <INDEX><DECLARATION>make_time_segment</DECLARATION></INDEX> 
+      <INDEX><DECLARATION>segment_time</DECLARATION></INDEX> 
+      <INDEX><DECLARATION>segment_queue</DECLARATION></INDEX> 
+      <NAME>make_time_segment</NAME>
+      <SCHEME>
+(define (make-time-segment time queue)
+  (cons time queue))
+                
+(define (segment-time s) (car s))
+                
+(define (segment-queue s) (cdr s))
+      </SCHEME>
+      <PYTHON>
+function make_time_segment(time, queue) {
+   return pair(time, queue);
+}
+function segment_time(s) { return head(s); }
+<SHORT_SPACE/>
+function segment_queue(s) { return tail(s); }
+      </PYTHON>
+    </SNIPPET>
+    We will operate on the time-segment queues using the queue operations
+    described in section<SPACE/><REF NAME="sec:queues"/>.
+  </TEXT>
+
+  <TEXT>
+    The agenda itself is a one-dimensional
+    <INDEX>table<SUBINDEX>used in simulation agenda</SUBINDEX></INDEX>
+    table of time segments.  It
+    differs from the tables described in section<SPACE/><REF NAME="sec:tables"/>
+    in that the segments will be sorted in order of increasing time.  In
+    addition, we store the 
+    <INDEX>current time, for simulation agenda</INDEX>
+    <EM>current time</EM> (i.e., the time of the last action
+    that was processed) at the head of the agenda.  A newly constructed
+    agenda has no time segments and has a current time of 0:<FOOTNOTE>The
+    agenda is a 
+    <INDEX>headed list</INDEX>
+    <INDEX>list(s)<SUBINDEX>headed</SUBINDEX></INDEX>
+    headed list, like the tables in section<SPACE/><REF NAME="sec:tables"/>,
+    but since the list is headed by the time, we do not need an additional
+    dummy header (such as the
+    <SPLITINLINE>
+      <SCHEME>
+	<SCHEMEINLINE>*table*</SCHEMEINLINE> symbol
+      </SCHEME>
+      <PYTHON>
+	<PYTHONINLINE>"*table*"</PYTHONINLINE> string
+      </PYTHON>
+    </SPLITINLINE>
+    used
+    with tables).</FOOTNOTE>
+    <SNIPPET>
+      <INDEX><DECLARATION>make_agenda</DECLARATION></INDEX> 
+      <INDEX><DECLARATION>current_time</DECLARATION></INDEX> 
+      <INDEX><DECLARATION>set_current_time</DECLARATION></INDEX> 
+      <INDEX><DECLARATION>segments</DECLARATION></INDEX> 
+      <INDEX><DECLARATION>set_segments</DECLARATION></INDEX> 
+      <INDEX><DECLARATION>first_segment</DECLARATION></INDEX> 
+      <INDEX><DECLARATION>rest_segments</DECLARATION></INDEX> 
+      <NAME>make_agenda</NAME>
+      <SCHEME>
+(define (make-agenda) (list 0))
+                
+(define (current-time agenda) (car agenda))
+                
+(define (set-current-time! agenda time)
+  (set-car! agenda time))
+                
+(define (segments agenda) (cdr agenda))
+                
+(define (set-segments! agenda segments)
+  (set-cdr! agenda segments))
+                
+(define (first-segment agenda) (car (segments agenda)))
+                
+(define (rest-segments agenda) (cdr (segments agenda)))
+      </SCHEME>
+      <PYTHON>
+function make_agenda() { return list(0); }
+<SHORT_SPACE/>
+function current_time(agenda) { return head(agenda); }
+<SHORT_SPACE/>
+function set_current_time(agenda, time) {
+   set_head(agenda, time);
+}
+function segments(agenda) { return tail(agenda); }
+<SHORT_SPACE/>
+function set_segments(agenda, segs) {
+   set_tail(agenda, segs);
+}
+function first_segment(agenda) { return head(segments(agenda)); }
+<SHORT_SPACE/>
+function rest_segments(agenda) { return tail(segments(agenda)); }
+      </PYTHON>
+    </SNIPPET>
+  </TEXT>
+
+  <TEXT>
+    An agenda is empty if it has no time segments:
+    <SNIPPET>
+      <INDEX><DECLARATION>is_empty_agenda</DECLARATION></INDEX> 
+      <NAME>is_empty_agenda</NAME>
+      <REQUIRES>make_agenda</REQUIRES>
+      <SCHEME>
+(define (empty-agenda? agenda)
+  (null? (segments agenda)))
+      </SCHEME>
+      <PYTHON>
+function is_empty_agenda(agenda) {
+   return is_null(segments(agenda));
+}
+      </PYTHON>
+    </SNIPPET>
+  </TEXT>
+
+  <TEXT>
+    To add an action to an agenda, we first check if the agenda is empty.
+    If so, we create a time segment for the action and install this in
+    the agenda.  Otherwise, we scan the agenda, examining the time of each
+    segment.  If we find a segment for our appointed time, we add the
+    action to the associated queue.  If we reach a time later than the one
+    to which we are appointed, we insert a new time segment into the
+    agenda just before it.  If we reach the end of the agenda, we must
+    create a new time segment at the end.
+    <SNIPPET>
+      <INDEX><DECLARATION>add_to_agenda</DECLARATION></INDEX> 
+      <NAME>add_to_agenda</NAME>
+      <REQUIRES>make_time_segment</REQUIRES>
+      <REQUIRES>make_queue</REQUIRES>
+      <REQUIRES>insert_queue</REQUIRES>
+      <REQUIRES>make_time_segment</REQUIRES>
+      <REQUIRES>make_agenda</REQUIRES>
+      <SCHEME>
+(define (add-to-agenda! time action agenda)
+  (define (belongs-before? segments)
+    (or (null? segments)
+        (&lt; time (segment-time (car segments)))))
+  (define (make-new-time-segment time action)
+    (let ((q (make-queue)))
+      (insert-queue! q action)
+      (make-time-segment time q)))
+  (define (add-to-segments! segments)
+     (if (= (segment-time (car segments)) time)
+         (insert-queue! (segment-queue (car segments))
+                        action)
+         (let ((rest (cdr segments)))
+           (if (belongs-before? rest)
+               (set-cdr!
+                segments
+                (cons (make-new-time-segment time action)
+                      (cdr segments)))
+               (add-to-segments! rest)))))
+  (let ((segments (segments agenda)))
+    (if (belongs-before? segments)
+        (set-segments!
+         agenda
+         (cons (make-new-time-segment time action)
+               segments))
+        (add-to-segments! segments))))
+      </SCHEME>
+      <PYTHON>
+function add_to_agenda(time, action, agenda) {
+   function belongs_before(segs) {
+      return is_null(segs) || time &lt; segment_time(head(segs));
+   }
+   function make_new_time_segment(time, action) {
+      const q = make_queue();
+      insert_queue(q, action);
+      return make_time_segment(time, q);
+   }
+   function add_to_segments(segs) {
+      if (segment_time(head(segs)) === time) {
+          insert_queue(segment_queue(head(segs)), action);
+      } else {
+          const rest = tail(segs);
+          if (belongs_before(rest)) {
+              set_tail(segs, pair(make_new_time_segment(time, action),
+                                  tail(segs)));
+          } else {
+              add_to_segments(rest);
+          }
+      }
+   }
+   const segs = segments(agenda);
+   if (belongs_before(segs)) {
+       set_segments(agenda,
+                    pair(make_new_time_segment(time, action), segs));
+   } else {
+       add_to_segments(segs);
+   }
+}
+      </PYTHON>
+    </SNIPPET>
+  </TEXT>
+
+  <TEXT>
+    The
+    <SPLITINLINE>
+      <SCHEME>procedure</SCHEME>
+      <PYTHON>function</PYTHON>
+    </SPLITINLINE>
+    that removes the first item from the agenda deletes the
+    item at the front of the queue in the first time segment.  If this
+    deletion makes the time segment empty, we remove it from the list of
+    segments:<FOOTNOTE>Observe that the
+    <LABEL NAME="foot:one-armed"/>
+    <SPLITINLINE>
+      <SCHEME>
+	<SCHEMEINLINE>if</SCHEMEINLINE>
+	expression in this
+	procedure
+	has no alternative expression.
+      </SCHEME>
+      <PYTHON>
+	conditional statement in this
+	function has an
+	<INDEX>block<SUBINDEX>empty</SUBINDEX></INDEX>
+	empty block as its alternative statement.
+      </PYTHON>
+    </SPLITINLINE>
+    Such a
+    <INDEX>conditional statement<SUBINDEX>one-armed (without alternative)</SUBINDEX></INDEX>
+    <SPLITINLINE>
+      <SCHEME>
+	<QUOTE>one-armed <SCHEMEINLINE>if</SCHEMEINLINE> expression</QUOTE>
+      </SCHEME>
+      <PYTHON>
+	<QUOTE>one-armed conditional statement</QUOTE>
+      </PYTHON>
+    </SPLITINLINE>
+    is used to decide whether to do something, rather than to select between two
+    <SPLITINLINE>
+      <SCHEME>
+	expressions.
+	An <SCHEMEINLINE>if</SCHEMEINLINE> expression returns an
+	unspecified value if the predicate is false and there is no
+	<LATEXINLINE>alternative</LATEXINLINE>.
+      </SCHEME>
+      <PYTHON>statements.</PYTHON>
+    </SPLITINLINE>
+  </FOOTNOTE>
+    <SNIPPET>
+      <INDEX><DECLARATION>remove_first_agenda_item</DECLARATION></INDEX> 
+      <NAME>remove_first_agenda_item</NAME>
+      <REQUIRES>make_agenda</REQUIRES>
+      <REQUIRES>is_empty_queue</REQUIRES>
+      <REQUIRES>delete_queue</REQUIRES>
+      <REQUIRES>make_time_segment</REQUIRES>
+      <SCHEME>
+(define (remove-first-agenda-item! agenda)
+  (let ((q (segment-queue (first-segment agenda))))
+    (delete-queue! q)
+    (if (empty-queue? q)
+        (set-segments! agenda (rest-segments agenda)))))
+      </SCHEME>
+      <PYTHON>
+function remove_first_agenda_item(agenda) {
+   const q = segment_queue(first_segment(agenda));
+   delete_queue(q);
+   if (is_empty_queue(q)) {
+       set_segments(agenda, rest_segments(agenda));
+   } else {}
+}
+      </PYTHON>
+    </SNIPPET>
+  </TEXT>
+
+  <TEXT>
+    The first agenda item is found at the head of the queue in the first
+    time segment.  Whenever we extract an item, we also update the current
+    time:<FOOTNOTE>In this way, the current time will always be the time
+    of the action most recently processed.  Storing this time at the head
+    of the agenda ensures that it will still be available even if the
+    associated time segment has been deleted.</FOOTNOTE>
+    <SNIPPET POSTPADDING="no">
+      <INDEX><DECLARATION>first_agenda_item</DECLARATION></INDEX> 
+      <NAME>first_agenda_item</NAME>
+      <REQUIRES>is_empty_agenda</REQUIRES>
+      <REQUIRES>make_time_segment</REQUIRES>
+      <REQUIRES>front_queue</REQUIRES>
+      <SCHEME>
+(define (first-agenda-item agenda)
+  (if (empty-agenda? agenda)
+      (error "Agenda is empty -- FIRST-AGENDA-ITEM")
+      (let ((first-seg (first-segment agenda)))
+        (set-current-time! agenda (segment-time first-seg))
+        (front-queue (segment-queue first-seg)))))
+      </SCHEME>
+      <PYTHON>
+function first_agenda_item(agenda) {
+    if (is_empty_agenda(agenda)) {
+        error("agenda is empty -- first_agenda_item");
+    } else {
+        const first_seg = first_segment(agenda);
+        set_current_time(agenda, segment_time(first_seg));
+        return front_queue(segment_queue(first_seg));
+    }
+}
+      </PYTHON>
+    </SNIPPET>
+  </TEXT>
+
+  <EXERCISE>
+    The
+    <SPLITINLINE>
+      <SCHEME>procedures</SCHEME>
+      <PYTHON>functions</PYTHON>
+    </SPLITINLINE>
+    to be run during each time segment of the agenda are kept in a queue.
+    Thus, the
+    <SPLITINLINE>
+      <SCHEME>procedures</SCHEME>
+      <PYTHON>functions</PYTHON>
+    </SPLITINLINE>
+    for each segment are called in the order in which they were added to the
+    agenda (first in, first out).  Explain why this order must be used.  In
+    particular, trace the behavior of an and-gate whose inputs change from
+    0,1 to 1,0 in the same segment and say how the behavior would differ if
+    we stored a segment<APOS/>s
+    <SPLITINLINE>
+      <SCHEME>procedures</SCHEME>
+      <PYTHON>functions</PYTHON>
+    </SPLITINLINE>
+    in an ordinary list, adding and removing
+    <SPLITINLINE>
+      <SCHEME>procedures</SCHEME>
+      <PYTHON>functions</PYTHON>
+    </SPLITINLINE>
+    only at the front (last in, first out).
+    <LABEL NAME="ex:agenda-list"/>
+  </EXERCISE>
+
+  <INDEX>digital-circuit simulation<CLOSE/></INDEX>
+  <INDEX>digital-circuit simulation<SUBINDEX>agenda implementation<CLOSE/></SUBINDEX></INDEX>
+
+</SUBSECTION>

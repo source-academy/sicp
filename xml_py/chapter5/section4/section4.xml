@@ -1,0 +1,266 @@
+<SECTION>
+  <NAME>The Explicit-Control Evaluator</NAME>
+
+  <PDF_ONLY>
+    <!-- Figure moved here from later for SICP JS pagination -->
+    <!-- Figure code is copy of code later in this file in a WEB_ONLY -->
+  <FIGURE web_scale="0.8" scale="0.4" src="img_original/chip.png">
+    <CAPTION>A silicon-chip implementation of an evaluator for Scheme.
+    </CAPTION>
+    <LABEL NAME="fig:Scheme-chip"/>
+  </FIGURE>
+  </PDF_ONLY>
+
+  <SECTIONCONTENT/>
+
+  <LABEL NAME="sec:eceval"/>
+
+  <INDEX>explicit-control evaluator for Python<OPEN/></INDEX>
+
+  <TEXT>
+    In section<SPACE/><REF NAME="sec:designing-register-machines"/> we saw how to
+    transform simple
+    <SPLITINLINE>
+      <SCHEME>Scheme</SCHEME>
+      <PYTHON>Python</PYTHON>
+    </SPLITINLINE>
+    programs into descriptions of register
+    machines.  We will now perform this transformation on a more complex
+    program, the metacircular evaluator of
+    sections<SPACE/><REF NAME="sec:core-of-evaluator"/><ENDASH/><REF NAME="sec:running-eval"/>,
+    which shows how the behavior of a
+    <SPLITINLINE>
+      <SCHEME>Scheme</SCHEME>
+      <PYTHON>Python</PYTHON>
+    </SPLITINLINE>
+    interpreter can be described in terms of the
+    <SPLITINLINE>
+      <SCHEME>
+	procedures
+	<SCHEMEINLINE>eval</SCHEMEINLINE>
+      </SCHEME>
+      <PYTHON>
+	functions
+	<SCHEMEINLINE>evaluate</SCHEMEINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    and <SCHEMEINLINE>apply</SCHEMEINLINE>.
+    The <EM>explicit-control
+    evaluator</EM> that we develop in this section shows how the underlying
+    <SPLITINLINE>
+      <SCHEME>procedure-calling</SCHEME>
+      <PYTHON>function-calling</PYTHON>
+    </SPLITINLINE>
+    and argument-passing mechanisms used in the
+    evaluation process can be described in terms of operations on
+    registers and stacks.  In addition, the explicit-control evaluator can
+    serve as an implementation of a
+    <SPLITINLINE>
+      <SCHEME>Scheme</SCHEME>
+      <PYTHON>Python</PYTHON>
+    </SPLITINLINE>
+    interpreter, written in a language that is very similar to the native machine
+    language of conventional computers.  The evaluator can be executed by the
+    register-machine simulator of section<SPACE/><REF NAME="sec:simulator"/>.
+    Alternatively, it can be used as a starting point for building a
+    machine-language implementation of a
+    <SPLITINLINE>
+      <SCHEME>Scheme</SCHEME>
+      <PYTHON>Python</PYTHON>
+    </SPLITINLINE>
+    evaluator, or even a
+    <INDEX>Scheme chip</INDEX>
+    <INDEX>integrated-circuit implementation of Scheme</INDEX>
+    <INDEX>chip implementation of Scheme</INDEX>
+    <INDEX>Scheme<SUBINDEX>integrated-circuit implementation of</SUBINDEX></INDEX>
+    special-purpose machine for evaluating
+    <SPLITINLINE>
+      <SCHEME>Scheme expressions.</SCHEME>
+      <PYTHON>Python programs.</PYTHON>
+    </SPLITINLINE>
+    Figure<SPACE/><REF NAME="fig:Scheme-chip"/> shows such a hardware
+    implementation: a silicon chip that acts as an evaluator for
+    <SPLITINLINE>
+      <SCHEME>Scheme.</SCHEME>
+      <PYTHON>
+        Scheme, the language used in place of Python in the original edition of this book.
+      </PYTHON>
+    </SPLITINLINE>
+    The chip designers started with the data-path and controller specifications
+    for a register machine similar to the evaluator described in this section
+    and used design automation programs to construct the
+    integrated-circuit layout.<FOOTNOTE>See 
+    <INDEX>Batali, John Dean</INDEX>
+    <CITATION>Batali et al.<SPACE/>1982</CITATION> for more
+    information on the chip and the method by which it was designed.</FOOTNOTE>
+  </TEXT>
+
+  <WEB_ONLY>
+    <!-- Figure moved earlier for SICP JS pagination -->
+    <!-- Figure code is copy of code earlier in this file in a PDF_ONLY -->
+  <FIGURE web_scale="0.8" scale="0.4" src="img_original/chip.png">
+    <CAPTION>A silicon-chip implementation of an evaluator for Scheme.
+    <INDEX>Scheme chip</INDEX>
+    <INDEX>integrated-circuit implementation of Scheme</INDEX>
+    <INDEX>Scheme<SUBINDEX>integrated-circuit implementation of</SUBINDEX></INDEX>
+    <INDEX>chip implementation of Scheme</INDEX>
+    </CAPTION>
+    <LABEL NAME="fig:Scheme-chip"/>
+  </FIGURE>
+  </WEB_ONLY>
+
+  
+  <SUBHEADING>
+    <NAME>Registers and operations</NAME>
+  </SUBHEADING>
+
+  <INDEX>explicit-control evaluator for Python<SUBINDEX>data paths<OPEN/></SUBINDEX></INDEX>
+  <INDEX>explicit-control evaluator for Python<SUBINDEX>operations</SUBINDEX></INDEX>
+
+  <TEXT>
+    In designing the explicit-control evaluator, we must specify the
+    operations to be used in our register machine.  We described the
+    metacircular evaluator in terms of abstract syntax, using
+    <SPLITINLINE>
+      <SCHEME>procedures</SCHEME>
+      <PYTHON>functions</PYTHON>
+    </SPLITINLINE>
+    such as
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>quoted?</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>is_literal</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    and
+    <SPLITINLINE><SCHEME><SCHEMEINLINE>make-procedure</SCHEMEINLINE>.</SCHEME>
+    <PYTHON>
+      <PYTHONINLINE>make_function</PYTHONINLINE>.
+    </PYTHON>
+    </SPLITINLINE>
+    In implementing the
+    register machine, we could expand these
+    <SPLITINLINE>
+      <SCHEME>procedures</SCHEME>
+      <PYTHON>functions</PYTHON>
+    </SPLITINLINE>
+    into sequences of
+    elementary list-structure memory operations, and implement these
+    operations on our register machine.  However, this would make our
+    evaluator very long, obscuring the basic structure with
+    details.  To clarify the presentation, we will include as primitive
+    operations of the register machine the syntax
+    <SPLITINLINE>
+      <SCHEME>procedures</SCHEME>
+      <PYTHON>functions</PYTHON>
+    </SPLITINLINE>
+    given in
+    section<SPACE/><REF NAME="sec:representing-expressions"/> and the
+    <SPLITINLINE>
+      <SCHEME>procedures</SCHEME>
+      <PYTHON>functions</PYTHON>
+    </SPLITINLINE>
+    for representing environments and other runtime data given in
+    sections<SPACE/><REF NAME="sec:eval-data-structures"/>
+    and<SPACE/><REF NAME="sec:running-eval"/>.
+    In order to completely specify an evaluator that could be programmed
+    in a low-level machine language or implemented in hardware, we would
+    replace these operations by more elementary operations, using the
+    list-structure implementation we described in
+    section<SPACE/><REF NAME="sec:storage-allocation"/>.
+  </TEXT>
+
+  <TEXT>
+    Our
+    <SPLITINLINE>
+      <SCHEME>Scheme</SCHEME>
+      <PYTHON>Python</PYTHON>
+    </SPLITINLINE>
+    evaluator register machine includes a stack and seven
+    registers:
+    <INDEX>explicit-control evaluator for Python<SUBINDEX>registers</SUBINDEX></INDEX>
+    <INDEX><USE>comp</USE> register</INDEX>
+    <SPLITINLINE>
+      <SCHEME> <SCHEMEINLINE>exp</SCHEMEINLINE>, </SCHEME>
+      <PYTHON> <SCHEMEINLINE>comp</SCHEMEINLINE>, </PYTHON>
+    </SPLITINLINE>
+    <INDEX><USE>env</USE> register</INDEX>
+    <SCHEMEINLINE>env</SCHEMEINLINE>,
+    <INDEX><USE>val</USE> register</INDEX>
+    <SCHEMEINLINE>val</SCHEMEINLINE>,
+    <INDEX><USE>continue</USE> register<SUBINDEX><ORDER>explicit</ORDER>in explicit-control evaluator</SUBINDEX></INDEX>
+    <SCHEMEINLINE>continue</SCHEMEINLINE>,
+    <INDEX><USE>fun</USE> register</INDEX>
+    <SPLITINLINE>
+      <SCHEME>
+	<SCHEMEINLINE>proc</SCHEMEINLINE>,
+      </SCHEME>
+      <PYTHON>
+	<SCHEMEINLINE>fun</SCHEMEINLINE>,
+      </PYTHON>
+    </SPLITINLINE>
+    <INDEX><USE>argl</USE> register</INDEX>
+    <SCHEMEINLINE>argl</SCHEMEINLINE>, and
+    <INDEX><USE>unev</USE> register</INDEX>
+    <SCHEMEINLINE>unev</SCHEMEINLINE>.
+    <SPLITINLINE>
+      <SCHEME>
+	<SCHEMEINLINE>Exp</SCHEMEINLINE>
+      </SCHEME>
+      <PYTHON>
+	The <PYTHONINLINE>comp</PYTHONINLINE> register
+      </PYTHON>
+    </SPLITINLINE>
+    is used to hold the
+    <SPLITINLINE>
+      <SCHEME>
+	expression
+      </SCHEME>
+      <PYTHON>
+	component
+      </PYTHON>
+    </SPLITINLINE>
+    to be evaluated, and <SCHEMEINLINE>env</SCHEMEINLINE> contains the environment in
+    which the evaluation is to be performed. At the end of an evaluation,
+    <SCHEMEINLINE>val</SCHEMEINLINE> contains the value obtained by evaluating the
+    <SPLITINLINE><SCHEME>expression</SCHEME><PYTHON>component</PYTHON></SPLITINLINE>
+    in the designated environment. The <SCHEMEINLINE>continue</SCHEMEINLINE> register is
+    used to implement recursion, as explained in section<SPACE/><REF
+    NAME="sec:stack-recursion"/>. (The evaluator needs to call itself recursively, since
+    evaluating <SPLITINLINE><SCHEME>an expression</SCHEME><PYTHON>a 
+    component</PYTHON></SPLITINLINE> requires  evaluating its
+    <SPLITINLINE><SCHEME>subexpressions.</SCHEME><PYTHON>subcomponents.</PYTHON></SPLITINLINE>) The registers
+    <SPLITINLINE>
+      <SCHEME>
+	<SCHEMEINLINE>proc</SCHEMEINLINE>,
+      </SCHEME>
+      <PYTHON>
+	<SCHEMEINLINE>fun</SCHEMEINLINE>,
+      </PYTHON>
+    </SPLITINLINE>
+    <SCHEMEINLINE>argl</SCHEMEINLINE>, and <SCHEMEINLINE>unev</SCHEMEINLINE> are
+    used in evaluating function applications. 
+  </TEXT>
+
+  <TEXT>
+    We will not provide a data-path diagram to show how the registers and
+    operations of the evaluator are connected, nor will we give the
+    complete list of machine operations.  These are implicit in the
+    evaluator<APOS/>s controller, which will be presented in detail.
+  </TEXT>
+
+  <INDEX>explicit-control evaluator for Python<SUBINDEX>data paths<CLOSE/></SUBINDEX></INDEX>
+  
+  <!-- Subsection 1 : The Core of the Explicit-Control Evaluator -->
+  &amp;subsection5.4.1;
+  
+  <!-- Subsection 2 : Sequence Evaluation and Tail Recursion -->
+  &amp;subsection5.4.2;
+
+  <!-- Subsection 3 : Conditionals, Assignments, and Definitions -->
+  &amp;subsection5.4.3;
+
+  <!-- Subsection 4 : Running the Evaluator -->
+  &amp;subsection5.4.4;
+
+</SECTION>
+

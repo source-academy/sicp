@@ -1,6 +1,10 @@
 import fs from "node:fs";
 import path from "node:path";
 import { insert, TrieNode } from "./search/TrieNode.js";
+import { getEdition } from "./editions.js";
+
+// Tag names of the edition's non-Scheme language (JAVASCRIPT* by default).
+const lang = getEdition().language;
 
 // line 3 to 68: trie implementation and search functions
 
@@ -29,10 +33,10 @@ const indexParsers = {
     json["text"] += "operators";
   },
   PARSING: (node, json) => {
-    json["text"] += "parsing JavaScript";
+    json["text"] += "parsing " + lang.languageName;
   },
   FUNCTION: (node, json) => {
-    json["text"] += "function (JavaScript)";
+    json["text"] += "function (" + lang.languageName + ")";
   },
   PRIMITIVE: (node, json) => {
     json["text"] +=
@@ -60,17 +64,19 @@ const indexParsers = {
   ECMA: (node, json) => {
     if (node.firstChild.nodeName !== "#text") {
       console.log(
-        "when parsing ECMA, got this unknown node name" +
+        "when parsing ECMA, got this unknown node name " +
           node.firstChild.nodeName
       );
       return;
     }
     json["text"] += ` (${node.firstChild.nodeValue})`;
   },
-  JAVASCRIPTINLINE: (node, json) => {
+  [lang.inlineTag]: (node, json) => {
     if (node.firstChild.nodeName !== "#text") {
       console.log(
-        "when parsing JAVASCRIPTINLINE, got this unknown node name" +
+        "when parsing " +
+          lang.inlineTag +
+          ", got this unknown node name " +
           node.firstChild.nodeName
       );
       return;
@@ -80,7 +86,7 @@ const indexParsers = {
   QUOTE: (node, json) => {
     if (node.firstChild.nodeName !== "#text") {
       console.log(
-        "when parsing QUOTE, got this unknown node name" +
+        "when parsing QUOTE, got this unknown node name " +
           node.firstChild.nodeName
       );
       return;
@@ -90,7 +96,7 @@ const indexParsers = {
   USE: (node, json) => {
     if (node.firstChild.nodeName !== "#text") {
       console.log(
-        "when parsing USE, got this unknown node name" +
+        "when parsing USE, got this unknown node name " +
           node.firstChild.nodeName
       );
       return;
@@ -101,7 +107,7 @@ const indexParsers = {
   DECLARATION: (node, json) => {
     if (node.firstChild.nodeName !== "#text") {
       console.log(
-        "when parsing USE, got this unknown node name" +
+        "when parsing DECLARATION, got this unknown node name " +
           node.firstChild.nodeName
       );
       return;
@@ -112,7 +118,7 @@ const indexParsers = {
   ORDER: (node, json) => {
     if (node.firstChild.nodeName !== "#text") {
       console.log(
-        "when parsing ORDER, got this unknown node name" +
+        "when parsing ORDER, got this unknown node name " +
           node.firstChild.nodeName
       );
       return;
@@ -135,9 +141,9 @@ const indexParsers = {
     }
   },
   SPLITINLINE: (node, json) => {
-    const javascriptNode = node.getElementsByTagName("JAVASCRIPT")[0];
+    const javascriptNode = node.getElementsByTagName(lang.blockTag)[0];
     if (!javascriptNode) {
-      console.log("when parsing SPLITINLINE, got no JAVASCRIPT node");
+      console.log(`when parsing SPLITINLINE, got no ${lang.blockTag} node`);
       return;
     }
     for (let i = 0; i < node.childNodes.length; i++) {

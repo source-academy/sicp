@@ -9,6 +9,10 @@ import {
 } from "./warnings.js";
 import { recursiveProcessTextLatex, processTextLatex } from "../parseXmlLatex";
 import recursiveProcessPureText from "./recursiveProcessPureText";
+import { getEdition } from "../editions.js";
+
+// Tag names of the edition's non-Scheme language (JAVASCRIPT* by default).
+const lang = getEdition().language;
 
 const snippetStore = {};
 
@@ -16,8 +20,8 @@ export const setupSnippetsPdf = node => {
   const snippets = node.getElementsByTagName("SNIPPET");
   for (let i = 0; snippets[i]; i++) {
     const snippet = snippets[i];
-    const jsSnippet = snippet.getElementsByTagName("JAVASCRIPT")[0];
-    let jsRunSnippet = snippet.getElementsByTagName("JAVASCRIPT_RUN")[0];
+    const jsSnippet = snippet.getElementsByTagName(lang.blockTag)[0];
+    let jsRunSnippet = snippet.getElementsByTagName(lang.runTag)[0];
     if (!jsRunSnippet) {
       jsRunSnippet = jsSnippet;
     }
@@ -121,10 +125,9 @@ export const processSnippetPdf = (node, writeTo) => {
       : "\\PostBoxCmd%\n";
   const midSpace = inFigure ? "\\smallskip" : "";
 
-  const jsPromptSnippet = node.getElementsByTagName("JAVASCRIPT_PROMPT")[0];
-  const jsLonelySnippet = node.getElementsByTagName("JAVASCRIPT_LONELY")[0];
-  const jsSnippet = node.getElementsByTagName("JAVASCRIPT")[0];
-  const jsOutputSnippet = node.getElementsByTagName("JAVASCRIPT_OUTPUT")[0];
+  const jsPromptSnippet = node.getElementsByTagName(lang.promptTag)[0];
+  const jsSnippet = node.getElementsByTagName(lang.blockTag)[0];
+  const jsOutputSnippet = node.getElementsByTagName(lang.outputTag)[0];
   const allowBreakAfter =
     jsSnippet && jsSnippet.getAttribute("BREAK_AFTER") === "yes"
       ? "\\pagebreak"
@@ -135,11 +138,17 @@ export const processSnippetPdf = (node, writeTo) => {
     writeTo.push("\n\\begin{lrbox}{\\UnbreakableBox}");
 
     if (ancestorHasTag(node, "FOOTNOTE")) {
-      writeTo.push("\n\\begin{JavaScriptPrompt" + LatexString + "Footnote}");
+      writeTo.push(
+        "\n\\begin{" + lang.languageName + "Prompt" + LatexString + "Footnote}"
+      );
     } else if (ancestorHasTag(node, "EXERCISE")) {
-      writeTo.push("\n\\begin{JavaScriptPrompt" + LatexString + "Small}");
+      writeTo.push(
+        "\n\\begin{" + lang.languageName + "Prompt" + LatexString + "Small}"
+      );
     } else {
-      writeTo.push("\n\\begin{JavaScriptPrompt" + LatexString + "}");
+      writeTo.push(
+        "\n\\begin{" + lang.languageName + "Prompt" + LatexString + "}"
+      );
     }
 
     const promptArr = [];
@@ -149,18 +158,24 @@ export const processSnippetPdf = (node, writeTo) => {
     writeTo.push(promptStr);
 
     if (ancestorHasTag(node, "FOOTNOTE")) {
-      writeTo.push("\n\\end{JavaScriptPrompt" + LatexString + "Footnote}");
+      writeTo.push(
+        "\n\\end{" + lang.languageName + "Prompt" + LatexString + "Footnote}"
+      );
     } else if (ancestorHasTag(node, "EXERCISE")) {
-      writeTo.push("\n\\end{JavaScriptPrompt" + LatexString + "Small}");
+      writeTo.push(
+        "\n\\end{" + lang.languageName + "Prompt" + LatexString + "Small}"
+      );
     } else {
-      writeTo.push("\n\\end{JavaScriptPrompt" + LatexString + "}");
+      writeTo.push(
+        "\n\\end{" + lang.languageName + "Prompt" + LatexString + "}"
+      );
     }
 
     writeTo.push("\n");
     writeTo.push("\\end{lrbox}");
     writeTo.push("\\Usebox{\\UnbreakableBox}");
 
-    if (jsLonelySnippet || jsSnippet || jsOutputSnippet) {
+    if (jsSnippet || jsOutputSnippet) {
       if (inList) {
         /// writeTo.push("****\\\\");
         writeTo.push("\\\\"); // FIXME: when we remove the use of \par from PromptInputSpace this edge case goes away
@@ -173,39 +188,9 @@ export const processSnippetPdf = (node, writeTo) => {
     }
   }
 
-  if (jsLonelySnippet) {
-    if (ancestorHasTag(node, "FOOTNOTE")) {
-      writeTo.push("\n\\begin{JavaScriptLonely" + LatexString + "Footnote}");
-    } else if (ancestorHasTag(node, "EXERCISE")) {
-      writeTo.push("\n\\begin{JavaScriptLonely" + LatexString + "Small}");
-    } else {
-      writeTo.push("\n\\begin{JavaScriptLonely" + LatexString + "}");
-    }
-
-    const lonelyArr = [];
-    recursiveProcessTextLatex(jsLonelySnippet.firstChild, lonelyArr);
-    const lonelyStr = lonelyArr.join("").trimRight();
-
-    writeTo.push(lonelyStr);
-
-    if (ancestorHasTag(node, "FOOTNOTE")) {
-      writeTo.push("\n\\end{JavaScriptLonely" + LatexString + "Footnote}");
-    } else if (ancestorHasTag(node, "EXERCISE")) {
-      writeTo.push("\n\\end{JavaScriptLonelySmall" + LatexString + "}");
-    } else {
-      writeTo.push("\n\\end{JavaScriptLonely" + LatexString + "}");
-    }
-
-    if (!(jsSnippet || jsOutputSnippet) && indexTerms.length > 0) {
-      writeTo.push("\\nopagebreak");
-      writeTo.push(indexTerms.pop());
-      writeTo.push("\\nopagebreak%\n");
-    }
-  }
-
   if (jsSnippet) {
     // JavaScript source for running. Overrides JAVASCRIPT if present.
-    let jsRunSnippet = node.getElementsByTagName("JAVASCRIPT_RUN")[0];
+    let jsRunSnippet = node.getElementsByTagName(lang.runTag)[0];
     if (!jsRunSnippet) {
       jsRunSnippet = jsSnippet;
     }
@@ -234,12 +219,12 @@ export const processSnippetPdf = (node, writeTo) => {
       node.getAttribute("LATEX") === "yes"
     ) {
       let codeEnv = isSmall
-        ? "JavaScriptSmaller" //"JavaScript" + LatexString + "SmallTwo"
+        ? lang.languageName + "Smaller" //"JavaScript" + LatexString + "SmallTwo"
         : ancestorHasTag(node, "FOOTNOTE")
-          ? "JavaScript" + LatexString + "Footnote"
+          ? lang.languageName + LatexString + "Footnote"
           : ancestorHasTag(node, "EXERCISE")
-            ? "JavaScript" + LatexString + "Small"
-            : "JavaScript" + LatexString;
+            ? lang.languageName + LatexString + "Small"
+            : lang.languageName + LatexString;
 
       const separator =
         "\\end{" +
@@ -388,10 +373,10 @@ export const processSnippetPdf = (node, writeTo) => {
       // writeTo.push("\n\\marginnote{\\href{" + url + "}{\\ensuremath{\\blacktriangleright}}}[2ex]" + "\\begin{JavaScriptClickable}\n");
 
       let codeEnv = ancestorHasTag(node, "FOOTNOTE")
-        ? "JavaScriptClickableFootnote"
+        ? lang.languageName + "ClickableFootnote"
         : ancestorHasTag(node, "EXERCISE") || isSmall
-          ? "JavaScriptClickableSmall"
-          : "JavaScriptClickable";
+          ? lang.languageName + "ClickableSmall"
+          : lang.languageName + "Clickable";
 
       const separator =
         "\\end{" +
@@ -450,18 +435,24 @@ export const processSnippetPdf = (node, writeTo) => {
   if (jsOutputSnippet) {
     if (jsPromptSnippet) {
       writeTo.push("\\InputOutputSpace");
-    } else if (jsPromptSnippet || jsLonelySnippet || jsSnippet) {
+    } else if (jsSnippet) {
       writeTo.push("\\InputOutputNoSpace");
     }
 
     writeTo.push("\n\\begin{lrbox}{\\UnbreakableBox}");
 
     if (ancestorHasTag(node, "FOOTNOTE")) {
-      writeTo.push("\n\\begin{JavaScriptOutput" + LatexString + "Footnote}");
+      writeTo.push(
+        "\n\\begin{" + lang.languageName + "Output" + LatexString + "Footnote}"
+      );
     } else if (ancestorHasTag(node, "EXERCISE") || isSmall) {
-      writeTo.push("\n\\begin{JavaScriptOutput" + LatexString + "Small}");
+      writeTo.push(
+        "\n\\begin{" + lang.languageName + "Output" + LatexString + "Small}"
+      );
     } else {
-      writeTo.push("\n\\begin{JavaScriptOutput" + LatexString + "}");
+      writeTo.push(
+        "\n\\begin{" + lang.languageName + "Output" + LatexString + "}"
+      );
     }
 
     const outputArr = [];
@@ -471,11 +462,17 @@ export const processSnippetPdf = (node, writeTo) => {
     writeTo.push(outputStr);
 
     if (ancestorHasTag(node, "FOOTNOTE")) {
-      writeTo.push("\n\\end{JavaScriptOutput" + LatexString + "Footnote}");
-    } else if (ancestorHasTag(node, "EXERCISE")) {
-      writeTo.push("\n\\end{JavaScriptOutput" + LatexString + "Small}");
+      writeTo.push(
+        "\n\\end{" + lang.languageName + "Output" + LatexString + "Footnote}"
+      );
+    } else if (ancestorHasTag(node, "EXERCISE") || isSmall) {
+      writeTo.push(
+        "\n\\end{" + lang.languageName + "Output" + LatexString + "Small}"
+      );
     } else {
-      writeTo.push("\n\\end{JavaScriptOutput" + LatexString + "}");
+      writeTo.push(
+        "\n\\end{" + lang.languageName + "Output" + LatexString + "}"
+      );
     }
 
     writeTo.push("\\end{lrbox}");

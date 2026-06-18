@@ -21,6 +21,10 @@ import {
 import LinksHead from "./html/LinksHead.js";
 import type { WriteBuffer } from "./types.js";
 import { raw } from "hono/html";
+import { getEdition } from "./editions.js";
+
+// Tag names of the edition's non-Scheme language (JAVASCRIPT* by default).
+const lang = getEdition().language;
 
 let paragraph_count = 0;
 let heading_count = 0;
@@ -47,6 +51,7 @@ export const tagsToRemove = new Set([
   "EXCLUDE",
   "HISTORY",
   "ORDER",
+  "SCHEME",
   "SOLUTION",
   "INDEX",
   "CAPTION",
@@ -76,7 +81,7 @@ const ignoreTags = new Set([
   "CHAPTERCONTENT",
   "SPLIT",
   "SPLITINLINE",
-  "JAVASCRIPT",
+  lang.blockTag,
   "WEB_ONLY"
 ]);
 
@@ -369,9 +374,9 @@ let processTextFunctionsHtml = {
   },
 
   SCHEMEINLINE: (node, writeTo) =>
-    processTextFunctionsHtml["JAVASCRIPTINLINE"](node, writeTo),
+    processTextFunctionsHtml[lang.inlineTag](node, writeTo),
 
-  JAVASCRIPTINLINE: (node, writeTo) => {
+  [lang.inlineTag]: (node, writeTo) => {
     if (
       node.firstChild &&
       node.firstChild.data &&
@@ -399,7 +404,7 @@ let processTextFunctionsHtml = {
     if (node.getAttribute("HIDE") == "yes") {
       return;
     } else if (node.getAttribute("LATEX") == "yes") {
-      const textprompt = getChildrenByTagName(node, "JAVASCRIPT_PROMPT")[0];
+      const textprompt = getChildrenByTagName(node, lang.promptTag)[0];
       if (textprompt) {
         writeTo.push("<kbd class='snippet-prompt'>");
         recursiveProcessTextHtml(textprompt.firstChild, writeTo, {
@@ -409,7 +414,7 @@ let processTextFunctionsHtml = {
       }
 
       writeTo.push("<kbd class='snippet'>");
-      const textit = getChildrenByTagName(node, "JAVASCRIPT")[0];
+      const textit = getChildrenByTagName(node, lang.blockTag)[0];
       if (textit) {
         recursiveProcessTextHtml(textit.firstChild, writeTo, {
           removeNewline: "beginning&end"
@@ -419,7 +424,7 @@ let processTextFunctionsHtml = {
       }
       writeTo.push("</kbd>");
 
-      const textoutput = getChildrenByTagName(node, "JAVASCRIPT_OUTPUT")[0];
+      const textoutput = getChildrenByTagName(node, lang.outputTag)[0];
       if (textoutput) {
         writeTo.push("<kbd class='snippet-output'>");
         recursiveProcessTextHtml(textoutput.firstChild, writeTo, {
@@ -558,7 +563,7 @@ const processTextFunctionsSplit = {
     writeTo.push(`</span>`);
   },
 
-  JAVASCRIPT: (node, writeTo) => {
+  [lang.blockTag]: (node, writeTo) => {
     writeTo.push(`<span style="color:blue">`);
     recursiveProcessTextHtml(node.firstChild, writeTo);
     writeTo.push(`</span>`);
@@ -566,13 +571,13 @@ const processTextFunctionsSplit = {
 
   SPLIT: (node, writeTo) => {
     const scheme = getChildrenByTagName(node, "SCHEME")[0];
-    const js = getChildrenByTagName(node, "JAVASCRIPT")[0];
+    const js = getChildrenByTagName(node, lang.blockTag)[0];
     writeTo.push(`<table width="100%">
         <colgroup><col width="48%"><col width="1%"><col width="51%"></colgroup>
         <tr>
           <td class="meta" style = "color:grey; text-align: center">Original</td>
           <td></td>
-          <td class="meta" style = "color:grey; text-align: center">JavaScript</td>
+          <td class="meta" style = "color:grey; text-align: center">${lang.languageName}</td>
         </tr>`);
     writeTo.push(`
         <tr><td>`);
@@ -601,7 +606,7 @@ const processTextFunctionsSplit = {
 
     if (ancestorHasTag(node, "SCHEME")) {
       writeTo.push(`style="color:green"`);
-    } else if (ancestorHasTag(node, "JAVASCRIPT")) {
+    } else if (ancestorHasTag(node, lang.blockTag)) {
       writeTo.push(`style="color:blue"`);
     }
 
@@ -612,8 +617,8 @@ const processTextFunctionsSplit = {
 
     if (ancestorHasTag(node, "SCHEME")) {
       cloneNode.setAttribute("version", "scheme");
-    } else if (ancestorHasTag(node, "JAVASCRIPT")) {
-      cloneNode.setAttribute("version", "js");
+    } else if (ancestorHasTag(node, lang.blockTag)) {
+      cloneNode.setAttribute("version", lang.key);
     }
 
     let parent = node.parentNode;
@@ -634,14 +639,14 @@ const processTextFunctionsSplit = {
     <div class='footnote'>`);
     if (node.getAttribute("version") == "scheme") {
       writeTo.push(`<span style="color:green">`);
-    } else if (node.getAttribute("version") == "js") {
+    } else if (node.getAttribute("version") == lang.key) {
       writeTo.push(`<span style="color:blue">`);
     }
     writeTo.push(`
       <a class='footnote-number' id='footnote-${display_footnote_count}' href='#footnote-link-${display_footnote_count}' `);
     if (node.getAttribute("version") == "scheme") {
       writeTo.push(`style="color:green"`);
-    } else if (node.getAttribute("version") == "js") {
+    } else if (node.getAttribute("version") == lang.key) {
       writeTo.push(`style="color:blue"`);
     }
     writeTo.push(`>[${display_footnote_count}] </a>
@@ -668,9 +673,9 @@ const processTextFunctionsSplit = {
     const scheme = getChildrenByTagName(node, "SCHEME")[0];
     const scheme_prompt = getChildrenByTagName(node, "SCHEMEPROMPT")[0];
     const scheme_output = getChildrenByTagName(node, "SCHEMEOUTPUT")[0];
-    const js = getChildrenByTagName(node, "JAVASCRIPT")[0];
-    const js_prompt = getChildrenByTagName(node, "JAVASCRIPT_PROMPT")[0];
-    const js_output = getChildrenByTagName(node, "JAVASCRIPT_OUTPUT")[0];
+    const js = getChildrenByTagName(node, lang.blockTag)[0];
+    const js_prompt = getChildrenByTagName(node, lang.promptTag)[0];
+    const js_output = getChildrenByTagName(node, lang.outputTag)[0];
     if (
       (scheme || scheme_output || scheme_prompt) &&
       (js || js_output || js_prompt)
@@ -681,7 +686,7 @@ const processTextFunctionsSplit = {
       writeTo.push(`
           <tr>
             <td class="meta" style = "color:grey; text-align: center">Original</td>
-            <td class="meta" style = "color:grey; text-align: center">JavaScript</td>
+            <td class="meta" style = "color:grey; text-align: center">${lang.languageName}</td>
           </tr>
           <tr>
             <td>`);

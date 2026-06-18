@@ -8,6 +8,10 @@ import {
 import { chapterIndex } from "../parseXmlHtml";
 import recursiveProcessPureText from "./recursiveProcessPureText";
 import { processRuneModule } from "./processModuleImports.js";
+import { getEdition } from "../editions.js";
+
+// Language-specific details of the edition (JAVASCRIPT* tags, "//", "SICP JS").
+const lang = getEdition().language;
 
 const snippetStore = {};
 
@@ -15,8 +19,8 @@ export const setupSnippetsHtml = node => {
   const snippets = node.getElementsByTagName("SNIPPET");
   for (let i = 0; snippets[i]; i++) {
     const snippet = snippets[i];
-    const jsSnippet = snippet.getElementsByTagName("JAVASCRIPT")[0];
-    let jsRunSnippet = snippet.getElementsByTagName("JAVASCRIPT_RUN")[0];
+    const jsSnippet = snippet.getElementsByTagName(lang.blockTag)[0];
+    let jsRunSnippet = snippet.getElementsByTagName(lang.runTag)[0];
     if (!jsRunSnippet) {
       jsRunSnippet = jsSnippet;
     }
@@ -61,7 +65,7 @@ export const processSnippetHtml = (node, writeTo, split) => {
     return;
   }
 
-  const jsPromptSnippet = node.getElementsByTagName("JAVASCRIPT_PROMPT")[0];
+  const jsPromptSnippet = node.getElementsByTagName(lang.promptTag)[0];
 
   if (jsPromptSnippet) {
     writeTo.push("<pre class='prettyprintoutput'>");
@@ -69,20 +73,12 @@ export const processSnippetHtml = (node, writeTo, split) => {
     writeTo.push("</pre>");
   }
 
-  const jsLonelySnippet = node.getElementsByTagName("JAVASCRIPT_LONELY")[0];
-
-  if (jsLonelySnippet) {
-    writeTo.push("<pre class='prettyprintoutput'>");
-    writeTo.push(jsLonelySnippet.firstChild.nodeValue.trimRight());
-    writeTo.push("</pre>");
-  }
-
-  const jsSnippet = node.getElementsByTagName("JAVASCRIPT")[0];
-  const jsOutputSnippet = node.getElementsByTagName("JAVASCRIPT_OUTPUT")[0];
+  const jsSnippet = node.getElementsByTagName(lang.blockTag)[0];
+  const jsOutputSnippet = node.getElementsByTagName(lang.outputTag)[0];
 
   if (jsSnippet) {
     // JavaScript source for running. Overrides JAVASCRIPT if present.
-    let jsRunSnippet = node.getElementsByTagName("JAVASCRIPT_RUN")[0];
+    let jsRunSnippet = node.getElementsByTagName(lang.runTag)[0];
     if (!jsRunSnippet) {
       jsRunSnippet = jsSnippet;
     }
@@ -195,7 +191,10 @@ export const processSnippetHtml = (node, writeTo, split) => {
 
       // make url for source academy link
       const compressed = lzString.compressToEncodedURIComponent(
-        "// SICP JS " +
+        lang.commentPrefix +
+          " " +
+          lang.displayName +
+          " " +
           chapterIndex +
           importStatement +
           reqStr +

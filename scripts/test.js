@@ -5,7 +5,7 @@ const { sourceLanguages } = require("js-slang/dist/constants");
 const colors = require("colors/safe");
 const Path = require("path");
 
-const DEFAULT_SOURCE_FOLDER = "js_programs";
+const DEFAULT_SOURCE_FOLDER = "programs_js";
 const DEFAULT_CHAPTER = 4;
 const DEFAULT_VARIANT = "default";
 let count_pass = 0;

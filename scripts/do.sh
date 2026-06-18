@@ -3,18 +3,26 @@
 # Fail early
 set -euo pipefail
 
-# hand-paginated index file for LaTeX => PDF
-HAND_PAGINATED="hand-paginated.ind"
+# Select the edition to match javascript/editions.ts (SICP_EDITION env var).
+# Unset or anything other than "py" -> JavaScript edition (default).
+EDITION="$(printf '%s' "${SICP_EDITION:-}" | tr '[:upper:]' '[:lower:]' | tr -d '[:space:]')"
+if [ "${EDITION}" = "py" ]; then
+    LANG_KEY="py"
+    OUTPUT_BASE="sicpy"
+else
+    LANG_KEY="js"
+    OUTPUT_BASE="sicpjs"
+fi
 
 # DOCS is the local target folder, before deployment
 DOCS="docs_out"
 
-# temp folders for different editions
-LATEX_PDF="latex_pdf"
-GENERATED_HTML="html_split"
-GENERATED_JS="js_programs"
-GENERATED_JSON="json"
-PDF_FILE="sicpjs.pdf"
+# temp folders for the selected edition (named <base>_<lang>, matching index.ts)
+LATEX_PDF="latex_pdf_${LANG_KEY}"
+GENERATED_HTML="html_split_${LANG_KEY}"
+GENERATED_PROGRAMS="programs_${LANG_KEY}"
+GENERATED_JSON="json_${LANG_KEY}"
+PDF_FILE="${OUTPUT_BASE}.pdf"
 
 # RESOURCES
 FAVICON="static/assets/sourcepower.ico"
@@ -24,8 +32,8 @@ CSS="static/css"
 IMAGES="static/images"
 
 # NAMES OF GENERATED FILES
-OUTPUT_FILE="sicpjs"
-ZIP_FILE="sicpjs.zip"
+OUTPUT_FILE="${OUTPUT_BASE}"
+ZIP_FILE="${OUTPUT_BASE}.zip"
 
 
 main() {
@@ -51,26 +59,44 @@ pdf() {
 
 clean() {
 	rm -rf ${DOCS}/*
-	mv ${LATEX_PDF}/${HAND_PAGINATED} .
-	rm -rf ${LATEX_PDF}/*
-	mv ${HAND_PAGINATED} ${LATEX_PDF}
+	# Wipe generated artifacts in ${LATEX_PDF} but keep the tracked files:
+	# .gitignore and any hand-paginated*.ind used by the manual pre-MIT-Press
+	# index workflow (GitHub issue #1236). The hand-paginated files may be
+	# absent (e.g. the Python edition). Done in place so nothing is stranded.
+	if [ -d "${LATEX_PDF}" ]; then
+		find "${LATEX_PDF}" -mindepth 1 -maxdepth 1 \
+			! -name '.*' ! -name 'hand-paginated*.ind' -exec rm -rf {} +
+	fi
 	rm -rf ${GENERATED_HTML}/*
-	rm -rf ${GENERATED_JS}/*
+	rm -rf ${GENERATED_PROGRAMS}/*
 	rm -rf ${GENERATED_JSON}/*
 	rm -f ${ZIP_FILE}
 }
 
 prepare() {
- 	[ ! -f ${FAVICON} ] || cp ${FAVICON} ${DOCS}/favicon.ico
- 	[ ! -f ${STYLESHEET} ] || cp ${STYLESHEET} ${DOCS}/assets/stylesheet.css
+	# The JavaScript edition publishes at the docs_out root. Other editions
+	# publish under their own subfolders (split_<lang>/, json_<lang>/) and
+	# under distinct artifact names (sicpy.pdf / sicpy.zip), so they are purely
+	# additive and never disturb the JS site.
+	if [ "${LANG_KEY}" = "js" ]; then
+		WEB_DEST="${DOCS}"
+		JSON_DEST="${DOCS}/json"
+	else
+		WEB_DEST="${DOCS}/split_${LANG_KEY}"
+		JSON_DEST="${DOCS}/json_${LANG_KEY}"
+	fi
+	# ensure the stylesheet's destination exists for either edition
+	mkdir -p "${WEB_DEST}/assets"
+ 	[ ! -f ${FAVICON} ] || cp ${FAVICON} ${WEB_DEST}/favicon.ico
+ 	[ ! -f ${STYLESHEET} ] || cp ${STYLESHEET} ${WEB_DEST}/assets/stylesheet.css
  	[ ! -f ${LATEX_PDF}/${PDF_FILE} ] || cp ${LATEX_PDF}/${PDF_FILE} ${DOCS}
 	PDF_BASENAME="$(basename "${PDF_FILE}" .pdf)"
 	cp "${LATEX_PDF}/${PDF_BASENAME}."{log,ilg,ind,idx} ${DOCS} || :
- 	[ ! -f ${GENERATED_HTML}/index.html ] || cp -rf ${GENERATED_HTML}/* ${DOCS}
- 	[ ! -d ${GENERATED_JS} ] || ( zip -r ${ZIP_FILE} ${GENERATED_JS}; \
+ 	[ ! -f ${GENERATED_HTML}/index.html ] || cp -rf ${GENERATED_HTML}/* ${WEB_DEST}
+ 	[ ! -d ${GENERATED_PROGRAMS} ] || ( zip -r ${ZIP_FILE} ${GENERATED_PROGRAMS}; \
  	                              cp ${ZIP_FILE} ${DOCS} )
-	[ ! -d ${GENERATED_JSON} ] || ( rm -rf ${DOCS}/json; \
-                                    cp -rf ${GENERATED_JSON} ${DOCS}/json )
+	[ ! -d ${GENERATED_JSON} ] || ( rm -rf ${JSON_DEST}; \
+                                    cp -rf ${GENERATED_JSON} ${JSON_DEST} )
 }
 
 main $1
