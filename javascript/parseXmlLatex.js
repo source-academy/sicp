@@ -301,12 +301,16 @@ const processTextFunctionsDefaultLatex = {
     let marginStr = indexArr.join("").trim();
     if (primitive) {
       indexStr +=
-        "primitive functions (ECMAScript equivalent in parentheses; those marked \\textit{ns} are not in the ECMAScript standard)";
+        lang.languageName === "Python"
+          ? "primitive functions (PLR equivalent in parentheses; those marked \\textit{ns} are not in PLR)"
+          : "primitive functions (ECMAScript equivalent in parentheses; those marked \\textit{ns} are not in the ECMAScript standard)";
       marginStr += "primitive functions (...)";
     }
     if (operator) {
       indexStr +=
-        "operators (ECMAScript may allow additional operand type combinations)";
+        lang.languageName === "Python"
+          ? "operators (PLR may allow additional operand type combinations)"
+          : "operators (ECMAScript may allow additional operand type combinations)";
       marginStr += "operators (...)";
     }
     if (functioN) {

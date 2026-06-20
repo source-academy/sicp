@@ -759,24 +759,33 @@ export const frontmatter = `
 \\BookAuthor{\\fontsize{13}{18}\\selectfont Harold Abelson and Gerald Jay Sussman
 \\begin{minipage}{12cm}
 \\vspace{3.5mm}
-adapted to JavaScript by Martin Henz and Tobias Wrigstad
-\\end{minipage}
+${languageName === "Python" ? "adapted to Python by Martin Henz" : "adapted to JavaScript by Martin Henz and Tobias Wrigstad"}
+\\end{minipage}${
+  languageName === "Python"
+    ? ""
+    : `
 \\begin{minipage}{12cm}
 \\vspace{3.5mm}
 with Julie Sussman
-\\end{minipage}
+\\end{minipage}`
+}
 }
 
-\\imprint{The MIT Press\\\\
+\\imprint{${
+  languageName === "Python"
+    ? `Publisher\\\\
+Publisher location`
+    : `The MIT Press\\\\
 Cambridge, Massachusetts\\\\
-London, England}
+London, England`
+}}
 
 \\begin{copyrightpage}
 \\footnotesize
 \\vspace{-9em}
-\\copyright\\ 2022 Massachusetts Institute of Technology
+\\copyright\\ ${languageName === "Python" ? "2026 Martin Henz" : "2022 Massachusetts Institute of Technology"}
 
-This book is published by The MIT Press under
+This book is published by ${languageName === "Python" ? "the Publisher" : "The MIT Press"} under
 a Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International License
 (CC BY-NC-SA).
 To view a copy of this license, visit
@@ -807,7 +816,7 @@ To view a copy of this license, visit
 
 \\vspace{-1mm}
 
-The JavaScript programs in this book are derived
+The ${languageName} programs in this book are derived
 from the Scheme programs in SICP and are subject to
 the GNU General Public License v3.0. To view a copy of this license,
 visit \\url{https://www.gnu.org/licenses/gpl-3.0.html}.
@@ -825,10 +834,17 @@ The cover image is adapted from \\emph{Le Moyen Age et la Renaissance},
 Paris, 1848--1851.
 
 This book was set in Times by the authors using the \\LaTeX\\ typesetting system 
-and ancillary scripts (see \\url{https://github.com/source-academy/sicp}), and
-was printed and bound in the United States of America.
+and ancillary scripts (see \\url{https://github.com/source-academy/sicp})${
+  languageName === "Python"
+    ? "."
+    : `, and
+was printed and bound in the United States of America.`
+}
 
-Library of Congress Cataloging-in-Publication Data
+${
+  languageName === "Python"
+    ? ""
+    : `Library of Congress Cataloging-in-Publication Data
 
 Names: Abelson, Harold, author. | Sussman, Gerald Jay, author. | Henz, Martin, adapter. | \\\\
 \\hspace{1em}Wrigstad, Tobias, adapter. | Sussman, Julie, other.\\\\
@@ -841,7 +857,8 @@ Subjects: LCSH: Computer programming. | JavaScript (Computer program language)\\
 Classification: LCC QA76.6 .A255 2022 | DDC 005.13--dc23\\\\
 LC record available at \\url{https://lccn.loc.gov/2021047249}
 
-10\\quad9\\quad8\\quad7\\quad6\\quad5\\quad4\\quad3\\quad2\\quad1
+10\\quad9\\quad8\\quad7\\quad6\\quad5\\quad4\\quad3\\quad2\\quad1`
+}
 \\end{copyrightpage}
 
 \\dedication{\\hspace{2.5cm}\\normalsize This book is dedicated, in respect and admiration, \\\\[2mm]
@@ -873,24 +890,36 @@ you were first led up to it, that you can make it more.''\\end{minipage}}{\\norm
 \\cleardoublepage
 
 \\pagestyle{Main}
-\\pagestyle{Foreword}
+${
+  languageName === "Python"
+    ? ""
+    : `\\pagestyle{Foreword}
 \\input{./others/02foreword02.tex}
 
 \\cleardoublepage
-\\pagestyle{Foreword1984}
+`
+}\\pagestyle{Foreword1984}
 \\input{./others/02foreword84.tex}
 
 \\cleardoublepage
-\\pagestyle{Preface}
+${
+  languageName === "Python"
+    ? ""
+    : `\\pagestyle{Preface}
 \\input{./others/03prefaces03.tex}
-\\pagestyle{Preface1996}
+`
+}\\pagestyle{Preface1996}
 \\input{./others/03prefaces96.tex}
 %% \\pagestyle{Preface1984}
 %% \\input{./others/03prefaces84.tex}
 
-\\cleardoublepage
+${
+  languageName === "Python"
+    ? ""
+    : `\\cleardoublepage
 \\pagestyle{Acknowledgements}
-\\input{./others/04acknowledgements04.tex}
+\\input{./others/04acknowledgements04.tex}`
+}
 %% \\input{./others/05acknowledgements05.tex}
 
 \\cleardoublepage
