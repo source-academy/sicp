@@ -452,7 +452,12 @@ const processTextFunctionsDefaultLatex = {
       }
 
       let ecmaString = "";
-      const ecma = getChildrenByTagName(subIndex, "ECMA")[0];
+      // The JavaScript edition tags a primitive's standard-library equivalent
+      // with <ECMA>; the Python edition uses <PLR> (Python Language Reference).
+      // Both render the same way: a parenthetical after the index subentry.
+      const ecma =
+        getChildrenByTagName(subIndex, "ECMA")[0] ||
+        getChildrenByTagName(subIndex, "PLR")[0];
       if (ecma) {
         const ecmaArr = [];
         recursiveProcessTextLatex(ecma.firstChild, ecmaArr);
@@ -659,6 +664,7 @@ const processTextFunctionsDefaultLatex = {
   USE: (node, writeTo) =>
     processTextFunctionsLatex[lang.inlineTag](node, writeTo),
   ECMA: (node, writeTo) => {},
+  PLR: (node, writeTo) => {},
   [lang.inlineTag]: (node, writeTo) => {
     if (ancestorHasTag(node, "METAPHRASE")) {
       writeTo.push("}$");
