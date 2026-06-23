@@ -1,13 +1,64 @@
-const { createContext, runInContext, parseError } = require("js-slang");
+// Runs the generated example programs and checks them against their
+// "<comment> expected: ..." trailers.
+//
+// Edition selection mirrors javascript/editions.ts: with SICP_EDITION=py this
+// tests the Python edition's programs (programs_py, "#" comments) by running
+// them through CPython (scripts/run_py.py, which uses the `sicp` package);
+// otherwise it tests the JavaScript edition's programs (programs_js, "//"
+// comments) through the js-slang interpreter, exactly as before.
+
+// This file is an ES module (package.json has "type": "module"), so recreate
+// `require` for the CommonJS dependencies it uses.
+import { createRequire } from "module";
+const require = createRequire(import.meta.url);
+
 const { exit } = require("process");
 const { readdirSync, readFileSync, statSync } = require("fs");
-const { sourceLanguages } = require("js-slang/dist/constants");
-const colors = require("colors/safe");
+const { execFileSync } = require("child_process");
 const Path = require("path");
 
-const DEFAULT_SOURCE_FOLDER = "programs_js";
+// Minimal ANSI colorizer, so this script does not depend on the `colors`
+// package (which need not be installed for the Python edition).
+const colors = {
+  red: s => `\x1b[31m${s}\x1b[0m`,
+  green: s => `\x1b[32m${s}\x1b[0m`
+};
+
+const EDITION = (process.env.SICP_EDITION || "js").trim().toLowerCase();
+if (EDITION !== "js" && EDITION !== "py") {
+  console.error(
+    colors.red(
+      `Unknown SICP_EDITION "${process.env.SICP_EDITION}" (expected "js" or "py")`
+    )
+  );
+  exit(-1);
+}
+const IS_PYTHON = EDITION === "py";
+
+// js-slang is only needed to interpret the JavaScript edition; load it lazily
+// so the Python edition (which runs programs through CPython) does not depend
+// on it.
+let createContext, runInContext, parseError, sourceLanguages;
+if (!IS_PYTHON) {
+  ({ createContext, runInContext, parseError } = require("js-slang"));
+  ({ sourceLanguages } = require("js-slang/dist/constants"));
+}
+
+const DEFAULT_SOURCE_FOLDER = IS_PYTHON ? "programs_py" : "programs_js";
 const DEFAULT_CHAPTER = 4;
 const DEFAULT_VARIANT = "default";
+
+// The generator writes the expected output as a trailing comment, using the
+// edition's line-comment marker: "// expected: ..." (JS) or "# expected: ..."
+// (Python). See javascript/processingFunctions/processSnippetJs.js.
+const EXPECTED_RE = IS_PYTHON
+  ? /#\s*expected:\s*(.*)/
+  : /\/\/\s*expected:\s*(.*)/;
+
+// CPython runner for the Python edition.
+const PYTHON = process.env.PYTHON || "python3";
+const PY_RUNNER = Path.resolve("scripts", "run_py.py");
+
 let count_pass = 0;
 let count_fail = 0;
 
@@ -107,17 +158,45 @@ async function test(test_name, chapter, variant, source_code, expected_output) {
   }
 }
 
+/**
+ * Runs a Python-edition program through CPython (scripts/run_py.py) and checks
+ * it against the expected output. The runner exits 0 on PASS and non-zero on a
+ * mismatch or runtime/parse error, printing detail for us to surface.
+ */
+function test_python(file_path, expected_output) {
+  console.log(`${file_path}, expecting: ${expected_output}`);
+  try {
+    execFileSync(PYTHON, [PY_RUNNER, file_path, expected_output], {
+      stdio: "pipe",
+      encoding: "utf-8"
+    });
+    console.log(colors.green("PASS"));
+    count_pass++;
+  } catch (error) {
+    console.log(colors.red("FAIL:"));
+    const detail = `${error.stdout || ""}${error.stderr || ""}`.trimEnd();
+    for (const line of detail.split("\n")) {
+      if (line.length) console.log(colors.red(`> ${line}`));
+    }
+    count_fail++;
+  }
+}
+
 async function test_source(file_path) {
   const source_code = readFileSync(file_path, { encoding: "utf-8" }).trim();
 
   const lines = source_code.split("\n");
 
-  // find the expected output
-  let mobj = /\/\/ expected:\s*(.*)/.exec(lines[lines.length - 1]);
+  // find the expected output (trailing "<comment> expected: ..." line)
+  let mobj = EXPECTED_RE.exec(lines[lines.length - 1]);
   if (!mobj) {
     return;
   }
   const expected_output = mobj[1];
+
+  if (IS_PYTHON) {
+    return test_python(file_path, expected_output);
+  }
 
   // handle chapter and variant
   let chapter = DEFAULT_CHAPTER;
@@ -144,14 +223,11 @@ async function test_root(path) {
 }
 
 (async () => {
-  const opt = require("node-getopt")
-    .create([])
-    .setHelp("Usage: yarn test [source folder]")
-    .parseSystem();
-
+  // Usage: yarn test [source folder]
+  const args = process.argv.slice(2);
   let source_folder = DEFAULT_SOURCE_FOLDER;
-  if (opt.argv.length > 0) {
-    source_folder = Path.resolve(...opt.argv);
+  if (args.length > 0) {
+    source_folder = Path.resolve(...args);
   }
 
   await test_root(source_folder);
