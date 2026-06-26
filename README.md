@@ -14,6 +14,40 @@ Details how to generate these versions are in the [repo wiki](https://github.com
 
 Check out our [Resources for Learners, Educators and Researchers](https://about.sourceacademy.org/), and read more [About the SICP JS Project](https://sourceacademy.org/sicpjs/making-of) in Interactive SICP JS.
 
+## Testing the SICPy (Python) edition
+
+The SICPy example programs can be tested automatically against their expected outputs. First, generate the programs from the XML sources:
+
+```bash
+SICP_EDITION=py npx tsx ./javascript/index.js programs
+```
+
+Then run the tests:
+
+```bash
+# Test all of chapter 1:
+SICP_EDITION=py yarn test -- programs_py/chapter1
+
+# Or a specific section:
+SICP_EDITION=py yarn test -- programs_py/chapter1/section1/subsection4
+```
+
+By default the programs are run through **py-slang**, the Source Academy Python interpreter. This requires a built copy of [py-slang](https://github.com/source-academy/py-slang); the test runner looks for it at `../../py-slang/dist/index.cjs` relative to the `scripts/` directory, or at the path set by the `PY_SLANG` environment variable.
+
+To run against **CPython** instead (the original behaviour, useful for comparison or as a ground truth):
+
+```bash
+PY_SLANG=0 SICP_EDITION=py yarn test -- programs_py/chapter1
+# or equivalently:
+PY_SLANG=0 SICP_EDITION=py node ./scripts/test.js programs_py/chapter1
+```
+
+The JavaScript edition tests are unchanged and continue to run through js-slang:
+
+```bash
+yarn test
+```
+
 ## Licenses
 
 [![CC BY-SA 4.0][cc-by-nc-sa-image]][cc-by-nc-sa]
