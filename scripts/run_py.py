@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """Run one generated SICPy program and check it against its expected output.
 
-Invoked by scripts/test.js when SICP_EDITION=py. It runs the program and takes
-its result to be either the value of the final top-level expression, or - when
-that final expression is a ``print(...)`` call (so its value is None) - the
-last line the program printed. That result is compared against the
+Invoked by scripts/test.js when SICP_EDITION=py. It runs the program straight
+through CPython and takes its result to be the last line the program printed.
+A program that prints nothing therefore has no result, and fails any
+"# expected: ..." check. That last printed line is compared against the
 "# expected: ..." value.
 
 The SICP primitives (pair, head, tail, llist, error, math_*, ...) come from the
@@ -40,20 +40,6 @@ def run_with_big_stack(target):
     thread = threading.Thread(target=target)
     thread.start()
     thread.join()
-
-
-def split_last_expression(source, filename):
-    """Compile the program, separating off its final top-level expression.
-
-    Returns (exec_code, eval_code); eval_code is None when the program does not
-    end in a bare expression."""
-    module = ast.parse(source, filename)
-    if module.body and isinstance(module.body[-1], ast.Expr):
-        last = module.body.pop()
-        exec_code = compile(module, filename, "exec")
-        eval_code = compile(ast.Expression(last.value), filename, "eval")
-        return exec_code, eval_code
-    return compile(module, filename, "exec"), None
 
 
 def normalize(value):
@@ -128,7 +114,7 @@ def main():
     exec("from sicp import *", glb)
 
     try:
-        exec_code, eval_code = split_last_expression(source, program_path)
+        exec_code = compile(source, program_path, "exec")
     except SyntaxError as error:
         print(f"{type(error).__name__}: {error}")
         sys.exit(1)
@@ -140,9 +126,6 @@ def main():
         try:
             with contextlib.redirect_stdout(buf):
                 exec(exec_code, glb)
-                outcome["value"] = (
-                    eval(eval_code, glb) if eval_code is not None else None
-                )
         except BaseException as error:  # capture RecursionError etc.
             outcome["error"] = error
 
@@ -155,14 +138,10 @@ def main():
         error = outcome["error"]
         print(f"{type(error).__name__}: {error}")
         sys.exit(1)
-    value = outcome.get("value")
 
-    # The result is the value of the final expression, or - when that
-    # expression is a print(...) call (value None) - the last printed line.
-    if value is not None:
-        result_struct = normalize(value)
-        result_text = repr(value)
-    elif printed.strip():
+    # The result is the last line the program printed; a program that prints
+    # nothing has no result.
+    if printed.strip():
         result_text = printed.strip().splitlines()[-1].strip()
         result_struct = to_struct(result_text)
     else:
