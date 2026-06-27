@@ -209,10 +209,17 @@ concurrent_execute($f_{1}$, $f_{2}$, $\ldots$, $f_{k}$)
   (lambda () (set! x (+ x 1))))
       </SCHEME>
       <PYTHON>
-let x = 10;
+x = 10
 <SHORT_SPACE/>
-concurrent_execute(() => { x = x * x; },
-                   () => { x = x + 1; });
+def t1():
+    global x
+    x = x * x
+
+def t2():
+    global x
+    x = x + 1
+
+concurrent_execute(t1, t2)
       </PYTHON>
     </SNIPPET>
     <SPLIT>
@@ -380,12 +387,19 @@ concurrent_execute(() => { x = x * x; },
                   (s (lambda () (set! x (+ x 1)))))
       </SCHEME>
       <PYTHON>
-let x = 10;
+x = 10
 <SHORT_SPACE/>
-const s = make_serializer();
+s = make_serializer()
 <SHORT_SPACE/>
-concurrent_execute(s(() => { x = x * x; }),
-                   s(() => { x = x + 1; }));
+def t1():
+    global x
+    x = x * x
+
+def t2():
+    global x
+    x = x + 1
+
+concurrent_execute(s(t1), s(t2))
       </PYTHON>
     </SNIPPET>
     can produce only two possible values for
@@ -417,21 +431,21 @@ concurrent_execute(s(() => { x = x * x; }),
     <SNIPPET HIDE="yes">
       <NAME>make_account_serialize_attempt_example</NAME>
       <PYTHON>
-const my_account = make_account(100);
+my_account = make_account(100)
 
-concurrent_execute(
-    () => {
-        display(my_account("balance"), "T1 balance");
-        my_account("withdraw")(50);
-        display(my_account("balance"), "T1 balance");
-        my_account("deposit")(100);
-    },
-    () => { display(my_account("balance"), "T2 balance");
-        my_account("withdraw")(50);
-        display(my_account("balance"), "T2 balance");
-        my_account("deposit")(100);
-    }
-);
+def t1():
+    display(my_account("balance"), "T1 balance")
+    my_account("withdraw")(50)
+    display(my_account("balance"), "T1 balance")
+    my_account("deposit")(100)
+
+def t2():
+    display(my_account("balance"), "T2 balance")
+    my_account("withdraw")(50)
+    display(my_account("balance"), "T2 balance")
+    my_account("deposit")(100)
+
+concurrent_execute(t1, t2)
       </PYTHON>
     </SNIPPET>
     <SNIPPET CHAP="3" VARIANT="concurrent">
@@ -459,31 +473,25 @@ concurrent_execute(
     dispatch))
       </SCHEME>
       <PYTHON>
-function make_account(balance) {
-    function withdraw(amount) {
-        if (balance &gt; amount) {
-            balance = balance - amount;
-            return balance;
-        } else {
-            return "Insufficient funds";
-        }
-    }
-    function deposit(amount) {
-        balance = balance + amount;
-        return balance;
-    }
-    const protect = make_serializer();
-    function dispatch(m) {
-        return m === "withdraw" 
-               ? protect(withdraw)
-               : m === "deposit"
-               ? protect(deposit)
-               : m === "balance"
-               ? balance
-               : error(m, "unknown request -- make_account");
-    }
-    return dispatch;
-}
+def make_account(balance):
+    def withdraw(amount):
+        nonlocal balance
+        if balance &gt; amount:
+            balance = balance - amount
+            return balance
+        else:
+            return "Insufficient funds"
+    def deposit(amount):
+        nonlocal balance
+        balance = balance + amount
+        return balance
+    protect = make_serializer()
+    def dispatch(m):
+        return (protect(withdraw) if m == "withdraw"
+                else protect(deposit) if m == "deposit"
+                else balance if m == "balance"
+                else error(m, "unknown request -- make_account"))
+    return dispatch
       </PYTHON>
     </SNIPPET>
     With this implementation, two 
@@ -517,12 +525,19 @@ function make_account(balance) {
                   (s (lambda () (set! x (+ x 1)))))
       </SCHEME>
       <PYTHON>
-let x = 10;
+x = 10
 <SHORT_SPACE/>
-const s = make_serializer();
+s = make_serializer()
 <SHORT_SPACE/>
-concurrent_execute(  () => { x = s(() => x * x)(); },
-                   s(() => { x = x + 1;             }));
+def t1():
+    global x
+    x = s(lambda: x * x)()
+
+def t2():
+    global x
+    x = x + 1
+
+concurrent_execute(t1, s(t2))
       </PYTHON>
     </SNIPPET>
     <LABEL NAME="ex:3_39"/>
@@ -541,10 +556,17 @@ concurrent_execute(  () => { x = s(() => x * x)(); },
                   (lambda () (set! x (* x x x))))
       </SCHEME>
       <PYTHON>
-let x = 10;
+x = 10
 <SHORT_SPACE/>
-concurrent_execute(() => { x = x * x; }, 
-                   () => { x = x * x * x; });
+def t1():
+    global x
+    x = x * x
+
+def t2():
+    global x
+    x = x * x * x
+
+concurrent_execute(t1, t2)
       </PYTHON>
     </SNIPPET>
     <PDF_ONLY>\newpage\noindent</PDF_ONLY> Which of these possibilities remain if we instead use serialized
@@ -563,12 +585,19 @@ concurrent_execute(() => { x = x * x; },
                   (s (lambda () (set! x (* x x x)))))
       </SCHEME>
       <PYTHON>
-let x = 10;
+x = 10
 <SHORT_SPACE/>
-const s = make_serializer();
+s = make_serializer()
 <SHORT_SPACE/>
-concurrent_execute(s(() => { x = x * x;     }),
-                   s(() => { x = x * x * x; }));
+def t1():
+    global x
+    x = x * x
+
+def t2():
+    global x
+    x = x * x * x
+
+concurrent_execute(s(t1), s(t2))
       </PYTHON>
     </SNIPPET>
     <LABEL NAME="ex:3_40"/>
@@ -604,31 +633,25 @@ concurrent_execute(s(() => { x = x * x;     }),
     dispatch))
       </SCHEME>
       <PYTHON>
-function make_account(balance) {
-    function withdraw(amount) {
-        if (balance &gt; amount) {
-            balance = balance - amount;
-            return balance;
-        } else {
-            return "Insufficient funds";
-        }
-    }
-    function deposit(amount) {
-        balance = balance + amount;
-        return balance;
-    }
-    const protect = make_serializer();
-    function dispatch(m) {
-        return m === "withdraw"
-               ? protect(withdraw)
-               : m === "deposit"
-               ? protect(deposit)
-               : m === "balance"
-               ? protect(() => balance)(undefined) // serialized
-               : error(m, "unknown request -- make_account");
-    }
-    return dispatch;
-}
+def make_account(balance):
+    def withdraw(amount):
+        nonlocal balance
+        if balance &gt; amount:
+            balance = balance - amount
+            return balance
+        else:
+            return "Insufficient funds"
+    def deposit(amount):
+        nonlocal balance
+        balance = balance + amount
+        return balance
+    protect = make_serializer()
+    def dispatch(m):
+        return (protect(withdraw) if m == "withdraw"
+                else protect(deposit) if m == "deposit"
+                else protect(lambda: balance)() if m == "balance"  # serialized
+                else error(m, "unknown request -- make_account"))
+    return dispatch
       </PYTHON>
     </SNIPPET>
     because allowing unserialized access to the bank balance can
@@ -697,33 +720,27 @@ function make_account(balance) {
   dispatch)))
       </SCHEME>
       <PYTHON>
-function make_account(balance) {
-    function withdraw(amount) {
-        if (balance &gt; amount) {
-            balance = balance - amount;
-            return balance;
-        } else {
-            return "Insufficient funds";
-        }
-    }
-    function deposit(amount) {
-        balance = balance + amount;
-        return balance;
-    }
-    const protect = make_serializer();
-    const protect_withdraw = protect(withdraw);
-    const protect_deposit = protect(deposit);
-    function dispatch(m) {
-        return m === "withdraw"
-               ? protect_withdraw
-               : m === "deposit"
-               ? protect_deposit
-               : m === "balance"
-               ? balance
-               : error(m, "unknown request -- make_account");
-    }
-    return dispatch;
-}
+def make_account(balance):
+    def withdraw(amount):
+        nonlocal balance
+        if balance &gt; amount:
+            balance = balance - amount
+            return balance
+        else:
+            return "Insufficient funds"
+    def deposit(amount):
+        nonlocal balance
+        balance = balance + amount
+        return balance
+    protect = make_serializer()
+    protect_withdraw = protect(withdraw)
+    protect_deposit = protect(deposit)
+    def dispatch(m):
+        return (protect_withdraw if m == "withdraw"
+                else protect_deposit if m == "deposit"
+                else balance if m == "balance"
+                else error(m, "unknown request -- make_account"))
+    return dispatch
       </PYTHON>            
     </SNIPPET>
     Is this a safe change to make?  In particular, is there any difference
@@ -766,26 +783,25 @@ function make_account(balance) {
     <SNIPPET HIDE="yes">
       <NAME>exchange_example</NAME>
       <PYTHON>
-const a1 = make_account(100);
-const a2 = make_account(200);
-const a3 = make_account(300);
+a1 = make_account(100)
+a2 = make_account(200)
+a3 = make_account(300)
 
-concurrent_execute(
-    () => { 
-        display(a1("balance"), "Peter balance a1 before");
-        display(a2("balance"), "Peter balance a2 before");
-        exchange(a1, a2);
-        display(a1("balance"), "Peter balance a1 after");
-        display(a2("balance"), "Peter balance a2 after");
-    },
-    () => { 
-        display(a1("balance"), "Paul balance a1 before");
-        display(a3("balance"), "Paul balance a3 before");
-        exchange(a1, a3);
-        display(a1("balance"), "Paul balance a1 after");
-        display(a3("balance"), "Paul balance a3 after");
-    }
-);
+def peter():
+    display(a1("balance"), "Peter balance a1 before")
+    display(a2("balance"), "Peter balance a2 before")
+    exchange(a1, a2)
+    display(a1("balance"), "Peter balance a1 after")
+    display(a2("balance"), "Peter balance a2 after")
+
+def paul():
+    display(a1("balance"), "Paul balance a1 before")
+    display(a3("balance"), "Paul balance a3 before")
+    exchange(a1, a3)
+    display(a1("balance"), "Paul balance a1 after")
+    display(a3("balance"), "Paul balance a3 after")
+
+concurrent_execute(peter, paul)
       </PYTHON>
     </SNIPPET>
     <SNIPPET CHAP="3" VARIANT="concurrent">
@@ -801,11 +817,10 @@ concurrent_execute(
     ((account2 'deposit) difference)))
       </SCHEME>
       <PYTHON>
-function exchange(account1, account2) {
-    const difference = account1("balance") - account2("balance");
-    account1("withdraw")(difference);
-    account2("deposit")(difference);
-}
+def exchange(account1, account2):
+    difference = account1("balance") - account2("balance")
+    account1("withdraw")(difference)
+    account2("deposit")(difference)
       </PYTHON>
     </SNIPPET>
   </TEXT>
@@ -897,30 +912,24 @@ function exchange(account1, account2) {
     dispatch))
       </SCHEME>
       <PYTHON>
-function make_account_and_serializer(balance) {
-    function withdraw(amount) {
-        if (balance &gt; amount) {
-            balance = balance - amount;
-            return balance;
-        } else {
-            return "Insufficient funds";
-        }
-    }
-    function deposit(amount) {
-        balance = balance + amount;
-        return balance;
-    }
-    const balance_serializer = make_serializer();
-    return m => m === "withdraw"
-                ? withdraw
-                : m === "deposit"
-                ? deposit
-                : m === "balance"
-                ? balance
-                : m === "serializer"
-                ? balance_serializer
-                : error(m, "unknown request -- make_account");
-}
+def make_account_and_serializer(balance):
+    def withdraw(amount):
+        nonlocal balance
+        if balance &gt; amount:
+            balance = balance - amount
+            return balance
+        else:
+            return "Insufficient funds"
+    def deposit(amount):
+        nonlocal balance
+        balance = balance + amount
+        return balance
+    balance_serializer = make_serializer()
+    return lambda m: (withdraw if m == "withdraw"
+                      else deposit if m == "deposit"
+                      else balance if m == "balance"
+                      else balance_serializer if m == "serializer"
+                      else error(m, "unknown request -- make_account"))
       </PYTHON>
     </SNIPPET>
   </TEXT>
@@ -936,11 +945,11 @@ function make_account_and_serializer(balance) {
     <SNIPPET HIDE="yes">
       <NAME>make_account_and_serializer_example</NAME>
       <PYTHON>
-const my_account = make_account_and_serializer(100);
+my_account = make_account_and_serializer(100)
 
-deposit(my_account, 200);
+deposit(my_account, 200)
 
-display(my_account("balance"));
+display(my_account("balance"))
       </PYTHON>
     </SNIPPET>
     <SNIPPET CHAP="3" VARIANT="concurrent">
@@ -955,11 +964,10 @@ display(my_account("balance"));
     ((s d) amount)))
       </SCHEME>
       <PYTHON>
-function deposit(account, amount) {
-    const s = account("serializer");
-    const d = account("deposit");
-    s(d(amount));
-}
+def deposit(account, amount):
+    s = account("serializer")
+    d = account("deposit")
+    s(d(amount))
       </PYTHON>
     </SNIPPET>
   </TEXT>
@@ -974,26 +982,25 @@ function deposit(account, amount) {
     <SNIPPET HIDE="yes">
       <NAME>serialized_exchange_example</NAME>
       <PYTHON>
-const a1 = make_account_and_serializer(100);
-const a2 = make_account_and_serializer(200);
-const a3 = make_account_and_serializer(300);
+a1 = make_account_and_serializer(100)
+a2 = make_account_and_serializer(200)
+a3 = make_account_and_serializer(300)
 
-concurrent_execute(
-    () => { 
-        display(a1("balance"), "Peter balance a1 before");
-        display(a2("balance"), "Peter balance a2 before");
-        serialized_exchange(a1, a2);
-        display(a1("balance"), "Peter balance a1 after");
-        display(a2("balance"), "Peter balance a2 after");
-    },
-    () => { 
-        display(a1("balance"), "Paul balance a1 before");
-        display(a3("balance"), "Paul balance a3 before");
-        serialized_exchange(a1, a3);
-        display(a1("balance"), "Paul balance a1 after");
-        display(a3("balance"), "Paul balance a3 after");
-    }
-);
+def peter():
+    display(a1("balance"), "Peter balance a1 before")
+    display(a2("balance"), "Peter balance a2 before")
+    serialized_exchange(a1, a2)
+    display(a1("balance"), "Peter balance a1 after")
+    display(a2("balance"), "Peter balance a2 after")
+
+def paul():
+    display(a1("balance"), "Paul balance a1 before")
+    display(a3("balance"), "Paul balance a3 before")
+    serialized_exchange(a1, a3)
+    display(a1("balance"), "Paul balance a1 after")
+    display(a3("balance"), "Paul balance a3 after")
+
+concurrent_execute(peter, paul)
       </PYTHON>
     </SNIPPET>
     <SNIPPET CHAP="3" VARIANT="concurrent" POSTPADDING="no">
@@ -1011,11 +1018,10 @@ concurrent_execute(
      account2)))
       </SCHEME>
       <PYTHON>
-function serialized_exchange(account1, account2) {
-    const serializer1 = account1("serializer");
-    const serializer2 = account2("serializer");
-    serializer1(serializer2(exchange))(account1, account2);
-}
+def serialized_exchange(account1, account2):
+    serializer1 = account1("serializer")
+    serializer2 = account2("serializer")
+    serializer1(serializer2(exchange))(account1, account2)
       </PYTHON>
     </SNIPPET>
   </TEXT>
@@ -1069,26 +1075,25 @@ function serialized_exchange(account1, account2) {
       <NAME>transfer_example</NAME>
       <REQUIRES>make_account_serialize_attempt</REQUIRES>
       <PYTHON>
-const a1 = make_account(400);
-const a2 = make_account(100);
+a1 = make_account(400)
+a2 = make_account(100)
 
-concurrent_execute(
-    () => {
-        display(a1("balance"), "Peter balance a1 before");
-        display(a2("balance"), "Peter balance a2 before");
-        transfer(a1, a2, 50);
-        display(a1("balance"), "Peter balance a1 after");
-        display(a2("balance"), "Peter balance a2 after");
-    },
-    () => { 
-        display(a1("balance"), "Paul balance a1");
-        display(a2("balance"), "Paul balance a2");
-        display(a1("balance"), "Paul balance a1");
-        display(a2("balance"), "Paul balance a2");
-        display(a1("balance"), "Paul balance a1");
-        display(a2("balance"), "Paul balance a2");
-    }
-);
+def peter():
+    display(a1("balance"), "Peter balance a1 before")
+    display(a2("balance"), "Peter balance a2 before")
+    transfer(a1, a2, 50)
+    display(a1("balance"), "Peter balance a1 after")
+    display(a2("balance"), "Peter balance a2 after")
+
+def paul():
+    display(a1("balance"), "Paul balance a1")
+    display(a2("balance"), "Paul balance a2")
+    display(a1("balance"), "Paul balance a1")
+    display(a2("balance"), "Paul balance a2")
+    display(a1("balance"), "Paul balance a1")
+    display(a2("balance"), "Paul balance a2")
+
+concurrent_execute(peter, paul)
       </PYTHON>
     </SNIPPET>
     <SNIPPET CHAP="3" VARIANT="concurrent">
@@ -1101,10 +1106,9 @@ concurrent_execute(
   ((to-account 'deposit) amount))
       </SCHEME>
       <PYTHON>
-function transfer(from_account, to_account, amount) {
-    from_account("withdraw")(amount);
-    to_account("deposit")(amount);
-}
+def transfer(from_account, to_account, amount):
+    from_account("withdraw")(amount)
+    to_account("deposit")(amount)
       </PYTHON>
     </SNIPPET>
     <SHORT_PAGE lines="4"/>Louis Reasoner claims that there is a problem here, and that we need
@@ -1175,30 +1179,24 @@ function transfer(from_account, to_account, amount) {
     dispatch))
       </SCHEME>
       <PYTHON>
-function make_account_and_serializer(balance) {
-    function withdraw(amount) {
-        if (balance &gt; amount) {
-            balance = balance - amount;
-	    return balance;
-        } else {
-            return "Insufficient funds";
-        }
-    }
-    function deposit(amount) {
-        balance = balance + amount;
-        return balance;
-    }
-    const balance_serializer = make_serializer();
-    return m => m === "withdraw"
-                ? balance_serializer(withdraw)
-                : m === "deposit"
-                ? balance_serializer(deposit)
-                : m === "balance"
-                ? balance
-                : m === "serializer"
-                ? balance_serializer
-                : error(m, "unknown request -- make_account");
-}
+def make_account_and_serializer(balance):
+    def withdraw(amount):
+        nonlocal balance
+        if balance &gt; amount:
+            balance = balance - amount
+            return balance
+        else:
+            return "Insufficient funds"
+    def deposit(amount):
+        nonlocal balance
+        balance = balance + amount
+        return balance
+    balance_serializer = make_serializer()
+    return lambda m: (balance_serializer(withdraw) if m == "withdraw"
+                      else balance_serializer(deposit) if m == "deposit"
+                      else balance if m == "balance"
+                      else balance_serializer if m == "serializer"
+                      else error(m, "unknown request -- make_account"))
       </PYTHON>
     </SNIPPET>
     Then deposits are handled as with the original
@@ -1215,9 +1213,8 @@ function make_account_and_serializer(balance) {
   ((account 'deposit) amount))
       </SCHEME>
       <PYTHON>
-function deposit(account, amount) {
-    account("deposit")(amount);
-}
+def deposit(account, amount):
+    account("deposit")(amount)
       </PYTHON>
     </SNIPPET>
     <SNIPPET CHAP="3" VARIANT="concurrent" HIDE="yes">
@@ -1226,9 +1223,9 @@ function deposit(account, amount) {
       <SCHEME>
       </SCHEME>
       <PYTHON>
-const my_account = make_account_and_serializer(300);
-deposit(my_account, 100);	
-display(my_account("balance"));
+my_account = make_account_and_serializer(300)
+deposit(my_account, 100)
+display(my_account("balance"))
       </PYTHON>
     </SNIPPET>
     Explain what is wrong with Louis's reasoning.  In particular,
@@ -1362,32 +1359,28 @@ display(my_account("balance"));
       serialized-p)))
       </SCHEME>
       <PYTHON>
-function make_serializer() {
-    const mutex = make_mutex();
-    return f => {
-               function serialized_f(...args) {
-                   mutex("acquire");
-                   const val = f(...args);
-                   mutex("release");
-                   return val;
-               }
-               return serialized_f;          
-           };
-}
+def make_serializer():
+    mutex = make_mutex()
+    def serializer(f):
+        def serialized_f(*args):
+            mutex("acquire")
+            val = f(*args)
+            mutex("release")
+            return val
+        return serialized_f
+    return serializer
       </PYTHON>
       <PYTHON_RUN>
-function make_serializer() {
-    const mutex = make_mutex();
-    return f => {
-               function serialized_f() {
-                   mutex("acquire");
-                   const val = f();
-                   mutex("release");
-                   return val;
-               }
-               return serialized_f;          
-           };
-}
+def make_serializer():
+    mutex = make_mutex()
+    def serializer(f):
+        def serialized_f():
+            mutex("acquire")
+            val = f()
+            mutex("release")
+            return val
+        return serialized_f
+    return serializer
       </PYTHON_RUN>
     </SNIPPET>
   </TEXT>
@@ -1455,22 +1448,19 @@ function make_serializer() {
   (set-car! cell false))
       </SCHEME>
       <PYTHON>
-function make_mutex() {
-    const cell = list(false);
-    function the_mutex(m) {
-        return m === "acquire"
-               ? test_and_set(cell)
-                 ? the_mutex("acquire") // retry
-                 : true
-               : m === "release"
-               ? clear(cell)
-               : error(m, "unknown request -- mutex");
-    }
-    return the_mutex;
-}
-function clear(cell) {
-    set_head(cell, false);
-}
+def make_mutex():
+    cell = list(False)
+    def the_mutex(m):
+        return ((the_mutex("acquire")  # retry
+                 if test_and_set(cell)
+                 else True)
+                if m == "acquire"
+                else clear(cell) if m == "release"
+                else error(m, "unknown request -- mutex"))
+    return the_mutex
+
+def clear(cell):
+    set_head(cell, False)
       </PYTHON>
     </SNIPPET>
   </TEXT>
@@ -1505,14 +1495,12 @@ function clear(cell) {
         false)))
       </SCHEME>
       <PYTHON>
-function test_and_set(cell) {
-    if (head(cell)) {
-        return true;
-    } else {
-        set_head(cell, true);
-        return false;
-    }
-}
+def test_and_set(cell):
+    if head(cell):
+        return True
+    else:
+        set_head(cell, True)
+        return False
       </PYTHON>
     </SNIPPET>
   </TEXT>

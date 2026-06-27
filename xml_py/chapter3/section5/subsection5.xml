@@ -38,7 +38,7 @@
       <REQUIRES>rand_update</REQUIRES>
       <REQUIRES>random_init</REQUIRES>
       <EXAMPLE>rand_example</EXAMPLE>
-      <EXPECTED>40083849805</EXPECTED>
+      <EXPECTED>170892799123</EXPECTED>
       <SCHEME>
 (define rand
   (let ((x random-init))
@@ -47,14 +47,15 @@
     x)))
       </SCHEME>
       <PYTHON>
-function make_rand() {
-    let x = random_init;
-    return () => {
-               x = rand_update(x);
-               return x;
-           };
-}
-const rand = make_rand();
+def make_rand():
+    x = random_init
+    def rand():
+        nonlocal x
+        x = rand_update(x)
+        return x
+    return rand
+
+rand = make_rand()
       </PYTHON>
     </SNIPPET>
   </TEXT>
@@ -76,25 +77,24 @@ const rand = make_rand();
       <REQUIRES>rand_update</REQUIRES>
       <REQUIRES>random_init</REQUIRES>
       <EXAMPLE>random_numbers_example</EXAMPLE>
-      <EXPECTED>172561279022</EXPECTED>
+      <EXPECTED>15486198720</EXPECTED>
       <SCHEME>
 (define random-numbers
   (cons-stream random-init
                (stream-map rand-update random-numbers)))
       </SCHEME>
       <PYTHON>
-const random_numbers =
-    pair(random_init,
-         () => stream_map(rand_update, random_numbers));
+random_numbers = pair(random_init,
+                      lambda: stream_map(rand_update, random_numbers))
       </PYTHON>
     </SNIPPET>
     <SNIPPET HIDE="yes">
       <NAME>random_numbers_example</NAME>
       <PYTHON>
-eval_stream(random_numbers, 5);
+eval_stream(random_numbers, 5)
       </PYTHON>
       <PYTHON_TEST>
-stream_ref(random_numbers, 4);
+stream_ref(random_numbers, 4)
       </PYTHON_TEST>
     </SNIPPET>
     We use this to construct the stream of outcomes of the Ces<AGRAVE_LOWER/>ro
@@ -115,7 +115,7 @@ stream_ref(random_numbers, 4);
       <REQUIRES>random_numbers</REQUIRES>
       <REQUIRES>gcd_definition</REQUIRES>
       <EXAMPLE>cesaro_stream_example</EXAMPLE>
-      <EXPECTED>true</EXPECTED>
+      <EXPECTED>True</EXPECTED>
       <SCHEME>
 (define cesaro-stream
   (map-successive-pairs (lambda (r1 r2) (= (gcd r1 r2) 1))
@@ -127,24 +127,23 @@ stream_ref(random_numbers, 4);
       (map-successive-pairs f (stream-cdr (stream-cdr s)))))
       </SCHEME>
       <PYTHON>
-function map_successive_pairs(f, s) {
+def map_successive_pairs(f, s):
     return pair(f(head(s), head(stream_tail(s))),
-                () => map_successive_pairs(
-                          f,
-                          stream_tail(stream_tail(s))));
-}
-const dirichlet_stream =
-    map_successive_pairs((r1, r2) => gcd(r1, r2) === 1,
-                         random_numbers);
+                lambda: map_successive_pairs(
+                            f,
+                            stream_tail(stream_tail(s))))
+
+dirichlet_stream = map_successive_pairs(lambda r1, r2: gcd(r1, r2) == 1,
+                                        random_numbers)
       </PYTHON>
     </SNIPPET>
     <SNIPPET HIDE="yes">
       <NAME>cesaro_stream_example</NAME>
       <PYTHON>
-eval_stream(dirichlet_stream, 20);
+eval_stream(dirichlet_stream, 20)
       </PYTHON>
       <PYTHON_TEST>
-stream_ref(dirichlet_stream, 42);
+stream_ref(dirichlet_stream, 42)
       </PYTHON_TEST>
     </SNIPPET>
     The
@@ -190,24 +189,23 @@ stream_ref(dirichlet_stream, 42);
    (monte-carlo cesaro-stream 0 0)))
       </SCHEME>
       <PYTHON>
-function monte_carlo(experiment_stream, passed, failed) {      
-    function next(passed, failed) {
+def monte_carlo(experiment_stream, passed, failed):
+    def next(passed, failed):
         return pair(passed / (passed + failed),
-                    () => monte_carlo(stream_tail(experiment_stream),
-                                      passed, failed));
-    }
-    return head(experiment_stream)
-           ? next(passed + 1, failed)
-           : next(passed, failed + 1);
-}
-const pi = stream_map(p => math_sqrt(6 / p),
-                      monte_carlo(dirichlet_stream, 0, 0));
+                    lambda: monte_carlo(stream_tail(experiment_stream),
+                                        passed, failed))
+    return (next(passed + 1, failed)
+            if head(experiment_stream)
+            else next(passed, failed + 1))
+
+pi = stream_map(lambda p: math_sqrt(6 / p),
+                monte_carlo(dirichlet_stream, 0, 0))
       </PYTHON>
     </SNIPPET>
     <SNIPPET HIDE="yes">
       <NAME>display_pi</NAME>
       <PYTHON>
-stream_ref(pi, 100);	
+stream_ref(pi, 100)
       </PYTHON>
     </SNIPPET>
     There is considerable
@@ -333,12 +331,12 @@ stream_ref(pi, 100);
     balance))
       </SCHEME>
       <PYTHON>
-function make_simplified_withdraw(balance) {
-    return amount => {
-               balance = balance - amount;
-               return balance;
-           };
-}
+def make_simplified_withdraw(balance):
+    def withdraw(amount):
+        nonlocal balance
+        balance = balance - amount
+        return balance
+    return withdraw
       </PYTHON>
     </SNIPPET>
     Calls to
@@ -379,24 +377,23 @@ function make_simplified_withdraw(balance) {
                     (stream-cdr amount-stream))))
       </SCHEME>
       <PYTHON>
-function stream_withdraw(balance, amount_stream) {      
+def stream_withdraw(balance, amount_stream):
     return pair(balance,
-                () => stream_withdraw(balance - head(amount_stream),
-                                      stream_tail(amount_stream)));   
-}
+                lambda: stream_withdraw(balance - head(amount_stream),
+                                        stream_tail(amount_stream)))
       </PYTHON>
     </SNIPPET>
     <SNIPPET HIDE="yes">
       <NAME>stream_withdraw_example</NAME>
       <PYTHON>
-const my_amounts = list_to_stream(list(50, 100, 40));
-const my_account_stream = stream_withdraw(200, my_amounts);	
-eval_stream(my_account_stream, 3);
+my_amounts = list_to_stream(list(50, 100, 40))
+my_account_stream = stream_withdraw(200, my_amounts)
+eval_stream(my_account_stream, 3)
       </PYTHON>
       <PYTHON_TEST>
-const my_amounts = list_to_stream(list(50, 100, 40));
-const my_account_stream = stream_withdraw(200, my_amounts);	
-stream_ref(my_account_stream, 2);
+my_amounts = list_to_stream(list(50, 100, 40))
+my_account_stream = stream_withdraw(200, my_amounts)
+stream_ref(my_account_stream, 2)
       </PYTHON_TEST>
     </SNIPPET>
     <SPLITINLINE>
