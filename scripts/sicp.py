@@ -201,12 +201,17 @@ def equal(a, b):
 
 
 # Apply a function to the elements of a linked list of arguments.
-def apply_in_underlying_javascript(fun, args_list):
+def apply_in_underlying_python(fun, args_list):
     args = []
     while args_list is not None:
         args.append(head(args_list))
         args_list = tail(args_list)
     return fun(*args)
+
+
+# Legacy alias: the JavaScript edition names this primitive after its host
+# language; keep it available until any remaining JS-named callers are converted.
+apply_in_underlying_javascript = apply_in_underlying_python
 
 
 # ---------------------------------------------------------------------------
