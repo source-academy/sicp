@@ -141,13 +141,11 @@
                     insts)))
       </SCHEME>
       <PYTHON>
-function assemble(controller, machine) {
-    return extract_labels(controller,
-                          (insts, labels) => {
-                              update_insts(insts, labels, machine);
-                              return insts;
-                          });
-}
+def assemble(controller, machine):
+    def receive(insts, labels):
+        update_insts(insts, labels, machine)
+        return insts
+    return extract_labels(controller, receive)
       </PYTHON>
     </SNIPPET>
   </TEXT>
@@ -201,23 +199,17 @@ function assemble(controller, machine) {
                          labels)))))))
       </SCHEME>
       <PYTHON>
-function extract_labels(controller, receive) {
-    return is_null(controller)
-           ? receive(null, null)
-           : extract_labels(
-                 tail(controller),
-                 (insts, labels) => {
-                   const next_element = head(controller);
-                   return is_string(next_element)
-                          ? receive(insts,
-                                    pair(make_label_entry(next_element,
-                                                          insts),
-                                         labels))
-                          : receive(pair(make_inst(next_element),
-                                         insts),
-                                    labels);
-                 });
-}
+def extract_labels(controller, receive):
+    def incorporate(insts, labels):
+        next_element = head(controller)
+        return (receive(insts,
+                        pair(make_label_entry(next_element, insts),
+                             labels))
+                if is_string(next_element)
+                else receive(pair(make_inst(next_element), insts),
+                             labels))
+    return (receive(None, None) if is_null(controller)
+            else extract_labels(tail(controller), incorporate))
       </PYTHON>
     </SNIPPET>
     
@@ -277,22 +269,18 @@ function extract_labels(controller, receive) {
                       labels)))))))
       </SCHEME>
   <PYTHON>
-function extract_labels(controller) { 
-    if (is_null(controller)) {
-        return pair(null, null);
-    } else {
-        const result = extract_labels(tail(controller));
-        const insts = head(result);
-        const labels = tail(result);
-        const next_element = head(controller);
-        return is_string(next_element)
-               ? pair(insts, 
-                      pair(make_label_entry(next_element, insts), labels))
-               : pair(pair(make_inst(next_element), insts),
-                      labels);
-    }
-}
-  </PYTHON>
+def extract_labels(controller):
+    if is_null(controller):
+        return pair(None, None)
+    else:
+        result = extract_labels(tail(controller))
+        insts = head(result)
+        labels = tail(result)
+        next_element = head(controller)
+        return (pair(insts, pair(make_label_entry(next_element, insts), labels))
+                if is_string(next_element)
+                else pair(pair(make_inst(next_element), insts), labels))
+</PYTHON>
     </SNIPPET>
     which would be called by <SCHEMEINLINE>assemble</SCHEMEINLINE> as follows:
     <SNIPPET EVAL="no">
@@ -307,14 +295,13 @@ function extract_labels(controller) {
       insts)))
       </SCHEME>
   <PYTHON>
-function assemble(controller, machine) {
-    const result = extract_labels(controller);
-    const insts = head(result);
-    const labels = tail(result);
-    update_insts(insts, labels, machine);
-    return insts;
-}
-  </PYTHON>
+def assemble(controller, machine):
+    result = extract_labels(controller)
+    insts = head(result)
+    labels = tail(result)
+    update_insts(insts, labels, machine)
+    return insts
+</PYTHON>
     </SNIPPET>
 
     You can consider our use of <SCHEMEINLINE>receive</SCHEMEINLINE> as
@@ -377,20 +364,18 @@ function assemble(controller, machine) {
      insts)))
       </SCHEME>
       <PYTHON>
-function update_insts(insts, labels, machine) {
-    const pc = get_register(machine, "pc");
-    const flag = get_register(machine, "flag");
-    const stack = machine("stack");
-    const ops = machine("operations");
-    return for_each(inst => set_inst_execution_fun(
-                                inst,
-                                make_execution_function(
-                                    inst_controller_instruction(inst),
-                                    labels, machine, pc,
-                                    flag, stack, ops)),
-                    insts);
-}
-      </PYTHON>
+def update_insts(insts, labels, machine):
+    pc = get_register(machine, "pc")
+    flag = get_register(machine, "flag")
+    stack = machine("stack")
+    ops = machine("operations")
+    return for_each(
+        lambda inst: set_inst_execution_fun(
+            inst,
+            make_execution_function(inst_controller_instruction(inst),
+                                    labels, machine, pc, flag, stack, ops)),
+        insts)
+</PYTHON>
     </SNIPPET>
   </TEXT>
 
@@ -442,19 +427,15 @@ function update_insts(insts, labels, machine) {
   (set-cdr! inst proc))
       </SCHEME>
       <PYTHON>
-function make_inst(inst_controller_instruction) {
-    return pair(inst_controller_instruction, null);
-}
-function inst_controller_instruction(inst) {
-    return head(inst);
-}
-function inst_execution_fun(inst) {
-    return tail(inst);
-}
-function set_inst_execution_fun(inst, fun) {
-    set_tail(inst, fun);
-}
-      </PYTHON>
+def make_inst(inst_controller_instruction):
+    return pair(inst_controller_instruction, None)
+def inst_controller_instruction(inst):
+    return head(inst)
+def inst_execution_fun(inst):
+    return tail(inst)
+def set_inst_execution_fun(inst, fun):
+    set_tail(inst, fun)
+</PYTHON>
     </SNIPPET>
 
     The
@@ -478,10 +459,9 @@ function set_inst_execution_fun(inst, fun) {
   (cons label-name insts))
       </SCHEME>
       <PYTHON>
-function make_label_entry(label_name, insts) {
-    return pair(label_name, insts);
-}
-      </PYTHON>
+def make_label_entry(label_name, insts):
+    return pair(label_name, insts)
+</PYTHON>
     </SNIPPET>
     Entries will be looked up in the table with
     <SNIPPET POSTPADDING="no">
@@ -496,13 +476,11 @@ function make_label_entry(label_name, insts) {
         (error "Undefined label - - ASSEMBLE" label-name))))
       </SCHEME>
       <PYTHON>
-function lookup_label(labels, label_name) {
-    const val = assoc(label_name, labels);
-    return is_undefined(val)
-           ? error(label_name, "undefined label -- assemble")
-           : tail(val);
-}
-      </PYTHON>
+def lookup_label(labels, label_name):
+    val = assoc(label_name, labels)
+    return (error(label_name, "undefined label -- assemble") if is_undefined(val)
+            else tail(val))
+</PYTHON>
     </SNIPPET>
   </TEXT>
 
@@ -531,7 +509,7 @@ there
   assign("a", constant(4)),
   go_to(label("there")),
 "there",
-      </PYTHON>
+</PYTHON>
     </SNIPPET>
     With the simulator as written, what will the contents of register
     <SCHEMEINLINE>a</SCHEMEINLINE> be when control reaches
