@@ -75,25 +75,23 @@
       <REQUIRES>make_machine</REQUIRES>
       <REQUIRES>start</REQUIRES>
       <PYTHON>
-const gcd_machine =
-    make_machine(
-        list("a", "b", "t"),
-        list(list("rem", (a, b) => a % b),
-             list("=", (a, b) => a === b)),
-        list(
-          "test_b",
-            test(list(op("="), reg("b"), constant(0))),
-            branch(label("gcd_done")),
-            assign("t", list(op("rem"), reg("a"), reg("b"))),
-            assign("a", reg("b")),
-            assign("b", reg("t")),
-            go_to(label("test_b")),
-          "gcd_done"));
-set_register_contents(gcd_machine, "a", 206);
-set_register_contents(gcd_machine, "b", 40);
-start(gcd_machine);
-get_register_contents(gcd_machine, "a");	  
-      </PYTHON>
+gcd_machine = make_machine(
+    llist("a", "b", "t"),
+    llist(llist("rem", lambda a, b: a % b),
+         llist("=", lambda a, b: a == b)),
+    llist("test_b",
+           test(llist(op("="), reg("b"), constant(0))),
+           branch(label("gcd_done")),
+           assign("t", llist(op("rem"), reg("a"), reg("b"))),
+           assign("a", reg("b")),
+           assign("b", reg("t")),
+           go_to(label("test_b")),
+         "gcd_done"))
+set_register_contents(gcd_machine, "a", 206)
+set_register_contents(gcd_machine, "b", 40)
+start(gcd_machine)
+get_register_contents(gcd_machine, "a")
+</PYTHON>
     </SNIPPET>
     <SNIPPET POSTPADDING="no">
       <INDEX><DECLARATION>make_machine</DECLARATION></INDEX> 
@@ -113,17 +111,14 @@ get_register_contents(gcd_machine, "a");
     machine))
       </SCHEME>
       <PYTHON>
-function make_machine(register_names, ops, controller) {
-    const machine = make_new_machine();
-    for_each(register_name => 
-               machine("allocate_register")(register_name), 
-             register_names);
-    machine("install_operations")(ops);
-    machine("install_instruction_sequence")
-           (assemble(controller, machine));
-    return machine;
-}
-      </PYTHON>
+def make_machine(register_names, ops, controller):
+    machine = make_new_machine()
+    for_each(lambda register_name: machine("allocate_register")(register_name),
+             register_names)
+    machine("install_operations")(ops)
+    machine("install_instruction_sequence")(assemble(controller, machine))
+    return machine
+</PYTHON>
     </SNIPPET>
   </TEXT>
 
@@ -166,17 +161,16 @@ function make_machine(register_names, ops, controller) {
     dispatch))
       </SCHEME>
       <PYTHON>
-function make_register(name) {
-    let contents = "*unassigned*";
-    function dispatch(message) {
-        return message === "get"
-               ? contents
-               : message === "set"
-               ? value => { contents = value; }
-               : error(message, "unknown request -- make_register");
-    }
-    return dispatch;
-}
+def make_register(name):
+    contents = "*unassigned*"
+    def dispatch(message):
+        def set_value(value):
+            nonlocal contents
+            contents = value
+        return (contents if message == "get"
+                else set_value if message == "set"
+                else error(message, "unknown request -- make_register"))
+    return dispatch
       </PYTHON>
     </SNIPPET>
 
@@ -199,13 +193,11 @@ function make_register(name) {
   ((register 'set) value))
       </SCHEME>
       <PYTHON>
-function get_contents(register) {
-    return register("get");
-}
-function set_contents(register, value) {
-    return register("set")(value);
-}
-      </PYTHON>
+def get_contents(register):
+    return register("get")
+def set_contents(register, value):
+    return register("set")(value)
+</PYTHON>
     </SNIPPET>
   </TEXT>
 
@@ -262,74 +254,61 @@ function set_contents(register, value) {
     dispatch))
       </SCHEME>
       <PYTHON>
-function make_stack() {
-    let stack = null;
-    let frame = null;
-    function push_marker() {
-        frame = pair(stack, frame);
-        return "done";
-    }
-    function pop_marker() {
-        stack = head(frame);
-        frame = tail(frame);
-        return "done";
-    }
-    function push(x) { 
-        stack = pair(x, stack); 
-        return "done";
-    }
-    function pop() {
-        if (is_null(stack)) {
-            error("empty stack -- pop");
-        } else {
-            const top = head(stack);
-            stack = tail(stack);
-            return top;
-        }
-    }
-    function initialize() {
-        stack = null;
-        return "done";
-    }
-    function dispatch(message) {
-        return message === "push"
-               ? push
-               : message === "pop"
-               ? pop()
-               : message === "push_marker"
-               ? push_marker()
-               : message === "pop_marker"
-               ? pop_marker()
-               : message === "initialize"
-               ? initialize()
-               : error(message, "unknown request -- stack");
-    }
-    return dispatch;
-}
-
-function make_push_marker_to_stack_ef(machine, stack, pc) {
-    return () => {
-                   push_marker(stack);
-                   advance_pc(pc);
-                 };
-}
-function make_revert_stack_to_marker_ef(machine, stack, pc) {
-    return () => {
-                   pop_marker(stack);
-                   advance_pc(pc); 
-                 };
-}
-
-function push_marker_to_stack() { return list("push_marker_to_stack"); }
-function revert_stack_to_marker() { return list("revert_stack_to_marker"); }
-
-function pop_marker(stack) {
-    return stack("pop_marker");
-}
-function push_marker(stack) {
-    return stack("push_marker");
-}
-      </PYTHON>
+def make_stack():
+    stack = None
+    frame = None
+    def push_marker():
+        nonlocal frame
+        frame = pair(stack, frame)
+        return "done"
+    def pop_marker():
+        nonlocal stack, frame
+        stack = head(frame)
+        frame = tail(frame)
+        return "done"
+    def push(x):
+        nonlocal stack
+        stack = pair(x, stack)
+        return "done"
+    def pop():
+        nonlocal stack
+        if is_null(stack):
+            error("empty stack -- pop")
+        else:
+            top = head(stack)
+            stack = tail(stack)
+            return top
+    def initialize():
+        nonlocal stack
+        stack = None
+        return "done"
+    def dispatch(message):
+        return (push if message == "push"
+                else pop() if message == "pop"
+                else push_marker() if message == "push_marker"
+                else pop_marker() if message == "pop_marker"
+                else initialize() if message == "initialize"
+                else error(message, "unknown request -- stack"))
+    return dispatch
+def make_push_marker_to_stack_ef(machine, stack, pc):
+    def execution_fun():
+        push_marker(stack)
+        advance_pc(pc)
+    return execution_fun
+def make_revert_stack_to_marker_ef(machine, stack, pc):
+    def execution_fun():
+        pop_marker(stack)
+        advance_pc(pc)
+    return execution_fun
+def push_marker_to_stack():
+    return llist("push_marker_to_stack")
+def revert_stack_to_marker():
+    return llist("revert_stack_to_marker")
+def pop_marker(stack):
+    return stack("pop_marker")
+def push_marker(stack):
+    return stack("push_marker")
+</PYTHON>
     </SNIPPET>
     <SNIPPET>
       <INDEX><DECLARATION>make_stack</DECLARATION></INDEX> 
@@ -356,37 +335,31 @@ function push_marker(stack) {
     dispatch))
       </SCHEME>
       <PYTHON>
-function make_stack() {
-    let stack = null;
-    function push(x) { 
-        stack = pair(x, stack); 
-        return "done";
-    }
-    function pop() {
-        if (is_null(stack)) {
-            error("empty stack -- pop");
-        } else {
-            const top = head(stack);
-            stack = tail(stack);
-            return top;
-        }
-    }
-    function initialize() {
-        stack = null;
-        return "done";
-    }
-    function dispatch(message) {
-        return message === "push"
-               ? push
-               : message === "pop"
-               ? pop()
-               : message === "initialize"
-               ? initialize()
-               : error(message, "unknown request -- stack");
-    }
-    return dispatch;
-}
-      </PYTHON>
+def make_stack():
+    stack = None
+    def push(x):
+        nonlocal stack
+        stack = pair(x, stack)
+        return "done"
+    def pop():
+        nonlocal stack
+        if is_null(stack):
+            error("empty stack -- pop")
+        else:
+            top = head(stack)
+            stack = tail(stack)
+            return top
+    def initialize():
+        nonlocal stack
+        stack = None
+        return "done"
+    def dispatch(message):
+        return (push if message == "push"
+                else pop() if message == "pop"
+                else initialize() if message == "initialize"
+                else error(message, "unknown request -- stack"))
+    return dispatch
+</PYTHON>
     </SNIPPET>
 
     The following
@@ -408,13 +381,11 @@ function make_stack() {
   ((stack 'push) value))
       </SCHEME>
       <PYTHON>
-function pop(stack) {
-    return stack("pop");
-}
-function push(stack, value) {
-    return stack("push")(value);
-}
-      </PYTHON>
+def pop(stack):
+    return stack("pop")
+def push(stack, value):
+    return stack("push")(value)
+</PYTHON>
     </SNIPPET>
   </TEXT>
 
@@ -529,60 +500,52 @@ function push(stack, value) {
 	    <REQUIRES>make_inst</REQUIRES>
 	    <EXAMPLE>gcd_machine_complete_example</EXAMPLE>
 	    <PYTHON>
-function make_new_machine() {
-    const pc = make_register("pc");
-    const flag = make_register("flag");
-    const stack = make_stack();
-    let the_instruction_sequence = null;
-    let the_ops = list(list("initialize_stack", () => stack("initialize")));
-    let register_table = list(list("pc", pc), list("flag", flag));
-    function allocate_register(name) {
-        if (is_undefined(assoc(name, register_table))) {
-            register_table = pair(list(name, make_register(name)),
-                                  register_table);
-        } else {
-            error(name, "multiply defined register");
-        }
-        return "register allocated";
-    }
-    function lookup_register(name) {
-        const val = assoc(name, register_table);
-        return is_undefined(val)
-               ? error(name, "unknown register")
-               : head(tail(val));
-    }
-    function execute() {
-        const insts = get_contents(pc);
-        if (is_null(insts)) {
-            return "done";
-        } else {
-            inst_execution_fun(head(insts))();
-            return execute();
-        }
-    }
-    function dispatch(message) {
-        function start() {
-            set_contents(pc, the_instruction_sequence);
-            return execute();
-        }
-        return message === "start"
-               ? start()
-               : message === "install_instruction_sequence"
-               ? seq => { the_instruction_sequence = seq; }
-               : message === "allocate_register"
-               ? allocate_register
-               : message === "get_register"
-               ? lookup_register
-               : message === "install_operations"
-               ? ops => { the_ops = append(the_ops, ops); }
-               : message === "stack"
-               ? stack
-               : message === "operations"
-               ? the_ops
-               : error(message, "unknown request -- machine");
-    }
-    return dispatch;
-}
+def make_new_machine():
+    pc = make_register("pc")
+    flag = make_register("flag")
+    stack = make_stack()
+    the_instruction_sequence = None
+    the_ops = llist(llist("initialize_stack", lambda: stack("initialize")))
+    register_table = llist(llist("pc", pc), llist("flag", flag))
+    def allocate_register(name):
+        nonlocal register_table
+        if is_undefined(assoc(name, register_table)):
+            register_table = pair(llist(name, make_register(name)),
+                                  register_table)
+        else:
+            error(name, "multiply defined register")
+        return "register allocated"
+    def lookup_register(name):
+        val = assoc(name, register_table)
+        return (error(name, "unknown register") if is_undefined(val)
+                else head(tail(val)))
+    def execute():
+        insts = get_contents(pc)
+        if is_null(insts):
+            return "done"
+        else:
+            inst_execution_fun(head(insts))()
+            return execute()
+    def dispatch(message):
+        def start():
+            set_contents(pc, the_instruction_sequence)
+            return execute()
+        def install_instruction_sequence(seq):
+            nonlocal the_instruction_sequence
+            the_instruction_sequence = seq
+        def install_operations(ops):
+            nonlocal the_ops
+            the_ops = append(the_ops, ops)
+        return (start() if message == "start"
+                else install_instruction_sequence
+                     if message == "install_instruction_sequence"
+                else allocate_register if message == "allocate_register"
+                else lookup_register if message == "get_register"
+                else install_operations if message == "install_operations"
+                else stack if message == "stack"
+                else the_ops if message == "operations"
+                else error(message, "unknown request -- machine"))
+    return dispatch
 	    </PYTHON>
 	  </SNIPPET>
 	  <CAPTION>
@@ -748,17 +711,14 @@ function make_new_machine() {
   'done)
       </SCHEME>
       <PYTHON>
-function start(machine) {
-    return machine("start");
-}
-function get_register_contents(machine, register_name) {
-    return get_contents(get_register(machine, register_name));
-}
-function set_register_contents(machine, register_name, value) {
-    set_contents(get_register(machine, register_name), value);
-    return "done";
-}
-      </PYTHON>
+def start(machine):
+    return machine("start")
+def get_register_contents(machine, register_name):
+    return get_contents(get_register(machine, register_name))
+def set_register_contents(machine, register_name, value):
+    set_contents(get_register(machine, register_name), value)
+    return "done"
+</PYTHON>
     </SNIPPET>
 
     These
@@ -783,10 +743,9 @@ function set_register_contents(machine, register_name, value) {
   ((machine 'get-register) reg-name))
       </SCHEME>
       <PYTHON>
-function get_register(machine, reg_name) {
-    return machine("get_register")(reg_name);
-}
-      </PYTHON>
+def get_register(machine, reg_name):
+    return machine("get_register")(reg_name)
+</PYTHON>
     </SNIPPET>
 </TEXT>
 </SUBSECTION>
