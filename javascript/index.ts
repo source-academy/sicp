@@ -48,6 +48,16 @@ const edition = getEdition();
 const __dirname = path.resolve(import.meta.dirname);
 const inputDir = path.join(__dirname, "..", edition.inputDirName);
 
+// Front matter authored for the JavaScript edition (Guy Steele's foreword,
+// the Henz/Wrigstad preface, and their acknowledgments) that has no Python
+// counterpart yet. It is excluded from the Python edition's web/json output
+// here, and from its PDF via the languageName gates in latexContent.js. The
+// source xml_py/others/*.xml files are kept intact; to add a piece back,
+// drop it from this pattern (and ungate the matching \\input in latexContent.js).
+const isPythonEdition = edition.language.key === "py";
+const pythonExcludedFrontmatter =
+  /(02foreword02|03prefaces03|04acknowledgements04)/;
+
 const ensureDirectoryExists = (path, cb) => {
   fs.mkdir(path, err => {
     if (err) {
@@ -210,9 +220,12 @@ async function recursiveTranslateXml(filepath, option) {
       // console.log(file + " being processed");
       if (
         (parseType == "web" || parseType == "json") &&
-        file.match(/indexpreface/)
+        (file.match(/indexpreface/) ||
+          (isPythonEdition && file.match(pythonExcludedFrontmatter)))
       ) {
-        // remove index section for web textbook
+        // remove index section (and, in the Python edition, the
+        // JavaScript-edition foreword/preface/acknowledgments) from the
+        // web textbook
       } else {
         if (option == "generateTOC") {
           allFilepath.push(

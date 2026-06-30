@@ -146,13 +146,15 @@ export const processSnippetJs = (node, writeTo, fileFormat) => {
       writeTo.push(reqStr);
       writeTo.push(codeStr_run);
       writeTo.push(exampleStr);
-      if (node.getElementsByTagName("EXPECTED")[0]) {
+      const expectedNode = node.getElementsByTagName("EXPECTED")[0];
+      if (expectedNode) {
+        // An empty <EXPECTED></EXPECTED> has no firstChild; treat it as the
+        // empty string (e.g. a value-less Python statement that prints nothing).
+        const expectedValue = expectedNode.firstChild
+          ? expectedNode.firstChild.nodeValue
+          : "";
         writeTo.push(
-          "\n" +
-            lang.commentPrefix +
-            " expected: " +
-            node.getElementsByTagName("EXPECTED")[0].firstChild.nodeValue +
-            "\n"
+          "\n" + lang.commentPrefix + " expected: " + expectedValue + "\n"
         );
       }
       return;

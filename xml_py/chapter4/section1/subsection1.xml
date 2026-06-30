@@ -65,7 +65,6 @@
       <PYTHONINLINE>evaluate</PYTHONINLINE> as a replacement.
     </COMMENT>
   </TEXT>
-  <SHORT_PAGE lines="2"/>
   <TEXT>
     <SPLITINLINE>
       <SCHEME><SCHEMEINLINE>Eval</SCHEMEINLINE></SCHEME>
@@ -342,7 +341,7 @@
 	    evaluation of the return statement.
 	  </LI>
 	  <LI>
-	    A function declaration is transformed into a
+	    A function definition is transformed into a
 	    constant declaration and then evaluated.
 	  </LI>
 	  <LI>
@@ -355,13 +354,12 @@
 	    modified to reflect the new value of the name.
 	  </LI>
         </UL>
-  <DO_BREAK_PAGE/>
 	Here is the declaration of
 	<PYTHONINLINE>evaluate</PYTHONINLINE>:
 	<SNIPPET PAGE="365" HIDE="yes">
 	  <NAME>headline_4_1_1</NAME>
 	  <PYTHON>
-// functions from SICP JS 4.1.1
+# functions from SICP Python 4.1.1
 	  </PYTHON>
 	</SNIPPET>
 	<SNIPPET PAGE="365">
@@ -370,36 +368,33 @@
 	  <EXAMPLE>eval_example</EXAMPLE>
 	  <EXPECTED>3</EXPECTED>
 	  <PYTHON>
-function evaluate(component, env) {
-    return is_literal(component)
-           ? literal_value(component)
-           : is_name(component)
-           ? lookup_symbol_value(symbol_of_name(component), env)
-           : is_application(component)
-           ? apply(evaluate(function_expression(component), env),
-                   list_of_values(arg_expressions(component), env))
-           : is_operator_combination(component)
-           ? evaluate(operator_combination_to_application(component),
-                      env)
-           : is_conditional(component)
-           ? eval_conditional(component, env)
-           : is_lambda_expression(component)
-           ? make_function(lambda_parameter_symbols(component),
-                           lambda_body(component), env)
-           : is_sequence(component)
-           ? eval_sequence(sequence_statements(component), env)
-           : is_block(component)
-           ? eval_block(component, env)
-           : is_return_statement(component)
-           ? eval_return_statement(component, env)
-           : is_function_declaration(component)
-           ? evaluate(function_decl_to_constant_decl(component), env)
-           : is_declaration(component)
-           ? eval_declaration(component, env)
-           : is_assignment(component)
-           ? eval_assignment(component, env)
-           : error(component, "unknown syntax -- evaluate");
-}
+def evaluate(component, env):
+  if is_literal(component):
+    return literal_value(component)
+  elif is_name(component):
+    return lookup_symbol_value(symbol_of_name(component), env)
+  elif is_application(component):
+    return apply(evaluate(function_expression(component), env),
+                          llist_of_values(arg_expressions(component),
+                                          env))
+  elif is_operator_combination(component):
+    return evaluate(operator_combination_to_application(component),
+                    env)
+  elif is_conditional(component):
+    return eval_conditional(component, env)
+  elif is_lambda_expression(component):
+    return make_function(lambda_parameter_symbols(component),
+                         make_return_statement(lambda_body(component)),
+                         env)
+  elif is_sequence(component):
+    return eval_sequence(sequence_statements(component), env)
+  elif is_return_statement(component):
+    return eval_return_statement(component, env)
+  elif is_function_definition(component):
+    return evaluate(function_def_to_assignment(component), env)
+  elif is_assignment(component):
+    return eval_assignment(component, env)
+  else:	return error(component, "unknown syntax -- evaluate")
 	  </PYTHON>
 	</SNIPPET>
 	<SNIPPET PAGE="365" HIDE="yes">
@@ -409,8 +404,8 @@ function evaluate(component, env) {
 	  <REQUIRES>functions_4_1_3</REQUIRES>
 	  <REQUIRES>functions_4_1_4</REQUIRES>
 	  <PYTHON>
-const my_program = parse("1; { true; 3; }");
-evaluate(my_program, the_empty_environment);
+my_program = parse("1\nTrue\n3")
+evaluate(my_program, the_empty_environment)
 	  </PYTHON>
 	</SNIPPET>
 	
@@ -429,7 +424,7 @@ evaluate(my_program, the_empty_environment);
     <INDEX>case analysis<SUBINDEX>data-directed programming vs.</SUBINDEX></INDEX>
     case analysis using
     <SPLITINLINE><SCHEME><SCHEMEINLINE>cond</SCHEMEINLINE>.</SCHEME>
-    <PYTHON>conditional expressions.</PYTHON></SPLITINLINE>
+    <PYTHON>conditional statements.</PYTHON></SPLITINLINE>
     The disadvantage of this is that our
     <SPLITINLINE>
       <SCHEME>procedure</SCHEME>
@@ -488,7 +483,6 @@ evaluate(my_program, the_empty_environment);
     <PYTHONINLINE>evaluate</PYTHONINLINE> extracts from a
     name the symbol by which it is represented.
   </TEXT>
-  <DO_BREAK_PAGE/>
   
   <SUBHEADING>
     <NAME>Apply</NAME>
@@ -505,7 +499,7 @@ evaluate(my_program, the_empty_environment);
       <SCHEME>procedure</SCHEME>
       <PYTHON>function</PYTHON>
     </SPLITINLINE>
-    and a list of arguments  to which the
+    and a linked list of arguments to which the
     <SPLITINLINE>
       <SCHEME>procedure</SCHEME>
       <PYTHON>function</PYTHON>
@@ -542,8 +536,7 @@ evaluate(my_program, the_empty_environment);
 	expressions that make up the body of the procedure.
       </SCHEME>
       <PYTHON>
-	by evaluating the block that makes up the body
-	of the function.
+	by evaluating the body of the function.
       </PYTHON>
     </SPLITINLINE>
     The environment for the evaluation of the body of a compound
@@ -598,29 +591,27 @@ evaluate(my_program, the_empty_environment);
           "Unknown procedure type - - APPLY" procedure))))
       </SCHEME>
       <PYTHON>
-function apply(fun, args) {
-    if (is_primitive_function(fun)) {
-        return apply_primitive_function(fun, args);
-    } else if (is_compound_function(fun)) {
-        const result = evaluate(function_body(fun),
-                                extend_environment(
-                                    function_parameters(fun),
-                                    args,
-                                    function_environment(fun)));
-        return is_return_value(result)
-               ? return_value_content(result)
-               : undefined;
-    } else {
-        error(fun, "unknown function type -- apply");
-    }
-}
+def apply(fun, arguments):
+    if is_primitive_function(fun):
+        return apply_primitive_function(fun, arguments)
+    elif is_compound_function(fun):
+        body = function_body(fun)
+        locals = local_variables(body)
+	unassigneds = llist_of_unassigned(locals)
+        result = evaluate(body,
+                          extend_environment(
+                              append(function_parameters(fun),
+			             locals),
+                              append(arguments,
+			             unassigneds),
+                              function_environment(fun)))
+        return (return_value_content(result)
+                if is_return_value(result)
+                else None)
+    else:
+        return error(fun, "unknown function type -- apply")
       </PYTHON>
     </SNIPPET>
-    <COMMENT>
-      The name <PYTHONINLINE>arguments</PYTHONINLINE>
-      is reserved in Python's strict mode. We chose
-      <PYTHONINLINE>args</PYTHONINLINE> instead.
-    </COMMENT>
     <SNIPPET PAGE="366" HIDE="yes">
       <NAME>apply_example</NAME>
       <REQUIRES>functions_4_1_1</REQUIRES>
@@ -628,8 +619,8 @@ function apply(fun, args) {
       <REQUIRES>functions_4_1_3</REQUIRES>
       <REQUIRES>functions_4_1_4</REQUIRES>
       <PYTHON>
-const plus = list("primitive", (x, y) => x + y);
-apply(plus, list(1, 2));
+plus = llist("primitive", lambda x, y: x + y)
+apply(plus, llist(1, 2))
       </PYTHON>
     </SNIPPET>
     
@@ -640,14 +631,14 @@ apply(plus, list(1, 2));
 	<INDEX>return value<SUBINDEX>representation in metacircular evaluator</SUBINDEX></INDEX>
 	return statement. If a function terminates without evaluating a return
 	statement, the value 
-	<INDEX>return value<SUBINDEX><USE>undefined</USE> as</SUBINDEX></INDEX>
-	<PYTHONINLINE>undefined</PYTHONINLINE> is returned.
+	<INDEX>return value<SUBINDEX><USE>None</USE> as</SUBINDEX></INDEX>
+	<PYTHONINLINE>None</PYTHONINLINE> is returned.
 	To distinguish the two cases, the evaluation of a return statement
 	will wrap the result of evaluating its return expression into a
 	<EM>return value</EM>. If
 	the evaluation of the function body yields such a return value, the content
 	of the return value is retrieved; otherwise the value
-	<PYTHONINLINE>undefined</PYTHONINLINE> is returned.<FOOTNOTE>
+	<PYTHONINLINE>None</PYTHONINLINE> is returned.<FOOTNOTE>
 	<LABEL NAME="foot:apply"/>
 	This test is a deferred operation, and thus our evaluator will give rise to a
 	recursive process even if the interpreted program should give rise to an
@@ -662,6 +653,59 @@ apply(plus, list(1, 2));
 	and<SPACE/><REF NAME="sec:compiling-combinations"/>
 	show how to achieve tail recursion using a register machine.
       </FOOTNOTE>
+
+	The function <PYTHONINLINE>scan_out_declarations</PYTHONINLINE>
+        <INDEX>scanning out declarations<SUBINDEX>in metacircular evaluator</SUBINDEX></INDEX>
+	collects a list of all symbols representing names declared in the body.
+	It uses 
+	<PYTHONINLINE>declaration_symbol</PYTHONINLINE>
+	to retrieve the symbol that represents the name
+	from the declaration statements it finds.
+	<SNIPPET>
+	  <INDEX><DECLARATION>scan_out_declarations</DECLARATION></INDEX>
+          <NAME>scan_out_declarations</NAME>
+          <REQUIRES>append</REQUIRES>
+          <REQUIRES>map</REQUIRES>
+          <REQUIRES>accumulate</REQUIRES>
+	  <EXAMPLE>scan_out_declarations_example</EXAMPLE>
+	  <EXPECTED>[ 'x', [ 'y', None ] ]</EXPECTED>
+          <PYTHON>
+def scan_out_bindings(component):
+    if is_sequence(component):
+        return accumulate(append,
+                          None,
+                          map(scan_out_bindings,
+                              sequence_statements(component)))
+    elif is_conditional(component):
+        return append(scan_out_bindings(conditional_consequent),
+                      scan_out_bindings(conditional_alternative)),
+    elif is_assignment(component):
+        return llist(assignment_symbol(component))
+    elif is_assignment(component):
+        return llist(assignment_symbol(component))
+    else None
+          </PYTHON>
+	</SNIPPET>
+	<SNIPPET HIDE="yes">
+          <NAME>scan_out_declarations_example</NAME>
+	  <REQUIRES>functions_4_1_1</REQUIRES>
+	  <REQUIRES>functions_4_1_2</REQUIRES>
+	  <REQUIRES>functions_4_1_3</REQUIRES>
+	  <REQUIRES>functions_4_1_4</REQUIRES>
+          <PYTHON>
+scan_out_declarations(parse("x = 1\ny = 2"))
+	  </PYTHON>
+	</SNIPPET>
+	We ignore declarations that are nested in function definitions,
+	because the evaluation of that function definition will take care of them.
+	<SNIPPET PAGE="367" HIDE="yes">
+          <NAME>list_of_unassigned</NAME>
+          <REQUIRES>map</REQUIRES>
+          <PYTHON>
+def llist_of_unassigned(symbols):
+    return map(lambda symbol: "*unassigned*", symbols)
+	  </PYTHON>
+	</SNIPPET>
       </PYTHON>
     </SPLIT>
   </TEXT>
@@ -676,7 +720,6 @@ apply(plus, list(1, 2));
     </NAME>
   </SUBHEADING>
 
-  <SHORT_PAGE lines="3"/>
   <TEXT>
     When
     <SPLITINLINE>
@@ -691,7 +734,7 @@ apply(plus, list(1, 2));
     application, it uses
     <SPLITINLINE>
       <SCHEME><SCHEMEINLINE>list-of-values</SCHEMEINLINE></SCHEME>
-      <PYTHON><PYTHONINLINE>list_of_values</PYTHONINLINE>
+      <PYTHON><PYTHONINLINE>llist_of_values</PYTHONINLINE>
       </PYTHON>
     </SPLITINLINE>
     to produce the list of arguments to which the
@@ -703,7 +746,7 @@ apply(plus, list(1, 2));
     <SPLITINLINE>
       <SCHEME><SCHEMEINLINE>List-of-values</SCHEMEINLINE></SCHEME>
       <PYTHON>The function
-      <PYTHONINLINE>list_of_values</PYTHONINLINE>
+      <PYTHONINLINE>llist_of_values</PYTHONINLINE>
       </PYTHON>
     </SPLITINLINE>
     takes as an argument the
@@ -741,36 +784,36 @@ apply(plus, list(1, 2));
     will include higher-order
     procedures.
     <LABEL NAME="foot:mceval-higher-order-scheme"/></FOOTNOTE></SCHEME><PYTHON><FOOTNOTE>We
-    chose to implement <PYTHONINLINE>list_of_values</PYTHONINLINE>
+    chose to implement <PYTHONINLINE>llist_of_values</PYTHONINLINE>
     using the
     <INDEX>metacircular evaluator for Python<SUBINDEX>higher-order functions in</SUBINDEX></INDEX>
     <INDEX>higher-order functions<SUBINDEX><ORDER>metacircular</ORDER>in metacircular evaluator</SUBINDEX></INDEX>
     higher-order function <PYTHONINLINE>map</PYTHONINLINE>, and we will use
-    <PYTHONINLINE>map</PYTHONINLINE> in other places as well.
+    common higher-order functions in other places as well.
     However, the evaluator can be implemented without any use of higher-order
     functions (and thus could be written in a language that doesn't have
     higher-order functions), even though the language that it supports
     will include higher-order functions. For example,
-    <PYTHONINLINE>list_of_values</PYTHONINLINE> can be
+    <PYTHONINLINE>llist_of_values</PYTHONINLINE> can be
     written without <PYTHONINLINE>map</PYTHONINLINE> as follows:
     <SNIPPET PAGE="367">
-      <INDEX><DECLARATION>list_of_values</DECLARATION><SUBINDEX><ORDER>higherorder</ORDER>without higher-order functions</SUBINDEX></INDEX>
-      <NAME>list_of_values_without_map</NAME>
-      <EXAMPLE>list_of_values_example</EXAMPLE>
+      <INDEX><DECLARATION>llist_of_values</DECLARATION><SUBINDEX><ORDER>higherorder</ORDER>without higher-order functions</SUBINDEX></INDEX>
+      <NAME>llist_of_values_without_map</NAME>
+      <EXAMPLE>llist_of_values_example</EXAMPLE>
       <PYTHON>
-function list_of_values(exps, env) {
-    return is_null(exps)	
-           ? null
-           : pair(evaluate(head(exps), env), 
-                  list_of_values(tail(exps), env));
-}
+def llist_of_values(exps, env):
+    if is_null(exps):
+        return None
+    else: pair(evaluate(head(exps), env),
+                        llist_of_values(tail(exps), env)))
       </PYTHON>
     </SNIPPET>
     <LABEL NAME="foot:mceval-higher-order"/></FOOTNOTE></PYTHON></SPLITINLINE>
     <SNIPPET PAGE="367" POSTPADDING="no">
-      <INDEX><DECLARATION>list_of_values</DECLARATION></INDEX>
-      <NAME>list_of_values</NAME>
-      <EXAMPLE>list_of_values_example</EXAMPLE>
+      <INDEX><DECLARATION>llist_of_values</DECLARATION></INDEX>
+      <NAME>llist_of_values</NAME>
+      <REQUIRES>map</REQUIRES>
+      <EXAMPLE>llist_of_values_example</EXAMPLE>
       <SCHEME>
 (define (list-of-values exps env)
   (if (no-operands? exps)
@@ -779,13 +822,12 @@ function list_of_values(exps, env) {
             (list-of-values (rest-operands exps) env))))
       </SCHEME>
       <PYTHON>
-function list_of_values(exps, env) {
-    return map(arg => evaluate(arg, env), exps);
-}
+def llist_of_values(exps, env):
+    return map(lambda arg: evaluate(arg, env), exps)
       </PYTHON>
     </SNIPPET>
     <SNIPPET PAGE="365" HIDE="yes">
-      <NAME>list_of_values_example</NAME>
+      <NAME>llist_of_values_example</NAME>
       <REQUIRES>functions_4_1_1</REQUIRES>
       <REQUIRES>functions_4_1_2</REQUIRES>
       <REQUIRES>functions_4_1_3</REQUIRES>
@@ -795,9 +837,9 @@ function list_of_values(exps, env) {
 (eval (read) the-global-environment)
       </SCHEME>
       <PYTHON>
-const my_addition_expression = parse("1 + 2;");
-list_of_values(list(parse("1;"), my_addition_expression, parse("7;")),
-               the_global_environment);
+my_addition_expression = parse("1 + 2")
+llist_of_values(llist(parse("1"), my_addition_expression, parse("7")),
+               the_global_environment)
       </PYTHON>
     </SNIPPET>
   </TEXT>
@@ -841,11 +883,10 @@ list_of_values(list(parse("1;"), my_addition_expression, parse("7;")),
       (eval (if-alternative exp) env)))
       </SCHEME>
       <PYTHON>
-function eval_conditional(component, env) {
-    return is_truthy(evaluate(conditional_predicate(component), env))
-           ? evaluate(conditional_consequent(component), env)
-           : evaluate(conditional_alternative(component), env);
-}
+def eval_conditional(component, env):
+    if is_truthy(evaluate(conditional_predicate(component), env)):
+        return (evaluate(conditional_consequent(component), env)            
+    else: return evaluate(conditional_alternative(component), env))
       </PYTHON>
     </SNIPPET>
     <SNIPPET PAGE="367" HIDE="yes">
@@ -855,8 +896,8 @@ function eval_conditional(component, env) {
       <REQUIRES>functions_4_1_3</REQUIRES>
       <REQUIRES>functions_4_1_4</REQUIRES>
       <PYTHON>
-const my_cond_expr = parse("true ? 1 : 2;");
-eval_conditional(my_cond_expr, the_empty_environment);
+my_cond_expr = parse("1 if True else 2")
+eval_conditional(my_cond_expr, the_empty_environment)
       </PYTHON>
     </SNIPPET>
     <SPLITINLINE>
@@ -917,7 +958,6 @@ eval_conditional(my_cond_expr, the_empty_environment);
     </NAME>
   </SUBHEADING>
 
-  <SHORT_PAGE lines="4"/>
   <SPLIT>
     <SCHEME>
       <TEXT>
@@ -944,43 +984,23 @@ eval_conditional(my_cond_expr, the_empty_environment);
       <TEXT>
 	The function <PYTHONINLINE>eval_sequence</PYTHONINLINE>
 	is used by <PYTHONINLINE>evaluate</PYTHONINLINE>
-	to evaluate a sequence of statements at the top level or in a block.
+	to evaluate a sequence of statements at the top level, in a
+	function body, or in branch of a conditional statement.
 	It takes as arguments a sequence of statements and an
 	environment, and evaluates the statements in the order in which they
-	occur. The value returned is the value of the final statement, except
-	that if the evaluation of any statement in the sequence yields
+	occur. The value returned is <PYTHONINLINE>None</PYTHONINLINE>,
+	except that if the evaluation of any statement in the sequence yields
 	a return value, that value is returned and the subsequent statements are
-	ignored.<FOOTNOTE>The treatment of return statements in
-	<PYTHONINLINE>eval_sequence</PYTHONINLINE>
-	reflects the proper
-	result of evaluating function applications in Python, but the
-	evaluator presented here does not comply with the ECMAScript
-	specification for the value of a program that consists
-	of a sequence of statements <EM>outside of</EM> any function body.
-	Exercise<SPACE/><REF NAME="ex:value_producing"/> addresses this issue.
-	<LABEL NAME="foot:value_producing"/>
-      </FOOTNOTE>
+	ignored.
 	<SNIPPET PAGE="367" POSTPADDING="no">
 	  <INDEX><DECLARATION>eval_sequence</DECLARATION></INDEX>
 	  <NAME>eval_sequence</NAME>
 	  <EXAMPLE>eval_sequence_example</EXAMPLE>
 	  <EXPECTED>3</EXPECTED>
           <PYTHON>
-function eval_sequence(stmts, env) {
-    if (is_empty_sequence(stmts)) {
-        return undefined;
-    } else if (is_last_statement(stmts)) {
-        return evaluate(first_statement(stmts), env);
-    } else {
-        const first_stmt_value = 
-            evaluate(first_statement(stmts), env);
-        if (is_return_value(first_stmt_value)) {
-            return first_stmt_value;
-        } else {
-            return eval_sequence(rest_statements(stmts), env);
-        }
-    }
-}
+def eval_sequence(stmts, env):
+    for_each(lambda stmt: evaluate(stmt, env), stmts)	    
+    return None
           </PYTHON>
 	</SNIPPET>
 	<SNIPPET PAGE="367" HIDE="yes" POSTPADDING="no">
@@ -990,127 +1010,16 @@ function eval_sequence(stmts, env) {
 	  <REQUIRES>functions_4_1_3</REQUIRES>
 	  <REQUIRES>functions_4_1_4</REQUIRES>
 	  <PYTHON>
-const my_sequence = head(tail(parse("1; true; 3;")));
-eval_sequence(my_sequence, the_empty_environment);
+my_sequence = head(tail(parse("1\nTrue\n3")))
+eval_sequence(my_sequence, the_empty_environment)
 	  </PYTHON>
 	</SNIPPET>
       </TEXT>
-    </PYTHON>
-  </SPLIT>
-
-  <SPLIT>
-    <SCHEME>
-    </SCHEME>
-    <PYTHON>
-      <SUBHEADING>
-	<NAME>Blocks</NAME>
-      </SUBHEADING>
-      <LONG_PAGE lines="2"/>
       <TEXT>
-	The function <PYTHONINLINE>eval_block</PYTHONINLINE> handles
-	blocks. The variables and constants (including functions)
-	declared in the block have the whole block as their scope and thus
-	are <QUOTE>scanned out</QUOTE> before the body of the block is
-	evaluated.
-	The body of the	block is evaluated with respect to an environment
-	that extends the current
-	environment by a frame that binds each local name
-	to a special value,
-	<PYTHONINLINE>"*unassigned*"</PYTHONINLINE>.
-	This string serves as a placeholder, before
-	the evaluation of the declaration assigns the name 
-	its proper value. An attempt to access the value of the name before its
-	declaration is evaluated leads to an error at run time (see
-	exercise<SPACE/><REF NAME="ex:access_unassigned"/>), as stated in
-	footnote<SPACE/><REF NAME="foot:tdz"/> in chapter<SPACE/><REF NAME="chap:fun"></REF>.
-	<SNIPPET PAGE="367">
-	  <INDEX><DECLARATION>eval_block</DECLARATION></INDEX>
-          <NAME>eval_block</NAME>
-          <REQUIRES>scan_out_declarations</REQUIRES>
-	  <EXAMPLE>eval_block_example</EXAMPLE>
-	  <EXPECTED>42</EXPECTED>
-          <PYTHON>
-function eval_block(component, env) {
-    const body = block_body(component);
-    const locals = scan_out_declarations(body);
-    const unassigneds = list_of_unassigned(locals);
-    return evaluate(body, extend_environment(locals,
-                                             unassigneds, 
-                                             env));
-}
-function list_of_unassigned(symbols) {
-    return map(symbol => "*unassigned*", symbols);
-}
-          </PYTHON>
-	</SNIPPET>
-	<!-- dont remove the following; REQUIRED elsewhere -->
-	<SNIPPET PAGE="367" HIDE="yes">
-          <NAME>list_of_unassigned</NAME>
-          <PYTHON>
-function list_of_unassigned(symbols) {
-    return map(symbol => "*unassigned*", symbols);
-}
-	  </PYTHON>
-	</SNIPPET>
-	The function <PYTHONINLINE>scan_out_declarations</PYTHONINLINE>
-        <INDEX>scanning out declarations<SUBINDEX>in metacircular evaluator</SUBINDEX></INDEX>
-	collects a list of all symbols representing names declared in the body.
-	It uses 
-	<PYTHONINLINE>declaration_symbol</PYTHONINLINE>
-	to retrieve the symbol that represents the name
-	from the declaration statements it finds.
-	<SNIPPET>
-	  <INDEX><DECLARATION>scan_out_declarations</DECLARATION></INDEX>
-          <NAME>scan_out_declarations</NAME>
-	  <EXAMPLE>scan_out_declarations_example</EXAMPLE>
-	  <EXPECTED>[ 'x', [ 'y', null ] ]</EXPECTED>
-          <PYTHON>
-function scan_out_declarations(component) {
-    return is_sequence(component)
-           ? accumulate(append,
-                        null,
-                        map(scan_out_declarations,
-                            sequence_statements(component)))
-           : is_declaration(component)
-           ? list(declaration_symbol(component))
-           : null;
-}
-          </PYTHON>
-	</SNIPPET>
-	<SNIPPET HIDE="yes">
-          <NAME>scan_out_declarations_example</NAME>
-	  <REQUIRES>functions_4_1_1</REQUIRES>
-	  <REQUIRES>functions_4_1_2</REQUIRES>
-	  <REQUIRES>functions_4_1_3</REQUIRES>
-	  <REQUIRES>functions_4_1_4</REQUIRES>
-          <PYTHON>
-scan_out_declarations(parse("const x = 1; let y = 2;"));
-	  </PYTHON>
-	</SNIPPET>
-	<SNIPPET PAGE="367" HIDE="yes">
-          <NAME>eval_block_example</NAME>
-	  <REQUIRES>functions_4_1_1</REQUIRES>
-	  <REQUIRES>functions_4_1_2</REQUIRES>
-	  <REQUIRES>functions_4_1_3</REQUIRES>
-	  <REQUIRES>functions_4_1_4</REQUIRES>
-          <PYTHON>
-const my_block = parse("{ const x = 1; 3; 42; }");
-eval_block(my_block, the_empty_environment);
-	  </PYTHON>
-	</SNIPPET>
-	We ignore declarations that are nested in another block,
-	because the evaluation of that block will take care of them.
-	The function <PYTHONINLINE>scan_out_declarations</PYTHONINLINE>	
-	looks for declarations only in sequences because 
-	declarations in conditional statements, function declarations, and
-	lambda expressions are always in a nested block.
-      </TEXT>
+	<SUBHEADING>
+	  <NAME>Return statements</NAME>
+	</SUBHEADING>
 
-      <SUBHEADING>
-	<NAME>Return statements</NAME>
-      </SUBHEADING>
-
-      <TEXT>
 	The function <PYTHONINLINE>eval_return_statement</PYTHONINLINE>
 	is used to evaluate
 	<INDEX>return statement<SUBINDEX>handling in metacircular evaluator</SUBINDEX></INDEX>
@@ -1137,10 +1046,9 @@ eval_block(my_block, the_empty_environment);
 	  <EXAMPLE>eval_return_example</EXAMPLE>
 	  <EXPECTED>1</EXPECTED>
           <PYTHON>
-function eval_return_statement(component, env) {
+def eval_return_statement(component, env):
     return make_return_value(evaluate(return_expression(component),
-                                      env));
-}
+                                      env))
           </PYTHON>
 	</SNIPPET>
 	<SNIPPET PAGE="367" HIDE="yes" POSTPADDING="no">
@@ -1150,8 +1058,8 @@ function eval_return_statement(component, env) {
 	  <REQUIRES>functions_4_1_3</REQUIRES>
 	  <REQUIRES>functions_4_1_4</REQUIRES>
           <PYTHON>
-const my_program = parse("{ function f() { return 1; } f(); }");
-evaluate(my_program, the_global_environment);
+my_program = make_block(parse("def f():\n    return 1\nf()"))
+evaluate(my_program, the_global_environment)
 	  </PYTHON>
 	</SNIPPET>
       </TEXT>
@@ -1228,12 +1136,10 @@ evaluate(my_program, the_global_environment);
   'ok)
       </SCHEME>
       <PYTHON>
-function eval_assignment(component, env) {
-    const value = evaluate(assignment_value_expression(component),
-                           env);
-    assign_symbol_value(assignment_symbol(component), value, env);
-    return value;
-}
+def eval_assignment(component, env):
+    value = evaluate(assignment_value_expression(component), env)
+    assign_symbol_value(assignment_symbol(component), value, env)
+    return value
       </PYTHON>
     </SNIPPET>
     <SNIPPET PAGE="368" HIDE="yes">
@@ -1243,8 +1149,8 @@ function eval_assignment(component, env) {
       <REQUIRES>functions_4_1_3</REQUIRES>
       <REQUIRES>functions_4_1_4</REQUIRES>
       <PYTHON>
-const my_program = parse("{ let x = 1; x = 2; }");
-evaluate(my_program, the_global_environment);
+my_program = make_block(parse("x = 1\nx = 2"))
+evaluate(my_program, the_global_environment)
       </PYTHON>
     </SNIPPET>
   </TEXT>
@@ -1299,13 +1205,12 @@ evaluate(my_program, the_global_environment);
 	  <EXAMPLE>eval_definition_example</EXAMPLE>
 	  <EXPECTED>3</EXPECTED>
 	  <PYTHON>
-function eval_declaration(component, env) {
+def eval_declaration(component, env):
     assign_symbol_value(
-        declaration_symbol(component), 
+        declaration_symbol(component),
         evaluate(declaration_value_expression(component), env),
-        env);
-    return undefined;
-}
+        env)
+    return None
 	  </PYTHON>
 	</SNIPPET>
 	The result of evaluating the body of a function is determined by
@@ -1328,8 +1233,8 @@ function eval_declaration(component, env) {
 	  <REQUIRES>functions_4_1_3</REQUIRES>
 	  <REQUIRES>functions_4_1_4</REQUIRES>
 	  <PYTHON>
-const my_program = parse("{ let x = 1; const y = 2; x + y; }");
-evaluate(my_program, the_global_environment);
+my_program = make_block(parse("x = 1\ny = 2\nx + y"))
+evaluate(my_program, the_global_environment)
 	  </PYTHON>
 	</SNIPPET>
       </TEXT>
@@ -1343,7 +1248,7 @@ evaluate(my_program, the_global_environment);
     <REQUIRES>headline_4_1_1</REQUIRES>
     <REQUIRES>eval</REQUIRES>
     <REQUIRES>apply</REQUIRES>
-    <REQUIRES>list_of_values</REQUIRES>
+    <REQUIRES>llist_of_values</REQUIRES>
     <REQUIRES>eval_if</REQUIRES>
     <REQUIRES>eval_sequence</REQUIRES>
     <REQUIRES>eval_block</REQUIRES>
@@ -1386,17 +1291,17 @@ evaluate(my_program, the_global_environment);
 	Its evaluation order is inherited from the underlying JavaScript:
 	If the arguments to <PYTHONINLINE>pair</PYTHONINLINE> in
 	<PYTHONINLINE>map</PYTHONINLINE> are evaluated from
-	left to	right, then <PYTHONINLINE>list_of_values</PYTHONINLINE>
+	left to	right, then <PYTHONINLINE>llist_of_values</PYTHONINLINE>
 	will evaluate argument expressions from left to right; and if the
 	arguments to <PYTHONINLINE>pair</PYTHONINLINE> are
 	evaluated from right to left, then
-	<PYTHONINLINE>list_of_values</PYTHONINLINE> will evaluate
+	<PYTHONINLINE>llist_of_values</PYTHONINLINE> will evaluate
 	argument expressions from right to left.
 	<P/>
-	Write a version of <PYTHONINLINE>list_of_values</PYTHONINLINE>
+	Write a version of <PYTHONINLINE>llist_of_values</PYTHONINLINE>
 	that evaluates argument expressions from left to right regardless of the
 	order of evaluation in the underlying JavaScript. Also write a version of
-	<PYTHONINLINE>list_of_values</PYTHONINLINE> that evaluates
+	<PYTHONINLINE>llist_of_values</PYTHONINLINE> that evaluates
 	argument expressions from right to left.
 	<LABEL NAME="ex:arg-eval-order"/>
 	<SOLUTION>
@@ -1408,30 +1313,26 @@ evaluate(my_program, the_global_environment);
 	  evaluation, we evaluate the first argument expression before the rest:
 	  <SNIPPET EVAL="no">
 	    <PYTHON>
-function list_of_values_left_to_right(exps, env) {
-    if (is_null(exps)) {
-        return null;
-    } else {
-        const first = evaluate(head(exps), env);
-        const rest = list_of_values_left_to_right(tail(exps), env);
-        return pair(first, rest);
-    }
-}
+def llist_of_values_left_to_right(exps, env):
+    if is_none(exps):
+        return None
+    else:
+        first = evaluate(head(exps), env)
+        rest = llist_of_values_left_to_right(tail(exps), env)
+        return pair(first, rest)
 	    </PYTHON>
 	  </SNIPPET>
 	  For right-to-left evaluation, we evaluate the rest of the argument
 	  expressions before the first one:
 	  <SNIPPET EVAL="no">
 	    <PYTHON>
-function list_of_values_right_to_left(exps, env) {
-    if (is_null(exps)) {
-        return null;
-    } else {
-        const rest = list_of_values_right_to_left(tail(exps), env);
-        const first = evaluate(head(exps), env);
-        return pair(first, rest);
-    }
-}
+def llist_of_values_right_to_left(exps, env):
+    if is_none(exps):
+        return None
+    else:
+        rest = llist_of_values_right_to_left(tail(exps), env)
+        first = evaluate(head(exps), env)
+        return pair(first, rest)
 	    </PYTHON>
 	  </SNIPPET>
 	</SOLUTION>
@@ -1448,12 +1349,11 @@ function list_of_values_right_to_left(exps, env) {
     <REQUIRES>functions_4_1_3</REQUIRES>
     <REQUIRES>functions_4_1_4</REQUIRES>
     <PYTHON>
-function parse_and_evaluate(input) {
-    const program = parse(input);
-    const implicit_top_level_block = make_block(program);
+def parse_and_evaluate(user_program):
+    program = parse(user_program)
+    implicit_top_level_block = make_block(program)
     return evaluate(implicit_top_level_block,
-                    the_global_environment);
-}
+                    the_global_environment)
     </PYTHON>
   </SNIPPET>
 
@@ -1462,41 +1362,35 @@ function parse_and_evaluate(input) {
     <REQUIRES>parse_and_evaluate</REQUIRES>
     <EXPECTED>120</EXPECTED>
     <PYTHON>
-parse_and_evaluate("               \
-function factorial(n) {            \
-    return n === 1                 \
-           ? 1                     \
-           : n * factorial(n - 1); \
-}                                  \
-factorial(5);                      ");
+parse_and_evaluate("""
+def factorial(n):
+    return 1 if n == 1 else n * factorial(n - 1)
+factorial(5)
+""")
     </PYTHON>
   </SNIPPET>
   <SNIPPET HIDE="yes">
     <NAME>parse_and_evaluate_test_append</NAME>
     <REQUIRES>parse_and_evaluate</REQUIRES>
-    <EXPECTED>[ 'b', [ 'c', [ 'd', null ] ] ]</EXPECTED>
+    <EXPECTED>[ 'b', [ 'c', [ 'd', None ] ] ]</EXPECTED>
     <PYTHON>
-parse_and_evaluate("                                \
-function append(xs, ys) {                           \
-    return is_null(xs)                              \
-           ? ys                                     \
-           : pair(head(xs), append(tail(xs), ys));  \
-}                                                   \
-tail(append(list('a', 'b'), list('c', 'd')));       ");
+parse_and_evaluate("""
+def append(xs, ys):
+    return ys if is_null(xs) else pair(head(xs), append(tail(xs), ys))
+tail(append(list("a", "b"), list("c", "d")))
+""")
     </PYTHON>
   </SNIPPET>
   <SNIPPET HIDE="yes">
     <NAME>parse_and_evaluate_test_map</NAME>
     <REQUIRES>parse_and_evaluate</REQUIRES>
-    <EXPECTED>[ 3, [ 4, [ 5, null ] ] ]</EXPECTED>
+    <EXPECTED>[ 3, [ 4, [ 5, None ] ] ]</EXPECTED>
     <PYTHON>
-parse_and_evaluate("                              \
-function map(f, xs) {                             \
-    return is_null(xs)                            \
-           ? null                                 \
-           : pair(f(head(xs)), map(f, tail(xs))); \
-}                                                 \
-tail(map(x => x + 1, list(1, 2, 3, 4)));          ");
+parse_and_evaluate("""
+def map(f, xs):
+    return None if is_null(xs) else pair(f(head(xs)), map(f, tail(xs)))
+tail(map(lambda x: x + 1, list(1, 2, 3, 4)))
+""")
     </PYTHON>
   </SNIPPET>
 </SUBSECTION>

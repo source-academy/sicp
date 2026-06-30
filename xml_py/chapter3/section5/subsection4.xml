@@ -8,7 +8,6 @@
   <INDEX>stream(s)<SUBINDEX>delayed evaluation and<OPEN/></SUBINDEX></INDEX>
   <INDEX>delayed evaluation<SUBINDEX>streams and<OPEN/></SUBINDEX></INDEX>
 
-  <SHORT_PAGE lines="1"/>
   <TEXT>
     The <SCHEMEINLINE>integral</SCHEMEINLINE>
     <SPLITINLINE>
@@ -34,6 +33,8 @@
     is defined in terms of itself:
 
     <SNIPPET EVAL="no">
+      <REQUIRES>add_streams</REQUIRES>
+      <REQUIRES>scale_stream</REQUIRES>
       <SCHEME>
 (define int
   (cons-stream initial-value
@@ -41,9 +42,9 @@
   int)))
       </SCHEME>
       <PYTHON>
-const integ = pair(initial_value, 
-                   () => add_streams(scale_stream(integrand, dt),
-                                     integ));
+integ = pair(initial_value,
+             lambda: add_streams(scale_stream(integrand, dt),
+                                 integ))
       </PYTHON>
     </SNIPPET>
     <SPLIT>
@@ -141,6 +142,7 @@ const integ = pair(initial_value,
       <PYTHON>function</PYTHON>
     </SPLITINLINE>
     <SNIPPET EVAL="no">
+      <REQUIRES>stream_functions</REQUIRES>
       <INDEX><DECLARATION>solve</DECLARATION> differential equation</INDEX>
       <SCHEME>
 (define (solve f y0 dt)
@@ -149,11 +151,10 @@ const integ = pair(initial_value,
   y)
       </SCHEME>
       <PYTHON>
-function solve(f, y0, dt) {
-    const y = integral(dy, y0, dt);
-    const dy = stream_map(f, y);
-    return y;
-}
+def solve(f, y0, dt):
+    y = integral(dy, y0, dt)
+    dy = stream_map(f, y)
+    return y
       </PYTHON>
     </SNIPPET>
     This
@@ -223,19 +224,19 @@ function solve(f, y0, dt) {
     the first element of the output stream:
     <SNIPPET HIDE="yes">
       <NAME>integral_example_4</NAME>
+      <REQUIRES>stream_functions</REQUIRES>
       <PYTHON>
-function numbers_starting_from(t, dt) {
+def numbers_starting_from(t, dt):
     return pair(t,
-                () => numbers_starting_from(t + dt, dt)
-               );
-}
-const dt = 0.01;	
-const linear = numbers_starting_from(0, dt);	       
-const linear_integral = integral(() => linear, 0, dt);
-// computing integral from 0 to 3 of f(x) = x
-// (the integral is g(x) = 0.5 x^2, and therefore
-// the result is near 0.5 * 3^2 = 4.5)
-stream_ref(linear_integral, math_round(3 / dt));
+                lambda: numbers_starting_from(t + dt, dt))
+
+dt = 0.01
+linear = numbers_starting_from(0, dt)
+linear_integral = integral(lambda: linear, 0, dt)
+# computing integral from 0 to 3 of f(x) = x
+# (the integral is g(x) = 0.5 x^2, and therefore
+# the result is near 0.5 * 3^2 = 4.5)
+print(stream_ref(linear_integral, round(3 / dt)))
       </PYTHON>
     </SNIPPET>
     <SNIPPET>
@@ -255,16 +256,12 @@ stream_ref(linear_integral, math_round(3 / dt));
   int)
       </SCHEME>
     <PYTHON>
-function integral(delayed_integrand, initial_value, dt) {
-    const integ =
-        pair(initial_value,
-             () => {
-                 const integrand = delayed_integrand();
-                 return add_streams(scale_stream(integrand, dt), 
-                                    integ);
-             });
-    return integ;
-}
+def integral(delayed_integrand, initial_value, dt):
+    integ = pair(initial_value,
+                 lambda: add_streams(
+                             scale_stream(delayed_integrand(), dt),
+                             integ))
+    return integ
     </PYTHON>
     </SNIPPET>
     Now we can implement our <SCHEMEINLINE>solve</SCHEMEINLINE>
@@ -291,6 +288,7 @@ function integral(delayed_integrand, initial_value, dt) {
     <SNIPPET>
       <INDEX><DECLARATION>solve</DECLARATION> differential equation</INDEX>
       <NAME>solve</NAME>
+      <REQUIRES>stream_functions</REQUIRES>
       <EXAMPLE>e</EXAMPLE>
       <SCHEME>
 (define (solve f y0 dt)
@@ -299,11 +297,10 @@ function integral(delayed_integrand, initial_value, dt) {
   y)
       </SCHEME>
       <PYTHON>
-function solve(f, y0, dt) {
-    const y = integral(() => dy, y0, dt);
-    const dy = stream_map(f, y);
-    return y;
-}
+def solve(f, y0, dt):
+    y = integral(lambda: dy, y0, dt)
+    dy = stream_map(f, y)
+    return y
       </PYTHON>
       <PYTHON_RUN>
       </PYTHON_RUN>
@@ -336,57 +333,56 @@ function solve(f, y0, dt) {
     </SPLITINLINE>
     <SNIPPET HIDE="yes">
       <NAME>solve_optimized</NAME>
+      <REQUIRES>stream_functions</REQUIRES>
+      <REQUIRES>stream_tail</REQUIRES>
       <PYTHON>
-function memo(fun) {	    
-    let already_run = false;
-    let result = undefined;
-    return () => {
-                     if (!already_run) {
-                         result = fun();
-                         already_run = true;
-                         return result;
-                     } else {
-                         return result;
-                     }
-	         };
-}
-// note the use of the memoization optimization		 
-function stream_combine(f, s1, s2) {
-    return is_null(s1) &amp;&amp; is_null(s2)
-           ? null
-           : is_null(s1) || is_null(s2)
-           ? error(null, "unexpected argument -- stream_combine")
-           : pair(f(head(s1), head(s2)), 
-                  memo(() => stream_combine(f, stream_tail(s1),
-                                            stream_tail(s2))));
-}
-function add_streams(s1, s2) {
-    return stream_combine((x1, x2) => x1 + x2, s1, s2);
-}
-function scale_stream(stream, factor) {
-    return stream_map(x => x * factor,
-                      stream);
-}
-// note the use of the memoization optimization		 
-function integral(delayed_integrand, initial_value, dt) {
-    const integ =
-        pair(initial_value,
-             memo(() => {
-                  const integrand = delayed_integrand();
-                  return add_streams(scale_stream(integrand, dt), 
-                                     integ);
-                 }));
-    return integ;
-}
-function solve(f, y0, dt) {
-    const y = integral(() => dy, y0, dt);
-    const dy = stream_map(f, y);
-    return y;
-}	
+def memo(fun):
+    already_run = False
+    result = None
+    def memoized():
+        nonlocal already_run, result
+        if not already_run:
+            result = fun()
+            already_run = True
+            return result
+        else:
+            return result
+    return memoized
+
+# note the use of the memoization optimization
+def stream_combine(f, s1, s2):
+    return (None
+            if is_none(s1) and is_none(s2)
+            else error(None, "unexpected argument -- stream_combine")
+            if is_none(s1) or is_none(s2)
+            else pair(f(head(s1), head(s2)),
+                      memo(lambda: stream_combine(f, stream_tail(s1),
+                                                  stream_tail(s2)))))
+
+def add_streams(s1, s2):
+    return stream_combine(lambda x1, x2: x1 + x2, s1, s2)
+
+def scale_stream(stream, factor):
+    return stream_map(lambda x: x * factor,
+                      stream)
+
+# note the use of the memoization optimization
+def integral(delayed_integrand, initial_value, dt):
+    integ = pair(initial_value,
+                 memo(lambda: add_streams(
+                                  scale_stream(delayed_integrand(), dt),
+                                  integ)))
+    return integ
+
+def solve(f, y0, dt):
+    y = integral(lambda: dy, y0, dt)
+    dy = stream_map(f, y)
+    return y
       </PYTHON>
     </SNIPPET>
     <SNIPPET POSTPADDING="no">
       <NAME>e</NAME>
+      <REQUIRES>stream_functions</REQUIRES>
       <REQUIRES>solve_optimized</REQUIRES>
       <EXPECTED>2.716923932235896</EXPECTED>
       <SCHEME>
@@ -396,7 +392,7 @@ function solve(f, y0, dt) {
 2.716924
       </SCHEMEOUTPUT>
       <PYTHON>
-stream_ref(solve(y => y, 1, 0.001), 1000);
+print(stream_ref(solve(lambda y: y, 1, 0.001), 1000))
       </PYTHON>
       <PYTHON_OUTPUT>
 2.716923932235896
@@ -417,6 +413,7 @@ stream_ref(solve(y => y, 1, 0.001), 1000);
     like <SCHEMEINLINE>integers-starting-from</SCHEMEINLINE> (also in
     section<SPACE/><REF NAME="sec:infinite-streams"/>):
     <SNIPPET>
+      <REQUIRES>stream_tail</REQUIRES>
       <INDEX><DECLARATION>integral</DECLARATION><FRAGILE/></INDEX> 
       <SCHEME>
 (define (integral integrand initial-value dt)
@@ -429,14 +426,13 @@ stream_ref(solve(y => y, 1, 0.001), 1000);
                              dt))))
       </SCHEME>
       <PYTHON>
-function integral(integrand, initial_value, dt) {
+def integral(integrand, initial_value, dt):
     return pair(initial_value,
-                is_null(integrand) 
-                ? null
-                : integral(stream_tail(integrand),
-                           dt * head(integrand) + initial_value,
-                           dt));
-}
+                None
+                if is_none(integrand)
+                else integral(stream_tail(integrand),
+                              dt * head(integrand) + initial_value,
+                              dt))
       </PYTHON>
     </SNIPPET>
     When used in systems with loops, this
@@ -614,7 +610,6 @@ function integral(integrand, initial_value, dt) {
   <INDEX>stream(s)<SUBINDEX>delayed evaluation and<CLOSE/></SUBINDEX></INDEX>
   <INDEX>delayed evaluation<SUBINDEX>streams and<CLOSE/></SUBINDEX></INDEX>
 
-  <DO_BREAK_PAGE/>
   <SUBHEADING> 
     <NAME>Normal-order evaluation</NAME>
   </SUBHEADING>
@@ -876,6 +871,5 @@ function integral(integrand, initial_value, dt) {
     </FIGURE>
   </PDF_ONLY>
 
-  <DO_BREAK_PAGE/>
   </TEXT>
 </SUBSECTION>
