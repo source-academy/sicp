@@ -391,7 +391,7 @@ def evaluate(component, env):
   elif is_return_statement(component):
     return eval_return_statement(component, env)
   elif is_function_definition(component):
-    return evaluate_function_definition(component, env)
+    return evaluate(function_def_to_assignment(component), env)
   elif is_assignment(component):
     return eval_assignment(component, env)
   else:	return error(component, "unknown syntax -- evaluate")
@@ -536,8 +536,7 @@ evaluate(my_program, the_empty_environment)
 	expressions that make up the body of the procedure.
       </SCHEME>
       <PYTHON>
-	by evaluating the block that makes up the body
-	of the function.
+	by evaluating the body of the function.
       </PYTHON>
     </SPLITINLINE>
     The environment for the evaluation of the body of a compound
@@ -671,24 +670,20 @@ apply(plus, llist(1, 2))
 	  <EXAMPLE>scan_out_declarations_example</EXAMPLE>
 	  <EXPECTED>[ 'x', [ 'y', None ] ]</EXPECTED>
           <PYTHON>
-def scan_out_definitions(component):
-    return (accumulate(append,
-                       None,
-                       map(scan_out_declarations,
-                           sequence_statements(component)))
-            if is_sequence(component)
-            else llist(assignment_symbol(component))
-            if is_assignment(component)
-            else None)
-def scan_out_assignments(component):
-    return (accumulate(append,
-                       None,
-                       map(scan_out_declarations,
-                           sequence_statements(component)))
-            if is_sequence(component)
-            else llist(assignment_symbol(component))
-            if is_assignment(component)
-            else None)
+def scan_out_bindings(component):
+    if is_sequence(component):
+        return accumulate(append,
+                          None,
+                          map(scan_out_bindings,
+                              sequence_statements(component)))
+    elif is_conditional(component):
+        return append(scan_out_bindings(conditional_consequent),
+                      scan_out_bindings(conditional_alternative)),
+    elif is_assignment(component):
+        return llist(assignment_symbol(component))
+    elif is_assignment(component):
+        return llist(assignment_symbol(component))
+    else None
           </PYTHON>
 	</SNIPPET>
 	<SNIPPET HIDE="yes">
@@ -701,13 +696,8 @@ def scan_out_assignments(component):
 scan_out_declarations(parse("x = 1\ny = 2"))
 	  </PYTHON>
 	</SNIPPET>
-	We ignore declarations that are nested in another block,
-	because the evaluation of that block will take care of them.
-	The function <PYTHONINLINE>scan_out_declarations</PYTHONINLINE>	
-	looks for declarations only in sequences because 
-	declarations in conditional statements, function definitions, and
-	lambda expressions are always in a nested block.
-
+	We ignore declarations that are nested in function definitions,
+	because the evaluation of that function definition will take care of them.
 	<SNIPPET PAGE="367" HIDE="yes">
           <NAME>list_of_unassigned</NAME>
           <REQUIRES>map</REQUIRES>

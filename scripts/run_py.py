@@ -3,9 +3,9 @@
 
 Invoked by scripts/test.js when SICP_EDITION=py. It runs the program straight
 through CPython and takes its result to be the last line the program printed.
-A program that prints nothing therefore has no result, and fails any
-"# expected: ..." check. That last printed line is compared against the
-"# expected: ..." value.
+A program that prints nothing therefore has empty output, which matches an
+empty "# expected:" line (e.g. a value-less statement such as `a = 3`). That
+last printed line is compared against the "# expected: ..." value.
 
 The SICP primitives (pair, head, tail, llist, error, math_*, ...) come from the
 `sicp` module; a minimal local one lives next to this script (scripts/sicp.py)
@@ -140,13 +140,14 @@ def main():
         sys.exit(1)
 
     # The result is the last line the program printed; a program that prints
-    # nothing has no result.
+    # nothing has no result and is reported as empty output (matching an empty
+    # "# expected:" line, e.g. a value-less statement such as `a = 3`).
     if printed.strip():
         result_text = printed.strip().splitlines()[-1].strip()
         result_struct = to_struct(result_text)
     else:
-        result_struct = None
-        result_text = "None"
+        result_struct = ""
+        result_text = ""
 
     if expected_str is None:
         sys.exit(0)
