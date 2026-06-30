@@ -177,11 +177,13 @@ async function test(test_name, chapter, variant, source_code, expected_output) {
  * Accepts JS literals (true/false/null/undefined) as well as Python ones.
  */
 function toStruct(text) {
-  const jsTokens = { true: "true", false: "false", null: "null", undefined: "null" };
   const pyNorm = text.replace(/\b(True|False|None)\b/g, m =>
     ({ True: "true", False: "false", None: "null" }[m])
   );
-  for (const candidate of [text, pyNorm]) {
+  // Python's repr() quotes strings with single quotes (e.g. ['done', 1.0]),
+  // which JSON.parse rejects; try a double-quoted variant too.
+  const pyNormQuotes = pyNorm.replace(/'/g, '"');
+  for (const candidate of [text, pyNorm, pyNormQuotes]) {
     try { return JSON.parse(candidate); } catch {}
   }
   return text;
@@ -226,7 +228,11 @@ async function test_python(file_path, expected_output) {
   // py-slang path.
   try {
     const source_code = readFileSync(file_path, { encoding: "utf-8" });
-    const raw = await pyRunCode(source_code, 4);
+    // Run at the program's annotated chapter (e.g. "# chapter=3 ...") when
+    // present, mirroring the JavaScript runner; default to chapter 4.
+    const chapterMatch = /chapter=\s*(\d+)/.exec(source_code.split("\n")[0]);
+    const chapter = chapterMatch ? parseInt(chapterMatch[1], 10) : 4;
+    const raw = await pyRunCode(source_code, chapter);
 
     // Take the last non-empty line of stdout (mirrors run_py.py's behaviour).
     const lastLine = raw.trimEnd().split("\n").at(-1)?.trim() ?? "";
