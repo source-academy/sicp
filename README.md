@@ -32,7 +32,7 @@ SICP_EDITION=py yarn test -- programs_py/chapter1
 SICP_EDITION=py yarn test -- programs_py/chapter1/section1/subsection4
 ```
 
-By default the programs are run through **py-slang**, the Source Academy Python interpreter. This requires a built copy of [py-slang](https://github.com/source-academy/py-slang); the test runner looks for it at `../../py-slang/dist/index.cjs` relative to the `scripts/` directory, or at the path set by the `PY_SLANG` environment variable.
+By default the programs are run through **py-slang**, the Source Academy Python interpreter, which is installed as the [`@sourceacademy/py-slang`](https://www.npmjs.com/package/@sourceacademy/py-slang) dependency (run `yarn install` first). To test against a local py-slang build instead, set the `PY_SLANG` environment variable to its `dist/index.cjs` (e.g. `PY_SLANG=../py-slang/dist/index.cjs`).
 
 To run against **CPython** instead (the original behaviour, useful for comparison or as a ground truth):
 

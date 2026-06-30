@@ -3,21 +3,20 @@
 //
 // Edition selection mirrors javascript/editions.ts: with SICP_EDITION=py this
 // tests the Python edition's programs (programs_py, "#" comments) by running
-// them through CPython (scripts/run_py.py, which uses the `sicp` package);
+// them through py-slang (the @sourceacademy/py-slang npm package), or through
+// CPython (scripts/run_py.py, which uses the `sicp` package) when PY_SLANG=0;
 // otherwise it tests the JavaScript edition's programs (programs_js, "//"
 // comments) through the js-slang interpreter, exactly as before.
 
 // This file is an ES module (package.json has "type": "module"), so recreate
 // `require` for the CommonJS dependencies it uses.
 import { createRequire } from "module";
-import { fileURLToPath, URL } from "url";
 const require = createRequire(import.meta.url);
 
 const { exit } = require("process");
 const { readdirSync, readFileSync, statSync } = require("fs");
 const { execFileSync } = require("child_process");
 const Path = require("path");
-const __dirname = Path.dirname(fileURLToPath(import.meta.url));
 
 // Minimal ANSI colorizer, so this script does not depend on the `colors`
 // package (which need not be installed for the Python edition).
@@ -47,11 +46,16 @@ if (!IS_PYTHON) {
 
 const USE_CPYTHON = process.env.PY_SLANG === "0";
 
-// py-slang is only needed for the Python edition when not using CPython fallback.
+// py-slang is only needed for the Python edition when not using the CPython
+// fallback. By default it comes from the @sourceacademy/py-slang npm package;
+// set PY_SLANG to a path (e.g. ../py-slang/dist/index.cjs) to use a local
+// build instead, or PY_SLANG=0 to fall back to CPython.
 let pyRunCode;
 if (IS_PYTHON && !USE_CPYTHON) {
-  const PY_SLANG_PATH = process.env.PY_SLANG || Path.resolve(__dirname, "../../py-slang/dist/index.cjs");
-  ({ runCode: pyRunCode } = require(PY_SLANG_PATH));
+  const PY_SLANG_SOURCE = process.env.PY_SLANG
+    ? Path.resolve(process.env.PY_SLANG)
+    : "@sourceacademy/py-slang";
+  ({ runCode: pyRunCode } = require(PY_SLANG_SOURCE));
 }
 
 const DEFAULT_SOURCE_FOLDER = IS_PYTHON ? "programs_py" : "programs_js";
