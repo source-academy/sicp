@@ -3,7 +3,8 @@
 //
 // Edition selection mirrors javascript/editions.ts: with SICP_EDITION=py this
 // tests the Python edition's programs (programs_py, "#" comments) by running
-// them through CPython (scripts/run_py.py, which uses the `sicp` package);
+// them through py-slang (the @sourceacademy/py-slang npm package), or through
+// CPython (scripts/run_py.py, which uses the `sicp` package) when PY_SLANG=0;
 // otherwise it tests the JavaScript edition's programs (programs_js, "//"
 // comments) through the js-slang interpreter, exactly as before.
 
@@ -36,12 +37,25 @@ if (EDITION !== "js" && EDITION !== "py") {
 const IS_PYTHON = EDITION === "py";
 
 // js-slang is only needed to interpret the JavaScript edition; load it lazily
-// so the Python edition (which runs programs through CPython) does not depend
-// on it.
+// so the Python edition does not depend on it.
 let createContext, runInContext, parseError, sourceLanguages;
 if (!IS_PYTHON) {
   ({ createContext, runInContext, parseError } = require("js-slang"));
   ({ sourceLanguages } = require("js-slang/dist/constants"));
+}
+
+const USE_CPYTHON = process.env.PY_SLANG === "0";
+
+// py-slang is only needed for the Python edition when not using the CPython
+// fallback. By default it comes from the @sourceacademy/py-slang npm package;
+// set PY_SLANG to a path (e.g. ../py-slang/dist/index.cjs) to use a local
+// build instead, or PY_SLANG=0 to fall back to CPython.
+let pyRunCode;
+if (IS_PYTHON && !USE_CPYTHON) {
+  const PY_SLANG_SOURCE = process.env.PY_SLANG
+    ? Path.resolve(process.env.PY_SLANG)
+    : "@sourceacademy/py-slang";
+  ({ runCode: pyRunCode } = require(PY_SLANG_SOURCE));
 }
 
 const DEFAULT_SOURCE_FOLDER = IS_PYTHON ? "programs_py" : "programs_js";
@@ -55,7 +69,7 @@ const EXPECTED_RE = IS_PYTHON
   ? /#\s*expected:\s*(.*)/
   : /\/\/\s*expected:\s*(.*)/;
 
-// CPython runner for the Python edition.
+// Keep CPython runner as a fallback. Set PY_SLANG=0 to force CPython.
 const PYTHON = process.env.PYTHON || "python3";
 const PY_RUNNER = Path.resolve("scripts", "run_py.py");
 
@@ -159,25 +173,87 @@ async function test(test_name, chapter, variant, source_code, expected_output) {
 }
 
 /**
- * Runs a Python-edition program through CPython (scripts/run_py.py) and checks
- * it against the expected output. The runner exits 0 on PASS and non-zero on a
- * mismatch or runtime/parse error, printing detail for us to surface.
+ * Normalise a result/expected string for structural comparison.
+ * Accepts JS literals (true/false/null/undefined) as well as Python ones.
  */
-function test_python(file_path, expected_output) {
+function toStruct(text) {
+  const pyNorm = text.replace(/\b(True|False|None)\b/g, m =>
+    ({ True: "true", False: "false", None: "null" }[m])
+  );
+  // Python's repr() quotes strings with single quotes (e.g. ['done', 1.0]),
+  // which JSON.parse rejects; try a double-quoted variant too.
+  const pyNormQuotes = pyNorm.replace(/'/g, '"');
+  for (const candidate of [text, pyNorm, pyNormQuotes]) {
+    try { return JSON.parse(candidate); } catch {}
+  }
+  return text;
+}
+
+function structEq(a, b) {
+  if (Array.isArray(a) && Array.isArray(b)) {
+    return a.length === b.length && a.every((v, i) => structEq(v, b[i]));
+  }
+  if (typeof a === "number" && typeof b === "number") {
+    return a === b || Math.abs(a - b) <= 1e-9 * Math.max(Math.abs(a), Math.abs(b), 1);
+  }
+  return a === b;
+}
+
+/**
+ * Runs a Python-edition program through py-slang and checks it against the
+ * expected output. Falls back to CPython (run_py.py) when USE_CPYTHON is set.
+ */
+async function test_python(file_path, expected_output) {
   console.log(`${file_path}, expecting: ${expected_output}`);
-  try {
-    execFileSync(PYTHON, [PY_RUNNER, file_path, expected_output], {
-      stdio: "pipe",
-      encoding: "utf-8"
-    });
-    console.log(colors.green("PASS"));
-    count_pass++;
-  } catch (error) {
-    console.log(colors.red("FAIL:"));
-    const detail = `${error.stdout || ""}${error.stderr || ""}`.trimEnd();
-    for (const line of detail.split("\n")) {
-      if (line.length) console.log(colors.red(`> ${line}`));
+
+  if (USE_CPYTHON) {
+    // Original CPython path.
+    try {
+      execFileSync(PYTHON, [PY_RUNNER, file_path, expected_output], {
+        stdio: "pipe", encoding: "utf-8"
+      });
+      console.log(colors.green("PASS"));
+      count_pass++;
+    } catch (error) {
+      console.log(colors.red("FAIL:"));
+      const detail = `${error.stdout || ""}${error.stderr || ""}`.trimEnd();
+      for (const line of detail.split("\n")) {
+        if (line.length) console.log(colors.red(`> ${line}`));
+      }
+      count_fail++;
     }
+    return;
+  }
+
+  // py-slang path.
+  try {
+    const source_code = readFileSync(file_path, { encoding: "utf-8" });
+    // Run at the program's annotated chapter (e.g. "# chapter=3 ...") when
+    // present, mirroring the JavaScript runner; default to chapter 4.
+    const chapterMatch = /chapter=\s*(\d+)/.exec(source_code.split("\n")[0]);
+    const chapter = chapterMatch ? parseInt(chapterMatch[1], 10) : 4;
+    const raw = await pyRunCode(source_code, chapter);
+
+    // Take the last non-empty line of stdout (mirrors run_py.py's behaviour).
+    const lastLine = raw.trimEnd().split("\n").at(-1)?.trim() ?? "";
+
+    const ok =
+      structEq(toStruct(lastLine), toStruct(expected_output)) ||
+      lastLine === expected_output.trim() ||
+      `'${lastLine}'` === expected_output.trim();
+
+    if (ok) {
+      console.log(colors.green("PASS"));
+      count_pass++;
+    } else {
+      console.log(colors.red("FAIL:"));
+      console.log(colors.red(`> got:      ${lastLine}`));
+      console.log(colors.red(`> expected: ${expected_output}`));
+      count_fail++;
+    }
+  } catch (error) {
+    console.log(colors.red("FAIL (error):"));
+    console.log(colors.red(`> ${error.message ?? error}`));
     count_fail++;
   }
 }
