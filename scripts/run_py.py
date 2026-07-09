@@ -8,8 +8,8 @@ empty "# expected:" line (e.g. a value-less statement such as `a = 3`). That
 last printed line is compared against the "# expected: ..." value.
 
 The SICP primitives (pair, head, tail, llist, error, math_*, ...) come from the
-`sicp` module; a minimal local one lives next to this script (scripts/sicp.py)
-and is extended as the test suite turns up missing names.
+`sicp` package (published as `sourceacademy-sicp`, maintained in the py-slang
+repo), so this harness tests exactly the library students install.
 
 Exit status 0 means PASS; any non-zero status means FAIL (mismatch or error),
 with detail written to stdout for test.js to surface.
@@ -23,9 +23,25 @@ import re
 import sys
 import threading
 
-# Make the local scripts/ directory importable so `from sicp import *` finds
-# scripts/sicp.py.
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+# The `sicp` runtime is the `sourceacademy-sicp` package, maintained in the
+# py-slang repo (py-slang/python/). Prefer an installed copy; otherwise fall
+# back to a sibling py-slang checkout so this harness works in a source tree
+# without a pip install.
+try:
+    import sicp  # noqa: F401  (installed sourceacademy-sicp)
+except ModuleNotFoundError:
+    _sibling = os.path.normpath(
+        os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "py-slang", "python")
+    )
+    if os.path.isdir(os.path.join(_sibling, "sicp")):
+        sys.path.insert(0, _sibling)
+    else:
+        sys.exit(
+            "The `sicp` runtime is not available. Install it with\n"
+            "    pip install sourceacademy-sicp\n"
+            "or, from a source checkout with py-slang beside this repo:\n"
+            "    pip install -e ../py-slang/python"
+        )
 
 # SICP expresses many iterative processes as deep recursion, which exceeds
 # CPython's default limit. Raise the limit and run the program on a worker
