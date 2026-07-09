@@ -19,7 +19,7 @@ Check out our [Resources for Learners, Educators and Researchers](https://about.
 The SICPy example programs can be tested automatically against their expected outputs. First, generate the programs from the XML sources:
 
 ```bash
-SICP_EDITION=py npx tsx ./javascript/index.js programs
+SICP_EDITION=py npx tsx ./javascript/index.js programs_py
 ```
 
 Then run the tests:
