@@ -46,11 +46,23 @@ For each chapter there are two files:
 * `sicpy_notes_chapter<N>.ex`, an Elixir module (`Cadet.Chatbot.SicpyNotesWithIndex.Chapter<N>`) with one `@summary_<section>` module attribute per section/subsection. Each is an original bullet-point summary of that section, followed by a "Key terms" line drawn from the book's own back-of-book index.
 * `sicpy_index_terms_chapter<N>.json`, a term-to-section-numbers lookup built from the same index entries, for keyword-based retrieval alongside embedding-based search.
 
-## Testing the SICPy (Python) edition
+## Testing the example programs
 
-CI (`.github/workflows/ci.yml`) runs this on every push/PR: chapters 1–3 against CPython are a required check (currently pass in full — see below); chapters 4–5 against CPython, and the full suite against py-slang, run informationally (`continue-on-error`) since both are known-incomplete for now.
+Each edition's example programs (`programs_js` / `programs_py` / `programs_scm`) can be tested automatically against their expected outputs, via `scripts/test.js`. CI (`.github/workflows/ci.yml`) runs all three on every push/PR; only SICPy chapters 1–3 against CPython are a required check today (see below) — everything else runs informationally (`continue-on-error`), either because the interpreter itself is unproven infrastructure (native JS, Scheme) or because the content isn't finished yet (SICPy chapters 4–5, py-slang).
 
-The SICPy example programs can be tested automatically against their expected outputs. First, generate the programs from the XML sources:
+### SICP JS
+
+```bash
+yarn test
+# scoped to a folder:
+yarn test -- programs_js/chapter1
+```
+
+By default this runs through **js-slang**. Set `JS_SLANG=0` (`yarn test:native`) to instead run natively on Node, using the [`sicp`](https://www.npmjs.com/package/sicp) npm package — the JS analogue of `sourceacademy-sicp` below: it re-exports js-slang's predeclared primitives (`pair`, `head`, `tail`, `math_*`, ...) as plain functions, generated from the [js-slang](https://github.com/source-academy/js-slang) repo. Unlike js-slang there's no chapter/variant gating; `sicp` exposes everything unconditionally.
+
+### SICPy (Python)
+
+First, generate the programs from the XML sources:
 
 ```bash
 SICP_EDITION=py npx tsx ./javascript/index.js programs_py
@@ -85,11 +97,16 @@ If neither is available, `run_py.py` exits with an error naming both options rat
 
 Chapters 1–3 currently pass in full against CPython. Chapter 4 (the meta-circular evaluator) has a number of known, pre-existing failures unrelated to the `sicp` runtime itself — mostly program fragments that reference names like `parse` that only exist in the Source/JS edition, or that are intentionally incomplete snippets extracted from the book.
 
-The JavaScript edition tests are unchanged and continue to run through js-slang:
+### Scheme
 
 ```bash
-yarn test
+SICP_EDITION=scm npx tsx ./javascript/index.js programs_scm
+SICP_EDITION=scm yarn test:scm
+# scoped to a folder, same as above:
+SICP_EDITION=scm yarn test:scm -- programs_scm/chapter1
 ```
+
+This runs through [MIT/GNU Scheme](https://www.gnu.org/software/mit-scheme/) (`mit-scheme` on `PATH`; on Ubuntu, `sudo apt-get install mit-scheme`), the only interpreter wired up for this edition — there's no ground truth to compare against the way CPython grounds SICPy. Currently well under half the suite passes; most failures trace back to `programs_scm` snippets not yet having their `REQUIRES` (cross-snippet prerequisites, e.g. a helper `define`d in an earlier snippet) wired up for the Scheme edition, so a snippet ends up incomplete on its own — not to actual content bugs. This is new, previously-untested infrastructure, so treat it as informational rather than authoritative for now.
 
 ## Licenses
 

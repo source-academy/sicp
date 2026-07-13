@@ -1,12 +1,15 @@
 // Runs the generated example programs and checks them against their
 // "<comment> expected: ..." trailers.
 //
-// Edition selection mirrors javascript/editions.ts: with SICP_EDITION=py this
-// tests the Python edition's programs (programs_py, "#" comments) by running
-// them through py-slang (the @sourceacademy/py-slang npm package), or through
-// CPython (scripts/run_py.py, which uses the `sicp` package) when PY_SLANG=0;
-// otherwise it tests the JavaScript edition's programs (programs_js, "//"
-// comments) through the js-slang interpreter, exactly as before.
+// Edition selection mirrors javascript/editions.ts. SICP_EDITION selects
+// programs_js / programs_py / programs_scm ("//" / "#" / ";" comments):
+// - js (default): js-slang, or native Node + the `sicp` npm package (the
+//   predeclared-primitives library generated from js-slang, matching
+//   `sourceacademy-sicp` for Python) when JS_SLANG=0.
+// - py: py-slang (the @sourceacademy/py-slang npm package), or CPython
+//   (scripts/run_py.py, which uses the `sicp` PyPI package) when PY_SLANG=0.
+// - scm: MIT/GNU Scheme (the `mit-scheme` binary), the only edition with no
+//   in-repo interpreter alternative.
 
 // This file is an ES module (package.json has "type": "module"), so recreate
 // `require` for the CommonJS dependencies it uses.
@@ -17,6 +20,7 @@ const { exit } = require("process");
 const { readdirSync, readFileSync, statSync } = require("fs");
 const { execFileSync } = require("child_process");
 const Path = require("path");
+const vm = require("vm");
 
 // Minimal ANSI colorizer, so this script does not depend on the `colors`
 // package (which need not be installed for the Python edition).
@@ -26,22 +30,35 @@ const colors = {
 };
 
 const EDITION = (process.env.SICP_EDITION || "js").trim().toLowerCase();
-if (EDITION !== "js" && EDITION !== "py") {
+if (!["js", "py", "scm"].includes(EDITION)) {
   console.error(
     colors.red(
-      `Unknown SICP_EDITION "${process.env.SICP_EDITION}" (expected "js" or "py")`
+      `Unknown SICP_EDITION "${process.env.SICP_EDITION}" (expected "js", "py", or "scm")`
     )
   );
   exit(-1);
 }
 const IS_PYTHON = EDITION === "py";
+const IS_SCHEME = EDITION === "scm";
+const IS_JAVASCRIPT = !IS_PYTHON && !IS_SCHEME;
 
-// js-slang is only needed to interpret the JavaScript edition; load it lazily
-// so the Python edition does not depend on it.
+// Set JS_SLANG=0 to run the JavaScript edition natively (Node + the `sicp`
+// package) instead of through js-slang.
+const USE_NATIVE_JS = IS_JAVASCRIPT && process.env.JS_SLANG === "0";
+
+// js-slang is only needed for the default JavaScript path; load it lazily so
+// the other paths do not depend on it.
 let createContext, runInContext, parseError, sourceLanguages;
-if (!IS_PYTHON) {
+if (IS_JAVASCRIPT && !USE_NATIVE_JS) {
   ({ createContext, runInContext, parseError } = require("js-slang"));
   ({ sourceLanguages } = require("js-slang/dist/constants"));
+}
+
+// The `sicp` package (generated from js-slang, same role as the Python
+// edition's `sourceacademy-sicp`) is only needed for the native-JS path.
+let sicpNative;
+if (USE_NATIVE_JS) {
+  sicpNative = require("sicp");
 }
 
 const USE_CPYTHON = process.env.PY_SLANG === "0";
@@ -58,20 +75,30 @@ if (IS_PYTHON && !USE_CPYTHON) {
   ({ runCode: pyRunCode } = require(PY_SLANG_SOURCE));
 }
 
-const DEFAULT_SOURCE_FOLDER = IS_PYTHON ? "programs_py" : "programs_js";
+const DEFAULT_SOURCE_FOLDER = IS_PYTHON
+  ? "programs_py"
+  : IS_SCHEME
+    ? "programs_scm"
+    : "programs_js";
 const DEFAULT_CHAPTER = 4;
 const DEFAULT_VARIANT = "default";
 
 // The generator writes the expected output as a trailing comment, using the
-// edition's line-comment marker: "// expected: ..." (JS) or "# expected: ..."
-// (Python). See javascript/processingFunctions/processSnippetJs.js.
+// edition's line-comment marker: "// expected: ..." (JS), "# expected: ..."
+// (Python), or "; expected: ..." (Scheme). See
+// javascript/processingFunctions/processSnippetJs.js.
 const EXPECTED_RE = IS_PYTHON
   ? /#\s*expected:\s*(.*)/
-  : /\/\/\s*expected:\s*(.*)/;
+  : IS_SCHEME
+    ? /;\s*expected:\s*(.*)/
+    : /\/\/\s*expected:\s*(.*)/;
 
 // Keep CPython runner as a fallback. Set PY_SLANG=0 to force CPython.
 const PYTHON = process.env.PYTHON || "python3";
 const PY_RUNNER = Path.resolve("scripts", "run_py.py");
+
+// MIT/GNU Scheme, the only interpreter used for the Scheme edition.
+const MIT_SCHEME = process.env.MIT_SCHEME || "mit-scheme";
 
 let count_pass = 0;
 let count_fail = 0;
@@ -126,11 +153,24 @@ async function interpret(code, chapter, variant) {
   });
 }
 
+/**
+ * Runs a program natively on Node, with the `sicp` package's predeclared
+ * SICP JS primitives (pair, head, tail, math_*, ...) in scope. Unlike
+ * js-slang there is no chapter/variant gating: `sicp` exposes everything
+ * unconditionally, so JS_SLANG=0 ignores both.
+ */
+function interpretNative(code) {
+  const context = vm.createContext({ ...sicpNative });
+  return new vm.Script(code).runInContext(context);
+}
+
 async function test(test_name, chapter, variant, source_code, expected_output) {
   console.log(`${test_name}, expecting: ${expected_output}`);
 
   try {
-    const test_output = await interpret(source_code, chapter, variant);
+    const test_output = USE_NATIVE_JS
+      ? interpretNative(source_code)
+      : await interpret(source_code, chapter, variant);
 
     let pass = false;
     if (typeof test_output != "string") {
@@ -162,6 +202,11 @@ async function test(test_name, chapter, variant, source_code, expected_output) {
       count_fail++;
     }
   } catch (error) {
+    if (USE_NATIVE_JS) {
+      console.log(colors.red(`${error.message ?? error}`));
+      count_fail++;
+      return;
+    }
     try {
       console.log(colors.red(parseError(error)));
       count_fail++;
@@ -258,6 +303,142 @@ async function test_python(file_path, expected_output) {
   }
 }
 
+/**
+ * Minimal recursive-descent parser for a single printed Scheme value
+ * (numbers, #t/#f, strings, symbols, lists), for structural comparison
+ * against toStruct()'s JS/Python-literal parse of the "expected:" trailer.
+ * Not a full reader (no dotted pairs, quote shorthand, vectors, ...) —
+ * sufficient for the scalar and list-shaped results SICP programs return.
+ */
+function schemeToStruct(text) {
+  let i = 0;
+
+  function skipWs() {
+    while (i < text.length && /\s/.test(text[i])) i++;
+  }
+
+  function parseOne() {
+    skipWs();
+    if (text[i] === "(") return parseList();
+    if (text[i] === '"') return parseString();
+    return parseAtom();
+  }
+
+  function parseList() {
+    i++; // '('
+    const items = [];
+    skipWs();
+    while (i < text.length && text[i] !== ")") {
+      items.push(parseOne());
+      skipWs();
+    }
+    i++; // ')'
+    return items;
+  }
+
+  function parseString() {
+    i++; // opening quote
+    let out = "";
+    while (i < text.length && text[i] !== '"') {
+      if (text[i] === "\\" && i + 1 < text.length) {
+        out += text[i + 1];
+        i += 2;
+      } else {
+        out += text[i];
+        i++;
+      }
+    }
+    i++; // closing quote
+    return out;
+  }
+
+  function parseAtom() {
+    const start = i;
+    while (i < text.length && !/[\s()]/.test(text[i])) i++;
+    const token = text.slice(start, i);
+    if (token === "#t") return true;
+    if (token === "#f") return false;
+    if (token !== "" && !Number.isNaN(Number(token))) return Number(token);
+    return token; // symbol, treated like a JS/Python string
+  }
+
+  try {
+    return parseOne();
+  } catch {
+    return text;
+  }
+}
+
+const SCM_RESULT_PREFIX = "SICP-TEST-RESULT: ";
+const SCM_ERROR_PREFIX = "SICP-TEST-ERROR: ";
+
+// Wraps the program in `ignore-errors` (a procedure, not a special form —
+// it must receive a thunk, or the error escapes evaluation of the argument
+// before ignore-errors is even entered) so a runtime error reports as a
+// failure instead of dropping into MIT Scheme's nested debugger REPL, which
+// would otherwise hang reading the now-exhausted stdin. `load`'s return
+// value is the value of the last top-level form, printed with `write` (not
+// `display`) so strings keep their quotes and structure stays parseable.
+const schemeDriver = program_path => `
+(param:suppress-loading-message? #t)
+(define sicp-test-result
+  (ignore-errors (lambda () (load ${JSON.stringify(Path.resolve(program_path))}))))
+(if (condition? sicp-test-result)
+    (begin (display "${SCM_ERROR_PREFIX}") (display (condition/report-string sicp-test-result)))
+    (begin (display "${SCM_RESULT_PREFIX}") (write sicp-test-result)))
+(newline)
+(exit)
+`;
+
+/**
+ * Runs a Scheme-edition program through MIT/GNU Scheme (the only interpreter
+ * wired up for this edition) and checks it against the expected output.
+ */
+async function test_scheme(file_path, expected_output) {
+  console.log(`${file_path}, expecting: ${expected_output}`);
+
+  try {
+    const raw = execFileSync(MIT_SCHEME, ["--quiet"], {
+      input: schemeDriver(file_path), stdio: "pipe", encoding: "utf-8"
+    });
+    const resultLine = raw
+      .split("\n")
+      .find(line => line.startsWith(SCM_RESULT_PREFIX) || line.startsWith(SCM_ERROR_PREFIX));
+
+    if (!resultLine || resultLine.startsWith(SCM_ERROR_PREFIX)) {
+      console.log(colors.red("FAIL (error):"));
+      console.log(
+        colors.red(`> ${resultLine ? resultLine.slice(SCM_ERROR_PREFIX.length) : "(no result captured)"}`)
+      );
+      count_fail++;
+      return;
+    }
+
+    const resultText = resultLine.slice(SCM_RESULT_PREFIX.length).trim();
+    const ok =
+      structEq(schemeToStruct(resultText), toStruct(expected_output)) ||
+      resultText === expected_output.trim() ||
+      `'${resultText}'` === expected_output.trim();
+
+    if (ok) {
+      console.log(colors.green("PASS"));
+      count_pass++;
+    } else {
+      console.log(colors.red("FAIL:"));
+      console.log(colors.red(`> got:      ${resultText}`));
+      console.log(colors.red(`> expected: ${expected_output}`));
+      count_fail++;
+    }
+  } catch (error) {
+    console.log(colors.red("FAIL (error):"));
+    const detail = `${error.stdout || ""}${error.stderr || ""}${error.message ?? error}`.trim();
+    for (const line of detail.split("\n")) {
+      if (line.length) console.log(colors.red(`> ${line}`));
+    }
+    count_fail++;
+  }
+}
+
 async function test_source(file_path) {
   const source_code = readFileSync(file_path, { encoding: "utf-8" }).trim();
 
@@ -272,6 +453,9 @@ async function test_source(file_path) {
 
   if (IS_PYTHON) {
     return test_python(file_path, expected_output);
+  }
+  if (IS_SCHEME) {
+    return test_scheme(file_path, expected_output);
   }
 
   // handle chapter and variant
