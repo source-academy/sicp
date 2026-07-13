@@ -82,6 +82,18 @@ const processTextFunctionsDefaultLatex = {
         .replace(/[\r\n]+/, " ")
         .replace(/\s+/g, " ")
         .replace(/\^/g, "^{}");
+      // makeindex reserves !, @, |, and " (its own quote-escape) as index-
+      // entry syntax (level separator, actual/display separator, encap
+      // command, and escape character respectively). Scheme's naming
+      // convention for mutation procedures (set!, set-car!, vector-set!, ...)
+      // routinely contains a literal "!", which otherwise gets misread as a
+      // spurious extra hierarchy level. JS/Python identifiers never contain
+      // these characters, so this was never exercised before the Scheme
+      // edition. Escape with makeindex's own quote-escape wherever this text
+      // ends up inside an \index{} argument.
+      if (ancestorHasTag(node, "INDEX")) {
+        trimedValue = trimedValue.replace(/(["!@|])/g, '"$1');
+      }
     }
     if (trimedValue.match(/&(\w|\.)+;/)) {
       processFileInput(trimedValue.trim(), writeTo);
@@ -663,12 +675,36 @@ const processTextFunctionsDefaultLatex = {
     recursiveProcessTextLatex(node.firstChild, writeTo);
   },
 
-  [companion.inlineTag]: (node, writeTo) =>
-    processTextFunctionsLatex[lang.inlineTag](node, writeTo),
-  DECLARATION: (node, writeTo) =>
-    processTextFunctionsLatex[lang.inlineTag](node, writeTo),
-  USE: (node, writeTo) =>
-    processTextFunctionsLatex[lang.inlineTag](node, writeTo),
+  // These three delegate to the inline-code-styling handler ([lang.inlineTag]
+  // below), which wraps its whole argument in one {\JS~...~}-style lstinline
+  // span — correct when the node is a single identifier (a plain text first
+  // child), but wrong when it's a container mixing plain text with its own
+  // nested inline-code tag (e.g. an index <DECLARATION> like
+  // "named <SCHEMEINLINE>let</SCHEMEINLINE>", whose first child is an
+  // element, not text): wrapping that whole mix would nest one lstinline
+  // inside another, which is invalid. Recurse into the children directly
+  // instead whenever the first child isn't plain text.
+  [companion.inlineTag]: (node, writeTo) => {
+    if (node.firstChild && node.firstChild.data != null) {
+      processTextFunctionsLatex[lang.inlineTag](node, writeTo);
+    } else {
+      recursiveProcessTextLatex(node.firstChild, writeTo);
+    }
+  },
+  DECLARATION: (node, writeTo) => {
+    if (node.firstChild && node.firstChild.data != null) {
+      processTextFunctionsLatex[lang.inlineTag](node, writeTo);
+    } else {
+      recursiveProcessTextLatex(node.firstChild, writeTo);
+    }
+  },
+  USE: (node, writeTo) => {
+    if (node.firstChild && node.firstChild.data != null) {
+      processTextFunctionsLatex[lang.inlineTag](node, writeTo);
+    } else {
+      recursiveProcessTextLatex(node.firstChild, writeTo);
+    }
+  },
   ECMA: (node, writeTo) => {},
   [lang.inlineTag]: (node, writeTo) => {
     if (ancestorHasTag(node, "METAPHRASE")) {
