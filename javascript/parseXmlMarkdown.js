@@ -347,6 +347,7 @@ const processTableMarkdown = (node, writeTo) => {
       return arr
         .join("")
         .replace(/\s+/g, " ")
+        .replace(/\\/g, "\\\\")
         .replace(/\|/g, "\\|")
         .trim();
     });
@@ -402,7 +403,7 @@ const processTextFunctionsMarkdown = {
     }
     if (
       !ancestorHasTag(node, "SNIPPET") &&
-      /^(\s+|\\[a-zA-Z]+|\{[^{}]*\}|\[[^[\]]*\])+$/.test(raw)
+      /^(\s|\\[a-zA-Z]+|\{[^{}]*\}|\[[^[\]]*\])+$/.test(raw)
     ) {
       // Bare LaTeX control text with no prose content — commands with
       // optional {...}/[...] arguments, e.g. "\par\medskip" or
