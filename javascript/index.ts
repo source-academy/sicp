@@ -29,6 +29,14 @@ import { parseXmlJs } from "./parseXmlJs.js";
 import { setupSnippetsJs } from "./processingFunctions/processSnippetJs.js";
 import { getAnswers } from "./processingFunctions/processExercisePdf.js";
 
+// md (single-file plain-Markdown export)
+import {
+  recursiveProcessTextMarkdown,
+  resetMarkdownCounters,
+  finalizeMarkdown,
+  labelMap as markdownLabelMap
+} from "./parseXmlMarkdown.js";
+
 // json (for cadet frontend)
 import { testIndexSearch } from "./searchRewriteTest.js";
 import { parseXmlJson } from "./parseXmlJson.js";
@@ -43,6 +51,7 @@ import type { WriteBuffer } from "./types.js";
 export let parseType;
 let version;
 let outputDir: string; // depends on parseType
+const markdownWriteTo: WriteBuffer = []; // accumulates the single-file md output, in document order
 
 const edition = getEdition();
 const __dirname = path.resolve(import.meta.dirname);
@@ -166,6 +175,27 @@ async function translateXml(filepath, filename, option) {
     return;
   }
 
+  if (parseType == "md") {
+    const relativeFilePath = path.join(
+      filepath,
+      filename.replace(/\.xml$/, "") + ".html"
+    );
+
+    if (option == "generateTOC") {
+      generateTOC(doc, tableOfContent, relativeFilePath);
+      return;
+    } else if (option == "collectLabels") {
+      // Discard the output; only the counter/label side effects matter, so
+      // that REF can be resolved on the (real) render pass below.
+      recursiveProcessTextMarkdown(doc.documentElement, []);
+      return;
+    } else if (option == "renderMarkdown") {
+      recursiveProcessTextMarkdown(doc.documentElement, markdownWriteTo);
+      return;
+    }
+    return;
+  }
+
   if (parseType == "json") {
     const relativeFilePath = path.join(
       filepath,
@@ -219,7 +249,7 @@ async function recursiveTranslateXml(filepath, option) {
     if (file.match(/\.xml$/)) {
       // console.log(file + " being processed");
       if (
-        (parseType == "web" || parseType == "json") &&
+        (parseType == "web" || parseType == "json" || parseType == "md") &&
         (file.match(/indexpreface/) ||
           (isPythonEdition && file.match(pythonExcludedFrontmatter)))
       ) {
@@ -312,6 +342,32 @@ async function main() {
     console.log("setup snippets and references done\n");
 
     recursiveXmlToHtmlInOrder("parseXml");
+  } else if (parseType == "md") {
+    outputDir = path.join(__dirname, "..", "md_" + edition.language.key);
+
+    createMain(inputDir, outputDir, parseType);
+
+    console.log("\ngenerate table of content\n");
+    await recursiveTranslateXml("", "generateTOC");
+    allFilepath = sortTOC(allFilepath);
+
+    console.log("collect labels\n");
+    resetMarkdownCounters();
+    await recursiveXmlToHtmlInOrder("collectLabels");
+
+    console.log("render markdown\n");
+    resetMarkdownCounters();
+    await recursiveXmlToHtmlInOrder("renderMarkdown");
+
+    const outputFile = path.join(
+      outputDir,
+      getEdition().outputBaseName + ".md"
+    );
+    const stream = fs.createWriteStream(outputFile);
+    stream.once("open", fd => {
+      stream.write(finalizeMarkdown(markdownWriteTo.join("")));
+      stream.end();
+    });
   } else if (parseType == "programs") {
     // Programs dir carries the language marker for both editions
     // (programs_js, programs_py) rather than using the "" / "_py" suffix.
