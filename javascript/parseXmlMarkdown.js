@@ -45,9 +45,19 @@ export const finalizeMarkdown = text => {
       if (i % 2 === 1) return segment; // inside a ``` fence: leave untouched
       return segment
         .split("\n")
-        .map(line =>
-          line.replace(/^[ \t]+/, "").replace(/[ \t]{2,}/g, " ").trimEnd()
-        )
+        .map(line => {
+          const match = line.match(/^([ \t]*)([\s\S]*)$/);
+          const leading = match[1];
+          const rest = match[2];
+          const collapsedRest = rest.replace(/[ \t]{2,}/g, " ").trimEnd();
+          // A line that's actually a (possibly nested) list item or
+          // blockquote carries meaningful leading indentation (see
+          // processListMarkdown); anything else with leading whitespace is
+          // stray (see the comment above) and should be dropped rather than
+          // risk CommonMark reading 4+ spaces as an indented code block.
+          const isListOrBlockquote = /^([-*+>]|[a-z0-9]+[.)])(\s|$)/.test(rest);
+          return (isListOrBlockquote ? leading : "") + collapsedRest;
+        })
         .join("\n");
     })
     .join("")
@@ -337,6 +347,7 @@ const processTableMarkdown = (node, writeTo) => {
       return arr
         .join("")
         .replace(/\s+/g, " ")
+        .replace(/\|/g, "\\|")
         .trim();
     });
     writeTo.push("| " + cellStrs.join(" | ") + " |\n");
@@ -347,12 +358,23 @@ const processTableMarkdown = (node, writeTo) => {
   writeTo.push("\n\n");
 };
 
+const listDepth = node => {
+  let depth = 0;
+  for (let p = node.parentNode; p; p = p.parentNode) {
+    if (p.nodeName === "OL" || p.nodeName === "UL") depth += 1;
+  }
+  return depth;
+};
+
 const processListMarkdown = (node, writeTo, marker) => {
+  // node is the OL/UL's firstChild (an LI or whitespace), so depth is read
+  // off its parent — the list element itself — not off node directly.
+  const indent = "  ".repeat(Math.max(0, listDepth(node.parentNode) - 1));
   let index = 0;
   for (let li = node; li; li = li.nextSibling) {
     if (li.nodeName !== "LI") continue;
     const bullet = marker === "alpha" ? String.fromCharCode(97 + index) + "." : "-";
-    writeTo.push("\n" + bullet + " ");
+    writeTo.push("\n" + indent + bullet + " ");
     recursiveProcessTextMarkdown(li.firstChild, writeTo);
     index += 1;
   }
@@ -688,16 +710,28 @@ const processTextFunctionsMarkdown = {
       // it, since the same content is already conveyed by the code snippet
       // and surrounding prose.
       return;
-    } else {
+    } else if (text.startsWith("$")) {
+      // Already its own $...$ inline math, just sitting in a block-level
+      // LATEX tag instead of LATEXINLINE — pass through as-is rather than
+      // double-wrapping into "$$$...$$$".
       writeTo.push(text);
+    } else {
+      // Math with no delimiters at all; GFM/KaTeX needs $$...$$ to render it
+      // as display math rather than showing the raw LaTeX source.
+      writeTo.push("\n\n$$" + text + "$$\n\n");
     }
   },
   LATEXINLINE: (node, writeTo) => {
     const arr = [];
     recursiveProcessPureText(node.firstChild, arr);
     const text = normalizeLatexMacros(arr.join("").trim());
-    if (text.startsWith("$") || text.startsWith("\\")) {
+    if (text.startsWith("$")) {
       writeTo.push(text);
+    } else if (text.startsWith("\\")) {
+      // A bare LaTeX command with no $...$ delimiters (e.g. "\ldots" on its
+      // own); needs $...$ to render as math rather than showing as literal
+      // backslash-text.
+      writeTo.push("$" + text + "$");
     } else {
       writeTo.push("*" + text + "*");
     }
