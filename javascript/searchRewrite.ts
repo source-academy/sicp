@@ -71,6 +71,18 @@ const indexParsers = {
     }
     json["text"] += ` (${node.firstChild.nodeValue})`;
   },
+  // Python edition's counterpart to ECMA: a <PLR> (Python Language Reference)
+  // equivalent for a primitive, rendered as a parenthetical like ECMA.
+  PLR: (node, json) => {
+    if (node.firstChild.nodeName !== "#text") {
+      console.log(
+        "when parsing PLR, got this unknown node name " +
+          node.firstChild.nodeName
+      );
+      return;
+    }
+    json["text"] += ` (${node.firstChild.nodeValue})`;
+  },
   [lang.inlineTag]: (node, json) => {
     if (node.firstChild.nodeName !== "#text") {
       console.log(
