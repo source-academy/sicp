@@ -10,6 +10,7 @@ This repository contains processing scripts and sources for *Structure and Inter
 * [Interactive SICP JS](https://sourceacademy.org/sicpjs)
 * [Comparison edition](http://sicp.sourceacademy.org), Scheme vs. JavaScript
 * Source code archive ([sicpjs.zip](http://sicp.sourceacademy.org/sicpjs.zip)), the `programs_js` extracted from the book, one file per snippet
+* JSON edition, index and search data for [Interactive SICP JS](https://sourceacademy.org/sicpjs) ([json](http://sicp.sourceacademy.org/json/toc.json)/[rewritedSearchData.json](http://sicp.sourceacademy.org/json/rewritedSearchData.json)) — same mechanism as SICPy's `json_py` below
 * Single-file Markdown export ([sicpjs.md](http://sicp.sourceacademy.org/sicpjs.md)), mirroring the PDF's content selection, for reading or feeding to tools that don't handle HTML/PDF/XML
 
 ### SICPy
@@ -25,6 +26,10 @@ This repository contains processing scripts and sources for *Structure and Inter
 
 * [PDF edition](http://sicp.sourceacademy.org/sicp.pdf)
 * JSON edition, for the Source Academy frontend ([json_scm](http://sicp.sourceacademy.org/json_scm/toc.json))
+* Source code archive ([sicp.zip](http://sicp.sourceacademy.org/sicp.zip)), the `programs_scm` extracted from the book, one file per snippet
+* Single-file Markdown export ([sicp.md](http://sicp.sourceacademy.org/sicp.md)), mirroring the PDF's content selection
+
+No comparison edition: Scheme is the comparison anchor the other two editions are diffed against, so a Scheme-vs-Scheme comparison would be nonsensical.
 
 Details on how to generate these versions are in the [repo wiki](https://github.com/source-academy/sicp/wiki).
 
