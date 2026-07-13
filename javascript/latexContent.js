@@ -26,10 +26,18 @@ const lstLanguageDefinition =
   columns=fullflexible,
   sensitive=true
 }`
-    : `\\lstdefinelanguage{Python}{
+    : languageName === "Python"
+      ? `\\lstdefinelanguage{Python}{
   keywords={def,lambda,return,if,elif,else,for,while,in,is,not,and,or,break,continue,pass,class,import,from,as,with,yield,global,nonlocal,del,raise,try,except,finally,assert,async,await,None,True,False},
   morecomment=[l]{\\#},
   morestring=[b]',
+  morestring=[b]",
+  columns=fullflexible,
+  sensitive=true
+}`
+      : `\\lstdefinelanguage{Scheme}{
+  morekeywords={define,lambda,let,let*,letrec,cond,case,if,else,and,or,not,begin,do,delay,set!,quote,quasiquote,unquote,define-syntax,let-syntax,letrec-syntax,syntax-rules},
+  morecomment=[l]{;},
   morestring=[b]",
   columns=fullflexible,
   sensitive=true

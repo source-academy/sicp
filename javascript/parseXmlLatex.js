@@ -1,7 +1,7 @@
 import { getChildrenByTagName, ancestorHasTag } from "./utilityFunctions";
 
 import { parseType } from "./index";
-import { getEdition } from "./editions.js";
+import { getEdition, getCompanionLanguage } from "./editions.js";
 
 import {
   replaceTagWithSymbol,
@@ -22,8 +22,10 @@ import {
 // in the margins of the text
 const indexAnnotations = false;
 
-// Tag names of the edition's non-Scheme language (JAVASCRIPT* by default).
+// Tag names of the edition's primary language (JAVASCRIPT* by default) and of
+// the companion language whose blocks are stripped (Scheme by default).
 const lang = getEdition().language;
+const companion = getCompanionLanguage();
 
 const tagsToRemove = new Set([
   "#comment",
@@ -44,7 +46,7 @@ const tagsToRemove = new Set([
   "SEEALSO",
   "OPEN",
   "CLOSE",
-  "SCHEME",
+  companion.blockTag, // the other language's code block is stripped ("SCHEME" by default)
   "WEB_ONLY",
   "SOLUTION"
 ]);
@@ -80,6 +82,18 @@ const processTextFunctionsDefaultLatex = {
         .replace(/[\r\n]+/, " ")
         .replace(/\s+/g, " ")
         .replace(/\^/g, "^{}");
+      // makeindex reserves !, @, |, and " (its own quote-escape) as index-
+      // entry syntax (level separator, actual/display separator, encap
+      // command, and escape character respectively). Scheme's naming
+      // convention for mutation procedures (set!, set-car!, vector-set!, ...)
+      // routinely contains a literal "!", which otherwise gets misread as a
+      // spurious extra hierarchy level. JS/Python identifiers never contain
+      // these characters, so this was never exercised before the Scheme
+      // edition. Escape with makeindex's own quote-escape wherever this text
+      // ends up inside an \index{} argument.
+      if (ancestorHasTag(node, "INDEX")) {
+        trimedValue = trimedValue.replace(/(["!@|])/g, '"$1');
+      }
     }
     if (trimedValue.match(/&(\w|\.)+;/)) {
       processFileInput(trimedValue.trim(), writeTo);
@@ -94,8 +108,8 @@ const processTextFunctionsDefaultLatex = {
     if (getChildrenByTagName(node, lang.inlineTag)[0]) {
       console.error("remove 'INLINE' from tag " + lang.inlineTag);
     }
-    if (getChildrenByTagName(node, "SCHEMEINLINE")[0]) {
-      console.error("remove 'INLINE' from tag SCHEMEINLINE");
+    if (getChildrenByTagName(node, companion.inlineTag)[0]) {
+      console.error("remove 'INLINE' from tag " + companion.inlineTag);
     }
     recursiveProcessTextLatex(node.firstChild, writeTo);
   },
@@ -212,7 +226,11 @@ const processTextFunctionsDefaultLatex = {
 
   EM: (node, writeTo) => processTextFunctionsLatex["em"](node, writeTo),
   em: (node, writeTo) => {
-    writeTo.push("{\\em ");
+    // Use the command form \emph{...} rather than the declaration form
+    // {\em ...}: inside a \index{} argument makeindex eats the space after
+    // "\em", turning "{\em ns}" into the undefined "\emns". \emph{...} is safe
+    // and renders identically.
+    writeTo.push("\\emph{");
     recursiveProcessTextLatex(node.firstChild, writeTo);
     writeTo.push("}");
   },
@@ -339,12 +357,17 @@ const processTextFunctionsDefaultLatex = {
         // ORDER overrides
         recursiveProcessTextLatex(order.firstChild, writeTo);
       } else {
-        declaration.firstChild.data = declaration.firstChild.data.replace(
-          /_/g,
-          " "
-        );
-        declaration.firstChild.nodeValue =
-          declaration.firstChild.nodeValue.replace(/_/g, " ");
+        // Underscore->space only applies to a text declaration name (JS-style
+        // identifiers). Some Scheme index declarations wrap an element instead,
+        // which has no .data — render it as-is.
+        if (declaration.firstChild && declaration.firstChild.data != null) {
+          declaration.firstChild.data = declaration.firstChild.data.replace(
+            /_/g,
+            " "
+          );
+          declaration.firstChild.nodeValue =
+            declaration.firstChild.nodeValue.replace(/_/g, " ");
+        }
         recursiveProcessTextLatex(declaration.firstChild, writeTo);
       }
       writeTo.push("@");
@@ -661,12 +684,36 @@ const processTextFunctionsDefaultLatex = {
     recursiveProcessTextLatex(node.firstChild, writeTo);
   },
 
-  SCHEMEINLINE: (node, writeTo) =>
-    processTextFunctionsLatex[lang.inlineTag](node, writeTo),
-  DECLARATION: (node, writeTo) =>
-    processTextFunctionsLatex[lang.inlineTag](node, writeTo),
-  USE: (node, writeTo) =>
-    processTextFunctionsLatex[lang.inlineTag](node, writeTo),
+  // These three delegate to the inline-code-styling handler ([lang.inlineTag]
+  // below), which wraps its whole argument in one {\JS~...~}-style lstinline
+  // span — correct when the node is a single identifier (a plain text first
+  // child), but wrong when it's a container mixing plain text with its own
+  // nested inline-code tag (e.g. an index <DECLARATION> like
+  // "named <SCHEMEINLINE>let</SCHEMEINLINE>", whose first child is an
+  // element, not text): wrapping that whole mix would nest one lstinline
+  // inside another, which is invalid. Recurse into the children directly
+  // instead whenever the first child isn't plain text.
+  [companion.inlineTag]: (node, writeTo) => {
+    if (node.firstChild && node.firstChild.data != null) {
+      processTextFunctionsLatex[lang.inlineTag](node, writeTo);
+    } else {
+      recursiveProcessTextLatex(node.firstChild, writeTo);
+    }
+  },
+  DECLARATION: (node, writeTo) => {
+    if (node.firstChild && node.firstChild.data != null) {
+      processTextFunctionsLatex[lang.inlineTag](node, writeTo);
+    } else {
+      recursiveProcessTextLatex(node.firstChild, writeTo);
+    }
+  },
+  USE: (node, writeTo) => {
+    if (node.firstChild && node.firstChild.data != null) {
+      processTextFunctionsLatex[lang.inlineTag](node, writeTo);
+    } else {
+      recursiveProcessTextLatex(node.firstChild, writeTo);
+    }
+  },
   ECMA: (node, writeTo) => {},
   PLR: (node, writeTo) => {},
   [lang.inlineTag]: (node, writeTo) => {
@@ -742,6 +789,25 @@ const processTextFunctionsDefaultLatex = {
     writeTo.push("\\begin{itemize}");
     processList(node.firstChild, writeTo);
     writeTo.push("\\end{itemize}%\n");
+  }
+};
+
+// Make <INDEX> processing fail-soft. The index tags were not maintained as
+// carefully as the prose across the Scheme/JS split, so a malformed entry
+// should warn (identifying the entry so it can be fixed) and be skipped,
+// rather than crashing the whole build.
+const rawIndexLatex = processTextFunctionsDefaultLatex.INDEX;
+processTextFunctionsDefaultLatex.INDEX = (node, writeTo) => {
+  const startLen = writeTo.length;
+  try {
+    rawIndexLatex(node, writeTo);
+  } catch (err) {
+    writeTo.length = startLen; // discard this entry's partial \index{...} output
+    let text = "";
+    try {
+      text = (node.textContent ?? "").replace(/\s+/g, " ").trim().slice(0, 80);
+    } catch (_) {}
+    console.warn(`Skipping malformed INDEX entry "${text}": ${err.message}`);
   }
 };
 

@@ -1,6 +1,6 @@
 import { getChildrenByTagName, ancestorHasTag } from "./utilityFunctions.js";
 import { allFilepath, tableOfContent } from "./index.js";
-import { getEdition } from "./editions.js";
+import { getEdition, getCompanionLanguage } from "./editions.js";
 import path from "path";
 import fs from "fs";
 
@@ -16,9 +16,11 @@ import {
 } from "./processingFunctions/index.js";
 import type { WriteBuffer } from "./types.js";
 
-// The edition being built (JavaScript by default) and its language tags.
+// The edition being built (JavaScript by default), its language tags, and the
+// companion language whose blocks are stripped (Scheme by default).
 const edition = getEdition();
 const lang = edition.language;
+const companion = getCompanionLanguage();
 
 let paragraph_count = 0;
 let heading_count = 0;
@@ -45,7 +47,7 @@ export const tagsToRemove = new Set([
   "EXCLUDE",
   "HISTORY",
   "ORDER",
-  "SCHEME",
+  companion.blockTag, // the other language's code block is stripped ("SCHEME" by default)
   "SOLUTION", // SOLUTION tag handled by processExerciseJson
   //"INDEX",
   "CAPTION",
@@ -542,7 +544,8 @@ const processTextFunctions = {
     processReferenceJson(node, obj, chapterIndex);
   },
 
-  SCHEMEINLINE: (node, obj) => processTextFunctions[lang.inlineTag](node, obj),
+  [companion.inlineTag]: (node, obj) =>
+    processTextFunctions[lang.inlineTag](node, obj),
 
   [lang.inlineTag]: (node, obj) => {
     if (
