@@ -14,6 +14,49 @@ Details how to generate these versions are in the [repo wiki](https://github.com
 
 Check out our [Resources for Learners, Educators and Researchers](https://about.sourceacademy.org/), and read more [About the SICP JS Project](https://sourceacademy.org/sicpjs/making-of) in Interactive SICP JS.
 
+## Testing the SICPy (Python) edition
+
+The SICPy example programs can be tested automatically against their expected outputs. First, generate the programs from the XML sources:
+
+```bash
+SICP_EDITION=py npx tsx ./javascript/index.js programs_py
+```
+
+Then run the tests:
+
+```bash
+yarn test:py
+
+# Or scope to one chapter/section by passing a folder, same as `yarn test`:
+yarn test:py -- programs_py/chapter1
+yarn test:py -- programs_py/chapter1/section1/subsection4
+```
+
+By default the programs are run through **py-slang**, the Source Academy Python interpreter, which is installed as the [`@sourceacademy/py-slang`](https://www.npmjs.com/package/@sourceacademy/py-slang) dependency (run `yarn install` first). To test against a local py-slang build instead, set the `PY_SLANG` environment variable to its `dist/index.cjs` (e.g. `PY_SLANG=../py-slang/dist/index.cjs`).
+
+To run against **CPython** instead (useful for comparison or as a ground truth — this is what `scripts/run_py.py` does, and what `test.js` shells out to when `PY_SLANG=0`):
+
+```bash
+yarn test:py:cpython
+# scoped to a folder, same as above:
+yarn test:py:cpython -- programs_py/chapter1
+```
+
+The CPython path needs the `sicp` runtime (published as [`sourceacademy-sicp`](https://pypi.org/project/sourceacademy-sicp/), maintained in the [py-slang](https://github.com/source-academy/py-slang) repo under `python/`) importable from wherever `python3` runs. `scripts/run_py.py` looks for it in this order:
+
+1. An installed copy — `pip install sourceacademy-sicp`.
+2. A sibling `py-slang` checkout — if this repo and `py-slang` sit next to each other on disk (e.g. both under the same parent directory), `pip install -e ../py-slang/python` (or nothing at all — `run_py.py` also falls back to importing straight out of that checkout without an install).
+
+If neither is available, `run_py.py` exits with an error naming both options rather than failing with a raw `ModuleNotFoundError`.
+
+Chapters 1–3 currently pass in full against CPython. Chapter 4 (the meta-circular evaluator) has a number of known, pre-existing failures unrelated to the `sicp` runtime itself — mostly program fragments that reference names like `parse` that only exist in the Source/JS edition, or that are intentionally incomplete snippets extracted from the book.
+
+The JavaScript edition tests are unchanged and continue to run through js-slang:
+
+```bash
+yarn test
+```
+
 ## Licenses
 
 [![CC BY-SA 4.0][cc-by-nc-sa-image]][cc-by-nc-sa]

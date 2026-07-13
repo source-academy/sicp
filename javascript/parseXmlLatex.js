@@ -307,12 +307,16 @@ const processTextFunctionsDefaultLatex = {
     let marginStr = indexArr.join("").trim();
     if (primitive) {
       indexStr +=
-        "primitive functions (ECMAScript equivalent in parentheses; those marked \\textit{ns} are not in the ECMAScript standard)";
+        lang.languageName === "Python"
+          ? "primitive functions (PLR equivalent in parentheses; those marked \\textit{ns} are not in PLR)"
+          : "primitive functions (ECMAScript equivalent in parentheses; those marked \\textit{ns} are not in the ECMAScript standard)";
       marginStr += "primitive functions (...)";
     }
     if (operator) {
       indexStr +=
-        "operators (ECMAScript may allow additional operand type combinations)";
+        lang.languageName === "Python"
+          ? "operators (PLR may allow additional operand type combinations)"
+          : "operators (ECMAScript may allow additional operand type combinations)";
       marginStr += "operators (...)";
     }
     if (functioN) {
@@ -463,7 +467,12 @@ const processTextFunctionsDefaultLatex = {
       }
 
       let ecmaString = "";
-      const ecma = getChildrenByTagName(subIndex, "ECMA")[0];
+      // The JavaScript edition tags a primitive's standard-library equivalent
+      // with <ECMA>; the Python edition uses <PLR> (Python Language Reference).
+      // Both render the same way: a parenthetical after the index subentry.
+      const ecma =
+        getChildrenByTagName(subIndex, "ECMA")[0] ||
+        getChildrenByTagName(subIndex, "PLR")[0];
       if (ecma) {
         const ecmaArr = [];
         recursiveProcessTextLatex(ecma.firstChild, ecmaArr);
@@ -670,6 +679,7 @@ const processTextFunctionsDefaultLatex = {
   USE: (node, writeTo) =>
     processTextFunctionsLatex[lang.inlineTag](node, writeTo),
   ECMA: (node, writeTo) => {},
+  PLR: (node, writeTo) => {},
   [lang.inlineTag]: (node, writeTo) => {
     if (ancestorHasTag(node, "METAPHRASE")) {
       writeTo.push("}$");
