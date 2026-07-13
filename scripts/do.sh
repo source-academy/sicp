@@ -25,7 +25,9 @@ LATEX_PDF="latex_pdf_${LANG_KEY}"
 GENERATED_HTML="html_split_${LANG_KEY}"
 GENERATED_PROGRAMS="programs_${LANG_KEY}"
 GENERATED_JSON="json_${LANG_KEY}"
+GENERATED_MD="md_${LANG_KEY}"
 PDF_FILE="${OUTPUT_BASE}.pdf"
+MD_FILE="${OUTPUT_BASE}.md"
 
 # RESOURCES
 FAVICON="static/assets/sourcepower.ico"
@@ -73,6 +75,7 @@ clean() {
 	rm -rf ${GENERATED_HTML}/*
 	rm -rf ${GENERATED_PROGRAMS}/*
 	rm -rf ${GENERATED_JSON}/*
+	rm -rf ${GENERATED_MD}/*
 	rm -f ${ZIP_FILE}
 }
 
@@ -93,6 +96,7 @@ prepare() {
  	[ ! -f ${FAVICON} ] || cp ${FAVICON} ${WEB_DEST}/favicon.ico
  	[ ! -f ${STYLESHEET} ] || cp ${STYLESHEET} ${WEB_DEST}/assets/stylesheet.css
  	[ ! -f ${LATEX_PDF}/${PDF_FILE} ] || cp ${LATEX_PDF}/${PDF_FILE} ${DOCS}
+	[ ! -f ${GENERATED_MD}/${MD_FILE} ] || cp ${GENERATED_MD}/${MD_FILE} ${DOCS}
 	PDF_BASENAME="$(basename "${PDF_FILE}" .pdf)"
 	cp "${LATEX_PDF}/${PDF_BASENAME}."{log,ilg,ind,idx} ${DOCS} || :
  	[ ! -f ${GENERATED_HTML}/index.html ] || cp -rf ${GENERATED_HTML}/* ${WEB_DEST}
