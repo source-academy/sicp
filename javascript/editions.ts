@@ -80,23 +80,33 @@ export const schemeLanguage: LanguageDescriptor = {
   fileExtension: ".scm"
 };
 
-// An edition ties a language to its source tree and output naming.
+// An edition ties a language to its source tree and output naming. Every
+// source tree pairs Scheme with exactly one non-Scheme language inside
+// <SPLIT>/<SPLITINLINE>; companionLanguage is the other language present in
+// *this* edition's own tree (so its build can strip that side). It's a
+// property of the edition, not derived from the language, since whichever
+// tree an edition draws from is decided once, when the edition itself is
+// declared — e.g. the Scheme edition reuses xml/ (the JS tree) rather than
+// having its own, so its companion is JavaScript, not itself.
 // Output dirs are named `<base>_<language.key>` (e.g. json_js / json_py),
 // so the key carries the edition marker for every dir.
 export type Edition = {
   readonly language: LanguageDescriptor;
+  readonly companionLanguage: LanguageDescriptor;
   readonly inputDirName: string; // source tree relative to repo root, e.g. "xml"
   readonly outputBaseName: string; // base name of the PDF/deploy artifacts, e.g. "sicpjs" (Python: "sicpy")
 };
 
 export const javascriptEdition: Edition = {
   language: javascriptLanguage,
+  companionLanguage: schemeLanguage,
   inputDirName: "xml",
   outputBaseName: "sicpjs"
 };
 
 export const pythonEdition: Edition = {
   language: pythonLanguage,
+  companionLanguage: schemeLanguage,
   inputDirName: "xml_py",
   outputBaseName: "sicpy"
 };
@@ -105,20 +115,15 @@ export const pythonEdition: Edition = {
 // Scheme side of every split instead of the JavaScript side.
 export const schemeEdition: Edition = {
   language: schemeLanguage,
+  companionLanguage: javascriptLanguage,
   inputDirName: "xml",
   outputBaseName: "sicp" // the original SICP
 };
 
-// In each source tree the prose is split between Scheme and one non-Scheme
-// language. An edition keeps its own language and strips the companion: the
-// JavaScript/Python editions strip Scheme, while the Scheme edition strips the
-// JavaScript of its (xml/) source tree.
 export function getCompanionLanguage(
   edition: Edition = getEdition()
 ): LanguageDescriptor {
-  return edition.language.key === schemeLanguage.key
-    ? javascriptLanguage
-    : schemeLanguage;
+  return edition.companionLanguage;
 }
 
 // Selects the edition to build, via the SICP_EDITION environment variable.
