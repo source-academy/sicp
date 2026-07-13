@@ -48,6 +48,8 @@ For each chapter there are two files:
 
 ## Testing the SICPy (Python) edition
 
+CI (`.github/workflows/ci.yml`) runs this on every push/PR: chapters 1–3 against CPython are a required check (currently pass in full — see below); chapters 4–5 against CPython, and the full suite against py-slang, run informationally (`continue-on-error`) since both are known-incomplete for now.
+
 The SICPy example programs can be tested automatically against their expected outputs. First, generate the programs from the XML sources:
 
 ```bash

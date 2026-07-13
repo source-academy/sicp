@@ -310,4 +310,7 @@ async function test_root(path) {
 
   console.log(`${count_pass + count_fail} test cases completed.`);
   console.log(`${count_pass} passed, ${count_fail} failed`);
+  if (count_fail > 0) {
+    exit(1);
+  }
 })();
