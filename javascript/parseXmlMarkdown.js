@@ -157,10 +157,7 @@ const title = node => {
   if (nameNode) {
     recursiveProcessTextMarkdown(nameNode.firstChild, nameArr);
   }
-  return nameArr
-    .join("")
-    .replace(/\s+/g, " ")
-    .trim();
+  return nameArr.join("").replace(/\s+/g, " ").trim();
 };
 
 const heading = (level, text) => {
@@ -176,7 +173,9 @@ const heading = (level, text) => {
 // the other edition's code, and SPLIT/SPLITINLINE are transparent wrappers.
 const codeTextHandlers = {
   META: (node, writeTo) => {
-    writeTo.push("*" + (node.firstChild ? node.firstChild.nodeValue : "") + "*");
+    writeTo.push(
+      "*" + (node.firstChild ? node.firstChild.nodeValue : "") + "*"
+    );
   },
   SPLIT: (node, writeTo) => recursiveProcessCodeText(node.firstChild, writeTo),
   SPLITINLINE: (node, writeTo) =>
@@ -259,7 +258,8 @@ const processSnippetMarkdown = (node, writeTo) => {
         if (plain) writeTo.push("\n\n" + plain + "\n\n");
       } else {
         const code = text.trim();
-        if (code) writeTo.push("\n\n```" + fenceLanguage + "\n" + code + "\n```\n\n");
+        if (code)
+          writeTo.push("\n\n```" + fenceLanguage + "\n" + code + "\n```\n\n");
       }
     }
     return;
@@ -293,7 +293,8 @@ const processExerciseMarkdown = (node, writeTo) => {
 // gif->png/svg->svg.pdf juggling for LaTeX compatibility) since SVG/PNG both
 // render natively in GFM/VS Code.
 const imageBaseUrl = "https://sicp.sourceacademy.org/";
-const imageMarkdown = src => (src ? "\n\n![](" + imageBaseUrl + src + ")\n\n" : "");
+const imageMarkdown = src =>
+  src ? "\n\n![](" + imageBaseUrl + src + ")\n\n" : "";
 
 const processFigureMarkdown = (node, writeTo) => {
   figureNum += 1;
@@ -374,7 +375,8 @@ const processListMarkdown = (node, writeTo, marker) => {
   let index = 0;
   for (let li = node; li; li = li.nextSibling) {
     if (li.nodeName !== "LI") continue;
-    const bullet = marker === "alpha" ? String.fromCharCode(97 + index) + "." : "-";
+    const bullet =
+      marker === "alpha" ? String.fromCharCode(97 + index) + "." : "-";
     writeTo.push("\n" + indent + bullet + " ");
     recursiveProcessTextMarkdown(li.firstChild, writeTo);
     index += 1;
@@ -448,7 +450,8 @@ const processTextFunctionsMarkdown = {
     processTextFunctionsMarkdown["ABOUT"](node, writeTo),
   WEBPREFACE: (node, writeTo) =>
     processTextFunctionsMarkdown["ABOUT"](node, writeTo),
-  MATTER: (node, writeTo) => processTextFunctionsMarkdown["ABOUT"](node, writeTo),
+  MATTER: (node, writeTo) =>
+    processTextFunctionsMarkdown["ABOUT"](node, writeTo),
 
   MATTERSECTION: (node, writeTo) => {
     unnumberedHeading(node, writeTo, 2);
@@ -564,7 +567,8 @@ const processTextFunctionsMarkdown = {
       writeTo,
       ancestorHasTag(node, "EXERCISE") ? "alpha" : "num"
     ),
-  UL: (node, writeTo) => processListMarkdown(node.firstChild, writeTo, "bullet"),
+  UL: (node, writeTo) =>
+    processListMarkdown(node.firstChild, writeTo, "bullet"),
 
   B: (node, writeTo) => {
     writeTo.push("**");
@@ -704,7 +708,9 @@ const processTextFunctionsMarkdown = {
     const display = text.match(/^\\\[([\s\S]*)\\\]$/);
     if (display) {
       writeTo.push("\n\n$$" + display[1].trim() + "$$\n\n");
-    } else if (/\\begin\{(tabular|flushleft|flushright|center|minipage)\}/.test(text)) {
+    } else if (
+      /\\begin\{(tabular|flushleft|flushright|center|minipage)\}/.test(text)
+    ) {
       // A page-layout construct (e.g. a table of code tokens with arrows
       // pointing to explanatory labels underneath), not math — no Markdown
       // equivalent exists, and leaking the raw LaTeX is worse than dropping
@@ -745,7 +751,9 @@ const processTextFunctionsMarkdown = {
   },
 
   META: (node, writeTo) => {
-    writeTo.push("*" + (node.firstChild ? node.firstChild.nodeValue : "") + "*");
+    writeTo.push(
+      "*" + (node.firstChild ? node.firstChild.nodeValue : "") + "*"
+    );
   },
   METAPHRASE: (node, writeTo) => {
     writeTo.push("<");
@@ -770,12 +778,7 @@ const processTextFunctionsMarkdown = {
     writeTo.push("`");
     const codeArr = [];
     recursiveProcessPureText(node.firstChild, codeArr);
-    writeTo.push(
-      codeArr
-        .join("")
-        .replace(/_@/g, "_")
-        .replace(/@/g, "")
-    );
+    writeTo.push(codeArr.join("").replace(/_@/g, "_").replace(/@/g, ""));
     writeTo.push("`");
   }
 };
