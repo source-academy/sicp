@@ -16,10 +16,74 @@ jobs:
         with:
           node-version: 24
           cache: yarn
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
       - name: Install dependencies
         run: yarn install --frozen-lockfile
+      # sourceacademy-sicp has never actually been released to PyPI yet (the
+      # py-slang publish workflow only fires on a GitHub Release, and none
+      # has been cut) — fall back to installing straight from the py-slang
+      # source tree until a real release exists, at which point the first
+      # line here starts succeeding on its own.
+      - name: Install the sicp runtime (for CPython-based SICPy testing)
+        run: |
+          pip install sourceacademy-sicp || \
+            pip install "git+https://github.com/source-academy/py-slang.git#subdirectory=python"
+      - name: Install MIT/GNU Scheme (for Scheme-edition testing)
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y mit-scheme
       - name: Lint
         run: yarn lint
       # TODO: Reenable once no longer broken
       # - name: Test
       #   run: yarn test
+      # No CPython-style ground truth for JS: js-slang IS the required check
+      # once the above is fixed. JS_SLANG=0 (native Node + the `sicp`
+      # package, see scripts/test.js) runs informationally in the meantime,
+      # since it's untested infrastructure, not yet a proven gate.
+      - name: Generate SICP JS programs
+        run: yarn run programs
+      - name: Test SICP JS natively (Node + sicp package, informational)
+        continue-on-error: true
+        run: yarn test:native
+      - name: Generate SICPy programs
+        env:
+          SICP_EDITION: py
+        run: yarn run programs
+      # Chapters 1-3 are verified complete against CPython, the ground truth
+      # for program correctness (independent of py-slang's own maturity —
+      # see README "Testing the SICPy (Python) edition"). This is the one
+      # part of SICPy testing required to pass.
+      - name: Test SICPy chapters 1-3 (CPython, required)
+        run: |
+          yarn test:py:cpython -- programs_py/chapter1
+          yarn test:py:cpython -- programs_py/chapter2
+          yarn test:py:cpython -- programs_py/chapter3
+      # Chapters 4-5 (the meta-circular evaluator, the register-machine
+      # simulator) are known-incomplete translations, and py-slang is still
+      # catching up to CPython on Python semantics for the earlier chapters
+      # too. Both run non-blocking so regressions stay visible without
+      # gating merges on work that isn't finished yet.
+      - name: Test SICPy chapters 4-5 (CPython, informational)
+        continue-on-error: true
+        run: |
+          yarn test:py:cpython -- programs_py/chapter4
+          yarn test:py:cpython -- programs_py/chapter5
+      - name: Test SICPy via py-slang (informational)
+        continue-on-error: true
+        run: yarn test:py
+      # No interpreter alternative for Scheme (MIT/GNU Scheme is the only
+      # one wired up) and no ground truth to compare against, so the whole
+      # suite is informational. Most current failures trace back to programs
+      # not yet having their REQUIRES (cross-snippet prerequisites) wired up
+      # for the Scheme edition, not to actual content bugs.
+      - name: Generate Scheme programs
+        env:
+          SICP_EDITION: scm
+        run: yarn run programs
+      - name: Test Scheme via MIT/GNU Scheme (informational)
+        continue-on-error: true
+        run: yarn test:scm
