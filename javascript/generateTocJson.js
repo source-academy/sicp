@@ -2,6 +2,7 @@ import fs from "fs";
 import path from "path";
 
 import { tableOfContent, allFilepath } from "./index.js";
+import { getEdition } from "./editions.js";
 
 // this should come from constants.js, but that
 // doesn't work, probably due to circular dependencies
@@ -126,7 +127,9 @@ export const createTocJson = outputDir => {
 
     for (const s in sitemap) {
       sitemapStream.write("  <url>\n    <loc>");
-      sitemapStream.write(sourceAcademyURL + "/sicpjs/");
+      sitemapStream.write(
+        sourceAcademyURL + "/" + getEdition().outputBaseName + "/"
+      );
       sitemapStream.write(sitemap[s]);
       const month = today.getMonth() + 1;
       const date = today.getDate();

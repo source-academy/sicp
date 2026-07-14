@@ -28,6 +28,7 @@ import { getEdition, getCompanionLanguage } from "./editions.js";
 // language for the Scheme edition).
 const lang = getEdition().language;
 const companion = getCompanionLanguage();
+const urlPrefix = getEdition().outputBaseName;
 
 let paragraph_count = 0;
 let heading_count = 0;
@@ -250,7 +251,7 @@ const processTextFunctions = {
     obj["tag"] = "FOOTNOTE_REF";
     obj["id"] = `#footnote-link-${footnote_count}`;
     obj["body"] = `${footnote_count}`;
-    obj["href"] = `/sicpjs/${chapterIndex}#footnote-${footnote_count}`;
+    obj["href"] = `/${urlPrefix}/${chapterIndex}#footnote-${footnote_count}`;
   },
 
   DISPLAYFOOTNOTE: (node, obj) => {
@@ -260,7 +261,7 @@ const processTextFunctions = {
     obj["id"] = `#footnote-${display_footnote_count}`;
     obj["count"] = display_footnote_count;
     obj["href"] =
-      `/sicpjs/${chapterIndex}#footnote-link-${display_footnote_count}`;
+      `/${urlPrefix}/${chapterIndex}#footnote-link-${display_footnote_count}`;
 
     recursiveProcessTextJson(node.firstChild, obj);
   },
@@ -590,7 +591,7 @@ export const parseXmlJson = (doc, arr, filename) => {
 
   // Add section title
   const title = {
-    id: `/sicpjs/${chapterIndex}`,
+    id: `/${urlPrefix}/${chapterIndex}`,
     tag: "TITLE",
     body: displayTitle.trim()
   };

@@ -9,7 +9,7 @@ const lang = getEdition().language;
 // line 3 to 68: trie implementation and search functions
 
 export const getUrl = searchResult =>
-  `https://sourceacademy.nus.edu.sg/sicpjs/${searchResult.id}`;
+  `https://sourceacademy.nus.edu.sg/${getEdition().outputBaseName}/${searchResult.id}`;
 
 // search data, maintaining and updation functions and write function from this line onwards
 export const idToContentMap: Record<string, string> = {};
