@@ -88,9 +88,9 @@ yarn test:py:cpython
 yarn test:py:cpython -- programs_py/chapter1
 ```
 
-The CPython path needs the `sicp` runtime (named `sourceacademy-sicp`, maintained in the [py-slang](https://github.com/source-academy/py-slang) repo under `python/`) importable from wherever `python3` runs. `scripts/run_py.py` looks for it in this order:
+The CPython path needs the `sicp` runtime (published as [`sourceacademy-sicp`](https://pypi.org/project/sourceacademy-sicp/), maintained in the [py-slang](https://github.com/source-academy/py-slang) repo under `python/`) importable from wherever `python3` runs. `scripts/run_py.py` looks for it in this order:
 
-1. An installed copy — `pip install sourceacademy-sicp`. **Not yet usable**: this package has never actually been released to PyPI (the py-slang publish workflow only fires on a GitHub Release, and none has been cut), so this currently always fails — expect to rely on option 2 below until a release exists. CI works around this the same way: `pip install sourceacademy-sicp || pip install "git+https://github.com/source-academy/py-slang.git#subdirectory=python"`.
+1. An installed copy — `pip install sourceacademy-sicp`.
 2. A sibling `py-slang` checkout — if this repo and `py-slang` sit next to each other on disk (e.g. both under the same parent directory), `pip install -e ../py-slang/python` (or nothing at all — `run_py.py` also falls back to importing straight out of that checkout without an install).
 
 If neither is available, `run_py.py` exits with an error naming both options rather than failing with a raw `ModuleNotFoundError`.
