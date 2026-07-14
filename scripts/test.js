@@ -160,7 +160,7 @@ async function interpret(code, chapter, variant) {
  * unconditionally, so JS_SLANG=0 ignores both.
  */
 function interpretNative(code) {
-  const context = vm.createContext({ ...sicpNative });
+  const context = vm.createContext({ console, ...sicpNative });
   return new vm.Script(code).runInContext(context);
 }
 
@@ -379,10 +379,15 @@ const SCM_ERROR_PREFIX = "SICP-TEST-ERROR: ";
 // would otherwise hang reading the now-exhausted stdin. `load`'s return
 // value is the value of the last top-level form, printed with `write` (not
 // `display`) so strings keep their quotes and structure stays parseable.
+// The `(newline)` right after `load` guards against the program itself
+// having `display`ed something without a trailing newline — otherwise the
+// result/error prefix would land on the same line and resultLine detection
+// (which matches on line-start) would miss it.
 const schemeDriver = program_path => `
 (param:suppress-loading-message? #t)
 (define sicp-test-result
   (ignore-errors (lambda () (load ${JSON.stringify(Path.resolve(program_path))}))))
+(newline)
 (if (condition? sicp-test-result)
     (begin (display "${SCM_ERROR_PREFIX}") (display (condition/report-string sicp-test-result)))
     (begin (display "${SCM_RESULT_PREFIX}") (write sicp-test-result)))
