@@ -269,12 +269,12 @@ const buildTextTrie = () => {
   }
 };
 
-export const writeRewritedSearchData = (outputDir: string) => {
+export const writeSearchData = (outputDir: string) => {
   buildTextTrie();
 
   const searchData = { indexTrie, textTrie, idToContentMap };
   fs.writeFile(
-    path.join(outputDir, "rewritedSearchData.json"),
+    path.join(outputDir, "searchData.json"),
     JSON.stringify(searchData),
     err => {
       if (err) {

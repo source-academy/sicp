@@ -38,9 +38,9 @@ import {
 } from "./parseXmlMarkdown.js";
 
 // json (for cadet frontend)
-import { testIndexSearch } from "./searchRewriteTest.js";
+import { testIndexSearch } from "./searchTest.js";
 import { parseXmlJson } from "./parseXmlJson.js";
-import { writeRewritedSearchData } from "./searchRewrite.js";
+import { writeSearchData } from "./search.js";
 import { setupSnippetsJson } from "./processingFunctions/processSnippetJson.js";
 import { createTocJson } from "./generateTocJson.js";
 import { setupReferencesJson } from "./processingFunctions/processReferenceJson.js";
@@ -393,8 +393,7 @@ async function main() {
     console.log("setup snippets and references done\n");
 
     await recursiveXmlToHtmlInOrder("parseXml");
-    writeRewritedSearchData(outputDir);
-    // this is meant to be temp; also, will remove the original "generateSearchData" after the updation at the frontend is completed.
+    writeSearchData(outputDir);
     //testIndexSearch();
   }
 }
