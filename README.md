@@ -119,7 +119,7 @@ The [print version of SICP JS](https://mitpress.mit.edu/books/structure-and-inte
 
 The text of SICP JS and SICPy is derived from the book *Structure and Interpretation of Computer Programs*, Second Edition, 1996, (SICP) by Harold Abelson and Gerald Jay Sussman, and is licensed by these original authors under a [Creative Commons Attribution-ShareAlike 4.0 International License](cc-by-sa) (CC BY-SA). SICP JS is licensed by adapters Martin Henz and Tobias Wrigstad under CC BY-SA; SICPy is licensed by adapter Martin Henz under CC BY-SA. The Scheme edition republishes the original SICP text and programs unmodified under the same CC BY-SA license, with no additional adaptation layer. A [comparison edition](https://sicp.sourceacademy.org) indicates the changes that were made to SICP for the JavaScript edition; a [Scheme/Python comparison edition](https://sicp.sourceacademy.org/split_py) does the same for the Python edition. [Interactive SICP JS](https://sourceacademy.org/sicpjs) is licensed by Martin Henz, Tobias Wrigstad, and Samuel Fang under CC BY-SA; [Interactive SICPy](https://sourceacademy.org/sicpy) is licensed by Martin Henz and Samuel Fang under CC BY-SA. The figures in all versions are derived from figures created by Andres Raba in 2015, and are licensed by Martin Henz and Tobias Wrigstad under CC BY-SA.
 
-[![GPL 3][gpl3-image]][gpl3]
+[<img src="static/img_original/gpl-v3.svg" alt="GPL 3" width="50">][gpl3]
 
 The JavaScript programs in SICP JS and the Python programs in SICPy are derived from the Scheme programs in SICP and are licensed by their respective adapters (Martin Henz and Tobias Wrigstad for JavaScript; Martin Henz for Python) under the [GNU General Public License v3.0](gpl3).
 
@@ -131,5 +131,4 @@ All JavaScript and TypeScript programs that generate the SICP JS, SICPy, and Sch
 [cc-by-nc-sa]: http://creativecommons.org/licenses/by-nc-sa/4.0/
 [cc-by-nc-sa-image]: https://licensebuttons.net/l/by-nc-sa/4.0/88x31.png
 [gpl3]: https://www.gnu.org/licenses/gpl-3.0.en.html
-[gpl3-image]: https://upload.wikimedia.org/wikipedia/commons/thumb/7/79/License_icon-gpl.svg/50px-License_icon-gpl.svg.png
 [apache2]: https://www.apache.org/licenses/LICENSE-2.0.txt
