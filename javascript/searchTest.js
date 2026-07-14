@@ -166,7 +166,7 @@ averager (constraint), 261 (ex. 3.33)
 // I include 2 out of the 5 columns of all the index with A here.
 
 // manually tested the exercise urls to accumulate and accumulate_n, they are correct
-import { indexTrie, getUrl } from "./searchRewrite.js";
+import { indexTrie, getUrl } from "./search.js";
 import { search, autoComplete } from "./search/TrieNode.js";
 import fs from "fs";
 

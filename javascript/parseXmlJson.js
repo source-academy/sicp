@@ -14,12 +14,10 @@ import {
 
 import { getIdForExerciseJson } from "./processingFunctions/processExerciseJson";
 
-import { generateSearchData } from "./generateSearchData.js";
-
 import {
   parseAndInsertToIndexTrie,
   parseAndInsertToIdToContentMap
-} from "./searchRewrite.js";
+} from "./search.js";
 
 import { getEdition, getCompanionLanguage } from "./editions.js";
 
@@ -630,5 +628,4 @@ export const parseXmlJson = (doc, arr, filename) => {
   }
 
   parseAndInsertToIdToContentMap(arr, chapterIndex);
-  generateSearchData(doc, filename);
 };
