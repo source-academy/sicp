@@ -464,7 +464,8 @@ const processTextFunctions = {
     obj["tag"] = "FOOTNOTE_REF";
     obj["id"] = `#footnote-link-${footnote_count}`;
     obj["body"] = `${footnote_count}`;
-    obj["href"] = `/sicpjs/${chapterIndex}#footnote-${footnote_count}`;
+    obj["href"] =
+      `/${edition.outputBaseName}/${chapterIndex}#footnote-${footnote_count}`;
   },
 
   DISPLAYFOOTNOTE: (node, obj) => {
@@ -474,7 +475,7 @@ const processTextFunctions = {
     obj["id"] = `#footnote-${display_footnote_count}`;
     obj["count"] = display_footnote_count;
     obj["href"] =
-      `/sicpjs/${chapterIndex}#footnote-link-${display_footnote_count}`;
+      `/${edition.outputBaseName}/${chapterIndex}#footnote-link-${display_footnote_count}`;
 
     recursiveProcessTextJson(node.firstChild, obj);
   },
@@ -857,11 +858,11 @@ export const generateSearchData = (doc, filename) => {
 
   // Add section title
   const title = {
-    id: `/sicpjs/${chapterIndex}`,
+    id: `/${edition.outputBaseName}/${chapterIndex}`,
     tag: "TITLE",
     body: displayTitle.trim()
   };
-  globalTitle = `/sicpjs/${chapterIndex}`;
+  globalTitle = `/${edition.outputBaseName}/${chapterIndex}`;
   //globaleE = chapArrIndex.charAt(0);
   arr.push(title);
 

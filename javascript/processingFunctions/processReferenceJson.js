@@ -2,6 +2,9 @@ import { repeatedRefNameWarning, missingReferenceWarning } from "./warnings.js";
 import { tableOfContent } from "../index.js";
 import { tagsToRemove } from "../parseXmlJson";
 import { ancestorHasTag } from "../utilityFunctions";
+import { getEdition } from "../editions.js";
+
+const urlPrefix = getEdition().outputBaseName;
 
 export const referenceStore = {};
 
@@ -68,25 +71,25 @@ export const setupReferencesJson = (node, filename) => {
     let displayName;
     if (ref_type == "chap") {
       displayName = chapterIndex;
-      href = `/sicpjs/${chapterIndex}`;
+      href = `/${urlPrefix}/${chapterIndex}`;
     } else if (ref_type == "sec") {
       if (ancestorHasTag(label, "SUBSUBSECTION")) {
         subsubsection_count++;
         displayName = `${chapterIndex}.${subsubsection_count}`;
-        href = `/sicpjs/${chapterIndex}#subsubsection_${subsubsection_count}`;
+        href = `/${urlPrefix}/${chapterIndex}#subsubsection_${subsubsection_count}`;
       } else {
         displayName = chapterIndex;
-        href = `/sicpjs/${chapterIndex}`;
+        href = `/${urlPrefix}/${chapterIndex}`;
       }
     } else if (ref_type == "fig") {
       fig_count++;
       displayName = `${chapter_number}.${fig_count}`;
-      href = `/sicpjs/${chapterIndex}#fig-${displayName}`;
+      href = `/${urlPrefix}/${chapterIndex}#fig-${displayName}`;
     } else if (ref_type == "foot") {
       // Retrieve count from the parent node, setup before this loop
       foot_count = label.parentNode.footnote_count;
       displayName = foot_count;
-      href = `/sicpjs/${chapterIndex}#footnote-${foot_count}`;
+      href = `/${urlPrefix}/${chapterIndex}#footnote-${foot_count}`;
     } else {
       continue;
     }
@@ -130,7 +133,7 @@ export const setupReferencesJson = (node, filename) => {
 
     ex_count++;
     const displayName = `${chapter_number}.${ex_count}`;
-    const href = `/sicpjs/${chapterIndex}#ex-${displayName}`;
+    const href = `/${urlPrefix}/${chapterIndex}#ex-${displayName}`;
     referenceStore[referenceName] = { href, displayName, chapterIndex };
 
     // An exercise may carry more than one label (e.g. a semantic label
