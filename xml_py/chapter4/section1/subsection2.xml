@@ -21,7 +21,7 @@
 	to start with a representation of this program text as a Python value.
 	In section<SPACE/><REF NAME="sec:strings"/> we introduced strings to represent
 	text. We would like to evaluate programs such as
-	<PYTHONINLINE>"const size = 2; 5 * size;"</PYTHONINLINE>
+	<PYTHONINLINE>"size = 2\n5 * size"</PYTHONINLINE>
 	from section<SPACE/><REF NAME="sec:naming"/>.
 	Unfortunately, such program text does not provide enough structure to
 	the evaluator. In this example, the program parts
@@ -47,7 +47,7 @@
 	<SNIPPET PAGE="372">
 	  <NAME>parse_declaration</NAME>
 	  <PYTHON>
-parse("const size = 2; 5 * size;")
+parse("size = 2\n5 * size")
 	  </PYTHON>
 	  <PYTHON_OUTPUT>
 list("sequence",
@@ -540,7 +540,7 @@ is_tagged_list(llist("name", "x"), "name")
 	  <INDEX><DECLARATION>literal_value</DECLARATION></INDEX>
 	  <NAME>literal_value</NAME>
 	  <EXAMPLE>literal_value_example</EXAMPLE>
-	  <EXPECTED>null</EXPECTED>
+	  <EXPECTED>None</EXPECTED>
 	  <PYTHON>
 def literal_value(component):
     return head(tail(component))
@@ -844,7 +844,7 @@ llist("conditional_statement",
 	      <REQUIRES>list_ref</REQUIRES>
 	      <REQUIRES>tagged_list</REQUIRES>
 	      <EXAMPLE>if_example</EXAMPLE>
-	      <EXPECTED>[ 'literal', [ 2, null ] ]</EXPECTED>
+	      <EXPECTED>[ 'literal', [ 2, None ] ]</EXPECTED>
 	      <PYTHON>
 def is_conditional(component):
     return is_tagged_list(component, "conditional_expression") or is_tagged_list(component, "conditional_statement")
@@ -1064,7 +1064,7 @@ $\ll\ $<META>statement</META>$_1$ $\cdots$ <META>statement</META>$_n\;\gg$ =
     <NAME>begin</NAME>
     <REQUIRES>tagged_list</REQUIRES>
     <EXAMPLE>begin_example</EXAMPLE>
-    <EXPECTED>[ 'literal', [ 45, null ] ]</EXPECTED>
+    <EXPECTED>[ 'literal', [ 45, None ] ]</EXPECTED>
     <PYTHON>
 def first_statement(stmts):
     return head(stmts)
@@ -1182,7 +1182,11 @@ def make_block(statement):
 	    <SNIPPET PAGE="366" HIDE="yes">
 	      <NAME>block_example</NAME>
 	      <PYTHON>
-my_block = parse("{ 1; true; 45; }")
+my_block = parse("""{
+    1
+    True
+    45
+}""")
 print(is_block(my_block))
 print(block_body(my_block))
 </PYTHON>
@@ -1228,7 +1232,7 @@ print(block_body(my_block))
 	      <NAME>return</NAME>
 	      <REQUIRES>tagged_list</REQUIRES>
 	      <EXAMPLE>return_example</EXAMPLE>
-	      <EXPECTED>[ 'name', [ 'x', null ] ]</EXPECTED>
+	      <EXPECTED>[ 'name', [ 'x', None ] ]</EXPECTED>
 	      <PYTHON>
 def is_return_statement(component):
     return is_tagged_list(component, "return_statement")
@@ -1290,11 +1294,10 @@ ref(my_return, 1)
       <NAME>assignment</NAME>
       <REQUIRES>tagged_list</REQUIRES>
       <EXAMPLE>assignment_example</EXAMPLE>
-      <EXPECTED>[ 'literal', [ 1, null ] ]</EXPECTED>
+      <EXPECTED>[ 'literal', [ 1, None ] ]</EXPECTED>
       <PYTHON>
-function assignment_symbol(component) {
-    return symbol_of_name(head(tail(component))))
-}
+def assignment_symbol(component):
+    return head(tail(head(tail(component))))
       </PYTHON>
       <PYTHON_RUN>
 def is_assignment(component):
@@ -1458,6 +1461,37 @@ my_assignment_statement = parse("x = 1")
 print(is_declaration(my_assignment_statement))
 print(assignment_symbol(my_assignment_statement))
 print(assignment_value_expression(my_assignment_statement))
+</PYTHON>
+	</SNIPPET>
+	The selectors
+	<PYTHONINLINE>declaration_symbol</PYTHONINLINE> and
+	<PYTHONINLINE>declaration_value_expression</PYTHONINLINE> apply to all
+	three kinds.
+	<SNIPPET PAGE="370">
+	  <INDEX><DECLARATION>declaration_symbol</DECLARATION></INDEX>
+	  <INDEX><DECLARATION>declaration_value_expression</DECLARATION></INDEX>
+	      <NAME>declaration_symbol</NAME>
+	      <REQUIRES>tagged_list</REQUIRES>
+	      <EXAMPLE>definition_example</EXAMPLE>
+	      <PYTHON>
+def declaration_symbol(component):
+    return symbol_of_name(head(tail(component)))
+def declaration_value_expression(component):
+    return head(tail(tail(component)))
+</PYTHON>
+	</SNIPPET>
+	The function
+	<PYTHONINLINE>function_decl_to_constant_decl</PYTHONINLINE>
+	needs a constructor for constant declarations:
+	<SNIPPET PAGE="370">
+	  <INDEX><DECLARATION>make_constant_declaration</DECLARATION></INDEX>
+	      <NAME>make_constant_declaration</NAME>
+	      <REQUIRES>tagged_list</REQUIRES>
+	      <REQUIRES>definition</REQUIRES>
+	      <EXAMPLE>definition_example</EXAMPLE>
+	      <PYTHON>
+def make_constant_declaration(name, value_expression):
+    return llist("constant_declaration", name, value_expression)
 </PYTHON>
 	</SNIPPET>
     </TEXT>
@@ -2444,16 +2478,17 @@ def factorial(n):
 	    <SNIPPET>
 	      <NAME>factorial_with_while_loop_function</NAME>
 	      <PYTHON>
-function factorial(n) {
-    let product = 1
-    let counter = 1
-    while_loop(() =&gt; counter &lt;= n,
-               () =&gt; {
-                   product = counter * product
-                   counter = counter + 1
-               })
+def factorial(n):
+    product = 1
+    counter = 1
+    def pred():
+        return counter &lt;= n
+    def body():
+        nonlocal product, counter
+        product = counter * product
+        counter = counter + 1
+    while_loop(pred, body)
     return product
-}
 	      </PYTHON>
 	    </SNIPPET>
 	    Your function
