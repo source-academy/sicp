@@ -507,11 +507,9 @@ def ambeval(component, env, succeed, fail):
   $\ldots$)
       </SCHEME>
       <PYTHON>
-(env, succeed, fail) => {      
-    // $\texttt{succeed}\,$ is $\texttt{(value, fail) =>}~\ldots$
-    // $\texttt{fail}\,$ is $\texttt{() =>}~\ldots$
-    $\ldots$
-}
+# $\texttt{succeed}\,$ is $\texttt{lambda value, fail:}~\ldots$
+# $\texttt{fail}\,$ is $\texttt{lambda:}~\ldots$
+lambda env, succeed, fail: $\ldots$
       </PYTHON>
     </SNIPPET>
   </TEXT>
@@ -533,8 +531,8 @@ def ambeval(component, env, succeed, fail):
 	  <PYTHON>
 ambeval(<META>component</META>,
         the_global_environment,
-        (value, fail) => value,
-        () => "failed")
+        lambda value, fail: value,
+        lambda: "failed")
 	  </PYTHON>
 	</SNIPPET>
       </PYTHON>
@@ -1673,7 +1671,7 @@ llist(x, y, count)
       <PYTHON_OUTPUT>
 Starting a new problem
 amb-evaluate value:
-["a", ["b", [2, null]]]
+["a", ["b", [2, None]]]
       </PYTHON_OUTPUT>
     </SNIPPET>
     <SNIPPET EVAL="no">
@@ -1692,7 +1690,7 @@ retry
       </PYTHON>
       <PYTHON_OUTPUT>
 amb-evaluate value:
-["a", ["c", [3, null]]]
+["a", ["c", [3, None]]]
       </PYTHON_OUTPUT>
     </SNIPPET>
     <SPLIT>
@@ -1946,16 +1944,9 @@ def require_predicate(component):
              fail))))
       </SCHEME>
       <PYTHON>
-function analyze_require(component) {
-    const pfun = analyze(require_predicate(component))
-    return (env, succeed, fail) =>
-             pfun(env,
-                  (pred_value, fail2) =>
-                    <METAPHRASE>??</METAPHRASE>
-                    ? <METAPHRASE>??</METAPHRASE>
-                    : succeed("ok", fail2),
-                  fail)
-}
+def analyze_require(component):
+    pfun = analyze(require_predicate(component))
+    return lambda env, succeed, fail: (pfun(env, lambda pred_value, fail2: (<METAPHRASE>??</METAPHRASE> if <METAPHRASE>??</METAPHRASE> else succeed("ok", fail2)), fail))
       </PYTHON>
     </SNIPPET>
   </EXERCISE>
@@ -1999,18 +1990,17 @@ def first_solution(input):
       <NAME>all_solutions_test_1</NAME>
       <REQUIRES>first_solution</REQUIRES>
       <REQUIRES>all_solutions</REQUIRES>
-      <EXPECTED>[ 'apple', [ 'banana', [ 'cranberry', null ] ] ]</EXPECTED>
+      <EXPECTED>[ 'apple', [ 'banana', [ 'cranberry', None ] ] ]</EXPECTED>
       <PYTHON>
-all_solutions("                                            \
-function require(p) {                                      \
-    return ! p ? amb() : 'Satisfied require';              \
-    }                                                      \
-function an_element_of(items) {                            \
-    require(! is_null(items));                             \
-    return amb(head(items), an_element_of(tail(items)));   \
-}                                                          \
-const xs = list('apple', 'banana', 'cranberry');           \
-an_element_of(xs);	                                   ")
+all_solutions("""
+def require(p):
+    return amb() if not p else "Satisfied require"
+def an_element_of(items):
+    require(not is_null(items))
+    return amb(head(items), an_element_of(tail(items)))
+xs = list("apple", "banana", "cranberry")
+an_element_of(xs)
+""")
       </PYTHON>
     </SNIPPET>
     <SNIPPET HIDE="yes">
@@ -2018,118 +2008,66 @@ an_element_of(xs);	                                   ")
       <REQUIRES>list_ref</REQUIRES>
       <REQUIRES>first_solution</REQUIRES>
       <REQUIRES>all_solutions</REQUIRES>
-      <EXPECTED>[ 8, [ 35, null ] ]</EXPECTED>
+      <EXPECTED>[ 8, [ 35, None ] ]</EXPECTED>
       <PYTHON>
-all_solutions("                                            \
-function require(p) {                                      \
-    return ! p ? amb() : 'Satisfied require';              \
-    }                                                      \
-function an_element_of(items) {                            \
-    require(! is_null(items));                             \
-    return amb(head(items), an_element_of(tail(items)));   \
-}                                                          \
-function square(x) {                                       \
-    return x * x;                                          \
-}                                                          \
-function is_divisible(x, y) {                              \
-    return x % y === 0;                                    \
-}                                                          \
-function integers_starting_from(n) {                       \
-    return pair(n,                                         \
-                () => integers_starting_from(n + 1)        \
-               );                                          \
-}                                                          \
-function is_prime(n) {                                     \
-    function iter(ps) {                                    \
-        return square(head(ps)) &gt; n                        \
-               ? true                                      \
-               : is_divisible(n, head(ps))                 \
-                 ? false                                   \
-                 : iter(stream_tail(ps));                  \
-    }                                                      \
-    return iter(primes);                                   \
-}                                                          \
-function stream_tail(xs) {                                 \
-    return tail(xs)();                                     \
-}                                                          \
-function stream_filter(pred, s) {                          \
-    return is_null(s)                                      \
-           ? null                                          \
-           : pred(head(s))                                 \
-             ? pair(head(s),                               \
-                    () => stream_filter(pred,              \
-                                        stream_tail(s)))   \
-             : stream_filter(pred,                         \
-                             stream_tail(s));              \
-}                                                          \
-const primes = pair(2,                                     \
-                    () => stream_filter(                   \
-                              is_prime,                    \
-                              integers_starting_from(3))   \
-                   );                                      \
-function prime_sum_pair(list1, list2) {                    \
-    const a = an_element_of(list1);                        \
-    const b = an_element_of(list2);                        \
-    require(is_prime(a + b));                              \
-    return list(a, b);                                     \
-}                                                          \
-prime_sum_pair(list(1, 3, 5, 8), list(20, 35, 110));       ")
+all_solutions("""
+def require(p):
+    return amb() if not p else "Satisfied require"
+def an_element_of(items):
+    require(not is_null(items))
+    return amb(head(items), an_element_of(tail(items)))
+def square(x):
+    return x * x
+def is_divisible(x, y):
+    return x % y == 0
+def integers_starting_from(n):
+    return pair(n, lambda: integers_starting_from(n + 1))
+def is_prime(n):
+    def iter(ps):
+        return True if square(head(ps)) > n else False if is_divisible(n, head(ps)) else iter(stream_tail(ps))
+    return iter(primes)
+def stream_tail(xs):
+    return tail(xs)()
+def stream_filter(pred, s):
+    return None if is_null(s) else pair(head(s), lambda: stream_filter(pred, stream_tail(s))) if pred(head(s)) else stream_filter(pred, stream_tail(s))
+primes = pair(2, lambda: stream_filter(is_prime, integers_starting_from(3)))
+def prime_sum_pair(list1, list2):
+    a = an_element_of(list1)
+    b = an_element_of(list2)
+    require(is_prime(a + b))
+    return list(a, b)
+prime_sum_pair(list(1, 3, 5, 8), list(20, 35, 110))
+""")
       </PYTHON>
       <PYTHON_RUN>
-ref(all_solutions("                                            \
-function require(p) {                                      \
-    return ! p ? amb() : 'Satisfied require';              \
-    }                                                      \
-function an_element_of(items) {                            \
-    require(! is_null(items));                             \
-    return amb(head(items), an_element_of(tail(items)));   \
-}                                                          \
-function square(x) {                                       \
-    return x * x;                                          \
-}                                                          \
-function is_divisible(x, y) {                              \
-    return x % y === 0;                                    \
-}                                                          \
-function integers_starting_from(n) {                       \
-    return pair(n,                                         \
-                () => integers_starting_from(n + 1)        \
-               );                                          \
-}                                                          \
-function is_prime(n) {                                     \
-    function iter(ps) {                                    \
-        return square(head(ps)) &gt; n                        \
-               ? true                                      \
-               : is_divisible(n, head(ps))                 \
-                 ? false                                   \
-                 : iter(stream_tail(ps));                  \
-    }                                                      \
-    return iter(primes);                                   \
-}                                                          \
-function stream_tail(xs) {                                 \
-    return tail(xs)();                                     \
-}                                                          \
-function stream_filter(pred, s) {                          \
-    return is_null(s)                                      \
-           ? null                                          \
-           : pred(head(s))                                 \
-             ? pair(head(s),                               \
-                    () => stream_filter(pred,              \
-                                        stream_tail(s)))   \
-             : stream_filter(pred,                         \
-                             stream_tail(s));              \
-}                                                          \
-const primes = pair(2,                                     \
-                    () => stream_filter(                   \
-                              is_prime,                    \
-                              integers_starting_from(3))   \
-                   );                                      \
-function prime_sum_pair(list1, list2) {                    \
-    const a = an_element_of(list1);                        \
-    const b = an_element_of(list2);                        \
-    require(is_prime(a + b));                              \
-    return list(a, b);                                     \
-}                                                          \
-prime_sum_pair(list(1, 3, 5, 8), list(20, 35, 110));       "),
+ref(all_solutions("""
+def require(p):
+    return amb() if not p else "Satisfied require"
+def an_element_of(items):
+    require(not is_null(items))
+    return amb(head(items), an_element_of(tail(items)))
+def square(x):
+    return x * x
+def is_divisible(x, y):
+    return x % y == 0
+def integers_starting_from(n):
+    return pair(n, lambda: integers_starting_from(n + 1))
+def is_prime(n):
+    def iter(ps):
+        return True if square(head(ps)) > n else False if is_divisible(n, head(ps)) else iter(stream_tail(ps))
+    return iter(primes)
+def stream_tail(xs):
+    return tail(xs)()
+def stream_filter(pred, s):
+    return None if is_null(s) else pair(head(s), lambda: stream_filter(pred, stream_tail(s))) if pred(head(s)) else stream_filter(pred, stream_tail(s))
+primes = pair(2, lambda: stream_filter(is_prime, integers_starting_from(3)))
+def prime_sum_pair(list1, list2):
+    a = an_element_of(list1)
+    b = an_element_of(list2)
+    require(is_prime(a + b))
+    return list(a, b)
+prime_sum_pair(list(1, 3, 5, 8), list(20, 35, 110))
+"""),
       4)
       </PYTHON_RUN>
     </SNIPPET>
@@ -2139,88 +2077,66 @@ prime_sum_pair(list(1, 3, 5, 8), list(20, 35, 110));       "),
       <REQUIRES>memq</REQUIRES>
       <REQUIRES>first_solution</REQUIRES>
       <REQUIRES>all_solutions</REQUIRES>
-      <EXPECTED>[ 'verb', [ 'eats', null ] ]</EXPECTED>
+      <EXPECTED>[ 'verb', [ 'eats', None ] ]</EXPECTED>
       <PYTHON>
-all_solutions("                                                      \
-function require(p) {                                                \
-    return ! p ? amb() : 'Satisfied require';                        \
-}                                                                    \
-function member(item, x) {                                           \
-    return is_null(x)                                                \
-        ? null                                                       \
-        : item === head(x)                                           \
-          ? x                                                        \
-          : member(item, tail(x));                                   \
-}                                                                    \
-let unparsed = null;                                                 \
-const nouns = list('noun', 'student', 'professor', 'cat', 'class');  \
-const verbs = list('verb', 'studies', 'lectures', 'eats', 'sleeps'); \
-const articles = list('article', 'the', 'a');                        \
-function parse_word(word_list) {                                     \
-    require(! is_null(unparsed));                                    \
-    require(! is_null(member(head(unparsed), tail(word_list))));     \
-    const found_word = head(unparsed);                               \
-    unparsed = tail(unparsed);                                       \
-    return list(head(word_list), found_word);                        \
-}                                                                    \
-function parse_noun_phrase() {                                       \
-    return list('noun-phrase',                                       \
-                parse_word(articles),                                \
-                parse_word(nouns));                                  \
-}                                                                    \
-function parse_sentence() {                                          \
-    return list('sentence',                                          \
-                parse_noun_phrase(),                                 \
-                parse_word(verbs));                                  \
-}                                                                    \
-function parse_input(input) {                                        \
-    unparsed = input;                                                \
-    const sent = parse_sentence();                                   \
-    require(is_null(unparsed));                                      \
-    return sent;                                                     \
-}                                                                    \
-parse_input(list('the',  'cat',  'eats'));                           ")
+all_solutions("""
+def require(p):
+    return amb() if not p else "Satisfied require"
+def member(item, x):
+    return None if is_null(x) else x if item == head(x) else member(item, tail(x))
+unparsed = None
+nouns = list("noun", "student", "professor", "cat", "class")
+verbs = list("verb", "studies", "lectures", "eats", "sleeps")
+articles = list("article", "the", "a")
+def parse_word(word_list):
+    global unparsed
+    require(not is_null(unparsed))
+    require(not is_null(member(head(unparsed), tail(word_list))))
+    found_word = head(unparsed)
+    unparsed = tail(unparsed)
+    return list(head(word_list), found_word)
+def parse_noun_phrase():
+    return list("noun-phrase", parse_word(articles), parse_word(nouns))
+def parse_sentence():
+    return list("sentence", parse_noun_phrase(), parse_word(verbs))
+def parse_input(input):
+    global unparsed
+    unparsed = input
+    sent = parse_sentence()
+    require(is_null(unparsed))
+    return sent
+parse_input(list("the", "cat", "eats"))
+""")
       </PYTHON>
       <PYTHON_RUN>
-ref(ref(all_solutions("                                                      \
-function require(p) {                                                \
-    return ! p ? amb() : 'Satisfied require';                        \
-}                                                                    \
-function member(item, x) {                                           \
-    return is_null(x)                                                \
-        ? null                                                       \
-        : item === head(x)                                           \
-          ? x                                                        \
-          : member(item, tail(x));                                   \
-}                                                                    \
-let unparsed = null;                                                 \
-const nouns = list('noun', 'student', 'professor', 'cat', 'class');  \
-const verbs = list('verb', 'studies', 'lectures', 'eats', 'sleeps'); \
-const articles = list('article', 'the', 'a');                        \
-function parse_word(word_list) {                                     \
-    require(! is_null(unparsed));                                    \
-    require(! is_null(member(head(unparsed), tail(word_list))));     \
-    const found_word = head(unparsed);                               \
-    unparsed = tail(unparsed);                                       \
-    return list(head(word_list), found_word);                        \
-}                                                                    \
-function parse_noun_phrase() {                                       \
-    return list('noun-phrase',                                       \
-                parse_word(articles),                                \
-                parse_word(nouns));                                  \
-}                                                                    \
-function parse_sentence() {                                          \
-    return list('sentence',                                          \
-                parse_noun_phrase(),                                 \
-                parse_word(verbs));                                  \
-}                                                                    \
-function parse_input(input) {                                        \
-    unparsed = input;                                                \
-    const sent = parse_sentence();                                   \
-    require(is_null(unparsed));                                      \
-    return sent;                                                     \
-}                                                                    \
-parse_input(list('the',  'cat',  'eats'));                           "),
+ref(ref(all_solutions("""
+def require(p):
+    return amb() if not p else "Satisfied require"
+def member(item, x):
+    return None if is_null(x) else x if item == head(x) else member(item, tail(x))
+unparsed = None
+nouns = list("noun", "student", "professor", "cat", "class")
+verbs = list("verb", "studies", "lectures", "eats", "sleeps")
+articles = list("article", "the", "a")
+def parse_word(word_list):
+    global unparsed
+    require(not is_null(unparsed))
+    require(not is_null(member(head(unparsed), tail(word_list))))
+    found_word = head(unparsed)
+    unparsed = tail(unparsed)
+    return list(head(word_list), found_word)
+def parse_noun_phrase():
+    return list("noun-phrase", parse_word(articles), parse_word(nouns))
+def parse_sentence():
+    return list("sentence", parse_noun_phrase(), parse_word(verbs))
+def parse_input(input):
+    global unparsed
+    unparsed = input
+    sent = parse_sentence()
+    require(is_null(unparsed))
+    return sent
+parse_input(list("the", "cat", "eats"))
+"""),
                  0),
         2)
       </PYTHON_RUN>
@@ -2229,69 +2145,44 @@ parse_input(list('the',  'cat',  'eats'));                           "),
       <NAME>full_parser</NAME>
       <REQUIRES>memq</REQUIRES>
       <PYTHON>
-full_parser = "                                                \
-function require(p) {                                                \
-    return ! p ? amb() : 'Satisfied require';                        \
-}                                                                    \
-function member(item, x) {                                           \
-    return is_null(x)                                                \
-        ? null                                                       \
-        : item === head(x)                                           \
-          ? x                                                        \
-          : member(item, tail(x));                                   \
-}                                                                    \
-let unparsed = null;                                                 \
-function parse_word(word_list) {                                     \
-    require(! is_null(unparsed));                                    \
-    require(! is_null(member(head(unparsed), tail(word_list))));     \
-    const found_word = head(unparsed);                               \
-    unparsed = tail(unparsed);                                       \
-    return list(head(word_list), found_word);                        \
-}                                                                    \
-const prepositions = list('prep', 'for', 'to',  'in', 'by', 'with'); \
-function parse_prepositional_phrase() {                              \
-    return list('prep-phrase',                                       \
-                parse_word(prepositions),                            \
-                parse_noun_phrase());                                \
-}                                                                    \
-const nouns = list('noun', 'student', 'professor', 'cat', 'class');  \
-const verbs = list('verb', 'studies', 'lectures', 'eats', 'sleeps'); \
-                                                                     \
-const articles = list('article', 'the', 'a');                        \
-function parse_simple_noun_phrase() {                                \
-    return list('simple-noun-phrase',                                \
-                parse_word(articles),                                \
-                parse_word(nouns));                                  \
-}                                                                    \
-function parse_noun_phrase() {                                       \
-    function maybe_extend(noun_phrase) {                             \
-        return amb(noun_phrase,                                      \
-                   maybe_extend(list('noun-phrase',                  \
-                                 noun_phrase,                        \
-                                 parse_prepositional_phrase())));    \
-    }                                                                \
-    return maybe_extend(parse_simple_noun_phrase());                 \
-}                                                                    \
-function parse_sentence() {                                          \
-    return list('sentence',                                          \
-                parse_noun_phrase(),                                 \
-                parse_verb_phrase());                                \
-}                                                                    \
-function parse_verb_phrase() {                                       \
-    function maybe_extend(verb_phrase) {                             \
-        return amb(verb_phrase,                                      \
-                   maybe_extend(list('verb-phrase',                  \
-                                 verb_phrase,                        \
-                                 parse_prepositional_phrase())));    \
-    }		                                                     \
-    return maybe_extend(parse_word(verbs));                          \
-}                                                                    \
-function parse_input(input) {                                        \
-    unparsed = input;                                                \
-    const sent = parse_sentence();                                   \
-    require(is_null(unparsed));                                      \
-    return sent;                                                     \
-}                                                                    "
+full_parser = """
+def require(p):
+    return amb() if not p else "Satisfied require"
+def member(item, x):
+    return None if is_null(x) else x if item == head(x) else member(item, tail(x))
+unparsed = None
+def parse_word(word_list):
+    global unparsed
+    require(not is_null(unparsed))
+    require(not is_null(member(head(unparsed), tail(word_list))))
+    found_word = head(unparsed)
+    unparsed = tail(unparsed)
+    return list(head(word_list), found_word)
+prepositions = list("prep", "for", "to", "in", "by", "with")
+def parse_prepositional_phrase():
+    return list("prep-phrase", parse_word(prepositions), parse_noun_phrase())
+nouns = list("noun", "student", "professor", "cat", "class")
+verbs = list("verb", "studies", "lectures", "eats", "sleeps")
+articles = list("article", "the", "a")
+def parse_simple_noun_phrase():
+    return list("simple-noun-phrase", parse_word(articles), parse_word(nouns))
+def parse_noun_phrase():
+    def maybe_extend(noun_phrase):
+        return amb(noun_phrase, maybe_extend(list("noun-phrase", noun_phrase, parse_prepositional_phrase())))
+    return maybe_extend(parse_simple_noun_phrase())
+def parse_sentence():
+    return list("sentence", parse_noun_phrase(), parse_verb_phrase())
+def parse_verb_phrase():
+    def maybe_extend(verb_phrase):
+        return amb(verb_phrase, maybe_extend(list("verb-phrase", verb_phrase, parse_prepositional_phrase())))
+    return maybe_extend(parse_word(verbs))
+def parse_input(input):
+    global unparsed
+    unparsed = input
+    sent = parse_sentence()
+    require(is_null(unparsed))
+    return sent
+"""
 </PYTHON>
     </SNIPPET>
     <SNIPPET HIDE="yes">
@@ -2300,18 +2191,16 @@ function parse_input(input) {                                        \
       <REQUIRES>first_solution</REQUIRES>
       <REQUIRES>all_solutions</REQUIRES>
       <REQUIRES>full_parser</REQUIRES>
-      <EXPECTED>[ 'article', [ 'the', null ] ]</EXPECTED>
+      <EXPECTED>[ 'article', [ 'the', None ] ]</EXPECTED>
       <PYTHON>
-all_solutions(full_parser + 
-"                                                                   \
-parse_input(list('the', 'student', 'with', 'the', 'cat',            \
-'sleeps', 'in', 'the', 'class'));                                   ")
+all_solutions(full_parser + """
+parse_input(list("the", "student", "with", "the", "cat", "sleeps", "in", "the", "class"))
+""")
       </PYTHON>
       <PYTHON_RUN>
-ref(ref(ref(ref(ref(all_solutions(full_parser + 
-"                                                                   \
-parse_input(list('the', 'student', 'with', 'the', 'cat',            \
-'sleeps', 'in', 'the', 'class'));                                   "),
+ref(ref(ref(ref(ref(all_solutions(full_parser + """
+parse_input(list("the", "student", "with", "the", "cat", "sleeps", "in", "the", "class"))
+"""),
                                              0),
                                     2),
                            2),
@@ -2325,18 +2214,16 @@ parse_input(list('the', 'student', 'with', 'the', 'cat',            \
       <REQUIRES>first_solution</REQUIRES>
       <REQUIRES>all_solutions</REQUIRES>
       <REQUIRES>full_parser</REQUIRES>
-      <EXPECTED>[ 'prep', [ 'with', null ] ]</EXPECTED>
+      <EXPECTED>[ 'prep', [ 'with', None ] ]</EXPECTED>
       <PYTHON>
-all_solutions(full_parser + 
-"                                                                   \
-parse_input(list('the', 'professor', 'lectures',                    \
-                 'to', 'the', 'student', 'with', 'the', 'cat'));    ")
+all_solutions(full_parser + """
+parse_input(list("the", "professor", "lectures", "to", "the", "student", "with", "the", "cat"))
+""")
       </PYTHON>
       <PYTHON_TEST>
-ref(ref(ref(ref(ref(ref(all_solutions(full_parser + 
-"                                                                   \
-parse_input(list('the', 'professor', 'lectures',                    \
-                 'to', 'the', 'student', 'with', 'the', 'cat'));    "),
+ref(ref(ref(ref(ref(ref(all_solutions(full_parser + """
+parse_input(list("the", "professor", "lectures", "to", "the", "student", "with", "the", "cat"))
+"""),
                                                       1),
                                              2),
                                     2),
@@ -2354,47 +2241,30 @@ parse_input(list('the', 'professor', 'lectures',                    \
 	   too slow for this puzzle                 
       <EXPECTED>what</EXPECTED>                         -->
       <PYTHON>
-first_solution("                                                     \
-function require(p) {                                                \
-    return ! p ? amb() : 'Satisfied require';                        \
-}                                                                    \
-function distinct(items) {                                           \
-    return is_null(items)                                            \
-        ? true                                                       \
-        : is_null(tail(items))                                       \
-          ? true                                                     \
-          : is_null(member(head(items), tail(items)))                \
-            ? distinct(tail(items))                                  \
-            : false;                                                 \
-}                                                                    \
-function member(item, x) {                                           \
-    return is_null(x)                                                \
-        ? null                                                       \
-        : item === head(x)                                           \
-          ? x                                                        \
-          : member(item, tail(x));                                   \
-}                                                                    \
-function multiple_dwelling() {                                       \
-    const baker = amb(1, 2, 3, 4, 5);                                \
-    const cooper = amb(1, 2, 3, 4, 5);                               \
-    const fletcher = amb(1, 2, 3, 4, 5);                             \
-    const miller = amb(1, 2, 3, 4, 5);                               \
-    const smith = amb(1, 2, 3, 4, 5);                                \
-    require(distinct(list(baker, cooper, fletcher, miller, smith))); \
-    require(! (baker === 5));                                        \
-    require(! (cooper === 1));                                       \
-    require(! (fletcher === 5));                                     \
-    require(! (fletcher === 1));                                     \
-    require(miller &gt; cooper);                                        \
-    require(! (math_abs(smith - fletcher) === 1));                   \
-    require(! (math_abs(fletcher - cooper) === 1));                  \
-    return list(list('baker', baker),                                \
-                list('cooper', cooper),                              \
-                list('fletcher', fletcher),                          \
-                list('miller', miller),                              \
-                list('smith', smith));                               \
-}                                                                    \
-multiple_dwelling();                                                 ")
+first_solution("""
+def require(p):
+    return amb() if not p else "Satisfied require"
+def distinct(items):
+    return True if is_null(items) else True if is_null(tail(items)) else distinct(tail(items)) if is_null(member(head(items), tail(items))) else False
+def member(item, x):
+    return None if is_null(x) else x if item == head(x) else member(item, tail(x))
+def multiple_dwelling():
+    baker = amb(1, 2, 3, 4, 5)
+    cooper = amb(1, 2, 3, 4, 5)
+    fletcher = amb(1, 2, 3, 4, 5)
+    miller = amb(1, 2, 3, 4, 5)
+    smith = amb(1, 2, 3, 4, 5)
+    require(distinct(list(baker, cooper, fletcher, miller, smith)))
+    require(not (baker == 5))
+    require(not (cooper == 1))
+    require(not (fletcher == 5))
+    require(not (fletcher == 1))
+    require(miller > cooper)
+    require(not (math_abs(smith - fletcher) == 1))
+    require(not (math_abs(fletcher - cooper) == 1))
+    return list(list("baker", baker), list("cooper", cooper), list("fletcher", fletcher), list("miller", miller), list("smith", smith))
+multiple_dwelling()
+""")
       </PYTHON>
     </SNIPPET>
 </SUBSECTION>
