@@ -19,7 +19,7 @@ This repository contains processing scripts and sources for *Structure and Inter
 * [Interactive SICPy](https://sourceacademy.org/sicpy), backed by structured per-section JSON textbook content, e.g. [json_py/1.1.1.json](https://sicp.sourceacademy.org/json_py/1.1.1.json)
 * [Comparison edition](https://sicp.sourceacademy.org/split_py), Scheme vs. Python
 * Search support: same mechanism as SICP JS above, via [json_py/searchData.json](https://sicp.sourceacademy.org/json_py/searchData.json)
-* AI support: see [SICPy chatbot knowledge base](#sicpy-chatbot-knowledge-base) below
+* AI support: [SICPy chatbot knowledge base](https://sicp.sourceacademy.org/chatbot_notes_py) (see [details](#sicpy-chatbot-knowledge-base) below)
 * Source code archive ([sicpy.zip](https://sicp.sourceacademy.org/sicpy.zip)), the `programs_py` extracted from the book, one file per snippet
 * Single-file Markdown export ([sicpy.md](https://sicp.sourceacademy.org/sicpy.md)), mirroring the PDF's content selection
 
