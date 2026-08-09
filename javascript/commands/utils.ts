@@ -2,7 +2,7 @@ import fs from "node:fs";
 import fse from "fs-extra";
 import path from "node:path";
 import { ending, frontmatter, preamble } from "../latexContent.js";
-import { getEdition } from "../editions.js";
+import { getEdition, getPublishedChapterCount } from "../editions.js";
 
 const __dirname = path.resolve(import.meta.dirname);
 
@@ -33,10 +33,15 @@ export const createMain = (
   // for latex version only
   // create the root <edition>.tex file (sicpjs.tex / sicpy.tex)
   // FIXME: Remove any
+  // Chapters beyond the published cutoff never had their .tex fragments
+  // generated (index.ts skips them for the same reason), so they must be
+  // excluded here too, or \input below would point at a missing file.
+  const publishedChapterCount = getPublishedChapterCount();
   const chaptersFound: any[] = [];
   const files = fs.readdirSync(inputDir);
   files.forEach(file => {
-    if (file.match(/chapter/)) {
+    const chapterMatch = file.match(/^chapter(\d+)$/);
+    if (chapterMatch && Number(chapterMatch[1]) <= publishedChapterCount) {
       chaptersFound.push(file);
     }
   });

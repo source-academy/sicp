@@ -11,6 +11,7 @@ import { generateChapterIndex } from "./tocUtils.js";
 import { IndexHeaderCard, SidebarHeaderCard } from "./TocCards.js";
 import { html, raw } from "hono/html";
 import type { WriteBuffer } from "./types.js";
+import { getPublishedChapterCount, TOTAL_CHAPTER_COUNT } from "./editions.js";
 
 const truncateTitle = chapterTitle => {
   let truncatedTitle = "";
@@ -232,6 +233,24 @@ export const indexHtml = (writeToIndex: WriteBuffer) => {
     <div class="chapter-content">
     <div class="chapter-text" >`);
   indexPage(writeToIndex);
+
+  const publishedChapterCount = getPublishedChapterCount();
+  if (publishedChapterCount < TOTAL_CHAPTER_COUNT) {
+    const from = publishedChapterCount + 1;
+    const range =
+      from === TOTAL_CHAPTER_COUNT
+        ? `Chapter ${from}`
+        : `Chapters ${from}–${TOTAL_CHAPTER_COUNT}`;
+    const verb = from === TOTAL_CHAPTER_COUNT ? "is" : "are";
+    writeToIndex.push(html`
+      <p style="font-style:italic">
+        ${raw(range)} ${raw(verb)} still in preparation and will be published
+        here as
+        ${raw(from === TOTAL_CHAPTER_COUNT ? "it becomes" : "they become")}
+        ready.
+      </p>
+    `);
+  }
 
   // TOC at index page
   writeToIndex.push("<h2>Content</h2>");

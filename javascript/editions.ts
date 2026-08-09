@@ -120,6 +120,31 @@ export const schemeEdition: Edition = {
   outputBaseName: "sicp" // the original SICP
 };
 
+// Total number of chapters the book is structured into (xml/ and xml_py/
+// each have chapter1/ .. chapter5/). Used together with
+// getPublishedChapterCount() to describe the still-unpublished range.
+export const TOTAL_CHAPTER_COUNT = 5;
+
+// Chapters beyond this cutoff are excluded from every build target (PDF,
+// web, JSON, Markdown, programs), via the SICP_PUBLISHED_CHAPTERS env var,
+// so a chapter in progress can still be authored, built, tested, and read
+// locally while being held back from the deployed site. Unset means
+// "publish everything" — the default for every local command. The
+// mechanism applies uniformly to any edition; in practice only the Python
+// edition's deploy step sets the env var, since JS and Scheme are already
+// complete and always publish every chapter.
+export function getPublishedChapterCount(): number {
+  const raw = process.env.SICP_PUBLISHED_CHAPTERS?.trim();
+  if (!raw) return TOTAL_CHAPTER_COUNT;
+  const n = Number(raw);
+  if (!Number.isInteger(n) || n < 1) {
+    throw new Error(
+      `Invalid SICP_PUBLISHED_CHAPTERS "${process.env.SICP_PUBLISHED_CHAPTERS}" (expected a positive integer)`
+    );
+  }
+  return n;
+}
+
 export function getCompanionLanguage(
   edition: Edition = getEdition()
 ): LanguageDescriptor {
