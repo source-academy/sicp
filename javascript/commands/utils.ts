@@ -33,27 +33,51 @@ export const createMain = (
   // for latex version only
   // create the root <edition>.tex file (sicpjs.tex / sicpy.tex)
   // FIXME: Remove any
-  // Chapters beyond the published cutoff never had their .tex fragments
-  // generated (index.ts skips them for the same reason), so they must be
-  // excluded here too, or \input below would point at a missing file.
+  //
+  // Chapters are always brought in with \include (never \input): index.ts
+  // now generates every chapter's .tex fragment unconditionally for pdf, and
+  // \includeonly below is what actually restricts which ones get typeset in
+  // this compile. \include's own mechanism reads every listed chapter's .aux
+  // file at the start of a run regardless of \includeonly, so as long as a
+  // prior full compile (see scripts/do.sh's shadow pass, gated by
+  // SICP_LATEX_INCLUDE_ALL) has produced a chapter's .aux at least once, a
+  // forward \ref/\pageref into it keeps resolving to the real number even
+  // while that chapter itself is excluded from being printed.
+  const includeAllChapters = process.env.SICP_LATEX_INCLUDE_ALL === "1";
   const publishedChapterCount = getPublishedChapterCount();
-  const chaptersFound: any[] = [];
+  const chaptersFound: string[] = [];
   const files = fs.readdirSync(inputDir);
   files.forEach(file => {
-    const chapterMatch = file.match(/^chapter(\d+)$/);
-    if (chapterMatch && Number(chapterMatch[1]) <= publishedChapterCount) {
+    if (file.match(/^chapter(\d+)$/)) {
       chaptersFound.push(file);
     }
   });
+  chaptersFound.sort();
+  const includedChapters = chaptersFound.filter(chapter => {
+    if (includeAllChapters) return true;
+    const chapterMatch = chapter.match(/^chapter(\d+)$/)!;
+    return Number(chapterMatch[1]) <= publishedChapterCount;
+  });
+
   const stream = fs.createWriteStream(
     path.join(outputDir, getEdition().outputBaseName + ".tex")
   );
   stream.once("open", fd => {
     stream.write(preamble);
+    // \includeonly is only legal in the preamble, i.e. before \begin{document}
+    // -- which is the first line of `frontmatter` -- so it must be written
+    // here, not alongside the \include lines below.
+    stream.write(
+      "\\includeonly{" +
+        includedChapters
+          .map(chapter => "./" + chapter + "/" + chapter)
+          .join(",") +
+        "}\n"
+    );
     stream.write(frontmatter);
     chaptersFound.forEach(chapter => {
-      const pathStr = "./" + chapter + "/" + chapter + ".tex";
-      stream.write("\\input{" + pathStr + "}\n");
+      const pathStr = "./" + chapter + "/" + chapter;
+      stream.write("\\include{" + pathStr + "}\n");
     });
     stream.write(ending);
     stream.end();
