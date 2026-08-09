@@ -56,6 +56,24 @@ main() {
 }
 
 pdf() {
+	if [ -n "${SICP_PUBLISHED_CHAPTERS:-}" ]; then
+		# Shadow pass, only needed when chapters are actually being held
+		# back: every chapter, published or not, is fully typeset once so
+		# its .aux carries real \label numbers (see \includeonly in
+		# commands/utils.ts). Only that .aux output matters here -- this
+		# PDF itself is discarded, overwritten by the publish pass below.
+		SICP_LATEX_INCLUDE_ALL=1 yarn process pdf; SICP_LATEX_INCLUDE_ALL=1 yarn process pdf; \
+		cd ${LATEX_PDF}; \
+		cp -f ../mitpress/crop.sty .; \
+		latexmk -verbose -pdf -r ../scripts/latexmkrc -pdflatex="pdflatex --synctex=1" -f ${OUTPUT_FILE}; \
+		cd ..
+	fi
+
+	# Publish pass: \includeonly restricts typesetting to the chapters
+	# SICP_PUBLISHED_CHAPTERS actually allows (or every chapter, if unset).
+	# Chapters excluded here keep the .aux the shadow pass above left
+	# behind, so a forward \ref/\pageref into one still resolves instead
+	# of showing "??".
 	yarn process pdf; yarn process pdf; \
         cd ${LATEX_PDF}; \
         cp -f ../mitpress/crop.sty .; \
