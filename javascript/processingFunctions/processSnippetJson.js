@@ -201,6 +201,9 @@ export const processSnippetJson = (node, snippet) => {
       const current_chap = chapterIndex.substring(0, 1);
       const explicit_chap = node.getAttribute("CHAP");
       const implicit_chap = explicit_chap ? explicit_chap : current_chap;
+      // Neither Source (JavaScript) nor Python has a chapter 5 sublanguage
+      // (register machines uses the "full" chapter 4 language in both), so
+      // it's capped at 4.
       const chap = implicit_chap === "5" ? "4" : implicit_chap;
       let variant = node.getAttribute("VARIANT");
       let ext = node.getAttribute("EXT");
@@ -230,8 +233,19 @@ export const processSnippetJson = (node, snippet) => {
           exampleStr
       );
 
-      const makeHash = program =>
-        "chap=" + chap + variant + "&prgrm=" + program;
+      // The frontend's embedded evaluator reads this hash to pick which
+      // sublanguage/chapter to open the snippet in (see Playground.tsx's
+      // handleHash). Source (JavaScript) chapters are part of the js-slang
+      // Chapter enum and are addressed via chap=/variant=; Python isn't --
+      // it's a Conductor-based language directory entry (python1..python4)
+      // addressed via language=/variant= instead. Sending the Source-style
+      // hash for Python content leaves the evaluator on whatever chapter it
+      // already had open (e.g. always chapter 1), since chap= isn't
+      // meaningful to a non-Source language.
+      const makeHash =
+        lang.key === "py"
+          ? program => "language=python&variant=" + chap + "&prgrm=" + program
+          : program => "chap=" + chap + variant + "&prgrm=" + program;
 
       if (reqStr) {
         let prependLength = reqStr.split("\n").length;
