@@ -70,8 +70,24 @@ const pythonExcludedFrontmatter =
 // Chapters beyond this cutoff (see getPublishedChapterCount) are skipped
 // wholesale below, for every build target that walks this tree (web, json,
 // md, programs) and every edition, so they never reach the deployed site.
+//
+// Two build targets need the *full*, unfiltered tree despite the gate, so
+// that a forward reference from a published chapter to a later one (e.g.
+// "as we will see in Chapter 4") resolves to a real number/link instead of
+// vanishing:
+//  - pdf always ignores the gate here; publishing is instead enforced by
+//    \includeonly in the generated .tex (see commands/utils.ts and
+//    scripts/do.sh's two-pass compile), so every chapter's \label still
+//    gets defined for \ref/\pageref to resolve against.
+//  - json ignores the gate only during the dedicated reference-registration
+//    pass below (see forceIncludeAllChapters), which discards its output
+//    except for the referenceStore side effect; the real page-generating
+//    passes stay gated as before, so unpublished content is never written
+//    to json_<lang>/ (only its label/number becomes resolvable).
 const publishedChapterCount = getPublishedChapterCount();
+let forceIncludeAllChapters = false;
 const unpublishedChapterDir = (dirName: string): boolean => {
+  if (parseType === "pdf" || forceIncludeAllChapters) return false;
   const match = dirName.match(/^chapter(\d+)$/);
   return match !== null && Number(match[1]) > publishedChapterCount;
 };
@@ -396,14 +412,29 @@ async function main() {
 
     createMain(inputDir, outputDir, parseType);
 
+    // Register labels/exercises/figures/footnotes across the *entire* book,
+    // published or not (see forceIncludeAllChapters above), so a forward
+    // reference from a published chapter resolves to a real number and href
+    // -- the href just 404s into "this section is in preparation" until
+    // that chapter is actually published, same as any other unpublished
+    // link. Nothing from this pass is written to disk; only its
+    // referenceStore/snippetStore side effects are kept, so unpublished
+    // content is never exposed. allFilepath/tableOfContent are reset
+    // afterwards and rebuilt below, gated as before, for the real TOC and
+    // page output.
+    console.log("\nregister references across the full book\n");
+    forceIncludeAllChapters = true;
+    await recursiveTranslateXml("", "generateTOC");
+    allFilepath = sortTOC(allFilepath);
+    await recursiveXmlToHtmlInOrder("setupSnippet");
+    forceIncludeAllChapters = false;
+    allFilepath = [];
+    console.log("register references done\n");
+
     console.log("\ngenerate table of content\n");
     await recursiveTranslateXml("", "generateTOC");
     allFilepath = sortTOC(allFilepath);
     createTocJson(outputDir);
-
-    console.log("setup snippets and references\n");
-    await recursiveXmlToHtmlInOrder("setupSnippet");
-    console.log("setup snippets and references done\n");
 
     await recursiveXmlToHtmlInOrder("parseXml");
     writeSearchData(outputDir);

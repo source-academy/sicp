@@ -176,7 +176,10 @@ const processTextFunctions = {
   },
 
   AMP: (_node, obj) => {
-    processText("&amp;", obj);
+    // The JSON output is rendered as plain React text (see the frontend's
+    // handleText), not as HTML, so this must be the literal character, not
+    // the HTML entity string.
+    processText("&", obj);
   },
 
   // Tags with children and no body
