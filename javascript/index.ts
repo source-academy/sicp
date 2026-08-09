@@ -45,7 +45,7 @@ import { setupSnippetsJson } from "./processingFunctions/processSnippetJson.js";
 import { createTocJson } from "./generateTocJson.js";
 import { setupReferencesJson } from "./processingFunctions/processReferenceJson.js";
 import { createMain } from "./commands/utils.js";
-import { getEdition } from "./editions.js";
+import { getEdition, getPublishedChapterCount } from "./editions.js";
 import type { WriteBuffer } from "./types.js";
 
 export let parseType;
@@ -66,6 +66,15 @@ const inputDir = path.join(__dirname, "..", edition.inputDirName);
 const isPythonEdition = edition.language.key === "py";
 const pythonExcludedFrontmatter =
   /(02foreword02|03prefaces03|04acknowledgements04)/;
+
+// Chapters beyond this cutoff (see getPublishedChapterCount) are skipped
+// wholesale below, for every build target that walks this tree (web, json,
+// md, programs) and every edition, so they never reach the deployed site.
+const publishedChapterCount = getPublishedChapterCount();
+const unpublishedChapterDir = (dirName: string): boolean => {
+  const match = dirName.match(/^chapter(\d+)$/);
+  return match !== null && Number(match[1]) > publishedChapterCount;
+};
 
 const ensureDirectoryExists = (path, cb) => {
   fs.mkdir(path, err => {
@@ -265,7 +274,11 @@ async function recursiveTranslateXml(filepath, option) {
         promises.push(translateXml(filepath, file, option));
       }
     } else if (fs.lstatSync(path.join(fullPath, file)).isDirectory()) {
-      promises.push(recursiveTranslateXml(path.join(filepath, file), option));
+      if (unpublishedChapterDir(file)) {
+        // held back from this build (see getPublishedChapterCount)
+      } else {
+        promises.push(recursiveTranslateXml(path.join(filepath, file), option));
+      }
     }
   });
   await Promise.all(promises);
