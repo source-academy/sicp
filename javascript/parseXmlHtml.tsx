@@ -93,13 +93,11 @@ const preserveTags = new Set([
   "UL",
   "LI",
   "SECTIONCONTENT",
-  "CITATION",
   "TT",
   "TABLE",
   "TR",
   "TD",
-  "p",
-  "REFERENCE"
+  "p"
 ]);
 
 let processTextFunctionsHtml = {
@@ -142,6 +140,32 @@ let processTextFunctionsHtml = {
   WEBPREFACE: (node, writeTo) =>
     processTextFunctionsHtml["ABOUT"](node, writeTo),
   MATTER: (node, writeTo) => processTextFunctionsHtml["ABOUT"](node, writeTo),
+
+  // A <CITATION NAME="..."> links to its <REFERENCE NAME="..."> counterpart
+  // on the references page (see #112). The references page is always a
+  // sibling "references.html" (see tocUtils.ts's filename normalization),
+  // so the link works from any chapter/subsection page, not just when the
+  // citation happens to be on the references page itself. Citations without
+  // a NAME (no confidently-matched bibliography entry) render as plain
+  // text, same as before.
+  CITATION: (node, writeTo) => {
+    const name = node.getAttribute("NAME");
+    if (name) {
+      writeTo.push(`<a class="citation" href="references.html#${name}">`);
+      recursiveProcessTextHtml(node.firstChild, writeTo);
+      writeTo.push("</a>");
+    } else {
+      writeTo.push("<CITATION>");
+      recursiveProcessTextHtml(node.firstChild, writeTo);
+      writeTo.push("</CITATION>");
+    }
+  },
+  REFERENCE: (node, writeTo) => {
+    const name = node.getAttribute("NAME");
+    writeTo.push(name ? `<REFERENCE id="${name}">` : "<REFERENCE>");
+    recursiveProcessTextHtml(node.firstChild, writeTo);
+    writeTo.push("</REFERENCE>");
+  },
 
   AMP: (node, writeTo) => {
     writeTo.push("&amp;");
