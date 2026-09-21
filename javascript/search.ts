@@ -40,7 +40,9 @@ const indexParsers = {
   },
   PRIMITIVE: (node, json) => {
     json["text"] +=
-      "primitive functions (ECMAScript equivalent in parentheses if they are in the ECMAScript standard)";
+      lang.key === "py"
+        ? `primitive functions (${lang.referenceName} equivalent in parentheses if they are in ${lang.referenceName})`
+        : `primitive functions (${lang.referenceName} equivalent in parentheses if they are in the ${lang.referenceName} standard)`;
   },
   ENDASH: (node, json) => {
     json["text"] += "–";

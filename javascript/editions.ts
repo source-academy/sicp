@@ -32,6 +32,12 @@ export type LanguageDescriptor = {
   readonly displayName: string; // edition name in headers, e.g. "SICP JS" (Python: "SICPy")
   readonly languageName: string; // language name in the comparison-edition column header, e.g. "JavaScript" (Python: "Python")
   readonly fileExtension: string; // extracted-program extension, e.g. ".js" (Python: ".py")
+  // Name of the language standard/reference a <PRIMITIVE/> index entry's
+  // <ECMA>/<PLR> equivalent is drawn from, e.g. "ECMAScript" (Python: "PLR",
+  // for Python Language Reference). Used in the PRIMITIVE/OPERATOR index
+  // labels (see parseXmlLatex.js's INDEX handler and search.ts's PRIMITIVE
+  // handler).
+  readonly referenceName: string;
 };
 
 export const javascriptLanguage: LanguageDescriptor = {
@@ -45,7 +51,8 @@ export const javascriptLanguage: LanguageDescriptor = {
   commentPrefix: "//",
   displayName: "SICP JS",
   languageName: "JavaScript",
-  fileExtension: ".js"
+  fileExtension: ".js",
+  referenceName: "ECMAScript"
 };
 
 export const pythonLanguage: LanguageDescriptor = {
@@ -59,7 +66,8 @@ export const pythonLanguage: LanguageDescriptor = {
   commentPrefix: "#",
   displayName: "SICPy",
   languageName: "Python",
-  fileExtension: ".py"
+  fileExtension: ".py",
+  referenceName: "PLR"
 };
 
 // Scheme is the comparison anchor in the XML; the Scheme edition makes it the
@@ -77,7 +85,11 @@ export const schemeLanguage: LanguageDescriptor = {
   commentPrefix: ";",
   displayName: "SICP", // the original
   languageName: "Scheme",
-  fileExtension: ".scm"
+  fileExtension: ".scm",
+  // The Scheme edition's own xml/ tree only ever carries <ECMA> (no <PLR>
+  // counterpart exists for Scheme), so its PRIMITIVE/OPERATOR index labels
+  // stay ECMAScript-flavored, same as the JavaScript edition.
+  referenceName: "ECMAScript"
 };
 
 // An edition ties a language to its source tree and output naming. Every
