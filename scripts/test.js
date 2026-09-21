@@ -51,7 +51,7 @@ const USE_NATIVE_JS = IS_JAVASCRIPT && process.env.JS_SLANG === "0";
 let createContext, runInContext, parseError, sourceLanguages;
 if (IS_JAVASCRIPT && !USE_NATIVE_JS) {
   ({ createContext, runInContext, parseError } = require("js-slang"));
-  ({ sourceLanguages } = require("js-slang/dist/constants"));
+  ({ sourceLanguages } = require("js-slang/dist/langs"));
 }
 
 // The `sicp` package (generated from js-slang, same role as the Python
