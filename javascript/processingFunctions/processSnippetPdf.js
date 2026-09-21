@@ -350,13 +350,14 @@ export const processSnippetPdf = (node, writeTo) => {
       } else {
         variant = "";
       }
-      const url =
-        sourceAcademyURL +
-        "/playground\\#chap=" +
-        chap +
-        variant +
-        "&prgrm=" +
-        compressed;
+      // See processSnippetJson.js for why Python needs a different hash
+      // scheme (language=/variant= via the Conductor language directory,
+      // rather than chap=/variant= from the js-slang Chapter enum).
+      const hash =
+        lang.key === "py"
+          ? "language=python&variant=" + chap + "&prgrm=" + compressed
+          : "chap=" + chap + variant + "&prgrm=" + compressed;
+      const url = sourceAcademyURL + "/playground\\#" + hash;
 
       const chunks = (codeStr + "\n").match(
         /^((?:.*?[\r\n]+){1,36})((?:.|\n|\r)*)$/

@@ -203,13 +203,15 @@ export const processSnippetHtml = (node, writeTo, split) => {
           exampleStr
       );
 
-      const url =
-        sourceAcademyURL +
-        "/playground#chap=" +
-        chap +
-        variant +
-        "&prgrm=" +
-        compressed;
+      // See processSnippetJson.js for why Python needs a different hash
+      // scheme (language=/variant= via the Conductor language directory,
+      // rather than chap=/variant= from the js-slang Chapter enum).
+      const makeHash =
+        lang.key === "py"
+          ? program => "language=python&variant=" + chap + "&prgrm=" + program
+          : program => "chap=" + chap + variant + "&prgrm=" + program;
+
+      const url = sourceAcademyURL + "/playground#" + makeHash(compressed);
 
       const chunks = (codeStr + "\n").match(
         /^((?:.*?[\r\n]+){1,6})((?:.|\n|\r)*)$/
