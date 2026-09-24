@@ -1,0 +1,1875 @@
+<SUBSECTION>
+  <NAME>
+    Приклад: символічна алгебра
+  </NAME>
+
+  <LABEL NAME="sec:symbolic-algebra"/>
+  <INDEX>символічна алгебра<OPEN/></INDEX>
+  <TEXT>
+    Маніпулювання символічними алгебричними виразами — це складний
+    процес, який ілюструє багато з найважчих проблем, що виникають
+    у проєктуванні великомасштабних систем. Алгебричний
+    <INDEX>алгебричний вираз</INDEX>
+    вираз загалом можна розглядати як ієрархічну структуру, дерево
+    операторів, застосованих до операндів. Ми можемо будувати алгебричні вирази,
+    починаючи з набору примітивних об<APOS/>єктів, як-от сталі та
+    змінні, і комбінуючи їх за допомогою алгебричних операторів, як-от
+    додавання та множення. Як і в інших мовах, ми утворюємо
+    абстракції, які дають нам змогу посилатися на складені об<APOS/>єкти простими
+    термінами. Типові абстракції в символічній алгебрі — це такі ідеї, як
+    лінійна комбінація, многочлен, раціональна функція чи тригонометрична
+    функція. Ми можемо розглядати їх як складені <QUOTE>типи,</QUOTE> які
+    часто корисні для керування опрацюванням виразів. Наприклад, ми
+    могли б описати вираз
+
+    <LATEX>
+      \[ x^{2}\, \sin (y^2+1)+x\, \cos 2y+\cos (y^3 -2y^2) \]
+    </LATEX>
+    як многочлен за <LATEXINLINE>$x$</LATEXINLINE> з коефіцієнтами, які
+    є тригонометричними функціями від многочленів за
+    <LATEXINLINE>$y$</LATEXINLINE>, коефіцієнти яких є цілими числами.
+  </TEXT>
+  <TEXT>
+    Ми не намагатимемося тут розробити повну систему
+    алгебричних маніпуляцій. Такі системи — надзвичайно складні програми, що втілюють
+    глибокі алгебричні знання та елегантні алгоритми. Що ми зробимо, то це
+    розглянемо просту, але важливу частину алгебричних маніпуляцій:
+    арифметику многочленів. Ми проілюструємо різновиди рішень,
+    які постають перед розробником такої системи, і як застосувати ідеї
+    абстрактних даних та узагальнених операцій, щоб упорядкувати цю роботу.
+  </TEXT>
+
+  <SUBHEADING>
+    <NAME>Арифметика многочленів</NAME>
+  </SUBHEADING>
+
+  <INDEX>многочлен(и)<OPEN/></INDEX>
+  <INDEX>арифметика многочленів<OPEN/></INDEX>
+  <TEXT>
+    Наше перше завдання в проєктуванні системи для виконання арифметики над
+    многочленами — вирішити, що саме таке многочлен. Многочлени
+    зазвичай означують відносно певних змінних (
+    <INDEX>неозначене многочлена</INDEX>
+    <INDEX>многочлен(и)<SUBINDEX>неозначене</SUBINDEX></INDEX>
+    <EM>неозначених</EM> многочлена). Для простоти ми
+      обмежимося многочленами лише з одним неозначеним
+      <INDEX>одновимірний многочлен</INDEX>
+      <INDEX>многочлен(и)<SUBINDEX>одновимірні</SUBINDEX></INDEX>
+      <EM>(одновимірними многочленами</EM>).<FOOTNOTE>З іншого боку, ми
+      дозволимо многочлени, коефіцієнти яких самі є многочленами за іншими
+      змінними. Це дасть нам по суті ту саму виражальну
+      потужність, що й повна багатовимірна система, хоч це й справді веде до проблем
+      зведення типів, як обговорюється нижче.</FOOTNOTE> Ми означимо многочлен
+      як суму членів, кожен з яких є або коефіцієнтом, або степенем
+      неозначеного, або добутком коефіцієнта та степеня
+      неозначеного. Коефіцієнт означують як алгебричний вираз,
+      який не залежить від неозначеного многочлена. Наприклад,
+      <LATEX>
+        \[ 5x^2 +3x +7 \]
+      </LATEX>
+      це простий многочлен за <LATEXINLINE>$x$</LATEXINLINE>, а
+      <LATEX>
+        \[ (y^2 +1)x^3 +(2y)x+1 \]
+      </LATEX>
+      многочлен за <LATEXINLINE>$x$</LATEXINLINE>, коефіцієнти якого є
+      многочленами за <LATEXINLINE>$y$</LATEXINLINE>.
+  </TEXT>
+  <TEXT>
+    Ми вже торкаємося деяких колючих питань. Чи перший із цих
+    многочленів той самий, що й многочлен
+    <LATEXINLINE>$5y^2 +3y +7$</LATEXINLINE>, чи ні? Розумна відповідь
+    могла б бути <QUOTE>так, якщо ми розглядаємо многочлен суто як
+    математичну функцію, але ні, якщо ми розглядаємо многочлен як
+    синтаксичну форму.</QUOTE> Другий многочлен алгебрично еквівалентний
+    многочлену за <LATEXINLINE>$y$</LATEXINLINE>, коефіцієнти якого є
+    многочленами за <LATEXINLINE>$x$</LATEXINLINE>. Чи мала б наша система це
+    розпізнавати, чи ні? До того ж є інші способи подати
+    многочлен<EMDASH/>наприклад, як добуток множників, або (для
+    одновимірного многочлена) як множину коренів, або як перелік значень
+    многочлена в заданому наборі точок.<FOOTNOTE>Для одновимірних
+    многочленів подання многочлена значеннями в заданому наборі точок може
+    бути особливо добрим. Це робить арифметику многочленів
+    надзвичайно простою. Щоб отримати, наприклад, суму двох многочленів,
+    поданих у такий спосіб, нам треба лише додати значення
+    многочленів у відповідних точках. Щоб перетворити результат назад до
+    звичнішого подання, ми можемо скористатися
+    <INDEX>інтерполяційна формула Лагранжа</INDEX>
+    інтерполяційною формулою Лагранжа, яка показує, як відновити коефіцієнти
+    многочлена степеня <LATEXINLINE>$n$</LATEXINLINE> за значеннями
+    многочлена в <LATEXINLINE>$n+1$</LATEXINLINE> точках.</FOOTNOTE>
+    Ми можемо обійти ці питання, вирішивши, що в нашій
+    системі алгебричних маніпуляцій <QUOTE>многочлен</QUOTE> буде
+    певною синтаксичною формою, а не його математичним значенням.
+  </TEXT>
+  <TEXT>
+    Тепер ми мусимо розглянути, як виконувати арифметику над многочленами.
+    У цій простій системі ми розглянемо лише додавання та
+    множення. Понад те, ми вимагатимемо, щоб два многочлени, які треба
+    скомбінувати, мали те саме неозначене.
+  </TEXT>
+  <TEXT>
+    Ми підійдемо до проєктування нашої системи, дотримуючись звичної
+    дисципліни абстракції даних. Ми подаватимемо многочлени за допомогою
+    структури даних, що зветься
+    <INDEX>poly</INDEX>
+    <EM>poly</EM>, яка складається зі змінної та
+    <INDEX>список членів многочлена</INDEX>
+    набору членів. Ми припускаємо, що маємо селектори
+    <SCHEMEINLINE>variable</SCHEMEINLINE> та
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>term-list</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>term_list</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    які видобувають ці частини з poly, та конструктор
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>make-poly</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>make_poly</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    який збирає poly із заданої змінної та списку членів.
+    Змінна буде просто
+    <SPLITINLINE>
+      <SCHEME>
+	символом,
+      </SCHEME>
+      <PYTHON>
+	рядком,
+      </PYTHON>
+    </SPLITINLINE>
+    тож ми можемо скористатися
+     <INDEX><USE>is_same_variable</USE></INDEX> 
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>same-variable?</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>is_same_variable</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    <SPLITINLINE>
+      <SCHEME>процедурою</SCHEME>
+      <PYTHON>функцією</PYTHON>
+    </SPLITINLINE>
+    з підрозділу<SPACE/><REF NAME="sec:symbolic-differentiation"/>, щоб порівнювати
+    змінні.
+    Наступні
+    <SPLITINLINE>
+      <SCHEME>процедури</SCHEME>
+      <PYTHON>функції</PYTHON>
+    </SPLITINLINE>
+    означують
+    <INDEX>арифметика многочленів<SUBINDEX>додавання</SUBINDEX><OPEN/></INDEX>
+    <INDEX>арифметика многочленів<SUBINDEX>множення</SUBINDEX><OPEN/></INDEX>
+    додавання та множення poly:
+    <SNIPPET CHAP="4">
+      <INDEX><DECLARATION>add_poly</DECLARATION></INDEX> 
+      <INDEX><DECLARATION>mul_poly</DECLARATION></INDEX> 
+      <NAME>add_mul_poly</NAME>
+      <REQUIRES>install_python_number_package_usage</REQUIRES>
+      <REQUIRES>make_polynomial_requires</REQUIRES>
+      <REQUIRES>make_polynomial</REQUIRES>
+      <REQUIRES>make_polynomial_example</REQUIRES>
+      <SCHEME>
+(define (add-poly p1 p2)
+  (if (same-variable? (variable p1) (variable p2))
+    (make-poly (variable p1)
+               (add-terms (term-list p1)
+                          (term-list p2)))
+  (error "Polys not in same var - - ADD-POLY"
+         (list p1 p2))))
+
+(define (mul-poly p1 p2)
+  (if (same-variable? (variable p1) (variable p2))
+    (make-poly (variable p1)
+               (mul-terms (term-list p1)
+                          (term-list p2)))
+    (error "Polys not in same var - - MUL-POLY"
+           (list p1 p2))))
+      </SCHEME>
+      <PYTHON_RUN>
+      </PYTHON_RUN>
+      <PYTHON>
+def add_poly(p1, p2):
+    return (make_poly(variable(p1),
+                      add_terms(term_list(p1), term_list(p2)))
+            if is_same_variable(variable(p1), variable(p2))
+            else error("polys not in same var -- add_poly", llist(p1, p2)))
+def mul_poly(p1, p2):
+    return (make_poly(variable(p1),
+                      mul_terms(term_list(p1), term_list(p2)))
+            if is_same_variable(variable(p1), variable(p2))
+            else error("polys not in same var -- mul_poly", llist(p1, p2)))
+      </PYTHON>
+    </SNIPPET>
+  </TEXT>
+  <TEXT>
+    Щоб увести многочлени в нашу узагальнену арифметичну систему, нам треба
+    надати їм теги типів. Ми скористаємося тегом
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>polynomial</SCHEMEINLINE>,</SCHEME>
+      <PYTHON><PYTHONINLINE>"polynomial"</PYTHONINLINE>,
+      </PYTHON>
+    </SPLITINLINE>
+    і встановимо відповідні операції над тегованими многочленами в таблиці
+    операцій.
+    <SPLIT>
+      <SCHEME>
+	Ми вбудуємо весь наш код у процедуру встановлення
+	для пакета многочленів, подібну до тих, що в
+	підрозділі<SPACE/><REF NAME="sec:generic-arithmetic-operators"/>:
+	<SNIPPET LATEX="yes">
+	  <NAME>install_polynomial_package_template_scheme</NAME>
+	  <SCHEME>
+(define (install-polynomial-package)
+  ;; internal procedures
+  ;; representation of poly
+  (define (make-poly variable term-list)
+    (cons variable term-list))
+  (define (variable p) (car p))
+  (define (term-list p) (cdr p))
+  $langle$ procedures same-variable? and variable? from section 2.3.2 $\rangle$
+  ;; representation of terms and term lists
+  $langle$ procedures adjoin-term $\ldots$ coeff from text below $langle$
+  (define (add-poly p1 p2) $\ldots$)
+  $langle$ procedures used by add-poly $langle$
+  (define (mul-poly p1 p2) $\ldots$)
+  $langle$procedures used by mul-poly $langle$
+  ;; interface to rest of the system
+  (define (tag p) (attach-tag 'polynomial p))
+  (put 'add '(polynomial polynomial) 
+       (lambda (p1 p2) (tag (add-poly p1 p2))))
+  (put 'mul '(polynomial polynomial) 
+       (lambda (p1 p2) (tag (mul-poly p1 p2))))
+  (put 'make 'polynomial
+       (lambda (var terms) (tag (make-poly var terms))))
+  'done)
+	  </SCHEME>
+	</SNIPPET>
+      </SCHEME>
+      <PYTHON>
+	Ми вбудуємо весь наш код у функцію встановлення
+	для пакета многочленів,
+	подібну до функцій встановлення в
+	підрозділі<SPACE/><REF NAME="sec:generic-arithmetic-operators"/>:
+	  <SNIPPET EVAL="no" LATEX="yes">
+	    <INDEX>package<SUBINDEX>polynomial</SUBINDEX></INDEX>
+	    <INDEX><USE>polynomial</USE> package</INDEX> 
+	    <INDEX>polynomial arithmetic<SUBINDEX>interfaced to generic arithmetic system</SUBINDEX></INDEX>
+	    <INDEX><DECLARATION>install_polynomial_package</DECLARATION></INDEX> 
+	    <INDEX><DECLARATION>make_poly</DECLARATION></INDEX> 
+	    <INDEX><DECLARATION>variable</DECLARATION></INDEX> 
+	    <INDEX><DECLARATION>term_list</DECLARATION></INDEX> 
+	    <NAME>install_polynomial_package_template</NAME>
+	    <REQUIRES>install_python_number_package_usage</REQUIRES>
+	    <REQUIRES>make_polynomial_requires</REQUIRES>
+	    <REQUIRES>make_polynomial</REQUIRES>
+	    <REQUIRES>make_polynomial_example</REQUIRES>
+	    <PYTHON_RUN>
+	    </PYTHON_RUN>
+	    <PYTHON>
+def install_polynomial_package():
+    # internal functions
+    # representation of poly
+    def make_poly(variable, term_list):
+        return pair(variable, term_list)
+    def variable(p): return head(p)
+    def term_list(p): return tail(p)
+    <METAPHRASE>functions <PYTHONINLINE>is_same_variable</PYTHONINLINE> and <PYTHONINLINE>is_variable</PYTHONINLINE> from section 2.3.2</METAPHRASE>
+
+    # representation of terms and term lists
+    <METAPHRASE>functions <PYTHONINLINE>adjoin_term...coeff</PYTHONINLINE> from text below</METAPHRASE>
+
+    def add_poly(p1, p2): ...
+    <METAPHRASE>functions used by <PYTHONINLINE>add_poly</PYTHONINLINE></METAPHRASE>
+    def mul_poly(p1, p2): ...
+    <METAPHRASE>functions used by <PYTHONINLINE>mul_poly</PYTHONINLINE></METAPHRASE>
+
+    # interface to rest of the system
+    def tag(p): return attach_tag("polynomial", p)
+    put("add", llist("polynomial", "polynomial"),
+        lambda p1, p2: tag(add_poly(p1, p2)))
+    put("mul", llist("polynomial", "polynomial"),
+        lambda p1, p2: tag(mul_poly(p1, p2)))
+    put("make", "polynomial",
+        lambda variable, terms: tag(make_poly(variable, terms)))
+    return "done"
+	    </PYTHON>
+	  </SNIPPET>
+      </PYTHON>
+    </SPLIT>
+  </TEXT>
+  <TEXT>
+    Додавання многочленів виконують почленно. Члени однакового порядку
+    (тобто з однаковим степенем неозначеного) треба скомбінувати.
+    Це роблять, утворюючи новий член того самого порядку, коефіцієнт
+    якого є сумою коефіцієнтів доданків. Члени в одному доданку,
+    для яких у другому доданку немає членів того самого порядку,
+    просто накопичують у многочлен-суму, який будується.
+  </TEXT>
+  <TEXT>
+    Щоб маніпулювати списками членів, ми припустимо, що маємо
+    конструктор
+      <INDEX><USE>the_empty_termlist</USE></INDEX>  
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>the-empty-termlist</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>the_empty_termlist</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    який повертає порожній список членів, та конструктор
+      <INDEX><USE>adjoin_term</USE></INDEX> 
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>adjoin-term</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>adjoin_@term</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    який приєднує новий член до списку членів. Ми також припустимо, що маємо
+    предикат
+      <INDEX><USE>is_empty_termlist</USE></INDEX> 
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>empty-termlist?</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>is_empty_termlist</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    який каже, чи заданий список членів порожній, селектор
+      <INDEX><USE>first_term</USE></INDEX> 
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>first-term</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>first_term</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    який видобуває член найвищого порядку зі списку членів, і селектор
+      <INDEX><USE>rest_terms</USE></INDEX> 
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>rest-terms</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>rest_terms</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    який повертає все, крім члена найвищого порядку. Щоб маніпулювати членами,
+    ми припустимо, що маємо конструктор
+      <INDEX><USE>make_term</USE></INDEX> 
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>make-term</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>make_term</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    який будує член із заданими порядком і коефіцієнтом, та селектори
+      <INDEX><USE>order</USE></INDEX> 
+    <SCHEMEINLINE>order</SCHEMEINLINE> і
+      <INDEX><USE>coeff</USE></INDEX> 
+    <SCHEMEINLINE>coeff</SCHEMEINLINE> які повертають, відповідно, порядок
+    і коефіцієнт члена. Ці операції дають нам змогу розглядати
+    і члени, і списки членів як абстракції даних, про конкретне
+    подання яких ми можемо подбати окремо.
+  </TEXT>
+  <TEXT>
+    Ось
+    <SPLITINLINE>
+      <SCHEME>процедура</SCHEME>
+      <PYTHON>функція</PYTHON>
+    </SPLITINLINE>
+    яка будує список членів для суми двох
+    <SPLITINLINE><SCHEME>многочленів:</SCHEME><PYTHON>многочленів:</PYTHON></SPLITINLINE><FOOTNOTE>Ця операція дуже схожа на впорядковану
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>union-set</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>union_set</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    операцію, яку ми розробили у вправі<SPACE/><REF NAME="ex:union-set"/>.
+    Справді, якщо думати про члени многочлена як про множину, впорядковану
+    за степенем неозначеного, то програма, яка
+    породжує список членів для суми, майже ідентична
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>union-set</SCHEMEINLINE>.</SCHEME>
+      <PYTHON><PYTHONINLINE>union_set</PYTHONINLINE>.</PYTHON>
+    </SPLITINLINE></FOOTNOTE>
+    <SNIPPET CHAP="4">
+      <INDEX><DECLARATION>add_terms</DECLARATION></INDEX> 
+      <NAME>add_terms</NAME>
+      <REQUIRES>install_python_number_package_usage</REQUIRES>
+      <REQUIRES>make_polynomial_requires</REQUIRES>
+      <REQUIRES>make_polynomial</REQUIRES>
+      <REQUIRES>make_polynomial_example</REQUIRES>
+      <SCHEME>
+          (define (add-terms L1 L2)
+          (cond ((empty-termlist? L1) L2)
+          ((empty-termlist? L2) L1)
+          (else
+          (let ((t1 (first-term L1)) (t2 (first-term L2)))
+          (cond ((&gt; (order t1) (order t2))
+          (adjoin-term
+          t1 (add-terms (rest-terms L1) L2)))
+          ((&lt; (order t1) (order t2))
+          (adjoin-term
+          t2 (add-terms L1 (rest-terms L2))))
+          (else
+          (adjoin-term
+          (make-term (order t1)
+          (add (coeff t1) (coeff t2)))
+          (add-terms (rest-terms L1)
+          (rest-terms L2)))))))))
+      </SCHEME>
+      <PYTHON_RUN>
+      </PYTHON_RUN>
+      <PYTHON>
+def add_terms(L1, L2):
+    if is_empty_termlist(L1):
+        return L2
+    elif is_empty_termlist(L2):
+        return L1
+    else:
+        t1 = first_term(L1)
+        t2 = first_term(L2)
+        return (adjoin_term(t1, add_terms(rest_terms(L1), L2))
+                if order(t1) &gt; order(t2)
+                else adjoin_term(t2, add_terms(L1, rest_terms(L2)))
+                if order(t1) &lt; order(t2)
+                else adjoin_term(make_term(order(t1),
+                                           add(coeff(t1), coeff(t2))),
+                                 add_terms(rest_terms(L1),
+                                           rest_terms(L2))))
+      </PYTHON>
+    </SNIPPET>
+    Найважливіше тут те, що ми скористалися узагальненою процедурою
+    <SPLITINLINE>
+      <SCHEME>додавання</SCHEME>
+      <PYTHON>додавання</PYTHON>
+    </SPLITINLINE>
+     <INDEX><USE>add</USE> (generic)<SUBINDEX>використовується для коефіцієнтів многочленів</SUBINDEX></INDEX>
+    <SCHEMEINLINE>add</SCHEMEINLINE> щоб додати коефіцієнти
+    членів, які комбінуються. Це має потужні наслідки, як ми побачимо нижче.
+  </TEXT>
+  <TEXT>
+    Щоб перемножити два списки членів, ми множимо кожен член першого
+    <SPLITINLINE><SCHEME>списку</SCHEME><PYTHON>зв<APOS/>язаного списку</PYTHON></SPLITINLINE> на всі члени іншого <SPLITINLINE><SCHEME>списку</SCHEME><PYTHON>зв<APOS/>язаного списку</PYTHON></SPLITINLINE>, повторно використовуючи
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>mul-term-by-all-terms</SCHEMEINLINE>,</SCHEME>
+      <PYTHON><PYTHONINLINE>mul_term_by_all_terms</PYTHONINLINE>,
+      </PYTHON>
+    </SPLITINLINE>
+    що множить заданий член на всі члени в заданому списку членів. Отримані
+    списки членів (по одному для кожного члена першого списку) накопичують
+    у суму. Множення двох членів утворює член, порядок якого є сумою
+    порядків множників, а коефіцієнт — добутком
+    коефіцієнтів множників:
+    <SNIPPET CHAP="4">
+      <INDEX><DECLARATION>mul_terms</DECLARATION></INDEX> 
+      <NAME>mul_terms</NAME>
+      <REQUIRES>install_python_number_package_usage</REQUIRES>
+      <REQUIRES>make_polynomial_requires</REQUIRES>
+      <REQUIRES>make_polynomial</REQUIRES>
+      <REQUIRES>make_polynomial_example</REQUIRES>
+      <SCHEME>
+          (define (mul-terms L1 L2)
+          (if (empty-termlist? L1)
+          (the-empty-termlist)
+          (add-terms (mul-term-by-all-terms (first-term L1) L2)
+          (mul-terms (rest-terms L1) L2))))
+
+          (define (mul-term-by-all-terms t1 L)
+          (if (empty-termlist? L)
+          (the-empty-termlist)
+          (let ((t2 (first-term L)))
+          (adjoin-term
+          (make-term (+ (order t1) (order t2))
+          (mul (coeff t1) (coeff t2)))
+          (mul-term-by-all-terms t1 (rest-terms L))))))
+      </SCHEME>
+      <PYTHON_RUN>
+      </PYTHON_RUN>
+      <PYTHON>
+def mul_terms(L1, L2):
+    return (the_empty_termlist
+            if is_empty_termlist(L1)
+            else add_terms(mul_term_by_all_terms(
+                                  first_term(L1), L2),
+                           mul_terms(rest_terms(L1), L2)))
+def mul_term_by_all_terms(t1, L):
+    if is_empty_termlist(L):
+        return the_empty_termlist
+    else:
+        t2 = first_term(L)
+        return adjoin_term(
+                   make_term(order(t1) + order(t2),
+                             mul(coeff(t1), coeff(t2))),
+                   mul_term_by_all_terms(t1, rest_terms(L)))
+      </PYTHON>
+    </SNIPPET>
+  </TEXT>
+  <TEXT>
+    Це справді все, що є в додаванні та множенні многочленів.
+    Зауважте, що, оскільки ми працюємо з членами, користуючись узагальненими
+    <SPLITINLINE>
+      <SCHEME>процедурами</SCHEME>
+      <PYTHON>функціями</PYTHON>
+    </SPLITINLINE>
+    <INDEX><USE>add</USE> (generic)<SUBINDEX>використовується для коефіцієнтів многочленів</SUBINDEX></INDEX>
+    <INDEX><USE>mul</USE> (generic)<SUBINDEX>використовується для коефіцієнтів многочленів</SUBINDEX></INDEX>
+    <SCHEMEINLINE>add</SCHEMEINLINE> та <SCHEMEINLINE>mul</SCHEMEINLINE>,
+    наш пакет многочленів автоматично здатен працювати з будь-яким типом
+    коефіцієнтів, відомим узагальненому арифметичному пакету.
+    Якщо ми включимо
+    <INDEX>зведення типів<SUBINDEX>в арифметиці многочленів</SUBINDEX></INDEX>
+    механізм зведення типів, як один із тих, що обговорюються в
+    підрозділі<SPACE/><REF NAME="sec:combining-data-of-different-types"/>,
+    то ми також автоматично зможемо працювати з операціями над
+    многочленами з різними типами коефіцієнтів, як-от
+    <LATEX>
+      \[
+      \begin{array}{l}
+      {\left[3x^2 +(2+3i)x+7\right] \cdot \left[x^4 +\frac{2}{3}x^2
+      +(5+3i)\right]}
+      \end{array}
+      \]
+    </LATEX>
+  </TEXT>
+  <TEXT>
+    Оскільки ми встановили процедури додавання та множення многочленів
+    <SPLITINLINE>
+      <SCHEME></SCHEME>
+      <PYTHON></PYTHON>
+    </SPLITINLINE>
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>add-poly</SCHEMEINLINE></SCHEME>
+    <PYTHON><PYTHONINLINE>add_@poly</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    та
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>mul-poly</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>mul_poly</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    в узагальненій арифметичній системі як операції <SCHEMEINLINE>add</SCHEMEINLINE>
+    та <SCHEMEINLINE>mul</SCHEMEINLINE> для типу
+    <SCHEMEINLINE>polynomial</SCHEMEINLINE>, наша система також автоматично
+    здатна працювати з такими операціями над многочленами, як
+    <LATEX>
+      \[
+      \begin{array}{l}
+      {\left[ (y+1)x^2 +(y^2 +1)x+(y-1)\right]\cdot \left[(y-2)x+(y^3 +7)\right]}
+      \end{array}
+      \]
+    </LATEX>
+    Причина в тому, що коли система намагається скомбінувати коефіцієнти, вона
+    диспетчеризує через <SCHEMEINLINE>add</SCHEMEINLINE> та
+    <SCHEMEINLINE>mul</SCHEMEINLINE>. Оскільки коефіцієнти самі є
+    многочленами (за <LATEXINLINE>$y$</LATEXINLINE>), їх буде скомбіновано
+    за допомогою
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>add-poly</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>add_poly</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    та
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>mul-poly</SCHEMEINLINE>.</SCHEME>
+      <PYTHON><PYTHONINLINE>mul_poly</PYTHONINLINE>.</PYTHON>
+    </SPLITINLINE>
+    Результат — різновид
+    <INDEX>рекурсія, керована даними</INDEX>
+    <INDEX>рекурсія<SUBINDEX>керована даними</SUBINDEX></INDEX>
+    <QUOTE>рекурсії, керованої даними</QUOTE>, у якій, наприклад, виклик
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>mul-poly</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>mul_poly</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    призведе до рекурсивних викликів
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>mul-poly</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>mul_poly</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    щоб перемножити коефіцієнти. Якби коефіцієнти
+    коефіцієнтів самі були многочленами (як могло б використовуватися для подання
+    многочленів від трьох змінних), напрямок даних забезпечив би, що
+    система пройде ще один рівень рекурсивних викликів, і так далі
+    стільки рівнів, скільки вимагає структура даних.<FOOTNOTE>Щоб
+    це працювало цілком гладко, нам слід також додати до нашої узагальненої
+    арифметичної системи здатність зводити <QUOTE>число</QUOTE> до
+    многочлена, розглядаючи його як многочлен нульового степеня, коефіцієнт
+    якого — це число. Це потрібно, якщо ми збираємося виконувати такі операції, як
+    <LATEX>
+      \[
+      {\left[ x^2 +(y+1)x+5\right]+ \left[ x^2 +2x+1\right]}
+      \]
+    </LATEX>
+    що вимагає додавання коефіцієнта <LATEXINLINE>$y+1$</LATEXINLINE> до
+    коефіцієнта 2.</FOOTNOTE>
+    <INDEX>арифметика многочленів<SUBINDEX>додавання</SUBINDEX><CLOSE/></INDEX>
+    <INDEX>арифметика многочленів<SUBINDEX>множення</SUBINDEX><CLOSE/></INDEX>
+  </TEXT>
+
+  <SUBHEADING>
+    <NAME>Подання списків членів</NAME>
+  </SUBHEADING>
+
+  <INDEX>список членів многочлена<SUBINDEX>подання</SUBINDEX><OPEN/></INDEX>
+  <TEXT>
+    Нарешті ми мусимо взятися за реалізацію доброго
+    подання списків членів. Список членів — це, по суті, множина
+    коефіцієнтів, ключем яких є порядок члена. Отже, будь-який із
+    методів подання множин, обговорюваних у
+    підрозділі<SPACE/><REF NAME="sec:representing-sets"/>, можна застосувати до цієї
+    задачі. З іншого боку, наші
+    <SPLITINLINE>
+      <SCHEME>процедури</SCHEME>
+      <PYTHON>функції</PYTHON>
+    </SPLITINLINE>
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>add-terms</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>add_terms</PYTHONINLINE></PYTHON>
+    </SPLITINLINE> та <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>mul-terms</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>mul_terms</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    завжди звертаються до списків членів послідовно від найвищого до найнижчого порядку.
+    Тож ми скористаємося поданням у вигляді <SPLITINLINE><SCHEME>впорядкованого списку</SCHEME><PYTHON>впорядкованого зв<APOS/>язаного списку</PYTHON></SPLITINLINE>.
+  </TEXT>
+  <TEXT>
+    Як нам структурувати список, що подає список членів? Одне
+    міркування — <QUOTE>щільність</QUOTE> многочленів, якими ми збираємося
+    маніпулювати. Многочлен називають
+    <INDEX>щільний многочлен</INDEX>
+    <INDEX>многочлен(и)<SUBINDEX>щільні</SUBINDEX></INDEX>
+    <EM>щільним</EM>, якщо він має ненульові коефіцієнти при більшості порядків.
+    Якщо він має багато нульових членів, його називають
+    <INDEX>розріджений многочлен</INDEX>
+    <INDEX>многочлен(и)<SUBINDEX>розріджені</SUBINDEX></INDEX>
+    <EM>розрідженим</EM>. Наприклад,
+    <LATEX>
+      \[ A:\quad x^5 +2x^4 +3x^2 -2x -5 \]
+    </LATEX>
+    щільний многочлен, тоді як
+    <LATEX>
+      \[ B:\quad x^{100} +2x^2 +1 \]
+    </LATEX>
+    розріджений.
+  </TEXT>
+  <TEXT>
+    <SPLITINLINE>
+      <SCHEME>
+	Списки членів щільних многочленів найефективніше подавати
+	як списки коефіцієнтів.
+      </SCHEME>
+      <PYTHON>
+	Список членів щільного многочлена найефективніше подавати
+	як зв<APOS/>язаний список коефіцієнтів.
+      </PYTHON>
+    </SPLITINLINE>
+    Наприклад,
+    <SPLITINLINE>
+      <PYTHON>
+	многочлен
+      </PYTHON>
+    </SPLITINLINE>
+    <LATEXINLINE>$A$</LATEXINLINE> вище гарно подати як
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>(1 2 0 3 -2 -5)</SCHEMEINLINE>.</SCHEME>
+      <PYTHON><PYTHONINLINE>llist(1, 2, 0, 3, -2, -5)</PYTHONINLINE>.
+      </PYTHON>
+    </SPLITINLINE>
+    Порядок члена в цьому поданні — це довжина підсписку,
+    що починається з коефіцієнта цього члена, зменшена на 1.<FOOTNOTE>У
+    цих прикладах із многочленами ми припускаємо, що реалізували узагальнену
+    арифметичну систему, користуючись механізмом типів, запропонованим у
+    вправі<SPACE/><REF NAME="ex:internal-type-system"/>. Отже, коефіцієнти,
+    які є звичайними числами, будуть подані самими числами,
+    а не парами, чиїй
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>car</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>head</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    є
+    <SPLITINLINE>
+      <SCHEME>символ <SCHEMEINLINE>scheme-number</SCHEMEINLINE>.</SCHEME>
+      <PYTHON>рядок
+      <PYTHONINLINE>"python_number"</PYTHONINLINE>.
+      </PYTHON>
+    </SPLITINLINE></FOOTNOTE>  
+    Це було б жахливе подання для розрідженого многочлена, як-от
+    <LATEXINLINE>$B$</LATEXINLINE>: там був би велетенський <SPLITINLINE><SCHEME>список</SCHEME><PYTHON>зв<APOS/>язаний список</PYTHON></SPLITINLINE> нулів,
+    розбавлений кількома самотніми ненульовими членами. Розумніше подання
+    списку членів розрідженого многочлена — як <SPLITINLINE><SCHEME>списку</SCHEME><PYTHON>зв<APOS/>язаного списку</PYTHON></SPLITINLINE> ненульових членів,
+    де кожен член — це <SPLITINLINE><SCHEME>список</SCHEME><PYTHON>зв<APOS/>язаний список</PYTHON></SPLITINLINE>, що містить порядок члена та
+    коефіцієнт для цього порядку. У такій схемі многочлен
+    <LATEXINLINE>$B$</LATEXINLINE> ефективно подається як
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>((100 1) (2 2) (0 1))</SCHEMEINLINE>.</SCHEME>
+      <PYTHON>
+	<PYTHONINLINE>llist(llist(100, 1), llist(2, 2), llist(0, 1))</PYTHONINLINE>.
+      </PYTHON>
+    </SPLITINLINE>
+    Оскільки більшість маніпуляцій із многочленами виконують над розрідженими многочленами, ми
+    скористаємося цим методом. Ми припустимо, що списки членів подано як
+    <SPLITINLINE><SCHEME>списки</SCHEME><PYTHON>зв<APOS/>язані списки</PYTHON></SPLITINLINE> членів, упорядковані від члена найвищого порядку до найнижчого. Щойно ми
+    ухвалили це рішення, реалізація селекторів і конструкторів для
+    членів та списків членів стає прямолінійною:<FOOTNOTE>Хоч ми й припускаємо,
+    що списки членів впорядковані, ми реалізували
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>adjoin-term</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>adjoin_term</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    так, щоб вона просто
+    <SPLITINLINE>
+      <SCHEME>
+	<SCHEMEINLINE>cons</SCHEMEINLINE>
+	нового члена до наявного списку членів.
+      </SCHEME>
+      <PYTHON>
+	приєднувала новий член на початок наявного списку членів.
+      </PYTHON>
+    </SPLITINLINE>
+    Ми можемо собі це дозволити, поки
+    гарантуємо, що
+    <SPLITINLINE>
+      <SCHEME>процедури</SCHEME>
+      <PYTHON>функції</PYTHON>
+    </SPLITINLINE>
+    (як-от
+    <SPLITINLINE>
+      <SCHEME>
+      <SCHEMEINLINE>add-terms</SCHEMEINLINE>)</SCHEME>
+    <PYTHON><PYTHONINLINE>add_terms</PYTHONINLINE>)</PYTHON>
+    </SPLITINLINE>
+    які використовують
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>adjoin-term</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>adjoin_term</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    завжди викликають її з членом вищого порядку, ніж наявний у <SPLITINLINE><SCHEME>списку</SCHEME><PYTHON>зв’язаному списку</PYTHON></SPLITINLINE>. Якби ми
+    не хотіли давати такої гарантії, ми могли б реалізувати
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>adjoin-term</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>adjoin_term</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    подібно до
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>adjoin-set</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>adjoin_set</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    конструктора для подання множин <SPLITINLINE><SCHEME>впорядкованим списком</SCHEME><PYTHON>впорядкованим зв’язаним списком</PYTHON></SPLITINLINE>
+    (вправа<SPACE/><REF NAME="ex:adjoin-set"/>).
+    <LABEL NAME="foot:adjoin-term"/></FOOTNOTE>
+    <SNIPPET CHAP="4">
+      <INDEX><DECLARATION>adjoin_term</DECLARATION></INDEX> 
+      <INDEX><DECLARATION>the_empty_termlist</DECLARATION></INDEX> 
+      <INDEX><DECLARATION>first_term</DECLARATION></INDEX> 
+      <INDEX><DECLARATION>rest_terms</DECLARATION></INDEX> 
+      <INDEX><DECLARATION>is_empty_termlist</DECLARATION></INDEX> 
+      <INDEX><DECLARATION>make_term</DECLARATION></INDEX> 
+      <INDEX><DECLARATION>order</DECLARATION></INDEX> 
+      <INDEX><DECLARATION>coeff</DECLARATION></INDEX> 
+      <NAME>adjoin_term</NAME>
+      <REQUIRES>install_python_number_package_usage</REQUIRES>
+      <REQUIRES>make_polynomial_requires</REQUIRES>
+      <REQUIRES>make_polynomial</REQUIRES>
+      <REQUIRES>make_polynomial_example</REQUIRES>
+      <SCHEME>
+          (define (adjoin-term term term-list)
+          (if (=zero? (coeff term))
+          term-list
+          (cons term term-list)))
+
+          (define (the-empty-termlist) '())
+          (define (first-term term-list) (car term-list))
+          (define (rest-terms term-list) (cdr term-list))
+          (define (empty-termlist? term-list) (null? term-list))
+
+          (define (make-term order coeff) (list order coeff))
+          (define (order term) (car term))
+          (define (coeff term) (cadr term))
+      </SCHEME>
+      <PYTHON_RUN>
+      </PYTHON_RUN>
+      <PYTHON>
+def adjoin_term(term, term_list):
+    return (term_list
+            if is_equal_to_zero(coeff(term))
+            else pair(term, term_list))
+
+the_empty_termlist = None
+<SHORT_SPACE/>
+def first_term(term_list): return head(term_list)
+<SHORT_SPACE/>
+def rest_terms(term_list): return tail(term_list)
+<SHORT_SPACE/>
+def is_empty_termlist(term_list): return is_none(term_list)
+
+def make_term(order, coeff): return llist(order, coeff)
+<SHORT_SPACE/>
+def order(term): return head(term)
+<SHORT_SPACE/>
+def coeff(term): return head(tail(term))
+      </PYTHON>
+    </SNIPPET>
+    де
+    <SPLITINLINE><SCHEME><SCHEMEINLINE>=zero?</SCHEMEINLINE></SCHEME>
+    <PYTHON><PYTHONINLINE>is_equal_to_zero</PYTHONINLINE>
+    </PYTHON>
+    </SPLITINLINE>
+    означена, як у вправі<SPACE/><REF NAME="ex:=zero?"/>. (Див. також
+    вправу<SPACE/><REF NAME="ex:adjoin-term"/> нижче.)
+  </TEXT>
+  <TEXT>
+    Користувачі пакета многочленів створюватимуть (теговані) многочлени за допомогою
+    <SPLITINLINE>
+      <SCHEME>процедури:</SCHEME>
+      <PYTHON>функції:</PYTHON>
+    </SPLITINLINE>
+    <SNIPPET HIDE="yes">
+      <NAME>make_polynomial_requires</NAME>
+      <REQUIRES>is_same_variable</REQUIRES>
+      <PYTHON>
+def install_python_number_is_equal_to_zero():
+    put("is_equal_to_zero", llist("python_number"),
+        lambda x: x == 0)
+    return "done"
+install_python_number_is_equal_to_zero()
+
+def is_equal_to_zero(x):
+    return apply_generic("is_equal_to_zero", llist(x))
+
+def install_polynomial_package():
+
+    # internal functions
+
+    # representation of poly
+    def make_poly(variable, term_list):
+        return pair(variable, term_list)
+    def variable(p): return head(p)
+    def term_list(p): return tail(p)
+
+    # representation of terms and term lists
+    def adjoin_term(term, term_list):
+        return (term_list
+                if is_equal_to_zero(coeff(term))
+                else pair(term, term_list))
+    the_empty_termlist = None
+    def first_term(term_list):
+        return head(term_list)
+    def rest_terms(term_list):
+        return tail(term_list)
+    def is_empty_termlist(term_list):
+        return is_none(term_list)
+    def make_term(order, coeff):
+        return llist(order, coeff)
+    def order(term):
+        return head(term)
+    def coeff(term):
+        return head(tail(term))
+
+    def add_poly(p1, p2):
+        return (make_poly(variable(p1),
+                          add_terms(term_list(p1),
+                                    term_list(p2)))
+                if is_same_variable(variable(p1), variable(p2))
+                else error("polys not in same var -- add_poly",
+                           llist(p1, p2)))
+
+    def add_terms(L1, L2):
+        if is_empty_termlist(L1):
+          return L2
+        elif is_empty_termlist(L2):
+          return L1
+        else:
+            t1 = first_term(L1)
+            t2 = first_term(L2)
+            return (adjoin_term(t1, add_terms(rest_terms(L1), L2))
+                    if order(t1) &gt; order(t2)
+                    else adjoin_term(t2, add_terms(L1, rest_terms(L2)))
+                    if order(t1) &lt; order(t2)
+                    else adjoin_term(make_term(order(t1),
+                                               add(coeff(t1),
+                                                   coeff(t2))),
+                                     add_terms(rest_terms(L1),
+                                               rest_terms(L2))))
+
+    def mul_poly(p1, p2):
+        return (make_poly(variable(p1),
+                          mul_terms(term_list(p1),
+                                    term_list(p2)))
+                if is_same_variable(variable(p1), variable(p2))
+                else error("polys not in same var -- mul_poly",
+                           llist(p1, p2)))
+
+    def mul_terms(L1, L2):
+        return (the_empty_termlist
+                if is_empty_termlist(L1)
+                else add_terms(mul_term_by_all_terms(
+                                      first_term(L1), L2),
+                               mul_terms(rest_terms(L1), L2)))
+    def mul_term_by_all_terms(t1, L):
+        if is_empty_termlist(L):
+            return the_empty_termlist
+        else:
+            t2 = first_term(L)
+            return adjoin_term(
+                       make_term(order(t1) + order(t2),
+                                 mul(coeff(t1), coeff(t2))),
+                       mul_term_by_all_terms(t1, rest_terms(L)))
+
+    # interface to rest of the system
+    def tag(p):
+        return attach_tag("polynomial", p)
+    put("add", llist("polynomial", "polynomial"),
+        lambda p1, p2: tag(add_poly(p1, p2)))
+    put("mul", llist("polynomial", "polynomial"),
+        lambda p1, p2: tag(mul_poly(p1, p2)))
+    put("make", "polynomial",
+        lambda variable, terms:
+            tag(make_poly(variable, terms)))
+    return "done"
+print(install_polynomial_package())
+      </PYTHON>
+    </SNIPPET>
+    <SNIPPET CHAP="4" POSTPADDING="no">
+      <INDEX><DECLARATION>make_polynomial</DECLARATION></INDEX> 
+      <NAME>make_polynomial</NAME>
+      <REQUIRES>install_python_number_package_usage</REQUIRES>
+      <REQUIRES>make_polynomial_requires</REQUIRES>
+      <EXAMPLE>make_polynomial_example</EXAMPLE>
+      <EXPECTED>[ 3, [ [ 'python_number', 23 ], None ] ]</EXPECTED>
+      <SCHEME>
+          (define (make-polynomial var terms)
+          ((get 'make 'polynomial) var terms))
+      </SCHEME>
+      <PYTHON>
+def make_polynomial(variable, terms):
+    return get("make", "polynomial")(variable, terms)
+      </PYTHON>
+    </SNIPPET>
+    <SNIPPET HIDE="yes">
+      <NAME>make_polynomial_example</NAME>
+      <PYTHON>
+p1 = make_polynomial("x",
+                     llist(make_term(2, make_python_number(4)),
+                           make_term(1, make_python_number(3)),
+                           make_term(0, make_python_number(7))))
+p2 = make_polynomial("x",
+                     llist(make_term(2, make_python_number(5)),
+                           make_term(1, make_python_number(2)),
+                           make_term(0, make_python_number(10))))
+
+print(mul(p1, p2))
+      </PYTHON>
+      <PYTHON_TEST>
+p1 = make_polynomial("x",
+                     llist(llist(2, make_python_number(4)),
+                           llist(1, make_python_number(3)),
+                           llist(0, make_python_number(7))))
+p2 = make_polynomial("x",
+                     llist(llist(2, make_python_number(5)),
+                           llist(1, make_python_number(2)),
+                           llist(0, make_python_number(10))))
+
+print(head(tail(tail(tail(mul(p1, p2))))))
+      </PYTHON_TEST>
+    </SNIPPET>
+  </TEXT>
+  <EXERCISE>
+    Встановіть
+    <INDEX><USE>is_equal_to_zero</USE> (generic)<SUBINDEX>for polynomials</SUBINDEX></INDEX>
+    <INDEX>перевірка на нуль (узагальнена)<SUBINDEX>для многочленів</SUBINDEX></INDEX>
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>=zero?</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>is_equal_to_zero</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    для многочленів у пакеті узагальненої арифметики. Це дасть змогу
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>adjoin-term</SCHEMEINLINE></SCHEME>
+    <PYTHON><PYTHONINLINE>adjoin_term</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    працювати для многочленів, коефіцієнти яких самі є многочленами.
+    <LABEL NAME="ex:adjoin-term"/>
+  </EXERCISE>
+
+  <EXERCISE>
+    Розширте систему многочленів, щоб включити
+    <INDEX>арифметика многочленів<SUBINDEX>віднімання</SUBINDEX></INDEX>
+    віднімання многочленів.
+    (Підказка: вам може допомогти означення узагальненої операції заперечення.)
+    <LABEL NAME="ex:sub-poly"/>
+    <SOLUTION>
+      <SNIPPET EVAL="no">
+	<NAME>ex_2_88_solution</NAME>
+	<PYTHON>
+def sub_terms(L1, L2):
+    if is_empty_termlist(L1):
+        return L2
+    elif is_empty_termlist(L2):
+        return L1
+    else:
+        t1 = first_term(L1)
+        t2 = first_term(L2)
+        return (adjoin_term(t1, sub_terms(rest_terms(L1), L2))
+                if order(t1) &gt; order(t2)
+                else adjoin_term(t2, sub_terms(L1, rest_terms(L2)))
+                if order(t1) &lt; order(t2)
+                else adjoin_term(make_term(order(t1),
+                                           sub(coeff(t1), coeff(t2))),
+                                 sub_terms(rest_terms(L1),
+                                           rest_terms(L2))))
+def sub_poly(p1, p2):
+    return (make_poly(variable(p1),
+                      sub_terms(term_list(p1), term_list(p2)))
+            if is_same_variable(variable(p1), variable(p2))
+            else error("polys not in same var -- sub_poly", llist(p1, p2)))
+	</PYTHON>
+      </SNIPPET>
+    </SOLUTION>
+  </EXERCISE>
+
+  <EXERCISE>
+    <LABEL NAME="ex:2_89"/>
+    <SPLITINLINE>
+      <SCHEME>Означте процедури</SCHEME>
+      <PYTHON>Оголосіть функції</PYTHON>
+    </SPLITINLINE>
+    які реалізують описане вище подання списку членів, доречне
+    для щільних многочленів.
+  </EXERCISE>
+
+  <EXERCISE>
+    <LABEL NAME="ex:2_90"/>
+    Припустімо, ми хочемо мати систему многочленів, ефективну і для
+    розріджених, і для щільних многочленів. Один спосіб зробити це — дозволити в
+    нашій системі обидва різновиди подання списків членів. Ситуація
+    аналогічна до прикладу з комплексними числами в
+    підрозділі<SPACE/><REF NAME="sec:multiple-reps"/>, де ми дозволили і
+    прямокутне, і полярне подання. Щоб це зробити, ми мусимо розрізняти
+    різні типи списків членів і зробити операції над списками членів
+    узагальненими. Перепроєктуйте систему многочленів, щоб реалізувати це узагальнення.
+    Це велика робота, а не локальна зміна.
+  </EXERCISE>
+ 
+  <INDEX>список членів многочлена<SUBINDEX>подання</SUBINDEX><CLOSE/></INDEX>
+
+  <EXERCISE>
+    <LABEL NAME="ex:/terms"/>
+    Одновимірний многочлен можна поділити на інший, щоб отримати
+    <INDEX>арифметика многочленів<SUBINDEX>ділення</SUBINDEX></INDEX>
+    многочленну частку та многочленну остачу. Наприклад,
+    <LATEX>
+      \[
+      \begin{array}{lll}
+      \dfrac{x^5-1}{x^2 -1} &amp; = &amp; x^3 +x,\ \text{remainder }x-1
+      \end{array}
+      \]
+    </LATEX>
+    Ділення можна виконувати як ділення кутом.
+    Тобто поділіть член найвищого порядку діленого на
+    член найвищого порядку дільника. Результат — перший член
+    частки. Далі помножте результат на дільник, відніміть це
+    від діленого й отримайте решту відповіді, рекурсивно
+    поділивши різницю на дільник. Зупиніться, коли порядок
+    дільника перевищує порядок діленого, і оголосіть ділене
+    остачею. Також, якщо ділене колись стане нулем, поверніть
+    нуль як частку й остачу.
+    <P/>
+    Ми можемо спроєктувати
+    <INDEX><USE>div_poly</USE><FRAGILE/></INDEX> 
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>div-poly</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>div_poly</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    <SPLITINLINE>
+      <SCHEME>процедуру</SCHEME>
+      <PYTHON>функцію</PYTHON>
+    </SPLITINLINE>
+    за взірцем
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>add-poly</SCHEMEINLINE></SCHEME>
+    <PYTHON><PYTHONINLINE>add_poly</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    та
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>mul-poly</SCHEMEINLINE>.</SCHEME>
+      <PYTHON><PYTHONINLINE>mul_poly</PYTHONINLINE>.</PYTHON>
+    </SPLITINLINE>
+    <SPLITINLINE>
+      <SCHEME>Процедура</SCHEME>
+      <PYTHON>Функція</PYTHON>
+    </SPLITINLINE>
+    перевіряє, чи два многочлени мають ту саму змінну. Якщо так,
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>div-poly</SCHEMEINLINE></SCHEME>
+    <PYTHON><PYTHONINLINE>div_poly</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    знімає змінну й передає задачу до
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>div-terms</SCHEMEINLINE>,</SCHEME>
+    <PYTHON><PYTHONINLINE>div_terms</PYTHONINLINE>,</PYTHON>
+    </SPLITINLINE>
+    яка виконує операцію ділення над списками членів.
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>Div-poly</SCHEMEINLINE></SCHEME>
+      <PYTHON>
+	Функція
+	<PYTHONINLINE>div_poly</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    зрештою знову приєднує змінну до результату, наданого
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>div-terms</SCHEMEINLINE>.</SCHEME>
+      <PYTHON><PYTHONINLINE>div_terms</PYTHONINLINE>.</PYTHON>
+    </SPLITINLINE>
+    Зручно спроєктувати
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>div-terms</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>div_terms</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    так, щоб вона обчислювала і частку, і остачу від ділення.
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>div-terms</SCHEMEINLINE></SCHEME>
+      <PYTHON>
+	Функція <PYTHONINLINE>div_terms</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    може брати два списки членів як аргументи й повертати <SPLITINLINE><SCHEME>список</SCHEME><PYTHON>зв’язаний список</PYTHON></SPLITINLINE> зі списку членів
+    частки та списку членів остачі.
+    <P/>
+    Доповніть наступне означення
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>div-terms</SCHEMEINLINE></SCHEME>
+    <PYTHON><PYTHONINLINE>div_terms</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    заповнивши пропущені
+    <SPLITINLINE>
+      <SCHEME>
+	вирази.
+      </SCHEME>
+      <PYTHON>
+	частини.
+      </PYTHON>
+    </SPLITINLINE>
+    Скористайтеся цим, щоб реалізувати
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>div-poly</SCHEMEINLINE>,</SCHEME>
+      <PYTHON><PYTHONINLINE>div_poly</PYTHONINLINE>,</PYTHON>
+    </SPLITINLINE>
+    яка бере два многочлени як аргументи й повертає <SPLITINLINE><SCHEME>список</SCHEME><PYTHON>зв’язаний список</PYTHON></SPLITINLINE> з многочленів
+    частки та остачі.
+    <SNIPPET EVAL="no" LATEX="yes" POSTPADDING="no">
+      <INDEX><DECLARATION>div_terms</DECLARATION><FRAGILE/></INDEX> 
+      <SCHEME>
+(define (div-terms L1 L2)
+  (if (empty-termlist? L1)
+    (list (the-empty-termlist) (the-empty-termlist))
+      (let ((t1 (first-term L1))
+            (t2 (first-term L2)))
+        (if (&gt; (order t2) (order t1))
+          (list (the-empty-termlist) L1)
+          (let ((new-c (div (coeff t1) (coeff t2)))
+            (new-o (- (order t1) (order t2))))
+    (let ((rest-of-result
+           compute rest of result recursively
+          ))
+      form complete result
+            ))))))
+      </SCHEME>
+      <PYTHON>
+def div_terms(L1, L2):
+    if is_empty_termlist(L1):
+        return llist(the_empty_termlist, the_empty_termlist)
+    else:
+        t1 = first_term(L1)
+        t2 = first_term(L2)
+        if order(t2) &gt; order(t1):
+            return llist(the_empty_termlist, L1)
+        else:
+            new_c = div(coeff(t1), coeff(t2))
+            new_o = order(t1) - order(t2)
+            rest_of_result = <METAPHRASE>compute rest of result recursively</METAPHRASE>
+            <METAPHRASE>form and return complete result</METAPHRASE>
+      </PYTHON>
+    </SNIPPET>
+  </EXERCISE>
+
+  <SUBHEADING>
+    <NAME>Ієрархії типів у символічній алгебрі</NAME>
+  </SUBHEADING>
+
+  <INDEX>ієрархія типів<SUBINDEX><ORDER>symbolic</ORDER>у символічній алгебрі<OPEN/></SUBINDEX></INDEX>
+  <INDEX>многочлен(и)<SUBINDEX>ієрархія типів</SUBINDEX><OPEN/></INDEX>
+  <INDEX>тип(и)<SUBINDEX>ієрархія в символічній алгебрі</SUBINDEX><OPEN/></INDEX>
+  
+  <TEXT>
+    Наша система многочленів ілюструє, як об’єкти одного типу
+    (многочлени) насправді можуть бути складеними об’єктами, які мають як частини об’єкти багатьох
+    різних типів. Це не створює справжніх труднощів в означенні
+    узагальнених операцій. Нам треба лише встановити відповідні узагальнені операції
+    для виконання потрібних маніпуляцій із частинами
+    складених типів. Справді, ми бачили, що многочлени утворюють різновид
+    <QUOTE>рекурсивної абстракції даних,</QUOTE> у тому сенсі, що частини многочлена можуть
+    самі бути многочленами. Наші узагальнені операції та наш
+    стиль програмування, керованого даними, можуть упоратися з цим ускладненням без
+    великих труднощів.
+  </TEXT>
+  <TEXT>
+    З іншого боку, алгебра многочленів — це система, для якої типи даних
+    не можна природно впорядкувати в башту. Наприклад, можливі
+    многочлени за <LATEXINLINE>$x$</LATEXINLINE>, коефіцієнти яких
+    є многочленами за <LATEXINLINE>$y$</LATEXINLINE>. Так само можливі
+    многочлени за <LATEXINLINE>$y$</LATEXINLINE>, коефіцієнти яких
+    є многочленами за <LATEXINLINE>$x$</LATEXINLINE>. Жоден із
+    цих типів не є <QUOTE>вище</QUOTE> за інший у будь-який природний спосіб, а проте
+    часто треба додавати елементи з кожної множини. Є кілька
+    способів це зробити. Одна можливість — перетворити один многочлен до типу
+    іншого, розкриваючи й перевпорядковуючи члени так, щоб обидва многочлени
+    мали ту саму головну змінну. Можна накласти баштоподібну структуру на
+    це, впорядкувавши змінні й таким чином завжди перетворюючи будь-який многочлен
+    до
+    <INDEX>канонічна форма многочленів</INDEX>
+    <INDEX>многочлен(и)<SUBINDEX>канонічна форма</SUBINDEX></INDEX>
+    <QUOTE>канонічної форми</QUOTE> зі змінною найвищого пріоритету
+    домінантною та змінними нижчого пріоритету, похованими в коефіцієнтах.
+    Ця стратегія працює досить добре, хіба що перетворення може розкрити
+    многочлен без потреби, роблячи його важким для читання й, можливо, менш
+    ефективним у роботі. Баштова стратегія, безперечно, не природна
+    для цієї області чи для будь-якої області, де користувач може винаходити нові типи
+    динамічно, використовуючи старі типи в різних комбінованих формах, як-от
+    тригонометричні функції, степеневі ряди та інтеграли.
+  </TEXT>
+  <TEXT>
+    Не повинно дивувати, що керування
+    <INDEX>зведення типів<SUBINDEX>в алгебричних маніпуляціях</SUBINDEX></INDEX>
+    зведенням типів — серйозна проблема в проєктуванні великомасштабних
+    систем алгебричних маніпуляцій. Значна частина складності таких систем
+    стосується відношень між різноманітними типами. Справді, справедливо
+    сказати, що ми ще не цілком розуміємо зведення типів. Насправді ми ще
+    не цілком розуміємо поняття типу даних. Тим не менш те, що
+    ми знаємо, дає нам потужні принципи структурування та модульності, щоб
+    підтримати проєктування великих систем.
+  </TEXT>
+
+  <EXERCISE>
+    Наклавши впорядкування на змінні, розширте пакет многочленів так,
+    щоб додавання та множення многочленів працювало для многочленів
+    за різними змінними. (Це нелегко!)
+    <LABEL NAME="ex:2_92"/>
+  </EXERCISE>
+  
+  <INDEX>ієрархія типів<SUBINDEX><ORDER>symbolic</ORDER>у символічній алгебрі<CLOSE/></SUBINDEX></INDEX>
+  <INDEX>многочлен(и)<SUBINDEX>ієрархія типів</SUBINDEX><CLOSE/></INDEX>
+  <INDEX>тип(и)<SUBINDEX>ієрархія в символічній алгебрі</SUBINDEX><CLOSE/></INDEX>
+
+  <SUBHEADING>
+    <NAME>Розширена вправа: раціональні функції</NAME>
+  </SUBHEADING>
+
+  <INDEX>раціональна функція<OPEN/></INDEX>
+  <INDEX>функція (математична)<SUBINDEX>раціональна</SUBINDEX><OPEN/></INDEX>
+  <INDEX>арифметика многочленів<SUBINDEX>раціональні функції</SUBINDEX><OPEN/></INDEX>
+  
+  <TEXT>
+    Ми можемо розширити нашу узагальнену арифметичну систему, включивши <EM>раціональні
+    функції</EM>. Це <QUOTE>дроби</QUOTE>, чисельник і
+    знаменник яких є многочленами, як-от
+    <LATEX>
+      \[
+      \begin{array}{l}
+      \dfrac{x+1}{x^3 -1}
+      \end{array}
+      \]
+    </LATEX>
+    Система має вміти додавати, віднімати, множити й ділити
+    раціональні функції, а також виконувати такі обчислення, як
+    <LATEX>
+      \[
+      \begin{array}{lll}
+      \dfrac{x+1}{x^3 -1}+\dfrac{x}{x^2 -1} &amp; = &amp; \dfrac{x^3 +2x^2 +3x +1}{x^4 +
+      x^3 -x-1}
+      \end{array}
+      \]
+    </LATEX>
+    (Тут суму спрощено, прибравши спільні множники.
+    Звичайне <QUOTE>множення навхрест</QUOTE> дало б
+    многочлен четвертого степеня над многочленом п’ятого степеня.)
+  </TEXT>
+  <TEXT>
+    Якщо ми змінимо наш пакет раціональної арифметики так, щоб він користувався узагальненими
+    операціями, він робитиме те, що ми хочемо, крім проблеми
+    скорочення дробів до найпростішого вигляду.
+  </TEXT>
+
+  <EXERCISE> 
+    Змініть пакет раціональної арифметики так, щоб він користувався узагальненими операціями, але
+    змініть
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>make-rat</SCHEMEINLINE></SCHEME>
+    <PYTHON><PYTHONINLINE>make_rat</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    так, щоб він не намагався скорочувати дроби до найпростішого вигляду. Перевірте
+    свою систему, викликавши
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>make-rational</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>make_rational</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    на двох многочленах, щоб отримати раціональну функцію
+    <SNIPPET EVAL="no">
+      <SCHEME>
+            (define p1 (make-polynomial 'x '((2 1)(0 1))))
+            (define p2 (make-polynomial 'x '((3 1)(0 1))))
+            (define rf (make-rational p2 p1))
+      </SCHEME>
+      <PYTHON>
+p1 = make_polynomial("x", llist(make_term(2, 1), make_term(0, 1)))
+p2 = make_polynomial("x", llist(make_term(3, 1), make_term(0, 1)))
+rf = make_rational(p2, p1)
+      </PYTHON>
+    </SNIPPET>
+    Тепер додайте <SCHEMEINLINE>rf</SCHEMEINLINE> до себе, користуючись
+    <SCHEMEINLINE>add</SCHEMEINLINE>. Ви побачите, що ця
+    <SPLITINLINE>
+      <SCHEME>процедура</SCHEME>
+      <PYTHON>функція</PYTHON>
+    </SPLITINLINE>
+    додавання не скорочує дробів до найпростішого вигляду.
+    <LABEL NAME="ex:make-rat-poly"/>
+  </EXERCISE>
+  <EXERCISE_FOLLOWED_BY_TEXT/>
+  <TEXT>
+    Ми можемо скорочувати многочленні дроби до найпростішого вигляду, користуючись тією самою ідеєю,
+    яку ми використовували з цілими числами: змінивши
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>make-rat</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>make_rat</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    так, щоб ділити і чисельник, і знаменник на їхній найбільший спільний
+    дільник. Поняття
+    <INDEX>найбільший спільний дільник<SUBINDEX>многочленів</SUBINDEX></INDEX>
+    <INDEX>арифметика многочленів<SUBINDEX>найбільший спільний дільник</SUBINDEX><OPEN/></INDEX>
+    <QUOTE>найбільшого спільного дільника</QUOTE> має сенс для многочленів. Насправді
+    ми можемо обчислити НСД двох многочленів, користуючись по суті
+    тим самим алгоритмом Евкліда, що працює для цілих чисел.<FOOTNOTE>Те, що
+    <INDEX>алгоритм Евкліда<SUBINDEX><ORDER>polynomials</ORDER>для многочленів</SUBINDEX></INDEX>
+    <INDEX>арифметика многочленів<SUBINDEX>алгоритм Евкліда</SUBINDEX></INDEX>
+    алгоритм Евкліда працює для многочленів, в алгебрі формалізують
+    твердженням, що многочлени утворюють різновид алгебричної області, званий
+    <INDEX>евклідове кільце</INDEX>
+    <INDEX>міра в евклідовому кільці</INDEX>
+    <EM>евклідовим кільцем</EM>. Евклідове кільце — це область, яка допускає
+    додавання, віднімання та комутативне множення, разом зі
+    способом приписати кожному елементу <LATEXINLINE>$x$</LATEXINLINE>
+    кільця додатне ціле
+    <QUOTE>міру</QUOTE> <LATEXINLINE>$m(x)$</LATEXINLINE> з
+    властивостями, що <LATEXINLINE>$m(xy)\geq m(x)$</LATEXINLINE> для будь-яких ненульових
+    <LATEXINLINE>$x$</LATEXINLINE> та <LATEXINLINE>$y$</LATEXINLINE>, і що,
+    якщо задано будь-які <LATEXINLINE>$x$</LATEXINLINE> та <LATEXINLINE>$y$</LATEXINLINE>,
+    існує таке <LATEXINLINE>$q$</LATEXINLINE>, що
+    <LATEXINLINE>$y=qx+r$</LATEXINLINE>, і або
+    <LATEXINLINE>$r=0$</LATEXINLINE>, або
+    <LATEXINLINE>$m(r) &lt; m(x)$</LATEXINLINE>. З абстрактної точки
+    зору це те, що потрібно, щоб довести, що алгоритм Евкліда працює.
+    Для області цілих чисел міра <LATEXINLINE>$m$</LATEXINLINE> від
+    цілого числа — це абсолютна величина самого числа. Для області
+    многочленів міра многочлена — це його степінь.</FOOTNOTE>  Версія для
+    цілих чисел така:
+    <SNIPPET EVAL="no">
+      <SCHEME>
+          (define (gcd a b)
+          (if (= b 0)
+          a
+          (gcd b (remainder a b))))
+      </SCHEME>
+      <PYTHON>
+def gcd(a, b):
+    return (a
+            if b == 0
+            else gcd(b, a % b))
+      </PYTHON>
+    </SNIPPET>
+    Користуючись цим, ми могли б зробити очевидну зміну, щоб означити операцію НСД,
+    яка працює зі списками членів:
+    <SNIPPET EVAL="no">
+      <INDEX><DECLARATION>gcd_terms</DECLARATION></INDEX> 
+      <SCHEME>
+          (define (gcd-terms a b)
+          (if (empty-termlist? b)
+          a
+          (gcd-terms b (remainder-terms a b))))
+      </SCHEME>
+      <PYTHON>
+def gcd_terms(a, b):
+    return (a
+            if is_empty_termlist(b)
+            else gcd_terms(b, remainder_terms(a, b)))
+      </PYTHON>
+    </SNIPPET>
+    де
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>remainder-terms</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>remainder_terms</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    видобуває компоненту остачі зі списку, поверненого операцією
+    ділення списків членів
+    <SPLITINLINE>
+      <SCHEME>
+      <SCHEMEINLINE>div-terms</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>div_terms</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    яку було реалізовано у вправі<SPACE/><REF NAME="ex:/terms"/>.
+  </TEXT>
+
+  <EXERCISE>
+    Користуючись
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>div-terms</SCHEMEINLINE>,</SCHEME>
+    <PYTHON><PYTHONINLINE>div_terms</PYTHONINLINE>,</PYTHON>
+    </SPLITINLINE>
+    реалізуйте
+    <SPLITINLINE>
+      <SCHEME>процедуру</SCHEME>
+      <PYTHON>функцію</PYTHON>
+    </SPLITINLINE>
+    <INDEX><USE>remainder_terms</USE></INDEX> 
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>remainder-terms</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>remainder_terms</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    і скористайтеся нею, щоб означити
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>gcd-terms</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>gcd_@terms</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    як вище. Тепер напишіть
+    <SPLITINLINE>
+      <SCHEME>процедуру</SCHEME>
+      <PYTHON>функцію</PYTHON>
+    </SPLITINLINE>
+    <INDEX>найбільший спільний дільник<SUBINDEX>узагальнений</SUBINDEX></INDEX>
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>gcd-poly</SCHEMEINLINE></SCHEME>
+      <PYTHON>
+      <PYTHONINLINE>gcd_poly</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    що обчислює многочленний НСД двох многочленів. (
+    <SPLITINLINE>
+      <SCHEME>Процедура</SCHEME>
+      <PYTHON>Функція</PYTHON>
+    </SPLITINLINE>
+    має сигналізувати про помилку, якщо два многочлени не за тією самою змінною.)
+    Встановіть у системі узагальнену операцію
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>greatest-common-divisor</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>greatest_common_divisor</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    яка зводиться до
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>gcd-poly</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>gcd_poly</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    для многочленів і до звичайного <SCHEMEINLINE>gcd</SCHEMEINLINE> для
+    звичайних чисел. Як перевірку спробуйте
+    <SNIPPET EVAL="no">
+      <SCHEME>
+            (define p1 (make-polynomial 'x '((4 1) (3 -1) (2 -2) (1 2))))
+            (define p2 (make-polynomial 'x '((3 1) (1 -1))))
+            (greatest-common-divisor p1 p2)
+      </SCHEME>
+      <PYTHON>
+p1 = make_polynomial("x", llist(make_term(4, 1), make_term(3, -1),
+                                make_term(2, -2), make_term(1, 2)))
+p2 = make_polynomial("x", llist(make_term(3, 1), make_term(1, -1)))
+greatest_common_divisor(p1, p2)
+      </PYTHON>
+    </SNIPPET>
+    і перевірте свій результат вручну.
+    <LABEL NAME="ex:remainder-terms"/>
+  </EXERCISE>
+
+  <EXERCISE> 
+    Означте <LATEXINLINE>$P_{1}$</LATEXINLINE>,
+    <LATEXINLINE>$P_{2}$</LATEXINLINE> та
+    <LATEXINLINE>$P_{3}$</LATEXINLINE> як многочлени
+    <TABLE>
+      <TR>
+	<TD>
+	  <LATEXINLINE>$P_{1}$</LATEXINLINE>:
+	</TD>
+	<TD>
+	  <LATEXINLINE>$x^2 - 2x + 1$</LATEXINLINE>
+	</TD>
+      </TR>
+      <TR>
+	<TD>
+	  <LATEXINLINE>$P_{2}$</LATEXINLINE>:
+	</TD>
+	<TD>
+	  <LATEXINLINE>$11x^2 + 7$</LATEXINLINE>
+	</TD>
+      </TR>
+      <TR>
+	<TD>
+	  <LATEXINLINE>$P_{3}$</LATEXINLINE>:
+	</TD>
+	<TD>
+	  <LATEXINLINE>$13x + 5$</LATEXINLINE>
+	</TD>
+      </TR>
+    </TABLE>
+    Тепер означте <LATEXINLINE>$Q_1$</LATEXINLINE> як добуток
+    <LATEXINLINE>$P_1$</LATEXINLINE> та <LATEXINLINE>$P_2$</LATEXINLINE>, а
+    <LATEXINLINE>$Q_2$</LATEXINLINE> — як добуток
+    <LATEXINLINE>$P_1$</LATEXINLINE> та <LATEXINLINE>$P_3$</LATEXINLINE>, і
+    скористайтеся
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>greatest-common-divisor</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>greatest_common_divisor</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    (вправа<SPACE/><REF NAME="ex:remainder-terms"/>), щоб обчислити НСД
+    <LATEXINLINE>$Q_1$</LATEXINLINE> та <LATEXINLINE>$Q_2$</LATEXINLINE>.
+    Зауважте, що відповідь не та сама, що <LATEXINLINE>$P_1$</LATEXINLINE>.
+    Цей приклад уводить нецілочислові операції в обчислення, що спричиняє
+    труднощі з алгоритмом
+    <SPLITINLINE>
+      <SCHEME>
+	НСД.<FOOTNOTE>У такій реалізації, як MIT Scheme, це дає
+	многочлен, який справді є дільником
+	<LATEXINLINE>$Q_1$</LATEXINLINE> та <LATEXINLINE>$Q_2$</LATEXINLINE>,
+	але з раціональними коефіцієнтами. У багатьох інших системах Scheme, у яких
+	ділення цілих чисел може давати десяткові числа обмеженої точності, ми
+	можемо не отримати коректного дільника.</FOOTNOTE>
+      </SCHEME>
+      <PYTHON>
+	НСД.<FOOTNOTE>У Python ділення цілих чисел може давати
+	десяткові числа обмеженої точності, і тому ми
+	можемо не отримати коректного дільника.</FOOTNOTE>
+      </PYTHON>
+    </SPLITINLINE>
+    Щоб зрозуміти, що відбувається, спробуйте простежити
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>gcd-terms</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>gcd_terms</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    під час обчислення НСД або спробуйте виконати ділення вручну.
+    <LABEL NAME="ex:gcd-of-polys"/>
+  </EXERCISE>
+  <EXERCISE_FOLLOWED_BY_TEXT/>
+  <TEXT>
+    Ми можемо розв’язати проблему, показану у
+    вправі<SPACE/><REF NAME="ex:gcd-of-polys"/>, якщо
+    скористаємося такою модифікацією алгоритму НСД (яка насправді
+    працює лише у випадку многочленів із цілими коефіцієнтами).
+    Перед виконанням будь-якого ділення многочленів в обчисленні НСД ми
+    множимо ділене на цілочисловий сталий множник, вибраний так, щоб
+    гарантувати, що під час ділення не виникне жодних дробів.
+    Наша відповідь таким чином відрізнятиметься від справжнього НСД на цілочисловий сталий
+    множник, але це не має значення у випадку скорочення раціональних
+    функцій до найпростішого вигляду; НСД використовують, щоб поділити і
+    чисельник, і знаменник, тож цілочисловий сталий множник скоротиться.
+  </TEXT>
+  <TEXT>
+    Точніше, якщо <LATEXINLINE>$P$</LATEXINLINE> та
+    <LATEXINLINE>$Q$</LATEXINLINE> — многочлени, нехай
+    <LATEXINLINE>$O_1$</LATEXINLINE> буде порядком
+    <LATEXINLINE>$P$</LATEXINLINE> (тобто порядком найбільшого члена
+    <LATEXINLINE>$P$</LATEXINLINE>), а <LATEXINLINE>$O_2$</LATEXINLINE>
+    — порядком <LATEXINLINE>$Q$</LATEXINLINE>. Нехай
+    <LATEXINLINE>$c$</LATEXINLINE> буде старшим коефіцієнтом
+    <LATEXINLINE>$Q$</LATEXINLINE>. Тоді можна показати, що якщо помножити
+    <LATEXINLINE>$P$</LATEXINLINE> на
+    <INDEX>множник для перетворення на цілі</INDEX>
+    <EM>множник для перетворення на цілі</EM>
+    <LATEXINLINE>$c^{1+O_{1} -O_{2}}$</LATEXINLINE>, то отриманий многочлен
+    можна поділити на <LATEXINLINE>$Q$</LATEXINLINE>, користуючись
+    алгоритмом
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>div-terms</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>div_terms</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    без уведення жодних дробів. Операцію множення
+    діленого на цю сталу й потім ділення іноді називають
+    <INDEX>псевдоділення многочленів</INDEX>
+    <EM>псевдоділенням</EM> <LATEXINLINE>$P$</LATEXINLINE> на
+    <LATEXINLINE>$Q$</LATEXINLINE>. Остачу від ділення
+    називають
+    <INDEX>псевдоостача многочленів</INDEX>
+    <EM>псевдоостачею</EM>.
+  </TEXT>
+
+  <EXERCISE> 
+    <LABEL NAME="ex:pseudoremainder-terms"/>
+    <OL>
+      <LI>
+        Реалізуйте
+        <SPLITINLINE><SCHEME>процедуру</SCHEME>
+	<PYTHON>функцію</PYTHON>
+	</SPLITINLINE>
+        <SPLITINLINE>
+	  <SCHEME><SCHEMEINLINE>pseudoremainder-terms</SCHEMEINLINE>,</SCHEME>
+          <PYTHON>
+	    <PYTHONINLINE>pseudoremainder_terms</PYTHONINLINE>,
+	  </PYTHON>
+        </SPLITINLINE>
+	яка така сама, як
+        <SPLITINLINE>
+          <SCHEME><SCHEMEINLINE>remainder-terms</SCHEMEINLINE></SCHEME>
+          <PYTHON><PYTHONINLINE>remainder_terms</PYTHONINLINE>
+	  </PYTHON>
+        </SPLITINLINE>
+	хіба що вона множить ділене на описаний вище множник для
+	перетворення на цілі перед викликом
+	<SPLITINLINE>
+          <SCHEME><SCHEMEINLINE>div-terms</SCHEMEINLINE>.</SCHEME>
+          <PYTHON><PYTHONINLINE>div_terms</PYTHONINLINE>.
+	  </PYTHON>
+        </SPLITINLINE>
+        Змініть
+	<SPLITINLINE>
+	  <SCHEME><SCHEMEINLINE>gcd-terms</SCHEMEINLINE></SCHEME>
+          <PYTHON><PYTHONINLINE>gcd_terms</PYTHONINLINE>
+	  </PYTHON>
+        </SPLITINLINE>
+	так, щоб вона користувалася
+	<SPLITINLINE>
+	  <SCHEME><SCHEMEINLINE>pseudoremainder-terms</SCHEMEINLINE>,</SCHEME>
+          <PYTHON>
+	    <PYTHONINLINE>pseudoremainder_terms</PYTHONINLINE>,
+	  </PYTHON>
+        </SPLITINLINE>
+	і переконайтеся, що
+	<SPLITINLINE>
+          <SCHEME><SCHEMEINLINE>greatest-common-divisor</SCHEMEINLINE></SCHEME>
+          <PYTHON>
+	    <PYTHONINLINE>greatest_common_divisor</PYTHONINLINE>
+	  </PYTHON>
+        </SPLITINLINE>
+	тепер дає відповідь із цілими коефіцієнтами на прикладі з
+	вправи<SPACE/><REF NAME="ex:gcd-of-polys"/>.
+      </LI>
+      <LI>
+        Тепер НСД має цілі коефіцієнти, але вони більші за
+        коефіцієнти <LATEXINLINE>$P_1$</LATEXINLINE>. Змініть
+	<SPLITINLINE>
+          <SCHEME><SCHEMEINLINE>gcd-terms</SCHEMEINLINE></SCHEME>
+          <PYTHON><PYTHONINLINE>gcd_terms</PYTHONINLINE>
+	  </PYTHON>
+        </SPLITINLINE>
+	так, щоб вона прибирала спільні множники з коефіцієнтів відповіді,
+	поділивши всі коефіцієнти на їхній (цілочисловий) найбільший спільний
+	дільник.
+      </LI>
+    </OL>
+  </EXERCISE>
+  <INDEX>арифметика многочленів<SUBINDEX>найбільший спільний дільник</SUBINDEX><CLOSE/></INDEX>
+  <INDEX>раціональна функція<SUBINDEX>скорочення до найпростішого вигляду</SUBINDEX><OPEN/></INDEX>
+  <INDEX>скорочення до найпростішого вигляду<OPEN/></INDEX>
+  <EXERCISE_FOLLOWED_BY_TEXT/>  
+  <TEXT>
+    Отже, ось як скоротити раціональну функцію до найпростішого вигляду:
+    <UL>
+      <LI>
+	Обчисліть НСД чисельника та знаменника, користуючись
+	версією
+	<SPLITINLINE>
+	  <SCHEME><SCHEMEINLINE>gcd-terms</SCHEMEINLINE></SCHEME>
+	  <PYTHON><PYTHONINLINE>gcd_@terms</PYTHONINLINE>
+	  </PYTHON>
+	</SPLITINLINE>
+	з вправи<SPACE/><REF NAME="ex:pseudoremainder-terms"/>.
+      </LI>
+      <LI>
+	Коли ви отримаєте НСД, помножте і чисельник, і
+	знаменник на той самий множник для перетворення на цілі перед діленням на
+	НСД, щоб ділення на НСД не внесло жодних нецілих
+	коефіцієнтів. Як множник ви можете взяти старший коефіцієнт
+	НСД, піднесений до степеня
+	<LATEXINLINE>$1+O_{1} -O_{2}$</LATEXINLINE>, де
+	<LATEXINLINE>$O_{2}$</LATEXINLINE> — порядок НСД, а
+	<LATEXINLINE>$O_{1}$</LATEXINLINE> — максимум порядків
+	чисельника та знаменника. Це забезпечить, що ділення
+	чисельника та знаменника на НСД не внесе жодних дробів.
+      </LI>
+      <LI>
+	Результатом цієї операції буде чисельник і знаменник
+	з цілими коефіцієнтами. Коефіцієнти зазвичай будуть дуже
+	великі через усі ці множники для перетворення на цілі, тож останній крок —
+	прибрати зайві множники, обчисливши (цілочисловий) найбільший спільний
+	дільник усіх коефіцієнтів чисельника та
+	знаменника і поділивши на цей множник.
+      </LI>
+    </UL>
+  </TEXT>
+
+  <EXERCISE>
+    <LABEL NAME="ex:reduce-poly"/>
+    <OL>
+      <LI>
+	Реалізуйте цей алгоритм як
+	<SPLITINLINE>
+	  <SCHEME>процедуру</SCHEME>
+	  <PYTHON>функцію</PYTHON>
+	</SPLITINLINE>
+	<SPLITINLINE>
+	  <SCHEME><SCHEMEINLINE>reduce-terms</SCHEMEINLINE></SCHEME>
+	  <PYTHON><PYTHONINLINE>reduce_terms</PYTHONINLINE>
+	  </PYTHON>
+	</SPLITINLINE>
+	яка бере два списки членів <SCHEMEINLINE>n</SCHEMEINLINE> та
+	<SCHEMEINLINE>d</SCHEMEINLINE> як аргументи й повертає <SPLITINLINE><SCHEME>список</SCHEME><PYTHON>зв’язаний список</PYTHON></SPLITINLINE>
+	<SCHEMEINLINE>nn</SCHEMEINLINE>, <SCHEMEINLINE>dd</SCHEMEINLINE>,
+	які є <SCHEMEINLINE>n</SCHEMEINLINE> та
+	<SCHEMEINLINE>d</SCHEMEINLINE>, скороченими до найпростішого вигляду за
+	наведеним вище алгоритмом. Також напишіть
+	<SPLITINLINE>
+	  <SCHEME>процедуру</SCHEME>
+	  <PYTHON>функцію</PYTHON>
+	</SPLITINLINE>
+	<SPLITINLINE>
+	  <SCHEME><SCHEMEINLINE>reduce-poly</SCHEMEINLINE>,</SCHEME>
+	  <PYTHON><PYTHONINLINE>reduce_poly</PYTHONINLINE>,
+	  </PYTHON>
+	</SPLITINLINE>
+	аналогічну до
+	<SPLITINLINE>
+	  <SCHEME><SCHEMEINLINE>add-poly</SCHEMEINLINE>,</SCHEME>
+	  <PYTHON>
+	    <PYTHONINLINE>add_poly</PYTHONINLINE>,
+	  </PYTHON>
+	</SPLITINLINE>
+	яка перевіряє, чи два многочлени мають ту саму змінну. Якщо так,
+	<SPLITINLINE>
+	  <SCHEME><SCHEMEINLINE>reduce-poly</SCHEMEINLINE></SCHEME>
+	  <PYTHON><PYTHONINLINE>reduce_poly</PYTHONINLINE>
+	  </PYTHON>
+	</SPLITINLINE>
+	знімає змінну й передає задачу до
+	<SPLITINLINE>
+	  <SCHEME><SCHEMEINLINE>reduce-terms</SCHEMEINLINE>,</SCHEME>
+	  <PYTHON><PYTHONINLINE>reduce_terms</PYTHONINLINE>,
+	  </PYTHON>
+	</SPLITINLINE>
+	потім знову приєднує змінну до двох списків членів, наданих
+	<SPLITINLINE>
+	  <SCHEME>
+	  <SCHEMEINLINE>reduce-terms</SCHEMEINLINE>.</SCHEME>
+	  <PYTHON><PYTHONINLINE>reduce_terms</PYTHONINLINE>.
+	  </PYTHON>
+	</SPLITINLINE>
+      </LI>
+      <LI>
+        Означте
+        <SPLITINLINE>
+	  <SCHEME>процедуру</SCHEME>
+	  <PYTHON>функцію</PYTHON>
+	</SPLITINLINE>
+        аналогічну до
+	<SPLITINLINE>
+          <SCHEME><SCHEMEINLINE>reduce-terms</SCHEMEINLINE></SCHEME>
+          <PYTHON><PYTHONINLINE>reduce_terms</PYTHONINLINE>
+	  </PYTHON>
+	</SPLITINLINE>
+	яка робить те, що робила початкова
+	<SPLITINLINE>
+	<SCHEME><SCHEMEINLINE>make-rat</SCHEMEINLINE></SCHEME>
+	<PYTHON><PYTHONINLINE>make_rat</PYTHONINLINE></PYTHON>
+	</SPLITINLINE>
+	для цілих чисел:
+        <SNIPPET EVAL="no">
+          <SCHEME>
+                (define (reduce-integers n d)
+                (let ((g (gcd n d)))
+                (list (/ n g) (/ d g))))
+          </SCHEME>
+          <PYTHON>
+def reduce_integers(n, d):
+    g = gcd(n, d)
+    return llist(n // g, d // g)
+          </PYTHON>
+        </SNIPPET>
+        і означте
+        <SCHEMEINLINE>reduce</SCHEMEINLINE> як узагальнену операцію, яка викликає
+	<SPLITINLINE>
+          <SCHEME><SCHEMEINLINE>apply-generic</SCHEMEINLINE></SCHEME>
+          <PYTHON><PYTHONINLINE>apply_generic</PYTHONINLINE>
+	  </PYTHON>
+        </SPLITINLINE>
+	щоб диспетчеризувати
+	<SPLITINLINE>
+          <SCHEME>
+	     до або
+	     <SCHEMEINLINE>reduce-poly</SCHEMEINLINE>
+	  </SCHEME>
+          <PYTHON>
+	    до або
+	    <PYTHONINLINE>reduce_poly</PYTHONINLINE>
+	  </PYTHON>
+        </SPLITINLINE>
+	(для аргументів <SCHEMEINLINE>polynomial</SCHEMEINLINE>) або
+	<SPLITINLINE>
+	  <SCHEME><SCHEMEINLINE>reduce-integers</SCHEMEINLINE></SCHEME>
+          <PYTHON>до <PYTHONINLINE>reduce_integers</PYTHONINLINE>
+	  </PYTHON>
+        </SPLITINLINE>
+	(для
+	<SPLITINLINE>
+          <SCHEME><SCHEMEINLINE>scheme-number</SCHEMEINLINE></SCHEME>
+          <PYTHON><PYTHONINLINE>python_@number</PYTHONINLINE>
+	  </PYTHON>
+        </SPLITINLINE>
+	аргументів). Тепер ви легко можете змусити пакет раціональної арифметики
+	скорочувати дроби до найпростішого вигляду, змусивши
+	<SPLITINLINE>
+	  <SCHEME><SCHEMEINLINE>make-rat</SCHEMEINLINE></SCHEME>
+          <PYTHON><PYTHONINLINE>make_rat</PYTHONINLINE></PYTHON>
+        </SPLITINLINE>
+	викликати <SCHEMEINLINE>reduce</SCHEMEINLINE> перед комбінуванням заданих
+        чисельника та знаменника, щоб утворити раціональне число. Тепер система
+        працює з раціональними виразами як із цілими числами, так і з многочленами.
+        Щоб перевірити свою програму, спробуйте приклад на початку цієї
+        розширеної вправи:
+        <SNIPPET EVAL="no">
+          <SCHEME>
+                (define p1 (make-polynomial 'x '((1 1)(0 1))))
+                (define p2 (make-polynomial 'x '((3 1)(0 -1))))
+                (define p3 (make-polynomial 'x '((1 1))))
+                (define p4 (make-polynomial 'x '((2 1)(0 -1))))
+
+                (define rf1 (make-rational p1 p2))
+                (define rf2 (make-rational p3 p4))
+
+                (add rf1 rf2)
+          </SCHEME>
+          <PYTHON>
+p1 = make_polynomial("x", llist(make_term(1, 1), make_term(0, 1)))
+p2 = make_polynomial("x", llist(make_term(3, 1), make_term(0, -1)))
+p3 = make_polynomial("x", llist(make_term(1, 1)))
+p4 = make_polynomial("x", llist(make_term(2, 1), make_term(0, -1)))
+
+rf1 = make_rational(p1, p2)
+rf2 = make_rational(p3, p4)
+
+add(rf1, rf2)
+          </PYTHON>
+        </SNIPPET>
+        Подивіться, чи отримаєте ви правильну відповідь, правильно скорочену до найпростішого вигляду.
+      </LI>
+    </OL>
+  </EXERCISE>
+  <EXERCISE_FOLLOWED_BY_TEXT/>
+  <TEXT>
+    Обчислення НСД — у серці будь-якої системи, яка виконує операції
+    над раціональними функціями. Алгоритм, використаний вище, хоч
+    математично прямолінійний, надзвичайно повільний. Повільність
+    частково зумовлена великою кількістю операцій ділення, а частково
+    величезним розміром проміжних коефіцієнтів, породжених
+    псевдоділеннями.
+    <INDEX>раціональна функція<SUBINDEX>скорочення до найпростішого вигляду</SUBINDEX><CLOSE/></INDEX>
+    <INDEX>скорочення до найпростішого вигляду<CLOSE/></INDEX>
+    Одна з активних царин розвитку
+    систем алгебричних маніпуляцій — проєктування кращих алгоритмів
+    обчислення многочленних НСД.<FOOTNOTE>Один надзвичайно ефективний та
+    елегантний метод обчислення
+    <INDEX>арифметика многочленів<SUBINDEX>найбільший спільний дільник</SUBINDEX></INDEX>
+    <INDEX>арифметика многочленів<SUBINDEX>імовірнісний алгоритм для НСД</SUBINDEX></INDEX>
+    <INDEX>імовірнісний алгоритм</INDEX>
+    <INDEX>алгоритм<SUBINDEX>імовірнісний</SUBINDEX></INDEX>
+    многочленних НСД відкрив
+    <INDEX>Циппель, Річард Е.</INDEX>
+    Річард Циппель (1979). Метод є імовірнісним алгоритмом, як і
+    швидкий тест на простоту, який ми обговорювали в розділі<SPACE/><REF NAME="chap:fun"></REF>.
+    Книга Циппеля (1993) описує цей метод, разом з іншими способами
+    обчислення многочленних НСД.</FOOTNOTE>
+    <INDEX>раціональна функція<CLOSE/></INDEX>
+    <INDEX>функція (математична)<SUBINDEX>раціональна</SUBINDEX><CLOSE/></INDEX>
+    <INDEX>арифметика многочленів<SUBINDEX>раціональні функції</SUBINDEX><CLOSE/></INDEX>
+    <INDEX>символічна алгебра<CLOSE/></INDEX>
+    <INDEX>многочлен(и)<CLOSE/></INDEX>
+    <INDEX>арифметика многочленів<CLOSE/></INDEX>
+  </TEXT>
+
+</SUBSECTION>

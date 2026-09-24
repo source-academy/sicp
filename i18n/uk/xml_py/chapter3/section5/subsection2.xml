@@ -1,0 +1,1511 @@
+<SUBSECTION>
+  <NAME>
+    Нескінченні потоки
+  </NAME>
+
+  <LABEL NAME="sec:infinite-streams"/>
+  
+  <INDEX>нескінченний потік(и)<OPEN/></INDEX>
+  
+  <TEXT>
+    Ми бачили, як підтримати ілюзію, ніби ми маніпулюємо потоками
+    як повними сутностями, хоча насправді ми обчислюємо лише
+    ту частину потоку, до якої потрібно дістатися. Цю
+    техніку можна використати, щоб ефективно представляти послідовності як потоки, навіть якщо
+    послідовності дуже довгі. Що ще вражає, ми можемо скористатися потоками, щоб
+    представляти послідовності, які є нескінченно довгими. Наприклад, розгляньмо
+    таке означення потоку додатних цілих чисел:
+    <SNIPPET HIDE="yes">
+      <NAME>integers_starting_from_example</NAME>
+      <REQUIRES>stream_functions</REQUIRES>
+      <REQUIRES>integers_starting_from</REQUIRES>
+      <PYTHON>
+from_20 = integers_starting_from(20)
+print(eval_stream(from_20, 50))
+      </PYTHON>
+      <PYTHON_TEST>
+from_20 = integers_starting_from(20)
+print(stream_ref(from_20, 50))
+      </PYTHON_TEST>
+    </SNIPPET>
+    <SNIPPET EVAL="yes">
+      <INDEX><DECLARATION>integers_starting_from</DECLARATION></INDEX> 
+      <NAME>integers_starting_from</NAME>
+      <EXAMPLE>integers_starting_from_example</EXAMPLE>
+      <EXPECTED>70</EXPECTED>
+      <SCHEME>
+(define (integers-starting-from n)
+  (cons-stream n (integers-starting-from (+ n 1))))
+      </SCHEME>
+      <PYTHON>
+def integers_starting_from(n):
+    return pair(n, lambda: integers_starting_from(n + 1))
+      </PYTHON>
+    </SNIPPET>
+    <SNIPPET EVAL="yes">
+      <INDEX><DECLARATION>integers</DECLARATION> (infinite stream)</INDEX>
+      <NAME>integers_definition</NAME>
+      <REQUIRES>integers_starting_from</REQUIRES>
+      <EXAMPLE>integers_definition_example</EXAMPLE>
+      <EXPECTED>51</EXPECTED>
+      <SCHEME>
+(define integers (integers-starting-from 1))
+      </SCHEME>
+      <PYTHON>
+integers = integers_starting_from(1)
+      </PYTHON>
+    </SNIPPET>
+    <SNIPPET HIDE="yes">
+      <NAME>integers_definition_example</NAME>
+      <REQUIRES>stream_functions</REQUIRES>
+      <PYTHON>
+print(eval_stream(integers, 50))
+      </PYTHON>
+      <PYTHON_TEST>
+print(stream_ref(integers, 50))
+      </PYTHON_TEST>
+    </SNIPPET>
+    Це має сенс, бо <SCHEMEINLINE>integers</SCHEMEINLINE> буде парою, чия
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>car</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>head</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    дорівнює 1, а чий
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>cdr</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>tail</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    — це обіцянка породити цілі числа, починаючи з 2. Це нескінченно
+    довгий потік, але в будь-який момент ми можемо розглянути лише скінченну його частину.
+    Тож наші програми ніколи не дізнаються, що всього нескінченного потоку
+    там немає.
+  </TEXT>
+
+  <TEXT>
+    Користуючись <SCHEMEINLINE>integers</SCHEMEINLINE>, ми можемо означити інші
+    нескінченні потоки, як-от потік цілих чисел, які не діляться на 7:
+    <SNIPPET HIDE="yes">
+      <NAME>is_divisible2_example</NAME>
+      <PYTHON>
+print(is_divisible(42, 7))
+      </PYTHON>
+    </SNIPPET>
+    <SNIPPET>
+      <INDEX><DECLARATION>is_divisible</DECLARATION></INDEX> 
+      <NAME>is_divisible2</NAME>
+      <EXAMPLE>is_divisible2_example</EXAMPLE>
+      <SCHEME>
+(define (divisible? x y) (= (remainder x y) 0))
+      </SCHEME>
+      <PYTHON>
+def is_divisible(x, y):
+    return x % y == 0
+      </PYTHON>
+    </SNIPPET>
+    <SNIPPET EVAL="yes">
+      <NAME>no_sevens</NAME>
+      <REQUIRES>stream_filter</REQUIRES>
+      <REQUIRES>integers_definition</REQUIRES>
+      <REQUIRES>is_divisible2</REQUIRES>
+      <EXAMPLE>no_sevens_example</EXAMPLE>
+      <EXPECTED>27</EXPECTED>
+      <SCHEME>
+(define no-sevens
+  (stream-filter (lambda (x) (not (divisible? x 7)))
+                 integers))
+      </SCHEME>
+      <PYTHON>
+no_sevens = stream_filter(lambda x: not is_divisible(x, 7),
+                          integers)
+      </PYTHON>
+    </SNIPPET>
+    <SNIPPET HIDE="yes">
+      <NAME>no_sevens_example</NAME>
+      <REQUIRES>stream_functions</REQUIRES>
+      <PYTHON>
+print(eval_stream(no_sevens, 23))
+      </PYTHON>
+      <PYTHON_TEST>
+print(stream_ref(no_sevens, 23))
+      </PYTHON_TEST>
+    </SNIPPET>
+    Тоді ми можемо знаходити цілі числа, які не діляться на 7, просто звертаючись до
+    елементів цього потоку:
+    <SNIPPET EVAL="yes">
+      <NAME>on_sevens_example</NAME>
+      <REQUIRES>stream_functions</REQUIRES>
+      <REQUIRES>no_sevens</REQUIRES>
+      <EXPECTED>117</EXPECTED>
+      <SCHEME>
+(stream-ref no-sevens 100)
+      </SCHEME>
+      <SCHEMEOUTPUT>
+117
+      </SCHEMEOUTPUT>
+      <PYTHON>
+print(stream_ref(no_sevens, 100))
+      </PYTHON>
+      <PYTHON_OUTPUT>
+117
+      </PYTHON_OUTPUT>
+    </SNIPPET>
+  </TEXT>
+
+  <TEXT>
+    За аналогією до <SCHEMEINLINE>integers</SCHEMEINLINE> ми можемо означити
+    нескінченний потік чисел Фібоначчі:
+    <SNIPPET HIDE="yes">
+      <NAME>fibgen_example</NAME>
+      <REQUIRES>stream_functions</REQUIRES>
+      <PYTHON>
+print(eval_stream(fibs, 50))
+      </PYTHON>
+      <PYTHON_TEST>
+print(stream_ref(fibs, 50))
+      </PYTHON_TEST>
+    </SNIPPET>
+    <SNIPPET EVAL="yes">
+      <INDEX><DECLARATION>fibs</DECLARATION> (infinite stream)</INDEX>
+      <NAME>fibgen</NAME>
+      <EXAMPLE>fibgen_example</EXAMPLE>
+      <EXPECTED>12586269025</EXPECTED>
+      <SCHEME>
+(define (fibgen a b)
+  (cons-stream a (fibgen b (+ a b))))
+
+(define fibs (fibgen 0 1))
+      </SCHEME>
+      <PYTHON>
+def fibgen(a, b):
+    return pair(a, lambda: fibgen(b, a + b))
+
+fibs = fibgen(0, 1)
+      </PYTHON>
+    </SNIPPET>
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>Fibs</SCHEMEINLINE></SCHEME>
+      <PYTHON>Стала <PYTHONINLINE>fibs</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    — це пара, чия
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>car</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>head</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    дорівнює 0, а чий
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>cdr</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>tail</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    — це обіцянка обчислити
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>(fibgen 1 1)</SCHEMEINLINE>.</SCHEME>
+      <PYTHON><PYTHONINLINE>fibgen(1, 1)</PYTHONINLINE>.</PYTHON>
+    </SPLITINLINE>
+    Коли ми обчислимо цей відкладений
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>(fibgen 1 1)</SCHEMEINLINE>,</SCHEME>
+      <PYTHON><PYTHONINLINE>fibgen(1, 1)</PYTHONINLINE>,</PYTHON>
+    </SPLITINLINE>
+    він породить пару, чия
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>car</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>head</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    дорівнює 1, а чий
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>cdr</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>tail</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    — це обіцянка обчислити
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>(fibgen<SPACE/>1<SPACE/>2)</SCHEMEINLINE>,</SCHEME>
+      <PYTHON><PYTHONINLINE>fibgen(1, 2)</PYTHONINLINE>,</PYTHON>
+    </SPLITINLINE>
+    і так далі.
+  </TEXT>
+
+  <TEXT>
+    Щоб поглянути на цікавіший нескінченний потік, ми можемо узагальнити
+    приклад
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>no-sevens</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>no_sevens</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    і побудувати нескінченний потік простих
+    чисел, користуючись методом
+    <EM>просіювання</EM>.<FOOTNOTE>Цей метод нагадує давнє
+    <INDEX>просте число(а)<SUBINDEX>решето Ератосфена для</SUBINDEX></INDEX>
+    <INDEX>решето Ератосфена</INDEX>
+    <EM>решето Ератосфена</EM>, назване на честь
+    <INDEX>Ератосфен</INDEX>
+    Ератосфена, олександрійського грецького математика III століття до н. е.
+    Його решето знаходить прості числа, раз у раз викреслюючи кратні кожного
+    простого числа по черзі; хоч воно й давнє, воно лягло в основу
+    спеціалізованих апаратних <QUOTE>решіт</QUOTE>, які до 1970-х років
+    були найпотужнішими інструментами для пошуку великих простих чисел. Відтоді,
+    проте, ці методи поступилися похідним від
+    <INDEX>імовірнісний алгоритм</INDEX>
+    імовірнісних методів, обговорених у
+    підрозділі<SPACE/><REF NAME="sec:primality"/>. Але потоковий метод,
+    наведений тут, насправді не є решетом Ератосфена: як показує Мелісса Е.
+    О<APOS/>Нілл у <CITATION NAME="ONE09">О<APOS/>Нілл 2009</CITATION>, він перевіряє
+    кожного кандидата на подільність на вже знайдені прості числа<EMDASH/>це форма
+    <EM>пробного ділення</EM><EMDASH/>а не викреслювання кратних, і він
+    істотно менш ефективний за справжнє решето.</FOOTNOTE>
+    Ми починаємо з цілих чисел, що починаються з 2, яке є першим простим числом.
+    Щоб отримати решту простих чисел, ми спершу відфільтровуємо кратні
+    2 з решти цілих чисел. Це залишає потік, що починається з
+    3, яке є наступним простим числом. Тепер ми відфільтровуємо кратні 3 з
+    решти цього потоку. Це залишає потік, що починається з 5, яке є
+    наступним простим числом, і так далі. Іншими словами, ми будуємо прості числа
+    процесом просіювання, описаним так: щоб просіяти потік
+    S,
+    утворіть потік, чий перший елемент — це перший елемент
+    S, а
+    решта якого отримана фільтруванням усіх кратних
+    першого елемента S з решти
+    S та просіюванням результату. Цей
+    процес легко описати в термінах потокових операцій:
+
+    <SNIPPET HIDE="yes">
+      <NAME>sieve_example</NAME>
+      <REQUIRES>stream_functions</REQUIRES>
+      <PYTHON>
+print(eval_stream(primes, 50))
+      </PYTHON>
+      <PYTHON_TEST>
+print(stream_ref(primes, 50))
+      </PYTHON_TEST>
+    </SNIPPET>
+    <SNIPPET EVAL="yes">
+      <INDEX><DECLARATION>primes</DECLARATION> (infinite stream)</INDEX>
+      <INDEX>sieve of Eratosthenes<SUBINDEX><DECLARATION>sieve</DECLARATION></SUBINDEX></INDEX>
+      <NAME>sieve</NAME>
+      <REQUIRES>stream_tail</REQUIRES>
+      <REQUIRES>stream_filter</REQUIRES>
+      <REQUIRES>is_divisible2</REQUIRES>
+      <REQUIRES>integers_starting_from</REQUIRES>
+      <EXAMPLE>sieve_example</EXAMPLE>
+      <EXPECTED>233</EXPECTED>
+      <SCHEME>
+(define (sieve stream)
+  (cons-stream
+   (stream-car stream)
+   (sieve (stream-filter
+           (lambda (x)
+             (not (divisible? x (stream-car stream))))
+           (stream-cdr stream)))))
+
+(define primes (sieve (integers-starting-from 2)))
+      </SCHEME>
+      <PYTHON>
+def sieve(stream):
+    return pair(head(stream),
+                lambda: sieve(stream_filter(
+                                  lambda x: not is_divisible(x, head(stream)),
+                                  stream_tail(stream))))
+
+primes = sieve(integers_starting_from(2))
+      </PYTHON>
+    </SNIPPET>
+    Тепер, щоб знайти конкретне просте число, нам досить попросити його:
+    <SNIPPET>
+      <NAME>sieve_example_2</NAME>
+      <REQUIRES>stream_functions</REQUIRES>
+      <REQUIRES>sieve</REQUIRES>
+      <EXPECTED>233</EXPECTED>
+      <SCHEME>
+(stream-ref primes 50)
+      </SCHEME>
+      <SCHEMEOUTPUT>
+233
+      </SCHEMEOUTPUT>
+      <PYTHON>
+print(stream_ref(primes, 50))
+      </PYTHON>
+      <PYTHON_OUTPUT>
+233
+      </PYTHON_OUTPUT>
+    </SNIPPET>
+  </TEXT>
+
+  <TEXT>
+    Цікаво поміркувати над системою опрацювання сигналів, яку
+    створює <SCHEMEINLINE>sieve</SCHEMEINLINE>, показаною на
+    <INDEX>Гендерсон, Пітер<SUBINDEX>діаграма Гендерсона</SUBINDEX></INDEX>
+    <QUOTE>діаграмі Гендерсона</QUOTE> на
+    <SPLITINLINE><SCHEME>рисунку<SPACE/><REF NAME="fig:primesieve_scheme"/></SCHEME><PYTHON>рисунку<SPACE/><REF NAME="fig:primesieve"/></PYTHON></SPLITINLINE>.<FOOTNOTE>Ми назвали ці
+    рисунки на честь
+    <INDEX>Гендерсон, Пітер</INDEX>
+    Пітера Гендерсона, який першим показав нам діаграми такого роду
+    як спосіб думати про потокове опрацювання.</FOOTNOTE> Вхідний потік потрапляє до
+    <SPLITINLINE>
+      <SCHEME><QUOTE>роз<SCHEMEINLINE>cons</SCHEMEINLINE>лювача</QUOTE>
+      </SCHEME>
+      <PYTHON><QUOTE>роз<PYTHONINLINE>pair</PYTHONINLINE>лювача</QUOTE>
+      </PYTHON>
+    </SPLITINLINE>
+    який відокремлює перший елемент потоку від решти потоку.
+    Перший елемент використовують, щоб побудувати фільтр подільності, крізь
+    який проходить решта, а вихід фільтра потрапляє до
+    іншого блоку просіювання. Потім початковий перший елемент
+    <SPLITINLINE>
+      <SCHEME>
+	<SCHEMEINLINE>cons</SCHEMEINLINE>иться
+	до виходу внутрішнього решета, утворюючи вихідний потік.
+      </SCHEME>
+      <PYTHON>
+	долучається до виходу внутрішнього решета
+	й утворює вихідний потік.
+      </PYTHON>
+    </SPLITINLINE>
+    Отже, не лише потік нескінченний, а й процесор сигналів
+    нескінченний, бо решето містить у собі решето.
+    <SPLIT>
+      <SCHEME>
+        <FIGURE src="img_original/ch3-Z-G-35.svg">
+          <CAPTION>Решето простих чисел як система опрацювання сигналів.
+Кожна суцільна лінія представляє
+    потік значень, які передаються. Штрихова лінія від
+    <SCHEMEINLINE>car</SCHEMEINLINE>
+    до
+    <SCHEMEINLINE>cons</SCHEMEINLINE>
+    та <SCHEMEINLINE>filter</SCHEMEINLINE> указує, що це одне
+    значення, а не потік.
+          </CAPTION>
+          <LABEL NAME="fig:primesieve_scheme"/>
+        </FIGURE>
+      </SCHEME>
+      <PYTHON>
+        <FIGURE scale="0.57" src="img_python/ch3-Z-G-35.svg">
+          <CAPTION>Решето простих чисел як система опрацювання сигналів.
+Кожна суцільна лінія представляє
+    потік значень, які передаються. Штрихова лінія від
+    <PYTHONINLINE>head</PYTHONINLINE>
+    до
+    <PYTHONINLINE>pair</PYTHONINLINE>
+    та <SCHEMEINLINE>filter</SCHEMEINLINE> указує, що це одне
+    значення, а не потік.
+          </CAPTION>
+          <LABEL NAME="fig:primesieve"/>
+        </FIGURE>
+      </PYTHON>
+    </SPLIT>
+  </TEXT>
+
+  <SUBHEADING>
+    <NAME>Неявне означення потоків</NAME>
+  </SUBHEADING>
+
+  <INDEX>потік(и)<SUBINDEX>неявне означення<OPEN/></SUBINDEX></INDEX>
+
+  <TEXT>
+    Потоки <SCHEMEINLINE>integers</SCHEMEINLINE> та
+    <SCHEMEINLINE>fibs</SCHEMEINLINE> вище були означені через указування
+    <QUOTE>породжувальних</QUOTE>
+    <SPLITINLINE>
+      <SCHEME>процедур</SCHEME>
+      <PYTHON>функцій</PYTHON>
+    </SPLITINLINE>
+    які явно обчислюють елементи потоку один за одним. Альтернативний спосіб
+    задати потоки — скористатися відкладеним обчисленням, щоб означити
+    потоки неявно. Наприклад, такий
+    <SPLITINLINE>
+      <SCHEME>вираз</SCHEME>
+      <PYTHON>оператор</PYTHON>
+    </SPLITINLINE>
+    означає
+    потік <SCHEMEINLINE>ones</SCHEMEINLINE> як нескінченний потік одиниць:
+    <SNIPPET HIDE="yes">
+      <NAME>ones_example</NAME>
+      <REQUIRES>stream_functions</REQUIRES>
+      <PYTHON>
+print(eval_stream(ones, 50))
+      </PYTHON>
+      <PYTHON_TEST>
+print(stream_ref(ones, 50))
+      </PYTHON_TEST>
+    </SNIPPET>
+    <SNIPPET EVAL="yes">
+      <INDEX><DECLARATION>ones</DECLARATION> (infinite stream)</INDEX>
+      <NAME>ones_definition</NAME>
+      <EXAMPLE>ones_example</EXAMPLE>
+      <EXPECTED>1</EXPECTED>
+      <SCHEME>
+(define ones (cons-stream 1 ones))
+      </SCHEME>
+      <PYTHON>
+ones = pair(1, lambda: ones)
+      </PYTHON>
+    </SNIPPET>
+    Це працює багато в чому так, як оголошення рекурсивної
+    <SPLITINLINE>
+      <SCHEME>процедури:</SCHEME>
+      <PYTHON>функції:</PYTHON>
+    </SPLITINLINE>
+    <SCHEMEINLINE>ones</SCHEMEINLINE> — це пара, чия
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>car</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>head</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    дорівнює 1, а чий
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>cdr</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>tail</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    — це обіцянка обчислити <SCHEMEINLINE>ones</SCHEMEINLINE>. Обчислення
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>cdr</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>tail</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    знову дає нам 1 та обіцянку обчислити
+    <SCHEMEINLINE>ones</SCHEMEINLINE>, і так далі.
+  </TEXT>
+
+  <TEXT>
+    Ми можемо робити цікавіші речі, маніпулюючи потоками
+    такими операціями, як
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>add-streams</SCHEMEINLINE>,</SCHEME>
+      <PYTHON><PYTHONINLINE>add_streams</PYTHONINLINE>,</PYTHON>
+    </SPLITINLINE>
+    яка породжує поелементну суму двох заданих потоків:<FOOTNOTE>
+    <SPLIT>
+      <SCHEME>
+	Тут використано узагальнену версію
+	<SCHEMEINLINE>stream-map</SCHEMEINLINE>
+	із вправи<SPACE/><REF NAME="ex:general-stream-map"/>.
+      </SCHEME>
+      <PYTHON>
+	Тут використано функцію
+	<PYTHONINLINE>stream_map_2</PYTHONINLINE>
+	із вправи<SPACE/><REF NAME="ex:combine-streams"/>.
+      </PYTHON>
+    </SPLIT></FOOTNOTE>
+
+    <SNIPPET HIDE="yes">
+      <NAME>add_streams_example</NAME>
+      <REQUIRES>stream_functions</REQUIRES>
+      <REQUIRES>add_streams</REQUIRES>
+      <PYTHON>
+ones = pair(1, lambda: ones)
+twos = pair(2, lambda: twos)
+threes = add_streams(ones, twos)
+print(eval_stream(threes, 50))
+      </PYTHON>
+      <PYTHON_TEST>
+ones = pair(1, lambda: ones)
+twos = pair(2, lambda: twos)
+threes = add_streams(ones, twos)
+print(stream_ref(threes, 50))
+      </PYTHON_TEST>
+    </SNIPPET>
+    <SNIPPET EVAL="yes">
+      <INDEX><DECLARATION>add_streams</DECLARATION></INDEX> 
+      <NAME>add_streams</NAME>
+      <REQUIRES>stream_combine</REQUIRES>
+      <EXAMPLE>add_streams_example</EXAMPLE>
+      <EXPECTED>3</EXPECTED>
+      <SCHEME>
+(define (add-streams s1 s2)
+  (stream-map + s1 s2))
+      </SCHEME>
+      <PYTHON>
+def add_streams(s1, s2):
+    return stream_map_2(lambda x1, x2: x1 + x2, s1, s2)
+      </PYTHON>
+    </SNIPPET>
+    Тепер ми можемо означити цілі числа так:
+    <SNIPPET HIDE="yes">
+      <NAME>integers_definition_2_example</NAME>
+      <REQUIRES>stream_functions</REQUIRES>
+      <PYTHON>
+print(eval_stream(integers, 50))
+      </PYTHON>
+      <PYTHON_TEST>
+print(stream_ref(integers, 50))
+      </PYTHON_TEST>
+    </SNIPPET>
+    <SNIPPET EVAL="yes">
+      <INDEX><DECLARATION>integers</DECLARATION> (infinite stream)<SUBINDEX>implicit definition</SUBINDEX></INDEX>
+      <NAME>integers_definition_2</NAME>
+      <REQUIRES>add_streams</REQUIRES>
+      <REQUIRES>ones_definition</REQUIRES>
+      <EXAMPLE>integers_definition_2_example</EXAMPLE>
+      <EXPECTED>51</EXPECTED>
+      <SCHEME>
+(define integers (cons-stream 1 (add-streams ones integers)))
+      </SCHEME>
+      <PYTHON>
+integers = pair(1, lambda: add_streams(ones, integers))
+      </PYTHON>
+    </SNIPPET>
+    Це означає <SCHEMEINLINE>integers</SCHEMEINLINE> як потік, чий
+    перший елемент — 1, а решта — це сума
+    <SCHEMEINLINE>ones</SCHEMEINLINE> та <SCHEMEINLINE>integers</SCHEMEINLINE>.
+    Отже, другий елемент <SCHEMEINLINE>integers</SCHEMEINLINE> — це 1 плюс
+    перший елемент <SCHEMEINLINE>integers</SCHEMEINLINE>, тобто 2; третій
+    елемент <SCHEMEINLINE>integers</SCHEMEINLINE> — це 1 плюс другий
+    елемент <SCHEMEINLINE>integers</SCHEMEINLINE>, тобто 3; і так далі. Це
+    означення працює, бо в кожен момент достатню частину потоку
+    <SCHEMEINLINE>integers</SCHEMEINLINE> вже породжено, тож ми
+    можемо подати її назад в означення, щоб породити наступне ціле число.
+  </TEXT>
+
+  <TEXT>
+    Ми можемо означити числа Фібоначчі в тому самому стилі:
+    <SNIPPET HIDE="yes">
+      <NAME>fibs_by_magic_example</NAME>
+      <REQUIRES>stream_functions</REQUIRES>
+      <PYTHON>
+print(eval_stream(fibs, 20))
+      </PYTHON>
+      <PYTHON_TEST>
+print(stream_ref(fibs, 20))
+      </PYTHON_TEST>
+    </SNIPPET>
+    <SNIPPET EVAL="yes">
+      <INDEX><DECLARATION>fibs</DECLARATION> (infinite stream)<SUBINDEX>implicit definition</SUBINDEX></INDEX>
+      <NAME>fibs_by_magic</NAME>
+      <REQUIRES>stream_tail</REQUIRES>
+      <EXAMPLE>fibs_by_magic_example</EXAMPLE>
+      <REQUIRES>add_streams</REQUIRES>
+      <EXPECTED>6765</EXPECTED>
+      <SCHEME>
+(define fibs
+  (cons-stream 0
+               (cons-stream 1
+                            (add-streams (stream-cdr fibs)
+                                         fibs))))
+      </SCHEME>
+      <PYTHON>
+fibs = pair(0,
+            lambda: pair(1,
+                         lambda: add_streams(stream_tail(fibs),
+                                             fibs)))
+      </PYTHON>
+    </SNIPPET>
+    Це означення каже, що <SCHEMEINLINE>fibs</SCHEMEINLINE> — це потік,
+    який починається з 0 та 1, такий що решту потоку можна породити,
+    додаючи <SCHEMEINLINE>fibs</SCHEMEINLINE> до себе, зсунутого на одну позицію:
+    <SPLIT>
+      <SCHEME>
+	<LATEX>
+\[
+\begin{array}{ccccccccccccl}
+  &amp;   &amp; 1 &amp; 1 &amp; 2 &amp; 3 &amp; 5 &amp;  8 &amp; 13 &amp; 21 &amp; \ldots &amp; = &amp; \texttt{(stream-cdr fibs)} \\
+  &amp;   &amp; 0 &amp; 1 &amp; 1 &amp; 2 &amp; 3 &amp;  5 &amp;  8 &amp; 13 &amp; \ldots &amp; = &amp; \texttt{fibs} \\ \hline
+0 &amp; 1 &amp; 1 &amp; 2 &amp; 3 &amp; 5 &amp; 8 &amp; 13 &amp; 21 &amp; 34 &amp; \ldots &amp; = &amp; \texttt{fibs}
+\end{array}
+\]
+	</LATEX>
+      </SCHEME>
+      <PYTHON>
+	<LATEX>
+\[
+\begin{array}{ccccccccccccl}
+  &amp;   &amp; 1 &amp; 1 &amp; 2 &amp; 3 &amp; 5 &amp;  8 &amp; 13 &amp; 21 &amp; \ldots &amp; = &amp; \texttt{stream}\mathtt{\_}\texttt{tail(fibs)} \\
+  &amp;   &amp; 0 &amp; 1 &amp; 1 &amp; 2 &amp; 3 &amp;  5 &amp;  8 &amp; 13 &amp; \ldots &amp; = &amp; \texttt{fibs} \\ \hline
+0 &amp; 1 &amp; 1 &amp; 2 &amp; 3 &amp; 5 &amp; 8 &amp; 13 &amp; 21 &amp; 34 &amp; \ldots &amp; = &amp; \texttt{fibs}
+\end{array}
+\]
+	</LATEX>
+      </PYTHON>
+    </SPLIT>
+  </TEXT>
+
+  <TEXT>
+    <SPLITINLINE>
+      <SCHEME>
+	<SCHEMEINLINE>Scale-stream</SCHEMEINLINE>
+— це ще одна корисна процедура
+      </SCHEME>
+      <PYTHON>
+	Функція
+	<PYTHONINLINE>scale_stream</PYTHONINLINE>
+	також корисна
+      </PYTHON>
+    </SPLITINLINE>
+    для формулювання таких означень потоків. Вона множить кожен елемент
+    потоку на задану сталу:
+    <SNIPPET HIDE="yes">
+      <NAME>scale_stream_example</NAME>
+      <REQUIRES>stream_functions</REQUIRES>
+      <REQUIRES>scale_stream</REQUIRES>
+      <PYTHON>
+twos = pair(2, lambda: twos)
+sixes = scale_stream(twos, 3)
+print(eval_stream(sixes, 50))
+      </PYTHON>
+      <PYTHON_TEST>
+twos = pair(2, lambda: twos)
+sixes = scale_stream(twos, 3)
+print(stream_ref(sixes, 50))
+      </PYTHON_TEST>
+    </SNIPPET>
+    <SNIPPET EVAL="yes">
+      <INDEX><DECLARATION>scale_stream</DECLARATION></INDEX> 
+      <NAME>scale_stream</NAME>
+      <REQUIRES>stream_functions</REQUIRES>
+      <EXAMPLE>scale_stream_example</EXAMPLE>
+      <EXPECTED>6</EXPECTED>
+      <SCHEME>
+(define (scale-stream stream factor)
+  (stream-map (lambda (x) (* x factor)) stream))
+      </SCHEME>
+      <PYTHON>
+def scale_stream(stream, factor):
+    return stream_map(lambda x: x * factor,
+                      stream)
+      </PYTHON>
+    </SNIPPET>
+    Наприклад,
+    <SNIPPET HIDE="yes">
+      <NAME>double_stream_example</NAME>
+      <REQUIRES>stream_functions</REQUIRES>
+      <PYTHON>
+print(eval_stream(double, 50))
+      </PYTHON>
+      <PYTHON_TEST>
+print(stream_ref(double, 50))
+      </PYTHON_TEST>
+    </SNIPPET>
+    <SNIPPET EVAL="yes">
+      <NAME>double_stream</NAME>
+      <REQUIRES>scale_stream</REQUIRES>
+      <EXAMPLE>double_stream_example</EXAMPLE>
+      <EXPECTED>1125899906842624</EXPECTED>
+      <SCHEME>
+(define double (cons-stream 1 (scale-stream double 2)))
+      </SCHEME>
+      <PYTHON>
+double = pair(1, lambda: scale_stream(double, 2))
+      </PYTHON>
+    </SNIPPET>
+    породжує потік степенів двійки:
+    <LATEXINLINE>$1, 2, 4, 8, 16, 32,$</LATEXINLINE> <ELLIPSIS/>.
+  </TEXT>
+
+  <TEXT>
+    Альтернативне означення потоку простих чисел можна дати,
+    починаючи з цілих чисел і фільтруючи їх перевіркою на
+    простоту. Щоб почати, нам знадобиться перше просте число, 2:
+    <SNIPPET HIDE="yes">
+      <NAME>primes_example</NAME>
+      <REQUIRES>stream_functions</REQUIRES>
+      <PYTHON>
+print(eval_stream(primes, 50))
+      </PYTHON>
+      <PYTHON_TEST>
+print(stream_ref(primes, 50))
+      </PYTHON_TEST>
+    </SNIPPET>
+    <SNIPPET EVAL="yes">
+      <INDEX><DECLARATION>primes</DECLARATION> (infinite stream)<SUBINDEX>implicit definition</SUBINDEX></INDEX>
+      <NAME>primes</NAME>
+      <REQUIRES>stream_tail</REQUIRES>
+      <REQUIRES>stream_filter</REQUIRES>
+      <REQUIRES>square_definition</REQUIRES>
+      <REQUIRES>is_divisible2</REQUIRES>
+      <REQUIRES>integers_starting_from</REQUIRES>
+      <EXAMPLE>primes_example</EXAMPLE>
+      <EXPECTED>233</EXPECTED>
+      <SCHEME>
+(define primes
+  (cons-stream
+   2
+   (stream-filter prime? (integers-starting-from 3))))
+      </SCHEME>
+      <PYTHON_RUN>
+def is_prime(n):
+    def iter(ps):
+        return (True if square(head(ps)) &gt; n
+                else False if is_divisible(n, head(ps))
+                else iter(stream_tail(ps)))
+    return iter(primes)
+
+primes = pair(2,
+              lambda: stream_filter(is_prime,
+                                    integers_starting_from(3)))
+      </PYTHON_RUN>
+      <PYTHON>
+primes = pair(2,
+              lambda: stream_filter(is_prime,
+                                    integers_starting_from(3)))
+      </PYTHON>
+    </SNIPPET>
+    Це означення не таке прямолінійне, як здається, бо ми
+    перевіряємо, чи число <LATEXINLINE>$n$</LATEXINLINE> є простим,
+    перевіряючи, чи <LATEXINLINE>$n$</LATEXINLINE> ділиться на просте число (а не на будь-яке
+    ціле) менше або рівне <LATEXINLINE>$\sqrt{n}$</LATEXINLINE>:
+    <SNIPPET HIDE="yes">
+      <NAME>is_prime2_example</NAME>
+      <PYTHON>
+print(is_prime(100003))
+      </PYTHON>
+    </SNIPPET>
+    <SNIPPET EVAL="yes">
+      <INDEX><DECLARATION>is_prime</DECLARATION></INDEX> 
+      <NAME>is_prime2</NAME>
+      <REQUIRES>stream_tail</REQUIRES>
+      <REQUIRES>stream_filter</REQUIRES>
+      <REQUIRES>square_definition</REQUIRES>
+      <REQUIRES>is_divisible2</REQUIRES>
+      <REQUIRES>integers_starting_from</REQUIRES>
+      <EXAMPLE>is_prime2_example</EXAMPLE>
+      <EXPECTED>True</EXPECTED>
+      <SCHEME>
+(define (prime? n)
+  (define (iter ps)
+    (cond ((&gt; (square (stream-car ps)) n) true)
+          ((divisible? n (stream-car ps)) false)
+          (else (iter (stream-cdr ps)))))
+  (iter primes))
+      </SCHEME>
+      <PYTHON>
+def is_prime(n):
+    def iter(ps):
+        return (True if square(head(ps)) &gt; n
+                else False if is_divisible(n, head(ps))
+                else iter(stream_tail(ps)))
+    return iter(primes)
+      </PYTHON>
+      <PYTHON_RUN>
+def is_prime(n):
+    def iter(ps):
+        return (True if square(head(ps)) &gt; n
+                else False if is_divisible(n, head(ps))
+                else iter(stream_tail(ps)))
+    return iter(primes)
+
+primes = pair(2,
+              lambda: stream_filter(
+                          is_prime,
+                          integers_starting_from(3)))
+      </PYTHON_RUN>
+    </SNIPPET>
+    Це рекурсивне означення, бо <SCHEMEINLINE>primes</SCHEMEINLINE>
+    означено в термінах
+    <SPLITINLINE>
+      <SCHEME>предиката <SCHEMEINLINE>prime?</SCHEMEINLINE></SCHEME>
+      <PYTHON>предиката <PYTHONINLINE>is_prime</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    який сам використовує потік <SCHEMEINLINE>primes</SCHEMEINLINE>.
+    Причина, чому ця
+    <SPLITINLINE>
+      <SCHEME>процедура</SCHEME>
+      <PYTHON>функція</PYTHON>
+    </SPLITINLINE>
+    працює, у тому, що в кожен момент достатню частину потоку
+    <SCHEMEINLINE>primes</SCHEMEINLINE> вже породжено, щоб перевірити
+    простоту чисел, які треба перевірити наступними. Тобто для кожного
+    <LATEXINLINE>$n$</LATEXINLINE>, яке ми перевіряємо на простоту, або
+    <LATEXINLINE>$n$</LATEXINLINE> не є простим (і тоді є просте число,
+    вже породжене, яке його ділить), або <LATEXINLINE>$n$</LATEXINLINE> є
+    простим (і тоді є вже породжене просте число<EMDASH/>тобто
+    просте число, менше за <LATEXINLINE>$n$</LATEXINLINE><EMDASH/>яке більше за
+    <LATEXINLINE>$\sqrt{n}$</LATEXINLINE>).<FOOTNOTE>Цей останній момент дуже
+    тонкий і спирається на те, що <LATEXINLINE>$p_{n+1} \leq p_{n}^2$</LATEXINLINE>. (Тут <LATEXINLINE>$p_{k}$</LATEXINLINE> позначає
+    <LATEXINLINE>$k$</LATEXINLINE>-те просте число.) Такі оцінки дуже
+    важко довести. Давній доказ
+    <INDEX>доказ Евкліда про нескінченність простих чисел</INDEX>
+    Евкліда, що простих чисел нескінченно багато, показує, що
+    <LATEXINLINE>$p_{n+1}\leq p_{1} p_{2}\,\cdots\,\, p_{n} +1$</LATEXINLINE>,
+    і жодного істотно кращого результату не було доведено до 1851 року, коли російський
+    математик
+    <INDEX>Чебишов, Пафнутій Л<APOS/>вович</INDEX>
+    П. Л. Чебишов встановив,
+    що <LATEXINLINE>$p_{n+1}\leq 2p_{n}$</LATEXINLINE> для всіх
+    <LATEXINLINE>$n$</LATEXINLINE>. Цей результат, уперше висловлений як гіпотеза
+    у 1845 році, відомий як
+    <INDEX>гіпотеза Бертрана</INDEX>
+    <EM>гіпотеза Бертрана</EM>. Доведення можна
+    знайти в підрозділі 22.3
+    <INDEX>Гарді, Ґодфрі Гарольд</INDEX>
+    <INDEX>Райт, Е. М.</INDEX>
+    <CITATION NAME="HAR60">Гарді та Райт 1960</CITATION>.</FOOTNOTE>
+    <INDEX>потік(и)<SUBINDEX>неявне означення<CLOSE/></SUBINDEX></INDEX>
+  </TEXT>
+
+  <EXERCISE>
+    <LABEL NAME="ex:without_running"/>
+    Не запускаючи програму, опишіть елементи потоку,
+    означеного так:
+    <SNIPPET HIDE="yes">
+      <NAME>add_streams_exercise_example</NAME>
+      <PYTHON>
+print(eval_stream(s, 50))
+      </PYTHON>
+    </SNIPPET>
+    <SNIPPET EVAL="yes" POSTPADDING="no">
+      <NAME>add_streams_exercise</NAME>
+      <REQUIRES>add_streams</REQUIRES>
+      <EXAMPLE>add_streams_exercise_example</EXAMPLE>
+      <SCHEME>
+(define s (cons-stream 1 (add-streams s s)))
+      </SCHEME>
+      <PYTHON>
+s = pair(1, lambda: add_streams(s, s))
+      </PYTHON>
+    </SNIPPET>
+    <SOLUTION>
+      Ця програма означає <PYTHONINLINE>s</PYTHONINLINE> як потік, чий
+      перший елемент — 1, а кожен наступний елемент — подвоєний попередній
+      елемент потоку. Тому елементи <PYTHONINLINE>s</PYTHONINLINE> —
+      це 1, 2, 4, 8, 16,... .
+    </SOLUTION>
+  </EXERCISE>
+
+  <EXERCISE>
+    <LABEL NAME="ex:element_wise_product"/>
+    Означте
+    <SPLITINLINE>
+      <SCHEME>процедуру</SCHEME>
+      <PYTHON>функцію</PYTHON>
+    </SPLITINLINE>
+    <INDEX><USE>mul_streams</USE></INDEX> 
+    <INDEX>нескінченний потік(и)<SUBINDEX>факторіалів</SUBINDEX></INDEX>
+    <INDEX>факторіал<SUBINDEX>нескінченний потік</SUBINDEX></INDEX>
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>mul-streams</SCHEMEINLINE>,</SCHEME>
+      <PYTHON><PYTHONINLINE>mul_streams</PYTHONINLINE>,</PYTHON>
+    </SPLITINLINE>
+    аналогічну до
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>add-streams</SCHEMEINLINE>,</SCHEME>
+      <PYTHON><PYTHONINLINE>add_streams</PYTHONINLINE>,</PYTHON>
+    </SPLITINLINE>
+    яка породжує поелементний добуток двох своїх вхідних потоків. Скористайтеся нею
+    разом із потоком <SCHEMEINLINE>integers</SCHEMEINLINE>, щоб
+    завершити таке означення потоку, чий
+    <LATEXINLINE>$n$</LATEXINLINE>-й елемент (рахуючи від 0) — це
+    факторіал <LATEXINLINE>$n+1$</LATEXINLINE>:
+    <SNIPPET HIDE="yes">
+      <NAME>mul_streams_students</NAME>
+      <PYTHON>
+# mul_streams to be written by students
+      </PYTHON>
+    </SNIPPET>
+    <SNIPPET EVAL="no" LATEX="yes" POSTPADDING="no">
+      <NAME>factorials_stream</NAME>
+      <REQUIRES>mul_streams_students</REQUIRES>
+      <SCHEME>
+(define factorials (cons-stream 1 (mul-streams ?? ??)))
+      </SCHEME>
+      <PYTHON>
+factorials = pair(1, lambda: mul_streams(<METAPHRASE>??</METAPHRASE>, <METAPHRASE>??</METAPHRASE>))
+      </PYTHON>
+    </SNIPPET>
+    <SOLUTION>
+      <SNIPPET EVAL="no">
+	<PYTHON>
+factorials = pair(1, lambda: mul_streams(factorials, integers))
+	</PYTHON>
+      </SNIPPET>
+    </SOLUTION>
+  </EXERCISE>
+
+  <EXERCISE>
+    <LABEL NAME="ex:partial-sums"/>
+    Означте
+    <SPLITINLINE>
+      <SCHEME>процедуру</SCHEME>
+      <PYTHON>функцію</PYTHON>
+    </SPLITINLINE>
+    <INDEX><USE>partial_sums</USE></INDEX> 
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>partial-sums</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>partial_sums</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    яка бере як аргумент потік <LATEXINLINE>$S$</LATEXINLINE> і повертає
+    потік, чиї елементи —
+    <LATEXINLINE>$S_0, S_0+S_1, S_0+S_1+S_2,$</LATEXINLINE> <ELLIPSIS/>.
+    Наприклад,
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>(partial-sums integers)</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>partial_sums(integers)</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    має бути потоком <LATEXINLINE>$1, 3, 6, 10, 15,\ldots$</LATEXINLINE>.
+
+    <SOLUTION>
+      <SNIPPET EVAL="no">
+	<NAME>partial_sums</NAME>
+	<REQUIRES>stream_tail</REQUIRES>
+	<REQUIRES>add_streams</REQUIRES>
+	<SCHEME>
+(define (partial-sum s)
+  (cons-stream (stream-car s)
+               (add-streams (stream-cdr s)
+                            (partial-sum s))))
+	</SCHEME>
+	<PYTHON>
+def partial_sums(s):
+    return pair(head(s),
+                lambda: add_streams(stream_tail(s),
+                                    partial_sums(s)))
+	</PYTHON>
+      </SNIPPET>
+    </SOLUTION>
+    
+  </EXERCISE>
+
+  <EXERCISE>
+    <LABEL NAME="ex:merge"/>
+    Відома задача, уперше поставлена
+    <INDEX>Геммінґ, Річард Веслі</INDEX>
+    Р. Геммінґом, — перелічити в порядку зростання без повторів усі
+    додатні цілі числа, які не мають простих множників, крім 2, 3 або 5. Один очевидний
+    спосіб — просто перевіряти кожне ціле число по черзі, чи має воно
+    множники, крім 2, 3 та 5. Але це дуже неефективно, бо, як
+    числа стають більшими, дедалі менше з них задовольняють вимогу. Як
+    альтернативу, назвімо потрібний потік чисел
+    <SCHEMEINLINE>S</SCHEMEINLINE> і зауважмо про нього такі факти.
+    <UL>
+      <LI>
+        <SCHEMEINLINE>S</SCHEMEINLINE> починається з 1.
+      </LI>
+      <LI>
+        Елементи
+	<SPLITINLINE>
+	  <SCHEME><SCHEMEINLINE>(scale-stream S 2)</SCHEMEINLINE></SCHEME>
+	  <PYTHON><PYTHONINLINE>scale_stream(S, 2)</PYTHONINLINE>
+	  </PYTHON>
+	</SPLITINLINE>
+	також є елементами <SCHEMEINLINE>S</SCHEMEINLINE>.
+      </LI>
+      <LI>
+        Те саме стосується
+	<SPLITINLINE>
+	  <SCHEME><SCHEMEINLINE>(scale-stream S 3)</SCHEMEINLINE></SCHEME>
+	  <PYTHON><PYTHONINLINE>scale_stream(S, 3)</PYTHONINLINE>
+	  </PYTHON>
+	</SPLITINLINE>
+        та
+	<SPLITINLINE>
+	  <SCHEME><SCHEMEINLINE>(scale-stream S 5)</SCHEMEINLINE>.</SCHEME>
+	  <PYTHON><PYTHONINLINE>scale_stream(S, 5)</PYTHONINLINE>.
+	  </PYTHON>
+	</SPLITINLINE>
+      </LI>
+      <LI>
+        Це всі елементи <SCHEMEINLINE>S</SCHEMEINLINE>.
+      </LI>
+    </UL>
+    Тепер нам лишається лише поєднати елементи з цих джерел. Для цього ми
+    означуємо
+    <SPLITINLINE>
+      <SCHEME>процедуру</SCHEME>
+      <PYTHON>функцію</PYTHON>
+    </SPLITINLINE>
+    <INDEX>нескінченний потік(и)<SUBINDEX>злиття</SUBINDEX></INDEX>
+    <SCHEMEINLINE>merge</SCHEMEINLINE>, яка поєднує два впорядковані
+    потоки в один впорядкований потік-результат, усуваючи повтори:
+    <SNIPPET HIDE="yes">
+      <NAME>merge_function_example</NAME>
+      <REQUIRES>stream_functions</REQUIRES>
+      <REQUIRES>integers_starting_from</REQUIRES>
+      <REQUIRES>scale_stream</REQUIRES>
+      <PYTHON>
+positive_integers = integers_starting_from(1)
+multiples_of_three = scale_stream(positive_integers, 3)
+multiples_of_five = scale_stream(positive_integers, 5)
+threes_and_fives = merge(multiples_of_three, multiples_of_five)
+print(eval_stream(threes_and_fives, 50))
+      </PYTHON>
+      <PYTHON_TEST>
+positive_integers = integers_starting_from(1)
+multiples_of_three = scale_stream(positive_integers, 3)
+multiples_of_five = scale_stream(positive_integers, 5)
+threes_and_fives = merge(multiples_of_three, multiples_of_five)
+print(stream_ref(threes_and_fives, 50))
+      </PYTHON_TEST>
+    </SNIPPET>
+    <SNIPPET EVAL="yes">
+      <INDEX><DECLARATION>merge</DECLARATION><FRAGILE/></INDEX> 
+      <NAME>merge_function</NAME>
+      <REQUIRES>stream_tail</REQUIRES>
+      <EXAMPLE>merge_function_example</EXAMPLE>
+      <EXPECTED>110</EXPECTED>
+      <SCHEME>
+(define (merge s1 s2)
+  (cond ((stream-null? s1) s2)
+        ((stream-null? s2) s1)
+        (else
+         (let ((s1car (stream-car s1))
+               (s2car (stream-car s2)))
+           (cond ((&lt; s1car s2car)
+                  (cons-stream s1car (merge (stream-cdr s1) s2)))
+                 ((&gt; s1car s2car)
+                  (cons-stream s2car (merge s1 (stream-cdr s2))))
+                 (else
+                  (cons-stream s1car
+                               (merge (stream-cdr s1)
+                                      (stream-cdr s2)))))))))
+      </SCHEME>
+      <PYTHON>
+def merge(s1, s2):
+    if is_none(s1):
+        return s2
+    elif is_none(s2):
+        return s1
+    else:
+        s1head = head(s1)
+        s2head = head(s2)
+        return (pair(s1head, lambda: merge(stream_tail(s1), s2))
+                    if s1head &lt; s2head
+                else pair(s2head, lambda: merge(s1, stream_tail(s2)))
+                    if s1head &gt; s2head
+                else pair(s1head, lambda: merge(stream_tail(s1), stream_tail(s2))))
+      </PYTHON>
+    </SNIPPET>
+    Тоді потрібний потік можна побудувати за допомогою
+    <SCHEMEINLINE>merge</SCHEMEINLINE> так:
+    <SNIPPET EVAL="no" LATEX="yes">
+      <REQUIRES>merge_function</REQUIRES>
+      <SCHEME>
+(define S (cons-stream 1 (merge ?? ??)))
+      </SCHEME>
+      <PYTHON>
+S = pair(1, lambda: merge(<METAPHRASE>??</METAPHRASE>, <METAPHRASE>??</METAPHRASE>))
+      </PYTHON>
+    </SNIPPET>
+    Заповніть пропущені вирази в місцях, позначених
+    <METAPHRASE>??</METAPHRASE> вище.
+    <SOLUTION>
+      <SNIPPET HIDE="yes">
+	<NAME>hamming_example</NAME>
+	<REQUIRES>integers_starting_from</REQUIRES>
+	<REQUIRES>scale_stream</REQUIRES>
+	<PYTHON>
+print(eval_stream(S, 50))
+	</PYTHON>
+      </SNIPPET>
+      <SNIPPET EVAL="yes">
+	<NAME>hamming_stream</NAME>
+	<REQUIRES>scale_stream</REQUIRES>
+	<REQUIRES>merge_function</REQUIRES>
+	<EXAMPLE>hamming_example</EXAMPLE>
+	<PYTHON>
+S = pair(1, lambda: merge(scale_stream(S, 2),
+                          merge(scale_stream(S, 3),
+                                scale_stream(S, 5))))
+	</PYTHON>
+      </SNIPPET>
+    </SOLUTION>
+  </EXERCISE>
+
+  <EXERCISE>
+    <LABEL NAME="ex:fib-stream-efficiency"/>
+    <SPLITINLINE>
+      <SCHEME>
+	Скільки додавань виконується, коли ми обчислюємо
+	<LATEXINLINE>$n$</LATEXINLINE>-те число Фібоначчі, користуючись означенням
+	<SCHEMEINLINE>fibs</SCHEMEINLINE>, що спирається на
+      процедуру <SCHEMEINLINE>add-streams</SCHEMEINLINE>?
+	Покажіть, що кількість додавань була б експоненційно більшою, якби ми
+	реалізували <SCHEMEINLINE>(delay exp)</SCHEMEINLINE> просто як
+	<SCHEMEINLINE>(lambda () exp)</SCHEMEINLINE>, не користуючись
+	оптимізацією, яку дає процедура <SCHEMEINLINE>memo-proc</SCHEMEINLINE>,
+	описана в
+	підрозділі<SPACE/><REF NAME="sec:delayed-lists"/>.<FOOTNOTE>Ця
+	вправа показує, як тісно передавання за потребою пов<APOS/>язане з
+	<INDEX>передавання аргументів за потребою<SUBINDEX>запам<APOS/>ятовування і</SUBINDEX></INDEX>
+	<INDEX>запам<APOS/>ятовування<SUBINDEX>передавання за потребою і</SUBINDEX></INDEX>
+	<INDEX>delay<SUBINDEX>із запам<APOS/>ятовуванням</SUBINDEX></INDEX>
+	звичайним запам<APOS/>ятовуванням, описаним у
+	вправі<SPACE/><REF NAME="ex:memoization"/>. У тій вправі ми користувалися
+	присвоєнням, щоб явно побудувати локальну таблицю. Наша оптимізація потоків
+	з передаванням за потребою фактично будує таку таблицю автоматично, зберігаючи
+	значення в раніше обчислених частинах потоку.</FOOTNOTE>
+      </SCHEME>
+      <PYTHON>
+	Скільки додавань виконується, коли ми обчислюємо
+	<LATEXINLINE>$n$</LATEXINLINE>-те число Фібоначчі, користуючись оголошенням
+	<SCHEMEINLINE>fibs</SCHEMEINLINE>, що спирається на
+	функцію <PYTHONINLINE>add_streams</PYTHONINLINE>?
+	Покажіть, що це число експоненційно більше за число
+	додавань, які виконувалися б, якби
+	<PYTHONINLINE>add_streams</PYTHONINLINE> використовувала функцію
+	<PYTHONINLINE>stream_map_2_optimized</PYTHONINLINE>,
+	описану у вправі<SPACE/><REF NAME="ex:combine-streams"/>,
+	і якби ми оголосили <PYTHONINLINE>fibs</PYTHONINLINE> так:
+	<SNIPPET EVAL="no">
+	  <REQUIRES>stream_tail</REQUIRES>
+	  <REQUIRES>add_streams</REQUIRES>
+	  <REQUIRES>memo</REQUIRES>
+	  <PYTHON>
+fibs = pair(0,
+            memo(lambda: pair(1,
+                              memo(lambda: add_streams(stream_tail(fibs),
+                                                       fibs)))))
+	  </PYTHON>
+	</SNIPPET>
+      </PYTHON>
+    </SPLITINLINE>
+  </EXERCISE>
+
+  <EXERCISE>
+    <LABEL NAME="ex:quotient"/>
+    Дайте інтерпретацію потоку, який обчислює
+    така
+    <SPLITINLINE>
+      <SCHEME>процедура:</SCHEME>
+      <PYTHON>функція</PYTHON>
+    </SPLITINLINE>
+    <SNIPPET EVAL="no">
+      <SCHEME>
+(define (expand num den radix)
+  (cons-stream
+   (quotient (* num radix) den)
+   (expand (remainder (* num radix) den) den radix)))
+      </SCHEME>
+      <PYTHON>
+def expand(num, den, radix):
+    return pair(math_trunc((num * radix) / den),
+                lambda: expand((num * radix) % den, den, radix))
+      </PYTHON>
+    </SNIPPET>
+    
+    <SPLITINLINE>
+      <SCHEME>
+	(<SCHEMEINLINE>Quotient</SCHEMEINLINE>
+	<INDEX>примітивні процедури (ті, що позначені <EM>ns</EM>, не входять до стандарту IEEE Scheme)<SUBINDEX><DECLARATION>quotient</DECLARATION></SUBINDEX></INDEX>
+	<INDEX><USE>quotient</USE> (primitive function)<FRAGILE/></INDEX>
+	це примітив, який повертає
+	цілу частку двох цілих чисел.)
+      </SCHEME>
+      <PYTHON>
+	де
+	<INDEX><PRIMITIVE/><SUBINDEX><USE>math_trunc</USE><PLR>math.trunc</PLR></SUBINDEX><FRAGILE/></INDEX>
+	<INDEX><USE>math_trunc</USE> (primitive function)<FRAGILE/></INDEX>
+	<PYTHONINLINE>math_trunc</PYTHONINLINE>
+	відкидає дробову частину свого аргументу, тут остачу
+	від ділення.
+      </PYTHON>
+    </SPLITINLINE>
+    Які послідовні елементи породжує
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>(expand 1 7 10)</SCHEMEINLINE>?
+      </SCHEME>
+      <PYTHON>
+	<PYTHONINLINE>expand(1, 7, 10)</PYTHONINLINE>?
+      </PYTHON>
+    </SPLITINLINE>
+    Що породжує
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>(expand 3 8 10)</SCHEMEINLINE>?
+      </SCHEME>
+      <PYTHON>
+	<PYTHONINLINE>expand(3, 8, 10)</PYTHONINLINE>?
+      </PYTHON>
+    </SPLITINLINE>
+    <SOLUTION>
+    Ця функція породжуватиме нескінченний потік чисел, які представляють цифри
+    <PYTHONINLINE>num / den</PYTHONINLINE>
+    у системі числення з основою <PYTHONINLINE>radix</PYTHONINLINE>.
+    <PYTHONINLINE>expand(1, 7, 10)</PYTHONINLINE>
+    породжуватиме нескінченний потік чисел: 1, 4, 2, 8, 5, 7, 1, 4, 2, 8, 5, 7... А
+    <PYTHONINLINE>expand(3, 8, 10)</PYTHONINLINE>
+    породжуватиме потік чисел: 3, 7, 5, 0, 0, 0, 0 ...
+    </SOLUTION>    
+  </EXERCISE>
+
+  <EXERCISE>
+    <LABEL NAME="ex:powerseries"/>
+  У підрозділі<SPACE/><REF NAME="sec:symbolic-algebra"/> ми бачили, як реалізувати
+  систему арифметики многочленів, яка представляє многочлени як списки
+  членів. Подібно до цього, ми можемо працювати з
+  <INDEX>степеневий ряд, як потік</INDEX>
+  <INDEX>нескінченний потік(и)<SUBINDEX>представлення степеневих рядів</SUBINDEX></INDEX>
+  <INDEX><ORDER>e</ORDER><LATEXINLINE>$e^x$</LATEXINLINE>, степеневий ряд для</INDEX>
+  <INDEX>косинус<SUBINDEX>степеневий ряд для</SUBINDEX></INDEX>
+  <INDEX>синус<SUBINDEX>степеневий ряд для</SUBINDEX></INDEX>
+  <EM>степеневими рядами</EM>, як-от
+  <LATEX>
+    \[
+    \begin{array}{rll}
+    e^{x} &amp;=&amp;
+    1+x+\dfrac{x^{2}}{2}+\dfrac{x^{3}}{3\cdot2}
+                       +\dfrac{x^{4}}{4\cdot 3\cdot 2}+\cdots, \\[9pt]
+    \cos x &amp;=&amp; 1-\dfrac{x^{2}}{2}+\dfrac{x^{4}}{4\cdot 3\cdot 2}-\cdots, \\[9pt]
+    \sin x &amp;=&amp; x-\dfrac{x^{3}}{3\cdot 2}
+                          +\dfrac{x^{5}}{5\cdot 4\cdot 3\cdot 2}- \cdots,
+    \end{array}
+    \]
+  </LATEX>
+  представленими як нескінченні потоки.
+  Ми представлятимемо ряд
+  <LATEXINLINE>$a_0 + a_1 x + a_2 x^2 + a_3 x^3 + \cdots$</LATEXINLINE>
+  як потік, чиї елементи — це коефіцієнти
+  <LATEXINLINE>$a_0, a_1, a_2, a_3,$</LATEXINLINE> <ELLIPSIS/>.
+  <OL>
+    <LI>
+      <INDEX>інтеграл<SUBINDEX>степеневого ряду</SUBINDEX></INDEX>
+      <INDEX>степеневий ряд, як потік<SUBINDEX>інтегрування</SUBINDEX></INDEX>
+      Інтеграл ряду
+      <LATEXINLINE>$a_0 + a_1 x + a_2 x^2 + a_3 x^3 + \cdots$</LATEXINLINE>
+      — це ряд
+      <LATEX>
+	\[
+	\begin{array}{l}
+         c + a_0 x + \frac{1}{2}a_1 x^2 + \frac{1}{3}a_2 x^3 + \frac{1}{4}a_3
+         x^4 + \cdots
+	 \end{array}
+	 \]
+      </LATEX>
+      де <LATEXINLINE>$c$</LATEXINLINE> — довільна стала.
+      Означте
+      <SPLITINLINE><SCHEME>процедуру</SCHEME>
+      <PYTHON>функцію</PYTHON>
+      </SPLITINLINE>
+      <INDEX><USE>integrate_series</USE></INDEX> 
+      <SPLITINLINE>
+	<SCHEME><SCHEMEINLINE>integrate-series</SCHEMEINLINE></SCHEME>
+	<PYTHON><PYTHONINLINE>integrate_series</PYTHONINLINE>
+	</PYTHON>
+      </SPLITINLINE>
+      яка бере як вхід потік
+      <LATEXINLINE>$a_0, a_1, a_2,\ldots$</LATEXINLINE><SPACE/>що представляє
+      степеневий ряд, і повертає потік
+      <LATEXINLINE>$a_0, \frac{1}{2}a_1, \frac{1}{3}a_2,\ldots$</LATEXINLINE>
+      коефіцієнтів неконстантних членів інтеграла цього ряду.
+      (Оскільки результат не має сталого члена, він не представляє степеневий
+      ряд; коли ми користуємося
+      <SPLITINLINE>
+	<SCHEME><SCHEMEINLINE>integrate-series</SCHEMEINLINE>,</SCHEME>
+	<PYTHON><PYTHONINLINE>integrate_series</PYTHONINLINE>,
+	</PYTHON>
+      </SPLITINLINE>
+      ми
+      <SPLITINLINE>
+	<SCHEME>
+	  <SCHEMEINLINE>cons</SCHEMEINLINE>имо до відповідної сталої.)
+	</SCHEME>
+	<PYTHON>
+	  використовуємо
+	  <PYTHONINLINE>pair</PYTHONINLINE>, щоб
+	  долучити відповідну сталу до початку
+	  потоку.)
+	</PYTHON>
+      </SPLITINLINE>
+    </LI>
+    <LI>
+      Функція <LATEXINLINE>$x\mapsto e^x$</LATEXINLINE> є власною
+      похідною. Це означає, що <LATEXINLINE>$e^x$</LATEXINLINE> та
+      інтеграл<SPACE/><LATEXINLINE>$e^x$</LATEXINLINE> — це
+      той самий ряд, крім сталого члена, який дорівнює
+      <LATEXINLINE>$e^0 = 1$</LATEXINLINE>. Відповідно, ми можемо породити
+      ряд для <LATEXINLINE>$e^x$</LATEXINLINE> як
+      <SNIPPET EVAL="no">
+        <SCHEME>
+(define exp-series
+  (cons-stream 1 (integrate-series exp-series)))
+        </SCHEME>
+	<PYTHON>
+exp_series = pair(1, lambda: integrate_series(exp_series))
+	</PYTHON>
+      </SNIPPET>
+      Покажіть, як породити ряди для синуса й косинуса, виходячи з
+      того, що похідна синуса — косинус, а похідна косинуса —
+      це синус із протилежним знаком:
+      <SNIPPET EVAL="no" LATEX="yes">
+        <SCHEME>
+(define cosine-series
+  (cons-stream 1 ??))
+
+(define sine-series
+  (cons-stream 0 ??))
+        </SCHEME>
+	<PYTHON>
+cosine_series = pair(1, <METAPHRASE>??</METAPHRASE>)
+sine_series = pair(0, <METAPHRASE>??</METAPHRASE>)
+	</PYTHON>
+      </SNIPPET>
+    </LI>
+  </OL>
+  <SOLUTION>
+    <SNIPPET EVAL="yes">
+      <REQUIRES>stream_functions</REQUIRES>
+      <REQUIRES>stream_tail</REQUIRES>
+      <PYTHON>
+def integrate_series(s):
+    def helper(ss, iter):
+        return pair(head(ss) / iter, lambda: helper(stream_tail(ss), iter + 1))
+    return helper(s, 1)
+
+cos_series = pair(1, lambda: integrate_series(
+        pair(0,
+            lambda: stream_map(
+                    lambda x: -x,
+                    integrate_series(cos_series)))))
+
+sin_series = pair(0, lambda: integrate_series(
+        pair(1,
+            lambda: integrate_series(
+                stream_map(lambda x: -x, sin_series)
+                ))
+        ))
+      </PYTHON>
+    </SNIPPET>
+  </SOLUTION>
+  </EXERCISE>
+
+  <EXERCISE>
+    <LABEL NAME="ex:mul-series"/>
+    Коли
+    <INDEX>степеневий ряд, як потік<SUBINDEX>додавання</SUBINDEX></INDEX>
+    <INDEX>степеневий ряд, як потік<SUBINDEX>множення</SUBINDEX></INDEX>
+    <INDEX>арифметика<SUBINDEX>над степеневими рядами</SUBINDEX></INDEX>
+    <INDEX><USE>mul_series</USE></INDEX> 
+    степеневі ряди представлено як потоки коефіцієнтів, як у
+    вправі<SPACE/><REF NAME="ex:powerseries"/>, додавання рядів реалізують
+    через
+    <SPLITINLINE>
+      <SCHEME>
+	<SCHEMEINLINE>add-streams</SCHEMEINLINE>.
+      </SCHEME>
+      <PYTHON>
+	<PYTHONINLINE>add_streams</PYTHONINLINE>.
+      </PYTHON>
+    </SPLITINLINE>
+    Завершіть оголошення
+    такої
+    <SPLITINLINE>
+      <SCHEME>процедури</SCHEME>
+      <PYTHON>функції</PYTHON>
+    </SPLITINLINE>
+    для множення рядів:
+    <SNIPPET EVAL="no" LATEX="yes">
+      <REQUIRES>add_streams</REQUIRES>
+      <SCHEME>
+(define (mul-series s1 s2)
+  (cons-stream ?? (add-streams ?? ??)))
+      </SCHEME>
+      <PYTHON>
+def mul_series(s1, s2):
+    pair(<METAPHRASE>??</METAPHRASE>, lambda: add_streams(<METAPHRASE>??</METAPHRASE>, <METAPHRASE>??</METAPHRASE>))
+      </PYTHON>
+    </SNIPPET>
+
+    Ви можете перевірити свою
+    <SPLITINLINE>
+      <SCHEME>процедуру</SCHEME>
+      <PYTHON>функцію</PYTHON>
+    </SPLITINLINE>
+    , переконавшись, що <LATEXINLINE>$sin^2 x + cos^2 x = 1$</LATEXINLINE>,
+    користуючись рядами з вправи<SPACE/><REF NAME="ex:powerseries"/>.
+  <SOLUTION>
+    <SNIPPET EVAL = "no">
+      <REQUIRES>stream_tail</REQUIRES>
+      <REQUIRES>add_streams</REQUIRES>
+      <REQUIRES>scale_stream</REQUIRES>
+      <PYTHON>
+def mul_series(s1, s2):
+    return pair(head(s1) * head(s2),
+        lambda: add_streams(
+                mul_series(stream_tail(s1), s2),
+                scale_stream(stream_tail(s2), head(s1))))
+      </PYTHON>
+    </SNIPPET>
+  </SOLUTION>
+  </EXERCISE>
+
+  <EXERCISE>
+    <LABEL NAME="ex:invert-unit-series"/>
+    Нехай <LATEXINLINE>$S$</LATEXINLINE> — степеневий ряд
+    (вправа<SPACE/><REF NAME="ex:powerseries"/>),
+    чий сталий член дорівнює 1. Припустімо, ми хочемо знайти степеневий ряд
+    <LATEXINLINE>$1/S$</LATEXINLINE>, тобто ряд
+    <LATEXINLINE>$X$</LATEXINLINE> такий, що
+    <LATEXINLINE>$S\cdot X= 1$</LATEXINLINE>.
+    Запишімо <LATEXINLINE>$S=1+S_R$</LATEXINLINE>, де
+    <LATEXINLINE>$S_R$</LATEXINLINE> — це частина
+    <LATEXINLINE>$S$</LATEXINLINE> після сталого члена. Тоді ми можемо розв<APOS/>язати
+    рівняння щодо <LATEXINLINE>$X$</LATEXINLINE> так:
+    \[
+    \begin{array}{rll}
+    S \cdot X &amp;=&amp; 1 \\
+    (1+S_R)\cdot X &amp;=&amp; 1 \\
+    X + S_R \cdot X &amp;=&amp; 1 \\
+    X &amp;=&amp; 1 - S_R \cdot X
+    \end{array}
+    \]
+    Іншими словами, <LATEXINLINE>$X$</LATEXINLINE> — це степеневий ряд, чий
+    сталий член дорівнює 1, а члени вищого порядку задані як <LATEXINLINE>$S_R$</LATEXINLINE>
+    з протилежним знаком, помножений на <LATEXINLINE>$X$</LATEXINLINE>.
+    Скористайтеся цією ідеєю, щоб написати
+    <SPLITINLINE>
+      <SCHEME>процедуру</SCHEME>
+      <PYTHON>функцію</PYTHON>
+    </SPLITINLINE>
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>invert-unit-series</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>invert_@unit_@series</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    яка обчислює <LATEXINLINE>$1/S$</LATEXINLINE> для степеневого ряду
+    <LATEXINLINE>$S$</LATEXINLINE> зі сталим членом 1. Вам треба буде скористатися
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>mul-series</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>mul_series</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    з вправи<SPACE/><REF NAME="ex:mul-series"/>.
+    <SOLUTION>
+      <SNIPPET EVAL = "no">
+        <REQUIRES>stream_functions</REQUIRES>
+        <REQUIRES>stream_tail</REQUIRES>
+        <PYTHON>
+def invert_unit_series(s):
+    return pair(1, lambda: stream_map(lambda x: -x,
+                   mul_series(stream_tail(s), invert_unit_series(s))))
+        </PYTHON>
+      </SNIPPET>
+    </SOLUTION>
+  </EXERCISE>
+
+  <EXERCISE>
+    <LABEL NAME="ex:diving_power_series"/>
+    Скористайтеся результатами вправ<SPACE/><REF NAME="ex:mul-series"/>
+    та<SPACE/><REF NAME="ex:invert-unit-series"/>
+    , щоб означити
+    <SPLITINLINE>
+      <SCHEME>процедуру</SCHEME>
+      <PYTHON>функцію</PYTHON>
+    </SPLITINLINE>
+    <INDEX>степеневий ряд, як потік<SUBINDEX>ділення</SUBINDEX></INDEX>
+    <INDEX>арифметика<SUBINDEX>над степеневими рядами</SUBINDEX></INDEX>
+    <INDEX><USE>div_series</USE></INDEX> 
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>div-series</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>div_series</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    яка ділить два степеневі ряди.
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>Div-series</SCHEMEINLINE></SCHEME>
+      <PYTHON>Функція
+      <PYTHONINLINE>div_series</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    має працювати для будь-яких двох рядів, за умови що ряд-знаменник починається
+    з ненульового сталого члена. (Якщо знаменник має нульовий сталий член,
+    то
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>div-series</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>div_series</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    має сигналізувати про помилку.) Покажіть, як скористатися
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>div-series</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>div_series</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    разом із результатом вправи<SPACE/><REF NAME="ex:powerseries"/>,
+    щоб породити степеневий ряд для
+    <INDEX>тангенс<SUBINDEX>степеневий ряд для</SUBINDEX></INDEX>
+    тангенса.
+  </EXERCISE>
+
+  <INDEX>нескінченний потік(и)<CLOSE/></INDEX>
+
+</SUBSECTION>

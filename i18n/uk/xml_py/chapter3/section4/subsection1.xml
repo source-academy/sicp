@@ -1,0 +1,480 @@
+<SUBSECTION>
+  <NAME>
+    Природа часу в паралельних системах
+  </NAME>
+
+  <LABEL NAME="sec:nature-of-time"/>
+
+  <INDEX>час<SUBINDEX><ORDER>concurrent</ORDER>у паралельних системах<OPEN/></SUBINDEX></INDEX>
+
+  <TEXT>
+    На поверхні час видається простим. Це
+    впорядкування, накладене на події.<FOOTNOTE>Процитуймо напис, побачений
+    на стіні будинку в Кембриджі,
+    штат Массачусетс: <QUOTE>Час
+    <INDEX>час<SUBINDEX>призначення</SUBINDEX></INDEX>
+    — це пристрій, вигаданий для того, щоб усе не відбувалося
+    водночас.</QUOTE></FOOTNOTE>
+    Для будь-яких подій <LATEXINLINE>$A$</LATEXINLINE> та
+    <LATEXINLINE>$B$</LATEXINLINE>
+    або <LATEXINLINE>$A$</LATEXINLINE> відбувається раніше за
+    <LATEXINLINE>$B$</LATEXINLINE>,
+    або <LATEXINLINE>$A$</LATEXINLINE><SPACE/>і
+    <LATEXINLINE>$B$</LATEXINLINE> одночасні, або
+    <LATEXINLINE>$A$</LATEXINLINE> відбувається пізніше за
+    <LATEXINLINE>$B$</LATEXINLINE>. Наприклад,
+    повертаючись до прикладу з банківським рахунком, припустімо, що Петро знімає
+    <DOLLAR/>10, а Пол знімає <DOLLAR/>25 зі
+    <INDEX>банківський рахунок<SUBINDEX>спільний, з паралельним доступом</SUBINDEX></INDEX>
+    спільного рахунку, на якому спочатку
+    є <DOLLAR/>100, тож на рахунку залишається <DOLLAR/>65. Залежно від
+    порядку цих двох знять послідовність балансів на рахунку —
+    або <LATEXINLINE>$\$100 \rightarrow \$90 \rightarrow\$65$</LATEXINLINE>,
+    або <LATEXINLINE>$\$100 \rightarrow \$75 \rightarrow\$65$</LATEXINLINE>.
+    У комп<APOS/>ютерній реалізації банківської системи цю змінювану
+    послідовність балансів можна було б моделювати послідовними
+    <SPLITINLINE>
+      <SCHEME>присвоєннями</SCHEME>
+      <PYTHON>переприсвоєннями</PYTHON>
+    </SPLITINLINE>
+    змінній <SCHEMEINLINE>balance</SCHEMEINLINE>.
+  </TEXT>
+
+  <TEXT>
+    Однак у складних ситуаціях такий погляд може бути проблемним.
+    Припустімо, що Петро, Пол та інші люди
+    звертаються до того самого банківського рахунку через мережу банківських
+    автоматів, розподілених по всьому світі. Фактична послідовність балансів
+    на рахунку критично залежатиме від докладного розкладу
+    звернень і від деталей зв<APOS/>язку між автоматами.
+  </TEXT>
+
+  <TEXT>
+    Ця
+    <INDEX>порядок подій<SUBINDEX>невизначеність у паралельних системах</SUBINDEX></INDEX>
+    невизначеність у порядку подій може породжувати серйозні проблеми
+    в проєктуванні паралельних систем. Наприклад, припустімо, що
+    зняття коштів, які роблять Петро і Пол, реалізовано як два окремі
+    <SPLITINLINE><SCHEME>процеси</SCHEME>
+    <PYTHON>потоки</PYTHON></SPLITINLINE>
+    , що спільно використовують змінну <SCHEMEINLINE>balance</SCHEMEINLINE>, кожен
+    <SPLITINLINE><SCHEME>процес</SCHEME>
+    <PYTHON>потік</PYTHON></SPLITINLINE>
+    задано
+    <SPLITINLINE><SCHEME>процедурою</SCHEME>
+    <PYTHON>функцією</PYTHON></SPLITINLINE>
+    з підрозділу<SPACE/><REF NAME="sec:local-state-variables"/>:
+    <SNIPPET>
+      <NAME>withdraw_concurrency</NAME>
+      <REQUIRES>balance_concurrency</REQUIRES>
+      <EXAMPLE>withdraw_example_concurrency</EXAMPLE>
+      <EXPECTED>75</EXPECTED>
+      <SCHEME>
+(define (withdraw amount)
+   (if (&gt;= balance amount)
+     (begin (set! balance (- balance amount))
+            balance)
+     "Insufficient funds"))
+      </SCHEME>
+      <PYTHON>
+def withdraw(amount):
+    global balance
+    if balance &gt;= amount:
+        balance = balance - amount
+        return balance
+    else:
+        return "Insufficient funds"
+      </PYTHON>
+    </SNIPPET>
+
+    <SNIPPET HIDE="yes">
+      <NAME>balance_concurrency</NAME>
+      <PYTHON>
+balance = 100
+      </PYTHON>
+    </SNIPPET>
+    
+    <SNIPPET HIDE="yes">
+      <NAME>withdraw_example_concurrency</NAME>
+      <SCHEME>
+(withdraw 25) ;; output: 75
+      </SCHEME>
+      <SCHEMEOUTPUT>
+75
+      </SCHEMEOUTPUT>
+      <PYTHON>
+print(withdraw(25))  # output: 75
+      </PYTHON>
+    </SNIPPET>
+    Якщо ці два
+    <SPLITINLINE><SCHEME>процеси</SCHEME>
+    <PYTHON>потоки</PYTHON></SPLITINLINE>
+    працюють незалежно, то Петро може перевірити
+    баланс і спробувати зняти припустиму суму.
+    <INDEX><USE>withdraw</USE><SUBINDEX>проблеми в паралельній системі</SUBINDEX></INDEX>
+    Однак Пол
+    міг зняти частину коштів у проміжку між тим, коли Петро перевіряє
+    баланс, і тим, коли він завершує зняття, знецінивши таким чином
+    Петр<APOS/>ову перевірку.
+  </TEXT>
+
+  <TEXT>
+    Буває й гірше. Розгляньмо
+    <SPLITINLINE>
+      <SCHEME>
+	вираз
+      </SCHEME>
+      <PYTHON>
+	інструкцію
+      </PYTHON>
+    </SPLITINLINE>
+    <SNIPPET EVAL="no">
+      <SCHEME>
+(set! balance (- balance amount))
+      </SCHEME>
+      <PYTHON>
+balance = balance - amount
+      </PYTHON>
+    </SNIPPET>
+    яку виконують як частину кожного процесу зняття коштів. Вона складається з трьох
+    кроків: (1) звернення до значення змінної <SCHEMEINLINE>balance</SCHEMEINLINE>;
+    (2) обчислення нового балансу; (3) присвоєння
+    <SCHEMEINLINE>balance</SCHEMEINLINE> цього нового значення. Якщо зняття
+    коштів, які роблять Петро і Пол, виконують цю інструкцію паралельно, то
+    ці два зняття можуть переплести порядок, у якому вони звертаються до
+    <SCHEMEINLINE>balance</SCHEMEINLINE> і присвоюють їй нове значення.
+  </TEXT>
+
+
+    <SPLIT>
+  <!-- 
+       %above figure shows the following:
+       %time     Peter (withdrawing 10)       Paul (withdrawing 25)
+       %- - - -  - - - - -                    - - - -
+       % |
+       % |       access balance, get 100
+       % |                                    access balance, get 100
+       % |        compute new balance as  
+       % |        100 - 10 = 90                compute new balance as
+       % |                                     100 - 25 = 75
+       % |       set! balance to 90
+       % |                                    set! balance to 75
+       % V                         
+  -->
+      <SCHEME>
+        <FIGURE split_scale="0.9" web_scale="0.7" scale="0.40" src="img_original/ch3-Z-G-31.svg">
+          <LABEL NAME="fig:bank-access_scheme"/>
+          <CAPTION>Діаграма часу
+          <INDEX>діаграма часу</INDEX>
+	  яка показує, як переплетення порядку подій
+          у двох банківських зняттях коштів може привести до неправильного підсумкового балансу.
+          </CAPTION>
+        </FIGURE>
+      </SCHEME>
+      <PYTHON>
+        <FIGURE split_scale="0.9" web_scale="0.7" scale="0.40" src="img_javascript/ch3-Z-G-31.svg">
+          <LABEL NAME="fig:bank-access"/>
+          <CAPTION>Діаграма часу
+          <INDEX>діаграма часу</INDEX>
+	  яка показує, як переплетення порядку подій
+          у двох банківських зняттях коштів може привести до неправильного підсумкового балансу.
+          </CAPTION>
+        </FIGURE>
+      </PYTHON>
+    </SPLIT>
+    
+  <TEXT>
+    Діаграма часу на
+    <SPLITINLINE>
+      <SCHEME>
+	рисунку<SPACE/><REF NAME="fig:bank-access_scheme"/>
+      </SCHEME>
+      <PYTHON>
+	рисунку<SPACE/><REF NAME="fig:bank-access"/>
+      </PYTHON>
+    </SPLITINLINE>
+    зображує
+    такий порядок подій, за якого <SCHEMEINLINE>balance</SCHEMEINLINE> починається зі 100,
+    Петро знімає 10, Пол знімає 25, і все ж підсумкове значення
+    <SCHEMEINLINE>balance</SCHEMEINLINE> дорівнює 75. Як показано на діаграмі,
+    причина цієї аномалії в тому, що
+    <SPLITINLINE>
+      <SCHEME>присвоєння</SCHEME>
+      <PYTHON>переприсвоєння</PYTHON>
+    </SPLITINLINE>
+    значення 75 змінній <SCHEMEINLINE>balance</SCHEMEINLINE>,
+    яке зробив Пол, зроблене у припущенні, що
+    значення <SCHEMEINLINE>balance</SCHEMEINLINE>, яке потрібно зменшити, дорівнює 100.
+    Однак це припущення стало недійсним, коли Петро змінив
+    <SCHEMEINLINE>balance</SCHEMEINLINE> на 90. Це катастрофічна
+    відмова для банківської системи, бо загальна сума грошей у
+    системі не зберігається. До транзакцій загальна сума
+    грошей становила <DOLLAR/>100. Після них Петро має <DOLLAR/>10, Пол має
+    <DOLLAR/>25, а банк має <DOLLAR/>75.<FOOTNOTE>Ще гірша
+    відмова цієї системи могла б статися, якби два
+    <SPLITINLINE>
+      <SCHEME>виконання <SCHEMEINLINE>set!</SCHEMEINLINE></SCHEME>
+      <PYTHON>переприсвоєння</PYTHON>
+    </SPLITINLINE>
+    спробували змінити баланс одночасно, і тоді фактичні дані
+    в пам<APOS/>яті могли б виявитися випадковою комбінацією
+    інформації, яку записують два
+    <SPLITINLINE><SCHEME>процеси</SCHEME>
+    <PYTHON>потоки</PYTHON></SPLITINLINE>.  
+    Більшість комп<APOS/>ютерів мають блокування
+    примітивних операцій запису в пам<APOS/>ять, які захищають від такого
+    одночасного доступу. Однак навіть цей, здавалося б, простий вид захисту
+    породжує проблеми реалізації в проєктуванні
+    багатопроцесорних комп<APOS/>ютерів, де потрібні витончені
+    <INDEX>протоколи когерентності кешу</INDEX>
+    <EM>протоколи когерентності кешу</EM>,
+    щоб різні процесори підтримували узгоджене уявлення про вміст пам<APOS/>яті,
+    попри те, що дані можуть дублюватися (<QUOTE>кешуватися</QUOTE>) між різними
+    процесорами для підвищення швидкості доступу до пам<APOS/>яті.</FOOTNOTE>
+  </TEXT>
+
+  <TEXT>
+    Загальне явище, проілюстроване
+    тут, у тому, що кілька
+    <SPLITINLINE><SCHEME>процесів</SCHEME>
+    <PYTHON>потоків</PYTHON></SPLITINLINE>
+    можуть
+    <INDEX>стан<SUBINDEX>спільний</SUBINDEX></INDEX>
+    <INDEX>спільний стан</INDEX>
+    спільно використовувати одну змінну стану. Складність у тому, що більш ніж один
+    <SPLITINLINE><SCHEME>процес</SCHEME>
+    <PYTHON>потік</PYTHON></SPLITINLINE>
+    може намагатися керувати спільним станом в один і той самий
+    час. Для прикладу з банківським рахунком під час кожної транзакції кожен
+    клієнт має мати змогу діяти так, ніби інших клієнтів не
+    існує. Коли
+    <SPLITINLINE>
+      <SCHEME>клієнт змінює</SCHEME>
+      <PYTHON>клієнти змінюють</PYTHON>
+    </SPLITINLINE>
+    баланс у спосіб, що залежить від
+    балансу,
+    <SPLITINLINE>
+      <SCHEME>він</SCHEME>
+      <PYTHON>вони</PYTHON>
+    </SPLITINLINE>    
+    має мати змогу припускати, що безпосередньо перед моментом
+    зміни баланс усе ще такий, яким
+    <SPLITINLINE>
+      <SCHEME>він</SCHEME>
+      <PYTHON>вони</PYTHON>
+    </SPLITINLINE>    
+    його вважали.
+  </TEXT>
+  
+  <SUBHEADING>
+    <NAME>Правильна поведінка паралельних програм</NAME>
+  </SUBHEADING>
+
+  <INDEX>паралелізм<SUBINDEX>коректність паралельних програм<OPEN/></SUBINDEX></INDEX>
+  
+  <TEXT>
+    Наведений приклад типовий для тих тонких помилок, які можуть закрадатися в
+    паралельні програми. Корінь цієї складності — у
+    <SPLITINLINE>
+      <SCHEME>присвоєннях</SCHEME>
+      <PYTHON>переприсвоєннях</PYTHON>
+    </SPLITINLINE>
+    змінним, спільним для різних
+    <SPLITINLINE><SCHEME>процесів</SCHEME>
+    <PYTHON>потоків</PYTHON></SPLITINLINE>.
+    Ми вже знаємо, що треба бути обережними, пишучи програми, які використовують
+    <SPLITINLINE><SCHEME><SCHEMEINLINE>set!</SCHEMEINLINE>,</SCHEME>
+    <PYTHON>переприсвоєння,</PYTHON></SPLITINLINE>
+    бо результати обчислення залежать від порядку, у якому
+    <SPLITINLINE>
+      <SCHEME>присвоєння</SCHEME>
+      <PYTHON>переприсвоєння</PYTHON>
+    </SPLITINLINE>
+    відбуваються.<FOOTNOTE>Програма для обчислення факторіала з
+    підрозділу<SPACE/><REF NAME="sec:costs-of-assignment"/> ілюструє це для
+    одного послідовного
+    <SPLITINLINE><SCHEME>процесу</SCHEME>
+    <PYTHON>потоку</PYTHON></SPLITINLINE>.</FOOTNOTE>
+    З паралельними
+    <SPLITINLINE><SCHEME>процесами</SCHEME>
+    <PYTHON>потоками</PYTHON></SPLITINLINE>
+    ми маємо бути особливо обережними щодо
+    <SPLITINLINE>
+      <SCHEME>присвоєнь,</SCHEME>
+      <PYTHON>переприсвоєнь,</PYTHON>
+    </SPLITINLINE>
+    бо можемо не мати змоги контролювати порядок
+    <SPLITINLINE>
+      <SCHEME>присвоєнь</SCHEME>
+      <PYTHON>переприсвоєнь</PYTHON>
+    </SPLITINLINE>
+    , які роблять різні
+    <SPLITINLINE><SCHEME>процеси</SCHEME>
+    <PYTHON>потоки</PYTHON></SPLITINLINE>.
+    Якщо кілька таких змін
+    можуть відбутися паралельно (як у двох вкладників, що звертаються до спільного
+    рахунку), нам потрібен якийсь спосіб забезпечити правильну поведінку системи.
+    Наприклад, у разі зняття коштів зі спільного банківського рахунку ми
+    маємо забезпечити збереження грошей.
+    Щоб паралельні програми поводилися правильно, нам, можливо, доведеться
+    накласти деякі обмеження на паралельне виконання.
+  </TEXT>
+  <TEXT>
+    Одне з можливих обмежень паралелізму вимагало б, щоб жодні дві
+    операції, які змінюють спільні змінні стану, не могли відбуватися
+    одночасно. Це надзвичайно сувора вимога. Для розподіленої банківської
+    справи вона вимагала б від проєктувальника системи забезпечити, щоб за раз
+    могла виконуватися лише одна транзакція. Це було б і неефективно, і надто
+    консервативно. Рисунок<SPACE/><REF NAME="fig:two-shared-accounts"/> показує
+    Петра і Пола, які користуються спільним банківським рахунком, причому Пол має й власний
+    рахунок. Діаграма ілюструє два зняття коштів зі спільного рахунку
+    (одне — Петро, одне — Пол) і внесок на приватний рахунок
+    Пола.<FOOTNOTE>Стовпці показують Петр<APOS/>ів гаманець,
+    спільний рахунок (у Банку1), Пол<APOS/>ів гаманець і приватний рахунок
+    Пол<APOS/>ів приватний рахунок (у Банку2) до та після кожного зняття (З) і
+    внеску (В). Петро знімає <DOLLAR/>10 з Банку1; Пол вносить
+    <DOLLAR/>5 у Банк2, а потім знімає <DOLLAR/>25 з Банку1.</FOOTNOTE>
+    Ці два зняття зі спільного рахунку не мають бути паралельними (бо
+    обидва звертаються до одного рахунку й оновлюють його), і внесок та
+    зняття Пола не мають бути паралельними (бо обидва звертаються до суми
+    в гаманці Пола й оновлюють її). Але не повинно бути жодної проблеми дозволити
+    внеску Пола на його приватний рахунок виконуватися паралельно зі
+    зняттям Петра зі спільного рахунку.
+    <FIGURE>
+      <FIGURE split_scale="0.6" web_scale="0.7" scale="0.39" src="img_original/Fig3.30.svg"></FIGURE>
+      <LABEL NAME="fig:two-shared-accounts"/>
+      <CAPTION>Паралельні внески та зняття зі
+      спільного рахунку в Банку1 і приватного рахунку в Банку2.
+      </CAPTION>
+    </FIGURE>
+  </TEXT>
+
+  <TEXT>
+    Менш суворе обмеження паралелізму забезпечувало б, щоб
+    паралельна система давала той самий результат, ніби
+    <SPLITINLINE><SCHEME>процеси</SCHEME>
+    <PYTHON>потоки</PYTHON></SPLITINLINE>
+    виконувалися послідовно в якомусь порядку. У цій вимозі є два важливі аспекти.
+    По-перше, вона не вимагає, щоб
+    <SPLITINLINE>
+      <SCHEME>процеси</SCHEME>
+      <PYTHON>потоки</PYTHON>
+    </SPLITINLINE>
+    насправді виконувалися послідовно, а лише щоб вони давали результати, ті самі,
+    <EM>ніби</EM> вони виконувалися послідовно. Для прикладу на
+    рисунку<SPACE/><REF NAME="fig:two-shared-accounts"/> проєктувальник
+    системи банківських рахунків може безпечно дозволити внеску Пола і
+    зняттю Петра відбуватися паралельно, бо підсумковий результат буде такий самий,
+    ніби ці дві операції відбулися послідовно. По-друге, паралельна
+    програма може дати більш ніж один можливий <QUOTE>правильний</QUOTE> результат,
+    бо ми вимагаємо лише, щоб результат був такий самий, як для
+    <EM>деякого</EM> послідовного порядку. Наприклад, припустімо, що спільний рахунок
+    Петра і Пола починається зі <DOLLAR/>100 і Петро вносить
+    <DOLLAR/>40, тоді як Пол паралельно знімає половину грошей на рахунку.
+    Тоді послідовне виконання могло б дати баланс рахунку
+    <DOLLAR/>70 або <DOLLAR/>90 (див.
+    вправу<SPACE/><REF NAME="ex:joint-account"/>).<FOOTNOTE>Формальніше
+    висловити цю думку можна так: паралельні програми за своєю природою
+    <INDEX>недетермінізм у поведінці паралельних програм</INDEX>
+    <EM>недетерміновані</EM>. Тобто їх описують не однозначними
+    функціями, а функціями, результати яких є множинами можливих значень.
+    У підрозділі<SPACE/><REF NAME="sec:nondeterministic-evaluation"/> ми
+    вивчимо мову для вираження недетермінованих обчислень.
+    <LABEL NAME="foot:nondeterministic"/></FOOTNOTE>
+  </TEXT>
+
+  <TEXT>
+    Є ще слабші вимоги до правильного виконання паралельних
+    програм. Програма для імітаційного моделювання
+    <INDEX>дифузія, моделювання</INDEX>
+    дифузії (скажімо, поширення тепла в об<APOS/>єкті) могла б складатися з великої
+    кількості
+    <SPLITINLINE>
+      <SCHEME>процесів,</SCHEME>
+    <PYTHON>потоків,</PYTHON></SPLITINLINE>
+    кожен з яких подає малий об<APOS/>єм простору і які паралельно оновлюють свої
+    значення. Кожен
+    <SPLITINLINE>
+      <SCHEME>процес</SCHEME>
+      <PYTHON>потік</PYTHON>
+    </SPLITINLINE>
+    раз за разом змінює своє значення на середнє свого власного значення та
+    значень своїх сусід<APOS/>ів. Цей алгоритм збігається до правильної відповіді
+    незалежно від порядку, у якому виконують операції; тут немає
+    потреби в жодних обмеженнях паралельного використання спільних значень.
+  </TEXT>
+
+  <EXERCISE>
+    <LABEL NAME="ex:joint-account"/>
+    Припустімо, що
+    <INDEX>Петро, Пол і Мері</INDEX>
+    Петро, Пол і Мері мають спільний банківський рахунок, на якому
+    спочатку є <DOLLAR/>100. Паралельно Петро вносить
+    <DOLLAR/>10, Пол знімає <DOLLAR/>20, а Мері знімає половину
+    грошей на рахунку, виконуючи такі команди:
+    <SPLIT>
+      <SCHEME>
+        <TABLE>
+          <TR>
+	    <TD>Peter:</TD>
+	    <TD><SCHEMEINLINE>(set! balance (+ balance 10))</SCHEMEINLINE></TD>
+	  </TR>
+          <TR SINGLESPACE="yes">
+	    <TD>Paul:</TD>
+	    <TD><SCHEMEINLINE>(set! balance (- balance 20))</SCHEMEINLINE></TD>
+	  </TR>
+          <TR SINGLESPACE="yes">
+	    <TD>Mary:</TD>
+	    <TD><SCHEMEINLINE>(set! balance (- balance (/ balance 2)))</SCHEMEINLINE>
+	    </TD>
+	  </TR>
+	</TABLE>
+      </SCHEME>
+      <PYTHON>
+        <TABLE>
+          <TR>
+	    <TD>Peter:</TD>
+	    <TD><PYTHONINLINE>balance = balance + 10</PYTHONINLINE></TD>
+	  </TR>
+          <TR SINGLESPACE="yes">
+	    <TD>Paul:</TD>
+	    <TD><PYTHONINLINE>balance = balance - 20</PYTHONINLINE></TD>
+	  </TR>
+          <TR SINGLESPACE="yes">
+	    <TD>Mary:</TD>
+	    <TD><PYTHONINLINE>balance = balance - (balance / 2)</PYTHONINLINE></TD>
+	  </TR>
+	</TABLE>
+      </PYTHON>
+    </SPLIT>
+    <OL>
+      <LI>
+        Перелічіть усі різні можливі значення
+        <SPLITINLINE><SCHEME><SCHEMEINLINE>balance</SCHEMEINLINE></SCHEME>
+	<PYTHON><PYTHONINLINE>balance</PYTHONINLINE></PYTHON>
+	</SPLITINLINE>
+	після завершення цих трьох транзакцій,
+	припускаючи, що банківська система змушує ці три
+  <SPLITINLINE><SCHEME>процеси</SCHEME>
+  <PYTHON>потоки</PYTHON></SPLITINLINE> 
+  виконуватися послідовно в якомусь порядку.
+      </LI>
+      <LI>
+        Які ще значення
+        могли б виникнути, якби система дозволяла
+        <SPLITINLINE>
+	  <SCHEME>процесам</SCHEME>
+          <PYTHON>потокам</PYTHON>
+	</SPLITINLINE> 
+	переплітатися? Намалюйте діаграми часу, як на
+	рисунку<SPACE/><REF NAME="fig:bank-access"/>, щоб пояснити,
+	як можуть виникати ці значення.
+      </LI>
+    </OL>
+  </EXERCISE>
+
+  <INDEX>час<SUBINDEX><ORDER>concurrent</ORDER>у паралельних системах<CLOSE/></SUBINDEX></INDEX>
+  <INDEX>паралелізм<SUBINDEX>коректність паралельних програм<CLOSE/></SUBINDEX></INDEX>
+
+</SUBSECTION>

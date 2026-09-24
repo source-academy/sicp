@@ -1,0 +1,648 @@
+<SUBSECTION>
+  <NAME>
+    Фрейми як сховище локального стану
+  </NAME>
+
+  <LABEL NAME="sec:env-local-state"/>
+  <INDEX>фрейм (модель середовищ)<SUBINDEX>як сховище локального стану<OPEN/></SUBINDEX></INDEX>
+  <INDEX>локальний стан<SUBINDEX>зберігається у фреймах<OPEN/></SUBINDEX></INDEX>
+  <INDEX>модель середовищ обчислення<SUBINDEX>локальний стан<OPEN/></SUBINDEX></INDEX>
+
+  <TEXT>
+    Тепер можна звернутися до моделі середовищ, щоб побачити, як
+    <SPLITINLINE>
+      <SCHEME>процедури</SCHEME>
+      <PYTHON>функції</PYTHON>
+    </SPLITINLINE>
+    та
+    <SPLITINLINE>
+      <SCHEME>присвоєння</SCHEME>
+      <PYTHON>переприсвоєння</PYTHON>
+    </SPLITINLINE>
+    можна використовувати для подання об’єктів із локальним станом. Як
+    приклад розгляньмо
+    <INDEX><USE>make_withdraw</USE><SUBINDEX><ORDER>environment</ORDER>у моделі середовищ<OPEN/></SUBINDEX></INDEX>
+    <QUOTE>процесор зняття коштів</QUOTE> з
+    підрозділу<SPACE/><REF NAME="sec:local-state-variables"/>, створений викликом
+    <SPLITINLINE>
+      <SCHEME>процедури</SCHEME>
+      <PYTHON>функції</PYTHON>
+    </SPLITINLINE>
+    <SNIPPET EVAL="yes">
+      <NAME>make_withdraw2</NAME>
+      <SCHEME>
+(define (make-withdraw balance)
+  (lambda (amount)
+    (if (&gt;= balance amount)
+        (begin (set! balance (- balance amount))
+               balance)
+        "Insufficient funds")))
+      </SCHEME>
+      <PYTHON>
+def make_withdraw(balance):
+    def withdraw(amount):
+        nonlocal balance
+        if balance &gt;= amount:
+            balance = balance - amount
+            return balance
+        else:
+            return "Insufficient funds"
+    return withdraw
+      </PYTHON>
+    </SNIPPET>
+    Опишімо обчислення
+    <SNIPPET EVAL="yes">
+      <REQUIRES>make_withdraw2</REQUIRES>
+      <NAME>make_withdraw2_w1_declare</NAME>
+      <SCHEME>
+(define W1 (make-withdraw 100))
+      </SCHEME>
+      <PYTHON>
+W1 = make_withdraw(100)
+      </PYTHON>
+    </SNIPPET>
+    а потім
+    <SNIPPET EVAL="yes">
+      <NAME>make_withdraw2_w1_example</NAME>
+      <REQUIRES>make_withdraw2_w1_declare</REQUIRES>
+      <EXPECTED>50</EXPECTED>
+      <SCHEME>
+(W1 50)
+      </SCHEME>
+      <SCHEMEOUTPUT>
+50
+      </SCHEMEOUTPUT>
+      <PYTHON>
+W1(50)
+      </PYTHON>
+      <PYTHON_RUN>
+print(W1(50))
+      </PYTHON_RUN>
+    </SNIPPET>
+    <SPLITINLINE>
+      <SCHEME>
+	Рисунок<SPACE/><REF NAME="fig:make-withdraw_scheme"/>
+      </SCHEME>
+      <PYTHON>
+	Рисунок<SPACE/><REF NAME="fig:make-withdraw"/>
+      </PYTHON>
+    </SPLITINLINE>
+    показує результат
+    <SPLITINLINE>
+      <SCHEME>означення
+      <SCHEMEINLINE>make-withdraw</SCHEMEINLINE></SCHEME>
+      <PYTHON>оголошення
+      <PYTHONINLINE>make_withdraw</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    <SPLITINLINE>
+      <SCHEME>процедури</SCHEME>
+      <PYTHON>функції</PYTHON>
+    </SPLITINLINE>
+    у глобальному середовищі. Це дає об’єкт
+    <SPLITINLINE>
+      <SCHEME>процедури</SCHEME>
+      <PYTHON>функції</PYTHON>
+    </SPLITINLINE>
+    , який містить вказівник на
+    глобальне
+    середовище. Поки що це нічим не відрізняється від прикладів, які ми вже
+    бачили, хіба що
+    <SPLITINLINE>
+      <SCHEME>
+	тіло процедури саме є виразом
+	<SCHEMEINLINE>lambda</SCHEMEINLINE>.
+      </SCHEME>
+      <PYTHON>
+	тіло функції означає іншу функцію, яку й повертають.
+      </PYTHON>
+    </SPLITINLINE>
+    <SPLIT>
+      <SCHEME>
+        <FIGURE>
+          <FIGURE src="img_original/ch3-Z-G-7.svg"></FIGURE>
+          <CAPTION>
+	    Результат означення <SCHEMEINLINE>make-withdraw</SCHEMEINLINE> у
+	    глобальному середовищі.
+	  </CAPTION>
+          <LABEL NAME="fig:make-withdraw_scheme"/>
+        </FIGURE>
+      </SCHEME>
+      <PYTHON>
+        <FIGURE>
+          <FIGURE src="img_python/ch3-Z-G-7.svg"></FIGURE>
+          <CAPTION>
+	    Результат означення
+	    <PYTHONINLINE>make_withdraw</PYTHONINLINE> у
+	    глобальному середовищі.
+	  </CAPTION>
+          <LABEL NAME="fig:make-withdraw"/>
+        </FIGURE>
+      </PYTHON>
+    </SPLIT>
+  </TEXT>
+
+  <TEXT>
+    Цікава частина обчислення відбувається, коли ми застосовуємо
+    <SPLITINLINE><SCHEME>процедуру</SCHEME>
+    <PYTHON>функцію</PYTHON></SPLITINLINE>
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>make-withdraw</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>make_withdraw</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    до аргументу:
+    <SNIPPET EVAL="no">
+      <SCHEME>
+(define W1 (make-withdraw 100))
+      </SCHEME>
+      <PYTHON>
+W1 = make_withdraw(100)
+      </PYTHON>
+    </SNIPPET>
+    <SPLIT>
+      <SCHEME>
+	Ми починаємо, як звично, зі створення середовища E1, у якому
+	формальний параметр
+	<SCHEMEINLINE>balance</SCHEMEINLINE> зв’язаний з аргументом 100.
+	У цьому середовищі ми обчислюємо тіло
+	<SCHEMEINLINE>make-withdraw</SCHEMEINLINE>,
+	а саме вираз
+        <SCHEMEINLINE>lambda</SCHEMEINLINE>. Це
+	будує новий об’єкт процедури, код якого
+	заданий
+	<SCHEMEINLINE>lambda</SCHEMEINLINE>,
+	а середовище — це E1, середовище, у якому
+        <SCHEMEINLINE>lambda</SCHEMEINLINE>
+	було обчислено, щоб дати
+      процедуру.
+      </SCHEME>
+      <PYTHON>
+	Ми починаємо зі створення середовища E1, у якому
+	параметр
+	<PYTHONINLINE>balance</PYTHONINLINE> зв’язаний з аргументом 100,
+	а локально оголошена змінна
+	<PYTHONINLINE>withdraw</PYTHONINLINE> неприсвоєна.
+	У цьому середовищі ми обчислюємо тіло
+	<PYTHONINLINE>make_withdraw</PYTHONINLINE>,
+	а саме означення функції та інструкцію return.
+	Означення функції будує об’єкт функції,
+	який зв’язують із <PYTHONINLINE>withdraw</PYTHONINLINE> в E1.
+      </PYTHON>
+    </SPLIT>
+    Об’єкт
+    <SPLITINLINE>
+      <SCHEME>одержаної процедури</SCHEME>
+      <PYTHON>функції</PYTHON>
+    </SPLITINLINE>
+    — це значення, повернене викликом
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>make-withdraw</SCHEMEINLINE>.</SCHEME>
+      <PYTHON>
+      <PYTHONINLINE>make_withdraw</PYTHONINLINE>.</PYTHON>
+    </SPLITINLINE>
+    Його зв’язують із <SCHEMEINLINE>W1</SCHEMEINLINE> у
+    глобальному середовищі, бо саме
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>define</SCHEMEINLINE></SCHEME>
+      <PYTHON>оголошувальне присвоєння</PYTHON>
+    </SPLITINLINE>
+    обчислюють у глобальному середовищі.
+    <SPLITINLINE>
+      <SCHEME>
+	Рисунок<SPACE/><REF NAME="fig:w1_scheme"/>
+      </SCHEME>
+      <PYTHON>
+	Рисунок<SPACE/><REF NAME="fig:w1"/>
+      </PYTHON>
+    </SPLITINLINE>
+    показує одержану структуру середовищ.
+    <SPLIT>
+      <SCHEME>
+        <FIGURE>
+          <FIGURE src="img_original/ch3-Z-G-8.svg"></FIGURE>
+          <CAPTION>
+	    Результат обчислення
+	    <SCHEMEINLINE>(define W1 (make-withdraw 100))</SCHEMEINLINE>.
+	  </CAPTION>
+          <LABEL NAME="fig:w1_scheme"/>
+        </FIGURE>
+      </SCHEME>
+      <PYTHON>
+        <FIGURE>
+          <FIGURE src="img_python/ch3-Z-G-8.svg"></FIGURE>
+          <CAPTION>
+	    Результат обчислення
+	    <PYTHONINLINE>W1 = make_withdraw(100)</PYTHONINLINE>.
+	  </CAPTION>
+          <LABEL NAME="fig:w1"/>
+        </FIGURE>
+      </PYTHON>
+    </SPLIT>
+  </TEXT>
+
+  <TEXT>
+    Тепер ми можемо проаналізувати, що відбувається, коли <SCHEMEINLINE>W1</SCHEMEINLINE>
+    застосовують до аргументу:
+    <SNIPPET EVAL="no">
+      <SCHEME>
+(W1 50)
+      </SCHEME>
+      <SCHEMEOUTPUT>
+            50
+      </SCHEMEOUTPUT>
+      <PYTHON>
+W1(50)
+      </PYTHON>
+    </SNIPPET>
+    Ми починаємо з побудови фрейму, у якому
+    <SCHEMEINLINE>amount</SCHEMEINLINE> —
+    <SPLITINLINE><SCHEME>формальний</SCHEME></SPLITINLINE> параметр
+    <SCHEMEINLINE>W1</SCHEMEINLINE> — зв’язаний з аргументом 50. Ключовий
+    момент, який слід зауважити: охопним середовищем цього фрейму є не
+    глобальне середовище, а середовище E1, бо саме це
+    середовище задано об’єктом
+    <SPLITINLINE>
+      <SCHEME>процедури</SCHEME>
+      <PYTHON>функції</PYTHON>
+    </SPLITINLINE>
+    <SCHEMEINLINE>W1</SCHEMEINLINE>
+    . У цьому новому середовищі ми обчислюємо тіло
+    <SPLITINLINE>
+      <SCHEME>процедури:</SCHEME>
+      <PYTHON>функції:</PYTHON>
+    </SPLITINLINE>
+    <SNIPPET EVAL="no">
+      <SCHEME>
+(if (&gt;= balance amount)
+    (begin (set! balance (- balance amount))
+           balance)
+    "Insufficient funds")
+      </SCHEME>
+      <PYTHON>
+if balance &gt;= amount:
+    balance = balance - amount
+    return balance
+else:
+    return "Insufficient funds"
+      </PYTHON>
+    </SNIPPET>
+    Одержану структуру середовищ показано на
+    <SPLITINLINE>
+      <SCHEME>
+	рисунку<SPACE/><REF NAME="fig:apply-w1_scheme"/>.
+      </SCHEME>
+      <PYTHON>
+	рисунку<SPACE/><REF NAME="fig:apply-w1"/>.
+      </PYTHON>
+    </SPLITINLINE>
+    Вираз, який обчислюють, посилається
+    і на <SCHEMEINLINE>amount</SCHEMEINLINE>, і на
+    <SCHEMEINLINE>balance</SCHEMEINLINE>.
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>Amount</SCHEMEINLINE></SCHEME>
+      <PYTHON>Змінну <PYTHONINLINE>amount</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    буде знайдено в першому фреймі середовища, а
+    <SCHEMEINLINE>balance</SCHEMEINLINE> буде знайдено, пройшовши за
+    вказівником охопного середовища до E1.
+    <SPLIT>
+      <SCHEME>
+        <FIGURE>
+          <FIGURE src="img_original/ch3-Z-G-9.svg"></FIGURE>
+          <CAPTION>
+	    Середовища, створені застосуванням об’єкта процедури
+	    <SCHEMEINLINE>W1</SCHEMEINLINE>.
+	  </CAPTION>
+          <LABEL NAME="fig:apply-w1_scheme"/>
+        </FIGURE>
+      </SCHEME>
+      <PYTHON>
+        <FIGURE>
+          <FIGURE src="img_python/ch3-Z-G-9.svg"></FIGURE>
+          <CAPTION>
+	    Середовища, створені застосуванням об’єкта функції
+	    <PYTHONINLINE>W1</PYTHONINLINE>.
+	  </CAPTION>
+          <LABEL NAME="fig:apply-w1"/>
+        </FIGURE>
+      </PYTHON>
+    </SPLIT>
+  </TEXT>
+
+  <TEXT>
+    Коли виконують
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>set!</SCHEMEINLINE></SCHEME>
+      <PYTHON>переприсвоєння</PYTHON>
+    </SPLITINLINE>
+    , прив’язку <SCHEMEINLINE>balance</SCHEMEINLINE> в E1
+    змінюють. На завершення виклику
+    <SCHEMEINLINE>W1</SCHEMEINLINE> значення <SCHEMEINLINE>balance</SCHEMEINLINE> дорівнює 50,
+    і на фрейм, який містить <SCHEMEINLINE>balance</SCHEMEINLINE>, усе ще
+    вказує об’єкт
+    <SPLITINLINE>
+      <SCHEME>процедури</SCHEME>
+      <PYTHON>функції</PYTHON>
+    </SPLITINLINE>
+    <SCHEMEINLINE>W1</SCHEMEINLINE>. Фрейм, який зв’язує
+    <SCHEMEINLINE>amount</SCHEMEINLINE> (у якому ми виконали код, що
+    змінив <SCHEMEINLINE>balance</SCHEMEINLINE>), уже не має значення, бо
+    виклик
+    <SPLITINLINE>
+      <SCHEME>процедури</SCHEME>
+      <PYTHON>функції</PYTHON>
+    </SPLITINLINE>
+    , який його створив, завершився, і жодні інші частини середовища
+    на цей фрейм не вказують. Наступного разу, коли викличуть
+    <SCHEMEINLINE>W1</SCHEMEINLINE>, буде побудовано новий фрейм, який
+    зв’язує <SCHEMEINLINE>amount</SCHEMEINLINE> і чиїм охопним середовищем є
+    E1. Ми бачимо, що E1 править за <QUOTE>місце</QUOTE>, де зберігається локальна
+    змінна стану для об’єкта
+    <SPLITINLINE>
+      <SCHEME>процедури</SCHEME>
+      <PYTHON>функції</PYTHON>
+    </SPLITINLINE>
+    <SCHEMEINLINE>W1</SCHEMEINLINE>.
+    <SPLITINLINE>
+      <SCHEME>
+	Рисунок<SPACE/><REF NAME="fig:after-w1_scheme"/>
+      </SCHEME>
+      <PYTHON>
+	Рисунок<SPACE/><REF NAME="fig:after-w1"/>
+      </PYTHON>
+    </SPLITINLINE>
+    показує ситуацію після виклику <SCHEMEINLINE>W1</SCHEMEINLINE>.
+    <SPLIT>
+      <SCHEME>
+        <FIGURE>
+          <FIGURE src="img_original/ch3-Z-G-10.svg"></FIGURE>
+          <CAPTION>
+	    Середовища після виклику <SCHEMEINLINE>W1</SCHEMEINLINE>.
+	  </CAPTION>
+          <LABEL NAME="fig:after-w1_scheme"/>
+        </FIGURE>
+      </SCHEME>
+      <PYTHON>
+        <FIGURE>
+          <FIGURE src="img_python/ch3-Z-G-10.svg"></FIGURE>
+          <CAPTION>
+	    Середовища після виклику
+	    <PYTHONINLINE>W1</PYTHONINLINE>.
+	  </CAPTION>
+          <LABEL NAME="fig:after-w1"/>
+        </FIGURE>
+      </PYTHON>
+    </SPLIT>
+  </TEXT>
+  <TEXT>
+    Поспостерігаймо, що відбувається, коли ми створюємо другий об’єкт <QUOTE>зняття коштів</QUOTE>
+    , зробивши ще один виклик
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>make_withdraw</SCHEMEINLINE>:</SCHEME>
+      <PYTHON><PYTHONINLINE>make_withdraw</PYTHONINLINE>:
+      </PYTHON>
+    </SPLITINLINE>
+    <SNIPPET EVAL="yes">
+      <REQUIRES>make_withdraw2</REQUIRES>
+      <NAME>make_withdraw2_w2_declare</NAME>
+      <EXPECTED>20</EXPECTED>
+      <SCHEME>
+(define W2 (make-withdraw 100))
+      </SCHEME>
+      <PYTHON>
+W2 = make_withdraw(100)
+      </PYTHON>
+      <PYTHON_RUN>
+W1 = make_withdraw(100)
+W1(50)
+W2 = make_withdraw(100)
+print(W2(80))
+      </PYTHON_RUN>
+    </SNIPPET>
+    Це дає структуру середовищ з
+    <SPLITINLINE>
+      <SCHEME>
+	рисунка<SPACE/><REF NAME="fig:w2_scheme"/>,
+      </SCHEME>
+      <PYTHON>
+	рисунка<SPACE/><REF NAME="fig:w2"/>,
+      </PYTHON>
+    </SPLITINLINE>
+    яка показує,
+    що <SCHEMEINLINE>W2</SCHEMEINLINE> — це об’єкт
+    <SPLITINLINE>
+      <SCHEME>процедури</SCHEME>
+      <PYTHON>функції</PYTHON>
+    </SPLITINLINE>
+    , тобто пара з деяким кодом і середовищем. Середовище
+    E2 для <SCHEMEINLINE>W2</SCHEMEINLINE> було створене викликом
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>make-withdraw</SCHEMEINLINE>.</SCHEME>
+      <PYTHON><PYTHONINLINE>make_withdraw</PYTHONINLINE>.
+      </PYTHON>
+    </SPLITINLINE>
+    Воно містить фрейм із власною локальною прив’язкою для
+    <SCHEMEINLINE>balance</SCHEMEINLINE>. З іншого боку,
+    <SCHEMEINLINE>W1</SCHEMEINLINE> та <SCHEMEINLINE>W2</SCHEMEINLINE> мають
+    той самий код: код, заданий виразом
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>lambda</SCHEMEINLINE></SCHEME>
+      <PYTHON>lambda</PYTHON>
+    </SPLITINLINE>
+    у тілі
+    <SPLITINLINE><SCHEME><SCHEMEINLINE>make-withdraw</SCHEMEINLINE></SCHEME><PYTHON><PYTHONINLINE>make_withdraw</PYTHONINLINE></PYTHON></SPLITINLINE>.<FOOTNOTE>Чи
+    <SCHEMEINLINE>W1</SCHEMEINLINE> і <SCHEMEINLINE>W2</SCHEMEINLINE> спільно
+    використовують той самий фізичний код, збережений у комп’ютері, чи кожен зберігає
+    власну копію коду, — це деталь реалізації. Для інтерпретатора, який ми
+    реалізуємо в розділі<SPACE/><REF NAME="chap:meta"></REF>, код насправді спільний.</FOOTNOTE> Тут ми бачимо,
+    чому <SCHEMEINLINE>W1</SCHEMEINLINE> і <SCHEMEINLINE>W2</SCHEMEINLINE>
+    поводяться як незалежні об’єкти. Виклики
+    <SCHEMEINLINE>W1</SCHEMEINLINE> посилаються на змінну стану
+    <SCHEMEINLINE>balance</SCHEMEINLINE>, збережену в E1, тоді як виклики
+    <SCHEMEINLINE>W2</SCHEMEINLINE> посилаються на
+    <SCHEMEINLINE>balance</SCHEMEINLINE>, збережену в E2. Отже, зміни
+    локального стану одного об’єкта не впливають на інший об’єкт.
+    <SPLIT>
+      <SCHEME>
+        <FIGURE>
+          <FIGURE src="img_original/ch3-Z-G-11.svg"></FIGURE>
+          <CAPTION>
+	    Використання <SCHEMEINLINE>(define W2 (make-withdraw 100))</SCHEMEINLINE> для
+	    створення другого об’єкта.
+	  </CAPTION>
+          <LABEL NAME="fig:w2_scheme"/>
+        </FIGURE>
+      </SCHEME>
+      <PYTHON>
+        <FIGURE>
+          <FIGURE src="img_python/ch3-Z-G-11.svg"></FIGURE>
+          <CAPTION>
+	    Використання
+	    <PYTHONINLINE>W2 = make_withdraw(100)</PYTHONINLINE>
+	    для створення другого об’єкта.
+	  </CAPTION>
+          <LABEL NAME="fig:w2"/>
+        </FIGURE>
+      </PYTHON>
+    </SPLIT>
+  </TEXT>
+
+  <EXERCISE>
+    <LABEL NAME="ex:local-state-variable"/>
+    У
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>make-withdraw</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>make_withdraw</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    <SPLITINLINE>
+      <SCHEME>процедурі,</SCHEME>
+      <PYTHON>функції</PYTHON>
+    </SPLITINLINE>
+    локальна змінна <SCHEMEINLINE>balance</SCHEMEINLINE> створюється як
+    параметр
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>make-withdraw</SCHEMEINLINE>.</SCHEME>
+      <PYTHON><PYTHONINLINE>make_withdraw</PYTHONINLINE>.
+      </PYTHON>
+    </SPLITINLINE>
+    Ми могли б також створити локальну змінну стану
+    <SPLITINLINE>
+      <SCHEME>
+	явно,
+      </SCHEME>
+      <PYTHON>
+	окремо,
+      </PYTHON>
+    </SPLITINLINE>
+    скориставшись
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>let</SCHEMEINLINE>,</SCHEME>
+      <PYTHON>
+	тим, що можна назвати
+	<INDEX>лямбда-вираз<SUBINDEX>негайно викликаний</SUBINDEX></INDEX>
+	<INDEX>негайно викликаний лямбда-вираз</INDEX>
+	<EM>негайно викликаним лямбда-виразом</EM>
+      </PYTHON>
+    </SPLITINLINE>
+    так:
+    <SNIPPET EVAL="yes">
+      <INDEX><DECLARATION>make_withdraw</DECLARATION><SUBINDEX>using immediately invoked lambda expression</SUBINDEX><FRAGILE/></INDEX>
+      <NAME>make_withdraw3</NAME>
+      <EXAMPLE>make_withdraw3_example</EXAMPLE>
+      <EXPECTED>20</EXPECTED>
+      <SCHEME>
+(define (make-withdraw initial-amount)
+  (let ((balance initial-amount))
+        (lambda (amount)
+    (if (&gt;= balance amount)
+        (begin (set! balance (- balance amount))
+               balance)
+        "Insufficient funds"))))
+      </SCHEME>
+      <PYTHON>
+def make_withdraw(initial_amount):
+    def init(balance):
+        def withdraw(amount):
+            nonlocal balance
+            if balance &gt;= amount:
+                balance = balance - amount
+                return balance
+            else:
+                return "Insufficient funds"
+        return withdraw
+    return init(initial_amount)
+      </PYTHON>
+    </SNIPPET>
+    <SNIPPET HIDE="yes">
+      <NAME>make_withdraw3_example</NAME>
+      <PYTHON>
+W1 = make_withdraw(100)
+print(W1(80))
+      </PYTHON>
+    </SNIPPET>
+    <SPLIT>
+      <SCHEME>
+        Пригадаймо з підрозділу<SPACE/><REF NAME="sec:lambda"/>, що 
+	<INDEX>let<SUBINDEX><ORDER>syntactic</ORDER>як синтаксичний цукор</SUBINDEX></INDEX>
+	<INDEX>let<SUBINDEX>модель обчислення</SUBINDEX></INDEX>
+        <SCHEMEINLINE>let</SCHEMEINLINE> — це просто синтаксичний цукор для
+        виклику
+        <SPLITINLINE>
+	  <SCHEME>процедури</SCHEME>
+	  <PYTHON>функції</PYTHON>
+	</SPLITINLINE>
+        :
+        <SNIPPET EVAL="no">
+          <SCHEME>
+(let ((var exp)) body)
+          </SCHEME>
+        </SNIPPET>
+        це тлумачать як альтернативний синтаксис для
+        <SNIPPET EVAL="no">
+          <SCHEME>
+((lambda (var) body) exp)
+          </SCHEME>
+        </SNIPPET>
+      </SCHEME>
+      <PYTHON>
+	Функцію <PYTHONINLINE>init</PYTHONINLINE>
+	викликають негайно після того,
+	як її обчислено. Її єдина мета — створити локальну змінну
+	<PYTHONINLINE>balance</PYTHONINLINE> і
+	ініціалізувати її значенням <PYTHONINLINE>initial_amount</PYTHONINLINE>.
+      </PYTHON>
+    </SPLIT>
+    Скористайтеся моделлю середовищ, щоб проаналізувати цю альтернативну версію
+    <SCHEMEINLINE>make_withdraw</SCHEMEINLINE>, малюючи рисунки, подібні до наведених
+    вище, щоб проілюструвати взаємодії
+    <SNIPPET EVAL="yes">
+      <NAME>make_withdraw3_example_2</NAME>
+      <REQUIRES>make_withdraw3</REQUIRES>
+      <EXPECTED>20</EXPECTED>
+      <SCHEME>
+(define W1 (make-withdraw 100))
+
+(W1 50)
+
+(define W2 (make-withdraw 100))
+      </SCHEME>
+      <PYTHON>
+W1 = make_withdraw(100)
+
+W1(50)
+
+W2 = make_withdraw(100)
+      </PYTHON>
+      <PYTHON_TEST>
+W1 = make_withdraw(100)
+W1(50)
+W2 = make_withdraw(100)
+print(W2(80))
+      </PYTHON_TEST>
+    </SNIPPET>
+    Покажіть, що дві версії
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>make-withdraw</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>make_withdraw</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    створюють об’єкти з однаковою поведінкою. Чим відрізняються структури
+    середовищ для цих двох версій?
+    <SOLUTION>
+      <UL>
+	<LI>Чорним показано структуру середовищ функції з вправи 3.10</LI>
+	<LI>Зеленим показано відмінності в структурі середовищ початкової
+	(де <PYTHONINLINE>make_withdraw</PYTHONINLINE> замінено на версію з рисунка 3.9)</LI>
+      </UL>
+      <FIGURE src="img_javascript/ex3-10-solution.png">
+        <LABEL NAME="ex:3-10"/>
+      </FIGURE>
+    </SOLUTION>
+  </EXERCISE>
+
+  <INDEX>фрейм (модель середовищ)<SUBINDEX>як сховище локального стану<CLOSE/></SUBINDEX></INDEX>
+  <INDEX>локальний стан<SUBINDEX>зберігається у фреймах<CLOSE/></SUBINDEX></INDEX>
+  <INDEX>модель середовищ обчислення<SUBINDEX>локальний стан<CLOSE/></SUBINDEX></INDEX>
+  <INDEX><USE>make_withdraw</USE><SUBINDEX><ORDER>environment</ORDER>у моделі середовищ<CLOSE/></SUBINDEX></INDEX>
+</SUBSECTION>

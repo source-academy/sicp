@@ -1,0 +1,1987 @@
+<SUBSECTION>
+  <NAME>
+    Механізми керування паралелізмом
+  </NAME>
+
+  <INDEX>паралелізм<SUBINDEX>механізми керування<OPEN/></SUBINDEX></INDEX>
+
+  <TEXT>
+    Ми’ бачили, що труднощі в роботі з паралельними 
+    <SPLITINLINE><SCHEME>процесами</SCHEME>
+    <PYTHON>потоками</PYTHON></SPLITINLINE> 
+    коріняться в потребі враховувати переплетення порядку подій
+    у різних 
+    <SPLITINLINE><SCHEME>процесах</SCHEME>
+    <PYTHON>потоках</PYTHON></SPLITINLINE>.  
+    Наприклад, припустімо, ми маємо два
+    <SPLITINLINE><SCHEME>процеси</SCHEME>
+    <PYTHON>потоки</PYTHON></SPLITINLINE>, 
+    один із трьома впорядкованими подіями <LATEXINLINE>$(a,b,c)$</LATEXINLINE>
+    та один із трьома впорядкованими подіями <LATEXINLINE>$(x,y,z)$</LATEXINLINE>.
+    Якщо ці два
+    <SPLITINLINE>
+      <SCHEME>процеси</SCHEME>
+      <PYTHON>потоки</PYTHON>
+    </SPLITINLINE> 
+    виконуються паралельно, без жодних обмежень на те, як переплітається їхнє виконання,
+    то існує 20 різних можливих порядків подій,
+    узгоджених з окремими порядками для цих двох
+    <SPLITINLINE><SCHEME>процесів</SCHEME>
+    <PYTHON>потоків</PYTHON></SPLITINLINE>:
+    <LATEX>
+      \[ \begin{array}{cccc}
+      (a,b,c,x,y,z) &amp; (a,x,b,y,c,z) &amp; (x,a,b,c,y,z) &amp; (x,a,y,z,b,c)\\
+      (a,b,x,c,y,z) &amp; (a,x,b,y,z,c) &amp; (x,a,b,y,c,z) &amp; (x,y,a,b,c,z)\\
+      (a,b,x,y,c,z) &amp; (a,x,y,b,c,z) &amp; (x,a,b,y,z,c) &amp; (x,y,a,b,z,c)\\
+      (a,b,x,y,z,c) &amp; (a,x,y,b,z,c) &amp; (x,a,y,b,c,z) &amp; (x,y,a,z,b,c)\\
+      (a,x,b,c,y,z) &amp; (a,x,y,z,b,c) &amp; (x,a,y,b,z,c) &amp; (x,y,z,a,b,c)
+      \end{array} \]
+    </LATEX>
+    Як програмісти, що проєктують цю систему, ми мали б розглянути
+    наслідки кожного з цих 20 порядків і перевірити, що кожна поведінка
+    прийнятна. Такий підхід швидко стає незручним, коли кількість
+    <SPLITINLINE><SCHEME>процесів</SCHEME>
+    <PYTHON>потоків</PYTHON></SPLITINLINE> і подій зростає.
+  </TEXT>
+
+  <TEXT>
+    Практичніший підхід до проєктування паралельних систем — це
+    розробити загальні механізми, які дозволяють обмежувати переплетення
+    паралельних
+    <SPLITINLINE><SCHEME>процесів</SCHEME>
+    <PYTHON>потоків</PYTHON></SPLITINLINE> 
+    так, щоб ми могли бути впевнені в правильності поведінки
+    програми. Для цього розроблено багато механізмів. У цьому розділі ми
+    описуємо один з них — <EM>
+    серіалізатор</EM>.
+  </TEXT>
+
+  <SUBHEADING>
+    <NAME>Серіалізація доступу до спільного стану</NAME>
+  </SUBHEADING>
+
+  <INDEX>серіалізатор<OPEN/></INDEX>
+
+  <TEXT>
+    Серіалізація реалізує таку ідею: 
+    <SPLITINLINE><SCHEME>Процеси</SCHEME>
+    <PYTHON>Потоки</PYTHON></SPLITINLINE> 
+    виконуватимуться паралельно, але існуватимуть певні набори
+    <SPLITINLINE><SCHEME>процедур</SCHEME>
+    <PYTHON>функцій</PYTHON></SPLITINLINE>
+    , які не можна виконувати паралельно. Точніше, серіалізація
+    створює вирізнені набори
+    <SPLITINLINE><SCHEME>процедур</SCHEME>
+    <PYTHON>функцій</PYTHON></SPLITINLINE>
+    такі, що в кожному серіалізованому наборі в один момент часу дозволено
+    виконуватися лише одному виклику
+    <SPLITINLINE><SCHEME>процедури</SCHEME>
+    <PYTHON>функції</PYTHON></SPLITINLINE>
+    . Якщо якась
+    <SPLITINLINE><SCHEME>процедура</SCHEME>
+    <PYTHON>функція</PYTHON></SPLITINLINE>
+    з набору вже виконується, то 
+    <SPLITINLINE><SCHEME>процес</SCHEME>
+    <PYTHON>потік</PYTHON></SPLITINLINE> 
+    , який намагається виконати будь-яку
+    <SPLITINLINE><SCHEME>процедуру</SCHEME>
+    <PYTHON>функцію</PYTHON></SPLITINLINE>
+    з набору, буде змушений чекати, доки завершиться перше виконання.
+  </TEXT>
+
+  <TEXT>
+    Ми можемо використовувати серіалізацію, щоб керувати доступом до спільних змінних.
+    Наприклад, якщо ми хочемо оновити спільну змінну на основі
+    її попереднього значення, ми поміщаємо доступ до попереднього
+    значення змінної та
+    <SPLITINLINE>
+      <SCHEME>присвоєння</SCHEME>
+      <PYTHON>переприсвоєння</PYTHON>
+    </SPLITINLINE>
+    нового значення цій змінній в одну й ту саму
+    <SPLITINLINE><SCHEME>процедуру</SCHEME>
+    <PYTHON>функцію</PYTHON></SPLITINLINE>.
+    Потім ми забезпечуємо, щоб жодна інша
+    <SPLITINLINE><SCHEME>процедура</SCHEME>
+    <PYTHON>функція</PYTHON></SPLITINLINE>
+    , яка присвоює значення цій змінній, не могла виконуватися паралельно з цією
+    <SPLITINLINE><SCHEME>процедурою</SCHEME>
+    <PYTHON>функцією</PYTHON></SPLITINLINE>
+    , серіалізуючи всі ці
+    <SPLITINLINE><SCHEME>процедури</SCHEME>
+    <PYTHON>функції</PYTHON></SPLITINLINE>
+    тим самим серіалізатором. Це гарантує, що значення
+    змінної не може змінитися між доступом і відповідним
+    <SPLITINLINE>
+      <SCHEME>присвоєнням.</SCHEME>
+      <PYTHON>переприсвоєнням.</PYTHON>
+    </SPLITINLINE>
+  </TEXT>
+
+  <SPLIT>
+    <SCHEME>
+      <SUBHEADING>
+        <NAME>Серіалізатори в Scheme</NAME>
+      </SUBHEADING>
+    </SCHEME>
+    <PYTHON>
+      <SUBHEADING>
+        <NAME>Серіалізатори</NAME>
+      </SUBHEADING>
+    </PYTHON>
+  </SPLIT>
+
+  <TEXT>
+    Щоб зробити цей механізм конкретнішим, припустімо, що ми розширили
+    <SPLITINLINE><SCHEME>Scheme</SCHEME>
+    <PYTHON>Python</PYTHON></SPLITINLINE>
+    , додавши
+    <SPLITINLINE><SCHEME>процедуру</SCHEME>
+    <PYTHON>функцію</PYTHON></SPLITINLINE>
+    під назвою 
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>parallel-execute</SCHEMEINLINE>:</SCHEME>
+      <PYTHON>
+	<INDEX><USE>concurrent_execute</USE></INDEX> 
+        <PYTHONINLINE>concurrent_execute</PYTHONINLINE>:
+      </PYTHON>
+    </SPLITINLINE>
+    <SNIPPET EVAL="no" LATEX="yes">
+      <SCHEME>
+(parallel-execute p$_{1}$ p$_{2}$ $\ldots$ p$_{k}$)
+      </SCHEME>
+      <PYTHON>
+concurrent_execute($f_{1}$, $f_{2}$, $\ldots$, $f_{k}$)
+      </PYTHON>
+    </SNIPPET>
+    <SPLITINLINE>
+      <SCHEME>
+        Кожне <LATEXINLINE>p</LATEXINLINE> має бути процедурою без аргументів.  
+        <SCHEME>Parallel-execute</SCHEME>
+        створює окремий процес для кожного
+        <LATEXINLINE>p</LATEXINLINE>, який застосовує
+        <LATEXINLINE>p</LATEXINLINE> (до жодних аргументів).
+      </SCHEME>
+      <PYTHON>
+        Кожна <LATEXINLINE>$f$</LATEXINLINE> має бути функцією без аргументів.
+        Функція <PYTHONINLINE>concurrent_execute</PYTHONINLINE>
+        створює окремий потік для кожної
+        <LATEXINLINE>$f$</LATEXINLINE>, який застосовує
+        <LATEXINLINE>$f$</LATEXINLINE> (до жодних аргументів).
+      </PYTHON>
+    </SPLITINLINE>
+    Усі ці
+    <SPLITINLINE><SCHEME>процеси</SCHEME>
+    <PYTHON>потоки</PYTHON></SPLITINLINE> 
+    виконуються паралельно.<FOOTNOTE>
+    <SPLIT>
+      <SCHEME>
+        <SCHEMEINLINE>Parallel-execute</SCHEMEINLINE> не є частиною стандартного
+	Scheme, але його можна реалізувати в MIT Scheme. У нашій реалізації
+	нові паралельні процеси також виконуються паралельно з початковим
+	процесом Scheme. Крім того, у нашій реалізації значення, яке повертає
+        <SCHEMEINLINE>parallel-execute</SCHEMEINLINE>, — це спеціальний керівний
+	об<APOS/>єкт, який можна використати, щоб зупинити щойно створені процеси.
+      </SCHEME>
+      <PYTHON>
+        Функція <PYTHONINLINE>concurrent_execute</PYTHONINLINE> не
+	є частиною стандарту Python, але приклади з цього розділу
+	можна реалізувати в ECMAScript 2020.
+	<!-- 
+	<WEB_ONLY>
+	  This interactive version uses a custom-built virtual machine to
+	  implement <PYTHONINLINE>concurrent_execute</PYTHONINLINE>.
+	  Similar to the MIT Scheme implementation, new
+	  concurrent threads run concurrently with the original thread.
+	  Concurrent programs do not return any values, and hence are only able
+	  to show trace via <PYTHONINLINE>display</PYTHONINLINE> calls.
+	</WEB_ONLY>
+        -->
+      </PYTHON>
+    </SPLIT>
+  </FOOTNOTE>
+  </TEXT>
+
+  <TEXT>
+    Як приклад того, як це використовують, розгляньмо
+    <SNIPPET CHAP="3" VARIANT="concurrent">
+      <NAME>concurrent_execute_example</NAME>
+      <!-- <EXPECTED>'all threads terminated'</EXPECTED> disabled: needs concurrent_execute primitive (see issue #1263) -->
+      <SCHEME>
+(define x 10)
+
+(parallel-execute (lambda () (set! x (* x x)))
+  (lambda () (set! x (+ x 1))))
+      </SCHEME>
+      <PYTHON>
+x = 10
+<SHORT_SPACE/>
+def t1():
+    global x
+    x = x * x
+
+def t2():
+    global x
+    x = x + 1
+
+concurrent_execute(t1, t2)
+      </PYTHON>
+    </SNIPPET>
+    <SPLIT>
+      <SCHEME>
+        Це створює два паралельні
+        процеси<EMDASH/><LATEXINLINE>$P_1$</LATEXINLINE>, який
+        надає <SCHEMEINLINE>x</SCHEMEINLINE> значення
+        <SCHEMEINLINE>x</SCHEMEINLINE> помножити на <SCHEMEINLINE>x</SCHEMEINLINE>,
+        та <LATEXINLINE>$P_2$</LATEXINLINE>, який
+	збільшує<SPACE/><SCHEMEINLINE>x</SCHEMEINLINE> на одиницю. Після завершення
+	виконання <SCHEMEINLINE>x</SCHEMEINLINE> матиме одне з п<APOS/>яти
+	можливих значень, залежно від переплетення подій
+        <LATEXINLINE>$P_1$</LATEXINLINE> та <LATEXINLINE>$P_2$</LATEXINLINE>:
+        <TABLE>
+          <TR>
+            <TD>101:</TD>
+	    <TD><LATEXINLINE>$P_1$</LATEXINLINE>
+            надає <SCHEMEINLINE>x</SCHEMEINLINE> значення 100, а потім
+            <LATEXINLINE>$P_2$</LATEXINLINE> збільшує
+            <SCHEMEINLINE>x</SCHEMEINLINE> до 101.</TD>
+	  </TR>
+	  <TR>
+            <TD>121:</TD>
+	    <TD><LATEXINLINE>$P_2$</LATEXINLINE> збільшує
+	    <SCHEMEINLINE>x</SCHEMEINLINE> до 11, а потім
+            <LATEXINLINE>$P_1$</LATEXINLINE> надає <SCHEMEINLINE>x</SCHEMEINLINE>
+	    значення <SCHEMEINLINE>x</SCHEMEINLINE> помножити на
+	    <SCHEMEINLINE>x</SCHEMEINLINE>.</TD>
+	  </TR>
+	  <TR>
+            <TD>110:</TD>
+	    <TD><LATEXINLINE>$P_2$</LATEXINLINE> змінює
+            <SCHEMEINLINE>x</SCHEMEINLINE> з 10 на 11 між двома
+            моментами, коли <LATEXINLINE>$P_1$</LATEXINLINE>
+	    </TD>
+	  </TR>
+	  <TR SINGLESPACE="yes">
+	    <TD>
+	    </TD>
+	    <TD>
+	      звертається до значення
+            <SCHEMEINLINE>x</SCHEMEINLINE> під час обчислення
+            <SCHEMEINLINE>(* x x)</SCHEMEINLINE>.
+	    </TD>
+	  </TR>
+	  <TR>
+            <TD>11:</TD>
+	    <TD><LATEXINLINE>$P_2$</LATEXINLINE> звертається до
+	    <SCHEMEINLINE>x</SCHEMEINLINE>, потім
+            <LATEXINLINE>$P_1$</LATEXINLINE> надає <SCHEMEINLINE>x</SCHEMEINLINE>
+	    значення 100,
+            а потім <LATEXINLINE>$P_2$</LATEXINLINE> надає значення
+	    <SCHEMEINLINE>x</SCHEMEINLINE>.</TD>
+	  </TR>
+	  <TR>
+            <TD>100:</TD>
+	    <TD><LATEXINLINE>$P_1$</LATEXINLINE> звертається до
+	    <SCHEMEINLINE>x</SCHEMEINLINE> (двічі),
+            потім <LATEXINLINE>$P_2$</LATEXINLINE> надає
+	    <SCHEMEINLINE>x</SCHEMEINLINE> значення 11,
+            а потім <LATEXINLINE>$P_1$</LATEXINLINE> надає значення
+	    <SCHEMEINLINE>x</SCHEMEINLINE>.</TD>
+	  </TR>
+	</TABLE>
+      </SCHEME>
+      <PYTHON>
+        Це створює два паралельні
+	потоки<EMDASH/><LATEXINLINE>$T_1$</LATEXINLINE>, який надає
+	<SCHEMEINLINE>x</SCHEMEINLINE> значення <SCHEMEINLINE>x</SCHEMEINLINE> помножити на
+	<SCHEMEINLINE>x</SCHEMEINLINE>, та <LATEXINLINE>$T_2$</LATEXINLINE>,
+	який збільшує <SCHEMEINLINE>x</SCHEMEINLINE> на одиницю. Після завершення
+	виконання <SCHEMEINLINE>x</SCHEMEINLINE> матиме одне з п<APOS/>яти
+	можливих значень, залежно від переплетення подій
+        <LATEXINLINE>$T_1$</LATEXINLINE> та <LATEXINLINE>$T_2$</LATEXINLINE>:
+        <TABLE>
+          <TR>
+            <TD>101:</TD>
+	    <TD><LATEXINLINE>$T_1$</LATEXINLINE>
+            надає <SCHEMEINLINE>x</SCHEMEINLINE> значення 100, а потім
+            <LATEXINLINE>$T_2$</LATEXINLINE> збільшує
+            <SCHEMEINLINE>x</SCHEMEINLINE> до 101.</TD>
+	  </TR>
+	  <TR>
+            <TD>121:</TD>
+	    <TD><LATEXINLINE>$T_2$</LATEXINLINE> збільшує
+	    <SCHEMEINLINE>x</SCHEMEINLINE> до 11, а потім
+            <LATEXINLINE>$T_1$</LATEXINLINE> надає <SCHEMEINLINE>x</SCHEMEINLINE>
+	    значення <SCHEMEINLINE>x</SCHEMEINLINE> помножити на
+	    <SCHEMEINLINE>x</SCHEMEINLINE>.</TD>
+	  </TR>
+	  <TR>
+            <TD>110:</TD>
+	    <TD><LATEXINLINE>$T_2$</LATEXINLINE> змінює
+            <SCHEMEINLINE>x</SCHEMEINLINE> з 10 на 11 між двома
+            моментами, коли <LATEXINLINE>$T_1$</LATEXINLINE></TD>
+	  </TR>
+	  <TR SINGLESPACE="yes">
+            <TD></TD>
+	    <TD>
+	      звертається до значення
+              <SCHEMEINLINE>x</SCHEMEINLINE> під час обчислення
+              <PYTHONINLINE>x * x</PYTHONINLINE>.
+	    </TD>
+	  </TR>
+	  <TR>
+            <TD><SPACE/><SPACE/>11:</TD>
+	    <TD><LATEXINLINE>$T_2$</LATEXINLINE> звертається до
+	    <SCHEMEINLINE>x</SCHEMEINLINE>, потім
+            <LATEXINLINE>$T_1$</LATEXINLINE> надає <SCHEMEINLINE>x</SCHEMEINLINE>
+	    значення 100,
+            а потім <LATEXINLINE>$T_2$</LATEXINLINE> надає значення
+	    <SCHEMEINLINE>x</SCHEMEINLINE>.</TD>
+	  </TR>
+	  <TR>
+            <TD>100:</TD>
+	    <TD><LATEXINLINE>$T_1$</LATEXINLINE> звертається до
+	    <SCHEMEINLINE>x</SCHEMEINLINE> (двічі),
+            потім <LATEXINLINE>$T_2$</LATEXINLINE> надає
+	    <SCHEMEINLINE>x</SCHEMEINLINE> значення 11,
+            а потім <LATEXINLINE>$T_1$</LATEXINLINE> надає значення
+	    <SCHEMEINLINE>x</SCHEMEINLINE>.</TD>
+	  </TR>
+	</TABLE>
+      </PYTHON>
+    </SPLIT>
+  </TEXT>
+  <TEXT>
+    Ми можемо обмежити паралелізм, користуючись серіалізованими
+    <SPLITINLINE><SCHEME>процедурами,</SCHEME>
+    <PYTHON>функціями,</PYTHON></SPLITINLINE>
+    які створюють <EM>серіалізатори</EM>. Серіалізатори будують
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>make-serializer</SCHEMEINLINE>,
+      </SCHEME>
+      <PYTHON><PYTHONINLINE>make_serializer</PYTHONINLINE>,
+      </PYTHON>
+    </SPLITINLINE>
+    реалізацію якого подано нижче. Серіалізатор бере
+    <SPLITINLINE><SCHEME>процедуру</SCHEME>
+    <PYTHON>функцію</PYTHON></SPLITINLINE>
+    як аргумент і повертає серіалізовану
+    <SPLITINLINE><SCHEME>процедуру</SCHEME>
+    <PYTHON>функцію</PYTHON></SPLITINLINE>
+    , яка поводиться як початкова
+    <SPLITINLINE><SCHEME>процедура.</SCHEME>
+    <PYTHON>функція.</PYTHON></SPLITINLINE>
+    Усі виклики заданого серіалізатора повертають серіалізовані
+    <SPLITINLINE><SCHEME>процедури</SCHEME>
+    <PYTHON>функції</PYTHON></SPLITINLINE>
+    з одного набору.
+  </TEXT>
+
+  <TEXT>
+    Тож, на відміну від наведеного вище прикладу, виконання
+    <SNIPPET CHAP="3" VARIANT="concurrent">
+      <NAME>serializer_example</NAME>
+      <REQUIRES>serializer</REQUIRES>
+      <!-- <EXPECTED>'all threads terminated'</EXPECTED> disabled: needs concurrent_execute primitive (see issue #1263) -->
+      <SCHEME>
+(define x 10)
+
+(define s (make-serializer))
+
+(parallel-execute (s (lambda () (set! x (* x x))))
+                  (s (lambda () (set! x (+ x 1)))))
+      </SCHEME>
+      <PYTHON>
+x = 10
+<SHORT_SPACE/>
+s = make_serializer()
+<SHORT_SPACE/>
+def t1():
+    global x
+    x = x * x
+
+def t2():
+    global x
+    x = x + 1
+
+concurrent_execute(s(t1), s(t2))
+      </PYTHON>
+    </SNIPPET>
+    може дати лише два можливі значення
+    <SCHEMEINLINE>x</SCHEMEINLINE>: 101 або 121.
+    Інші можливості виключено, бо виконання
+    <SPLITINLINE>
+      <SCHEME>
+	<LATEXINLINE>$P_1$</LATEXINLINE> та
+	<LATEXINLINE>$P_2$</LATEXINLINE> не можна переплести.
+      </SCHEME>
+      <PYTHON>
+	<LATEXINLINE>$T_1$</LATEXINLINE> та
+      <LATEXINLINE>$T_2$</LATEXINLINE> не можна переплести.</PYTHON>
+    </SPLITINLINE>
+  </TEXT>
+
+  <TEXT>
+    Ось версія
+    <SPLITINLINE><SCHEME><SCHEMEINLINE>make-account</SCHEMEINLINE></SCHEME>
+    <PYTHON><PYTHONINLINE>make_account</PYTHONINLINE>
+    </PYTHON>
+    </SPLITINLINE>
+    <SPLITINLINE><SCHEME>процедури</SCHEME>
+    <PYTHON>функції</PYTHON></SPLITINLINE>
+    з розділу<SPACE/><REF NAME="sec:local-state-variables"/>,
+    у якій внески й зняття
+    <INDEX>банківський рахунок<SUBINDEX>серіалізований</SUBINDEX></INDEX>
+    серіалізовано:
+    <SNIPPET HIDE="yes">
+      <NAME>make_account_serialize_attempt_example</NAME>
+      <PYTHON>
+my_account = make_account(100)
+
+def t1():
+    print(my_account("balance"), "T1 balance")
+    my_account("withdraw")(50)
+    print(my_account("balance"), "T1 balance")
+    my_account("deposit")(100)
+
+def t2():
+    print(my_account("balance"), "T2 balance")
+    my_account("withdraw")(50)
+    print(my_account("balance"), "T2 balance")
+    my_account("deposit")(100)
+
+print(concurrent_execute(t1, t2))
+      </PYTHON>
+    </SNIPPET>
+    <SNIPPET CHAP="3" VARIANT="concurrent">
+      <INDEX><DECLARATION>make_account</DECLARATION><SUBINDEX>with serialization</SUBINDEX><FRAGILE/></INDEX>
+      <NAME>make_account_serialize_attempt</NAME>
+      <REQUIRES>serializer</REQUIRES>
+      <EXAMPLE>make_account_serialize_attempt_example</EXAMPLE>
+      <SCHEME>
+(define (make-account balance)
+  (define (withdraw amount)
+    (if (&gt;= balance amount)
+      (begin (set! balance (- balance amount))
+             balance)
+      "Insufficient funds"))
+  (define (deposit amount)
+    (set! balance (+ balance amount))
+    balance)
+  (let ((protected (make-serializer)))
+    (define (dispatch m)
+      (cond ((eq? m 'withdraw) (protected withdraw))
+            ((eq? m 'deposit) (protected deposit))
+            ((eq? m 'balance) balance)
+            (else (error "Unknown request - - MAKE-ACCOUNT"
+                         m))))
+    dispatch))
+      </SCHEME>
+      <PYTHON>
+def make_account(balance):
+    def withdraw(amount):
+        nonlocal balance
+        if balance &gt; amount:
+            balance = balance - amount
+            return balance
+        else:
+            return "Insufficient funds"
+    def deposit(amount):
+        nonlocal balance
+        balance = balance + amount
+        return balance
+    protect = make_serializer()
+    def dispatch(m):
+        return (protect(withdraw) if m == "withdraw"
+                else protect(deposit) if m == "deposit"
+                else balance if m == "balance"
+                else error("unknown request -- make_account", m))
+    return dispatch
+      </PYTHON>
+    </SNIPPET>
+    З такою реалізацією два
+    <SPLITINLINE><SCHEME>процеси</SCHEME>
+    <PYTHON>потоки</PYTHON></SPLITINLINE> 
+    не можуть одночасно знімати гроші з одного рахунку або
+    вносити їх на нього. Це усуває джерело
+    помилки, проілюстрованої на рисунку<SPACE/><REF NAME="fig:bank-access"/>,
+    де Петро змінює баланс рахунку між тими моментами, коли Пол звертається
+    до балансу, щоб обчислити нове значення, і коли Пол насправді виконує
+    <SPLITINLINE>
+      <SCHEME>присвоєння.</SCHEME>
+      <PYTHON>переприсвоєння.</PYTHON>
+    </SPLITINLINE>
+    З іншого боку, кожен рахунок має власний серіалізатор,
+    тож внески й зняття для різних рахунків можуть відбуватися
+    паралельно.
+  </TEXT>
+
+  <EXERCISE>
+    Які з п<APOS/>яти можливостей у наведеному вище 
+    <SPLITINLINE><SCHEME>паралельному</SCHEME>
+    <PYTHON>паралельному</PYTHON></SPLITINLINE> 
+    виконанні залишаться, якщо ми натомість серіалізуємо виконання так:
+    <SNIPPET CHAP="3" VARIANT="concurrent" POSTPADDING="no">
+      <NAME>serializer_example_2</NAME>
+      <REQUIRES>serializer</REQUIRES>
+      <!-- <EXPECTED>'all threads terminated'</EXPECTED> disabled: needs concurrent_execute primitive (see issue #1263) -->
+      <SCHEME>
+(define x 10)
+
+(define s (make-serializer))
+
+(parallel-execute (lambda () (set! x ((s (lambda () (* x x))))))
+                  (s (lambda () (set! x (+ x 1)))))
+      </SCHEME>
+      <PYTHON>
+x = 10
+<SHORT_SPACE/>
+s = make_serializer()
+<SHORT_SPACE/>
+def t1():
+    global x
+    x = s(lambda: x * x)()
+
+def t2():
+    global x
+    x = x + 1
+
+concurrent_execute(t1, s(t2))
+      </PYTHON>
+    </SNIPPET>
+    <LABEL NAME="ex:3_39"/>
+  </EXERCISE>
+
+  <EXERCISE>
+    Наведіть усі можливі значення <SCHEMEINLINE>x</SCHEMEINLINE>,
+    які можуть виникнути в результаті виконання
+    <SNIPPET CHAP="3" VARIANT="concurrent">
+      <NAME>serializer_example_3</NAME>
+      <!-- <EXPECTED>'all threads terminated'</EXPECTED> disabled: needs concurrent_execute primitive (see issue #1263) -->
+      <SCHEME>
+(define x 10)
+<SHORT_SPACE/>
+(parallel-execute (lambda () (set! x (* x x)))
+                  (lambda () (set! x (* x x x))))
+      </SCHEME>
+      <PYTHON>
+x = 10
+<SHORT_SPACE/>
+def t1():
+    global x
+    x = x * x
+
+def t2():
+    global x
+    x = x * x * x
+
+concurrent_execute(t1, t2)
+      </PYTHON>
+    </SNIPPET>
+    <PDF_ONLY>\newpage\noindent</PDF_ONLY> Які з цих можливостей залишаться, якщо ми натомість використаємо серіалізовані
+    <SPLITINLINE><SCHEME>процедури:</SCHEME>
+    <PYTHON>функції:</PYTHON></SPLITINLINE>
+    <SNIPPET CHAP="3" VARIANT="concurrent" POSTPADDING="no">
+      <NAME>serializer_example_4</NAME>
+      <REQUIRES>serializer</REQUIRES>
+      <!-- <EXPECTED>'all threads terminated'</EXPECTED> disabled: needs concurrent_execute primitive (see issue #1263) -->
+      <SCHEME>
+(define x 10)
+
+(define s (make-serializer))
+
+(parallel-execute (s (lambda () (set! x (* x x))))
+                  (s (lambda () (set! x (* x x x)))))
+      </SCHEME>
+      <PYTHON>
+x = 10
+<SHORT_SPACE/>
+s = make_serializer()
+<SHORT_SPACE/>
+def t1():
+    global x
+    x = x * x
+
+def t2():
+    global x
+    x = x * x * x
+
+concurrent_execute(s(t1), s(t2))
+      </PYTHON>
+    </SNIPPET>
+    <LABEL NAME="ex:3_40"/>
+  </EXERCISE>
+
+  <EXERCISE>
+    <LABEL NAME="ex:bensconcern"/>
+    Бен Бітділ непокоїться, що було б краще реалізувати банківський
+    рахунок так (де закоментований рядок змінено):
+    <SNIPPET CHAP="3" VARIANT="concurrent">
+      <INDEX><DECLARATION>make_account</DECLARATION><SUBINDEX>with serialization</SUBINDEX><FRAGILE/></INDEX>
+      <NAME>serializer_example_5</NAME>
+      <REQUIRES>serializer</REQUIRES>
+      <EXAMPLE>make_account_serialize_attempt_example</EXAMPLE>
+      <SCHEME>
+(define (make-account balance)
+  (define (withdraw amount)
+    (if (&gt;= balance amount)
+        (begin (set! balance (- balance amount))
+          balance)
+        "Insufficient funds"))
+  (define (deposit amount)
+    (set! balance (+ balance amount))
+    balance)
+  (let ((protected (make-serializer)))
+    (define (dispatch m)
+      (cond ((eq? m 'withdraw) (protected withdraw))
+            ((eq? m 'deposit) (protected deposit))
+            ((eq? m 'balance)
+            ((protected (lambda () balance)))) <EM>; serialized</EM>
+            (else (error "Unknown request - - MAKE-ACCOUNT"
+                         m))))
+    dispatch))
+      </SCHEME>
+      <PYTHON>
+def make_account(balance):
+    def withdraw(amount):
+        nonlocal balance
+        if balance &gt; amount:
+            balance = balance - amount
+            return balance
+        else:
+            return "Insufficient funds"
+    def deposit(amount):
+        nonlocal balance
+        balance = balance + amount
+        return balance
+    protect = make_serializer()
+    def dispatch(m):
+        return (protect(withdraw) if m == "withdraw"
+                else protect(deposit) if m == "deposit"
+                else protect(lambda: balance)() if m == "balance"  # serialized
+                else error("unknown request -- make_account", m))
+    return dispatch
+      </PYTHON>
+    </SNIPPET>
+    бо дозвіл на несеріалізований доступ до банківського балансу може
+    спричинити аномальну поведінку. Чи згодні ви? Чи існує якийсь
+    сценарій, який демонструє занепокоєння Бена?
+  </EXERCISE>
+
+  <EXERCISE>
+    Бен Бітділ каже, що це’ марна трата часу —
+    створювати нову серіалізовану
+    <SPLITINLINE><SCHEME>процедуру</SCHEME>
+    <PYTHON>функцію</PYTHON></SPLITINLINE>
+    у відповідь на кожне повідомлення <SCHEMEINLINE>withdraw</SCHEMEINLINE> та
+    <SCHEMEINLINE>deposit</SCHEMEINLINE>. Він каже, що
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>make-account</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>make_account</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    можна було б змінити так, щоб виклики
+    <SPLITINLINE>
+      <SCHEME>
+	<SCHEMEINLINE>protected</SCHEMEINLINE>
+      </SCHEME>
+      <PYTHON>
+	<PYTHONINLINE>protect</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    відбувалися поза <SCHEMEINLINE>dispatch</SCHEMEINLINE>
+    <SPLITINLINE>
+      <SCHEME>процедурою.</SCHEME>
+      <PYTHON>функцією.</PYTHON>
+    </SPLITINLINE>
+    Тобто рахунок повертав би ту саму серіалізовану
+    <SPLITINLINE><SCHEME>процедуру</SCHEME>
+    <PYTHON>функцію</PYTHON></SPLITINLINE>
+    (яку було створено водночас із рахунком) щоразу, коли
+    його просять виконати зняття
+    <SPLITINLINE>
+      <SCHEME>процедурою.</SCHEME>
+      <PYTHON>функцією.</PYTHON>
+    </SPLITINLINE>
+    <SNIPPET CHAP="3" VARIANT="concurrent">
+      <INDEX><DECLARATION>make_account</DECLARATION><SUBINDEX>with serialization</SUBINDEX><FRAGILE/></INDEX>
+      <NAME>serializer_example_6</NAME>
+      <REQUIRES>serializer</REQUIRES>
+      <EXAMPLE>make_account_serialize_attempt_example</EXAMPLE>
+      <SCHEME>
+(define (make-account balance)
+  (define (withdraw amount)
+    (if (&gt;= balance amount)
+        (begin (set! balance (- balance amount))
+          balance)
+        "Insufficient funds"))
+  (define (deposit amount)
+    (set! balance (+ balance amount))
+    balance)
+  (let ((protected (make-serializer)))
+        (let ((protected-withdraw (protected withdraw))
+              (protected-deposit (protected deposit)))
+          (define (dispatch m)
+            (cond ((eq? m 'withdraw) protected-withdraw)
+                  ((eq? m 'deposit) protected-deposit)
+                  ((eq? m 'balance) balance)
+                  (else (error "Unknown request - - MAKE-ACCOUNT"
+                               m))))
+  dispatch)))
+      </SCHEME>
+      <PYTHON>
+def make_account(balance):
+    def withdraw(amount):
+        nonlocal balance
+        if balance &gt; amount:
+            balance = balance - amount
+            return balance
+        else:
+            return "Insufficient funds"
+    def deposit(amount):
+        nonlocal balance
+        balance = balance + amount
+        return balance
+    protect = make_serializer()
+    protect_withdraw = protect(withdraw)
+    protect_deposit = protect(deposit)
+    def dispatch(m):
+        return (protect_withdraw if m == "withdraw"
+                else protect_deposit if m == "deposit"
+                else balance if m == "balance"
+                else error("unknown request -- make_account", m))
+    return dispatch
+      </PYTHON>            
+    </SNIPPET>
+    Чи безпечна ця зміна? Зокрема, чи є якась різниця
+    у тому, який паралелізм дозволяють ці дві версії
+    <SPLITINLINE><SCHEME><SCHEMEINLINE>make-account</SCHEMEINLINE></SCHEME>
+    <PYTHON><PYTHONINLINE>make_account</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>?
+    <LABEL NAME="ex:3_42"/>
+  </EXERCISE>
+
+  <INDEX>серіалізатор<CLOSE/></INDEX>
+
+  <SUBHEADING>
+    <NAME>Складність використання кількох спільних ресурсів</NAME>
+  </SUBHEADING>
+
+  <INDEX>серіалізатор<SUBINDEX>з кількома спільними ресурсами<OPEN/></SUBINDEX></INDEX>
+  <INDEX>спільні ресурси<OPEN/></INDEX>
+  
+  <TEXT>
+    Серіалізатори дають потужну абстракцію, яка допомагає ізолювати
+    складності паралельних програм, щоб з ними можна було поводитися
+    обережно і (сподіваємося) правильно. Проте хоч користуватися серіалізаторами
+    відносно просто, коли є лише один спільний
+    ресурс (як-от один банківський рахунок), паралельне програмування може
+    бути підступно складним, коли спільних ресурсів кілька.
+  </TEXT>
+
+  <TEXT>
+    Щоб проілюструвати одну з труднішостей, які можуть виникнути, припустімо, що ми хочемо
+    <INDEX>банківський рахунок<SUBINDEX>обмін балансами</SUBINDEX></INDEX>
+    обміняти баланси двох банківських рахунків. Ми звертаємося до кожного рахунку, щоб знайти
+    баланс, обчислюємо різницю між балансами, знімаємо цю
+    різницю з одного рахунку і вносимо її на інший рахунок.
+    Ми могли б реалізувати це так:<FOOTNOTE>Ми спростили <SCHEMEINLINE>exchange</SCHEMEINLINE>,
+    скориставшись тим, що наше повідомлення <SCHEMEINLINE>deposit</SCHEMEINLINE>
+    приймає від<APOS/>ємні суми. (Це серйозна вада нашої банківської
+    системи!)</FOOTNOTE>
+    <SNIPPET HIDE="yes">
+      <NAME>exchange_example</NAME>
+      <PYTHON>
+a1 = make_account(100)
+a2 = make_account(200)
+a3 = make_account(300)
+
+def peter():
+    print(a1("balance"), "Peter balance a1 before")
+    print(a2("balance"), "Peter balance a2 before")
+    exchange(a1, a2)
+    print(a1("balance"), "Peter balance a1 after")
+    print(a2("balance"), "Peter balance a2 after")
+
+def paul():
+    print(a1("balance"), "Paul balance a1 before")
+    print(a3("balance"), "Paul balance a3 before")
+    exchange(a1, a3)
+    print(a1("balance"), "Paul balance a1 after")
+    print(a3("balance"), "Paul balance a3 after")
+
+print(concurrent_execute(peter, paul))
+      </PYTHON>
+    </SNIPPET>
+    <SNIPPET CHAP="3" VARIANT="concurrent">
+      <INDEX><DECLARATION>exchange</DECLARATION></INDEX> 
+      <NAME>exchange</NAME>
+      <REQUIRES>make_account_serialize_attempt</REQUIRES>
+      <EXAMPLE>exchange_example</EXAMPLE>
+      <SCHEME>
+(define (exchange account1 account2)
+  (let ((difference (- (account1 'balance)
+                       (account2 'balance))))
+       ((account1 'withdraw) difference)
+    ((account2 'deposit) difference)))
+      </SCHEME>
+      <PYTHON>
+def exchange(account1, account2):
+    difference = account1("balance") - account2("balance")
+    account1("withdraw")(difference)
+    account2("deposit")(difference)
+      </PYTHON>
+    </SNIPPET>
+  </TEXT>
+
+  <TEXT>
+    Ця
+    <SPLITINLINE>
+      <SCHEME>процедура</SCHEME>
+      <PYTHON>функція</PYTHON>
+    </SPLITINLINE>
+    добре працює, коли обмін намагається зробити лише один
+    <SPLITINLINE><SCHEME>процес</SCHEME>
+    <PYTHON>потік</PYTHON></SPLITINLINE>. 
+    Припустімо, однак, що і Петро, і Пол мають
+    доступ до рахунків <LATEXINLINE>$a_1$</LATEXINLINE>,
+    <LATEXINLINE>$a_2$</LATEXINLINE> та <LATEXINLINE>$a_3$</LATEXINLINE>, і
+    що Петро обмінює <LATEXINLINE>$a_1$</LATEXINLINE> та
+    <LATEXINLINE>$a_2$</LATEXINLINE>, а Пол паралельно обмінює
+    <LATEXINLINE>$a_1$</LATEXINLINE> та <LATEXINLINE>$a_3$</LATEXINLINE>.
+    Навіть якщо внески й зняття на окремих рахунках
+    серіалізовано (як у
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>make-account</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>make_account</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    <SPLITINLINE>
+      <SCHEME>процедурі</SCHEME>
+      <PYTHON>функції</PYTHON>
+    </SPLITINLINE>
+    , показаній вище в цьому розділі), <SCHEMEINLINE>exchange</SCHEMEINLINE> все одно
+    може дати неправильні результати. Наприклад, Петро може обчислити
+    різницю балансів <LATEXINLINE>$a_1$</LATEXINLINE> та
+    <LATEXINLINE>$a_2$</LATEXINLINE>, але потім Пол може змінити баланс
+    <LATEXINLINE>$a_1$</LATEXINLINE> до того, як Петро встигне завершити
+    обмін.<FOOTNOTE>Якщо баланси рахунків початково дорівнюють <DOLLAR/>10,
+    <DOLLAR/>20 та <DOLLAR/>30, то після будь-якої кількості паралельних обмінів
+    баланси все одно мають бути <DOLLAR/>10, <DOLLAR/>20 та <DOLLAR/>30 у
+    якомусь порядку. Серіалізації внесків на окремі рахунки для цього
+    недостатньо. Дивіть
+    вправу<SPACE/><REF NAME="ex:exchange-bug"/>.</FOOTNOTE>
+    Для правильної поведінки ми повинні зробити так, щоб
+    <SCHEMEINLINE>exchange</SCHEMEINLINE>
+    <SPLITINLINE>
+      <SCHEME>процедура</SCHEME>
+      <PYTHON>функція</PYTHON>
+    </SPLITINLINE>
+    блокувала будь-які інші паралельні звернення до цих рахунків протягом
+    усього часу обміну.
+  </TEXT>
+
+  <TEXT>
+    Один зі способів зробити це — використати серіалізатори обох рахунків,
+    щоб серіалізувати весь <SCHEMEINLINE>exchange</SCHEMEINLINE>
+    <SPLITINLINE><SCHEME>процедурі</SCHEME>
+    <PYTHON>функції</PYTHON></SPLITINLINE>.
+    Для цього ми зробимо доступним серіалізатор рахунку.
+    Зауважте, що ми свідомо порушуємо модульність об<APOS/>єкта банківського
+    рахунку, виставляючи серіалізатор назовні. Така версія
+    <SPLITINLINE><SCHEME><SCHEMEINLINE>make-account</SCHEMEINLINE></SCHEME>
+    <PYTHON><PYTHONINLINE>make_@account</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    ідентична початковій версії, наведеній у
+    розділі<SPACE/><REF NAME="sec:local-state-variables"/>, крім того, що
+    серіалізатор надано для захисту змінної балансу, і цей серіалізатор
+    експортовано через передавання повідомлень:
+    <SNIPPET CHAP="3" VARIANT="concurrent">
+      <INDEX><DECLARATION>make_account_and_serializer</DECLARATION></INDEX> 
+      <NAME>make_account_and_serializer</NAME>
+      <REQUIRES>serializer</REQUIRES>
+      <!-- <EXPECTED>'all threads terminated'</EXPECTED> disabled: needs concurrent_execute primitive (see issue #1263) -->
+      <SCHEME>
+(define (make-account-and-serializer balance)
+  (define (withdraw amount)
+    (if (&gt;= balance amount)
+        (begin (set! balance (- balance amount))
+          balance)
+        "Insufficient funds"))
+  (define (deposit amount)
+    (set! balance (+ balance amount))
+    balance)
+  (let ((balance-serializer (make-serializer)))
+    (define (dispatch m)
+      (cond ((eq? m 'withdraw) withdraw)
+            ((eq? m 'deposit) deposit)
+            ((eq? m 'balance) balance)
+            ((eq? m 'serializer) balance-serializer)
+            (else (error "Unknown request - - MAKE-ACCOUNT"
+                         m))))
+    dispatch))
+      </SCHEME>
+      <PYTHON>
+def make_account_and_serializer(balance):
+    def withdraw(amount):
+        nonlocal balance
+        if balance &gt; amount:
+            balance = balance - amount
+            return balance
+        else:
+            return "Insufficient funds"
+    def deposit(amount):
+        nonlocal balance
+        balance = balance + amount
+        return balance
+    balance_serializer = make_serializer()
+    return lambda m: (withdraw if m == "withdraw"
+                      else deposit if m == "deposit"
+                      else balance if m == "balance"
+                      else balance_serializer if m == "serializer"
+                      else error("unknown request -- make_account", m))
+      </PYTHON>
+    </SNIPPET>
+  </TEXT>
+
+  <TEXT>
+    Це дає нам змогу робити серіалізовані внески й зняття. Проте,
+    на відміну від нашого попереднього серіалізованого рахунку, тепер
+    відповідальність кожного користувача об<APOS/>єктів банківських рахунків —
+    явно керувати серіалізацією, наприклад так:<FOOTNOTE>Вправа<SPACE/><REF NAME="ex:export-serializer"/>
+    досліджує, чому внески й зняття більше не серіалізуються рахунком
+    автоматично.</FOOTNOTE>
+    <SNIPPET HIDE="yes">
+      <NAME>make_account_and_serializer_example</NAME>
+      <PYTHON>
+my_account = make_account_and_serializer(100)
+
+deposit(my_account, 200)
+
+print(print(my_account("balance")))
+      </PYTHON>
+    </SNIPPET>
+    <SNIPPET CHAP="3" VARIANT="concurrent">
+      <INDEX><DECLARATION>deposit</DECLARATION>, with external serializer</INDEX>
+      <NAME>make_account_and_serializer_usage</NAME>
+      <REQUIRES>make_account_and_serializer</REQUIRES>
+      <EXAMPLE>make_account_and_serializer_example</EXAMPLE>
+      <SCHEME>
+(define (deposit account amount)
+  (let ((s (account 'serializer))
+        (d (account 'deposit)))
+    ((s d) amount)))
+      </SCHEME>
+      <PYTHON>
+def deposit(account, amount):
+    s = account("serializer")
+    d = account("deposit")
+    s(d(amount))
+      </PYTHON>
+    </SNIPPET>
+  </TEXT>
+
+  <TEXT>
+    Експортування серіалізатора в такий спосіб дає нам достатньо гнучкості, щоб
+    реалізувати серіалізовану програму обміну. Ми просто серіалізуємо початкову
+    <SCHEMEINLINE>exchange</SCHEMEINLINE>
+    <SPLITINLINE><SCHEME>процедуру</SCHEME>
+    <PYTHON>функцію</PYTHON></SPLITINLINE>
+    серіалізаторами обох рахунків:
+    <SNIPPET HIDE="yes">
+      <NAME>serialized_exchange_example</NAME>
+      <PYTHON>
+a1 = make_account_and_serializer(100)
+a2 = make_account_and_serializer(200)
+a3 = make_account_and_serializer(300)
+
+def peter():
+    print(a1("balance"), "Peter balance a1 before")
+    print(a2("balance"), "Peter balance a2 before")
+    serialized_exchange(a1, a2)
+    print(a1("balance"), "Peter balance a1 after")
+    print(a2("balance"), "Peter balance a2 after")
+
+def paul():
+    print(a1("balance"), "Paul balance a1 before")
+    print(a3("balance"), "Paul balance a3 before")
+    serialized_exchange(a1, a3)
+    print(a1("balance"), "Paul balance a1 after")
+    print(a3("balance"), "Paul balance a3 after")
+
+print(concurrent_execute(peter, paul))
+      </PYTHON>
+    </SNIPPET>
+    <SNIPPET CHAP="3" VARIANT="concurrent" POSTPADDING="no">
+      <INDEX><DECLARATION>serialized_exchange</DECLARATION></INDEX> 
+      <NAME>serialized_exchange</NAME>
+      <REQUIRES>make_account_and_serializer</REQUIRES>
+      <REQUIRES>exchange</REQUIRES>
+      <EXAMPLE>serialized_exchange_example</EXAMPLE>
+      <SCHEME>
+(define (serialized-exchange account1 account2)
+  (let ((serializer1 (account1 'serializer))
+        (serializer2 (account2 'serializer)))
+    ((serializer1 (serializer2 exchange))
+     account1
+     account2)))
+      </SCHEME>
+      <PYTHON>
+def serialized_exchange(account1, account2):
+    serializer1 = account1("serializer")
+    serializer2 = account2("serializer")
+    serializer1(serializer2(exchange))(account1, account2)
+      </PYTHON>
+    </SNIPPET>
+  </TEXT>
+
+  <EXERCISE>
+    Припустімо, що баланси трьох рахунків початково дорівнюють <DOLLAR/>10,
+    <DOLLAR/>20 та <DOLLAR/>30, і що запущено кілька 
+    <SPLITINLINE>
+      <SCHEME>процесів</SCHEME>
+      <PYTHON>потоків</PYTHON>
+    </SPLITINLINE> 
+    , які обмінюють баланси цих рахунків. Доведіть, що якщо ці 
+    <SPLITINLINE>
+      <SCHEME>процеси</SCHEME>
+      <PYTHON>потоки</PYTHON>
+    </SPLITINLINE> 
+    виконуються послідовно,
+    то після будь-якої кількості паралельних обмінів баланси рахунків мають бути 
+    <DOLLAR/>10, <DOLLAR/>20 та <DOLLAR/>30 у якомусь порядку.
+    Намалюйте часову діаграму, як на
+    рисунку<SPACE/><REF NAME="fig:bank-access"/>, щоб
+    показати, як цю умову може бути порушено, якщо обміни
+    реалізовано першою версією програми обміну рахунками з
+    цього розділу. З іншого боку, доведіть, що навіть із цією
+    програмою <SCHEMEINLINE>exchange</SCHEMEINLINE> сума балансів
+    на рахунках зберігатиметься. Намалюйте часову діаграму, щоб показати, як
+    навіть цю умову було б порушено, якби ми не серіалізували
+    операції на окремих рахунках.
+    <LABEL NAME="ex:exchange-bug"/>
+  </EXERCISE>
+
+  <EXERCISE>
+    Розгляньмо задачу
+    <INDEX>банківський рахунок<SUBINDEX>переказ грошей</SUBINDEX></INDEX>
+    переказу суми з одного рахунку
+    на інший. Бен Бітділ стверджує, що це можна зробити такою
+    <SPLITINLINE><SCHEME>процедурою,</SCHEME>
+    <PYTHON>функцією,</PYTHON></SPLITINLINE>
+    навіть якщо кілька людей паралельно
+    переказують гроші між багатьма рахунками, користуючись будь-яким механізмом
+    рахунку, який серіалізує операції внеску й зняття, наприклад
+    версією
+    <SPLITINLINE><SCHEME><SCHEMEINLINE>make-account</SCHEMEINLINE></SCHEME>
+    <PYTHON>
+      <PYTHONINLINE>make_account</PYTHONINLINE>
+    </PYTHON>
+    </SPLITINLINE>
+    з наведеного вище тексту.
+    <SNIPPET HIDE="yes">
+      <NAME>transfer_example</NAME>
+      <REQUIRES>make_account_serialize_attempt</REQUIRES>
+      <PYTHON>
+a1 = make_account(400)
+a2 = make_account(100)
+
+def peter():
+    print(a1("balance"), "Peter balance a1 before")
+    print(a2("balance"), "Peter balance a2 before")
+    transfer(a1, a2, 50)
+    print(a1("balance"), "Peter balance a1 after")
+    print(a2("balance"), "Peter balance a2 after")
+
+def paul():
+    print(a1("balance"), "Paul balance a1")
+    print(a2("balance"), "Paul balance a2")
+    print(a1("balance"), "Paul balance a1")
+    print(a2("balance"), "Paul balance a2")
+    print(a1("balance"), "Paul balance a1")
+    print(a2("balance"), "Paul balance a2")
+
+print(concurrent_execute(peter, paul))
+      </PYTHON>
+    </SNIPPET>
+    <SNIPPET CHAP="3" VARIANT="concurrent">
+      <NAME>transfer</NAME>
+      <EXAMPLE>transfer_example</EXAMPLE>
+      <REQUIRES>make_account_and_serializer</REQUIRES>
+      <SCHEME>
+(define (transfer from-account to-account amount)
+  ((from-account 'withdraw) amount)
+  ((to-account 'deposit) amount))
+      </SCHEME>
+      <PYTHON>
+def transfer(from_account, to_account, amount):
+    from_account("withdraw")(amount)
+    to_account("deposit")(amount)
+      </PYTHON>
+    </SNIPPET>
+    Луї Розумник стверджує, що тут є проблема і що нам потрібен
+    складніший метод, як-от той, що потрібен для розв<APOS/>язання проблеми
+    обміну. Чи правий Луї? Якщо ні, у чому полягає
+    принципова різниця між задачею переказу та задачею
+    обміну? (Слід припустити, що баланс
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>from-account</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>from_account</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    становить принаймні <SCHEMEINLINE>amount</SCHEMEINLINE>.)
+    <LABEL NAME="ex:3_44"/>
+  </EXERCISE>
+
+  <EXERCISE>
+    Луї Розумник вважає, що наша система банківських рахунків тепер
+    без потреби складна і схильна до помилок, оскільки внески й зняття не
+    серіалізуються автоматично. Він пропонує, щоб
+    <SPLITINLINE>
+      <SCHEME>
+        <SCHEMEINLINE>make-account-and-serializer</SCHEMEINLINE>
+      </SCHEME>
+      <PYTHON>
+        <PYTHONINLINE>make_@account_@and_@serializer</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    експортував серіалізатор 
+    <SPLITINLINE>
+      <SCHEME>
+        (для використання такими процедурами, як
+        <SCHEMEINLINE>serialized-exchange</SCHEMEINLINE>)
+      </SCHEME>
+      <PYTHON>
+        (для використання такими функціями, як
+        <PYTHONINLINE>serialized_exchange</PYTHONINLINE>)        
+      </PYTHON>
+    </SPLITINLINE>
+    додатково до (а не замість) використання його для серіалізації рахунків і
+    внесків, як це робив
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>make-account</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>make_account</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    . Він пропонує переозначити рахунки так:
+    <SNIPPET CHAP="3" VARIANT="concurrent">
+      <NAME>make_account_and_serializer_exercise</NAME>
+      <REQUIRES>serializer</REQUIRES>
+      <EXAMPLE>make_account_and_serializer_exercise_example</EXAMPLE>
+      <SCHEME>
+(define (make-account-and-serializer balance)
+  (define (withdraw amount)
+    (if (&gt;= balance amount)
+      (begin (set! balance (- balance amount))
+        balance)
+      "Insufficient funds"))
+  (define (deposit amount)
+    (set! balance (+ balance amount))
+    balance)
+  (let ((balance-serializer (make-serializer)))
+    (define (dispatch m)
+      (cond ((eq? m 'withdraw) (balance-serializer withdraw))
+            ((eq? m 'deposit) (balance-serializer deposit))
+            ((eq? m 'balance) balance)
+            ((eq? m 'serializer) balance-serializer)
+            (else (error "Unknown request - - MAKE-ACCOUNT"
+                         m))))
+    dispatch))
+      </SCHEME>
+      <PYTHON>
+def make_account_and_serializer(balance):
+    def withdraw(amount):
+        nonlocal balance
+        if balance &gt; amount:
+            balance = balance - amount
+            return balance
+        else:
+            return "Insufficient funds"
+    def deposit(amount):
+        nonlocal balance
+        balance = balance + amount
+        return balance
+    balance_serializer = make_serializer()
+    return lambda m: (balance_serializer(withdraw) if m == "withdraw"
+                      else balance_serializer(deposit) if m == "deposit"
+                      else balance if m == "balance"
+                      else balance_serializer if m == "serializer"
+                      else error("unknown request -- make_account", m))
+      </PYTHON>
+    </SNIPPET>
+    Тоді внески обробляються так само, як з початковим
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>make-account</SCHEMEINLINE>:</SCHEME>
+      <PYTHON><PYTHONINLINE>make_account</PYTHONINLINE>:</PYTHON>
+    </SPLITINLINE>
+    <SNIPPET CHAP="3" VARIANT="concurrent">
+      <NAME>make_account_and_serializer_exercise_usage</NAME>
+      <REQUIRES>make_account_and_serializer_exercise</REQUIRES>
+      <EXAMPLE>make_account_and_serializer_exercise_example</EXAMPLE>
+      <SCHEME>
+(define (deposit account amount)
+  ((account 'deposit) amount))
+      </SCHEME>
+      <PYTHON>
+def deposit(account, amount):
+    account("deposit")(amount)
+      </PYTHON>
+    </SNIPPET>
+    <SNIPPET CHAP="3" VARIANT="concurrent" HIDE="yes">
+      <NAME>make_account_and_serializer_exercise_example</NAME>
+      <REQUIRES>make_account_and_serializer_exercise_usage</REQUIRES>
+      <SCHEME>
+      </SCHEME>
+      <PYTHON>
+my_account = make_account_and_serializer(300)
+deposit(my_account, 100)
+print(print(my_account("balance")))
+      </PYTHON>
+    </SNIPPET>
+    Поясніть, що не так із міркуваннями Луї. Зокрема,
+    розгляньте, що відбувається, коли викликають
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>serialized-exchange</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>serialized_exchange</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    .
+    <LABEL NAME="ex:export-serializer"/>
+  </EXERCISE>
+
+  <INDEX>серіалізатор<SUBINDEX>з кількома спільними ресурсами<CLOSE/></SUBINDEX></INDEX>
+  <INDEX>спільні ресурси<CLOSE/></INDEX>
+
+  <SUBHEADING>
+    <NAME>Реалізація серіалізаторів</NAME>
+  </SUBHEADING>
+
+  <INDEX>серіалізатор<SUBINDEX>реалізація<OPEN/></SUBINDEX></INDEX>
+
+  <TEXT>
+    Ми реалізуємо серіалізатори через примітивніший механізм синхронізації,
+    який називають 
+    <INDEX>м<APOS/>ютекс</INDEX>
+    <EM>м<APOS/>ютексом</EM>. М<APOS/>ютекс — це об<APOS/>єкт, який підтримує дві
+    операції<EMDASH/>м<APOS/>ютекс можна 
+    <INDEX>захопити м<APOS/>ютекс</INDEX>
+    <EM>захопити</EM>, і м<APOS/>ютекс можна
+    <INDEX>звільнити м<APOS/>ютекс</INDEX>
+    <EM>звільнити</EM>. Щойно м<APOS/>ютекс захоплено, жодні інші операції
+    захоплення цього м<APOS/>ютекса не можуть виконуватися, доки м<APOS/>ютекс не
+    звільнять.<FOOTNOTE>Термін <QUOTE>м’ютекс</QUOTE> — це скорочення від 
+    <INDEX>взаємне виключення</INDEX>
+    <EM>взаємне виключення</EM>. Загальну задачу побудови механізму,
+    який дозволяє паралельним 
+    <SPLITINLINE><SCHEME>процесам</SCHEME>
+    <PYTHON>потокам</PYTHON></SPLITINLINE> 
+    безпечно ділити ресурси, називають задачею взаємного виключення. Наш
+    м’ютекс — простий варіант механізму 
+    <INDEX>семафор</INDEX>
+    <EM>семафора</EM> (дивіть
+    вправу<SPACE/><REF NAME="ex:semaphore"/>), який було введено в 
+    <INDEX>Мультипрограмна система THE</INDEX>
+    <QUOTE>THE</QUOTE> мультипрограмній системі, розробленій у
+    <INDEX>Технологічний університет Ейндговена</INDEX>
+    Технологічному університеті Ейндговена і названій за початковими літерами
+    назви університету нідерландською
+    <INDEX>Дейкстра, Едсгер Вібе</INDEX>
+    (<CITATION NAME="DIJ68A">Dijkstra 1968a</CITATION>). Операції захоплення та
+    звільнення спочатку називали 
+    <INDEX><ORDER>P</ORDER>P-операція над семафором</INDEX>
+    <INDEX><ORDER>V</ORDER>V-операція над семафором</INDEX>
+    P та V, від нідерландських
+    слів <EM>passeren</EM> (пропускати) та <EM>vrijgeven</EM> (звільняти),
+    у зв’язку із семафорами, які використовують на залізницях. Класичний
+    виклад Дейкстри (1968b) був одним із перших, де чітко подано
+    проблеми керування паралелізмом, і показано, як використовувати семафори для
+    розв’язання різноманітних задач паралелізму.</FOOTNOTE>
+    У нашій реалізації кожен серіалізатор має пов’язаний м’ютекс. Маючи
+    <SPLITINLINE>
+      <SCHEME>
+	процедуру
+	<SCHEMEINLINE>p</SCHEMEINLINE>, 	
+      </SCHEME>
+      <PYTHON>
+	функцію
+	<PYTHONINLINE>f</PYTHONINLINE>,
+      </PYTHON>
+    </SPLITINLINE>
+    серіалізатор повертає
+    <SPLITINLINE><SCHEME>процедуру</SCHEME>
+    <PYTHON>функцію</PYTHON></SPLITINLINE>
+    , яка захоплює м’ютекс, виконує
+    <SPLITINLINE>
+      <SCHEME>
+	<SCHEMEINLINE>p</SCHEMEINLINE>,
+      </SCHEME>
+      <PYTHON>
+	<PYTHONINLINE>f</PYTHONINLINE>,
+      </PYTHON>
+    </SPLITINLINE>
+    а потім звільняє м’ютекс. Це гарантує, що водночас може виконуватися лише одна з
+    <SPLITINLINE>
+      <SCHEME>процедур</SCHEME>
+      <PYTHON>функцій</PYTHON>
+    </SPLITINLINE>
+    , які створює серіалізатор, а це саме та властивість серіалізації,
+    яку нам треба гарантувати.
+    <SPLIT>
+      <PYTHON>
+	Щоб застосовувати серіалізатори до функцій, які беруть довільну кількість аргументів,
+	ми користуємося параметром <EM>rest</EM> та синтаксисом <EM>spread</EM> у Python.
+	<INDEX><ORDER>0a3</ORDER><PYTHONINLINE>...</PYTHONINLINE> (rest parameter and spread syntax)</INDEX>
+	<INDEX>vector (data structure)<SUBINDEX><ORDER>rest</ORDER>used in spread and rest parameter syntax</SUBINDEX></INDEX>
+	<INDEX>rest parameter and spread syntax</INDEX>
+	<INDEX>spread and rest parameter syntax</INDEX>
+	<INDEX><FUNCTION/><SUBINDEX>with any number of arguments</SUBINDEX></INDEX>    
+	<INDEX>argument(s)<SUBINDEX>arbitrary number of</SUBINDEX></INDEX>    
+	<PYTHONINLINE>...</PYTHONINLINE> перед
+	параметром <PYTHONINLINE>args</PYTHONINLINE> збирає
+	решту (тут — усі) аргументи будь-якого виклику функції
+	в структуру даних <EM>вектор</EM>.
+	<PYTHONINLINE>...</PYTHONINLINE> перед
+	<PYTHONINLINE>args</PYTHONINLINE> у
+	застосуванні
+	<PYTHONINLINE>f(...args)</PYTHONINLINE>
+	розгортає елементи 
+	<PYTHONINLINE>args</PYTHONINLINE> так, що
+	вони стають окремими аргументами 
+	<PYTHONINLINE>f</PYTHONINLINE>.
+      </PYTHON>
+    </SPLIT>
+    <SNIPPET CHAP="3" VARIANT="concurrent">
+      <INDEX><DECLARATION>make_serializer</DECLARATION></INDEX> 
+      <NAME>serializer</NAME>
+      <REQUIRES>mutex</REQUIRES>
+      <!-- <EXPECTED>'all threads terminated'</EXPECTED> disabled: needs concurrent_execute primitive (see issue #1263) -->
+      <SCHEME>
+(define (make-serializer)
+  (let ((mutex (make-mutex)))
+    (lambda (p)
+      (define (serialized-p . args)
+        (mutex 'acquire)
+        (let ((val (apply p args)))
+          (mutex 'release)
+          val))
+      serialized-p)))
+      </SCHEME>
+      <PYTHON>
+def make_serializer():
+    mutex = make_mutex()
+    def serializer(f):
+        def serialized_f(*args):
+            mutex("acquire")
+            val = f(*args)
+            mutex("release")
+            return val
+        return serialized_f
+    return serializer
+      </PYTHON>
+      <PYTHON_RUN>
+def make_serializer():
+    mutex = make_mutex()
+    def serializer(f):
+        def serialized_f():
+            mutex("acquire")
+            val = f()
+            mutex("release")
+            return val
+        return serialized_f
+    return serializer
+      </PYTHON_RUN>
+    </SNIPPET>
+  </TEXT>
+
+  <TEXT>
+    М’ютекс — це змінюваний об’єкт (тут ми скористаємося списком з одного елемента,
+    який називатимемо 
+    <INDEX>комірка, у реалізації серіалізатора</INDEX>
+    <EM>коміркою</EM>), який може зберігати значення true або false. Коли значення
+    false, м’ютекс доступний для захоплення. Коли значення true,
+    м’ютекс недоступний, і будь-який
+    <SPLITINLINE>
+      <SCHEME>процес</SCHEME>
+      <PYTHON>потік</PYTHON>
+    </SPLITINLINE> 
+    , який намагається захопити м’ютекс, мусить чекати.
+  </TEXT>
+
+  <TEXT>
+    Наш конструктор м’ютекса
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>make-mutex</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>make_mutex</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    починає з ініціалізації вмісту комірки значенням false. Щоб захопити м’ютекс,
+    ми перевіряємо комірку. Якщо м’ютекс доступний, ми надаємо вмісту комірки
+    значення true і продовжуємо. Інакше ми чекаємо в циклі, намагаючись захопити
+    знову й знову, доки не виявимо, що м’ютекс доступний.<FOOTNOTE>У більшості
+    операційних систем із поділом часу
+    <SPLITINLINE>
+      <SCHEME>процеси</SCHEME>
+      <PYTHON>потоки</PYTHON>
+    </SPLITINLINE> 
+    , які
+    <INDEX>заблокований процес</INDEX>
+    блокує м’ютекс, не витрачають часу на
+    <INDEX>активне очікування</INDEX>
+    <QUOTE>активне очікування</QUOTE>, як вище. Натомість система
+    планує запуск іншого 
+    <SPLITINLINE>
+      <SCHEME>процесу</SCHEME>
+      <PYTHON>потоку</PYTHON>
+    </SPLITINLINE> 
+    , поки перший чекає, а заблокований
+    <SPLITINLINE><SCHEME>процес</SCHEME>
+    <PYTHON>потік</PYTHON></SPLITINLINE> 
+    збуджують, коли м’ютекс стає доступним.</FOOTNOTE>
+    Щоб звільнити м’ютекс, ми надаємо вмісту комірки значення false.
+    <SNIPPET CHAP="3" VARIANT="concurrent">
+      <INDEX><DECLARATION>make_mutex</DECLARATION></INDEX> 
+      <NAME>mutex</NAME>
+      <!-- <EXPECTED>'all threads terminated'</EXPECTED> disabled: needs concurrent_execute primitive (see issue #1263) -->
+      <SCHEME>
+(define (make-mutex)
+  (let ((cell (list false)))            
+    (define (the-mutex m)
+      (cond ((eq? m 'acquire)
+             (if (test-and-set! cell)
+                 (the-mutex 'acquire))) <EM>; retry</EM>
+                 ((eq? m 'release) (clear! cell))))
+    the-mutex))
+
+(define (clear! cell)
+  (set-car! cell false))
+      </SCHEME>
+      <PYTHON>
+def make_mutex():
+    cell = llist(False)
+    def the_mutex(m):
+        return ((the_mutex("acquire")  # retry
+                     if test_and_set(cell)
+                 else True)
+                   if m == "acquire"
+                else clear(cell) if m == "release"
+                else error("unknown request -- mutex", m))
+    return the_mutex
+
+def clear(cell):
+    set_head(cell, False)
+      </PYTHON>
+    </SNIPPET>
+  </TEXT>
+
+  <TEXT>
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>Test-and-set!</SCHEMEINLINE></SCHEME>
+      <PYTHON>Функція <PYTHONINLINE>test_and_set</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    перевіряє комірку й повертає результат перевірки. Крім того, якщо
+    перевірка дала false,
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>test-and-set!</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>test_and_set</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    надає вмісту комірки значення true перед тим, як повернути false. Ми можемо виразити цю
+    поведінку такою
+    <SPLITINLINE>
+      <SCHEME>процедурою:</SCHEME>
+      <PYTHON>функцією:</PYTHON>
+    </SPLITINLINE>
+    <SNIPPET CHAP="3" VARIANT="concurrent">
+      <INDEX><DECLARATION>test_and_set</DECLARATION></INDEX> 
+      <NAME>test_and_set</NAME>
+      <!-- <EXPECTED>'all threads terminated'</EXPECTED> disabled: needs concurrent_execute primitive (see issue #1263) -->
+      <SCHEME>
+(define (test-and-set! cell)
+  (if (car cell)
+      true
+      (begin (set-car! cell true)
+        false)))
+      </SCHEME>
+      <PYTHON>
+def test_and_set(cell):
+    if head(cell):
+        return True
+    else:
+        set_head(cell, True)
+        return False
+      </PYTHON>
+    </SNIPPET>
+  </TEXT>
+
+  <TEXT>
+    Проте ця реалізація
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>test-and-set!</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>test_and_set</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    сама по собі не є достатньою. Тут є важлива тонкість, і саме тут
+    керування паралелізмом входить у систему: операцію
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>test-and-set!</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>test_and_set</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    треба виконувати 
+    <INDEX>вимога атомарності для <SPLITINLINE><SCHEME>test-and-set!</SCHEME><PYTHON>test_and_set</PYTHON></SPLITINLINE></INDEX>
+    <EM>атомарно</EM>. Тобто ми мусимо гарантувати, що щойно якийсь 
+    <SPLITINLINE>
+      <SCHEME>процес</SCHEME>
+      <PYTHON>потік</PYTHON>
+    </SPLITINLINE> 
+    перевірив комірку й виявив, що вона false, вміст комірки
+    насправді буде встановлено в true, перш ніж будь-який інший 
+    <SPLITINLINE>
+      <SCHEME>процес</SCHEME>
+      <PYTHON>потік</PYTHON>
+    </SPLITINLINE> 
+    зможе перевірити комірку. Якщо ми не дамо цієї гарантії, м’ютекс може
+    зазнати невдачі подібно до невдачі з банківським рахунком на
+    рисунку<SPACE/><REF NAME="fig:bank-access"/>. (Дивіть
+    вправу<SPACE/><REF NAME="ex:atomic-test-and-set"/>.)
+  </TEXT>
+
+  <TEXT>
+    Справжня реалізація
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>test-and-set!</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>test_and_set</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    залежить від деталей того, як наша система виконує паралельні 
+    <SPLITINLINE>
+      <SCHEME>процеси.</SCHEME>
+      <PYTHON>потоки.</PYTHON>
+    </SPLITINLINE>
+    Наприклад, ми могли б виконувати паралельні 
+    <SPLITINLINE>
+      <SCHEME>процеси</SCHEME>
+      <PYTHON>потоки</PYTHON>
+    </SPLITINLINE> 
+    на послідовному процесорі, користуючись механізмом 
+    <INDEX>поділ часу</INDEX>
+    поділу часу, який по черзі перебирає 
+    <SPLITINLINE>
+      <SCHEME>процеси,</SCHEME>
+      <PYTHON>потоки,</PYTHON>
+    </SPLITINLINE>
+    дозволяючи кожному 
+    <SPLITINLINE>
+      <SCHEME>процесу</SCHEME>
+      <PYTHON>потоку</PYTHON>
+    </SPLITINLINE> 
+    виконуватися короткий час, а потім перериваючи його
+    й переходячи до наступного 
+    <SPLITINLINE><SCHEME>процесу.</SCHEME>
+    <PYTHON>потоку.</PYTHON>
+    </SPLITINLINE>
+    У такому разі
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>test-and-set!</SCHEMEINLINE></SCHEME>
+      <PYTHON>
+        <PYTHONINLINE>test_and_set</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    може працювати, вимикаючи поділ часу на час перевірки та
+    встановлення.<SPLITINLINE><SCHEME><FOOTNOTE>У MIT Scheme
+    для одного процесора, який використовує модель поділу
+    часу, <SCHEMEINLINE>test-and-set!</SCHEMEINLINE>
+    можна реалізувати так:
+    <INDEX><USE>without_interrupts</USE></INDEX> 
+    <INDEX>MIT Scheme<SUBINDEX><ORDER>without</ORDER>without-interrupts</SUBINDEX></INDEX>
+    <SNIPPET EVAL="no" CHAP="3" VARIANT="concurrent">
+      <INDEX><DECLARATION>test-and-set!</DECLARATION></INDEX> 
+      <SCHEME>
+(define (test-and-set! cell)
+  (without-interrupts
+    (lambda ()
+      (if (car cell)
+          true
+          (begin (set-car! cell true)
+            false)))))
+      </SCHEME>
+    </SNIPPET>
+    Without-interrupts вимикає переривання від поділу часу, поки виконується
+    його аргумент-процедура.</FOOTNOTE></SCHEME></SPLITINLINE>
+    Інакше кажучи, багатопроцесорні комп’ютери надають інструкції, які
+    підтримують атомарні операції безпосередньо в апаратному забезпеченні.<FOOTNOTE>Існує багато
+    варіантів таких
+    <INDEX>атомарні операції, підтримувані апаратно</INDEX>
+    інструкцій<EMDASH/>зокрема test-and-set, test-and-clear, swap,
+    compare-and-exchange, load-reserve та store-conditional<EMDASH/>чий
+    проєкт мусить бути ретельно узгоджений з інтерфейсом
+    процесор<ENDASH/>пам’ять машини. Одна з проблем, яка тут постає, —
+    визначити, що станеться, якщо два 
+    <SPLITINLINE><SCHEME>процеси</SCHEME>
+    <PYTHON>потоки</PYTHON></SPLITINLINE> 
+    спробують захопити той самий ресурс в один і той самий момент, користуючись такою
+    інструкцією. Для цього потрібен якийсь механізм, щоб ухвалити рішення, який
+    <SPLITINLINE><SCHEME>процес</SCHEME>
+    <PYTHON>потік</PYTHON></SPLITINLINE> 
+    отримає керування. Такий механізм називають 
+    <INDEX>арбітр</INDEX>
+    <EM>арбітром</EM>. Арбітри зазвичай зводяться до якогось апаратного
+    пристрою. На жаль, можна довести, що фізично неможливо
+    побудувати справедливий арбітр, який працює 100% часу, якщо не
+    дозволити арбітру довільно довгий час на ухвалення рішення.
+    Це фундаментальне явище вперше помітив
+    французький філософ XIV століття 
+    <INDEX>Бурідан, Жан</INDEX>
+    Жан Бурідан у своєму коментарі до
+    <INDEX>Арістотель’s <EM>De caelo</EM> (коментар Бурідана)</INDEX>
+    трактату Арістотеля <EM>De caelo</EM>. Бурідан стверджував, що ідеально раціональний
+    <INDEX>собака, ідеально раціональна поведінка</INDEX>
+    собака, поставлений між двома однаково привабливими джерелами їжі, помре
+    з голоду, бо не здатен вирішити, до якого піти першого.</FOOTNOTE>
+  </TEXT>
+
+  <EXERCISE>
+    Припустімо, ми реалізуємо
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>test-and-set!</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>test_and_set</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    звичайною
+    <SPLITINLINE>
+      <SCHEME>процедурою</SCHEME>
+      <PYTHON>функцією</PYTHON>
+    </SPLITINLINE>
+    , як показано в тексті, не намагаючись зробити операцію атомарною.
+    Намалюйте часову діаграму, як на
+    рисунку<SPACE/><REF NAME="fig:bank-access"/>, щоб продемонструвати, як реалізація
+    м’ютекса може зазнати невдачі, дозволивши двом 
+    <SPLITINLINE>
+      <SCHEME>процесам</SCHEME>
+      <PYTHON>потокам</PYTHON>
+    </SPLITINLINE> 
+    захопити м’ютекс водночас.
+    <LABEL NAME="ex:atomic-test-and-set"/>
+  </EXERCISE>
+
+  <EXERCISE>
+    <LABEL NAME="ex:semaphore"/>
+    Семафор
+    <INDEX>семафор<SUBINDEX>розміру <LATEXINLINE>$n$</LATEXINLINE></SUBINDEX></INDEX>
+    (розміру <LATEXINLINE>$n$</LATEXINLINE>) — це узагальнення
+    м’ютекса. Як і м’ютекс, семафор підтримує операції захоплення та звільнення,
+    але він загальніший тим, що одночасно його можуть захопити до <LATEXINLINE>$n$</LATEXINLINE> 
+    <SPLITINLINE><SCHEME>процесів</SCHEME>
+    <PYTHON>потоків</PYTHON></SPLITINLINE>. 
+    Інші
+    <SPLITINLINE><SCHEME>процеси</SCHEME>
+    <PYTHON>потоки</PYTHON></SPLITINLINE> 
+    , які намагаються захопити семафор, мусять чекати на операції звільнення.  
+    Наведіть реалізації семафорів
+    <OL>
+      <LI>через м’ютекси
+      </LI>
+      <LI>
+        через атомарні операції
+        <SPLITINLINE>
+          <SCHEME><SCHEMEINLINE>test-and-set!</SCHEMEINLINE></SCHEME>
+          <PYTHON><PYTHONINLINE>test_and_set</PYTHONINLINE>
+	  </PYTHON>
+        </SPLITINLINE>
+        .
+      </LI>
+    </OL>
+  </EXERCISE>
+
+  <INDEX>серіалізатор<SUBINDEX>реалізація<CLOSE/></SUBINDEX></INDEX>
+
+  <SUBHEADING>
+    <NAME>Взаємне блокування</NAME>
+  </SUBHEADING>
+
+  <INDEX>паралелізм<SUBINDEX>взаємне блокування<OPEN/></SUBINDEX></INDEX>
+  <INDEX>взаємне блокування<OPEN/></INDEX>
+
+  <TEXT>
+    <!-- 
+         %Even with the serialization technique discussed above,
+         %account exchanging still has a problem.
+    -->
+    Тепер, коли ми побачили, як реалізувати серіалізатори, ми бачимо,
+    що обмін рахунками все ще має проблему, навіть із
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>serialized-exchange</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>serialized_exchange</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    <SPLITINLINE><SCHEME>процедурою</SCHEME>
+    <PYTHON>функцією</PYTHON></SPLITINLINE>
+    вище.
+    Уявіть, що Петро намагається обміняти <LATEXINLINE>$a_1$</LATEXINLINE>
+    на <LATEXINLINE>$a_2$</LATEXINLINE>, а Пол паралельно намагається
+    обміняти <LATEXINLINE>$a_2$</LATEXINLINE> на
+    <LATEXINLINE>$a_1$</LATEXINLINE>. Припустімо, що 
+    <SPLITINLINE>
+      <SCHEME>процес</SCHEME>
+      <PYTHON>потік</PYTHON>
+    </SPLITINLINE> 
+    Петра’s
+    доходить до точки, де він увійшов у серіалізовану
+    <SPLITINLINE>
+      <SCHEME>процедуру</SCHEME>
+      <PYTHON>функцію</PYTHON>
+    </SPLITINLINE>
+    , що захищає <LATEXINLINE>$a_1$</LATEXINLINE>, і, одразу після цього,
+    <SPLITINLINE>
+      <SCHEME>процес</SCHEME>
+      <PYTHON>потік</PYTHON>
+    </SPLITINLINE> 
+    Пола’s
+    входить у серіалізовану
+    <SPLITINLINE>
+      <SCHEME>процедуру</SCHEME>
+      <PYTHON>функцію</PYTHON>
+    </SPLITINLINE>
+    , що захищає <LATEXINLINE>$a_2$</LATEXINLINE>. Тепер Петро не може продовжити (тобто
+    увійти в серіалізовану
+    <SPLITINLINE>
+      <SCHEME>процедуру</SCHEME>
+      <PYTHON>функцію</PYTHON>
+    </SPLITINLINE>
+    , що захищає <LATEXINLINE>$a_2$</LATEXINLINE>), доки Пол не вийде із серіалізованої
+    <SPLITINLINE>
+      <SCHEME>процедури</SCHEME>
+      <PYTHON>функції</PYTHON>
+    </SPLITINLINE>
+    , що захищає <LATEXINLINE>$a_2$</LATEXINLINE>. Так само Пол не може продовжити,
+    доки Петро не вийде із серіалізованої
+    <SPLITINLINE>
+      <SCHEME>процедури</SCHEME>
+      <PYTHON>функції</PYTHON>
+    </SPLITINLINE>
+    , що захищає <LATEXINLINE>$a_1$</LATEXINLINE>. Кожен
+    <SPLITINLINE>
+      <SCHEME>процес</SCHEME>
+      <PYTHON>потік</PYTHON>
+    </SPLITINLINE> 
+    застрягає назавжди, чекаючи на іншого. Такий стан називають
+    <EM>взаємним блокуванням</EM>. Взаємне блокування завжди є небезпекою в системах, які дають
+    паралельний доступ до кількох спільних ресурсів.
+  </TEXT>
+
+  <TEXT>
+    Один зі способів уникнути
+    <INDEX>взаємне блокування<SUBINDEX>уникнення</SUBINDEX></INDEX>
+    взаємного блокування в цій ситуації — надати кожному рахунку
+    унікальний ідентифікаційний номер і переписати
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>serialized-exchange</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>serialized_exchange</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    так, щоб 
+    <SPLITINLINE><SCHEME>процес</SCHEME>
+    <PYTHON>потік</PYTHON></SPLITINLINE> 
+    завжди намагався увійти в
+    <SPLITINLINE>
+      <SCHEME>процедуру</SCHEME>
+      <PYTHON>функцію</PYTHON>
+    </SPLITINLINE>
+    , яка захищає рахунок із найменшим номером, першим. Хоч цей метод добре
+    працює для задачі обміну, є інші ситуації, які вимагають складніших
+    методів уникнення взаємного блокування, або де взаємного блокування взагалі
+    не можна уникнути. (Дивіть вправи<SPACE/><REF NAME="ex:deadlock-avoid"/>
+    та<SPACE/><REF NAME="ex:deadlock-cannot-avoid"/>.)<FOOTNOTE>Загальний
+    метод уникнення
+    <INDEX>взаємне блокування<SUBINDEX>відновлення</SUBINDEX></INDEX>
+    взаємного блокування шляхом нумерації
+    спільних ресурсів і захоплення їх у порядку належить 
+    <INDEX>Гавендер, Дж.</INDEX>
+    <CITATION NAME="HAV68">Havender (1968)</CITATION>. Ситуації, де взаємного блокування не можна
+    уникнути, вимагають методів <EM>відновлення після взаємного блокування</EM>, які передбачають,
+    що 
+    <SPLITINLINE>
+      <SCHEME>процеси</SCHEME>
+      <PYTHON>потоки</PYTHON>
+    </SPLITINLINE>
+    <QUOTE>виходять</QUOTE> зі стану взаємного блокування і пробують знову.
+    Механізми відновлення після взаємного блокування широко використовують у
+    системах керування базами даних — тему, детально розглянуту в
+    <INDEX>Ґрей, Джим</INDEX>
+    <INDEX>Ройтер, Андреас</INDEX>
+    <CITATION NAME="GRA93">Gray and Reuter 1993</CITATION>.</FOOTNOTE>
+  </TEXT>
+
+  <EXERCISE>
+    Поясніть докладно, чому
+    <INDEX><USE>serialized_exchange</USE><SUBINDEX>with deadlock avoidance</SUBINDEX></INDEX>
+    описаний вище метод уникнення
+    взаємного блокування (тобто рахунки пронумеровано, і кожен 
+    <SPLITINLINE><SCHEME>процес</SCHEME>
+    <PYTHON>потік</PYTHON></SPLITINLINE> 
+    намагається захопити рахунок із меншим номером першим) уникає
+    взаємного блокування в задачі обміну. Перепишіть
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>serialized-exchange</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>serialized_exchange</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    , щоб утілити цю ідею. (Вам також треба буде змінити
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>make-account</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>make_account</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    так, щоб кожен рахунок створювався з номером, до якого можна звернутися,
+    надіславши відповідне повідомлення.)
+    <LABEL NAME="ex:deadlock-avoid"/>
+  </EXERCISE>
+
+  <EXERCISE>
+    Наведіть сценарій, де описаний вище механізм уникнення взаємного
+    блокування не працює. (Підказка: у задачі обміну кожен 
+    <SPLITINLINE><SCHEME>процес</SCHEME>
+    <PYTHON>потік</PYTHON></SPLITINLINE>
+    заздалегідь знає, до яких рахунків йому треба буде отримати доступ. Розгляньте
+    ситуацію, де 
+    <SPLITINLINE>
+      <SCHEME>процес</SCHEME>
+      <PYTHON>потік</PYTHON>
+    </SPLITINLINE> 
+    мусить отримати доступ до якихось спільних ресурсів, перш ніж дізнатися, які ще
+    спільні ресурси йому знадобляться.)
+    <LABEL NAME="ex:deadlock-cannot-avoid"/>
+  </EXERCISE>
+
+  <INDEX>паралелізм<SUBINDEX>взаємне блокування<CLOSE/></SUBINDEX></INDEX>
+  <INDEX>взаємне блокування<CLOSE/></INDEX>
+
+  <SUBHEADING>
+    <NAME>Паралелізм, час і зв’язок</NAME>
+  </SUBHEADING>
+
+  <TEXT>
+    Ми’ бачили, як програмування паралельних систем вимагає керування
+    порядком подій, коли різні 
+    <SPLITINLINE>
+      <SCHEME>процеси</SCHEME>
+      <PYTHON>потоки</PYTHON>
+    </SPLITINLINE> 
+    звертаються до спільного стану, і ми’ бачили, як досягти цього керування 
+    через розважливе використання серіалізаторів. Але проблеми паралелізму
+    лежать глибше, бо з фундаментального погляду не завжди
+    ясно, що означає <QUOTE>спільний стан.</QUOTE>
+  </TEXT>
+
+  <TEXT>
+    Такі механізми, як
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>test-and-set!</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>test_and_set</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    , вимагають, щоб 
+    <SPLITINLINE>
+      <SCHEME>процеси</SCHEME>
+      <PYTHON>потоки</PYTHON>
+    </SPLITINLINE> 
+    перевіряли глобальний спільний прапорець у довільні моменти. Це проблематично
+    й неефективно реалізовувати в сучасних швидкодійних процесорах, де
+    через такі методи оптимізації, як конвеєризація та кешована пам’ять,
+    вміст пам’яті може не бути узгодженим у кожен момент.
+    Тож у
+    <SPLITINLINE>
+      <SCHEME>сучасних</SCHEME>
+      <PYTHON>деяких</PYTHON>
+    </SPLITINLINE>
+    багатопроцесорних системах парадигму серіалізаторів
+    витісняють
+    <SPLITINLINE>
+      <SCHEME>нові</SCHEME>
+      <PYTHON>інші</PYTHON>
+    </SPLITINLINE>
+    підходи до керування
+    паралелізмом.<FOOTNOTE>Одна з таких альтернатив серіалізації називається 
+    <INDEX>бар’єрна синхронізація</INDEX>
+    <EM>бар’єрною синхронізацією</EM>. Програміст дозволяє паралельним 
+    <SPLITINLINE><SCHEME>процесам</SCHEME>
+    <PYTHON>потокам</PYTHON></SPLITINLINE>
+    виконуватися як завгодно, але встановлює певні точки синхронізації
+    (<QUOTE>бар’єри</QUOTE>), через які жоден 
+    <SPLITINLINE>
+      <SCHEME>процес</SCHEME>
+      <PYTHON>потік</PYTHON>
+    </SPLITINLINE> 
+    не може пройти, доки всі
+    <SPLITINLINE>
+      <SCHEME>процеси</SCHEME>
+      <PYTHON>потоки</PYTHON>
+    </SPLITINLINE> 
+    не досягнуть бар’єра.
+    <SPLITINLINE>
+      <SCHEME>Сучасні</SCHEME>
+      <PYTHON>Деякі</PYTHON>
+    </SPLITINLINE>
+    процесори надають машинні інструкції,
+    які дозволяють програмістам встановлювати точки синхронізації в місцях, де
+    потрібна узгодженість. 
+    <INDEX>PowerPC</INDEX>
+    PowerPC<LATEXINLINE>$^{\textrm{TM}}$</LATEXINLINE>, наприклад, містить
+    для цього дві інструкції під назвами
+    <INDEX>SYNC</INDEX>
+    SYNC та 
+    <INDEX>EIEIO</INDEX>
+    EIEIO (Enforced In-order Execution of Input/Output).</FOOTNOTE>
+  </TEXT>
+
+  <TEXT>
+    Проблемні аспекти спільного стану також постають у великих розподілених
+    системах. Наприклад, уявіть розподілену банківську систему, де
+    окремі відділення банку підтримують локальні значення банківських балансів і
+    періодично порівнюють їх зі значеннями, які підтримують інші відділення. У
+    такій системі значення <QUOTE>балансу рахунку</QUOTE> було б
+    невизначеним, крім як одразу після синхронізації. Якщо Петро вносить гроші
+    на рахунок, який він має спільно з Полом, коли слід казати, що
+    баланс рахунку змінився<EMDASH/>коли змінюється баланс у місцевому відділенні,
+    чи лише після синхронізації? І якщо Пол звертається до
+    рахунку з іншого відділення, які розумні обмеження слід
+    накласти на банківську систему, щоб поведінка була
+    <QUOTE>правильною</QUOTE>? Єдине, що може мати значення для правильності, —
+    це поведінка, яку спостерігають Петро і Пол окремо, та
+    <QUOTE>стан</QUOTE> рахунку одразу після синхронізації.
+    Питання про <QUOTE>справжній</QUOTE> баланс рахунку чи порядок
+    подій між синхронізаціями можуть бути неістотними або
+    беззмістовними.<FOOTNOTE>Це може здатися дивним поглядом, але є
+    системи, які працюють саме так.
+    <INDEX>рахунки кредитних карток, міжнародні</INDEX>
+    Міжнародні нарахування на рахунки кредитних карток,
+    наприклад, зазвичай клірять окремо для кожної країни, а нарахування,
+    зроблені в різних країнах, періодично звіряють. Тож баланс рахунку
+    може бути різним у різних країнах.</FOOTNOTE>
+  </TEXT>
+
+  <TEXT>
+    Основне явище тут у тому, що синхронізація різних 
+    <SPLITINLINE>
+      <SCHEME>процесів,</SCHEME>
+      <PYTHON>потоків,</PYTHON>
+    </SPLITINLINE>
+    встановлення спільного стану або накладання порядку на події вимагає
+    зв’язку між 
+    <SPLITINLINE>
+      <SCHEME>процесами.</SCHEME>
+      <PYTHON>потоками.</PYTHON>
+    </SPLITINLINE>
+    <INDEX>час<SUBINDEX>зв’язок і</SUBINDEX></INDEX>
+    По суті, будь-яке поняття часу в керуванні паралелізмом мусить бути тісно
+    пов’язане зі зв’язком.<FOOTNOTE>Для розподілених систем цей погляд
+    розвинув 
+    <INDEX>Лемпорт, Леслі</INDEX>
+    Лемпорт (1978), який показав, як використовувати зв’язок, щоб встановлювати
+    <QUOTE>глобальні годинники</QUOTE>, які можна використовувати для встановлення порядків на
+    подіях у розподілених системах.</FOOTNOTE> Інтригує те, що подібний
+    зв’язок між часом і зв’язком постає також у 
+    <INDEX>відносність, теорія</INDEX>
+    теорії відносності, де швидкість світла (найшвидший сигнал, який можна
+    використати для синхронізації подій) є фундаментальною сталою, що пов’язує час і
+    простір. Складності, з якими ми стикаємося, маючи справу з часом і станом у наших
+    обчислювальних моделях, можливо, насправді віддзеркалюють фундаментальну складність
+    фізичного всесвіту.
+
+    <INDEX>паралелізм<CLOSE/></INDEX>
+    <INDEX>паралелізм<SUBINDEX>механізми керування<CLOSE/></SUBINDEX></INDEX>
+
+  </TEXT>
+</SUBSECTION>

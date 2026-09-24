@@ -1,0 +1,874 @@
+<SUBSECTION>
+  <NAME>
+    Потоки та відкладене обчислення
+  </NAME>
+
+  <LABEL NAME="sec:streams-and-delayed-evaluation"/>
+
+  <INDEX>потік(и)<SUBINDEX>відкладене обчислення і<OPEN/></SUBINDEX></INDEX>
+  <INDEX>відкладене обчислення<SUBINDEX>потоки і<OPEN/></SUBINDEX></INDEX>
+
+  <TEXT>
+    <SCHEMEINLINE>integral</SCHEMEINLINE>
+    <SPLITINLINE>
+      <SCHEME>процедура</SCHEME>
+      <PYTHON>функція</PYTHON>
+    </SPLITINLINE>
+    наприкінці попереднього підрозділу показує, як ми можемо скористатися потоками, щоб моделювати
+    системи опрацювання сигналів, які містять
+    <INDEX>петля зворотного зв’язку, змодельована потоками</INDEX>
+    петлі зворотного зв’язку. Петля зворотного зв’язку суматора на
+    рисунку<SPACE/><REF NAME="fig:integral"/> змодельована тим, що
+    <INDEX><USE>integral</USE><SUBINDEX>потреба у відкладеному обчисленні</SUBINDEX></INDEX>
+    внутрішній потік <SCHEMEINLINE>integral</SCHEMEINLINE><APOS/>а
+    <SPLITINLINE>
+      <SCHEME>
+	<SCHEMEINLINE>int</SCHEMEINLINE>
+      </SCHEME>
+      <PYTHON>
+	<PYTHONINLINE>integ</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    означено в термінах його самого:
+
+    <SNIPPET EVAL="no">
+      <REQUIRES>add_streams</REQUIRES>
+      <REQUIRES>scale_stream</REQUIRES>
+      <SCHEME>
+(define int
+  (cons-stream initial-value
+               (add-streams (scale-stream integrand dt)
+  int)))
+      </SCHEME>
+      <PYTHON>
+integ = pair(initial_value,
+             lambda: add_streams(scale_stream(integrand, dt),
+                                 integ))
+      </PYTHON>
+    </SNIPPET>
+    <SPLIT>
+      <SCHEME>
+	Те, що інтерпретатор може впоратися з таким неявним означенням, пов<APOS/>язане з <SCHEMEINLINE>delay</SCHEMEINLINE>, вбудованого
+	в <SCHEMEINLINE>cons-stream</SCHEMEINLINE>. Без цього
+	<SCHEMEINLINE>delay</SCHEMEINLINE> інтерпретатор не міг би побудувати
+	<SCHEMEINLINE>int</SCHEMEINLINE>, перш ніж обчислити обидва аргументи
+	<SCHEMEINLINE>cons-stream</SCHEMEINLINE>, а це вимагало б, щоб
+	<SCHEMEINLINE>int</SCHEMEINLINE> уже було означене.
+	Загалом <SCHEMEINLINE>delay</SCHEMEINLINE> критично важливий для використання
+	потоків, щоб моделювати системи опрацювання сигналів, які містять цикли. Без
+	<SCHEMEINLINE>delay</SCHEMEINLINE> наші моделі треба було б формулювати так,
+	щоб входи будь-якого компонента опрацювання сигналів
+	були повністю обчислені, перш ніж можна буде породити вихід. Це
+	заборонило б цикли.
+      </SCHEME>
+      <PYTHON>
+	Те, що інтерпретатор може впоратися з таким неявним означенням, пов<APOS/>язане з затримки, яку створює загортання виклику
+	<PYTHONINLINE>add_streams</PYTHONINLINE> у лямбда-вираз.
+	Без цієї затримки інтерпретатор не міг би
+	побудувати <SCHEMEINLINE>integ</SCHEMEINLINE>, перш ніж обчислити виклик
+	<SCHEMEINLINE>add_streams</SCHEMEINLINE>, а це вимагало б,
+	щоб <SCHEMEINLINE>integ</SCHEMEINLINE> уже було означене.
+	Загалом така затримка критично важлива для використання потоків, щоб моделювати
+	системи опрацювання сигналів, які містять цикли. Без затримки
+	наші моделі треба було б формулювати так, щоб входи будь-якого
+	компонента опрацювання сигналів були повністю обчислені, перш ніж можна
+	було б породити вихід. Це заборонило б цикли.
+      </PYTHON>
+    </SPLIT>
+  </TEXT>
+  <SPLIT>
+    <SCHEME>
+      <TEXT>
+	На жаль, потокові моделі систем із циклами можуть вимагати використання
+	<SCHEMEINLINE>delay</SCHEMEINLINE> поза <QUOTE>прихованим</QUOTE>
+	<SCHEMEINLINE>delay</SCHEMEINLINE>, який надає
+	<SCHEMEINLINE>cons-stream</SCHEMEINLINE>. Наприклад,
+	рисунок<SPACE/><REF NAME="fig:analog-computer_scheme"/> показує
+	систему опрацювання сигналів для розв’язування
+	<INDEX>диференціальне рівняння</INDEX>
+	диференціального рівняння <LATEXINLINE>$dy/dt=f(y)$</LATEXINLINE>, де
+	<LATEXINLINE>$f$</LATEXINLINE> — задана функція. Рисунок показує
+	компонент відображення, який застосовує <LATEXINLINE>$f$</LATEXINLINE> до свого
+	вхідного сигналу, з’єднаний петлею зворотного зв’язку з інтегратором дуже
+	подібно до того, як це роблять схеми аналогових обчислювальних машин, які насправді
+	використовують для розв’язування таких рівнянь.
+	<FIGURE>
+	  <FIGURE split_scale="0.8" web_scale="0.6" scale="0.54" src="img_original/ch3-Z-G-52.svg"></FIGURE>
+	  <CAPTION>
+	    <INDEX>аналогова обчислювальна машина</INDEX>
+	    <QUOTE>Схема аналогової обчислювальної машини</QUOTE>, яка розв’язує рівняння
+	    <LATEXINLINE>$dy/dt = f(y)$</LATEXINLINE>.
+	  </CAPTION>
+	  <LABEL NAME="fig:analog-computer_scheme"/>
+	</FIGURE>
+      </TEXT>
+    </SCHEME>
+    <PYTHON>
+      <TEXT>
+	На жаль, потокові моделі систем із циклами можуть вимагати використання затримки
+	поза потоковим шаблоном програмування, який ми досі бачили. Наприклад,
+	рисунок<SPACE/><REF NAME="fig:analog-computer"/> показує
+	систему опрацювання сигналів для розв’язування
+	<INDEX>диференціальне рівняння</INDEX>
+	диференціального рівняння <LATEXINLINE>$dy/dt=f(y)$</LATEXINLINE>, де
+	<LATEXINLINE>$f$</LATEXINLINE> — задана функція. Рисунок показує
+	компонент відображення, який застосовує <LATEXINLINE>$f$</LATEXINLINE> до свого
+	вхідного сигналу, з’єднаний петлею зворотного зв’язку з інтегратором дуже
+	подібно до того, як це роблять схеми аналогових обчислювальних машин, які насправді
+	використовують для розв’язування таких рівнянь.
+	<FIGURE>
+	  <FIGURE split_scale="0.8" web_scale="0.6" scale="0.54" src="img_original/ch3-Z-G-52.svg"></FIGURE>
+	  <CAPTION>
+	    <INDEX>аналогова обчислювальна машина</INDEX>
+	    <QUOTE>Схема аналогової обчислювальної машини</QUOTE>, яка розв’язує рівняння
+	    <LATEXINLINE>$dy/dt = f(y)$</LATEXINLINE>.
+	  </CAPTION>
+	  <LABEL NAME="fig:analog-computer"/>
+	</FIGURE>
+      </TEXT>
+    </PYTHON>
+  </SPLIT>
+  
+  <TEXT>
+    Припустімо, нам дано початкове значення <LATEXINLINE>$y_0$</LATEXINLINE> для
+    <LATEXINLINE>$y$</LATEXINLINE>. Ми могли б спробувати змоделювати цю систему,
+    користуючись
+    <SPLITINLINE>
+      <SCHEME>процедурою</SCHEME>
+      <PYTHON>функцією</PYTHON>
+    </SPLITINLINE>
+    <SNIPPET EVAL="no">
+      <REQUIRES>stream_functions</REQUIRES>
+      <INDEX><DECLARATION>solve</DECLARATION> differential equation</INDEX>
+      <SCHEME>
+(define (solve f y0 dt)
+  (define y (integral dy y0 dt))
+  (define dy (stream-map f y))
+  y)
+      </SCHEME>
+      <PYTHON>
+def solve(f, y0, dt):
+    y = integral(dy, y0, dt)
+    dy = stream_map(f, y)
+    return y
+      </PYTHON>
+    </SNIPPET>
+    Ця
+    <SPLITINLINE>
+      <SCHEME>процедура</SCHEME>
+      <PYTHON>функція</PYTHON>
+    </SPLITINLINE>
+    не працює, бо в першому рядку
+    <SCHEMEINLINE>solve</SCHEMEINLINE> виклик
+    <SCHEMEINLINE>integral</SCHEMEINLINE> вимагає, щоб вхід
+    <SCHEMEINLINE>dy</SCHEMEINLINE> був означений, а це не станеться до
+    другого рядка <SCHEMEINLINE>solve</SCHEMEINLINE>.
+  </TEXT>
+
+  <TEXT>
+    З іншого боку, задум нашого означення має сенс, бо ми
+    в принципі можемо почати породжувати потік <SCHEMEINLINE>y</SCHEMEINLINE>,
+    не знаючи <SCHEMEINLINE>dy</SCHEMEINLINE>.
+    <SPLITINLINE>
+      <SCHEME>
+	Справді, <SCHEMEINLINE>integral</SCHEMEINLINE> та багато інших потокових
+	операцій мають властивості, подібні до властивостей
+	<SCHEMEINLINE>cons-stream</SCHEMEINLINE>, у тому сенсі, що ми можемо породити частину
+	відповіді, маючи лише часткову інформацію про аргументи.
+      </SCHEME>
+      <PYTHON>
+	Справді, <SCHEMEINLINE>integral</SCHEMEINLINE> та багато інших потокових
+	операцій можуть породити частину відповіді, маючи лише часткову
+	інформацію про аргументи.
+      </PYTHON>
+    </SPLITINLINE>
+    Для <SCHEMEINLINE>integral</SCHEMEINLINE> перший елемент вихідного
+    потоку — це задане <SCHEMEINLINE>initial_value</SCHEMEINLINE>. Тож
+    ми можемо породити перший елемент вихідного потоку, не обчислюючи
+    підінтегральний вираз <SCHEMEINLINE>dy</SCHEMEINLINE>. Щойно ми знаємо перший
+    елемент <SCHEMEINLINE>y</SCHEMEINLINE>,
+    <SPLITINLINE>
+      <SCHEME>
+	<SCHEMEINLINE>stream-map</SCHEMEINLINE>
+      </SCHEME>
+      <PYTHON>
+	<SCHEMEINLINE>stream_map</SCHEMEINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    у другому рядку <SCHEMEINLINE>solve</SCHEMEINLINE> може почати працювати,
+    щоб породити перший елемент <SCHEMEINLINE>dy</SCHEMEINLINE>, який
+    дасть наступний елемент <SCHEMEINLINE>y</SCHEMEINLINE>, і так далі.
+  </TEXT>
+
+  <TEXT>
+    Щоб скористатися цією ідеєю, ми переозначимо
+    <SCHEMEINLINE>integral</SCHEMEINLINE> так, щоб він очікував потік-підінтегральний вираз як
+    <INDEX>відкладений аргумент</INDEX>
+    <INDEX>аргумент(и)<SUBINDEX>відкладений</SUBINDEX></INDEX>
+    <INDEX>відкладений вираз<SUBINDEX>явний</SUBINDEX></INDEX>
+    <EM>відкладений аргумент</EM>.
+    <SPLITINLINE>
+      <SCHEME>
+	<SCHEMEINLINE>Integral</SCHEMEINLINE>
+	<SCHEMEINLINE>force</SCHEMEINLINE>-итиме
+      </SCHEME>
+      <PYTHON>
+	Функція <SCHEMEINLINE>integral</SCHEMEINLINE> змушуватиме обчислити
+      </PYTHON>
+    </SPLITINLINE>
+    підінтегральний вираз лише тоді, коли його треба обчислити, щоб породити більше
+    ніж перший елемент вихідного потоку:
+    <SNIPPET HIDE="yes">
+      <NAME>integral_example_4</NAME>
+      <REQUIRES>stream_functions</REQUIRES>
+      <PYTHON>
+def numbers_starting_from(t, dt):
+    return pair(t, lambda: numbers_starting_from(t + dt, dt))
+
+dt = 0.01
+linear = numbers_starting_from(0, dt)
+linear_integral = integral(lambda: linear, 0, dt)
+# computing integral from 0 to 3 of f(x) = x
+# (the integral is g(x) = 0.5 x^2, and therefore
+# the result is near 0.5 * 3^2 = 4.5)
+print(stream_ref(linear_integral, round(3 / dt)))
+      </PYTHON>
+    </SNIPPET>
+    <SNIPPET>
+      <INDEX><DECLARATION>integral</DECLARATION><SUBINDEX><ORDER>delayed</ORDER>with delayed argument</SUBINDEX></INDEX>
+      <NAME>integral</NAME>
+      <REQUIRES>add_streams</REQUIRES>
+      <REQUIRES>scale_stream</REQUIRES>
+      <EXAMPLE>integral_example_4</EXAMPLE>
+      <EXPECTED>4.484999999999992</EXPECTED>
+      <SCHEME>
+(define (integral delayed-integrand initial-value dt)
+  (define int
+          (cons-stream initial-value
+                       (let ((integrand (force delayed-integrand)))
+                         (add-streams (scale-stream integrand dt)
+                                      int))))
+  int)
+      </SCHEME>
+    <PYTHON>
+def integral(delayed_integrand, initial_value, dt):
+    integ = pair(initial_value,
+                 lambda: add_streams(
+                             scale_stream(delayed_integrand(), dt),
+                             integ))
+    return integ
+    </PYTHON>
+    </SNIPPET>
+    Тепер ми можемо реалізувати нашу
+    <SPLITINLINE>
+      <SCHEME>процедуру</SCHEME>
+      <PYTHON>функцію</PYTHON>
+    </SPLITINLINE>
+    <SCHEMEINLINE>solve</SCHEMEINLINE>,
+    відклавши обчислення <SCHEMEINLINE>dy</SCHEMEINLINE> в
+    <SPLITINLINE>
+      <SCHEME>
+	означенні
+      </SCHEME>
+      <PYTHON>
+	оголошенні
+      </PYTHON>
+    </SPLITINLINE>
+    <SCHEMEINLINE>y</SCHEMEINLINE>:<SPLITINLINE><SCHEME><FOOTNOTE>Ця
+    процедура не гарантовано працює в усіх реалізаціях Scheme, хоч
+    для будь-якої реалізації існує проста варіація, яка працюватиме. Ця
+    проблема пов’язана з тонкими відмінностями в тому, як реалізації Scheme
+    опрацьовують внутрішні означення. (Дивіть
+    підрозділ<SPACE/><REF NAME="sec:internal-definitions"/>.)</FOOTNOTE>
+    </SCHEME></SPLITINLINE>
+    <SNIPPET>
+      <INDEX><DECLARATION>solve</DECLARATION> differential equation</INDEX>
+      <NAME>solve</NAME>
+      <REQUIRES>stream_functions</REQUIRES>
+      <EXAMPLE>e</EXAMPLE>
+      <SCHEME>
+(define (solve f y0 dt)
+  (define y (integral (delay dy) y0 dt))
+  (define dy (stream-map f y))
+  y)
+      </SCHEME>
+      <PYTHON>
+def solve(f, y0, dt):
+    y = integral(lambda: dy, y0, dt)
+    dy = stream_map(f, y)
+    return y
+      </PYTHON>
+      <PYTHON_RUN>
+      </PYTHON_RUN>
+    </SNIPPET>
+    Загалом кожен, хто викликає <SCHEMEINLINE>integral</SCHEMEINLINE>, тепер мусить
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>delay</SCHEMEINLINE>-ити</SCHEME>
+      <PYTHON>відкласти</PYTHON>
+    </SPLITINLINE>
+    аргумент підінтегрального виразу. Ми можемо продемонструвати, що
+    <SCHEMEINLINE>solve</SCHEMEINLINE>
+    <SPLITINLINE>
+      <SCHEME>процедура</SCHEME>
+      <PYTHON>функція</PYTHON>
+    </SPLITINLINE>
+    працює, наблизивши
+    <INDEX><ORDER>e</ORDER><LATEXINLINE>$e$</LATEXINLINE><SUBINDEX>як розв’язок диференціального рівняння</SUBINDEX></INDEX>
+    <LATEXINLINE>$e\approx 2.718$</LATEXINLINE>, обчисливши значення при
+    <LATEXINLINE>$y=1$</LATEXINLINE> розв’язку диференціального
+    рівняння <LATEXINLINE>$dy/dt=y$</LATEXINLINE> з початковою умовою
+    <LATEXINLINE>$y(0)=1$</LATEXINLINE>:<SPLITINLINE><PYTHON><FOOTNOTE>
+    Щоб завершити за прийнятний час, це обчислення вимагає використання
+    оптимізації із запам’ятовуванням із підрозділу<SPACE/><REF NAME="sec:delayed-lists"/> в
+    <PYTHONINLINE>integral</PYTHONINLINE> і в
+    функції <PYTHONINLINE>add_streams</PYTHONINLINE>, яку використовують у
+    <PYTHONINLINE>integral</PYTHONINLINE>
+    (скориставшись функцією <PYTHONINLINE>stream_map_2_optimized</PYTHONINLINE>,
+    як запропоновано у
+    вправі<SPACE/><REF NAME="ex:fib-stream-efficiency"/>).</FOOTNOTE></PYTHON>
+    </SPLITINLINE>
+    <SNIPPET HIDE="yes">
+      <NAME>solve_optimized</NAME>
+      <REQUIRES>stream_functions</REQUIRES>
+      <REQUIRES>stream_tail</REQUIRES>
+      <PYTHON>
+def memo(fun):
+    already_run = False
+    result = None
+    def memoized():
+        nonlocal already_run, result
+        if not already_run:
+            result = fun()
+            already_run = True
+            return result
+        else:
+            return result
+    return memoized
+
+# note the use of the memoization optimization
+def stream_combine(f, s1, s2):
+    return (None if is_none(s1) and is_none(s2)
+            else error("unexpected argument -- stream_combine", None)
+                if is_none(s1) or is_none(s2)
+            else pair(f(head(s1), head(s2)),
+                      memo(lambda: stream_combine(f, stream_tail(s1),
+                                                  stream_tail(s2)))))
+
+def add_streams(s1, s2):
+    return stream_combine(lambda x1, x2: x1 + x2, s1, s2)
+
+def scale_stream(stream, factor):
+    return stream_map(lambda x: x * factor,
+                      stream)
+
+# note the use of the memoization optimization
+def integral(delayed_integrand, initial_value, dt):
+    integ = pair(initial_value,
+                 memo(lambda: add_streams(
+                                  scale_stream(delayed_integrand(), dt),
+                                  integ)))
+    return integ
+
+def solve(f, y0, dt):
+    y = integral(lambda: dy, y0, dt)
+    dy = stream_map(f, y)
+    return y
+      </PYTHON>
+    </SNIPPET>
+    <SNIPPET POSTPADDING="no">
+      <NAME>e</NAME>
+      <REQUIRES>stream_functions</REQUIRES>
+      <REQUIRES>solve_optimized</REQUIRES>
+      <EXPECTED>2.716923932235896</EXPECTED>
+      <SCHEME>
+(stream-ref (solve (lambda (y) y) 1 0.001) 1000)
+      </SCHEME>
+      <SCHEMEOUTPUT>
+2.716924
+      </SCHEMEOUTPUT>
+      <PYTHON>
+print(stream_ref(solve(lambda y: y, 1, 0.001), 1000))
+      </PYTHON>
+      <PYTHON_OUTPUT>
+2.716923932235896
+      </PYTHON_OUTPUT>
+    </SNIPPET>
+  </TEXT>
+
+  <EXERCISE>
+    <SCHEMEINLINE>integral</SCHEMEINLINE>
+    <SPLITINLINE>
+      <SCHEME>процедура</SCHEME>
+      <PYTHON>функція</PYTHON>
+    </SPLITINLINE>
+    використана вище, була аналогом <QUOTE>неявного</QUOTE> означення
+    нескінченного потоку цілих чисел у
+    підрозділі<SPACE/><REF NAME="sec:infinite-streams"/>. Альтернативно ми можемо
+    дати означення <SCHEMEINLINE>integral</SCHEMEINLINE>, яке більше
+    схоже на <SCHEMEINLINE>integers-starting-from</SCHEMEINLINE> (також у
+    підрозділі<SPACE/><REF NAME="sec:infinite-streams"/>):
+    <SNIPPET>
+      <REQUIRES>stream_tail</REQUIRES>
+      <INDEX><DECLARATION>integral</DECLARATION><FRAGILE/></INDEX> 
+      <SCHEME>
+(define (integral integrand initial-value dt)
+  (cons-stream initial-value
+               (if (stream-null? integrand)
+                   the-empty-stream
+                   (integral (stream-cdr integrand)
+                             (+ (* dt (stream-car integrand))
+                                initial-value)
+                             dt))))
+      </SCHEME>
+      <PYTHON>
+def integral(integrand, initial_value, dt):
+    return pair(initial_value,
+                None if is_none(integrand)
+                else integral(stream_tail(integrand),
+                              dt * head(integrand) + initial_value,
+                              dt))
+      </PYTHON>
+    </SNIPPET>
+    У системах із циклами ця
+    <SPLITINLINE>
+      <SCHEME>процедура</SCHEME>
+      <PYTHON>функція</PYTHON>
+    </SPLITINLINE>
+    має ту саму проблему,
+    що й наша початкова версія <SCHEMEINLINE>integral</SCHEMEINLINE>.
+    Змініть
+    <SPLITINLINE>
+      <SCHEME>процедуру</SCHEME>
+      <PYTHON>функцію</PYTHON>
+    </SPLITINLINE>
+    так, щоб вона очікувала <SCHEMEINLINE>integrand</SCHEMEINLINE> як
+    відкладений аргумент і тому могла використовуватися в
+    <SCHEMEINLINE>solve</SCHEMEINLINE>
+    <SPLITINLINE>
+      <SCHEME>процедурі</SCHEME>
+      <PYTHON>функції</PYTHON>
+    </SPLITINLINE>
+    показаній вище.
+    <LABEL NAME="ex:integral"/>
+  </EXERCISE>
+
+  <EXERCISE>
+    <LABEL NAME="ex:2nd-order"/>
+    Розгляньте задачу проєктування системи опрацювання сигналів для вивчення
+    однорідного
+    <INDEX>диференціальне рівняння<SUBINDEX>другого порядку</SUBINDEX></INDEX>
+    лінійного диференціального рівняння другого порядку
+    <LATEX>
+      \[\begin{array}{lll}
+      \dfrac {d^{2} y}{dt^{2}}-a\dfrac{dy}{dt}-by &amp;=&amp; 0
+      \end{array}\]
+    </LATEX>
+    Вихідний потік, що моделює <LATEXINLINE>$y$</LATEXINLINE>, породжує
+    мережа, яка містить цикл. Це так, бо значення
+    <LATEXINLINE>$d^{2}y/dt^{2}$</LATEXINLINE> залежить від значень
+    <LATEXINLINE>$y$</LATEXINLINE> та <LATEXINLINE>$dy/dt$</LATEXINLINE>, а
+    обидва вони визначаються інтегруванням
+    <LATEXINLINE>$d^{2}y/dt^{2}$</LATEXINLINE>. Діаграма, яку ми хотіли б
+    закодувати, показана на рисунку<SPACE/><REF NAME="fig:2nd-order"/>. Напишіть
+    <SPLITINLINE>
+      <SCHEME>процедуру <SCHEMEINLINE>solve-2nd</SCHEMEINLINE></SCHEME>
+      <PYTHON>функцію <PYTHONINLINE>solve_2nd</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    яка бере як аргументи сталі <LATEXINLINE>$a$</LATEXINLINE>,
+    <LATEXINLINE>$b$</LATEXINLINE> та <LATEXINLINE>$dt$</LATEXINLINE> і
+    початкові значення <LATEXINLINE>$y_{0}$</LATEXINLINE> та
+    <LATEXINLINE>$dy_{0}$</LATEXINLINE> для <LATEXINLINE>$y$</LATEXINLINE> та
+    <LATEXINLINE>$dy/dt$</LATEXINLINE> і породжує потік послідовних
+    значень <LATEXINLINE>$y$</LATEXINLINE>.
+    <FIGURE>
+      <FIGURE split_scale="0.5" web_scale="0.9" scale="0.54" src="img_original/ch3-Z-G-53.svg"></FIGURE>
+      <CAPTION>Діаграма потоків сигналів для розв’язку лінійного
+      диференціального рівняння другого порядку.
+      </CAPTION>
+      <LABEL NAME="fig:2nd-order"/>
+    </FIGURE>
+  </EXERCISE>
+
+  <EXERCISE>
+    Узагальніть
+    <INDEX>диференціальне рівняння<SUBINDEX>другого порядку</SUBINDEX></INDEX>
+    <SPLITINLINE>
+      <SCHEME>процедуру <SCHEMEINLINE>solve-2nd</SCHEMEINLINE></SCHEME>
+      <PYTHON>функцію <PYTHONINLINE>solve_2nd</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    з вправи<SPACE/><REF NAME="ex:2nd-order"/> так, щоб нею можна було
+    розв’язувати загальні диференціальні рівняння другого порядку
+    <LATEXINLINE>$d^{2} y/dt^{2}=f(dy/dt,\, y)$</LATEXINLINE>.
+    <LABEL NAME="ex:3_79"/>
+  </EXERCISE>
+
+    <FIGURE>
+      <FIGURE split_scale="0.45" web_scale="0.6" src="img_original/ch3-Z-G-58.svg"></FIGURE>
+      <CAPTION>Послідовне RLC-коло.
+      </CAPTION>
+      <LABEL NAME="fig:series-rlc"/>
+    </FIGURE>
+  <EXERCISE>
+    <LABEL NAME="ex:rlc_circuit"/>
+    <EM>Послідовне RLC-коло</EM>
+    <INDEX>RLC-коло</INDEX>
+    <INDEX>коло<SUBINDEX>змодельоване потоками</SUBINDEX></INDEX>
+    <INDEX>електричні кола, змодельовані потоками</INDEX>
+    складається з резистора, конденсатора та
+    котушки індуктивності, з’єднаних послідовно, як показано на
+    рисунку<SPACE/><REF NAME="fig:series-rlc"/>. Якщо
+    <LATEXINLINE>$R$</LATEXINLINE>, <LATEXINLINE>$L$</LATEXINLINE> та
+    <LATEXINLINE>$C$</LATEXINLINE> — це опір, індуктивність та
+    ємність, то співвідношення між напругою
+    (<LATEXINLINE>$v$</LATEXINLINE>) та струмом
+    (<LATEXINLINE>$i$</LATEXINLINE>) для цих трьох компонентів описують
+    рівняння
+    <LATEX>
+      \[\begin{array}{lll}
+      v_{R} &amp;=&amp; i_{R} R\\[9pt]
+      v_{L} &amp;=&amp; L\dfrac{di_{L}}{dt}\\[11pt]
+      i_{C} &amp;=&amp; C\dfrac{dv_{C}}{dt}
+      \end{array}\]
+    </LATEX>
+      а з’єднання в колі диктують співвідношення
+    <LATEX>
+      \[\begin{array}{lll}
+      i_{R} &amp;=&amp; i_{L}=-i_{C}\\[3pt]
+      v_{C} &amp;=&amp; v_{L}+v_{R}
+      \end{array}\]
+    </LATEX>
+    Поєднання цих рівнянь показує, що стан кола (узагальнений як
+    <LATEXINLINE>$v_{C}$</LATEXINLINE>, напруга на конденсаторі, та
+    <LATEXINLINE>$i_{L}$</LATEXINLINE>, струм у котушці індуктивності)
+    описано парою диференціальних рівнянь
+    <LATEX>
+    \[\begin{array}{lll}
+    \dfrac{dv_{C}}{dt}  &amp;=&amp; -\dfrac{i_{L}}{C}\\[11pt]
+    \dfrac {di_{L}}{dt} &amp;=&amp; \dfrac{1}{L}v_{C}-\dfrac{R}{L}i_{L}
+    \end{array}\]
+    </LATEX>
+    Діаграма потоків сигналів, яка представляє цю систему диференціальних рівнянь,
+    показана на рисунку<SPACE/><REF NAME="fig:rlc-signal-flow"/>.
+  <WEB_ONLY>
+    <!-- Figure moved later for SICP JS pagination -->
+    <!-- Figure code is duplicated later in this file in a PDF_ONLY -->
+    <FIGURE>
+      <FIGURE split_scale="0.45" web_scale="0.6" src="img_original/ch3-Z-G-59.svg"></FIGURE>
+      <CAPTION>Діаграма потоків сигналів для розв’язку послідовного RLC-кола.
+      </CAPTION>
+      <LABEL NAME="fig:rlc-signal-flow"/>
+    </FIGURE>
+  </WEB_ONLY>
+    <TEXT>
+    Напишіть
+    <SPLITINLINE>
+      <SCHEME>процедуру</SCHEME>
+      <PYTHON>функцію</PYTHON>
+    </SPLITINLINE>
+    <SCHEMEINLINE>RLC</SCHEMEINLINE>, яка бере як аргументи параметри
+    <LATEXINLINE>$R$</LATEXINLINE>, <LATEXINLINE>$L$</LATEXINLINE> та
+    <LATEXINLINE>$C$</LATEXINLINE> кола і приріст часу
+    <LATEXINLINE>$dt$</LATEXINLINE>. Подібно до
+    <SCHEMEINLINE>RC</SCHEMEINLINE>
+    <SPLITINLINE>
+      <SCHEME>процедури</SCHEME>
+      <PYTHON>функції</PYTHON>
+    </SPLITINLINE>
+    з вправи<SPACE/><REF NAME="ex:rc-circuit"/>,
+    <SCHEMEINLINE>RLC</SCHEMEINLINE> має породжувати
+    <SPLITINLINE>
+      <SCHEME>процедуру</SCHEME>
+      <PYTHON>функцію</PYTHON>
+    </SPLITINLINE>
+    яка бере початкові значення змінних стану
+    <LATEXINLINE>$v_{C_{0}}$</LATEXINLINE> та
+    <LATEXINLINE>$i_{L_{0}}$</LATEXINLINE> і породжує пару
+    <SPLITINLINE>
+      <SCHEME>(користуючись <SCHEMEINLINE>cons</SCHEMEINLINE>)</SCHEME>
+      <PYTHON>(користуючись <PYTHONINLINE>pair</PYTHONINLINE>)</PYTHON>
+    </SPLITINLINE>
+    потоків станів <LATEXINLINE>$v_{C}$</LATEXINLINE> та
+    <LATEXINLINE>$i_{L}$</LATEXINLINE>. Користуючись <SCHEMEINLINE>RLC</SCHEMEINLINE>,
+    породіть пару потоків, які моделюють поведінку послідовного RLC-кола
+    з <LATEXINLINE>$R = 1$</LATEXINLINE> ом,
+    <LATEXINLINE>$C= 0.2$</LATEXINLINE> фарад,
+    <LATEXINLINE>$L = 1$</LATEXINLINE> генрі,
+    <LATEXINLINE>$dt = 0.1$</LATEXINLINE> секунди та початковими значеннями
+    <LATEXINLINE>$i_{L_{0}} = 0$</LATEXINLINE> ампер і
+    <LATEXINLINE>$v_{C_{0}} = 10$</LATEXINLINE> вольт.
+    </TEXT>
+  </EXERCISE>
+
+  <INDEX>потік(и)<SUBINDEX>відкладене обчислення і<CLOSE/></SUBINDEX></INDEX>
+  <INDEX>відкладене обчислення<SUBINDEX>потоки і<CLOSE/></SUBINDEX></INDEX>
+
+  <SUBHEADING> 
+    <NAME>Обчислення в нормальному порядку</NAME>
+  </SUBHEADING>
+
+  <INDEX>обчислення в нормальному порядку<SUBINDEX>відкладене обчислення і</SUBINDEX><OPEN/></INDEX>
+  <INDEX>відкладене обчислення<SUBINDEX>обчислення в нормальному порядку і</SUBINDEX><OPEN/></INDEX>
+  
+  <TEXT>
+    Приклади в цьому підрозділі показують, як
+    <SPLITINLINE>
+      <SCHEME>явне використання
+      <SCHEMEINLINE>delay</SCHEMEINLINE> та <SCHEMEINLINE>force</SCHEMEINLINE>
+      </SCHEME>
+      <PYTHON>відкладене обчислення</PYTHON>
+    </SPLITINLINE>
+    дає велику гнучкість програмування, але ті самі приклади також показують, як
+    це може ускладнити наші програми. Наш новий
+    <SCHEMEINLINE>integral</SCHEMEINLINE>
+    <SPLITINLINE>
+      <SCHEME>процедура,</SCHEME>
+      <PYTHON>функція,</PYTHON>
+    </SPLITINLINE>
+    наприклад, дає нам змогу моделювати системи з циклами, але нам тепер
+    треба пам’ятати, що <SCHEMEINLINE>integral</SCHEMEINLINE> слід викликати
+    з відкладеним підінтегральним виразом, і кожна
+    <SPLITINLINE>
+      <SCHEME>процедура</SCHEME>
+      <PYTHON>функція</PYTHON>
+    </SPLITINLINE>
+    яка використовує <SCHEMEINLINE>integral</SCHEMEINLINE>, мусить це знати.
+    Фактично ми створили два класи
+    <SPLITINLINE>
+      <SCHEME>процедур:</SCHEME>
+      <PYTHON>функцій:</PYTHON>
+    </SPLITINLINE>
+    звичайні
+    <SPLITINLINE>
+      <SCHEME>процедури</SCHEME>
+      <PYTHON>функції</PYTHON>
+    </SPLITINLINE>
+    та
+    <SPLITINLINE>
+      <SCHEME>процедури</SCHEME>
+      <PYTHON>функції</PYTHON>
+    </SPLITINLINE>
+    які беруть відкладені аргументи. Загалом створення окремих класів
+    <SPLITINLINE>
+      <SCHEME>процедур</SCHEME>
+      <PYTHON>функцій</PYTHON>
+    </SPLITINLINE>
+    змушує нас створити окремі класи вищих порядкових
+    <SPLITINLINE>
+      <SCHEME>процедур</SCHEME>
+      <PYTHON>функцій</PYTHON>
+    </SPLITINLINE>
+    також.<FOOTNOTE>Це невелике відображення, в
+    <SPLITINLINE>
+      <SCHEME>Ліспі,</SCHEME>
+      <PYTHON>Python,</PYTHON>
+    </SPLITINLINE>
+    труднощів, які
+    <SPLITINLINE>
+      <SCHEME>
+	<INDEX>процедури вищого порядку<SUBINDEX>строга типізація і</SUBINDEX></INDEX>
+	<INDEX>типи даних<SUBINDEX>у строго типізованих мовах</SUBINDEX></INDEX>
+	<INDEX>Pascal, брак процедур вищого порядку</INDEX>
+	<INDEX>строго типізована мова</INDEX>
+	<INDEX>мова програмування<SUBINDEX>строго типізована</SUBINDEX></INDEX>
+	звичайні строго
+      </SCHEME>
+      <PYTHON>
+	<INDEX>функції вищого порядку<SUBINDEX>статична типізація і</SUBINDEX></INDEX>
+	<INDEX>типи даних<SUBINDEX>у статично типізованих мовах</SUBINDEX></INDEX>
+	<INDEX>Pascal, брак функцій вищого порядку в</INDEX>
+	<INDEX>статично типізована мова</INDEX>
+	<INDEX>мова програмування<SUBINDEX>статично типізована</SUBINDEX></INDEX>
+	ранні статично
+      </PYTHON>
+    </SPLITINLINE>
+    типізовані мови, як-от Pascal,
+    <SPLITINLINE>
+      <SCHEME>мали</SCHEME>
+      <PYTHON>мали</PYTHON>
+    </SPLITINLINE>
+    у роботі з вищими порядковими
+    <SPLITINLINE>
+      <SCHEME>процедурами.</SCHEME>
+      <PYTHON>функціями.</PYTHON>
+    </SPLITINLINE>
+    У
+    <SPLITINLINE>
+      <SCHEME>таких</SCHEME>
+      <PYTHON>цих</PYTHON>
+    </SPLITINLINE>
+    мовах програміст
+    <SPLITINLINE>
+      <SCHEME>мусив</SCHEME>
+      <PYTHON>мусив</PYTHON>
+    </SPLITINLINE>
+    указувати типи даних
+    аргументів і результату кожної
+    <SPLITINLINE>
+      <SCHEME>процедури:</SCHEME>
+      <PYTHON>функції:</PYTHON>
+    </SPLITINLINE>
+    число, логічне значення, послідовність тощо. Отже, ми не могли
+    виразити таку абстракцію, як <QUOTE>відобразити задану
+    <SPLITINLINE>
+      <SCHEME>процедуру</SCHEME>
+      <PYTHON>функцію</PYTHON>
+    </SPLITINLINE>
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>proc</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>fun</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    на всі елементи послідовності</QUOTE> однією вищою порядковою
+    <SPLITINLINE>
+      <SCHEME>процедурою</SCHEME>
+      <PYTHON>функцією</PYTHON>
+    </SPLITINLINE>
+    як-от
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>stream-map</SCHEMEINLINE>.</SCHEME>
+      <PYTHON><PYTHONINLINE>stream_map</PYTHONINLINE>.</PYTHON>
+    </SPLITINLINE>
+    Натомість нам була б потрібна інша
+    <SPLITINLINE>
+      <SCHEME>процедура</SCHEME>
+      <PYTHON>функція</PYTHON>
+    </SPLITINLINE>
+    відображення для кожної іншої комбінації типів даних аргументів і результату, яку можна
+    задати для
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>proc</SCHEMEINLINE>.</SCHEME>
+      <PYTHON><PYTHONINLINE>fun</PYTHONINLINE>.</PYTHON>
+    </SPLITINLINE>
+    Підтримання практичного поняття <QUOTE>типу даних</QUOTE> за наявності
+    вищих порядкових
+    <SPLITINLINE>
+      <SCHEME>процедур</SCHEME>
+      <PYTHON>функцій</PYTHON>
+    </SPLITINLINE>
+    породжує багато складних питань. Один спосіб роботи з цією проблемою
+    ілюструє мова
+    <INDEX>ML</INDEX>
+    ML
+    <INDEX>Ґордон, Майкл</INDEX>
+    <INDEX>Мілнер, Робін</INDEX>
+    <INDEX>Водсворт, Крістофер</INDEX>
+    (<CITATION NAME="GOR79">Ґордон, Мілнер і Водсворт 1979</CITATION>),
+    чиї
+    <SPLITINLINE>
+      <SCHEME><QUOTE>поліморфні типи даних</QUOTE></SCHEME>
+      <PYTHON><QUOTE>параметрично поліморфні типи даних</QUOTE></PYTHON>
+    </SPLITINLINE>
+    містять шаблони для
+    вищих порядкових перетворень між типами даних. Понад те, типи даних для
+    більшості
+    <SPLITINLINE>
+      <SCHEME>процедур</SCHEME>
+      <PYTHON>функцій</PYTHON>
+    </SPLITINLINE>
+    в ML ніколи не оголошує програміст явно. Натомість ML
+    містить
+    <INDEX>механізм виведення типів</INDEX>
+    механізм <EM>виведення типів</EM>, який використовує інформацію із середовища,
+    щоб вивести типи даних для новоозначених
+    <SPLITINLINE>
+      <SCHEME>процедур.</SCHEME>
+      <PYTHON>функцій.</PYTHON>
+    </SPLITINLINE>
+    <SPLITINLINE>
+      <PYTHON>
+	Сьогодні статично типізовані мови програмування розвинулися так, що
+	зазвичай підтримують якусь форму виведення типів, а також
+	параметричний поліморфізм, із різним ступенем
+	потужності.
+	<INDEX>Haskell</INDEX>
+	<INDEX>тип(и)<SUBINDEX>поліморфний</SUBINDEX></INDEX>
+	<INDEX>поліморфні типи</INDEX>
+	Haskell поєднує виразну систему типів із потужним
+	виведенням типів.
+      </PYTHON>
+    </SPLITINLINE>
+  </FOOTNOTE>
+  </TEXT>
+
+  <TEXT>
+    Один спосіб уникнути потреби в двох різних класах
+    <SPLITINLINE>
+      <SCHEME>процедур</SCHEME>
+      <PYTHON>функцій</PYTHON>
+    </SPLITINLINE>
+    — зробити так, щоб усі
+    <SPLITINLINE>
+      <SCHEME>процедури</SCHEME>
+      <PYTHON>функції</PYTHON>
+    </SPLITINLINE>
+    брали відкладені аргументи. Ми могли б прийняти модель обчислення, у якій усі
+    аргументи
+    <SPLITINLINE>
+      <SCHEME>процедур</SCHEME>
+      <PYTHON>функцій</PYTHON>
+    </SPLITINLINE>
+    автоматично відкладаються, а аргументи примусово обчислюються лише тоді, коли вони
+    насправді потрібні (наприклад, коли їх вимагає примітивна
+    операція). Це перетворило б нашу мову так, щоб вона використовувала обчислення в
+    нормальному порядку, яке ми вперше описали, коли вводили підстановчу
+    модель обчислення в підрозділі<SPACE/><REF NAME="sec:substitution-model"/>.
+    Перехід до обчислення в нормальному порядку дає однорідний і елегантний спосіб
+    спростити використання відкладеного обчислення, і це була б природна стратегія
+    прийняти, якби нас цікавило лише потокове опрацювання. У
+    підрозділі<SPACE/><REF NAME="sec:lazy-evaluation"/>, після того як ми вивчимо
+    обчислювач, ми побачимо, як перетворити нашу мову саме так.
+    На жаль, унесення затримок у виклики
+    <SPLITINLINE>
+      <SCHEME>процедур</SCHEME>
+      <PYTHON>функцій</PYTHON>
+    </SPLITINLINE>
+    руйнує нашу здатність проєктувати програми, які залежать від
+    порядку подій, як-от програми, які використовують
+    <SPLITINLINE>
+      <SCHEME>присвоєння,</SCHEME>
+      <PYTHON>переприсвоєння,</PYTHON>
+    </SPLITINLINE>
+    змінюють дані або
+    виконують введення чи виведення.
+    <SPLITINLINE>
+      <SCHEME>
+	Навіть єдиний <SCHEMEINLINE>delay</SCHEMEINLINE> в
+	<SCHEMEINLINE>cons-stream</SCHEMEINLINE> може спричинити велику плутанину, як
+	показують вправи<SPACE/><REF NAME="ex:delayed1"/>
+	та<SPACE/><REF NAME="ex:delayed2"/>.
+      </SCHEME>
+      <PYTHON>
+	Навіть єдина затримка у хвості пари може спричинити велику плутанину, як
+	показують вправи<SPACE/><REF NAME="ex:delayed1"/>
+	та<SPACE/><REF NAME="ex:delayed2"/>.
+      </PYTHON>
+    </SPLITINLINE>
+    Наскільки відомо, змінність і відкладене обчислення погано поєднуються в мовах
+    програмування
+    <SPLITINLINE>
+      <SCHEME>
+	, а вигадування способів працювати з обома одночасно —
+	це активна сфера досліджень.
+      </SCHEME>
+      <PYTHON>
+	.
+      </PYTHON>
+    </SPLITINLINE>
+
+    <INDEX>обчислення в нормальному порядку<SUBINDEX>відкладене обчислення і</SUBINDEX><CLOSE/></INDEX>
+    <INDEX>відкладене обчислення<SUBINDEX>обчислення в нормальному порядку і</SUBINDEX><CLOSE/></INDEX>
+
+  <PDF_ONLY>
+    <!-- Figure moved here from earlier for SICP JS pagination -->
+    <!-- Figure code is copy of code earlier in this file in a WEB_ONLY -->
+    <FIGURE>
+      <FIGURE split_scale="0.45" web_scale="0.6" src="img_original/ch3-Z-G-59.svg"></FIGURE>
+      <CAPTION>Діаграма потоків сигналів для розв’язку послідовного RLC-кола.
+      </CAPTION>
+      <LABEL NAME="fig:rlc-signal-flow"/>
+    </FIGURE>
+  </PDF_ONLY>
+
+  </TEXT>
+</SUBSECTION>

@@ -1,0 +1,1528 @@
+<SUBSECTION>
+  <NAME>
+    Потоки — це відкладені списки
+  </NAME>
+
+  <LABEL NAME="sec:delayed-lists"/>
+
+  <INDEX>потік(и)<SUBINDEX>реалізовані як відкладені списки<OPEN/></SUBINDEX></INDEX>
+
+  <TEXT>
+    Як ми бачили в
+    розділі<SPACE/><REF NAME="sec:sequences-conventional-interfaces"/>,
+    послідовності можуть слугувати стандартними інтерфейсами для поєднання програмних
+    модулів. Ми сформулювали потужні абстракції для опрацювання
+    послідовностей, як-от <SCHEMEINLINE>map</SCHEMEINLINE>,
+    <SCHEMEINLINE>filter</SCHEMEINLINE> та
+    <SCHEMEINLINE>accumulate</SCHEMEINLINE>, які охоплюють широкий набір
+    операцій у стислій і елегантній формі.
+  </TEXT>
+
+  <TEXT>
+    На жаль, якщо ми представляємо послідовності як списки, ця елегантність
+    купується ціною серйозної неефективності як за часом, так і за пам’яттю,
+    потрібними для наших обчислень.
+    Коли ми представляємо маніпуляції над послідовностями як перетворення
+    списків, наші програми мусять будувати й копіювати структури даних (які
+    можуть бути величезними) на кожному кроці процесу.
+  </TEXT>
+
+  <TEXT>
+    Щоб побачити, чому це так, порівняймо дві програми для обчислення
+    суми всіх простих чисел у проміжку. Першу програму
+    написано в стандартному ітеративному стилі:<FOOTNOTE>Припустімо, ми маємо
+    предикат
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>prime?</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>is_prime</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    (наприклад, як у розділі<SPACE/><REF NAME="sec:primality"/>), який
+    перевіряє простоту числа.</FOOTNOTE>
+    <SNIPPET EVAL="yes">
+      <INDEX><DECLARATION>sum_primes</DECLARATION></INDEX> 
+      <REQUIRES>prime_definition</REQUIRES>
+      <NAME>sum_primes1</NAME>
+      <EXAMPLE>sum_primes1_example</EXAMPLE>
+      <EXPECTED>3437</EXPECTED>
+      <SCHEME>
+(define (sum-primes a b)
+  (define (iter count accum)
+    (cond ((&gt; count b) accum)
+          ((prime? count) (iter (+ count 1) (+ count accum)))
+          (else (iter (+ count 1) accum))))
+  (iter a 0))
+      </SCHEME>
+      <PYTHON>
+def sum_primes(a, b):
+    def iter(count, accum):
+        return (accum if count &gt; b
+                else iter(count + 1, count + accum) if is_prime(count)
+                else iter(count + 1, accum))
+    return iter(a, 0)
+      </PYTHON>
+    </SNIPPET>
+    <SNIPPET EVAL="yes" HIDE="yes">
+      <NAME>sum_primes1_example</NAME>
+      <PYTHON>
+print(sum_primes(7, 182))
+      </PYTHON>
+    </SNIPPET>
+    Друга програма виконує те саме обчислення, користуючись операціями над
+    послідовностями з
+    розділу<SPACE/><REF NAME="sec:sequences-conventional-interfaces"/>:
+    <SNIPPET EVAL="yes">
+      <INDEX><DECLARATION>sum_primes</DECLARATION></INDEX> 
+      <NAME>sum_primes2</NAME>
+      <REQUIRES>accumulate</REQUIRES>
+      <REQUIRES>filter</REQUIRES>
+      <REQUIRES>prime_definition</REQUIRES>
+      <REQUIRES>enumerate_interval</REQUIRES>
+      <EXAMPLE>sum_primes1_example</EXAMPLE>
+      <EXPECTED>3437</EXPECTED>
+      <SCHEME>
+(define (sum-primes a b)
+  (accumulate +
+              0
+              (filter prime? (enumerate-interval a b))))
+      </SCHEME>
+      <PYTHON>
+def sum_primes(a, b):
+    return reduce(lambda x, y: x + y,
+                  0,
+                  filter(is_prime,
+                         enumerate_interval(a, b)))
+      </PYTHON>
+    </SNIPPET>
+  </TEXT>
+
+  <TEXT>
+    Виконуючи обчислення, першій програмі треба зберігати лише
+    суму, яку накопичують. Натомість фільтр у другій
+    програмі не може нічого перевірити, доки 
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>enumerate-interval</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>enumerate_interval</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    не побудує повний список чисел у проміжку.
+    Фільтр породжує ще один список, який своєю чергою передають до 
+    <SCHEMEINLINE>accumulate</SCHEMEINLINE>, перш ніж згорнути його в
+    суму. Такого великого проміжного сховища перша програма не потребує;
+    її можна уявити як таке, що перелічує проміжок поступово, додаючи
+    кожне просте число до суми, щойно його породжено.
+  </TEXT>
+
+  <TEXT>
+    Неефективність використання списків стає болісно очевидною, якщо ми
+    скористаємося парадигмою послідовностей, щоб обчислити друге просте число в проміжку від
+    10 000 до 1 000 000, обчисливши вираз
+    <SNIPPET EVAL="no">
+      <NAME>painfully</NAME>
+      <REQUIRES>filter</REQUIRES>
+      <REQUIRES>prime_definition</REQUIRES>
+      <REQUIRES>enumerate_interval</REQUIRES>
+      <SCHEME>
+(car (cdr (filter prime?
+                  (enumerate-interval 10000 1000000))))
+      </SCHEME>
+      <PYTHON>
+head(tail(filter(is_prime,
+                 enumerate_interval(10000, 1000000))))
+      </PYTHON>
+    </SNIPPET>
+    Цей вираз справді знаходить друге просте число, але обчислювальні
+    накладні витрати обурливі. Ми будуємо список майже з мільйона цілих чисел, фільтруємо
+    цей список, перевіряючи кожен елемент на простоту, а потім ігноруємо майже
+    весь результат. У традиційнішому стилі програмування ми б
+    переплели перелічування й фільтрування та зупинилися б, досягнувши
+    другого простого числа.
+  </TEXT>
+
+  <TEXT>
+    Потоки — це вдала ідея, яка дає змогу користуватися маніпуляціями над
+    послідовностями, не сплачуючи ціну опрацювання послідовностей як
+    списків. З потоками ми досягаємо найкращого з обох світів: ми можемо
+    формулювати програми елегантно, як маніпуляції над послідовностями, і водночас
+    отримувати ефективність поступового обчислення. Основна ідея — 
+    влаштувати так, щоб потік будувався лише частково, і передати це часткове
+    побудування програмі, яка споживає потік. Якщо споживач
+    намагається звернутися до частини потоку, якої ще не
+    <SHRINK_PARAGRAPH lines="1"/>
+    побудовано, потік автоматично побудує рівно стільки додатково,
+    скільки потрібно, щоб видати потрібну частину, і таким чином збереже ілюзію,
+    що весь потік існує. Іншими словами, хоч ми й писатимемо
+    програми так, ніби опрацьовуємо повні послідовності, ми проєктуємо нашу
+    реалізацію потоків так, щоб вона автоматично й прозоро переплітала
+    побудування потоку з його використанням.
+  </TEXT>
+
+  <COMMENT>
+    Особлива форма <SCHEMEINLINE>delay</SCHEMEINLINE> давала авторам
+    початкової версії змогу (1) приховати лямбда-вираз, який будується, і (2)
+    елегантно вставити оптимізацію запам’ятовування. У Python немає особливих форм,
+    тож лямбда-вираз у хвості потоку мусить бути
+    явним. Це невелика
+    втрата; потоки стають дещо менш загадковими завдяки явним лямбда-виразам.
+    Ми вирішили <EM>не</EM> використовувати запам’ятовування за замовчуванням, щоб зберегти
+    хвости потоків у їхній простій формі звичайного лямбда-виразу. Ми згадуємо
+    запам’ятовування наприкінці цього розділу як необов’язкову оптимізацію і
+    посилаємося на цей варіант у кількох вправах у наступних розділах.
+  </COMMENT>
+  
+  <SPLIT>
+    <SCHEME>
+      <TEXT>
+        Зовні потоки — це просто списки з іншими назвами
+	процедур, які ними маніпулюють. Є конструктор,
+        <INDEX>cons-stream</INDEX>
+        <SCHEMEINLINE>cons-stream</SCHEMEINLINE>, і два селектори, 
+        <INDEX><USE>stream-car</USE></INDEX> 
+        <SCHEMEINLINE>stream-car</SCHEMEINLINE> та 
+        <INDEX><USE>stream-cdr</USE></INDEX> 
+        <SCHEMEINLINE>stream-cdr</SCHEMEINLINE>, які задовольняють обмеження
+        \begin{eqnarray*}
+        \mbox{(stream-car (cons-stream x y))} &amp;=&amp; \mbox{x} \\
+        \mbox{(stream-cdr (cons-stream x y))} &amp;=&amp; \mbox{y}
+        \end{eqnarray*}
+        Є відрізнюваний об’єкт, 
+        <INDEX>порожній потік</INDEX>
+	<INDEX>потік(и)<SUBINDEX>порожній</SUBINDEX></INDEX>
+        <INDEX><USE>the-empty-stream</USE></INDEX> 
+        <SCHEMEINLINE>the-empty-stream</SCHEMEINLINE>, який
+        не може бути результатом жодної операції <SCHEMEINLINE>cons-stream</SCHEMEINLINE>
+	і який можна розпізнати предикатом 
+        <INDEX><USE>stream-null?</USE></INDEX> 
+        <SCHEMEINLINE>stream-null?</SCHEMEINLINE>.<FOOTNOTE>У реалізації
+	MIT
+        <INDEX><USE>the-empty-stream</USE><SUBINDEX>in MIT Scheme</SUBINDEX></INDEX>
+        <INDEX><USE>stream-null?</USE><SUBINDEX>in MIT Scheme</SUBINDEX></INDEX>
+        <INDEX>MIT Scheme<SUBINDEX><ORDER>empty</ORDER>the empty stream</SUBINDEX></INDEX>
+        <SCHEMEINLINE>the-empty-stream</SCHEMEINLINE> — це
+        те саме, що порожній список <SCHEMEINLINE>'()</SCHEMEINLINE>, а
+	<SCHEMEINLINE>stream-null?</SCHEMEINLINE> — те саме,
+        що <SCHEMEINLINE>null?</SCHEMEINLINE>.</FOOTNOTE>
+      </TEXT>
+
+      <TEXT>
+        Тож ми можемо створювати й використовувати потоки так само, як ми можемо створювати
+        й використовувати списки, щоб представляти сукупні дані, впорядковані в послідовність. Зокрема,
+        ми можемо побудувати аналоги потоків для операцій над списками з
+        розділу<SPACE/><REF NAME="chap:data"></REF>, як-от <SCHEMEINLINE>list-ref</SCHEMEINLINE>,
+	<SCHEMEINLINE>map</SCHEMEINLINE> та
+	<SCHEMEINLINE>for-each</SCHEMEINLINE>:<FOOTNOTE>Це має вас
+	занепокоїти. Те, що ми означуємо такі подібні процедури
+        для потоків і списків, указує на те, що нам бракує якоїсь
+        глибшої абстракції. На жаль, щоб скористатися цією
+        абстракцією, нам треба буде мати тонший контроль над процесом
+        обчислення, ніж ми маємо тепер. Ми обговоримо це докладніше
+        наприкінці
+	розділу<SPACE/><REF NAME="sec:streams-and-delayed-evaluation"/>.
+        У розділі<SPACE/><REF NAME="sec:lazy-evaluation"/> ми<APOS/>ll
+	розробимо основу, яка об’єднує списки й потоки.</FOOTNOTE>
+        <SNIPPET EVAL="no"> 
+          <INDEX><DECLARATION>stream-ref</DECLARATION></INDEX> 
+          <INDEX><DECLARATION>stream-map</DECLARATION></INDEX> 
+          <INDEX><DECLARATION>stream-for-each</DECLARATION></INDEX> 
+          <SCHEME>
+(define (stream-ref s n)
+  (if (= n 0)
+      (stream-car s)
+      (stream-ref (stream-cdr s) (- n 1))))
+
+(define (stream-map proc s)
+  (if (stream-null? s)
+      the-empty-stream
+      (cons-stream (proc (stream-car s))
+                   (stream-map proc (stream-cdr s)))))
+
+(define (stream-for-each proc s)
+  (if (stream-null? s)
+      'done
+      (begin (proc (stream-car s))
+             (stream-for-each proc (stream-cdr s)))))
+          </SCHEME>
+        </SNIPPET>
+      </TEXT>
+
+      <TEXT>
+        <SCHEMEINLINE>Stream-for-each</SCHEMEINLINE> корисний для перегляду потоків:
+        <SNIPPET>
+          <INDEX><DECLARATION>display-stream</DECLARATION></INDEX> 
+          <INDEX><DECLARATION>display-line</DECLARATION></INDEX> 
+          <SCHEME>
+(define (display-stream s)
+  (stream-for-each display-line s))
+
+(define (display-line x)
+  (newline)
+  (display x))
+          </SCHEME>
+        </SNIPPET>
+      </TEXT>
+
+      <TEXT>
+        Щоб реалізація потоків автоматично й прозоро
+        переплітала побудування потоку з його використанням, ми влаштуємо
+        так, щоб <SCHEMEINLINE>cdr</SCHEMEINLINE> потоку обчислювався
+	тоді, коли до нього звертається процедура <SCHEMEINLINE>stream-cdr</SCHEMEINLINE>,
+	а не тоді, коли потік будується
+	<SCHEMEINLINE>cons-stream</SCHEMEINLINE>. Цей вибір реалізації
+	нагадує нашу дискусію про раціональні числа в
+        розділі<SPACE/><REF NAME="sec:abstraction-barriers"/>, де ми бачили,
+	що ми можемо реалізувати раціональні числа так, щоб зведення
+	чисельника й знаменника до найменших членів виконувалося або під час
+        побудування, або під час вибору. Дві реалізації раціональних чисел
+        дають ту саму абстракцію даних, але вибір має
+        вплив на ефективність. Подібне співвідношення існує між
+        потоками та звичайними списками. Як абстракція даних, потоки —
+        те саме, що списки. Різниця в тому, коли саме обчислюють елементи.
+        У звичайних списках і
+	<SCHEMEINLINE>car</SCHEMEINLINE>, і <SCHEMEINLINE>cdr</SCHEMEINLINE>
+        обчислюють під час побудування. У потоках
+	<SCHEMEINLINE>cdr</SCHEMEINLINE> обчислюють під час вибору.
+      </TEXT>
+
+      <TEXT>
+        Наша реалізація потоків ґрунтуватиметься на особливій формі під назвою
+        <INDEX>delay</INDEX>
+	<INDEX>особливі форми (ті, що позначені <EM>ns</EM>, не входять до стандарту IEEE Scheme)<SUBINDEX>delay</SUBINDEX></INDEX>
+        <SCHEMEINLINE>delay</SCHEMEINLINE>. Обчислення
+	<SCHEMEINLINE>(delay exp)</SCHEMEINLINE>
+	не обчислює вираз <LATEXINLINE>exp</LATEXINLINE>, а
+	повертає так званий
+        <INDEX>відкладений об’єкт</INDEX>
+        <EM>відкладений об’єкт</EM>, який можна уявити як
+	<QUOTE>обіцянку</QUOTE> обчислити <LATEXINLINE>exp</LATEXINLINE> у
+	якийсь майбутній момент. Як супутник <SCHEMEINLINE>delay</SCHEMEINLINE>
+	є процедура під назвою 
+        <INDEX><USE>force</USE></INDEX> 
+        <SCHEMEINLINE>force</SCHEMEINLINE>, яка бере відкладений об’єкт як
+        аргумент і виконує обчислення<EMDASH/>фактично змушуючи
+        <SCHEMEINLINE>delay</SCHEMEINLINE> виконати свою обіцянку. Нижче ми побачимо,
+	як можна реалізувати <SCHEMEINLINE>delay</SCHEMEINLINE> та
+	<SCHEMEINLINE>force</SCHEMEINLINE>, але спершу скористаймося ними,
+	щоб побудувати потоки.
+      </TEXT>
+
+      <TEXT>
+        <SCHEMEINLINE>Cons-stream</SCHEMEINLINE>
+        <INDEX>особливі форми (ті, що позначені <EM>ns</EM>, не входять до стандарту IEEE Scheme)<SUBINDEX>cons-stream</SUBINDEX></INDEX>
+        <INDEX>cons-stream</INDEX>
+	— це особлива форма, означена так, що
+        <SNIPPET EVAL="no">
+          <SCHEME>
+(cons-stream a b)
+          </SCHEME>
+        </SNIPPET>
+        еквівалентне
+        <SNIPPET EVAL="no">
+          <SCHEME>
+(cons a (delay b))
+          </SCHEME>
+        </SNIPPET>
+      </TEXT>
+
+      <TEXT>
+        Це означає, що ми будуватимемо потоки, користуючись парами. Проте
+        замість того, щоб поміщати значення решти потоку
+        в <SCHEMEINLINE>cdr</SCHEMEINLINE> пари, ми помістимо туди обіцянку
+        обчислити решту, якщо до неї колись звернуться.
+        <SCHEMEINLINE>Stream-car</SCHEMEINLINE> та
+	<SCHEMEINLINE>stream-cdr</SCHEMEINLINE> тепер можна означити як процедури:
+        <SNIPPET>
+          <INDEX><DECLARATION>stream-car</DECLARATION></INDEX> 
+          <INDEX><DECLARATION>stream-cdr</DECLARATION></INDEX> 
+          <SCHEME>
+(define (stream-car stream) (car stream))
+
+(define (stream-cdr stream) (force (cdr stream)))
+          </SCHEME>
+        </SNIPPET>
+      </TEXT>
+
+      <TEXT>
+        <SCHEMEINLINE>Stream-car</SCHEMEINLINE> вибирає
+	<SCHEMEINLINE>car</SCHEMEINLINE> пари;
+	<SCHEMEINLINE>stream-cdr</SCHEMEINLINE> вибирає
+	<SCHEMEINLINE>cdr</SCHEMEINLINE> пари й обчислює відкладений
+	вираз, знайдений там, щоб отримати решту
+	потоку.<FOOTNOTE>Хоч <SCHEMEINLINE>stream-car</SCHEMEINLINE> та
+         <INDEX>cons-stream<SUBINDEX>чому особлива форма</SUBINDEX></INDEX>
+         <INDEX>delay<SUBINDEX>чому особлива форма</SUBINDEX></INDEX>
+        <SCHEMEINLINE>stream-cdr</SCHEMEINLINE> можна означити як процедури,
+	<SCHEMEINLINE>cons-stream</SCHEMEINLINE> мусить бути особливою формою. Якби
+	<SCHEMEINLINE>cons-stream</SCHEMEINLINE> була процедурою, то,
+        згідно з нашою моделлю обчислення, обчислення
+	<SCHEMEINLINE>(cons-stream a b)</SCHEMEINLINE>
+	автоматично спричинило б обчислення <LATEXINLINE>b</LATEXINLINE>,
+	а це саме те, чого ми не хочемо. З тієї самої
+	причини <SCHEMEINLINE>delay</SCHEMEINLINE> мусить бути особливою формою,
+	хоч <SCHEMEINLINE>force</SCHEMEINLINE> може бути звичайною
+	процедурою.</FOOTNOTE>
+        <INDEX>потік(и)<SUBINDEX>реалізовані як відкладені списки<CLOSE/></SUBINDEX></INDEX>
+      </TEXT>
+
+      <SUBHEADING> 
+        <NAME>Реалізація потоків у дії</NAME>
+      </SUBHEADING>
+
+      <TEXT>
+        Щоб побачити, як поводиться ця реалізація, проаналізуймо
+        <QUOTE>обурливе</QUOTE> обчислення простих чисел, яке ми бачили вище, переформулювавши
+	його в термінах потоків:
+        <SNIPPET>
+          <SCHEME>
+(stream-car
+ (stream-cdr
+  (stream-filter prime?
+                 (stream-enumerate-interval 10000 1000000))))
+          </SCHEME>
+        </SNIPPET>
+        Ми побачимо, що воно справді працює ефективно.
+      </TEXT>
+
+      <TEXT>
+        Ми починаємо з виклику
+	<SCHEMEINLINE>stream-enumerate-interval</SCHEMEINLINE> з
+	аргументами 10 000 та 1 000 000.
+	<SCHEMEINLINE>Stream-enumerate-interval</SCHEMEINLINE> — це потоковий
+	аналог <SCHEMEINLINE>enumerate-interval</SCHEMEINLINE>
+        (розділ<SPACE/><REF NAME="sec:sequence-operations"/>):
+        <SNIPPET>
+          <INDEX><DECLARATION>stream-enumerate-interval</DECLARATION></INDEX> 
+          <SCHEME>
+(define (stream-enumerate-interval low high)
+  (if (&gt; low high)
+      the-empty-stream
+      (cons-stream
+       low
+       (stream-enumerate-interval (+ low 1) high))))
+          </SCHEME>
+        </SNIPPET>
+        тож результат, який повертає
+	<SCHEMEINLINE>stream-enumerate-interval</SCHEMEINLINE>, утворений
+	<SCHEMEINLINE>cons-stream</SCHEMEINLINE>, такий:<FOOTNOTE>Числа, показані
+	тут, насправді не з’являються у відкладеному виразі. Насправді
+	з’являється початковий вираз у середовищі, у якому
+	змінні зв’язано з відповідними числами. Наприклад,
+	<SCHEMEINLINE>(+ low 1)</SCHEMEINLINE> із
+        <SCHEMEINLINE>low</SCHEMEINLINE>, зв’язаним зі значенням 10 000, насправді з’являється там,
+	де показано <SCHEMEINLINE>10001</SCHEMEINLINE>.</FOOTNOTE>
+        <SNIPPET>
+          <SCHEME>
+(cons 10000
+      (delay (stream-enumerate-interval 10001 1000000)))
+          </SCHEME>
+        </SNIPPET>
+        Тобто <SCHEMEINLINE>stream-enumerate-interval</SCHEMEINLINE> повертає
+	потік, представлений як пара, чий <SCHEMEINLINE>car</SCHEMEINLINE>
+        дорівнює 10 000, а чий <SCHEMEINLINE>cdr</SCHEMEINLINE> — це обіцянка
+	перелічити решту проміжку, якщо до нього звернуться. Цей потік тепер
+	фільтрують на прості числа, користуючись потоковим аналогом процедури
+	<SCHEMEINLINE>filter</SCHEMEINLINE>
+        (розділ<SPACE/><REF NAME="sec:sequence-operations"/>):
+        <SNIPPET>
+          <INDEX><DECLARATION>stream-filter</DECLARATION></INDEX> 
+          <SCHEME>
+(define (stream-filter pred stream)
+  (cond ((stream-null? stream) the-empty-stream)
+        ((pred (stream-car stream))
+         (cons-stream (stream-car stream)
+                      (stream-filter pred
+                                     (stream-cdr stream))))
+        (else (stream-filter pred (stream-cdr stream)))))
+          </SCHEME>
+        </SNIPPET>
+        <SCHEMEINLINE>Stream-filter</SCHEMEINLINE> перевіряє
+	<SCHEMEINLINE>stream-car</SCHEMEINLINE> потоку (тобто
+	<SCHEMEINLINE>car</SCHEMEINLINE> пари, який дорівнює 10 000).
+	Оскільки це не просте число,
+        <SCHEMEINLINE>stream-filter</SCHEMEINLINE> розглядає
+	<SCHEMEINLINE>stream-cdr</SCHEMEINLINE> свого вхідного
+        потоку. Виклик <SCHEMEINLINE>stream-cdr</SCHEMEINLINE> змушує
+	обчислити відкладений
+	<SCHEMEINLINE>stream-enumerate-interval</SCHEMEINLINE>, який тепер повертає
+        <SNIPPET>
+          <SCHEME>
+(cons 10001
+      (delay (stream-enumerate-interval 10002 1000000)))
+          </SCHEME>
+        </SNIPPET>
+        <SCHEMEINLINE>Stream-filter</SCHEMEINLINE> тепер дивиться на
+	<SCHEMEINLINE>stream-car</SCHEMEINLINE> цього потоку,
+        10 001, бачить, що це також не просте число, змушує обчислити ще один
+	<SCHEMEINLINE>stream-cdr</SCHEMEINLINE>, і так далі, доки
+	<SCHEMEINLINE>stream-enumerate-interval</SCHEMEINLINE> не видасть
+        просте число 10 007, після чого <SCHEMEINLINE>stream-filter</SCHEMEINLINE>,
+	згідно зі своїм означенням, повертає
+        <SNIPPET>
+          <SCHEME>
+(cons-stream (stream-car stream)
+             (stream-filter pred (stream-cdr stream)))
+          </SCHEME>
+        </SNIPPET>
+        що в цьому випадку є
+        <SNIPPET>
+          <SCHEME>
+(cons 10007
+      (delay
+       (stream-filter
+        prime?
+        (cons 10008
+              (delay
+               (stream-enumerate-interval 10009
+                                          1000000))))))
+          </SCHEME>
+        </SNIPPET>
+        Цей результат тепер передають до <SCHEMEINLINE>stream-cdr</SCHEMEINLINE> у
+	нашому початковому виразі. Це змушує обчислити відкладений
+	<SCHEMEINLINE>stream-filter</SCHEMEINLINE>, який своєю чергою раз у раз змушує обчислювати
+	відкладений <SCHEMEINLINE>stream-enumerate-interval</SCHEMEINLINE>, доки
+	не знайде наступне просте число, яке дорівнює 10 009. Нарешті, результат, переданий до
+	<SCHEMEINLINE>stream-car</SCHEMEINLINE> у нашому початковому виразі, такий:
+        <SNIPPET>
+          <SCHEME>
+(cons 10009
+      (delay
+       (stream-filter
+        prime?
+        (cons 10010
+              (delay
+               (stream-enumerate-interval 10011
+                                          1000000))))))
+          </SCHEME>
+        </SNIPPET>
+        <SCHEMEINLINE>Stream-car</SCHEMEINLINE> повертає 10 009, і
+	обчислення завершено. На простоту перевірили рівно стільки цілих чисел,
+	скільки було потрібно, щоб знайти друге просте число, а проміжок
+	перелічили рівно настільки, наскільки було потрібно, щоб нагодувати фільтр простих чисел.
+      </TEXT>
+
+      <TEXT>
+        Загалом ми можемо уявляти відкладене обчислення як 
+        <INDEX>програмування<SUBINDEX>кероване потребою</SUBINDEX></INDEX>
+        <QUOTE>програмування, кероване потребою</QUOTE>
+        , за якого кожен етап у потоковому процесі активують
+        лише настільки, щоб задовольнити наступний етап. Те, що ми зробили, —
+        це 
+        <INDEX>порядок подій<SUBINDEX>від<APOS/>єднання уявного від справжнього</SUBINDEX></INDEX>
+        від’єднали справжній порядок подій в обчисленні від уявної
+	структури наших процедур. Ми пишемо процедури так, ніби потоки
+	існують <QUOTE>усі одразу</QUOTE>, тоді як насправді обчислення
+        виконується поступово, як у традиційних стилях програмування.
+      </TEXT>
+
+      <SUBHEADING> 
+        <NAME>Реалізація <SCHEMEINLINE>delay</SCHEMEINLINE> та
+	<SCHEMEINLINE>force</SCHEMEINLINE></NAME>
+      </SUBHEADING>
+
+      <TEXT>
+        Хоч
+        <INDEX>delay<SUBINDEX>реалізація через lambda</SUBINDEX></INDEX>
+	<SCHEMEINLINE>delay</SCHEMEINLINE> та
+	<SCHEMEINLINE>force</SCHEMEINLINE> можуть здаватися загадковими операціями,
+	їхня реалізація насправді досить прямолінійна.
+        <SCHEMEINLINE>Delay</SCHEMEINLINE> мусить спакувати вираз так, щоб його
+	можна було обчислити пізніше на вимогу, і ми можемо досягти цього просто,
+	трактуючи вираз як тіло процедури.
+	<SCHEMEINLINE>Delay</SCHEMEINLINE> може бути особливою формою такою, що
+        <SNIPPET EVAL="no">
+          <SCHEME>
+(delay exp)
+          </SCHEME>
+        </SNIPPET>
+        є синтаксичним цукром для
+        <SNIPPET EVAL="no">
+          <SCHEME>
+(lambda () exp)
+          </SCHEME>
+        </SNIPPET>
+      </TEXT>
+
+      <TEXT>
+        <SCHEMEINLINE>Force</SCHEMEINLINE> просто викликає процедуру
+        (без аргументів), породжену <SCHEMEINLINE>delay</SCHEMEINLINE>,
+	тож ми можемо реалізувати <SCHEMEINLINE>force</SCHEMEINLINE> як
+        процедуру:
+        <SNIPPET>
+          <INDEX><DECLARATION>force</DECLARATION></INDEX> 
+          <SCHEME>
+(define (force delayed-object)
+  (delayed-object))
+          </SCHEME>
+        </SNIPPET>
+      </TEXT>
+
+      <TEXT>
+        Цієї реалізації достатньо, щоб <SCHEMEINLINE>delay</SCHEMEINLINE> та
+	<SCHEMEINLINE>force</SCHEMEINLINE> працювали так, як обіцяно, але є
+	одна важлива оптимізація, яку ми можемо додати. У багатьох застосуваннях ми
+	зрештою змушуємо обчислювати той самий відкладений об’єкт багато разів. Це може призвести до
+	серйозної неефективності в рекурсивних програмах із потоками. (Дивіть
+        вправу<SPACE/><REF NAME="ex:fib-stream-efficiency"/>.) Розв’язок —
+	будувати відкладені об’єкти так, щоб першого разу, коли їх змушують обчислитися, вони
+	зберігали обчислене значення. Наступні примушування просто
+	повертатимуть збережене значення, не повторюючи обчислення. Іншими
+	словами, ми реалізуємо <SCHEMEINLINE>delay</SCHEMEINLINE> як
+	спеціалізовану
+        <INDEX>delay<SUBINDEX>із запам’ятовуванням</SUBINDEX></INDEX>
+        <INDEX>запам’ятовування<SUBINDEX><ORDER>delay</ORDER>через <SCHEMEINLINE>delay</SCHEMEINLINE></SUBINDEX></INDEX>
+	процедуру із запам’ятовуванням, подібну до описаної у
+	вправі<SPACE/><REF NAME="ex:memoization"/>. Один зі способів досягти цього —
+	скористатися такою процедурою, яка бере як аргумент процедуру
+        (без аргументів) і повертає версію процедури із запам’ятовуванням. Першого
+	разу, коли процедуру із запам’ятовуванням запускають, вона зберігає обчислений результат.
+	За наступних обчислень вона просто повертає результат.
+        <SNIPPET>
+          <INDEX><DECLARATION>memo-proc</DECLARATION></INDEX> 
+          <SCHEME>
+(define (memo-proc proc)
+  (let ((already-run? false) (result false))
+    (lambda ()
+      (if (not already-run?)
+          (begin (set! result (proc))
+            (set! already-run? true)
+            result)
+          result))))
+          </SCHEME>
+        </SNIPPET>
+      </TEXT>
+
+      <TEXT>
+        <SCHEMEINLINE>Delay</SCHEMEINLINE> тоді означують так, що
+	<SCHEMEINLINE>(delay exp)</SCHEMEINLINE> еквівалентне
+        <SNIPPET EVAL="no">
+          <SCHEME>
+(memo-proc (lambda () exp))
+          </SCHEME>
+        </SNIPPET>
+        а <SCHEMEINLINE>force</SCHEMEINLINE> такий, як означено
+	раніше.<FOOTNOTE>Існує багато можливих реалізацій потоків,
+	крім описаної в цьому розділі. Відкладене обчислення, яке
+	є ключем до практичності потоків, було притаманне
+        <INDEX>Algol<SUBINDEX>передавання аргументів за назвою</SUBINDEX></INDEX>
+        <INDEX>передавання аргументів за назвою</INDEX>
+        методу передавання параметрів <EM>за назвою</EM> в Algol 60. Використання
+	цього механізму для реалізації потоків уперше описав 
+        <INDEX>Ландин, Пітер</INDEX>
+        Ландин (1965). Відкладене обчислення для потоків увів у Lisp
+        <INDEX>Фрідман, Деніел П.</INDEX>
+        <INDEX>Вайз, Девід С.</INDEX>
+        Фрідман і Вайз (1976). У їхній реалізації
+	<SCHEMEINLINE>cons</SCHEMEINLINE>
+	завжди відкладає обчислення своїх
+	аргументів, тож списки автоматично поводяться як потоки. Оптимізацію
+	із запам’ятовуванням також називають 
+        <INDEX>передавання аргументів за потребою</INDEX>
+        <INDEX>thunk<SUBINDEX>за назвою</SUBINDEX></INDEX>
+        <INDEX>thunk<SUBINDEX>за потребою</SUBINDEX></INDEX>
+        <INDEX>Algol<SUBINDEX>thunk-и</SUBINDEX></INDEX>
+        <EM>передаванням за потребою</EM>. Спільнота Algol називала б наші початкові
+	відкладені об’єкти <EM>thunk-ами за назвою</EM>, а оптимізовані
+	версії — <EM>thunk-ами за потребою</EM>.</FOOTNOTE>
+      </TEXT>
+
+      <EXERCISE>
+	<LABEL NAME="ex:general-stream-map"/>
+	Завершіть наведене означення, яке
+	узагальнює <SCHEMEINLINE>stream-map</SCHEMEINLINE>, дозволяючи процедури,
+	що беруть кілька аргументів, аналогічно до
+	<SCHEMEINLINE>map</SCHEMEINLINE> у
+	розділі<SPACE/><REF NAME="sec:sequence-operations"/>,
+	виносці<SPACE/><REF NAME="foot:generalmap"/>.
+	<SNIPPET EVAL="no">
+          <INDEX><USE>stream-map</USE><SUBINDEX>with multiple arguments</SUBINDEX></INDEX>
+          <SCHEME>
+(define (stream-map proc . argstreams)
+  (if (?? (car argstreams))
+      the-empty-stream
+      (??
+       (apply proc (map ?? argstreams))
+       (apply stream-map
+              (cons proc (map ?? argstreams))))))
+          </SCHEME>
+	</SNIPPET>
+      </EXERCISE>
+      
+      <EXERCISE>
+	<LABEL NAME="ex:delayed1_scheme"/>
+	Щоб ближче розглянути
+	<INDEX>відкладене обчислення<SUBINDEX>друк і</SUBINDEX></INDEX>
+	відкладене обчислення, скористаймося такою
+	процедурою, яка просто повертає свій аргумент після його друку:
+	<SNIPPET>
+          <SCHEME>
+(define (show x)
+  (display-line x)
+  x)
+          </SCHEME>
+	</SNIPPET>
+	Що надрукує інтерпретатор у відповідь на обчислення кожного
+	виразу в такій послідовності?<FOOTNOTE>Такі вправи,
+	як<SPACE/><REF NAME="ex:delayed1_scheme"/>
+	та<SPACE/><REF NAME="ex:delayed2_scheme"/>,
+	цінні для перевірки нашого розуміння того, як
+	працює <SCHEMEINLINE>delay</SCHEMEINLINE>. З іншого боку, змішування
+	відкладеного обчислення з друком<EMDASH/>а ще гірше — з
+	присвоєнням<EMDASH/>вкрай заплутане, і викладачі курсів
+	про мови програмування традиційно мучили своїх студентів
+	екзаменаційними питаннями, як-от у цьому розділі. Потреба казати
+	про це відпадає: писати програми, які залежать від таких тонкощів, —
+	це
+	<INDEX>програмування<SUBINDEX>осоружний стиль</SUBINDEX></INDEX>
+	осоружний стиль програмування. Частина сили потокового опрацювання в
+	тому, що воно дозволяє нам ігнорувати порядок, у якому події насправді відбуваються в
+	наших програмах. На жаль, саме цього ми не можемо собі дозволити
+	за наявності присвоєння, яке змушує нас дбати
+	про час і зміну.</FOOTNOTE>
+	<SNIPPET>
+          <SCHEME>
+(define x (stream-map show (stream-enumerate-interval 0 10)))
+
+(stream-ref x 5)
+
+(stream-ref x 7)
+          </SCHEME>
+	</SNIPPET>
+      </EXERCISE>
+
+      <EXERCISE>
+        Розгляньте послідовність виразів
+        <SNIPPET>
+          <SCHEME>
+(define sum 0)
+
+(define (accum x)
+  (set! sum (+ x sum))
+  sum)
+
+(define seq (stream-map accum (stream-enumerate-interval 1 20)))
+(define y (stream-filter even? seq))
+(define z (stream-filter (lambda (x) (= (remainder x 5) 0))
+                         seq))
+
+(stream-ref y 7)
+
+(display-stream z)
+          </SCHEME>
+        </SNIPPET>
+        Яким є значення <SCHEMEINLINE>sum</SCHEMEINLINE> після обчислення кожного з
+	наведених виразів?
+        <INDEX>відкладене обчислення<SUBINDEX>присвоєння і</SUBINDEX></INDEX>
+	Яка надрукована відповідь на
+	обчислення виразів <SCHEMEINLINE>stream-ref</SCHEMEINLINE> та
+	<SCHEMEINLINE>display-stream</SCHEMEINLINE>? Чи відрізнялися б ці
+	відповіді, якби ми реалізували
+	<SCHEMEINLINE>(delay<SPACE/>exp)</SCHEMEINLINE> просто як
+        <SCHEMEINLINE>(lambda () exp)</SCHEMEINLINE> без оптимізації, яку дає
+        <SCHEMEINLINE>memo-proc</SCHEMEINLINE><LATEXINLINE>$\,$</LATEXINLINE>?
+	Поясніть.
+        <LABEL NAME="ex:delayed2_scheme"/>
+      </EXERCISE>
+    </SCHEME>
+
+    <PYTHON>
+      <TEXT>
+	Щоб досягти цього, ми будуватимемо потоки, користуючись парами,
+	де перший елемент потоку стоїть у голові пари.
+	Проте замість того, щоб поміщати значення решти потоку
+        <INDEX>обіцянка обчислити</INDEX>
+	в хвіст пари, ми помістимо туди <QUOTE>обіцянку</QUOTE>
+	обчислити решту, якщо до неї колись звернуться.
+	Якщо ми маємо елемент даних
+	<PYTHONINLINE>h</PYTHONINLINE> та потік
+	<PYTHONINLINE>t</PYTHONINLINE>, ми будуємо потік,
+	чия голова —
+	<PYTHONINLINE>h</PYTHONINLINE>, а чий хвіст —
+	<PYTHONINLINE>t</PYTHONINLINE>, обчислюючи
+	<PYTHONINLINE>pair(h, lambda: t)</PYTHONINLINE><EMDASH/>хвіст
+	<PYTHONINLINE>t</PYTHONINLINE> потоку
+	<QUOTE>загорнуто</QUOTE> у функцію без аргументів,
+        <INDEX>відкладений вираз</INDEX>
+	тож його обчислення буде <EM>відкладене</EM>.
+        <INDEX>порожній потік</INDEX>
+	<INDEX>потік(и)<SUBINDEX>порожній</SUBINDEX></INDEX>
+	Порожній потік — це
+	<PYTHONINLINE>null</PYTHONINLINE>, те саме, що порожній список.
+      </TEXT>
+      <TEXT>
+	Щоб отримати перший елемент даних непорожнього потоку,
+	ми просто вибираємо
+	<PYTHONINLINE>head</PYTHONINLINE> пари, як зі списком.
+	Але щоб отримати хвіст потоку, нам треба обчислити
+	відкладений вираз.
+	Для зручності ми означуємо
+        <SNIPPET EVAL="yes" CHAP="2">
+          <INDEX><DECLARATION>stream_tail</DECLARATION></INDEX> 
+          <NAME>stream_tail</NAME>
+	  <EXAMPLE>stream_tail_example</EXAMPLE>
+	  <EXPECTED>5</EXPECTED>
+          <PYTHON>
+def stream_tail(stream):
+    return tail(stream)()
+	  </PYTHON>
+	</SNIPPET>
+        <SNIPPET EVAL="yes" HIDE="yes">
+          <NAME>stream_tail_example</NAME>
+          <REQUIRES>stream_tail</REQUIRES>
+          <PYTHON>
+print(stream_tail(pair(4, lambda: pair(5, lambda: None))))
+	  </PYTHON>
+          <PYTHON_TEST>
+print(head(stream_tail(pair(4, lambda: pair(5, lambda: None)))))
+	  </PYTHON_TEST>
+	</SNIPPET>
+	Це вибирає хвіст пари й застосовує знайдену там функцію,
+	щоб отримати наступну пару потоку
+	(або
+	<PYTHONINLINE>null</PYTHONINLINE>, якщо хвіст потоку
+	порожній)<EMDASH/>фактично
+	<INDEX>примушування<SUBINDEX>хвіст потоку</SUBINDEX></INDEX>
+	<EM>примушуючи</EM> функцію в
+	хвості пари виконати свою обіцянку.
+        <INDEX>потік(и)<SUBINDEX>реалізовані як відкладені списки<CLOSE/></SUBINDEX></INDEX>
+      </TEXT>
+
+      <TEXT>
+        Ми можемо створювати й використовувати потоки так само, як ми можемо створювати
+        й використовувати списки, щоб представляти сукупні дані, впорядковані в послідовність. Зокрема,
+        ми можемо побудувати аналоги потоків для операцій над списками з
+        розділу<SPACE/><REF NAME="chap:data"></REF>, як-от  <PYTHONINLINE>list_ref</PYTHONINLINE>,
+	<SCHEMEINLINE>map</SCHEMEINLINE> та
+	<PYTHONINLINE>for_each</PYTHONINLINE>:<FOOTNOTE>Це має вас
+	занепокоїти. Те, що ми означуємо такі подібні функції
+        для потоків і списків, указує на те, що нам бракує якоїсь глибшої
+	абстракції. На жаль, щоб скористатися цією абстракцією, нам
+	треба буде мати тонший контроль над процесом обчислення, ніж ми
+	маємо тепер. Ми обговоримо це докладніше наприкінці
+	розділу<SPACE/><REF NAME="sec:streams-and-delayed-evaluation"/>.
+        У розділі<SPACE/><REF NAME="sec:lazy-evaluation"/> ми<APOS/>ll
+	розробимо основу, яка об’єднує списки й потоки.</FOOTNOTE>
+        <SNIPPET EVAL="yes">
+	  <INDEX><DECLARATION>stream_ref</DECLARATION></INDEX> 
+	  <INDEX><DECLARATION>stream_map</DECLARATION></INDEX> 
+	  <INDEX><DECLARATION>stream_for_each</DECLARATION></INDEX> 
+          <REQUIRES>stream_tail</REQUIRES>
+          <NAME>stream_functions</NAME>
+          <EXAMPLE>stream_functions_example</EXAMPLE>
+	  <PYTHON>
+def stream_ref(s, n):
+    return (head(s) if n == 0
+            else stream_ref(stream_tail(s), n - 1))
+
+def stream_map(f, s):
+    return (None if is_none(s)
+            else pair(f(head(s)),
+                      lambda: stream_map(f, stream_tail(s))))
+
+def stream_for_each(fun, s):
+    if is_none(s):
+        return True
+    else:
+        fun(head(s))
+        return stream_for_each(fun, stream_tail(s))
+	  </PYTHON>
+        </SNIPPET>
+        <SNIPPET HIDE="yes">
+          <REQUIRES>stream_tail</REQUIRES>
+          <NAME>stream_functions_example</NAME>
+          <REQUIRES>stream_functions</REQUIRES>
+	  <PYTHON>
+my_stream = pair(4, lambda: pair(5, lambda: None))
+print(stream_ref(my_stream, 1))
+my_stream_2 = stream_map(lambda x: x + 1, my_stream)
+print(stream_for_each(print, my_stream_2))
+	  </PYTHON>
+	  <PYTHON_TEST>
+my_stream = pair(4, lambda: pair(5, lambda: None))
+my_stream_2 = stream_map(lambda x: x + 1, my_stream)
+acc = 0
+def add_to_acc(x):
+    global acc
+    acc = acc + x
+stream_for_each(add_to_acc, my_stream_2)
+print(acc)
+	  </PYTHON_TEST>
+	</SNIPPET>
+	Функція
+        <PYTHONINLINE>stream_for_each</PYTHONINLINE> корисна для
+	перегляду потоків:
+        <SNIPPET EVAL="yes">
+	  <INDEX><DECLARATION>display_stream</DECLARATION></INDEX> 
+          <NAME>display_stream</NAME>
+          <REQUIRES>stream_functions</REQUIRES>
+          <REQUIRES>stream_tail</REQUIRES>
+          <EXAMPLE>display_stream_example</EXAMPLE>
+	  <PYTHON>
+def display_stream(s):
+    return stream_for_each(print, s)
+	  </PYTHON>
+	  <PYTHON_RUN>
+max_display = 9
+def display_stream(s):
+    def display_stream_iter(st, n):
+        if is_none(st):
+            pass
+        elif n == 0:
+            print("", "...")
+        else:
+            print(head(st))
+            display_stream_iter(stream_tail(st), n - 1)
+    display_stream_iter(s, max_display)
+	  </PYTHON_RUN>
+        </SNIPPET>
+        <SNIPPET EVAL="yes" HIDE="yes">
+          <REQUIRES>stream_tail</REQUIRES>
+	  <REQUIRES>display_stream</REQUIRES>
+          <NAME>display_stream_example</NAME>
+	  <PYTHON>
+my_stream = pair(4, lambda: pair(5, lambda: None))
+print(display_stream(my_stream))
+	  </PYTHON>
+	</SNIPPET>
+      </TEXT>
+
+      <TEXT>
+	Щоб реалізація потоків автоматично й прозоро
+	переплітала побудування потоку з його використанням, ми влаштували
+	так, щоб хвіст
+	потоку обчислювався тоді, коли до нього звертається
+	функція
+	<PYTHONINLINE>stream_tail</PYTHONINLINE>,
+	а не тоді, коли потік будується
+	<PYTHONINLINE>pair</PYTHONINLINE>.
+	Цей вибір реалізації нагадує нашу дискусію про раціональні числа
+	в розділі<SPACE/><REF NAME="sec:abstraction-barriers"/>, де ми бачили,
+	що ми можемо реалізувати раціональні числа так, щоб зведення
+	чисельника й знаменника до найменших членів виконувалося або під час
+        побудування, або під час вибору. Дві реалізації раціональних чисел
+        дають ту саму абстракцію даних, але вибір має
+        вплив на ефективність. Подібне співвідношення існує між
+        потоками та звичайними списками. Як абстракція даних, потоки —
+        те саме, що списки. Різниця в тому, коли саме обчислюють елементи.
+        У звичайних списках і
+	<PYTHONINLINE>head</PYTHONINLINE>, і
+	<PYTHONINLINE>tail</PYTHONINLINE>
+        обчислюють під час побудування. У потоках
+	<PYTHONINLINE>tail</PYTHONINLINE> обчислюють під час вибору.
+      </TEXT>
+
+      <SUBHEADING> 
+        <NAME>Потоки в дії</NAME>
+      </SUBHEADING>
+
+      <TEXT>
+        Щоб побачити, як поводиться ця структура даних, проаналізуймо
+        <QUOTE>обурливе</QUOTE> обчислення простих чисел, яке ми бачили вище, переформулювавши
+	його в термінах потоків:
+
+        <SNIPPET EVAL="yes">
+	  <NAME>no_more_outrageous</NAME>
+	  <REQUIRES>stream_tail</REQUIRES>
+	  <REQUIRES>stream_filter</REQUIRES>
+          <REQUIRES>prime_definition</REQUIRES>
+          <REQUIRES>stream_enumerate_interval</REQUIRES>
+	  <EXPECTED>10009</EXPECTED>
+	  <PYTHON>
+print(head(stream_tail(stream_filter(
+                     is_prime,
+                     stream_enumerate_interval(10000, 1000000)))))
+	  </PYTHON>
+        </SNIPPET>
+        Ми побачимо, що воно справді працює ефективно.
+      </TEXT>
+
+      <TEXT>
+        Ми починаємо з виклику
+	<PYTHONINLINE>stream_enumerate_interval</PYTHONINLINE> з
+        аргументами 10 000 та 1 000 000. Функція
+	<PYTHONINLINE>stream_enumerate_interval</PYTHONINLINE>
+        — це потоковий аналог
+	<PYTHONINLINE>enumerate_interval</PYTHONINLINE>
+        (розділ<SPACE/><REF NAME="sec:sequences-conventional-interfaces"/>):
+        <SNIPPET HIDE="yes">
+	  <NAME>stream_enumerate_interval_example</NAME>
+	  <REQUIRES>stream_functions</REQUIRES>
+          <REQUIRES>stream_enumerate_interval</REQUIRES>
+	  <PYTHON>
+print(stream_enumerate_interval(10000, 1000000))
+	  </PYTHON>
+	  <PYTHON_TEST>
+print(stream_ref(stream_enumerate_interval(10000, 1000000), 100))
+	  </PYTHON_TEST>
+        </SNIPPET>
+        <SNIPPET EVAL="yes">
+	  <INDEX><DECLARATION>stream_enumerate_interval</DECLARATION></INDEX>
+          <REQUIRES>prime_definition</REQUIRES>
+          <NAME>stream_enumerate_interval</NAME>
+	  <EXAMPLE>stream_enumerate_interval_example</EXAMPLE>
+	  <EXPECTED>10100</EXPECTED>
+	  <PYTHON>
+def stream_enumerate_interval(low, high):
+    return (None if low &gt; high
+            else pair(low,
+                      lambda: stream_enumerate_interval(low + 1, high)))
+	  </PYTHON>
+        </SNIPPET>
+        тож результат, який повертає
+	<PYTHONINLINE>stream_enumerate_interval</PYTHONINLINE>,
+        утворений <SCHEMEINLINE>pair</SCHEMEINLINE>, такий:<FOOTNOTE>Числа, показані тут, насправді не з’являються у відкладеному
+	виразі. Насправді з’являється початковий вираз у
+	середовищі, у якому змінні зв’язано з відповідними числами.
+	Наприклад, <PYTHONINLINE>low + 1</PYTHONINLINE> із
+        <SCHEMEINLINE>low</SCHEMEINLINE>, зв’язаним зі значенням 10 000, насправді з’являється
+	там, де показано <SCHEMEINLINE>10001</SCHEMEINLINE>.</FOOTNOTE>
+        <SNIPPET EVAL="yes">
+	  <NAME>stream_enumerate_interval_example_2</NAME>
+	  <REQUIRES>stream_functions</REQUIRES>
+          <REQUIRES>stream_enumerate_interval</REQUIRES>
+	  <EXPECTED>10100</EXPECTED>
+	  <PYTHON>
+print(pair(10000, lambda: stream_enumerate_interval(10001, 1000000)))
+	  </PYTHON>
+	  <PYTHON_TEST>
+print(stream_ref(pair(10000, lambda: stream_enumerate_interval(10001, 1000000)), 100))
+	  </PYTHON_TEST>
+        </SNIPPET>
+        Тобто <PYTHONINLINE>stream_enumerate_interval</PYTHONINLINE>
+        повертає потік, представлений як пара, чия
+	<PYTHONINLINE>head</PYTHONINLINE>
+        дорівнює 10 000, а чий <PYTHONINLINE>tail</PYTHONINLINE>
+	— це обіцянка перелічити решту
+        проміжку, якщо до нього звернуться. Цей потік тепер фільтрують на прості числа,
+        користуючись потоковим аналогом функції <SCHEMEINLINE>filter</SCHEMEINLINE>
+        (розділ<SPACE/><REF NAME="sec:sequences-conventional-interfaces"/>):
+        <SNIPPET EVAL="yes" CHAP="3">
+	  <INDEX><DECLARATION>stream_filter</DECLARATION></INDEX>
+          <REQUIRES>stream_tail</REQUIRES>
+          <NAME>stream_filter</NAME>
+          <EXAMPLE>stream_filter_example</EXAMPLE>
+	  <EXPECTED>6</EXPECTED>
+	  <PYTHON>
+def stream_filter(pred, stream):
+    return (None if is_none(stream)
+            else pair(head(stream),
+                      lambda: stream_filter(pred, stream_tail(stream)))
+                if pred(head(stream))
+            else stream_filter(pred, stream_tail(stream)))
+	  </PYTHON>
+        </SNIPPET>
+        <SNIPPET EVAL="yes" CHAP="3" HIDE="yes">
+          <NAME>stream_filter_example</NAME>
+          <REQUIRES>stream_filter</REQUIRES>
+          <REQUIRES>display_stream</REQUIRES>
+	  <PYTHON>
+my_stream = pair(5, lambda: pair(6, lambda: pair(7, lambda: None)))
+my_filtered_stream = stream_filter(lambda x: x % 2 == 0, my_stream)
+print(display_stream(my_filtered_stream))
+	  </PYTHON>
+	  <PYTHON_TEST>
+my_stream = pair(5, lambda: pair(6, lambda: pair(7, lambda: None)))
+my_filtered_stream = stream_filter(lambda x: x % 2 == 0, my_stream)
+print(head(my_filtered_stream))
+	  </PYTHON_TEST>
+	</SNIPPET>
+        Функція <PYTHONINLINE>stream_filter</PYTHONINLINE> перевіряє
+	<SCHEMEINLINE>head</SCHEMEINLINE> потоку (який дорівнює 10 000). Оскільки
+	це не просте число, <PYTHONINLINE>stream_filter</PYTHONINLINE>
+	розглядає хвіст свого вхідного потоку. Виклик
+	<PYTHONINLINE>stream_tail</PYTHONINLINE> змушує обчислити
+	відкладений <PYTHONINLINE>stream_enumerate_interval</PYTHONINLINE>,
+	який тепер повертає
+        <SNIPPET EVAL="yes">
+	  <NAME>enumerate_interval_example_3</NAME>
+	  <REQUIRES>stream_functions</REQUIRES>
+          <REQUIRES>stream_enumerate_interval</REQUIRES>
+	  <EXPECTED>10101</EXPECTED>
+	  <PYTHON>
+print(pair(10001, lambda: stream_enumerate_interval(10002, 1000000)))
+          </PYTHON>
+	  <PYTHON_TEST>
+print(stream_ref(pair(10001, lambda: stream_enumerate_interval(10002, 1000000)), 100))
+          </PYTHON_TEST>
+	</SNIPPET>
+	Функція <PYTHONINLINE>stream_filter</PYTHONINLINE> тепер
+	дивиться на <PYTHONINLINE>head</PYTHONINLINE> цього потоку,
+        10 001, бачить, що це також не просте число, змушує обчислити ще один 
+	<PYTHONINLINE>stream_@tail</PYTHONINLINE>, і так далі, доки 
+	<PYTHONINLINE>stream_@enumerate_interval</PYTHONINLINE> не видасть
+	просте число 10 007, після чого
+	<PYTHONINLINE>stream_@filter</PYTHONINLINE>, згідно зі своїм
+        означенням, повертає
+        <SNIPPET EVAL="no">
+	  <REQUIRES>stream_tail</REQUIRES>
+	  <REQUIRES>stream_filter</REQUIRES>
+	  <PYTHON>
+pair(head(stream),
+     lambda: stream_filter(pred, stream_tail(stream)))
+          </PYTHON>
+	</SNIPPET>
+        що в цьому випадку є
+        <SNIPPET EVAL="yes">
+	  <NAME>which_in_this_case</NAME>
+	  <REQUIRES>stream_functions</REQUIRES>
+	  <REQUIRES>stream_filter</REQUIRES>
+          <REQUIRES>prime_definition</REQUIRES>
+          <REQUIRES>stream_enumerate_interval</REQUIRES>
+	  <EXPECTED>10949</EXPECTED>
+	  <PYTHON>
+print(pair(10007,
+     lambda: stream_filter(
+                 is_prime,
+                 pair(10008,
+                      lambda: stream_enumerate_interval(10009, 1000000)))))
+	  </PYTHON>
+	  <PYTHON_TEST>
+print(stream_ref(pair(10007,
+     lambda: stream_filter(
+                 is_prime,
+                 pair(10008,
+                      lambda: stream_enumerate_interval(10009, 1000000))
+              )
+    ), 100))
+	  </PYTHON_TEST>
+        </SNIPPET>
+        Цей результат тепер передають до
+	<PYTHONINLINE>stream_tail</PYTHONINLINE> у нашому початковому
+	виразі. Це змушує обчислити відкладений
+	<PYTHONINLINE>stream_filter</PYTHONINLINE>, 
+	який своєю чергою раз у раз змушує обчислювати відкладений
+	<PYTHONINLINE>stream_@enumerate_interval</PYTHONINLINE>, доки не
+	знайде наступне просте число, яке дорівнює 10 009. Нарешті, результат, переданий до
+	<SCHEMEINLINE>head</SCHEMEINLINE> у нашому початковому виразі, такий:
+        <SNIPPET EVAL="yes">
+	  <NAME>now_passed_to</NAME>
+	  <REQUIRES>stream_functions</REQUIRES>
+	  <REQUIRES>stream_filter</REQUIRES>
+          <REQUIRES>prime_definition</REQUIRES>
+          <REQUIRES>stream_enumerate_interval</REQUIRES>
+	  <EXPECTED>10957</EXPECTED>
+	  <PYTHON>
+print(pair(10009,
+     lambda: stream_filter(
+                 is_prime,
+                 pair(10010,
+                      lambda: stream_enumerate_interval(10011, 1000000)))))
+	  </PYTHON>
+	  <PYTHON_TEST>
+print(stream_ref(pair(10009,
+     lambda: stream_filter(
+                 is_prime,
+                 pair(10010,
+                      lambda: stream_enumerate_interval(10011, 1000000))
+              )
+    ), 100))
+	  </PYTHON_TEST>
+        </SNIPPET>
+	Функція <SCHEMEINLINE>head</SCHEMEINLINE> повертає 10 009, і
+	обчислення завершено. На простоту перевірили лише стільки цілих чисел,
+	скільки було потрібно, щоб знайти друге просте число, а проміжок
+	перелічили лише настільки, наскільки було потрібно, щоб нагодувати фільтр простих чисел.
+      </TEXT>
+
+      <TEXT>
+        Загалом ми можемо уявляти відкладене обчислення як 
+        <INDEX>програмування<SUBINDEX>кероване потребою</SUBINDEX></INDEX>
+        <QUOTE>програмування, кероване потребою</QUOTE>, за якого кожен етап у потоковому
+	процесі активують лише настільки, щоб задовольнити наступний етап. Те,
+	що ми зробили, —
+        <INDEX>порядок подій<SUBINDEX>від<APOS/>єднання уявного від справжнього</SUBINDEX></INDEX>
+        це від’єднали справжній порядок подій в обчисленні від уявної
+	структури наших функцій. Ми пишемо функції так, ніби потоки існують
+	<QUOTE>усі одразу</QUOTE>, тоді як насправді обчислення
+	виконується поступово, як у традиційних стилях програмування.
+      </TEXT>
+
+
+      <SUBHEADING> 
+        <NAME>Оптимізація</NAME>
+      </SUBHEADING>
+
+      <TEXT>
+	Коли ми будуємо пари потоків, ми відкладаємо обчислення їхніх хвостових
+	виразів, загортаючи ці вирази у функцію. Ми примушуємо їх
+	обчислитися, коли потрібно, застосовуючи цю функцію.
+      </TEXT>
+
+      <TEXT>
+        Цієї реалізації достатньо, щоб потоки працювали так, як обіцяно, але
+	є важлива оптимізація, яку ми розглянемо там, де вона потрібна.
+	У багатьох застосуваннях ми зрештою змушуємо обчислювати той самий відкладений об’єкт багато
+	разів. Це може призвести до серйозної неефективності в рекурсивних програмах
+	із потоками. (Дивіть
+	вправу<SPACE/><REF NAME="ex:fib-stream-efficiency"/>.)
+	Розв’язок — будувати відкладені об’єкти так, щоб першого разу, коли їх
+	змушують обчислитися, вони зберігали обчислене значення. Наступні примушування
+	просто повертатимуть збережене значення, не повторюючи обчислення. Іншими
+	словами, ми реалізуємо побудування пар потоків як
+        <INDEX>відкладений вираз<SUBINDEX>із запам’ятовуванням</SUBINDEX></INDEX>
+        <INDEX>запам’ятовування<SUBINDEX><ORDER>stream tail</ORDER>у хвості потоку</SUBINDEX></INDEX>
+	функцію із запам’ятовуванням, подібну до описаної у
+	вправі<SPACE/><REF NAME="ex:memoization"/>. Один зі способів досягти цього —
+	скористатися такою функцією, яка бере як аргумент функцію
+        (без аргументів) і повертає версію функції із запам’ятовуванням.
+	Першого разу, коли функцію із запам’ятовуванням запускають, вона зберігає обчислений
+	результат. За наступних обчислень вона просто повертає
+	результат.<FOOTNOTE>Існує багато можливих реалізацій потоків,
+	крім описаної в цьому розділі. Відкладене обчислення, яке
+	є ключем до практичності потоків, було притаманне
+        <INDEX>Algol<SUBINDEX>передавання аргументів за назвою</SUBINDEX></INDEX>
+        Algol 60 —
+        <INDEX>передавання аргументів за назвою</INDEX>
+	<EM>передаванню параметрів за назвою</EM>.
+	Використання цього механізму для реалізації
+        потоків уперше описав 
+        <INDEX>Ландин, Пітер</INDEX>
+        Ландин (1965). Відкладене обчислення для
+        потоків увів у Lisp 
+        <INDEX>Фрідман, Деніел П.</INDEX>
+        <INDEX>Вайз, Девід С.</INDEX>
+        Фрідман і Вайз (1976). У їхній
+        реалізації
+	<SCHEMEINLINE>cons</SCHEMEINLINE> (еквівалент нашої
+	функції
+	<PYTHONINLINE>pair</PYTHONINLINE> у Lisp)
+	завжди відкладає обчислення своїх аргументів, тож
+        списки автоматично поводяться як потоки. Оптимізацію
+        із запам’ятовуванням також називають 
+        <INDEX>передавання аргументів за потребою</INDEX>
+        <EM>передаванням за потребою</EM>. Спільнота Algol називала б наші початкові
+	відкладені об’єкти
+        <INDEX>thunk<SUBINDEX>за назвою</SUBINDEX></INDEX>
+        <INDEX>thunk<SUBINDEX>за потребою</SUBINDEX></INDEX>
+        <INDEX>Algol<SUBINDEX>thunk-и</SUBINDEX></INDEX>
+	<EM>thunk-ами за назвою</EM>, а оптимізовані
+	версії — <EM>thunk-ами за потребою</EM>.</FOOTNOTE>
+        <SNIPPET>
+          <INDEX><DECLARATION>memo</DECLARATION></INDEX> 
+	  <NAME>memo</NAME>
+	  <EXAMPLE>memo_example</EXAMPLE>
+	  <EXPECTED>1</EXPECTED>
+          <PYTHON>
+def memo(fun):
+    already_run = False
+    result = None
+    def memoized():
+        nonlocal already_run, result
+        if not already_run:
+            result = fun()
+            already_run = True
+            return result
+        else:
+            return result
+    return memoized
+	  </PYTHON>
+        </SNIPPET>
+        <SNIPPET HIDE="yes">
+	  <NAME>memo_example</NAME>
+	  <REQUIRES>memo</REQUIRES>
+          <PYTHON>
+def square_4():
+    result = 4 * 4
+    print("multiplication carried out")
+    return result
+
+memo_square_4 = memo(square_4)
+print(memo_square_4())  # shows "multipl.."
+print(print(memo_square_4()))  # does not show "multipl.."
+	  </PYTHON>
+          <PYTHON_TEST>
+calls = 0
+def square_4():
+    global calls
+    result = 4 * 4
+    calls = calls + 1
+    return result
+
+memo_square_4 = memo(square_4)
+memo_square_4()
+memo_square_4()
+print(calls)
+	  </PYTHON_TEST>
+	</SNIPPET>
+      </TEXT>
+
+      <TEXT>
+	Ми можемо скористатися <PYTHONINLINE>memo</PYTHONINLINE> щоразу,
+	коли будуємо пару потоку. Наприклад, замість 
+        <SNIPPET EVAL="yes">
+          <REQUIRES>stream_tail</REQUIRES>
+          <INDEX><DECLARATION>stream_map</DECLARATION></INDEX> 
+	  <EXAMPLE>stream_map_example</EXAMPLE>
+	  <EXPECTED>3</EXPECTED>
+	  <PYTHON>
+def stream_map(f, s):
+    return (None if is_none(s)
+            else pair(f(head(s)),
+                      lambda: stream_map(f, stream_tail(s))))
+          </PYTHON>
+	</SNIPPET>
+	<SNIPPET EVAL="yes" HIDE="yes">
+          <REQUIRES>stream_tail</REQUIRES>
+	  <NAME>stream_map_example</NAME>
+	  <REQUIRES>stream_functions</REQUIRES>
+	  <PYTHON>
+my_stream = pair(4, lambda: pair(5, lambda: None))
+
+my_stream_2 = stream_map(print, my_stream)
+
+stream_ref(my_stream_2, 1)
+print(stream_ref(my_stream_2, 1))
+# the number 5 is shown twice
+# because the same delayed
+# object is forced twice
+	  </PYTHON>
+	  <PYTHON_TEST>
+my_stream = pair(4, lambda: pair(5, lambda: None))
+calls = 0
+def inc(x):
+    global calls
+    calls = calls + 1
+my_stream_2 = stream_map(inc, my_stream)
+
+stream_ref(my_stream_2, 1)
+stream_ref(my_stream_2, 1)
+print(calls)
+	  </PYTHON_TEST>
+	</SNIPPET>
+	ми можемо означити оптимізовану функцію
+	<PYTHONINLINE>stream_map</PYTHONINLINE>
+	так:
+	<SNIPPET EVAL="yes" POSTPADDING="no">
+          <INDEX><DECLARATION>stream_map_optimized</DECLARATION></INDEX> 
+	  <NAME>stream_map_optimized</NAME>
+	  <REQUIRES>stream_tail</REQUIRES>
+	  <REQUIRES>memo</REQUIRES>
+	  <EXAMPLE>stream_map_optimized_example</EXAMPLE>
+	  <EXPECTED>2</EXPECTED>	  
+	  <PYTHON>
+def stream_map_optimized(f, s):
+    return (None if is_none(s)
+            else pair(f(head(s)),
+                      memo(lambda:
+                           stream_map_optimized(f, stream_tail(s)))))
+          </PYTHON>
+	</SNIPPET>
+	<SNIPPET EVAL="yes" HIDE="yes">
+	  <NAME>stream_map_optimized_example</NAME>
+	  <REQUIRES>stream_functions</REQUIRES>
+	  <PYTHON>
+my_stream = pair(4, lambda: pair(5, lambda: None))
+
+my_stream_2 = stream_map(print, my_stream)
+
+stream_ref(my_stream_2, 1)
+stream_ref(my_stream_2, 1)
+# the number 5 is shown twice
+# because the same delayed
+# object is forced twice
+
+my_stream_3 = stream_map_optimized(print, my_stream)
+
+stream_ref(my_stream_3, 1)
+print(stream_ref(my_stream_3, 1))
+# the number 5 is shown only once
+# because the result of forcing
+# the delayed object is memoized
+	  </PYTHON>
+	  <PYTHON_TEST>
+my_stream = pair(4, lambda: pair(5, lambda: None))
+
+my_stream_2 = stream_map(lambda x: x, my_stream)
+
+stream_ref(my_stream_2, 1)
+stream_ref(my_stream_2, 1)
+# the number 5 is shown twice
+# because the same delayed
+# object is forced twice
+
+calls = 0
+def inc(x):
+    global calls
+    calls = calls + 1
+my_stream_3 = stream_map_optimized(inc, my_stream)
+
+stream_ref(my_stream_3, 1)
+stream_ref(my_stream_3, 1)
+print(calls)
+	  </PYTHON_TEST>
+	</SNIPPET>
+      </TEXT>
+      
+      <EXERCISE>
+	<LABEL NAME="ex:combine-streams"/>
+	Оголосіть функцію <PYTHONINLINE>stream_map_2</PYTHONINLINE>,
+	яка бере бінарну функцію та два потоки як аргументи і повертає
+	потік, чиї елементи — результати застосування функції
+	попарно до відповідних елементів потоків-аргументів.
+	<SNIPPET EVAL="no">
+          <INDEX><USE>stream_map_2</USE><FRAGILE/></INDEX> 
+	  <PYTHON>
+def stream_map_2(f, s1, s2):
+    ...
+          </PYTHON>
+	</SNIPPET>
+	<SNIPPET EVAL="no" HIDE="yes">
+	  <NAME>stream_combine</NAME>
+	  <REQUIRES>stream_tail</REQUIRES>
+	  <REQUIRES>memo</REQUIRES>
+	  <PYTHON>
+def stream_map_2(f, s1, s2):
+    return (None if is_none(s1) and is_none(s2)
+            else error("unexpected argument -- stream_map_2", None)
+                if is_none(s1) or is_none(s2)
+            else pair(f(head(s1), head(s2)),
+                      memo(lambda: stream_map_2(f, stream_tail(s1),
+                                                stream_tail(s2)))))
+	  </PYTHON>
+	</SNIPPET>
+	Подібно до <PYTHONINLINE>stream_map_optimized</PYTHONINLINE>,
+	оголосіть функцію
+	<PYTHONINLINE>stream_map_2_optimized</PYTHONINLINE>,
+	змінивши свою
+	<PYTHONINLINE>stream_map_2</PYTHONINLINE>
+	так, щоб потік-результат використовував запам’ятовування.
+	<SOLUTION>
+	  <SNIPPET HIDE="yes">
+	    <NAME>stream_map_2_optimized_example</NAME>
+	    <PYTHON>
+ints1 = integers_from(1)
+ints0 = integers_from(0)
+adds = lambda x, y: x + y
+
+print(eval_stream(stream_map_2(adds, ints1, ints0), 5))
+print(print(eval_stream(stream_map_2_optimized(adds, ints1, ints0), 5)))
+	    </PYTHON>
+	  </SNIPPET>
+	  <SNIPPET>
+	    <NAME>stream_map_2_optimized</NAME>
+	    <REQUIRES>stream_tail</REQUIRES>
+	    <REQUIRES>memo</REQUIRES>
+	    <EXAMPLE>stream_map_2_optimized_example</EXAMPLE>
+	    <PYTHON>
+def stream_map_2(f, s1, s2):
+    return (None if is_none(s1) or is_none(s2)
+            else pair(f(head(s1), head(s2)),
+                      lambda: stream_map_2(f, stream_tail(s1), stream_tail(s2))))
+
+def stream_map_2_optimized(f, s1, s2):
+    return (None if is_none(s1) or is_none(s2)
+            else pair(f(head(s1), head(s2)),
+                      memo(lambda: stream_map_2_optimized(f, stream_tail(s1), stream_tail(s2)))))
+	    </PYTHON>
+	  </SNIPPET>
+	</SOLUTION>
+      </EXERCISE>
+
+      <EXERCISE>
+	<LABEL NAME="ex:delayed1"/>
+	Що надрукує інтерпретатор у відповідь на обчислення кожної
+	інструкції в такій послідовності?<FOOTNOTE>Такі вправи,
+	як<SPACE/><REF NAME="ex:delayed1"/> та<SPACE/><REF NAME="ex:delayed2"/>,
+	цінні для перевірки нашого розуміння того, як працює відкладене обчислення.
+	З іншого боку, змішування відкладеного обчислення з
+	<INDEX>відкладене обчислення<SUBINDEX>друк і</SUBINDEX></INDEX>
+	друком<EMDASH/>а ще гірше — з переприсвоєнням<EMDASH/>вкрай
+	заплутане, і викладачі курсів про мови програмування
+	традиційно мучили своїх студентів екзаменаційними питаннями, як-от
+	у цьому розділі. Потреба казати про це відпадає: писати програми, які
+	залежать від таких тонкощів, —
+	це
+	<INDEX>програмування<SUBINDEX>осоружний стиль</SUBINDEX></INDEX>
+	осоружний стиль програмування. Частина сили потокового опрацювання в
+	тому, що воно дозволяє нам ігнорувати порядок, у якому події насправді відбуваються в
+	наших програмах. На жаль, саме цього ми не можемо собі дозволити
+	за наявності переприсвоєння, яке змушує нас дбати
+	про час і зміну.</FOOTNOTE>
+	<SNIPPET EVAL="yes">
+          <REQUIRES>stream_functions</REQUIRES>
+          <REQUIRES>stream_enumerate_interval</REQUIRES>
+	  <PYTHON>
+x = stream_map(print, stream_enumerate_interval(0, 10))
+<SHORT_SPACE/>
+stream_ref(x, 5)
+<SHORT_SPACE/>
+stream_ref(x, 7)
+	  </PYTHON>
+	</SNIPPET>
+	Що надрукує інтерпретатор, якщо замість <PYTHONINLINE>stream_map</PYTHONINLINE>
+	використати 
+	<PYTHONINLINE>stream_map_optimized</PYTHONINLINE>?
+	<SNIPPET EVAL="yes" POSTPADDING="no">
+	  <NAME>stream_map_optimized_example_2</NAME>
+	  <REQUIRES>stream_functions</REQUIRES>
+          <REQUIRES>stream_map_optimized</REQUIRES>
+          <REQUIRES>stream_enumerate_interval</REQUIRES>
+	  <PYTHON>
+x = stream_map_optimized(print, stream_enumerate_interval(0, 10))
+<SHORT_SPACE/>
+stream_ref(x, 5)
+<SHORT_SPACE/>
+stream_ref(x, 7)
+	  </PYTHON>
+	</SNIPPET>
+      </EXERCISE>
+
+      <EXERCISE>
+        Розгляньте послідовність інструкцій
+	<SNIPPET EVAL="yes">
+	  <NAME>assignment_and_streams</NAME>
+	  <REQUIRES>stream_functions</REQUIRES>
+	  <REQUIRES>stream_filter</REQUIRES>
+          <REQUIRES>stream_enumerate_interval</REQUIRES>
+          <REQUIRES>even_definition</REQUIRES>
+          <REQUIRES>display_stream</REQUIRES>
+	  <EXPECTED>305</EXPECTED>
+	  <PYTHON>
+sum = 0
+<SHORT_SPACE/>
+def accum(x):
+    global sum
+    sum = x + sum
+    return sum
+<SHORT_SPACE/>
+seq = stream_map(accum, stream_enumerate_interval(1, 20))
+<SHORT_SPACE/>
+y = stream_filter(is_even, seq)
+<SHORT_SPACE/>
+z = stream_filter(lambda x: x % 5 == 0, seq)
+<SHORT_SPACE/>
+stream_ref(y, 7)
+<SHORT_SPACE/>
+display_stream(z)
+	  </PYTHON>
+	  <PYTHON_TEST>
+sum = 0
+
+def accum(x):
+    global sum
+    sum = x + sum
+    return sum
+
+seq = stream_map(accum, stream_enumerate_interval(1, 20))
+
+y = stream_filter(is_even, seq)
+
+z = stream_filter(lambda x: x % 5 == 0, seq)
+
+stream_ref(y, 7)
+
+print(stream_ref(z, 3))
+	  </PYTHON_TEST>
+        </SNIPPET>
+        Яким є значення <SCHEMEINLINE>sum</SCHEMEINLINE> після обчислення кожної з
+	наведених вище інструкцій?
+        <INDEX>відкладене обчислення<SUBINDEX>переприсвоєння і</SUBINDEX></INDEX>
+	Яка надрукована відповідь на обчислення виразів 
+	<PYTHONINLINE>stream_ref</PYTHONINLINE> та 
+	<PYTHONINLINE>display_stream</PYTHONINLINE>?
+	Чи відрізнялися б ці відповіді, якби ми застосували функцію
+	<PYTHONINLINE>memo</PYTHONINLINE>
+	до кожного хвоста кожної побудованої пари потоку, як запропоновано в
+	наведеній вище оптимізації? Поясніть.
+        <LABEL NAME="ex:delayed2"/>
+      </EXERCISE>
+    </PYTHON>
+  </SPLIT>
+</SUBSECTION>

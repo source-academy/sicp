@@ -1,0 +1,1950 @@
+<SUBSECTION> 
+  <NAME>
+    Симулятор цифрових схем
+  </NAME>
+
+  <LABEL NAME="sec:circuit-simulator"/>
+  <INDEX>моделювання цифрових схем<OPEN/></INDEX>
+
+  <TEXT>
+    Проєктування складних цифрових систем, як-от комп’ютерів, — важлива
+    інженерна діяльність. Цифрові системи будують, з’єднуючи
+    прості елементи. Хоч поведінка кожного такого
+    елемента проста, мережі з них можуть мати дуже складну
+    поведінку. Комп’ютерне моделювання запропонованих схем —
+    важливий інструмент інженерів цифрових систем. У цьому розділі ми
+    проєктуємо систему для виконання симуляцій цифрової логіки. Ця система
+    є типовим представником програм, які називають 
+    <INDEX>симуляція, керована подіями</INDEX>
+    <INDEX>симуляція<SUBINDEX>керована подіями</SUBINDEX></INDEX>
+    <EM>симуляцією, керованою подіями</EM>, у якій дії (<QUOTE>події</QUOTE>) спричиняють
+    подальші події, що відбуваються пізніше в часі, а ті своєю чергою
+    спричиняють ще більше подій, і так далі.
+  </TEXT>
+
+  <TEXT>
+    Наша обчислювальна модель схеми складатиметься з об’єктів, які
+    відповідають елементарним складникам, з яких схему
+    побудовано. Є 
+    <INDEX>провід, у цифровій схемі</INDEX>
+    <EM>проводи</EM>, які переносять 
+    <INDEX>сигнал, цифровий</INDEX>
+    <INDEX>цифровий сигнал</INDEX>
+    <EM>цифрові сигнали</EM>. Цифровий<SPACE/>сигнал у кожен момент може мати лише одне з двох
+    можливих значень:
+    0 або 1. Є також різні типи цифрових 
+    <INDEX>функціональний блок, у цифровій схемі</INDEX>
+    <EM>функціональних блоків</EM>, які з’єднують проводи, що несуть вхідні сигнали, з іншими вихідними
+    проводами. Такі блоки видають вихідні сигнали, обчислені зі своїх вхідних
+    сигналів. Вихідний сигнал 
+    <INDEX><ORDER>delay</ORDER>затримка, у цифровій схемі</INDEX>
+    затримується на час, який залежить від
+    типу функціонального блока. Наприклад, 
+    <INDEX>інвертор</INDEX>
+    <EM>інвертор</EM> — це
+    примітивний функціональний блок, який інвертує свій вхід. Якщо
+    вхідний сигнал інвертора змінюється на 0, то через один <EM>інвертор-затримку</EM>
+    інвертор змінить свій вихідний сигнал на 1. Якщо вхідний
+    сигнал інвертора змінюється на 1, то через один <EM>інвертор-затримку</EM>
+    інвертор змінить свій вихідний сигнал на 0. Ми зображаємо інвертор
+    символічно, як на рисунку<SPACE/><REF NAME="fig:logic-gates"/>. 
+    <INDEX>вентиль І</INDEX>
+    <EM>Вентиль І</EM>,
+    також показаний на рисунку<SPACE/><REF NAME="fig:logic-gates"/>, — це примітивний
+    функціональний блок з двома входами й одним виходом. Він приводить свій вихідний сигнал
+    до значення, яке є 
+    <INDEX>логічне І (цифрова логіка)</INDEX>
+    <EM>логічним І</EM> входів. Тобто якщо обидва
+    його вхідні сигнали стають<SPACE/>1, то через час <EM>затримка-вентиля-І</EM>
+    вентиль І змусить свій вихідний сигнал стати 1; інакше
+    вихід буде 0. 
+    <INDEX>вентиль АБО</INDEX>
+    <EM>Вентиль АБО</EM> — подібний примітивний функціональний блок
+    з двома входами, який приводить свій вихідний сигнал до значення, що є 
+    <INDEX>логічне АБО (цифрова логіка)</INDEX>
+    <EM>логічним АБО</EM> входів. Тобто вихід стане 1, якщо принаймні один
+    з вхідних сигналів дорівнює 1; інакше вихід стане<SPACE/>0.
+  </TEXT>
+
+    <FIGURE>
+      <FIGURE src="img_original/ch3-Z-G-24.svg"></FIGURE>
+      <CAPTION>Примітивні функції в симуляторі цифрової логіки.
+      </CAPTION>
+      <LABEL NAME="fig:logic-gates"/>
+    </FIGURE>
+
+  <TEXT>
+    Ми можемо з’єднувати примітивні функції разом, щоб побудувати складніші
+    функції. Для цього ми з’єднуємо виходи одних
+    функціональних блоків з входами інших. Наприклад,
+    <INDEX>напівсуматор</INDEX>
+    <INDEX>суматор<SUBINDEX>напів-</SUBINDEX></INDEX>
+    схема <EM>напівсуматора</EM>, показана на
+    рисунку<SPACE/><REF NAME="fig:half-adder"/>, складається з
+    вентиля АБО, двох вентилів І та інвертора. Вона бере два вхідні сигнали,
+    <LATEXINLINE>$A$</LATEXINLINE> та <LATEXINLINE>$B$</LATEXINLINE>, і має
+    два вихідні сигнали, <LATEXINLINE>$S$</LATEXINLINE> та <LATEXINLINE>$C$</LATEXINLINE>.
+    <LATEXINLINE>$S$</LATEXINLINE> стане 1
+    тоді, коли рівно один з <LATEXINLINE>$A$</LATEXINLINE> та <LATEXINLINE>$B$</LATEXINLINE>
+    дорівнює<SPACE/>1, а <LATEXINLINE>$C$</LATEXINLINE> стане 1 тоді, коли
+    <LATEXINLINE>$A$</LATEXINLINE> та <LATEXINLINE>$B$</LATEXINLINE> обидва дорівнюють 1. З
+    рисунка видно, що через
+    наявні затримки виходи можуть з’являтися в різні моменти часу.
+    Багато труднощів у проєктуванні цифрових схем постають саме з
+    цього факту.
+    <FIGURE>
+      <FIGURE split_scale="0.5" web_scale="0.8" src="img_original/ch3-Z-G-25.svg"></FIGURE>
+      <CAPTION>Схема напівсуматора.
+      </CAPTION>
+      <LABEL NAME="fig:half-adder"/>
+    </FIGURE>
+  </TEXT>
+
+  <TEXT>
+    Тепер ми побудуємо програму для моделювання цифрових логічних схем, які
+    хочемо вивчати. Програма створюватиме обчислювальні об’єкти,
+    що моделюють проводи, які <QUOTE>тримають</QUOTE> сигнали. Функціональні
+    блоки моделюватимуться
+    <SPLITINLINE>
+      <SCHEME>процедурами</SCHEME>
+      <PYTHON>функціями</PYTHON>
+    </SPLITINLINE>
+    , що забезпечують правильні співвідношення між сигналами.
+  </TEXT>
+
+  <TEXT>
+    Одним з базових елементів нашої симуляції буде
+    <SPLITINLINE>
+      <SCHEME>процедура</SCHEME>
+      <PYTHON>функція</PYTHON>
+    </SPLITINLINE>
+    <INDEX><USE>make_wire</USE></INDEX> 
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>make-wire</SCHEMEINLINE>,</SCHEME>
+      <PYTHON><PYTHONINLINE>make_wire</PYTHONINLINE>,</PYTHON>
+    </SPLITINLINE>
+    яка створює проводи. Наприклад, ми можемо створити шість проводів так:
+    <SNIPPET>
+      <NAME>make_wire_usage</NAME>
+      <REQUIRES>make_wire</REQUIRES>
+      <SCHEME>
+(define a (make-wire))
+(define b (make-wire))
+(define c (make-wire))
+(define d (make-wire))
+(define e (make-wire))
+(define s (make-wire))
+      </SCHEME>
+      <PYTHON>
+a = make_wire()
+b = make_wire()
+c = make_wire()
+d = make_wire()
+e = make_wire()
+s = make_wire()
+      </PYTHON>
+    </SNIPPET>
+    Ми приєднуємо функціональний блок до набору проводів, викликаючи
+    <SPLITINLINE>
+      <SCHEME>процедуру</SCHEME>
+      <PYTHON>функцію</PYTHON>
+    </SPLITINLINE>
+    , яка створює блок такого типу. Аргументи
+    <SPLITINLINE>
+      <SCHEME>процедури-конструктора</SCHEME>
+      <PYTHON>функції-конструктора</PYTHON>
+    </SPLITINLINE>
+    — це проводи, які треба приєднати до блока. Наприклад, якщо
+    ми вміємо створювати вентилі І, вентилі АБО та інвертори, ми можемо з’єднати
+    разом напівсуматор, показаний на рисунку<SPACE/><REF NAME="fig:half-adder"/>:
+    <SNIPPET>
+      <NAME>or_gate_example</NAME>
+      <REQUIRES>or_gate</REQUIRES>
+      <REQUIRES>make_wire_usage</REQUIRES>
+      <EXPECTED>'ok'</EXPECTED>
+      <SCHEME>
+(or-gate a b d)
+      </SCHEME>
+      <SCHEMEOUTPUT>
+ok
+      </SCHEMEOUTPUT>
+      <PYTHON>
+print(or_gate(a, b, d))
+      </PYTHON>
+      <PYTHON_OUTPUT>
+"ok"
+      </PYTHON_OUTPUT>
+    </SNIPPET>
+    <SNIPPET>
+      <NAME>and_gate_example</NAME>
+      <REQUIRES>and_gate</REQUIRES>
+      <REQUIRES>make_wire_usage</REQUIRES>
+      <EXPECTED>'ok'</EXPECTED>
+      <SCHEME>
+(and-gate a b c)
+      </SCHEME>
+      <SCHEMEOUTPUT>
+ok
+      </SCHEMEOUTPUT>
+      <PYTHON>
+print(and_gate(a, b, c))
+      </PYTHON>
+      <PYTHON_OUTPUT>
+"ok"	
+      </PYTHON_OUTPUT>
+    </SNIPPET>
+    <SNIPPET>
+      <NAME>inverter_example</NAME>
+      <REQUIRES>inverter</REQUIRES>
+      <REQUIRES>make_wire_usage</REQUIRES>
+      <EXPECTED>'ok'</EXPECTED>
+      <SCHEME>
+(inverter c e)
+      </SCHEME>
+      <SCHEMEOUTPUT>
+ok
+      </SCHEMEOUTPUT>
+      <PYTHON>
+print(inverter(c, e))
+      </PYTHON>
+      <PYTHON_OUTPUT>
+"ok"	
+      </PYTHON_OUTPUT>
+    </SNIPPET>
+    <SNIPPET>
+      <NAME>and_gate_example_2</NAME>
+      <REQUIRES>and_gate</REQUIRES>
+      <REQUIRES>make_wire_usage</REQUIRES>
+      <EXPECTED>'ok'</EXPECTED>
+      <SCHEME>
+(and-gate d e s)
+      </SCHEME>
+      <SCHEMEOUTPUT>
+ok
+      </SCHEMEOUTPUT>
+      <PYTHON>
+print(and_gate(d, e, s))
+      </PYTHON>
+      <PYTHON_OUTPUT>
+"ok"	
+      </PYTHON_OUTPUT>
+    </SNIPPET>
+  </TEXT>
+
+  <TEXT>
+    Ще краще — ми можемо явно назвати цю операцію, означивши
+    <SPLITINLINE>
+      <SCHEME>процедуру</SCHEME>
+      <PYTHON>функцію</PYTHON>
+    </SPLITINLINE>
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>half-adder</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>half_@adder</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    , яка будує цю схему, отримуючи чотири
+    зовнішні проводи, які треба приєднати до напівсуматора:
+    <SNIPPET HIDE="yes">
+      <NAME>half_adder_example</NAME>
+      <REQUIRES>half_adder</REQUIRES>
+      <PYTHON>
+a = make_wire()
+b = make_wire()
+s = make_wire()
+c = make_wire()
+print(half_adder(a, b, s, c))
+      </PYTHON>
+    </SNIPPET>
+    <SNIPPET>
+      <INDEX>half-adder<SUBINDEX><DECLARATION>half_adder</DECLARATION></SUBINDEX></INDEX>
+      <NAME>half_adder</NAME>
+      <REQUIRES>make_wire</REQUIRES>
+      <REQUIRES>or_gate</REQUIRES>
+      <REQUIRES>and_gate</REQUIRES>
+      <REQUIRES>inverter</REQUIRES>
+      <EXAMPLE>half_adder_example</EXAMPLE>
+      <EXPECTED>'ok'</EXPECTED>
+      <SCHEME>
+(define (half-adder a b s c)
+  (let ((d (make-wire)) (e (make-wire)))
+    (or-gate a b d)
+    (and-gate a b c)
+    (inverter c e)
+    (and-gate d e s)
+    'ok))
+      </SCHEME>
+      <PYTHON>
+def half_adder(a, b, s, c):
+    d = make_wire()
+    e = make_wire()
+    or_gate(a, b, d)
+    and_gate(a, b, c)
+    inverter(c, e)
+    and_gate(d, e, s)
+    return "ok"
+      </PYTHON>
+    </SNIPPET>
+    Перевага такого означення в тому, що ми можемо використовувати <SPLITINLINE>
+    <SCHEME><SCHEMEINLINE>half-adder</SCHEMEINLINE></SCHEME>
+    <PYTHON><PYTHONINLINE>half_adder</PYTHONINLINE></PYTHON>
+    </SPLITINLINE> як будівельний блок для створення складніших
+    схем. Рисунок<SPACE/><REF NAME="fig:full-adder"/>, наприклад, показує
+    <INDEX>повний суматор</INDEX>
+    <INDEX>суматор<SUBINDEX>повний</SUBINDEX></INDEX>
+    <EM>повний суматор</EM>, складений з двох напівсуматорів і вентиля АБО.<FOOTNOTE>Повний
+      суматор — це базовий елемент схеми, який використовують для додавання двох двійкових
+      чисел. Тут <LATEXINLINE>$A$</LATEXINLINE> та <LATEXINLINE>$B$</LATEXINLINE>
+      — це біти у відповідних позиціях
+      двох чисел, які додають, а <LATEXINLINE>$C_{\mathit{in}}$</LATEXINLINE> —
+      біт перенесення з додавання на одну позицію праворуч. Схема породжує
+      <LATEXINLINE>$\mathit{SUM}$</LATEXINLINE>, який є бітом суми у відповідній позиції, та
+      <LATEXINLINE>$C_{\mathit{out}}$</LATEXINLINE>, який є
+      бітом перенесення, що його треба передати ліворуч.</FOOTNOTE> Ми можемо побудувати
+      повний суматор так:
+    <SNIPPET HIDE="yes">
+      <NAME>full_adder_example</NAME>
+      <REQUIRES>full_adder</REQUIRES>
+      <PYTHON>
+a     = make_wire()
+b     = make_wire()
+c_in  = make_wire()
+sum   = make_wire()
+c_out = make_wire()
+print(full_adder(a, b, c_in, sum, c_out))
+      </PYTHON>
+    </SNIPPET>
+    <SNIPPET>
+      <INDEX>full-adder<SUBINDEX><DECLARATION>full_adder</DECLARATION></SUBINDEX></INDEX>
+      <NAME>full_adder</NAME>
+      <REQUIRES>make_wire</REQUIRES>
+      <REQUIRES>half_adder</REQUIRES>
+      <REQUIRES>or_gate</REQUIRES>
+      <EXAMPLE>full_adder_example</EXAMPLE>
+      <EXPECTED>'ok'</EXPECTED>
+      <SCHEME>
+(define (full-adder a b c-in sum c-out)
+  (let ((s (make-wire))
+        (c1 (make-wire))
+        (c2 (make-wire)))
+    (half-adder b c-in s c1)
+    (half-adder a s sum c2)
+    (or-gate c1 c2 c-out)
+    'ok))
+      </SCHEME>
+      <PYTHON>
+def full_adder(a, b, c_in, sum, c_out):
+    s = make_wire()
+    c1 = make_wire()
+    c2 = make_wire()
+    half_adder(b, c_in, s, c1)
+    half_adder(a, s, sum, c2)
+    or_gate(c1, c2, c_out)
+    return "ok"
+      </PYTHON>
+    </SNIPPET>
+    Означивши
+    <SPLITINLINE>
+    <SCHEME><SCHEMEINLINE>full-adder</SCHEMEINLINE></SCHEME>
+    <PYTHON><PYTHONINLINE>full_adder</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    як
+    <SPLITINLINE>
+      <SCHEME>процедуру,</SCHEME>
+      <PYTHON>функцію,</PYTHON>
+    </SPLITINLINE>
+    ми тепер можемо використовувати її як будівельний блок для створення ще складніших
+    схем. (Наприклад, дивіть вправу<SPACE/><REF NAME="ex:ripple-carry"/>.)
+  <WEB_ONLY>
+    <!-- Figure moved later for SICP JS pagination -->
+    <!-- Figure code is duplicated later in this file in a PDF_ONLY -->
+    <FIGURE>
+      <FIGURE split_scale="0.5" web_scale="0.8" src="img_original/ch3-Z-G-26.svg"></FIGURE>
+      <CAPTION>Схема повного суматора.
+      </CAPTION>
+      <LABEL NAME="fig:full-adder"/>
+    </FIGURE>
+  </WEB_ONLY>
+  </TEXT>
+
+  <TEXT>
+    По суті, наш симулятор дає нам інструменти для побудови
+    мови схем. Якщо ми приймемо той загальний погляд на
+    мови, з яким ми підходили до вивчення
+    <SPLITINLINE>
+      <SCHEME>Lisp</SCHEME>
+      <PYTHON>Python</PYTHON>
+    </SPLITINLINE>
+    у розділі<SPACE/><REF NAME="sec:elements-of-programming"/>,
+    ми можемо сказати, що примітивні функціональні блоки утворюють примітивні
+    елементи мови, що з’єднання блоків разом дає засіб
+    комбінування, а задання схем з’єднань у вигляді
+    <SPLITINLINE>
+      <SCHEME>процедур</SCHEME>
+      <PYTHON>функцій</PYTHON>
+    </SPLITINLINE>
+    слугує засобом абстракції.
+  </TEXT>
+
+  <SUBHEADING> 
+    <NAME>Примітивні функціональні блоки</NAME>
+  </SUBHEADING>
+
+
+  <TEXT>
+    Примітивні функціональні блоки
+    <INDEX>моделювання цифрових схем<SUBINDEX>примітивні функціональні блоки<OPEN/></SUBINDEX></INDEX>
+    реалізують ті <QUOTE>сили</QUOTE>, завдяки яким
+    зміна сигналу на одному проводі впливає на сигнали на інших
+    проводах. Щоб будувати функціональні блоки, ми користуємося такими операціями над
+    проводами:
+    <UL>
+      <LI>
+	<SPLITINLINE>
+	  <SCHEME><SCHEMEINLINE>(get-signal wire)</SCHEMEINLINE>:</SCHEME>
+	  <PYTHON>
+	    <PYTHONINLINE>get_signal(</PYTHONINLINE><META>wire</META><PYTHONINLINE>)</PYTHONINLINE>
+	  </PYTHON>
+	</SPLITINLINE>
+	<INDEX><USE>get_signal</USE></INDEX> 
+	<BR/>
+	повертає поточне значення сигналу на проводі.
+      </LI>
+      <LI>
+        <SPLITINLINE>
+	  <SCHEME><SCHEMEINLINE>(set-signal! wire new-value)</SCHEMEINLINE>:
+	  </SCHEME>
+	  <PYTHON>
+	    <PYTHONINLINE>set_signal(</PYTHONINLINE><META>wire</META><PYTHONINLINE>,</PYTHONINLINE> <META>new-value</META><PYTHONINLINE>)</PYTHONINLINE>:
+	  </PYTHON>
+	</SPLITINLINE>
+        <INDEX><USE>set_signal</USE></INDEX> 
+	<BR/>
+        змінює значення сигналу на проводі на нове значення.
+      </LI>
+      <LI>
+        <SPLITINLINE>
+	  <SCHEME>
+	    <SCHEMEINLINE>(add-action! wire procedure-of-no-arguments)</SCHEMEINLINE>:
+	  </SCHEME>
+	  <PYTHON>
+	    <PYTHONINLINE>add_action(</PYTHONINLINE><META>wire</META><PYTHONINLINE>,</PYTHONINLINE> <META>function-of-no-arguments</META><PYTHONINLINE>)</PYTHONINLINE>:
+	  </PYTHON>
+	</SPLITINLINE>
+        <INDEX><USE>add_action</USE></INDEX> 
+	<BR/>
+        стверджує, що позначену
+        <SPLITINLINE>
+	  <SCHEME>процедуру</SCHEME>
+	  <PYTHON>функцію</PYTHON>
+	</SPLITINLINE>
+        треба запускати щоразу, коли сигнал на проводі змінює значення. Такі
+        <SPLITINLINE>
+	  <SCHEME>процедури</SCHEME>
+	  <PYTHON>функції</PYTHON>
+	</SPLITINLINE>
+        — це той засіб, яким зміни значення сигналу на проводі
+	передаються іншим проводам.
+      </LI>
+    </UL>
+    Крім того, ми скористаємося
+    <SPLITINLINE>
+      <SCHEME>процедурою</SCHEME>
+      <PYTHON>функцією</PYTHON>
+    </SPLITINLINE>
+    <INDEX><USE>after_delay</USE></INDEX> 
+    <SPLITINLINE>
+      <SCHEME>
+	<SCHEMEINLINE>after-delay</SCHEMEINLINE>
+      </SCHEME>
+      <PYTHON>
+	<PYTHONINLINE>after_delay</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    , яка бере часову затримку та
+    <SPLITINLINE>
+      <SCHEME>процедуру</SCHEME>
+      <PYTHON>функцію</PYTHON>
+    </SPLITINLINE>
+    для запуску і виконує задану
+    <SPLITINLINE>
+      <SCHEME>процедуру</SCHEME>
+      <PYTHON>функцію</PYTHON>
+    </SPLITINLINE>
+    після заданої затримки.
+  </TEXT>
+
+  <TEXT>
+    Користуючись цими
+    <SPLITINLINE>
+      <SCHEME>процедурами,</SCHEME>
+      <PYTHON>функціями,</PYTHON>
+    </SPLITINLINE>
+    ми можемо означити примітивні функції цифрової логіки. Щоб з’єднати вхід
+    з виходом через інвертор, ми використовуємо
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>add-action!</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>add_action</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    , щоб пов’язати з вхідним проводом
+    <SPLITINLINE>
+      <SCHEME>процедуру</SCHEME>
+      <PYTHON>функцію</PYTHON>
+    </SPLITINLINE>
+    , яка запускатиметься щоразу, коли сигнал на вхідному проводі змінює значення.
+    Ця
+    <SPLITINLINE>
+      <SCHEME>процедура</SCHEME>
+      <PYTHON>функція</PYTHON>
+    </SPLITINLINE>
+    обчислює
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>logical-not</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>logical_not</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    вхідного сигналу, а потім, через одну
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>inverter-delay</SCHEMEINLINE>,</SCHEME>
+      <PYTHON><PYTHONINLINE>inverter_delay</PYTHONINLINE>,
+      </PYTHON>
+    </SPLITINLINE>
+    встановлює вихідний сигнал у це нове значення:
+    <SNIPPET>
+      <INDEX>inverter<SUBINDEX><DECLARATION>inverter</DECLARATION></SUBINDEX></INDEX>
+      <INDEX><DECLARATION>logical_not</DECLARATION></INDEX> 
+      <NAME>inverter</NAME>
+      <REQUIRES>get_signal</REQUIRES>
+      <REQUIRES>after_delay</REQUIRES>
+      <EXAMPLE>inverter_example</EXAMPLE>
+      <EXPECTED>'ok'</EXPECTED>
+      <SCHEME>
+(define (inverter input output)
+  (define (invert-input)
+    (let ((new-value (logical-not (get-signal input))))
+      (after-delay inverter-delay
+                   (lambda ()
+                     (set-signal! output new-value)))))
+  (add-action! input invert-input)
+  'ok)
+                
+(define (logical-not s)
+  (cond ((= s 0) 1)
+        ((= s 1) 0)
+        (else (error "Invalid signal" s))))
+      </SCHEME>
+      <PYTHON>
+def inverter(input, output):
+    def invert_input():
+        new_value = logical_not(get_signal(input))
+        after_delay(inverter_delay,
+                    lambda: set_signal(output, new_value))
+    add_action(input, invert_input)
+    return "ok"
+
+def logical_not(s):
+    return (1 if s == 0
+            else 0 if s == 1
+            else error("invalid signal", s))
+      </PYTHON>
+    </SNIPPET>
+  </TEXT>
+
+  <SNIPPET HIDE="yes">
+    <NAME>logical_and</NAME>
+    <PYTHON>
+def logical_and(s1, s2):
+    return (1 if s1 == 1 and s2 == 1
+            else (0 if s2 == 0 or s2 == 1
+                  else error("invalid signal", s2))
+                if s1 == 0 or s1 == 1
+            else error("invalid signal", s1))
+    </PYTHON>
+  </SNIPPET>
+  <PDF_ONLY>
+    <!-- Figure moved here from earlier for SICP JS pagination -->
+    <!-- Figure code is copy of code earlier in this file in a WEB_ONLY -->
+    <FIGURE>
+      <FIGURE split_scale="0.5" web_scale="0.8" src="img_original/ch3-Z-G-26.svg"></FIGURE>
+      <CAPTION>Схема повного суматора.
+      </CAPTION>
+      <LABEL NAME="fig:full-adder"/>
+    </FIGURE>
+  </PDF_ONLY>
+
+  <TEXT>
+    Вентиль І трохи складніший. Дію
+    <SPLITINLINE>
+      <SCHEME>процедуру</SCHEME>
+      <PYTHON>функцію</PYTHON>
+    </SPLITINLINE>
+    треба запускати, якщо
+    змінюється будь-який із входів вентиля. Він обчислює
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>logical-and</SCHEMEINLINE>
+      (користуючись процедурою, аналогічною до
+      <SCHEMEINLINE>logical-not</SCHEMEINLINE>)
+      </SCHEME>
+      <PYTHON>
+	<PYTHONINLINE>logical_and</PYTHONINLINE>
+	(користуючись функцією, аналогічною до
+	<PYTHONINLINE>logical_not</PYTHONINLINE>)
+      </PYTHON>
+    </SPLITINLINE>
+    значень сигналів на вхідних проводах і планує
+    зміну на нове значення на вихідному проводі через одну
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>and-gate-delay</SCHEMEINLINE>.</SCHEME>
+      <PYTHON><PYTHONINLINE>and_gate_delay</PYTHONINLINE>.
+      </PYTHON>
+    </SPLITINLINE>
+    <SNIPPET POSTPADDING="no">
+      <INDEX>and-gate<SUBINDEX><DECLARATION>and_gate</DECLARATION></SUBINDEX></INDEX>
+      <NAME>and_gate</NAME>
+      <REQUIRES>get_signal</REQUIRES>
+      <REQUIRES>after_delay</REQUIRES>
+      <REQUIRES>logical_and</REQUIRES>
+      <EXAMPLE>and_gate_example</EXAMPLE>
+      <EXPECTED>'ok'</EXPECTED>
+      <SCHEME>
+(define (and-gate a1 a2 output)
+  (define (and-action-procedure)
+    (let ((new-value
+          (logical-and (get-signal a1) (get-signal a2))))
+      (after-delay and-gate-delay
+                   (lambda ()
+                     (set-signal! output new-value)))))
+  (add-action! a1 and-action-procedure)
+  (add-action! a2 and-action-procedure)
+  'ok)
+      </SCHEME>
+      <PYTHON>
+def and_gate(a1, a2, output):
+    def and_action_function():
+        new_value = logical_and(get_signal(a1),
+                                get_signal(a2))
+        after_delay(and_gate_delay,
+                    lambda: set_signal(output, new_value))
+    add_action(a1, and_action_function)
+    add_action(a2, and_action_function)
+    return "ok"
+      </PYTHON>
+    </SNIPPET>
+  </TEXT>
+
+  <EXERCISE>
+    Означте
+    <INDEX>вентиль АБО<SUBINDEX><ORDER>or gate</ORDER><SPLITINLINE><SCHEME><SCHEMEINLINE>or-gate</SCHEMEINLINE></SCHEME><PYTHON><PYTHONINLINE>or_gate</PYTHONINLINE></PYTHON></SPLITINLINE></SUBINDEX></INDEX>
+    вентиль АБО як примітивний функціональний блок. Ваш
+    <SPLITINLINE>
+      <SCHEME>конструктор <SCHEMEINLINE>or-gate</SCHEMEINLINE></SCHEME>
+      <PYTHON>конструктор <PYTHONINLINE>or_gate</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    має бути подібним до
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>and-gate</SCHEMEINLINE>.</SCHEME>
+      <PYTHON><PYTHONINLINE>and_gate</PYTHONINLINE>.
+      </PYTHON>
+    </SPLITINLINE>
+    <LABEL NAME="ex:3_28"/>
+    <SOLUTION>
+      <SNIPPET>
+	<NAME>logical_or</NAME>
+	<PYTHON>
+# contributed by GitHub user clean99
+
+def logical_or(s1, s2):
+    return (0 if s1 == 0 and s2 == 0
+            else (1 if s2 == 0 or s2 == 1
+                  else error("invalid signal", s2))
+                if s1 == 0 or s1 == 1
+            else error("invalid signal", s1))
+	</PYTHON>
+      </SNIPPET>
+      <SNIPPET>
+	<NAME>or_gate</NAME>
+	<REQUIRES>get_signal</REQUIRES>
+	<REQUIRES>after_delay</REQUIRES>
+	<REQUIRES>logical_or</REQUIRES>
+	<PYTHON>
+# contributed by GitHub user clean99
+
+def or_gate(a1, a2, output):
+    def or_action_function():
+        new_value = logical_or(get_signal(a1),
+                               get_signal(a2))
+        after_delay(or_gate_delay,
+                    lambda: set_signal(output, new_value))
+    add_action(a1, or_action_function)
+    add_action(a2, or_action_function)
+    return "ok"
+	</PYTHON>
+      </SNIPPET>
+    </SOLUTION>
+  </EXERCISE>
+  
+  <EXERCISE>
+    Інший спосіб побудувати
+    <INDEX>вентиль АБО<SUBINDEX><ORDER>or gate</ORDER><SPLITINLINE><SCHEME><SCHEMEINLINE>or-gate</SCHEMEINLINE></SCHEME><PYTHON><PYTHONINLINE>or_gate</PYTHONINLINE></PYTHON></SPLITINLINE></SUBINDEX></INDEX>
+    вентиль АБО — як складений цифровий логічний
+    пристрій, побудований з вентилів І та інверторів. Означте
+    <SPLITINLINE>
+      <SCHEME>процедуру</SCHEME>
+      <PYTHON>функцію</PYTHON>
+    </SPLITINLINE>
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>or-gate</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>or_gate</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    , яка це робить. Який час затримки
+    вентиля АБО, виражений через
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>and-gate-delay</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>and_gate_delay</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    та
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>inverter-delay</SCHEMEINLINE>?</SCHEME>
+      <PYTHON><PYTHONINLINE>inverter_delay</PYTHONINLINE>?
+      </PYTHON>
+    </SPLITINLINE>
+    <SOLUTION>
+      (додав користувач github <LINK address="https://github.com/taimoon">taimoon</LINK>)
+      <BREAK/>
+      Ідея: ~(~a &amp; ~b) = nand(~a, ~b) = ~~a | ~~b = a | b
+      <SNIPPET EVAL="no">
+	<PYTHON>
+def nand_gate(a1, a2, out):
+    tmp = make_wire()
+    and_gate(a1, a2, tmp)
+    inverter(tmp, out)
+
+def or_gate(a1, a2, out):
+    not_a1 = make_wire()
+    not_a2 = make_wire()
+    inverter(a1, not_a1)
+    inverter(a2, not_a2)
+    nand_gate(not_a1, not_a2, out)
+	</PYTHON>
+      </SNIPPET>
+      Час затримки вентиля НЕ-І дорівнює
+      <PYTHONINLINE>nand_gate_delay = and_gate_delay + inverter_delay</PYTHONINLINE>, а час затримки вентиля АБО вище дорівнює
+      <PYTHONINLINE>or_gate_delay = nand_gate_delay + inverter_delay = and_gate_delay + 2 * inverter_delay</PYTHONINLINE>.
+    </SOLUTION>
+    <LABEL NAME="ex:3_29"/>
+  </EXERCISE>
+  <EXERCISE>
+    Рисунок<SPACE/><REF NAME="fig:ripple-carry"/> показує 
+    <INDEX>суматор з наскрізним перенесенням</INDEX>
+    <INDEX>суматор<SUBINDEX>з наскрізним перенесенням</SUBINDEX></INDEX>
+    <EM>суматор з наскрізним перенесенням</EM>, утворений послідовним
+    з’єднанням <LATEXINLINE>$n$</LATEXINLINE> повних суматорів.
+    Це найпростіша форма паралельного суматора
+    для додавання двох <LATEXINLINE>$n$</LATEXINLINE>-бітових двійкових чисел.
+    Входи <LATEXINLINE>$A_{1}$</LATEXINLINE>,
+    <LATEXINLINE>$A_{2}$</LATEXINLINE>,
+    <LATEXINLINE>$A_{3}$</LATEXINLINE>, <ELLIPSIS/>,
+    <LATEXINLINE>$A_{n}$</LATEXINLINE> та
+    <LATEXINLINE>$B_{1}$</LATEXINLINE>,
+    <LATEXINLINE>$B_{2}$</LATEXINLINE>,
+    <LATEXINLINE>$B_{3}$</LATEXINLINE>, <ELLIPSIS/>,
+    <LATEXINLINE>$B_{n}$</LATEXINLINE>
+    — це два двійкових числа, які треба додати (кожне
+    <LATEXINLINE>$A_{k}$</LATEXINLINE> та
+    <LATEXINLINE>$B_{k}$</LATEXINLINE>
+    дорівнює 0 або 1). Схема породжує
+    <LATEXINLINE>$S_{1}$</LATEXINLINE>,
+    <LATEXINLINE>$S_{2}$</LATEXINLINE>,
+    <LATEXINLINE>$S_{3}$</LATEXINLINE>,
+    <ELLIPSIS/>,
+    <LATEXINLINE>$S_{n}$</LATEXINLINE>,
+    тобто <LATEXINLINE>$n$</LATEXINLINE> бітів суми, та
+    <LATEXINLINE>$C$</LATEXINLINE>, перенесення з
+    додавання. Напишіть
+    <SPLITINLINE>
+      <SCHEME>процедуру</SCHEME>
+      <PYTHON>функцію</PYTHON>
+    </SPLITINLINE>
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>ripple-carry-adder</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>ripple_carry_adder</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    , яка будує цю схему. Ця
+    <SPLITINLINE>
+      <SCHEME>процедура</SCHEME>
+      <PYTHON>функція</PYTHON>
+    </SPLITINLINE>
+    має брати як аргументи три списки по
+    <LATEXINLINE>$n$</LATEXINLINE> проводів кожен<EMDASH/>проводи
+    <LATEXINLINE>$A_{k}$</LATEXINLINE>,
+    <LATEXINLINE>$B_{k}$</LATEXINLINE> та
+    <LATEXINLINE>$S_{k}$</LATEXINLINE><EMDASH/>а
+    також ще один провід <LATEXINLINE>$C$</LATEXINLINE>.
+    Головний недолік суматора з наскрізним перенесенням — потреба чекати, доки
+    поширяться сигнали перенесення. Яка затримка потрібна, щоб отримати
+    повний вихід від <LATEXINLINE>$n$</LATEXINLINE>-бітового суматора
+    з наскрізним перенесенням, виражена через затримки вентилів І, вентилів АБО та
+    інверторів?
+    <LABEL NAME="ex:ripple-carry"/>
+  </EXERCISE>
+
+  <FIGURE>
+    <FIGURE split_scale="0.5" web_scale="0.8" src="img_original/ch3-Z-G-27.svg"></FIGURE>
+    <CAPTION>
+      Суматор з наскрізним перенесенням для <LATEXINLINE>$n$</LATEXINLINE>-бітових чисел.
+    </CAPTION>
+    <LABEL NAME="fig:ripple-carry"/>
+  </FIGURE>
+
+  <INDEX>моделювання цифрових схем<SUBINDEX>примітивні функціональні блоки<CLOSE/></SUBINDEX></INDEX>
+
+  <SUBHEADING> 
+    <NAME>Представлення проводів</NAME>
+  </SUBHEADING>
+  <TEXT>
+    Провід
+    <INDEX>моделювання цифрових схем<SUBINDEX>представлення проводів<OPEN/></SUBINDEX></INDEX>
+    у нашій симуляції буде обчислювальним об’єктом з двома локальними
+    змінними стану:
+    <SPLITINLINE>
+      <SCHEME>a<SPACE/><SCHEMEINLINE>signal-value</SCHEMEINLINE></SCHEME>
+      <PYTHON>a<SPACE/><PYTHONINLINE>signal_value</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    (спочатку вважається, що вона дорівнює 0) і набором
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>action-procedures</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>action_functions</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    , які треба запускати, коли сигнал змінює значення. Ми реалізуємо провід,
+    користуючись
+    <INDEX>передавання повідомлень<SUBINDEX>у моделюванні цифрових схем</SUBINDEX></INDEX>
+    стилем передавання повідомлень, як
+    набір локальних
+    <SPLITINLINE>
+      <SCHEME>процедур</SCHEME>
+      <PYTHON>функцій</PYTHON>
+    </SPLITINLINE>
+    разом із <SCHEMEINLINE>dispatch</SCHEMEINLINE>
+    <SPLITINLINE><SCHEME>процедурою</SCHEME>
+    <PYTHON>функцією</PYTHON>
+    </SPLITINLINE>
+    , яка вибирає відповідну локальну операцію, так само як ми робили
+    з простим об’єктом банківського рахунку в розділі
+    <SPACE/><REF NAME="sec:local-state-variables"/>:
+    <SNIPPET>
+      <INDEX><DECLARATION>make_wire</DECLARATION></INDEX> 
+      <NAME>make_wire</NAME>
+      <REQUIRES>call_each</REQUIRES>
+      <EXAMPLE>make_wire_usage</EXAMPLE>
+      <SCHEME>
+(define (make-wire)
+  (let ((signal-value 0) (action-procedures '()))
+    (define (set-my-signal! new-value)
+      (if (not (= signal-value new-value))
+          (begin (set! signal-value new-value)
+            (call-each action-procedures))
+            'done))
+                
+(define (accept-action-procedure! proc)
+  (set! action-procedures (cons proc action-procedures))
+  (proc))
+               
+(define (dispatch m)
+  (cond ((eq? m 'get-signal) signal-value)
+        ((eq? m 'set-signal!) set-my-signal!)
+        ((eq? m 'add-action!) accept-action-procedure!)
+        (else (error "Unknown operation -- WIRE" m))))
+  dispatch))
+      </SCHEME>
+      <PYTHON>
+def make_wire():
+    signal_value = 0
+    action_functions = None
+    def set_my_signal(new_value):
+        nonlocal signal_value
+        if signal_value != new_value:
+            signal_value = new_value
+            return call_each(action_functions)
+        else:
+            return "done"
+    def accept_action_function(fun):
+        nonlocal action_functions
+        action_functions = pair(fun, action_functions)
+        fun()
+    def dispatch(m):
+        return (signal_value if m == "get_signal"
+                else set_my_signal if m == "set_signal"
+                else accept_action_function if m == "add_action"
+                else error("unknown operation -- wire", m))
+    return dispatch
+      </PYTHON>
+    </SNIPPET>
+    Локальна
+    <SPLITINLINE>
+      <SCHEME>процедура</SCHEME>
+      <PYTHON>функція</PYTHON>
+    </SPLITINLINE>
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>set-my-signal</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>set_my_signal</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    перевіряє, чи нове значення сигналу змінює сигнал на проводі.
+    Якщо так, вона запускає кожну з дійових
+    <SPLITINLINE>
+      <SCHEME>процедур</SCHEME>
+      <PYTHON>функцій</PYTHON>
+    </SPLITINLINE>
+    , користуючись такою
+    <SPLITINLINE>
+      <SCHEME>процедурою</SCHEME>
+      <PYTHON>функцією</PYTHON>
+    </SPLITINLINE>
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>call-each</SCHEMEINLINE>,</SCHEME>
+      <PYTHON><PYTHONINLINE>call_each</PYTHONINLINE>,</PYTHON>
+    </SPLITINLINE>
+    яка викликає кожен елемент списку
+    <SPLITINLINE>
+      <SCHEME>процедур без аргументів:</SCHEME>
+      <PYTHON>функцій без аргументів:</PYTHON>
+    </SPLITINLINE>
+    <SNIPPET>
+      <INDEX><DECLARATION>call_each</DECLARATION></INDEX> 
+      <NAME>call_each</NAME>
+      <SCHEME>
+(define (call-each procedures)
+  (if (null? procedures)
+      'done
+      (begin
+        ((car procedures))
+        (call-each (cdr procedures)))))
+      </SCHEME>
+      <PYTHON>
+def call_each(functions):
+    if is_none(functions):
+        return "done"
+    else:
+        head(functions)()
+        return call_each(tail(functions))
+      </PYTHON>
+    </SNIPPET>
+    Локальна
+    <SPLITINLINE>
+      <SCHEME>процедура</SCHEME>
+      <PYTHON>функція</PYTHON>
+    </SPLITINLINE>
+    <SPLITINLINE>
+      <SCHEME>
+      <SCHEMEINLINE>accept-action-procedure</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>accept_action_function</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    додає задану
+    <SPLITINLINE>
+      <SCHEME>процедуру</SCHEME>
+      <PYTHON>функцію</PYTHON>
+    </SPLITINLINE>
+    до списку
+    <SPLITINLINE>
+      <SCHEME>процедур</SCHEME>
+      <PYTHON>функцій</PYTHON>
+    </SPLITINLINE>
+    для запуску, а потім запускає нову
+    <SPLITINLINE>
+      <SCHEME>процедуру</SCHEME>
+      <PYTHON>функцію</PYTHON>
+    </SPLITINLINE>
+    один раз. (Дивіть вправу<SPACE/><REF NAME="ex:accept-action"/>.)
+  </TEXT>
+
+  <TEXT>
+    Коли локальна <SCHEMEINLINE>dispatch</SCHEMEINLINE>
+    <SPLITINLINE>
+      <SCHEME>процедура</SCHEME>
+      <PYTHON>функція</PYTHON>
+    </SPLITINLINE>
+    налаштована, як зазначено, ми можемо
+    надати такі
+    <SPLITINLINE>
+      <SCHEME>процедури</SCHEME>
+      <PYTHON>функції</PYTHON>
+    </SPLITINLINE>
+    для доступу до локальних операцій над
+    проводами:<FOOTNOTE>Ці
+    <SPLITINLINE>
+      <SCHEME>процедури</SCHEME>
+      <PYTHON>функції</PYTHON>
+    </SPLITINLINE>
+    — це просто синтаксичний цукор, який дозволяє
+    <SPLITINLINE>
+      <SCHEME>	
+        <INDEX>синтаксичний цукор<SUBINDEX>процедура проти<SPACE/>даних</SUBINDEX></INDEX>
+      </SCHEME>
+      <PYTHON>
+        <INDEX>синтаксичний цукор<SUBINDEX>функція проти<SPACE/>даних</SUBINDEX></INDEX>
+      </PYTHON>
+    </SPLITINLINE>
+    <INDEX>синтаксичний інтерфейс</INDEX>
+    нам користуватися звичайним 
+    <SPLITINLINE>
+      <SCHEME>
+        процедурним
+      </SCHEME>
+      <PYTHON>
+        функціональним
+      </PYTHON>
+    </SPLITINLINE>
+    синтаксисом для доступу до локальних
+    <SPLITINLINE>
+      <SCHEME>процедур</SCHEME>
+      <PYTHON>функцій</PYTHON>
+    </SPLITINLINE>
+    об’єктів. Вражає те, що ми можемо так просто міняти ролями
+    <SPLITINLINE><SCHEME><QUOTE>процедури</QUOTE></SCHEME>
+    <PYTHON><QUOTE>функції</QUOTE></PYTHON>
+    </SPLITINLINE>
+    та
+    <QUOTE>дані</QUOTE>. Наприклад, якщо ми пишемо
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>(wire 'get-signal)</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>wire("get_signal")</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    ми думаємо про <SCHEMEINLINE>wire</SCHEMEINLINE> як про
+    <SPLITINLINE>
+      <SCHEME>процедуру</SCHEME>
+      <PYTHON>функцію</PYTHON>
+    </SPLITINLINE>
+    яку викликають з повідомленням
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>get-signal</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>"get_signal"</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    як входом. І навпаки, коли ми пишемо
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>(get-signal wire)</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>get_signal(wire)</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    це схиляє нас думати про <SCHEMEINLINE>wire</SCHEMEINLINE> як про об’єкт
+    даних, який є входом для
+    <SPLITINLINE>
+      <SCHEME>процедури</SCHEME>
+      <PYTHON>функції</PYTHON>
+    </SPLITINLINE>
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>get-signal</SCHEMEINLINE>.</SCHEME>
+      <PYTHON><PYTHONINLINE>get_signal</PYTHONINLINE>.
+      </PYTHON>
+    </SPLITINLINE>
+    Істина ж у тому, що в мові, у якій ми можемо поводитися з
+    <SPLITINLINE><SCHEME>процедурами</SCHEME>
+    <PYTHON>функціями</PYTHON>
+    </SPLITINLINE>
+    як з об’єктами, немає принципової різниці між
+    <QUOTE><SPLITINLINE><SCHEME>процедурами</SCHEME><PYTHON>функціями</PYTHON></SPLITINLINE></QUOTE>
+    та <QUOTE>даними,</QUOTE> і ми можемо вибирати такий синтаксичний цукор, який дозволяє
+    нам програмувати в будь-якому стилі, який ми обрали.
+    <LABEL NAME="foot:object-syntax"/></FOOTNOTE>
+    <SNIPPET>
+      <INDEX><DECLARATION>get_signal</DECLARATION></INDEX> 
+      <INDEX><DECLARATION>set_signal</DECLARATION></INDEX> 
+      <INDEX><DECLARATION>add_action</DECLARATION></INDEX> 
+      <NAME>get_signal</NAME>
+      <SCHEME>
+(define (get-signal wire)
+  (wire 'get-signal))
+                
+(define (set-signal! wire new-value)
+  ((wire 'set-signal!) new-value))
+                
+
+(define (add-action! wire action-procedure)
+  ((wire 'add-action!) action-procedure))
+      </SCHEME>
+      <PYTHON>
+def get_signal(wire):
+    return wire("get_signal")
+
+def set_signal(wire, new_value):
+    return wire("set_signal")(new_value)
+
+def add_action(wire, action_function):
+    return wire("add_action")(action_function)
+      </PYTHON>
+    </SNIPPET>
+  </TEXT>
+
+  <TEXT>
+    Проводи, які мають сигнали, що змінюються в часі, і до яких можна поступово
+    приєднувати пристрої, типові для змінюваних об’єктів. Ми змоделювали їх як
+    <SPLITINLINE>
+      <SCHEME>процедури</SCHEME>
+      <PYTHON>функції</PYTHON>
+    </SPLITINLINE>
+    з локальними змінними стану, які змінюються через
+    <SPLITINLINE>
+      <SCHEME>присвоєння.</SCHEME>
+      <PYTHON>переприсвоєння.</PYTHON>
+    </SPLITINLINE>
+    Коли створюють новий
+    провід, виділяється новий набір змінних стану (через
+    <SPLITINLINE>
+      <SCHEME>вираз <SCHEMEINLINE>let</SCHEMEINLINE> в</SCHEME>
+      <PYTHON>
+	інструкції <PYTHONINLINE>let</PYTHONINLINE> в
+      </PYTHON>
+    </SPLITINLINE>
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>make-wire</SCHEMEINLINE>)</SCHEME>
+      <PYTHON><PYTHONINLINE>make_wire</PYTHONINLINE>)</PYTHON>
+    </SPLITINLINE>
+    і будується та повертається нова
+    <SPLITINLINE>
+      <SCHEME>процедура</SCHEME>
+      <PYTHON>функція</PYTHON>
+    </SPLITINLINE>
+    <SCHEMEINLINE>dispatch</SCHEMEINLINE>, яка захоплює
+    середовище з новими змінними стану.
+  </TEXT>
+
+  <TEXT>
+    Проводи спільні для різних пристроїв, які до них
+    приєднано. Тож зміна, зроблена взаємодією з одним
+    пристроєм, вплине на всі інші пристрої, приєднані до проводу. Цей
+    провід повідомляє про зміну своїм сусідам, викликаючи дійові
+    <SPLITINLINE>
+      <SCHEME>процедури</SCHEME>
+      <PYTHON>функції</PYTHON>
+    </SPLITINLINE>
+    , надані йому тоді, коли з’єднання було встановлено.
+  </TEXT>
+
+  <INDEX>моделювання цифрових схем<SUBINDEX>представлення проводів<CLOSE/></SUBINDEX></INDEX>
+  
+  <SUBHEADING> 
+    <NAME>Розклад</NAME>
+  </SUBHEADING>
+
+  <INDEX>моделювання цифрових схем<SUBINDEX>розклад<OPEN/></SUBINDEX></INDEX>
+
+  <TEXT>
+    Єдине, чого бракує, щоб завершити симулятор, — це
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>after-delay</SCHEMEINLINE>.</SCHEME>
+      <PYTHON><PYTHONINLINE>after_delay</PYTHONINLINE>.</PYTHON>
+    </SPLITINLINE>
+    Ідея тут у тому, що ми підтримуємо структуру даних, яку називають
+    <EM>розкладом</EM>, що містить перелік справ, які треба зробити.
+    Для розкладів означено такі операції:
+    <UL>
+      <LI>
+        <SPLITINLINE>
+	  <SCHEME><SCHEMEINLINE>(make-agenda)</SCHEMEINLINE>:</SCHEME>
+	  <PYTHON><PYTHONINLINE>make_agenda()</PYTHONINLINE>:
+	  </PYTHON>
+	</SPLITINLINE>
+        <INDEX><USE>make_agenda</USE></INDEX> 
+	<BR/>
+	повертає новий порожній розклад.
+      </LI>
+      <LI>
+        <SPLITINLINE>
+	  <SCHEME><SCHEMEINLINE>(empty-agenda? agenda)</SCHEMEINLINE>:
+	  </SCHEME>
+	  <PYTHON>
+	    <PYTHONINLINE>is_empty_agenda(</PYTHONINLINE><META>agenda</META><PYTHONINLINE>)</PYTHONINLINE>
+	  </PYTHON>
+	</SPLITINLINE>
+        <INDEX><USE>is_empty_agenda</USE></INDEX> 
+	<BR/>
+	істинно, якщо заданий розклад порожній.
+      </LI>
+      <LI>
+        <SPLITINLINE>
+	  <SCHEME><SCHEMEINLINE>(first-agenda-item agenda)</SCHEMEINLINE>:
+	  </SCHEME>
+	  <PYTHON>
+	    <PYTHONINLINE>first_agenda_item(</PYTHONINLINE><META>agenda</META><PYTHONINLINE>)</PYTHONINLINE>
+	  </PYTHON>
+	</SPLITINLINE>
+        <INDEX><USE>first_agenda_item</USE></INDEX> 
+	<BR/>
+	повертає перший пункт розкладу.
+      </LI>
+      <LI>
+        <SPLITINLINE>
+	  <SCHEME>
+	    <SCHEMEINLINE>(remove-first-agenda-item! agenda)</SCHEMEINLINE>:
+	  </SCHEME>
+	  <PYTHON>
+            <PYTHONINLINE>remove_first_agenda_item(</PYTHONINLINE><META>agenda</META><PYTHONINLINE>)</PYTHONINLINE>
+	  </PYTHON>
+	</SPLITINLINE>
+        <INDEX><USE>remove_first_agenda_item</USE></INDEX> 
+	<BR/>
+        змінює розклад, видаляючи перший пункт.
+      </LI>
+      <LI>
+        <SPLITINLINE>
+	  <SCHEME>
+	    <SCHEMEINLINE>(add-to-agenda! time action agenda)</SCHEMEINLINE>:
+	  </SCHEME>
+	  <PYTHON>
+	    <PYTHONINLINE>add_to_agenda(</PYTHONINLINE><META>time</META><PYTHONINLINE>,</PYTHONINLINE> <META>action</META><PYTHONINLINE>,</PYTHONINLINE> <META>agenda</META><PYTHONINLINE>)</PYTHONINLINE>
+	  </PYTHON>
+	</SPLITINLINE>
+        <INDEX><USE>add_to_agenda</USE></INDEX> 
+	<BR/>
+        змінює розклад, додаючи задану дійову
+        <SPLITINLINE>
+	  <SCHEME>процедуру</SCHEME>
+	  <PYTHON>функцію</PYTHON>
+	</SPLITINLINE>
+        для запуску у вказаний час.
+      </LI>
+      <LI>
+        <SPLITINLINE>
+	  <SCHEME><SCHEMEINLINE>(current-time agenda)</SCHEMEINLINE>:
+	  </SCHEME>
+	  <PYTHON>
+	    <PYTHONINLINE>current_time(</PYTHONINLINE><META>agenda</META><PYTHONINLINE>)</PYTHONINLINE>
+	  </PYTHON>
+	</SPLITINLINE>
+        <INDEX><USE>current_time</USE></INDEX> 
+	<BR/>
+        повертає поточний час симуляції.
+      </LI>
+    </UL>
+  </TEXT>
+
+  <TEXT>
+    Конкретний розклад, який ми використовуємо, позначено як
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>the-agenda</SCHEMEINLINE>.</SCHEME>
+      <PYTHON><PYTHONINLINE>the_agenda</PYTHONINLINE>.</PYTHON>
+    </SPLITINLINE>
+    <SPLITINLINE>
+      <SCHEME>Процедура</SCHEME>
+      <PYTHON>Функція</PYTHON>
+    </SPLITINLINE>
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>after-delay</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>after_delay</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    додає нові елементи до
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>the-agenda</SCHEMEINLINE>:</SCHEME>
+      <PYTHON><PYTHONINLINE>the_agenda</PYTHONINLINE>:</PYTHON>
+    </SPLITINLINE>
+    <SNIPPET>
+      <INDEX><DECLARATION>after_delay</DECLARATION></INDEX> 
+      <NAME>after_delay</NAME>
+      <REQUIRES>add_to_agenda</REQUIRES>
+      <REQUIRES>make_agenda</REQUIRES>
+      <REQUIRES>the_agenda</REQUIRES>
+      <SCHEME>
+(define (after-delay delay action)
+  (add-to-agenda! (+ delay (current-time the-agenda))
+                  action
+                  the-agenda))
+      </SCHEME>
+      <PYTHON>
+def after_delay(delay, action):
+    add_to_agenda(delay + current_time(the_agenda),
+                  action,
+                  the_agenda)
+      </PYTHON>
+    </SNIPPET>
+  </TEXT>
+
+  <TEXT>
+    <SPLIT>
+      <SCHEME>
+	Симуляцію рухає процедура
+	<SCHEMEINLINE>propagate</SCHEMEINLINE>, яка працює з
+	<SCHEMEINLINE>the-agenda</SCHEMEINLINE>,
+	виконуючи кожну процедуру з розкладу послідовно.
+      </SCHEME>
+      <PYTHON>
+	Симуляцію рухає функція
+	<SCHEMEINLINE>propagate</SCHEMEINLINE>, яка виконує кожну
+	функцію з
+	<PYTHONINLINE>the_agenda</PYTHONINLINE>
+	послідовно.
+      </PYTHON>
+    </SPLIT>
+    Загалом, поки симуляція виконується, до розкладу
+    додаватимуться нові пункти, і <SCHEMEINLINE>propagate</SCHEMEINLINE>
+    продовжуватиме симуляцію, доки в розкладі є пункти:
+    <SNIPPET POSTPADDING="no">
+      <INDEX><DECLARATION>propagate</DECLARATION></INDEX> 
+      <NAME>propagate</NAME>
+      <REQUIRES>remove_first_agenda_item</REQUIRES>
+      <REQUIRES>first_agenda_item</REQUIRES>
+      <REQUIRES>the_agenda</REQUIRES>
+      <SCHEME>
+(define (propagate)
+  (if (empty-agenda? the-agenda)
+      'done
+      (let ((first-item (first-agenda-item the-agenda)))
+        (first-item)
+        (remove-first-agenda-item! the-agenda)
+        (propagate))))
+      </SCHEME>
+      <PYTHON>
+def propagate():
+    if is_empty_agenda(the_agenda):
+        return "done"
+    else:
+        first_item = first_agenda_item(the_agenda)
+        first_item()
+        remove_first_agenda_item(the_agenda)
+        return propagate()
+      </PYTHON>
+    </SNIPPET>
+  </TEXT>
+
+  <INDEX>моделювання цифрових схем<SUBINDEX>розклад<CLOSE/></SUBINDEX></INDEX>
+  
+  <SUBHEADING> 
+    <NAME>Приклад симуляції</NAME>
+  </SUBHEADING>
+
+  <INDEX>моделювання цифрових схем<SUBINDEX>приклад симуляції<OPEN/></SUBINDEX></INDEX>
+  <INDEX>напівсуматор<SUBINDEX>симуляція<OPEN/></SUBINDEX></INDEX>
+
+  <TEXT>
+    Наступна
+    <SPLITINLINE>
+      <SCHEME>процедура,</SCHEME>
+      <PYTHON>функція,</PYTHON>
+    </SPLITINLINE>
+    яка ставить <QUOTE>зонд</QUOTE> на провід, показує симулятор у
+    дії. Зонд повідомляє провід, що коли його сигнал змінює значення,
+    він має надрукувати нове значення сигналу разом з поточним часом і
+    іменем, яке ідентифікує
+    <SPLITINLINE>
+      <SCHEME>провід:</SCHEME>
+      <PYTHON>
+	провід. 
+      </PYTHON>
+    </SPLITINLINE>
+    <SNIPPET>
+      <INDEX><DECLARATION>probe</DECLARATION><SUBINDEX>in digital-circuit simulator</SUBINDEX></INDEX>
+      <NAME>probe</NAME>
+      <REQUIRES>the_agenda</REQUIRES>
+      <REQUIRES>get_signal</REQUIRES>
+      <SCHEME>
+(define (probe name wire)
+  (add-action! wire
+               (lambda ()
+                 (newline)
+                 (display name)
+                 (display " ")
+                 (display (current-time the-agenda))
+                 (display "  New-value = ")
+                 (display (get-signal wire)))))
+      </SCHEME>
+      <PYTHON>
+def probe(name, wire):
+    add_action(wire,
+               lambda: print(name + " " +
+                               str(current_time(the_agenda)) +
+                               ", new value = " +
+                               str(get_signal(wire))))
+      </PYTHON>
+      <PYTHON_TEST>
+def probe(name, wire):
+    add_action(wire,
+               lambda: name + " " +
+                       str(current_time(the_agenda)) +
+                       ", new value = " +
+                       str(get_signal(wire)))
+      </PYTHON_TEST>
+    </SNIPPET>
+  </TEXT>
+
+  <TEXT>
+    Ми починаємо з ініціалізації розкладу та задання затримок для
+    примітивних функціональних блоків:
+    <SNIPPET>
+      <NAME>the_agenda</NAME>
+      <REQUIRES>make_agenda</REQUIRES>
+      <SCHEME>
+(define the-agenda (make-agenda))
+(define inverter-delay 2)
+(define and-gate-delay 3)
+(define or-gate-delay 5)
+      </SCHEME>
+      <PYTHON>
+the_agenda = make_agenda()
+inverter_delay = 2
+and_gate_delay = 3
+or_gate_delay = 5
+      </PYTHON>
+    </SNIPPET>
+    Тепер ми означуємо чотири проводи, ставлячи зонди на два з них:
+    <SNIPPET>
+      <NAME>probing_two_wires</NAME>
+      <REQUIRES>make_wire</REQUIRES>
+      <REQUIRES>probe</REQUIRES>
+      <SCHEME>
+(define input-1 (make-wire))
+(define input-2 (make-wire))
+(define sum (make-wire))
+(define carry (make-wire))
+    
+(probe 'sum sum)
+      </SCHEME>
+      <SCHEMEOUTPUT>
+    sum 0  New-value = 0
+      </SCHEMEOUTPUT>
+      <PYTHON>
+input_1 = make_wire()
+input_2 = make_wire()
+sum = make_wire()
+carry = make_wire()
+
+probe("sum", sum)
+      </PYTHON>
+      <PYTHON_OUTPUT>
+"sum 0, new value = 0"
+      </PYTHON_OUTPUT>
+    </SNIPPET>
+    <SNIPPET>
+      <NAME>probe_carry</NAME>
+      <REQUIRES>probing_two_wires</REQUIRES>
+      <SCHEME>
+(probe 'carry carry)
+      </SCHEME>
+      <SCHEMEOUTPUT>
+carry 0  New-value = 0
+      </SCHEMEOUTPUT>
+      <PYTHON>
+probe("carry", carry)
+      </PYTHON>
+      <PYTHON_OUTPUT>
+"carry 0, new value = 0"
+      </PYTHON_OUTPUT>
+    </SNIPPET>
+    Далі ми з’єднуємо проводи у схему напівсуматора (як на
+    рисунку<SPACE/><REF NAME="fig:half-adder"/>), встановлюємо сигнал на
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>input-1</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>input_1</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    у 1 і запускаємо симуляцію:
+    <SNIPPET>
+      <NAME>half_adder_example_2</NAME>
+      <REQUIRES>half_adder</REQUIRES>
+      <REQUIRES>probe_carry</REQUIRES>
+      <EXPECTED>'ok'</EXPECTED>
+      <SCHEME>
+(half-adder input-1 input-2 sum carry)
+      </SCHEME>
+      <SCHEMEOUTPUT>
+ok
+      </SCHEMEOUTPUT>
+      <PYTHON>
+print(half_adder(input_1, input_2, sum, carry))
+      </PYTHON>
+      <PYTHON_OUTPUT>
+"ok"
+      </PYTHON_OUTPUT>
+    </SNIPPET>
+    <SNIPPET>
+      <NAME>set_signal_example</NAME>
+      <REQUIRES>half_adder_example_2</REQUIRES>
+      <EXPECTED>'done'</EXPECTED>
+      <SCHEME>
+(set-signal! input-1 1)
+      </SCHEME>
+      <SCHEMEOUTPUT>
+done
+      </SCHEMEOUTPUT>
+      <PYTHON>
+print(set_signal(input_1, 1))
+      </PYTHON>
+      <PYTHON_OUTPUT>
+"done"	
+      </PYTHON_OUTPUT>
+    </SNIPPET>
+    <SNIPPET>
+      <NAME>propagate_example_1</NAME>
+      <REQUIRES>set_signal_example</REQUIRES>
+      <REQUIRES>propagate</REQUIRES>
+      <EXPECTED>'done'</EXPECTED>
+      <SCHEME>
+(propagate)
+      </SCHEME>
+      <SCHEMEOUTPUT>
+sum 8  New-value = 1
+done
+      </SCHEMEOUTPUT>
+      <PYTHON>
+print(propagate())
+      </PYTHON>
+      <PYTHON_OUTPUT>
+"sum 8, new value = 1"
+"done"	
+      </PYTHON_OUTPUT>
+    </SNIPPET>
+    Сигнал <SCHEMEINLINE>sum</SCHEMEINLINE> змінюється на 1 у момент часу 8.
+    Ми тепер за вісім одиниць часу від початку симуляції.
+    У цій точці ми можемо встановити сигнал на
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>input-2</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>input_2</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    у 1 і дати значенням поширитися:
+    <SNIPPET>
+      <NAME>set_signal_example_2</NAME>
+      <REQUIRES>propagate_example_1</REQUIRES>
+      <EXPECTED>'done'</EXPECTED>
+      <SCHEME>
+(set-signal! input-2 1)
+      </SCHEME>
+      <SCHEMEOUTPUT>
+                done
+      </SCHEMEOUTPUT>
+      <PYTHON>
+print(set_signal(input_2, 1))
+      </PYTHON>
+      <PYTHON_OUTPUT>
+"done"	
+      </PYTHON_OUTPUT>
+      </SNIPPET>
+    <SNIPPET>
+      <NAME>propagate_example_2</NAME>
+      <REQUIRES>set_signal_example_2</REQUIRES>
+      <EXPECTED>'done'</EXPECTED>
+      <SCHEME>
+(propagate)
+      </SCHEME>
+      <SCHEMEOUTPUT>
+carry 11  New value = 1
+sum 16  New value = 0
+done
+      </SCHEMEOUTPUT>
+      <PYTHON>
+print(propagate())
+      </PYTHON>
+      <PYTHON_OUTPUT>
+"carry 11, new value = 1"
+"sum 16, new value = 0"
+"done"
+      </PYTHON_OUTPUT>
+    </SNIPPET>
+    <SCHEMEINLINE>carry</SCHEMEINLINE> змінюється на 1 у момент часу 11, а
+    <SCHEMEINLINE>sum</SCHEMEINLINE> змінюється на 0 у момент часу 16.
+  </TEXT>
+
+  <INDEX>моделювання цифрових схем<SUBINDEX>приклад симуляції<CLOSE/></SUBINDEX></INDEX>
+  <INDEX>напівсуматор<SUBINDEX>симуляція<CLOSE/></SUBINDEX></INDEX>
+
+  <EXERCISE>
+    <LABEL NAME="ex:accept-action"/>
+    Внутрішня
+    <SPLITINLINE>
+      <SCHEME>процедура</SCHEME>
+      <PYTHON>функція</PYTHON>
+    </SPLITINLINE>
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>accept-action-procedure!</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>accept_action_function</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    означена в
+    <INDEX><USE>make_wire</USE></INDEX>
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>make-wire</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>make_wire</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    задає, що коли до проводу додають нову дійову
+    <SPLITINLINE>
+      <SCHEME>процедуру</SCHEME>
+      <PYTHON>функцію</PYTHON>
+    </SPLITINLINE>
+    , цю
+    <SPLITINLINE>
+      <SCHEME>процедуру</SCHEME>
+      <PYTHON>функцію</PYTHON>
+    </SPLITINLINE>
+    негайно запускають. Поясніть, чому ця ініціалізація
+    потрібна. Зокрема, простежте приклад напівсуматора в
+    наведених вище абзацах і з<APOS/>ясуйте, чим відрізнялася б реакція,
+    якби ми означили
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>accept-action-procedure!</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>accept_action_function</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    як
+    <SNIPPET EVAL="no" POSTPADDING="no">
+      <SCHEME>
+(define (accept-action-procedure! proc)
+  (set! action-procedures (cons proc action-procedures)))
+      </SCHEME>
+      <PYTHON>
+def accept_action_function(fun):
+    nonlocal action_functions
+    action_functions = pair(fun, action_functions)
+      </PYTHON>
+    </SNIPPET>
+  </EXERCISE>
+      
+  <SUBHEADING> 
+    <NAME>Реалізація розкладу</NAME>
+  </SUBHEADING>
+
+  <INDEX>моделювання цифрових схем<SUBINDEX>реалізація розкладу<OPEN/></SUBINDEX></INDEX>
+
+  <TEXT>
+    Нарешті, ми подаємо деталі структури даних розкладу, яка зберігає
+    <SPLITINLINE>
+      <SCHEME>процедури</SCHEME>
+      <PYTHON>функції</PYTHON>
+    </SPLITINLINE>
+    , заплановані до виконання в майбутньому.
+  </TEXT>
+
+  <TEXT>
+    Розклад складається з 
+    <INDEX>сегмент часу, у розкладі</INDEX>
+    <EM>сегментів часу</EM>. Кожен сегмент часу — це
+    пара, що складається з числа (часу) та 
+    <INDEX>черга<SUBINDEX><ORDER>simulation</ORDER>у розкладі симуляції</SUBINDEX></INDEX>
+    черги (дивіть
+    вправу<SPACE/><REF NAME="ex:agenda-list"/>), яка містить
+    <SPLITINLINE>
+      <SCHEME>процедури</SCHEME>
+      <PYTHON>функції</PYTHON>
+    </SPLITINLINE>
+    , заплановані до запуску протягом цього сегмента часу.
+    <SNIPPET>
+      <INDEX><DECLARATION>make_time_segment</DECLARATION></INDEX> 
+      <INDEX><DECLARATION>segment_time</DECLARATION></INDEX> 
+      <INDEX><DECLARATION>segment_queue</DECLARATION></INDEX> 
+      <NAME>make_time_segment</NAME>
+      <SCHEME>
+(define (make-time-segment time queue)
+  (cons time queue))
+                
+(define (segment-time s) (car s))
+                
+(define (segment-queue s) (cdr s))
+      </SCHEME>
+      <PYTHON>
+def make_time_segment(time, queue):
+    return pair(time, queue)
+
+def segment_time(s):
+    return head(s)
+<SHORT_SPACE/>
+def segment_queue(s):
+    return tail(s)
+      </PYTHON>
+    </SNIPPET>
+    Ми працюватимемо з чергами сегментів часу, користуючись операціями над чергами,
+    описаними в розділі<SPACE/><REF NAME="sec:queues"/>.
+  </TEXT>
+
+  <TEXT>
+    Сам розклад — це одновимірна
+    <INDEX>таблиця<SUBINDEX>використовується в розкладі симуляції</SUBINDEX></INDEX>
+    таблиця сегментів часу. Вона
+    відрізняється від таблиць, описаних у розділі<SPACE/><REF NAME="sec:tables"/>,
+    тим, що сегменти впорядковані за зростанням часу. Крім
+    того, ми зберігаємо 
+    <INDEX>поточний час, для розкладу симуляції</INDEX>
+    <EM>поточний час</EM> (тобто час останньої дії,
+    яку було оброблено) на початку розкладу. Щойно створений
+    розклад не має сегментів часу і має поточний час 0:<FOOTNOTE>Розклад
+    — це 
+    <INDEX>список із заголовком</INDEX>
+    <INDEX>список(и)<SUBINDEX>із заголовком</SUBINDEX></INDEX>
+    список із заголовком, як і таблиці в розділі<SPACE/><REF NAME="sec:tables"/>,
+    але оскільки список очолює час, нам не потрібен додатковий
+    фіктивний заголовок (як-от
+    <SPLITINLINE>
+      <SCHEME>
+	символ <SCHEMEINLINE>*table*</SCHEMEINLINE>
+      </SCHEME>
+      <PYTHON>
+	рядок <PYTHONINLINE>"*table*"</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    , який використовують
+    з таблицями).</FOOTNOTE>
+    <SNIPPET>
+      <INDEX><DECLARATION>make_agenda</DECLARATION></INDEX> 
+      <INDEX><DECLARATION>current_time</DECLARATION></INDEX> 
+      <INDEX><DECLARATION>set_current_time</DECLARATION></INDEX> 
+      <INDEX><DECLARATION>segments</DECLARATION></INDEX> 
+      <INDEX><DECLARATION>set_segments</DECLARATION></INDEX> 
+      <INDEX><DECLARATION>first_segment</DECLARATION></INDEX> 
+      <INDEX><DECLARATION>rest_segments</DECLARATION></INDEX> 
+      <NAME>make_agenda</NAME>
+      <SCHEME>
+(define (make-agenda) (list 0))
+                
+(define (current-time agenda) (car agenda))
+                
+(define (set-current-time! agenda time)
+  (set-car! agenda time))
+                
+(define (segments agenda) (cdr agenda))
+                
+(define (set-segments! agenda segments)
+  (set-cdr! agenda segments))
+                
+(define (first-segment agenda) (car (segments agenda)))
+                
+(define (rest-segments agenda) (cdr (segments agenda)))
+      </SCHEME>
+      <PYTHON>
+def make_agenda():
+    return llist(0)
+<SHORT_SPACE/>
+def current_time(agenda):
+    return head(agenda)
+<SHORT_SPACE/>
+def set_current_time(agenda, time):
+    set_head(agenda, time)
+
+def segments(agenda):
+    return tail(agenda)
+<SHORT_SPACE/>
+def set_segments(agenda, segs):
+    set_tail(agenda, segs)
+
+def first_segment(agenda):
+    return head(segments(agenda))
+<SHORT_SPACE/>
+def rest_segments(agenda):
+    return tail(segments(agenda))
+      </PYTHON>
+    </SNIPPET>
+  </TEXT>
+
+  <TEXT>
+    Розклад порожній, якщо він не має сегментів часу:
+    <SNIPPET>
+      <INDEX><DECLARATION>is_empty_agenda</DECLARATION></INDEX> 
+      <NAME>is_empty_agenda</NAME>
+      <REQUIRES>make_agenda</REQUIRES>
+      <SCHEME>
+(define (empty-agenda? agenda)
+  (null? (segments agenda)))
+      </SCHEME>
+      <PYTHON>
+def is_empty_agenda(agenda):
+    return is_none(segments(agenda))
+      </PYTHON>
+    </SNIPPET>
+  </TEXT>
+
+  <TEXT>
+    Щоб додати дію до розкладу, ми спершу перевіряємо, чи розклад порожній.
+    Якщо так, ми створюємо сегмент часу для цієї дії й поміщаємо його
+    в розклад. Інакше ми скануємо розклад, розглядаючи час кожного
+    сегмента. Якщо ми знаходимо сегмент для призначеного часу, ми додаємо
+    дію до відповідної черги. Якщо ми доходимо до часу, пізнішого за той,
+    на який призначено, ми вставляємо новий сегмент часу в
+    розклад безпосередньо перед ним. Якщо ми доходимо до кінця розкладу, ми повинні
+    створити новий сегмент часу в кінці.
+    <SNIPPET>
+      <INDEX><DECLARATION>add_to_agenda</DECLARATION></INDEX> 
+      <NAME>add_to_agenda</NAME>
+      <REQUIRES>make_time_segment</REQUIRES>
+      <REQUIRES>make_queue</REQUIRES>
+      <REQUIRES>insert_queue</REQUIRES>
+      <REQUIRES>make_time_segment</REQUIRES>
+      <REQUIRES>make_agenda</REQUIRES>
+      <SCHEME>
+(define (add-to-agenda! time action agenda)
+  (define (belongs-before? segments)
+    (or (null? segments)
+        (&lt; time (segment-time (car segments)))))
+  (define (make-new-time-segment time action)
+    (let ((q (make-queue)))
+      (insert-queue! q action)
+      (make-time-segment time q)))
+  (define (add-to-segments! segments)
+     (if (= (segment-time (car segments)) time)
+         (insert-queue! (segment-queue (car segments))
+                        action)
+         (let ((rest (cdr segments)))
+           (if (belongs-before? rest)
+               (set-cdr!
+                segments
+                (cons (make-new-time-segment time action)
+                      (cdr segments)))
+               (add-to-segments! rest)))))
+  (let ((segments (segments agenda)))
+    (if (belongs-before? segments)
+        (set-segments!
+         agenda
+         (cons (make-new-time-segment time action)
+               segments))
+        (add-to-segments! segments))))
+      </SCHEME>
+      <PYTHON>
+def add_to_agenda(time, action, agenda):
+    def belongs_before(segs):
+        return is_none(segs) or time &lt; segment_time(head(segs))
+    def make_new_time_segment(time, action):
+        q = make_queue()
+        insert_queue(q, action)
+        return make_time_segment(time, q)
+    def add_to_segments(segs):
+        if segment_time(head(segs)) == time:
+            insert_queue(segment_queue(head(segs)), action)
+        else:
+            rest = tail(segs)
+            if belongs_before(rest):
+                set_tail(segs, pair(make_new_time_segment(time, action),
+                                    tail(segs)))
+            else:
+                add_to_segments(rest)
+    segs = segments(agenda)
+    if belongs_before(segs):
+        set_segments(agenda,
+                     pair(make_new_time_segment(time, action), segs))
+    else:
+        add_to_segments(segs)
+      </PYTHON>
+    </SNIPPET>
+  </TEXT>
+
+  <TEXT>
+    <SPLITINLINE>
+      <SCHEME>Процедура</SCHEME>
+      <PYTHON>Функція</PYTHON>
+    </SPLITINLINE>
+    , яка видаляє перший пункт з розкладу, видаляє
+    пункт на початку черги в першому сегменті часу. Якщо це
+    видалення робить сегмент часу порожнім, ми видаляємо його зі списку
+    сегментів:<FOOTNOTE>Зауважте, що
+    <LABEL NAME="foot:one-armed"/>
+    <SPLITINLINE>
+      <SCHEME>
+	вираз <SCHEMEINLINE>if</SCHEMEINLINE>
+	у цій процедурі не має альтернативного виразу.
+	Такий
+	<INDEX>умовне речення<SUBINDEX>одноруке (без альтернативи)</SUBINDEX></INDEX>
+	<QUOTE>однорукий вираз <SCHEMEINLINE>if</SCHEMEINLINE></QUOTE>
+	використовують, щоб вирішити, чи щось робити, а не щоб вибирати
+	між двома виразами.
+	Вираз <SCHEMEINLINE>if</SCHEMEINLINE> повертає
+	невизначене значення, якщо предикат хибний і немає
+	<LATEXINLINE>alternative</LATEXINLINE>.
+      </SCHEME>
+      <PYTHON>
+	умовне речення в цій функції має
+	<INDEX>речення<SUBINDEX><DECLARATION>pass</DECLARATION></SUBINDEX></INDEX>
+	<INDEX><DECLARATION>pass</DECLARATION> речення</INDEX>
+	речення <PYTHONINLINE>pass</PYTHONINLINE>
+	як своє альтернативне речення, що нічого не робить.
+      </PYTHON>
+    </SPLITINLINE>
+  </FOOTNOTE>
+    <SNIPPET>
+      <INDEX><DECLARATION>remove_first_agenda_item</DECLARATION></INDEX> 
+      <NAME>remove_first_agenda_item</NAME>
+      <REQUIRES>make_agenda</REQUIRES>
+      <REQUIRES>is_empty_queue</REQUIRES>
+      <REQUIRES>delete_queue</REQUIRES>
+      <REQUIRES>make_time_segment</REQUIRES>
+      <SCHEME>
+(define (remove-first-agenda-item! agenda)
+  (let ((q (segment-queue (first-segment agenda))))
+    (delete-queue! q)
+    (if (empty-queue? q)
+        (set-segments! agenda (rest-segments agenda)))))
+      </SCHEME>
+      <PYTHON>
+def remove_first_agenda_item(agenda):
+    q = segment_queue(first_segment(agenda))
+    delete_queue(q)
+    if is_empty_queue(q):
+        set_segments(agenda, rest_segments(agenda))
+    else:
+        pass
+      </PYTHON>
+    </SNIPPET>
+  </TEXT>
+
+  <TEXT>
+    Перший пункт розкладу знаходимо на початку черги в першому
+    сегменті часу. Щоразу, коли ми виймаємо пункт, ми також оновлюємо поточний
+    час:<FOOTNOTE>Таким чином, поточний час завжди буде часом
+    найнедавніше обробленої дії. Зберігання цього часу на початку
+    розкладу гарантує, що він буде доступний навіть тоді, коли
+    відповідний сегмент часу було видалено.</FOOTNOTE>
+    <SNIPPET POSTPADDING="no">
+      <INDEX><DECLARATION>first_agenda_item</DECLARATION></INDEX> 
+      <NAME>first_agenda_item</NAME>
+      <REQUIRES>is_empty_agenda</REQUIRES>
+      <REQUIRES>make_time_segment</REQUIRES>
+      <REQUIRES>front_queue</REQUIRES>
+      <SCHEME>
+(define (first-agenda-item agenda)
+  (if (empty-agenda? agenda)
+      (error "Agenda is empty -- FIRST-AGENDA-ITEM")
+      (let ((first-seg (first-segment agenda)))
+        (set-current-time! agenda (segment-time first-seg))
+        (front-queue (segment-queue first-seg)))))
+      </SCHEME>
+      <PYTHON>
+def first_agenda_item(agenda):
+    if is_empty_agenda(agenda):
+        error("agenda is empty -- first_agenda_item")
+    else:
+        first_seg = first_segment(agenda)
+        set_current_time(agenda, segment_time(first_seg))
+        return front_queue(segment_queue(first_seg))
+      </PYTHON>
+    </SNIPPET>
+  </TEXT>
+
+  <EXERCISE>
+    <SPLITINLINE>
+      <SCHEME>Процедури</SCHEME>
+      <PYTHON>Функції</PYTHON>
+    </SPLITINLINE>
+    , які треба запускати протягом кожного сегмента часу розкладу, зберігаються в черзі.
+    Тож
+    <SPLITINLINE>
+      <SCHEME>процедури</SCHEME>
+      <PYTHON>функції</PYTHON>
+    </SPLITINLINE>
+    для кожного сегмента викликають у тому порядку, у якому їх додали до
+    розкладу (перший прийшов — перший вийшов). Поясніть, чому саме такий порядок є обов<APOS/>язковим. Зокрема,
+    простежте поведінку вентиля І, чиї входи змінюються з
+    0,1 на 1,0 в тому самому сегменті, і скажіть, чим відрізнялася б поведінка, якби
+    <SPLITINLINE>
+      <SCHEME>процедури</SCHEME>
+      <PYTHON>функції</PYTHON>
+    </SPLITINLINE>
+    сегмента зберігалися б у звичайному списку, а
+    <SPLITINLINE>
+      <SCHEME>процедури</SCHEME>
+      <PYTHON>функції</PYTHON>
+    </SPLITINLINE>
+    додавали й видаляли лише на початку (останній прийшов — перший вийшов).
+    <LABEL NAME="ex:agenda-list"/>
+  </EXERCISE>
+
+  <INDEX>моделювання цифрових схем<CLOSE/></INDEX>
+  <INDEX>моделювання цифрових схем<SUBINDEX>реалізація розкладу<CLOSE/></SUBINDEX></INDEX>
+
+</SUBSECTION>

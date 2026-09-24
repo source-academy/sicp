@@ -1,0 +1,1473 @@
+<SUBSECTION>
+  <NAME>
+    Сполучення даних різних типів
+  </NAME>
+
+  <LABEL NAME="sec:combining-data-of-different-types"/>
+
+  <TEXT>
+    Ми бачили, як означити уніфіковану арифметичну систему, яка
+    охоплює звичайні числа, комплексні числа, раціональні числа та
+    будь-який інший тип чисел, який ми надумаємо винайти, але ми
+    оминули увагою важливе питання.  Операції, які ми досі означили,
+    поводяться з різними типами даних як з цілком незалежними.  Тобто
+    для додавання, скажімо, двох звичайних чисел чи двох комплексних
+    чисел є окремі пакети.  Чого ми ще не розглянули — це того
+    факту, що має сенс означати операції, які перетинають межі типів,
+    як-от додавання комплексного числа до звичайного.  Ми доклали
+    чимало зусиль, щоб увести бар’єри між частинами наших
+    програм, аби їх можна було розробляти й розуміти нарізно.  Ми
+    хотіли б увести операції між типами в якийсь ретельно
+    контрольований спосіб, щоб підтримувати їх,
+    не порушуючи серйозно межі наших модулів.
+  </TEXT>
+  <TEXT>
+    Один спосіб дати раду
+    <INDEX>операції<SUBINDEX>між типами</SUBINDEX></INDEX>
+    <INDEX>операціям між типами</INDEX>
+    <INDEX>тип(и)<SUBINDEX>операцій між типами</SUBINDEX></INDEX>
+    операціям між типами — це спроєктувати окрему
+    <SPLITINLINE>
+      <SCHEME>процедуру</SCHEME>
+    <PYTHON>функцію</PYTHON></SPLITINLINE>
+    для кожної можливої комбінації типів, для якої операція має сенс.
+    Наприклад, ми могли б розширити пакет комплексних чисел так, щоб він
+    надавав
+    <SPLITINLINE>
+      <SCHEME>процедуру</SCHEME>
+      <PYTHON>функцію</PYTHON>
+    </SPLITINLINE>
+    для додавання комплексних чисел до звичайних і встановлювати її в
+    таблиці за тегом
+    <SPLITINLINE><SCHEME><SCHEMEINLINE>(complex scheme-number)</SCHEMEINLINE></SCHEME><PYTHON><PYTHONINLINE>llist("complex", "python_number")</PYTHONINLINE></PYTHON></SPLITINLINE>:<FOOTNOTE>Нам
+    також треба надати майже ідентичну
+    <SPLITINLINE>
+      <SCHEME>процедуру</SCHEME>
+      <PYTHON>функцію</PYTHON>
+    </SPLITINLINE>
+    для роботи з типами
+<PDF_ONLY><BR/></PDF_ONLY>
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>(scheme_number complex)</SCHEMEINLINE>.
+    </SCHEME>
+      <PYTHON>
+	<PYTHONINLINE>llist("python_number", "complex")</PYTHONINLINE>.
+      </PYTHON>
+    </SPLITINLINE></FOOTNOTE>
+    <SNIPPET CHAP="4" HIDE="yes">
+      <NAME>add_complex_to_python_number_example</NAME>
+      <PYTHON>
+c = make_complex_from_real_imag(4, 3)
+n = make_python_number(7)
+
+print(add(c, n))
+      </PYTHON>
+    </SNIPPET>
+    <SNIPPET CHAP="4" EVAL="no">
+      <INDEX><DECLARATION>add_complex_to_python_num</DECLARATION></INDEX> 
+      <NAME>add_complex_to_python_number</NAME>
+      <REQUIRES>install_python_number_package_usage</REQUIRES>
+      <REQUIRES>install_complex_package_usage</REQUIRES>
+      <EXAMPLE>add_complex_to_python_number_example</EXAMPLE>
+      <EXPECTED>[ 'complex', [ 'rectangular', [ 11, 3 ] ] ]</EXPECTED>
+      <SCHEME>
+;; to be included in the complex package
+(define (add-complex-to-schemenum z x)
+  (make-from-real-imag (+ (real-part z) x)
+                       (imag-part z)))
+
+(put 'add '(complex scheme-number)
+     (lambda (z x) (tag (add-complex-to-schemenum z x))))
+      </SCHEME>
+      <PYTHON>
+# to be included in the complex package
+def add_complex_to_python_num(z, x):
+    return make_complex_from_real_imag(real_part(z) + x, imag_part(z))
+print(put("add", llist("complex", "python_number"),
+    lambda z, x: tag(add_complex_to_python_num(z, x))))
+      </PYTHON>
+    </SNIPPET>
+  </TEXT>
+  <TEXT>
+    Цей прийом працює, але він громіздкий.  У такій системі
+    ціна введення нового типу — це не лише побудова
+    пакета
+    <SPLITINLINE>
+      <SCHEME>процедури</SCHEME>
+      <PYTHON>функції</PYTHON>
+    </SPLITINLINE>
+    для цього типу, а й побудова та встановлення
+    <SPLITINLINE>
+      <SCHEME>процедури</SCHEME>
+      <PYTHON>функції</PYTHON>
+    </SPLITINLINE>
+    які реалізують операції між типами.  Це легко може виявитися
+    значно більшим обсягом коду, ніж потрібно для означення операцій
+    над самим типом.  Цей метод також підриває нашу здатність поєднувати
+    окремі пакети адитивно — чи принаймні обмежувати ту міру, до якої
+    творці окремих пакетів мусять зважати на інші пакети.  Наприклад,
+    у наведеному вище прикладі видається розумним, що робота зі змішаними
+    операціями над комплексними числами та звичайними числами
+    має бути відповідальністю пакета комплексних чисел.  А от поєднання
+    раціональних і комплексних чисел могло б виконувати пакет
+    комплексних чисел, пакет раціональних чисел або якийсь третій
+    пакет, який користується операціями, вилученими з цих двох пакетів.
+    Сформулювати несуперечливі правила розподілу відповідальності між
+    пакетами може бути нездоланно важким завданням, коли проєктуєш
+    системи з багатьма пакетами й багатьма операціями між типами.
+  </TEXT>
+
+  <SUBHEADING>
+    <NAME>Зведення</NAME>
+  </SUBHEADING>
+
+  <INDEX>зведення<OPEN/></INDEX>
+  <TEXT>
+    У загальній ситуації цілком неспоріднених операцій, які діють на
+    цілком неспоріднені типи, явна реалізація операцій між типами,
+    хоч би якою громіздкою вона була, — це найкраще, на що можна
+    сподіватися.  На щастя, зазвичай ми можемо зробити краще, скориставшись
+    додатковою структурою, яка може приховуватися в нашій системі типів.
+    Часто різні типи даних не є цілком незалежними, і можуть існувати
+    способи розглядати об’єкти одного типу як об’єкти іншого типу.  Цей
+    процес називають 
+<EM>зведенням</EM>.  Наприклад, якщо нас просять
+    арифметично поєднати звичайне число з комплексним, ми можемо
+    розглядати звичайне число як комплексне число, уявна частина якого
+    дорівнює нулю.
+    Це зводить задачу до поєднання двох комплексних чисел, з чим
+    пакет комплексної арифметики може дати раду звичайним способом.
+  </TEXT>
+  <TEXT>
+    Загалом цю ідею можна реалізувати, спроєктувавши
+    <INDEX>зведення<SUBINDEX><SPLITINLINE><SCHEME>процедуру</SCHEME><PYTHON>функцію</PYTHON></SPLITINLINE></SUBINDEX></INDEX>
+    процедури зведення
+    <SPLITINLINE>
+      <SCHEME>процедури</SCHEME>
+      <PYTHON>функції</PYTHON>
+    </SPLITINLINE>
+    які перетворюють об’єкт одного типу на еквівалентний
+    об’єкт іншого типу.  Ось типова
+    <SPLITINLINE>
+      <SCHEME>процедура,</SCHEME>
+      <PYTHON>функція,</PYTHON>
+    </SPLITINLINE>
+    яка перетворює задане звичайне число на комплексне число з тією
+    самою дійсною частиною та нульовою уявною частиною:
+    <SNIPPET EVAL="no">
+      <INDEX><DECLARATION>python_number_to_complex</DECLARATION></INDEX> 
+      <NAME>python_number_to_complex</NAME>
+      <SCHEME>
+(define (scheme-number-&gt;complex n)
+  (make-complex-from-real-imag (contents n) 0))
+      </SCHEME>
+      <PYTHON>
+def python_number_to_complex(n):
+    return make_complex_from_real_imag(contents(n), 0)
+      </PYTHON>
+    </SNIPPET>
+    <INDEX>таблиця<SUBINDEX><ORDER>зведення</ORDER>для зведення</SUBINDEX></INDEX>
+    <INDEX>зведення<SUBINDEX>таблиця</SUBINDEX></INDEX>
+    Ми встановлюємо ці
+    <SPLITINLINE>
+      <SCHEME>процедури</SCHEME>
+      <PYTHON>функції</PYTHON>
+    </SPLITINLINE>
+    зведення в окрему таблицю зведення, індексовану за іменами двох типів:
+    <SNIPPET HIDE="yes">
+      <NAME>put_get_coercion</NAME>
+      <SCHEME>
+(define coercion-list '())
+
+(define (clear-coercion-list)
+  (set! coercion-list '()))
+
+(define (put-coercion type1 type2 item)
+  (if (get-coercion type1 type2) coercion-list
+      (set! coercion-list
+            (cons (list type1 type2 item)
+                  coercion-list))))
+
+(define (get-coercion type1 type2)
+  (define (get-type1 listItem)
+    (car listItem))
+  (define (get-type2 listItem)
+    (cadr listItem))
+  (define (get-item listItem)
+    (caddr listItem))
+  (define (get-coercion-iter list type1 type2)
+    (if (null? list) #f
+        (let ((top (car list)))
+          (if (and (equal? type1 (get-type1 top))
+                   (equal? type2 (get-type2 top))) (get-item top)
+                   (get-coercion-iter (cdr list) type1 type2)))))
+  (get-coercion-iter coercion-list type1 type2))
+      </SCHEME>
+      <PYTHON>
+coercion_list = None
+
+def clear_coercion_list():
+    global coercion_list
+    coercion_list = None
+
+def put_coercion(type1, type2, item):
+    global coercion_list
+    if is_none(get_coercion(type1, type2)):
+        coercion_list = pair(llist(type1, type2, item),
+                             coercion_list)
+    else:
+        return coercion_list
+
+def get_coercion(type1, type2):
+    def get_type1(list_item):
+        return head(list_item)
+    def get_type2(list_item):
+        return head(tail(list_item))
+    def get_item(list_item):
+        return head(tail(tail(list_item)))
+    def get_coercion_iter(items):
+        if is_none(items):
+            return None
+        else:
+            top = head(items)
+            return (get_item(top)
+                    if type1 == get_type1(top) and
+                       type2 == get_type2(top)
+                    else get_coercion_iter(tail(items)))
+    return get_coercion_iter(coercion_list)
+      </PYTHON>
+    </SNIPPET>
+    <SNIPPET CHAP="4">
+      <NAME>put_coercion_usage</NAME>
+      <REQUIRES>put_get_coercion</REQUIRES>
+      <REQUIRES>python_number_to_complex</REQUIRES>
+      <REQUIRES>install_complex_package_usage</REQUIRES>
+      <EXAMPLE>put_coercion_usage_example</EXAMPLE>
+      <REQUIRES>put_get_coercion</REQUIRES>
+
+      <SCHEME>
+(put-coercion 'scheme-number 'complex scheme-number-&gt;complex)
+      </SCHEME>
+      <PYTHON>
+put_coercion("python_number", "complex",
+             python_number_to_complex)
+      </PYTHON>
+    </SNIPPET>
+    <SNIPPET CHAP="3" HIDE="yes">
+      <NAME>put_coercion_usage_example</NAME>
+      <PYTHON>
+print(get_coercion("python_number", "complex"))
+      </PYTHON>
+    </SNIPPET>
+    (Ми припускаємо, що є
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>put-coercion</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>put_coercion</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    та
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>get-coercion</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>get_coercion</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    <SPLITINLINE>
+      <SCHEME>процедури</SCHEME>
+      <PYTHON>функції</PYTHON>
+    </SPLITINLINE>
+    доступні для роботи з цією таблицею.)  Загалом частина комірок у
+    таблиці виявиться порожньою, бо загалом неможливо звести
+    довільний об’єкт даних кожного типу до всіх інших типів.  Наприклад,
+    немає способу звести довільне комплексне число до звичайного
+    числа, тож загальної
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>complex-&gt;scheme-number</SCHEMEINLINE></SCHEME>
+      <PYTHON>
+	<PYTHONINLINE>complex_to_python_number</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    <SPLITINLINE>
+      <SCHEME>процедури</SCHEME>
+      <PYTHON>функції</PYTHON>
+    </SPLITINLINE>
+    у таблиці не буде.
+  </TEXT>
+  <TEXT>
+    Щойно таблицю зведення налаштовано, ми можемо обробляти зведення
+    одноманітно, змінивши
+    <SPLITINLINE>
+      <SCHEME>
+      <SCHEMEINLINE>apply-generic</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>apply_generic</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    <SPLITINLINE>
+      <SCHEME>процедури</SCHEME>
+      <PYTHON>функції</PYTHON>
+    </SPLITINLINE>
+    із підрозділу<SPACE/><REF NAME="sec:data-directed"/>.  Коли нас просять застосувати
+    операцію, ми спершу з<APOS/>ясовуємо, чи означена ця операція для типів
+    аргументів, точно як раніше.  Якщо так, ми диспетчеризуємо до
+    <SPLITINLINE>
+      <SCHEME>процедури</SCHEME>
+      <PYTHON>функції</PYTHON>
+    </SPLITINLINE>
+    , знайденої в таблиці «операція — тип». Інакше ми пробуємо зведення.  Для
+    простоти ми розглядаємо лише випадок, коли є два
+    аргументи.<FOOTNOTE>Див. вправу<SPACE/><REF NAME="ex:multi-coercion"/> щодо
+    узагальнень.</FOOTNOTE>  Ми перевіряємо таблицю зведення, чи можна об’єкти
+    першого типу звести до другого типу.  Якщо так, ми зводимо
+    перший аргумент і пробуємо операцію знову.  Якщо об’єкти першого типу
+    загалом не можна звести до другого типу, ми пробуємо зведення в
+    інший бік, щоб побачити, чи є спосіб звести другий аргумент до
+    типу першого аргументу. Нарешті, якщо немає відомого способу звести
+    жоден із типів до іншого, ми здаємося. Ось ця
+    <SPLITINLINE>
+      <SCHEME>процедура:</SCHEME>
+      <PYTHON>функція:</PYTHON>
+    </SPLITINLINE>
+     <INDEX><DECLARATION>apply_generic</DECLARATION><SUBINDEX>зі зведенням</SUBINDEX></INDEX>
+    <SNIPPET HIDE="yes">
+      <NAME>base_operation_table</NAME>
+      <PYTHON>
+# operation_table, put and get
+# from chapter 3 (section 3.3.3)
+def assoc(key, records):
+    return (None
+            if is_none(records)
+            else head(records)
+            if key == head(head(records))
+            else assoc(key, tail(records)))
+def make_table():
+    local_table = llist("*table*")
+    def lookup(key_1, key_2):
+        subtable = assoc(key_1, tail(local_table))
+        if is_none(subtable):
+            return None
+        else:
+            record = assoc(key_2, tail(subtable))
+            if is_none(record):
+                return None
+            else:
+                return tail(record)
+    def insert(key_1, key_2, value):
+        subtable = assoc(key_1, tail(local_table))
+        if is_none(subtable):
+            set_tail(local_table,
+                     pair(llist(key_1, pair(key_2, value)),
+                          tail(local_table)))
+        else:
+            record = assoc(key_2, tail(subtable))
+            if is_none(record):
+                set_tail(subtable,
+                         pair(pair(key_2, value),
+                              tail(subtable)))
+            else:
+                set_tail(record, value)
+    def dispatch(m):
+        return (lookup
+                if m == "lookup"
+                else insert
+                if m == "insert"
+                else "undefined operation -- table")
+    return dispatch
+operation_table = make_table()
+get = operation_table("lookup")
+put = operation_table("insert")
+
+# In Source, most functions have a fixed number of arguments.
+# (The function llist is the only exception, to this so far.)
+# The function apply_in_underlying_javascript allows us to
+# apply any given function fun to all elements of the 
+# linked list args, as if they were separate arguments
+def apply(fun, args):
+    return apply_in_underlying_javascript(fun, args)
+def add(x, y):
+    return apply_generic("add", llist(x, y))
+def sub(x, y):
+    return apply_generic("sub", llist(x, y))
+def mul(x, y):
+    return apply_generic("mul", llist(x, y))
+def div(x, y):
+    return apply_generic("div", llist(x, y))
+
+def attach_tag(type_tag, contents):
+    return pair(type_tag, contents)
+def type_tag(datum):
+    return (head(datum)
+            if is_pair(datum)
+            else error("bad tagged datum -- type_tag", datum))
+def contents(datum):
+    return (tail(datum)
+            if is_pair(datum)
+            else error("bad tagged datum -- contents", datum))
+</PYTHON>
+    </SNIPPET>
+    <SNIPPET HIDE="yes">
+      <NAME>python_number_package</NAME>
+      <REQUIRES>base_operation_table</REQUIRES>
+      <PYTHON>
+def install_python_number_package():
+    def tag(x):
+        return attach_tag("python_number", x)
+    put("add", llist("python_number", "python_number"),
+        lambda x, y: tag(x + y))
+    put("sub", llist("python_number", "python_number"),
+        lambda x, y: tag(x - y))
+    put("mul", llist("python_number", "python_number"),
+        lambda x, y: tag(x * y))
+    put("div", llist("python_number", "python_number"),
+        lambda x, y: tag(x / y))
+    put("make", "python_number",
+        lambda x: tag(x))
+    return "done"
+install_python_number_package()
+
+def make_python_number(n):
+    return get("make", "python_number")(n)
+      </PYTHON>
+    </SNIPPET>
+    <SNIPPET HIDE="yes">
+      <NAME>complex_number_package</NAME>
+      <REQUIRES>base_operation_table</REQUIRES>
+      <PYTHON>
+# generic selector functions for complex numbers
+
+def real_part(z):
+    return apply_generic("real_part", llist(z))
+def imag_part(z):
+    return apply_generic("imag_part", llist(z))
+def magnitude(z):
+    return apply_generic("magnitude", llist(z))
+def angle(z):
+    return apply_generic("angle", llist(z))
+def square(x):
+    return x * x
+
+def install_rectangular_package():
+    def real_part(z): return head(z)
+    def imag_part(z): return tail(z)
+    def make_from_real_imag(x, y): return pair(x, y)
+    def magnitude(z):
+        return math_sqrt(square(real_part(z)) +
+                   square(imag_part(z)))
+    def angle(z):
+        return math_atan2(imag_part(z), real_part(z))
+    def make_from_mag_ang(r, a):
+        return pair(r * math_cos(a), r * math_sin(a))
+    # interface to the rest of the system
+    def tag(x):
+        return attach_tag("rectangular", x)
+    put("real_part", llist("rectangular"), real_part)
+    put("imag_part", llist("rectangular"), imag_part)
+    put("magnitude", llist("rectangular"), magnitude)
+    put("angle", llist("rectangular"), angle)
+    put("make_from_real_imag", "rectangular",
+        lambda x, y: tag(make_from_real_imag(x, y)))
+    put("make_from_mag_ang", "rectangular",
+        lambda r, a: tag(make_from_mag_ang(r, a)))
+    return "done"
+install_rectangular_package()
+
+def install_polar_package():
+    # internal functions
+    def magnitude(z): return head(z)
+    def angle(z): return tail(z)
+    def make_from_mag_ang(r, a): return pair(r, a)
+    def real_part(z):
+        return magnitude(z) * math_cos(angle(z))
+    def imag_part(z):
+        return magnitude(z) * math_sin(angle(z))
+    def make_from_real_imag(x, y):
+        return pair(math_sqrt(square(x) + square(y)),
+                    math_atan2(y, x))
+
+    # interface to the rest of the system
+    def tag(x): return attach_tag("polar", x)
+    put("real_part", llist("polar"), real_part)
+    put("imag_part", llist("polar"), imag_part)
+    put("magnitude", llist("polar"), magnitude)
+    put("angle", llist("polar"), angle)
+    put("make_from_real_imag", "polar",
+        lambda x, y: tag(make_from_real_imag(x, y)))
+    put("make_from_mag_ang", "polar",
+        lambda r, a: tag(make_from_mag_ang(r, a)))
+    return "done"
+install_polar_package()
+
+def install_complex_package():
+    # imported functions from rectangular and polar packages
+    def make_from_real_imag(x, y):
+        return get("make_from_real_imag", "rectangular")(x, y)
+    def make_from_mag_ang(r, a):
+        return get("make_from_mag_ang", "polar")(r, a)
+
+    # internal functions
+    def add_complex(z1, z2):
+        return make_from_real_imag(real_part(z1) +
+                                   real_part(z2),
+                                   imag_part(z1) +
+                                   imag_part(z2))
+    def sub_complex(z1, z2):
+        return make_from_real_imag(real_part(z1) -
+                                   real_part(z2),
+                                   imag_part(z1) -
+                                   imag_part(z2))
+    def mul_complex(z1, z2):
+        return make_from_mag_ang(magnitude(z1) *
+                                 magnitude(z2),
+                                 angle(z1) +
+                                 angle(z2))
+    def div_complex(z1, z2):
+        return make_from_mag_ang(magnitude(z1) /
+                                 magnitude(z2),
+                                 angle(z1) -
+                                 angle(z2))
+
+    # interface to rest of the system
+    def tag(z):
+        return attach_tag("complex", z)
+    put("add", llist("complex", "complex"),
+        lambda z1, z2: tag(add_complex(z1, z2)))
+    put("sub", llist("complex", "complex"),
+        lambda z1, z2: tag(sub_complex(z1, z2)))
+    put("mul", llist("complex", "complex"),
+        lambda z1, z2: tag(mul_complex(z1, z2)))
+    put("div", llist("complex", "complex"),
+        lambda z1, z2: tag(div_complex(z1, z2)))
+    put("make_from_real_imag", "complex",
+        lambda x, y: tag(make_from_real_imag(x, y)))
+    put("make_from_mag_ang", "complex",
+        lambda r, a: tag(make_from_mag_ang(r, a)))
+    return "done"
+install_complex_package()
+
+def make_complex_from_real_imag(x, y):
+    return get("make_from_real_imag", "complex")(x, y)
+def make_complex_from_mag_ang(r, a):
+    return get("make_from_mag_ang", "complex")(r, a)
+      </PYTHON>
+    </SNIPPET>
+    <SNIPPET HIDE="yes">
+      <NAME>coercion_support</NAME>
+      <PYTHON>
+# coercion support
+
+coercion_list = None
+
+def clear_coercion_list():
+    global coercion_list
+    coercion_list = None
+
+def put_coercion(type1, type2, item):
+    global coercion_list
+    if is_none(get_coercion(type1, type2)):
+        coercion_list = pair(llist(type1, type2, item),
+                             coercion_list)
+    else:
+        return coercion_list
+
+def get_coercion(type1, type2):
+    def get_type1(list_item):
+        return head(list_item)
+    def get_type2(list_item):
+        return head(tail(list_item))
+    def get_item(list_item):
+        return head(tail(tail(list_item)))
+    def get_coercion_iter(items):
+        if is_none(items):
+            return None
+        else:
+            top = head(items)
+            return (get_item(top)
+                    if type1 == get_type1(top) and
+                       type2 == get_type2(top)
+                    else get_coercion_iter(tail(items)))
+    return get_coercion_iter(coercion_list)
+      </PYTHON>
+    </SNIPPET>
+    <SNIPPET HIDE="yes">
+      <NAME>apply_generic_with_coercion_example</NAME>
+      <REQUIRES>base_operation_table</REQUIRES>
+      <REQUIRES>python_number_package</REQUIRES>
+      <REQUIRES>complex_number_package</REQUIRES>
+      <REQUIRES>coercion_support</REQUIRES>
+      <PYTHON>
+def python_number_to_complex(n):
+    return make_complex_from_real_imag(contents(n), 0)
+
+put_coercion("python_number", "complex",
+             python_number_to_complex)
+
+c = make_complex_from_real_imag(4, 3)
+n = make_python_number(7)
+
+print(add(c, n))
+      </PYTHON>
+    </SNIPPET>
+    <SNIPPET CHAP="4">
+      <NAME>apply_generic_with_coercion</NAME>
+      <REQUIRES>length</REQUIRES>
+      <REQUIRES>map</REQUIRES>
+      <EXAMPLE>apply_generic_with_coercion_example</EXAMPLE>
+      <EXPECTED>[ 'complex', [ 'rectangular', [ 11, 3 ] ] ]</EXPECTED>
+      <SCHEME>
+(define (apply-generic op . args)
+  (let ((type-tags (map type-tag args)))
+    (let ((proc (get op type-tags)))
+      (if proc
+        (apply proc (map contents args))
+        (if (= (length args) 2)
+          (let ((type1 (car type-tags))
+                 (type2 (cadr type-tags))
+                 (a1 (car args))
+                 (a2 (cadr args)))
+            (let ((t1-&gt;t2 (get-coercion type1 type2))
+                  (t2-&gt;t1 (get-coercion type2 type1)))
+              (cond (t1-&gt;t2
+                      (apply-generic op (t1-&gt;t2 a1) a2))
+                    (t2-&gt;t1
+                      (apply-generic op a1 (t2-&gt;t1 a2)))
+                    (else
+                      (error "No method for these types"
+                        (list op type-tags))))))
+          (error "No method for these types"
+            (list op type-tags)))))))
+      </SCHEME>
+      <PYTHON>
+def apply_generic(op, args):
+    type_tags = map(type_tag, args)
+    fun = get(op, type_tags)
+    if not is_none(fun):
+        return apply(fun, map(contents, args))
+    else:
+        if length(args) == 2:
+            type1 = head(type_tags)
+            type2 = head(tail(type_tags))
+            a1 = head(args)
+            a2 = head(tail(args))
+            t1_to_t2 = get_coercion(type1, type2)
+            t2_to_t1 = get_coercion(type2, type1)
+            return (apply_generic(op, llist(t1_to_t2(a1), a2))
+                    if not is_none(t1_to_t2)
+                    else apply_generic(op, llist(a1, t2_to_t1(a2)))
+                    if not is_none(t2_to_t1)
+                    else error("no method for these types",
+                               llist(op, type_tags)))
+        else:
+            return error("no method for these types",
+                         llist(op, type_tags))
+      </PYTHON>
+    </SNIPPET>
+  </TEXT>
+  <TEXT>
+    Ця схема зведення має чимало переваг над методом означення
+    явних операцій між типами, окресленим вище.  Хоча нам усе ще
+    потрібно писати
+    <SPLITINLINE>
+      <SCHEME>процедури</SCHEME>
+      <PYTHON>функції</PYTHON>
+    </SPLITINLINE>
+    зведення, щоб пов’язати типи (можливо, <LATEXINLINE>$n^2$</LATEXINLINE>
+    <SPLITINLINE>
+      <SCHEME>процедури</SCHEME>
+      <PYTHON>функції</PYTHON>
+    </SPLITINLINE>
+    для системи з <LATEXINLINE>$n$</LATEXINLINE> типами), нам треба написати
+    лише одну
+    <SPLITINLINE>
+      <SCHEME>процедуру</SCHEME>
+      <PYTHON>функцію</PYTHON>
+    </SPLITINLINE>
+    для кожної пари типів, а не окрему
+    <SPLITINLINE>
+      <SCHEME>процедуру</SCHEME>
+      <PYTHON>функцію</PYTHON>
+    </SPLITINLINE>
+    для кожної сукупності типів і кожної узагальненої операції.<FOOTNOTE>Якщо ми
+    кмітливі, зазвичай можемо обійтися менш ніж
+    <LATEXINLINE>$n^2$</LATEXINLINE> зведення
+    <SPLITINLINE>
+      <SCHEME>процедурами.</SCHEME>
+    <PYTHON>функціями.</PYTHON></SPLITINLINE>
+    Наприклад, якщо ми знаємо, як перетворити тип 1 на тип 2 і
+    тип 2 на тип 3, то можемо скористатися цим знанням, щоб перетворити тип 1 на
+    тип 3.  Це може сильно зменшити кількість
+    <SPLITINLINE>
+      <SCHEME>процедури</SCHEME>
+      <PYTHON>функції</PYTHON>
+    </SPLITINLINE>
+    зведення, які нам треба надати явно, коли ми додаємо новий тип до
+    системи.  Якщо ми готові закласти в систему потрібну
+    витонченість, то можемо змусити її перебирати <QUOTE>граф</QUOTE> відношень між типами й
+    автоматично генерувати ті
+    <SPLITINLINE>
+      <SCHEME>процедури</SCHEME>
+      <PYTHON>функції</PYTHON>
+    </SPLITINLINE>
+    зведення, які можна вивести з наданих
+    явно.</FOOTNOTE>  Тут ми розраховуємо на той факт, що
+    відповідне перетворення між типами залежить лише від самих типів,
+    а не від операції, яку треба застосувати.
+  </TEXT>
+  <TEXT>
+    З іншого боку, можуть бути застосування, для яких наша схема
+    зведення недостатньо загальна.  Навіть коли жоден з об’єктів, які
+    треба поєднати, не можна перетворити на тип іншого, все ще може бути
+    можливо виконати операцію, перетворивши обидва об’єкти на
+    третій тип.  Щоб дати раду такій складності й при цьому зберегти
+    модульність у наших програмах, зазвичай потрібно будувати системи,
+    які використовують ще подальшу структуру у відношеннях між
+    типами, як ми обговоримо далі.
+  </TEXT>
+
+  <SUBHEADING>
+    <NAME>Ієрархії типів</NAME>
+  </SUBHEADING>
+
+  <INDEX>тип(и)<SUBINDEX>ієрархія</SUBINDEX><OPEN/></INDEX>
+  <INDEX>ієрархія типів<OPEN/></INDEX>
+  <TEXT>
+    Схема зведення, представлена вище, спиралася на існування природних
+    відношень між парами типів.  Часто в тому, як різні типи співвідносяться
+    один з одним, є більш <QUOTE>глобальна</QUOTE>
+    структура.  Наприклад, припустімо, ми будуємо узагальнену арифметичну
+    систему для роботи з цілими, раціональними, дійсними та комплексними
+    числами.  У такій системі цілком природно розглядати ціле число як
+    особливий різновид раціонального числа, яке, своєю чергою, є особливим
+    різновидом дійсного числа, яке, своєю чергою, є особливим різновидом
+    комплексного числа.  Насправді ми маємо так звану 
+<EM>ієрархію типів</EM>, у якій,
+    наприклад, цілі числа є
+    <INDEX>підтип</INDEX>
+    <INDEX>тип(и)<SUBINDEX>підтип</SUBINDEX></INDEX>
+    <EM>підтип</EM> підтипом раціональних чисел (тобто
+    будь-яку операцію, яку можна застосувати до раціонального числа, можна
+    автоматично застосувати й до цілого числа).  І навпаки, кажуть, що
+    раціональні числа утворюють
+    <INDEX>надтип</INDEX>
+    <INDEX>тип(и)<SUBINDEX>надтип</SUBINDEX></INDEX>
+    <EM>надтип</EM> надтип цілих чисел.  Конкретна
+    ієрархія, яку ми тут маємо, — дуже простого різновиду: у ній кожен тип
+    має щонайбільше один надтип і щонайбільше один підтип.  Таку структуру,
+    яку називають <EM>вежею</EM>, показано на
+    рисунку<SPACE/><REF NAME="fig:tower"/>.
+    <FIGURE>
+      <FIGURE split_scale="0.1" web_scale="0.2" scale="0.59" src="img_original/ch2-Z-G-66.svg"></FIGURE>
+      <CAPTION>Вежа типів.
+      <INDEX>вежа типів</INDEX>
+      <INDEX>тип(и)<SUBINDEX>вежа</SUBINDEX></INDEX>
+      </CAPTION>
+      <LABEL NAME="fig:tower"/>
+    </FIGURE>
+  </TEXT>
+  <TEXT>
+    Якщо ми маємо структуру вежі, то можемо значно спростити задачу
+    додавання нового типу до ієрархії, бо нам треба лише вказати, як
+    новий тип вбудовується в наступний надтип над ним і як він є
+    надтипом типу під ним.  Наприклад, якщо ми хочемо додати
+    ціле число до комплексного числа, нам не потрібно явно означати спеціальну
+    <SPLITINLINE>
+      <SCHEME>процедуру</SCHEME>
+      <PYTHON>функцію</PYTHON>
+    </SPLITINLINE>
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>integer-&gt;complex</SCHEMEINLINE>.
+    </SCHEME>
+      <PYTHON><PYTHONINLINE>integer_to_complex</PYTHONINLINE>.
+      </PYTHON>
+    </SPLITINLINE>
+    Натомість ми означаємо, як ціле число можна перетворити на раціональне
+    число, як раціональне число перетворюється на дійсне число і як
+    дійсне число перетворюється на комплексне число.  Тоді ми дозволяємо
+    системі перетворити ціле число на комплексне цими кроками
+    і потім додати два комплексні числа.
+  </TEXT>
+  <TEXT>
+    <INDEX>тип(и)<SUBINDEX>підвищення</SUBINDEX></INDEX>
+     <INDEX><USE>apply_generic</USE><SUBINDEX>з вежею типів</SUBINDEX></INDEX>
+    Ми можемо перепроєктувати нашу
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>apply-generic</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>apply_generic</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    <SPLITINLINE>
+      <SCHEME>процедуру</SCHEME>
+      <PYTHON>функцію</PYTHON>
+    </SPLITINLINE>
+    таким чином: Для кожного типу нам треба надати
+    <SPLITINLINE><SCHEME><SCHEMEINLINE>raise</SCHEMEINLINE></SCHEME><PYTHON><PYTHONINLINE>promote</PYTHONINLINE></PYTHON></SPLITINLINE>
+    <SPLITINLINE>
+      <SCHEME>процедуру,</SCHEME>
+      <PYTHON>функцію,</PYTHON>
+    </SPLITINLINE>
+    яка <QUOTE>піднімає</QUOTE> об’єкти цього типу на один рівень у вежі.
+    Тоді, коли система має виконати операцію над об’єктами різних типів,
+    вона може послідовно піднімати нижчі типи, доки всі об’єкти не опиняться на
+    одному рівні у вежі.  (Вправи<SPACE/><REF NAME="ex:raise"/>
+    та <SPACE/><REF NAME="ex:apply-with-raise"/>
+    стосуються подробиць реалізації такої стратегії.)
+  </TEXT>
+  <TEXT>
+    Ще одна перевага вежі полягає в тому, що ми можемо легко реалізувати уявлення,
+    ніби кожен тип <QUOTE>успадковує</QUOTE> всі операції, означені для
+    надтипу.  Наприклад, якщо ми не надали спеціальної
+    <SPLITINLINE>
+      <SCHEME>процедури</SCHEME>
+      <PYTHON>функції</PYTHON>
+    </SPLITINLINE>
+    для знаходження дійсної частини цілого числа, ми все ж повинні сподіватися,
+    що
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>real-part</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>real_part</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    буде означено для цілих чисел з огляду на те, що цілі числа є
+    підтипом комплексних чисел.  У вежі ми можемо домогтися цього
+    одноманітним способом, змінивши
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>apply-generic</SCHEMEINLINE>.
+    </SCHEME>
+      <PYTHON><PYTHONINLINE>apply_generic</PYTHONINLINE>.
+      </PYTHON>
+    </SPLITINLINE>
+    Якщо потрібна операція не означена безпосередньо для типу заданого
+    об’єкта, ми піднімаємо об’єкт до його надтипу й пробуємо знову.  Так ми
+    повземо вгору вежею, перетворюючи аргумент дорогою, доки або
+    знайдемо рівень, на якому бажану операцію можна виконати, або
+    дійдемо до верху (і тоді здаємося).
+  </TEXT>
+  <TEXT>
+    <INDEX>тип(и)<SUBINDEX>зниження</SUBINDEX></INDEX>
+    Ще одна перевага вежі над загальнішою ієрархією полягає в тому, що
+    вона дає нам простий спосіб <QUOTE>знизити</QUOTE> об’єкт даних до
+    найпростішого подання.  Наприклад, якщо ми додамо
+    <LATEXINLINE>$2+3i$</LATEXINLINE> до <LATEXINLINE>$4-3i$</LATEXINLINE>,
+    було б приємно отримати відповідь як ціле число 6, а не як
+    комплексне число <LATEXINLINE>$6+0i$</LATEXINLINE>.
+    Вправа<SPACE/><REF NAME="ex:simplify"/> обговорює спосіб реалізувати
+    таку операцію зниження.  (Хитрість у тому, що нам потрібен загальний спосіб
+    відрізняти ті об’єкти, які можна знизити, як-от
+    <LATEXINLINE>$6+0i$</LATEXINLINE>, від тих, які не можна, як-от
+    <LATEXINLINE>$6+2i$</LATEXINLINE>.)
+  </TEXT>
+
+  <SUBHEADING>
+    <NAME>Вади ієрархій</NAME>
+  </SUBHEADING>
+
+  <INDEX>ієрархія типів<SUBINDEX>вади</SUBINDEX></INDEX>
+  <TEXT>
+    Якщо типи даних у нашій системі вдається природно впорядкувати у вежу,
+    це значно спрощує проблеми роботи з узагальненими операціями
+    над різними типами, як ми бачили.  На жаль, зазвичай це
+    не так.  Рисунок<SPACE/><REF NAME="fig:relations-among-figures"/>
+    показує складніше впорядкування змішаних типів, а саме
+    відношення між різними типами геометричних фігур.  Ми бачимо, що
+    загалом
+    <INDEX>тип(и)<SUBINDEX>кілька підтипів і надтипів</SUBINDEX></INDEX>
+    <INDEX>надтип<SUBINDEX>кілька</SUBINDEX></INDEX>
+    <INDEX>підтип<SUBINDEX>кілька</SUBINDEX></INDEX>
+    тип може мати більше ніж один підтип.  Трикутники й чотирикутники,
+    наприклад, обидва є підтипами многокутників.  Крім того, тип може
+    мати більше ніж один надтип.  Наприклад, рівнобедрений прямокутний
+    трикутник можна розглядати або як рівнобедрений трикутник, або як прямокутний
+    трикутник.  Питання кількох надтипів особливо тернисте,
+    бо воно означає, що немає єдиного способу <QUOTE>підняти</QUOTE> тип
+    в ієрархії.  Пошук <QUOTE>правильного</QUOTE> надтипу, у якому
+    застосувати операцію до об’єкта, може вимагати чималого перебирання
+    всього мережива типів із боку такої
+    <SPLITINLINE>
+      <SCHEME>процедури</SCHEME>
+      <PYTHON>функції</PYTHON>
+    </SPLITINLINE>
+    , як
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>apply-generic</SCHEMEINLINE>.
+    </SCHEME>
+      <PYTHON><PYTHONINLINE>apply_generic</PYTHONINLINE>.
+      </PYTHON>
+    </SPLITINLINE>
+    Оскільки загалом у типу є кілька підтипів, виникає подібна
+    проблема зі зведенням значення <QUOTE>вниз</QUOTE> ієрархією типів.
+    Давати раду з великою кількістю взаємопов’язаних типів і при цьому
+    зберігати модульність у проєктуванні великих систем дуже важко, і це
+    царина багатьох сучасних досліджень.<FOOTNOTE>Це твердження, яке також
+    з’являється в першому виданні цієї книжки, так само правильне тепер,
+    як було, коли ми його написали
+    <SPLITINLINE>
+      <SCHEME>дванадцять років тому.</SCHEME>
+      <PYTHON>1984 року.</PYTHON>
+    </SPLITINLINE>
+    Розробка корисного, загального підходу до вираження
+    відношень між різними типами сутностей (те, що філософи називають
+    <QUOTE>онтологією</QUOTE>) видається нездоланно складною.  Головна різниця
+    між плутаниною, яка була
+    <SPLITINLINE>
+      <SCHEME>десять років тому</SCHEME>
+      <PYTHON>1984 року</PYTHON>
+    </SPLITINLINE>
+    , і плутаниною, яка
+    панує тепер, полягає в тому, що тепер різноманітні неадекватні
+    онтологічні теорії втілено в безлічі відповідно неадекватних мов
+    програмування.  Наприклад, значна частина складності
+    <INDEX>об’єктноорієнтовані мови програмування</INDEX>
+    <INDEX>мова програмування<SUBINDEX>об’єктноорієнтована</SUBINDEX></INDEX>
+    об’єктноорієнтованих мов програмування<EMDASH/>і тонкі та заплутані
+    відмінності між сучасними об’єктноорієнтованими
+    мовами<EMDASH/> зосереджена на трактуванні узагальнених операцій над
+    взаємопов’язаними типами.  Наше власне обговорення обчислювальних об’єктів у
+    розділі<SPACE/><REF NAME="chap:state"></REF> цілком оминає ці питання.  Читачі, знайомі з
+    об’єктноорієнтованим програмуванням, помітять, що в
+    розділі<SPACE/><REF NAME="chap:state"></REF> ми маємо чимало сказати про локальний стан, але не згадуємо
+    навіть
+    <QUOTE>класів</QUOTE> чи <QUOTE>успадкування.</QUOTE>  Насправді ми підозрюємо,
+    що ці проблеми не можна належно розв’язати самими лише засобами
+    проєктування мов програмування, без опори на роботи з подання
+    знань і автоматичного міркування.</FOOTNOTE>
+  </TEXT>
+  <FIGURE>
+    <FIGURE split_scale="0.6" scale="0.59" src="img_original/ch2-Z-G-67.svg"></FIGURE>
+    <CAPTION>Відношення між типами геометричних фігур.</CAPTION>
+    <LABEL NAME="fig:relations-among-figures"/>
+  </FIGURE>
+
+  <EXERCISE>
+     <INDEX><USE>apply_generic</USE><SUBINDEX>зі зведенням</SUBINDEX></INDEX>
+    Луї Різонер помітив, що
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>apply-generic</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>apply_generic</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    може спробувати звести аргументи до типу, який має інший аргумент, за ім<APOS/>ям цього типу, навіть якщо вони
+    вже мають однаковий тип.  Тому він міркує, що нам треба вмістити
+    <SPLITINLINE>
+      <SCHEME>процедури</SCHEME>
+      <PYTHON>функції</PYTHON>
+    </SPLITINLINE>
+    в таблицю зведення, щоб <QUOTE>зводити</QUOTE> аргументи кожного типу до
+    їхнього власного типу.  Наприклад, крім
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>scheme-number-&gt;complex</SCHEMEINLINE></SCHEME>
+      <PYTHON>
+	<PYTHONINLINE>python_number_to_complex</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    зведення, показаного вище, він зробив би так:
+    <SNIPPET EVAL="no">
+      <INDEX><DECLARATION>python_number_to_python_</DECLARATION> <PYTHONINLINE>number</PYTHONINLINE></INDEX>
+      <INDEX><DECLARATION>complex_to_complex</DECLARATION></INDEX> 
+      <SCHEME>
+(define (scheme-number-&gt;scheme-number n) n)
+(define (complex-&gt;complex z) z)
+(put-coercion 'scheme-number 'scheme-number
+  scheme-number-&gt;scheme-number)
+(put-coercion 'complex 'complex complex-&gt;complex)
+      </SCHEME>
+      <PYTHON>
+def python_number_to_python_number(n): return n
+<SHORT_SPACE/>
+def complex_to_complex(n): return n
+<SHORT_SPACE/>
+put_coercion("python_number", "python_number",
+             python_number_to_python_number)
+put_coercion("complex", "complex", complex_to_complex)
+      </PYTHON>
+    </SNIPPET>
+
+    <OL>
+      <LI>
+        Коли Луї з<APOS/>єднав свої<SPLITINLINE>
+	  <SCHEME>процедури</SCHEME>
+	  <PYTHON>функції</PYTHON>
+	</SPLITINLINE>
+        зведення, що станеться, якщо
+	<SPLITINLINE>
+	  <SCHEME><SCHEMEINLINE>apply-generic</SCHEMEINLINE></SCHEME>
+	  <PYTHON><PYTHONINLINE>apply_generic</PYTHONINLINE>
+	  </PYTHON>
+	</SPLITINLINE>
+	або з двома аргументами
+        типу
+	<SPLITINLINE>
+	  <SCHEME><SCHEMEINLINE>scheme-number</SCHEMEINLINE></SCHEME>
+	  <PYTHON><PYTHONINLINE>"complex"</PYTHONINLINE>
+	  </PYTHON>
+	</SPLITINLINE>
+	для операції, якої немає в таблиці для цих типів?
+	Наприклад, припустімо, що ми<SPLITINLINE>
+	  <SCHEME><SCHEMEINLINE>complex</SCHEMEINLINE></SCHEME>
+	  <PYTHON><PYTHONINLINE>"python_@number"</PYTHONINLINE>
+	  </PYTHON>
+	</SPLITINLINE> з’ясували, як означити узагальнену операцію піднесення до степеня:
+        <APOS/>
+        і вмістили
+        <SNIPPET EVAL="no">
+          <REQUIRES>apply_generic</REQUIRES>
+          <SCHEME>
+(define (exp x y) (apply-generic 'exp x y))
+          </SCHEME>
+          <PYTHON>
+def exp(x, y):
+    return apply_generic("exp", llist(x, y))
+          </PYTHON>
+        </SNIPPET>
+        для піднесення до степеня в
+	<SPLITINLINE>
+	  <SCHEME>процедуру</SCHEME>
+	  <PYTHON>функцію</PYTHON>
+	</SPLITINLINE>
+        для піднесення до степеня в
+	<SPLITINLINE>
+	  <SCHEME>схемових чисел</SCHEME>
+	  <PYTHON>чисел Python</PYTHON>
+	</SPLITINLINE>
+        пакет, але не в жоден інший пакет:
+        <SNIPPET EVAL="no" LATEX="yes">
+          <SCHEME>
+;; following added to Scheme-number package
+(put 'exp '(scheme-number scheme-number)
+  (lambda (x y) (tag (expt x y)))) ; using primitive expt
+          </SCHEME>
+          <PYTHON>
+# following added to Python-number package
+put("exp", llist("python_number", "python_number"),
+    lambda x, y: tag(math_pow(x, y))) # using primitive $\texttt{math\char`_pow}$
+          </PYTHON>
+        </SNIPPET>
+        Що станеться, якщо ми викличемо <SCHEMEINLINE>exp</SCHEMEINLINE> з двома
+	комплексними числами як аргументами?
+      </LI>
+      <LI>
+        Чи правий Луї, що щось треба було зробити зі зведенням для
+	аргументів однакового типу, чи
+	<SPLITINLINE>
+	  <SCHEME><SCHEMEINLINE>apply-generic</SCHEMEINLINE></SCHEME>
+	  <PYTHON><PYTHONINLINE>apply_generic</PYTHONINLINE>
+	  </PYTHON>
+	</SPLITINLINE>
+        працює правильно як є?
+      </LI>
+      <LI>
+        Змініть
+	<SPLITINLINE>
+	  <SCHEME><SCHEMEINLINE>apply-generic</SCHEMEINLINE></SCHEME>
+	  <PYTHON><PYTHONINLINE>apply_generic</PYTHONINLINE>
+	  </PYTHON>
+	</SPLITINLINE>
+	так, щоб вона з<APOS/>ясувала, чи мають обидва аргументи однаковий тип, і не пробувала
+	тоді зведення.
+      </LI>
+    </OL>
+    <SOLUTION>
+    <OL>
+    <LI>Якщо Луї вмістить функції зведення до таблиці операцій,
+    <PYTHONINLINE>apply_generic</PYTHONINLINE> увійде в нескінченний цикл
+    </LI>
+    <LI>
+    Код Луї не працює. <PYTHONINLINE>apply_generic</PYTHONINLINE> працює правильно як є.
+    Але ми могли б змінити його так, щоб він завершувався помилкою, перш ніж пробувати будь-які зведення однотипних аргументів.
+    </LI>
+    <LI>
+    <SNIPPET HIDE="yes">
+    <NAME>apply_generic_with_unavailable_type_example</NAME>
+    <REQUIRES>base_operation_table</REQUIRES>
+    <REQUIRES>complex_number_package</REQUIRES>
+    <REQUIRES>coercion_support</REQUIRES>
+    <PYTHON>
+
+def install_python_number_package():
+    def tag(x):
+        return attach_tag("python_number", x)
+    put("add", llist("python_number", "python_number"),
+        lambda x, y: tag(x + y))
+    put("sub", llist("python_number", "python_number"),
+        lambda x, y: tag(x - y))
+    put("mul", llist("python_number", "python_number"),
+        lambda x, y: tag(x * y))
+    put("div", llist("python_number", "python_number"),
+        lambda x, y: tag(x / y))
+    put("exp", llist("python_number", "python_number"),
+        lambda x, y: tag(math_pow(x, y)))
+    put("make", "python_number",
+        lambda x: tag(x))
+    return "done"
+install_python_number_package()
+
+def make_python_number(n):
+    return get("make", "python_number")(n)
+
+def python_number_to_python_number(n):
+    return n
+def complex_to_complex(n):
+    return n
+put_coercion("python_number", "python_number",
+             python_number_to_python_number)
+put_coercion("complex", "complex",
+             complex_to_complex)
+def exp(x, y):
+    return apply_generic("exp", llist(x, y))
+
+c = make_python_number(4)
+d = make_python_number(2)
+print(exp(c, d))
+
+    </PYTHON>
+    <SCHEME></SCHEME>
+    </SNIPPET>
+    <SNIPPET CHAP="4">
+      <NAME>apply_generic_with_unavailable_type</NAME>
+      <REQUIRES>length</REQUIRES>
+      <REQUIRES>map</REQUIRES>
+      <EXAMPLE>apply_generic_with_unavailable_type_example</EXAMPLE>
+      <SCHEME>
+      </SCHEME>
+      <PYTHON>
+def apply_generic(op, args):
+    type_tags = map(type_tag, args)
+    fun = get(op, type_tags)
+    if not is_none(fun):
+        return apply(fun, map(contents, args))
+    else:
+        if length(args) == 2:
+            type1 = head(type_tags)
+            type2 = head(tail(type_tags))
+            a1 = head(args)
+            a2 = head(tail(args))
+            t1_to_t2 = get_coercion(type1, type2)
+            t2_to_t1 = get_coercion(type2, type1)
+            return (error("no method for these types",
+                          llist(op, type_tags))
+                    if type1 == type2
+                    else apply_generic(op, llist(t1_to_t2(a1), a2))
+                    if not is_none(t1_to_t2)
+                    else apply_generic(op, llist(a1, t2_to_t1(a2)))
+                    if not is_none(t2_to_t1)
+                    else error("no method for these types",
+                               llist(op, type_tags)))
+        else:
+            return error("no method for these types",
+                         llist(op, type_tags))
+      </PYTHON>
+    </SNIPPET>
+    </LI>
+    </OL>
+    </SOLUTION>
+    <LABEL NAME="ex:2_81"/>
+  </EXERCISE>
+
+  <EXERCISE>
+     <INDEX><USE>apply_generic</USE><SUBINDEX>зі зведенням кількох аргументів</SUBINDEX></INDEX>
+    Покажіть, як узагальнити
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>apply-generic</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>apply_generic</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    на випадок зведення із загальною кількістю аргументів.  Одна
+    стратегія — пробувати звести всі аргументи до типу
+    першого аргументу, потім до типу другого аргументу, і так далі.
+    Наведіть приклад ситуації, де ця стратегія (як і
+    версія з двома аргументами, наведена вище) недостатньо загальна.
+    (Підказка: розгляньте випадок, коли в таблиці є якісь доречні операції
+    зі змішаними типами, які не будуть випробувані.)
+    <LABEL NAME="ex:multi-coercion"/>
+    <SOLUTION>
+      <SNIPPET HIDE="yes">
+      <NAME>multi_coercion_example</NAME>
+      <REQUIRES>base_operation_table</REQUIRES>
+      <REQUIRES>python_number_package</REQUIRES>
+      <REQUIRES>complex_number_package</REQUIRES>
+      <REQUIRES>coercion_support</REQUIRES>
+      <PYTHON>
+def python_number_to_complex(n):
+    return make_complex_from_real_imag(contents(n), 0)
+
+put_coercion("python_number", "complex",
+             python_number_to_complex)
+
+put("add", llist("complex", "complex", "complex"),
+  lambda x, y, z: attach_tag("complex", make_complex_from_real_imag(
+    real_part(x) + real_part(y) + real_part(z),
+    imag_part(x) + imag_part(y) + imag_part(z))))
+
+def add_three(x, y, z):
+    return apply_generic("add", llist(x, y, z))
+
+c = make_complex_from_real_imag(4, 3)
+n = make_python_number(7)
+print(add_three(c, c, n))
+# add_three(c, n, n)
+
+      </PYTHON>
+      <SCHEME></SCHEME>
+      </SNIPPET>
+      <SNIPPET CHAP="4">
+        <NAME>multi_coercion</NAME>
+        <REQUIRES>map</REQUIRES>
+        <REQUIRES>accumulate</REQUIRES>
+        <EXAMPLE>multi_coercion_example</EXAMPLE>
+        <PYTHON>
+def can_coerce_to(type_tags, target_type):
+    return reduce(lambda type_tag, result:
+                     (result and
+                      (type_tag == target_type or
+                       not is_none(get_coercion(type_tag, target_type)))),
+                  True,
+                  type_tags)
+
+def find_coerced_type(type_tags):
+    return (None
+            if is_none(type_tags)
+            else head(type_tags)
+            if can_coerce_to(type_tags, head(type_tags))
+            else find_coerced_type(tail(type_tags)))
+
+def coerce_all(args, target_type):
+    return map(lambda arg: arg
+                      if type_tag(arg) == target_type
+                      else get_coercion(type_tag(arg), target_type)(arg),
+               args)
+
+def apply_generic(op, args):
+    type_tags = map(type_tag, args)
+    fun = get(op, type_tags)
+    if not is_none(fun):
+        return apply(fun, map(contents, args))
+    else:
+        target_type = find_coerced_type(type_tags)
+        # proceed only if coercion makes progress; if the arguments are
+        # already all of the target type, there is no applicable method
+        if (not is_none(target_type) and
+            not reduce(lambda t, acc: acc and t == target_type,
+                       True, type_tags)):
+            return apply_generic(op, coerce_all(args, target_type))
+        else:
+            return error("no method for these types",
+                         llist(op, type_tags))
+        </PYTHON>
+      </SNIPPET>
+    Ситуація, де цей підхід не спрацьовує, — це коли є три
+    типи, A, B, C, де A можна звести до B, а C можна звести до B, і
+    є зареєстрована операція для (A, B, B). Обчислення операції для
+    (A, B, C) спробує лише (A, B, C) і (B, B, B), тоді як можна просто звести C
+    до B і скористатися зареєстрованою операцією для (A, B, B).
+    <P/>
+    Умова, що аргументи ще не всі мають тип
+    <PYTHONINLINE>target_type</PYTHONINLINE> потрібна, щоб гарантувати
+    завершення: без неї зведення аргументів, які вже мають цільовий
+    тип, залишило б теги типів без змін і викликало б
+    <PYTHONINLINE>apply_generic</PYTHONINLINE> знову з тими самими
+    аргументами, зациклюючись назавжди щоразу, коли для такої
+    комбінації типів не зареєстровано методу.
+    </SOLUTION>
+  </EXERCISE>
+
+  <EXERCISE>
+    <INDEX>тип(и)<SUBINDEX>підвищення</SUBINDEX></INDEX>
+    Припустімо, ви проєктуєте узагальнену арифметичну систему для роботи
+    з вежею типів, показаною на рисунку<SPACE/><REF NAME="fig:tower"/>:
+    цілі, раціональні, дійсні, комплексні.  Для
+    кожного типу (крім комплексного) спроєктуйте
+    <SPLITINLINE>
+      <SCHEME>процедуру</SCHEME>
+      <PYTHON>функцію</PYTHON>
+    </SPLITINLINE>
+    , яка піднімає об’єкти цього типу на один рівень у вежі.  Покажіть, як
+    установити узагальнену <SPLITINLINE><SCHEME><SCHEMEINLINE>raise</SCHEMEINLINE></SCHEME><PYTHON><PYTHONINLINE>promote</PYTHONINLINE></PYTHON></SPLITINLINE> операцію, яка
+    працюватиме для кожного типу (крім комплексного).
+    <LABEL NAME="ex:raise"/>
+    <SOLUTION>
+      <SNIPPET HIDE="yes">
+      <NAME>rational_number_package</NAME>
+      <PYTHON>
+def gcd(a, b):
+    return a if b == 0 else gcd(b, a % b)
+
+def install_rational_package():
+    # internal functions
+    def numer(x):
+        return head(x)
+    def denom(x):
+        return tail(x)
+    def make_rat(n, d):
+        g = gcd(n, d)
+        return pair(n // g, d // g)
+    def add_rat(x, y):
+        return make_rat(numer(x) * denom(y) +
+                        numer(y) * denom(x),
+                        denom(x) * denom(y))
+    def sub_rat(x, y):
+        return make_rat(numer(x) * denom(y) -
+                        numer(y) * denom(x),
+                        denom(x) * denom(y))
+    def mul_rat(x, y):
+        return make_rat(numer(x) * numer(y),
+                        denom(x) * denom(y))
+    def div_rat(x, y):
+        return make_rat(numer(x) * denom(y),
+                        denom(x) * numer(y))
+    # interface to rest of the system
+    def tag(x):
+        return attach_tag("rational", x)
+    put("add", llist("rational", "rational"),
+        lambda x, y: tag(add_rat(x, y)))
+    put("sub", llist("rational", "rational"),
+        lambda x, y: tag(sub_rat(x, y)))
+    put("mul", llist("rational", "rational"),
+        lambda x, y: tag(mul_rat(x, y)))
+    put("div", llist("rational", "rational"),
+        lambda x, y: tag(div_rat(x, y)))
+    put("make", "rational",
+        lambda n, d: tag(make_rat(n, d)))
+install_rational_package()
+
+def make_rational(n, d):
+    return get("make", "rational")(n, d)
+</PYTHON>
+<SCHEME></SCHEME>
+</SNIPPET>
+      <SNIPPET HIDE="yes">
+        <REQUIRES>python_number_package</REQUIRES>
+        <REQUIRES>rational_number_package</REQUIRES>
+        <REQUIRES>complex_number_package</REQUIRES>
+        <REQUIRES>coercion_support</REQUIRES>
+        <REQUIRES>apply_generic_with_coercion</REQUIRES>
+        <NAME>raise_example</NAME>
+        <PYTHON>
+a = make_python_number(2)
+b = make_rational(2, 3)
+print(promote(a))
+# promote(b)
+        </PYTHON>
+        <SCHEME></SCHEME>
+      </SNIPPET>
+      <SNIPPET CHAP="4">
+        <NAME>promote</NAME>
+        <EXAMPLE>raise_example</EXAMPLE>
+        <PYTHON>
+def promote(x):
+    return apply_generic("promote", llist(x))
+
+# add to Python-number package
+put("promote", llist("python_number"),
+    lambda x: make_rational(x, 1))
+#### add to rational package
+# put("promote", llist("rational"),
+#     lambda x: make_real(div, numer(x), denom(x)))
+# put("promote", llist("rational"),
+#     lambda x: make_complex_from_real_imag(x, 0))
+#### add to real package
+# put("promote", llist("real"),
+#     lambda x: make_complex_from_real_imag(x, 0))
+        </PYTHON>
+      </SNIPPET>
+    </SOLUTION>
+  </EXERCISE>
+
+  <EXERCISE>
+     <INDEX><USE>apply_generic</USE><SUBINDEX>зі зведенням шляхом підвищення</SUBINDEX></INDEX>
+    Скориставшись операцією <SPLITINLINE><SCHEME><SCHEMEINLINE>raise</SCHEMEINLINE></SCHEME><PYTHON><PYTHONINLINE>promote</PYTHONINLINE></PYTHON></SPLITINLINE> із
+    вправи<SPACE/><REF NAME="ex:raise"/>, змініть
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>apply-generic</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>apply_generic</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    <SPLITINLINE>
+      <SCHEME>процедуру</SCHEME>
+      <PYTHON>функцію</PYTHON>
+    </SPLITINLINE>
+    так, щоб вона зводила свої аргументи до спільного типу методом
+    послідовного підвищення, як обговорено в цьому підрозділі.  Вам треба буде придумати
+    спосіб перевірити, який із двох типів вищий у вежі.  Зробіть це
+    так, щоб було <QUOTE>сумісно</QUOTE> з рештою системи і
+    не створювало проблем при додаванні нових рівнів до вежі.
+    <LABEL NAME="ex:apply-with-raise"/>
+  </EXERCISE>
+
+  <EXERCISE>
+     <INDEX><USE>apply_generic</USE><SUBINDEX>зі зведенням для спрощення</SUBINDEX></INDEX>
+    <INDEX>тип(и)<SUBINDEX>зниження</SUBINDEX></INDEX>
+    У цьому підрозділі згадано метод <QUOTE>спрощення</QUOTE> об’єкта даних
+    шляхом його зниження у вежі типів якнайдалі вниз.  Спроєктуйте
+    <SPLITINLINE>
+      <SCHEME>процедуру</SCHEME>
+      <PYTHON>функцію</PYTHON>
+    </SPLITINLINE>
+    <SCHEMEINLINE>drop</SCHEMEINLINE> яка робить це для вежі,
+    описаної у вправі<SPACE/><REF NAME="ex:raise"/>.  Ключ у тому, щоб вирішити,
+    в якийсь загальний спосіб, чи можна об’єкт знизити.  Наприклад,
+    комплексне число <LATEXINLINE>$1.5+0i$</LATEXINLINE> можна знизити аж як
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>real</SCHEMEINLINE>,</SCHEME>
+      <PYTHON><PYTHONINLINE>"real"</PYTHONINLINE>,</PYTHON>
+    </SPLITINLINE>
+    комплексне число <LATEXINLINE>$1+0i$</LATEXINLINE> можна знизити аж
+    як
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>integer</SCHEMEINLINE>,</SCHEME>
+      <PYTHON><PYTHONINLINE>"integer"</PYTHONINLINE>,</PYTHON>
+    </SPLITINLINE>
+    і комплексне число <LATEXINLINE>$2+3i$</LATEXINLINE> не можна знизити
+    взагалі.  Ось план визначення того, чи можна об’єкт знизити:
+    почніть з означення узагальненої операції <SCHEMEINLINE>project</SCHEMEINLINE>
+    яка <QUOTE>штовхає</QUOTE> об’єкт униз вежею.  Наприклад,
+    проєкція комплексного числа означала б відкидання уявної частини.
+    Тоді число можна знизити, якщо, коли ми
+    <SCHEMEINLINE>project</SCHEMEINLINE> його і
+    <SPLITINLINE><SCHEME><SCHEMEINLINE>raise</SCHEMEINLINE></SCHEME><PYTHON><PYTHONINLINE>promote</PYTHONINLINE></PYTHON></SPLITINLINE> результат назад до типу, з якого почали,
+    у підсумку отримуємо щось рівне тому, з чого почали.  Покажіть, як
+    реалізувати цю ідею докладно, написавши
+    <SCHEMEINLINE>drop</SCHEMEINLINE>
+    <SPLITINLINE>
+      <SCHEME>процедуру</SCHEME>
+      <PYTHON>функцію</PYTHON>
+    </SPLITINLINE>
+    , яка знижує об’єкт якнайдалі вниз.  Вам треба буде спроєктувати
+    різні операції проєкції<FOOTNOTE>Дійсне число можна спроєктувати на
+    ціле за допомогою примітива
+    <INDEX><USE>math_round</USE> (примітивна функція)</INDEX>
+    <INDEX><PRIMITIVE/><SUBINDEX><USE>math_round</USE><PLR>round</PLR></SUBINDEX></INDEX>
+    <SPLITINLINE>
+      <SCHEME>
+	<SCHEMEINLINE>round</SCHEMEINLINE>
+      </SCHEME>
+      <PYTHON>
+	<PYTHONINLINE>math_round</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    , який повертає найближче ціле
+    до свого аргументу.</FOOTNOTE> і встановити
+    <SCHEMEINLINE>project</SCHEMEINLINE> як узагальнену операцію в системі.
+    Вам також треба буде скористатися узагальненим предикатом рівності, як-от
+    описаний у вправі<SPACE/><REF NAME="ex:equ?"/>.  Нарешті, скористайтеся
+    <SCHEMEINLINE>drop</SCHEMEINLINE>
+    , щоб переписати
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>apply-generic</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>apply_generic</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    із вправи<SPACE/><REF NAME="ex:apply-with-raise"/> так, щоб вона
+    <QUOTE>спрощувала</QUOTE> свої відповіді.
+    <LABEL NAME="ex:simplify"/>
+  </EXERCISE>
+
+  <EXERCISE>
+    Припустімо, ми хочемо працювати з комплексними числами, дійсні
+    частини, уявні частини, модулі й аргументи яких можуть бути або звичайними
+    числами, або раціональними числами, або іншими числами, які ми захочемо додати
+    до системи.  Опишіть і реалізуйте зміни в системі, потрібні,
+    щоб це забезпечити.  Вам доведеться означити операції, як-от
+    <SCHEMEINLINE>sine</SCHEMEINLINE> і <SCHEMEINLINE>cosine</SCHEMEINLINE>
+    узагальнені над звичайними та раціональними числами.
+    <LABEL NAME="ex:2_86"/>
+  </EXERCISE>
+
+  <INDEX>зведення<CLOSE/></INDEX>
+  <INDEX>тип(и)<SUBINDEX>ієрархія</SUBINDEX><CLOSE/></INDEX>
+  <INDEX>ієрархія типів<CLOSE/></INDEX>
+
+</SUBSECTION>

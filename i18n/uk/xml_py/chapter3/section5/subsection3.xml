@@ -1,0 +1,1568 @@
+<SUBSECTION>
+  <NAME>
+    Використання потокової парадигми
+  </NAME>
+
+  <LABEL NAME="sec:exploiting-streams"/>
+  <TEXT>
+    Потоки з відкладеним обчисленням можуть бути потужним інструментом
+    моделювання, який дає багато переваг локального стану та
+    <SPLITINLINE>
+      <SCHEME>присвоєння.</SCHEME>
+      <PYTHON>переприсвоєння.</PYTHON>
+    </SPLITINLINE>
+    Понад те, вони оминають частину теоретичних ускладнень, які супроводжують
+    уведення
+    <SPLITINLINE>
+      <SCHEME>присвоєння</SCHEME>
+      <PYTHON>переприсвоєння</PYTHON>
+    </SPLITINLINE>
+    в мову програмування.
+  </TEXT>
+
+  <TEXT>
+    Потоковий підхід може пролити світло, бо він дає змогу будувати
+    системи з іншими
+    <INDEX>модульність<SUBINDEX>потоки і</SUBINDEX></INDEX>
+    межами модулів, ніж системи, організовані навколо
+    <SPLITINLINE>
+      <SCHEME>присвоєння</SCHEME>
+      <PYTHON>переприсвоєння</PYTHON>
+    </SPLITINLINE>
+    змінним стану. Наприклад, ми можемо думати про весь
+    часовий ряд (або сигнал) як про предмет зацікавлення, а не про значення
+    змінних стану в окремі моменти. Це робить
+    зручним поєднання й порівняння складових стану з різних
+    моментів.
+  </TEXT>
+
+  <SUBHEADING>
+    <NAME>Формулювання ітерацій як потокових процесів</NAME>
+  </SUBHEADING>
+
+  <INDEX>ітеративний процес<SUBINDEX>як потоковий процес<OPEN/></SUBINDEX></INDEX>
+
+  <TEXT>
+    У підрозділі<SPACE/><REF NAME="sec:recursion-and-iteration"/> ми ввели
+    ітеративні процеси, які просуваються, оновлюючи змінні стану. Тепер ми знаємо,
+    що можемо представляти стан як <QUOTE>позачасовий</QUOTE> потік значень,
+    а не як набір змінних, які треба оновлювати. Приймімо цю
+    перспективу, повертаючись до
+    <SPLITINLINE>
+      <SCHEME>процедури</SCHEME>
+      <PYTHON>функції</PYTHON>
+    </SPLITINLINE>
+    обчислення квадратного кореня
+    з підрозділу<SPACE/><REF NAME="sec:sqrt"/>. Пригадаймо, що ідея полягає в тому, щоб
+    породжувати послідовність дедалі кращих наближень до квадратного кореня з
+    <LATEXINLINE>$x$</LATEXINLINE>, раз у раз застосовуючи
+    <SPLITINLINE>
+      <SCHEME>процедуру</SCHEME>
+      <PYTHON>функцію</PYTHON>
+    </SPLITINLINE>
+    яка поліпшує наближення:
+    <SNIPPET HIDE="yes">
+      <NAME>sqrt_improve_example</NAME>
+      <PYTHON>
+print(sqrt_improve(1.2, 2))
+      </PYTHON>
+    </SNIPPET>
+    <SNIPPET>
+      <NAME>sqrt_improve</NAME>
+      <REQUIRES>average_definition</REQUIRES>
+      <EXAMPLE>sqrt_improve_example</EXAMPLE>
+      <EXPECTED>1.4333333333333333</EXPECTED>
+      <SCHEME>
+(define (sqrt-improve guess x)
+  (average guess (/ x guess)))
+      </SCHEME>
+      <PYTHON>
+def sqrt_improve(guess, x):
+    return average(guess, x / guess)
+      </PYTHON>
+    </SNIPPET>
+  </TEXT>
+
+  <TEXT>
+    У нашій початковій
+    <INDEX>квадратний корінь<SUBINDEX>потік наближень</SUBINDEX></INDEX>
+    <SCHEMEINLINE>sqrt</SCHEMEINLINE>
+    <SPLITINLINE>
+      <SCHEME>процедурі,</SCHEME>
+      <PYTHON>функції,</PYTHON>
+    </SPLITINLINE>
+    ми робили ці наближення послідовними значеннями змінної стану. Натомість
+    ми можемо породити нескінченний потік наближень, починаючи з початкового
+    <SPLITINLINE>
+      <SCHEME>
+	наближення 1:<FOOTNOTE>Ми не можемо скористатися
+	<SCHEMEINLINE>let</SCHEMEINLINE>, щоб зв<APOS/>язати локальну змінну
+	<SCHEMEINLINE>guesses</SCHEMEINLINE>, бо значення
+	<SCHEMEINLINE>guesses</SCHEMEINLINE> залежить від
+	<SCHEMEINLINE>guesses</SCHEMEINLINE> самої.
+	Вправа<SPACE/><REF NAME="ex:stream-internal-def"/>
+	розглядає, чому нам тут потрібне
+	локальне ім<APOS/>я.<LABEL NAME="foot:define-for-streams"/></FOOTNOTE>
+      </SCHEME>
+      <PYTHON>
+	наближення 1:
+      </PYTHON>
+    </SPLITINLINE>
+    <SNIPPET>
+      <INDEX><DECLARATION>sqrt_stream</DECLARATION></INDEX> 
+      <NAME>sqrt_stream</NAME>
+      <REQUIRES>stream_functions</REQUIRES>
+      <REQUIRES>sqrt_improve</REQUIRES>
+      <EXAMPLE>sqrt_stream_example</EXAMPLE>
+      <SCHEME>
+(define (sqrt-stream x)
+  (define guesses
+    (cons-stream 1.0
+                 (stream-map (lambda (guess)
+                               (sqrt-improve guess x))
+                             guesses)))
+  guesses)
+      </SCHEME>
+      <PYTHON>
+def sqrt_stream(x):
+    return pair(1, lambda: stream_map(lambda guess: sqrt_improve(guess, x),
+                                      sqrt_stream(x)))
+      </PYTHON>
+    </SNIPPET>
+    <SNIPPET>
+      <NAME>sqrt_stream_example</NAME>
+      <REQUIRES>stream_functions</REQUIRES>
+      <REQUIRES>display_stream</REQUIRES>
+      <REQUIRES>sqrt_stream</REQUIRES>
+      <EXPECTED>1.414213562373095</EXPECTED>
+      <SCHEME>
+(display-stream (sqrt-stream 2))
+      </SCHEME>
+      <SCHEMEOUTPUT>
+1.
+1.5
+1.4166666666666665
+1.4142156862745097
+1.4142135623746899
+...
+      </SCHEMEOUTPUT>
+      <PYTHON>
+print(display_stream(sqrt_stream(2)))
+      </PYTHON>
+      <PYTHON_TEST>
+print(stream_ref(sqrt_stream(2), 5))
+      </PYTHON_TEST>
+      <PYTHON_OUTPUT>
+1
+1.5
+1.4166666666666665
+1.4142156862745097
+1.4142135623746899
+...
+      </PYTHON_OUTPUT>
+    </SNIPPET>
+    Ми можемо породжувати дедалі більше членів потоку, щоб отримувати дедалі
+    кращі наближення. За бажанням ми можемо написати
+    <SPLITINLINE>
+      <SCHEME>процедуру</SCHEME>
+      <PYTHON>функцію</PYTHON>
+    </SPLITINLINE>
+    яка породжуватиме члени, доки відповідь не стане достатньо доброю.
+    (Дивіть вправу<SPACE/><REF NAME="ex:stream-limit"/>.)
+  </TEXT>
+
+  <TEXT>
+    Ще одна ітерація, до якої можна підійти так само, — це породження
+    наближення до
+    <INDEX><ORDER>pi</ORDER><LATEXINLINE>$\pi$</LATEXINLINE> (pi)<SUBINDEX>ряд Лейбніца для</SUBINDEX></INDEX>
+    <INDEX>Лейбніц, барон Ґотфрід Вільгельм фон<SUBINDEX>ряд для <LATEXINLINE>$\pi$</LATEXINLINE></SUBINDEX></INDEX>
+    <INDEX><ORDER>pi</ORDER><LATEXINLINE>$\pi$</LATEXINLINE> (pi)<SUBINDEX>потік наближень<OPEN/></SUBINDEX></INDEX>
+    <INDEX>ряд, сумування<SUBINDEX>з потоками</SUBINDEX></INDEX>
+    <INDEX>сумування ряду<SUBINDEX>з потоками</SUBINDEX></INDEX>
+    <INDEX>нескінченний потік(и)<SUBINDEX>щоб сумувати ряд</SUBINDEX></INDEX>
+    <LATEXINLINE>$\pi$</LATEXINLINE>, спираючись на
+    знакоперемінний ряд, який ми бачили в
+    підрозділі<SPACE/><REF NAME="sec:procedures-as-parameters"/>:
+    <LATEX>
+      \[
+      \begin{array}{lll}
+      \dfrac {\pi}{4} &amp;=&amp; 1-\dfrac{1}{3}+\dfrac{1}{5}-\dfrac{1}{7}+\cdots
+      \end{array}
+      \]
+    </LATEX>
+    Спершу ми породжуємо потік доданків ряду (обернених значень
+    непарних цілих чисел зі знаками, що чергуються). Потім ми беремо потік
+    сум дедалі більшої кількості членів (користуючись
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>partial-sums</SCHEMEINLINE> процедурою</SCHEME>
+      <PYTHON><PYTHONINLINE>partial_sums</PYTHONINLINE> функцією
+      </PYTHON>
+    </SPLITINLINE>
+    із вправи<SPACE/><REF NAME="ex:partial-sums"/>) і множимо результат на 4:
+    <SNIPPET>
+      <INDEX><DECLARATION>pi_stream</DECLARATION></INDEX> 
+      <NAME>pi_stream</NAME>
+      <REQUIRES>stream_functions</REQUIRES>
+      <REQUIRES>display_stream</REQUIRES>
+      <REQUIRES>scale_stream</REQUIRES>
+      <REQUIRES>partial_sums</REQUIRES>
+      <EXAMPLE>pi_stream_example</EXAMPLE>
+      <SCHEME>
+(define (pi-summands n)
+  (cons-stream (/ 1.0 n)
+               (stream-map - (pi-summands (+ n 2)))))
+
+(define pi-stream
+  (scale-stream (partial-sums (pi-summands 1)) 4))
+      </SCHEME>
+      <PYTHON>
+def pi_summands(n):
+    return pair(1 / n, lambda: stream_map(lambda x: -x, pi_summands(n + 2)))
+
+pi_stream = scale_stream(partial_sums(pi_summands(1)), 4)
+      </PYTHON>
+    </SNIPPET>
+    <SNIPPET>
+      <NAME>pi_stream_example</NAME>
+      <REQUIRES>stream_functions</REQUIRES>
+      <REQUIRES>pi_stream</REQUIRES>
+      <EXPECTED>3.017071817071818</EXPECTED>
+      <SCHEME>
+(display-stream pi-stream)
+      </SCHEME>
+      <SCHEMEOUTPUT>
+4.
+2.666666666666667
+3.466666666666667
+2.8952380952380956
+3.3396825396825403
+2.9760461760461765
+3.2837384837384844
+3.017071817071818
+...
+      </SCHEMEOUTPUT>
+      <PYTHON>
+print(display_stream(pi_stream))
+      </PYTHON>
+      <PYTHON_TEST>
+print(stream_ref(pi_stream, 7))
+      </PYTHON_TEST>
+      <PYTHON_OUTPUT>
+4
+2.666666666666667
+3.466666666666667
+2.8952380952380956
+3.3396825396825403
+2.9760461760461765
+3.2837384837384844
+3.017071817071818
+...
+      </PYTHON_OUTPUT>
+    </SNIPPET>
+    Це дає нам потік дедалі кращих наближень до
+    <LATEXINLINE>$\pi$</LATEXINLINE>, хоч наближення збігаються
+    досить повільно. Вісім членів послідовності обмежують значення
+    <LATEXINLINE>$\pi$</LATEXINLINE> між 3.284 та 3.017.
+  </TEXT>
+
+  <TEXT>
+    Поки що наше використання підходу через потік станів не дуже відрізняється
+    від оновлення змінних стану. Але потоки дають нам нагоду зробити
+    кілька цікавих трюків. Наприклад, ми можемо перетворити потік
+    <INDEX>ряд, сумування<SUBINDEX>прискорення послідовності наближень</SUBINDEX></INDEX>
+    <INDEX>прискорювач послідовності</INDEX>
+    <EM>прискорювачем послідовності</EM>, який перетворює послідовність наближень на
+    нову послідовність, що збігається до того самого значення, що й початкова, лише швидше.
+  </TEXT>
+
+  <TEXT>
+    Один такий прискорювач, що належить швейцарському математику
+    XVIII століття
+    <INDEX>Ейлер, Леонард<SUBINDEX>прискорювач рядів</SUBINDEX></INDEX>
+    Леонарду Ейлеру, добре працює з послідовностями, які є частинними сумами
+    знакоперемінних рядів (рядів із членами, знаки яких чергуються). У
+    техніці Ейлера, якщо <LATEXINLINE>$S_n$</LATEXINLINE> — це
+    <LATEXINLINE>$n$</LATEXINLINE>-й член початкової послідовності сум, то
+    прискорена послідовність має члени
+    <LATEX>
+      \[
+      \begin{array}{l}
+      S_{n+1} - \dfrac{(S_{n+1}-S_n)^2}{S_{n-1}-2S_n+S_{n+1}}
+      \end{array}
+      \]
+    </LATEX> 
+    Тож якщо початкова послідовність представлена як потік значень,
+    перетворена послідовність задається так:
+    <SNIPPET LATEX="yes">
+      <INDEX><DECLARATION>euler_transform</DECLARATION></INDEX> 
+      <NAME>euler_transform</NAME>
+      <REQUIRES>stream_functions</REQUIRES>
+      <REQUIRES>stream_tail</REQUIRES>
+      <REQUIRES>square_definition</REQUIRES>
+      <REQUIRES>memo</REQUIRES>
+      <EXAMPLE>euler_transform_example</EXAMPLE>
+      <EXPECTED>3.1418396189294033</EXPECTED>
+      <SCHEME>
+(define (euler-transform s)
+  (let ((s0 (stream-ref s 0))           ; $S_{n-1}$
+        (s1 (stream-ref s 1))           ; $S_{n}$
+        (s2 (stream-ref s 2)))          ; $S_{n+1}$
+    (cons-stream (- s2 (/ (square (- s2 s1))
+                          (+ s0 (* -2 s1) s2)))
+                 (euler-transform (stream-cdr s)))))
+      </SCHEME>
+      <PYTHON>
+def euler_transform(s):
+    s0 = stream_ref(s, 0)     # $S_{n-1}$
+    s1 = stream_ref(s, 1)     # $S_{n}$
+    s2 = stream_ref(s, 2)     # $S_{n+1}$
+    return pair(s2 - square(s2 - s1) / (s0 + (-2) * s1 + s2),
+                memo(lambda: euler_transform(stream_tail(s))))
+      </PYTHON>
+    </SNIPPET>
+    <SPLIT>
+      <PYTHON>
+	  Зауважте, що ми користуємося оптимізацією із запам<APOS/>ятовуванням із
+	  підрозділу<SPACE/><REF NAME="sec:delayed-lists"/>, бо далі ми
+	  покладатимемося на повторне обчислення потоку-результату.
+      </PYTHON>
+    </SPLIT>
+  </TEXT>
+  <TEXT>
+    Ми можемо продемонструвати прискорення Ейлера на нашій послідовності
+    наближень до<SPACE/><LATEXINLINE>$\pi$</LATEXINLINE>:
+    <SNIPPET>
+      <NAME>euler_transform_example</NAME>
+      <REQUIRES>stream_functions</REQUIRES>
+      <REQUIRES>euler_transform</REQUIRES>
+      <REQUIRES>display_stream</REQUIRES>
+      <REQUIRES>pi_stream</REQUIRES>
+      <EXPECTED>3.1418396189294033</EXPECTED>
+      <SCHEME>
+	(display-stream (euler-transform pi-stream))
+      </SCHEME>
+      <SCHEMEOUTPUT>
+3.166666666666667
+3.1333333333333337
+3.1452380952380956
+3.13968253968254
+3.1427128427128435
+3.1408813408813416
+3.142071817071818
+3.1412548236077655
+...
+      </SCHEMEOUTPUT>
+      <PYTHON>
+print(display_stream(euler_transform(pi_stream)))
+      </PYTHON>
+      <PYTHON_TEST>
+print(stream_ref(euler_transform(pi_stream), 8))
+      </PYTHON_TEST>
+      <PYTHON_OUTPUT>
+3.166666666666667
+3.1333333333333337
+3.1452380952380956
+3.13968253968254
+3.1427128427128435
+3.1408813408813416
+3.142071817071818
+3.1412548236077655
+...
+      </PYTHON_OUTPUT>
+    </SNIPPET>
+  </TEXT>
+
+  <TEXT>
+    Ще краще: ми можемо прискорити прискорену послідовність, і рекурсивно
+    прискорити її, і так далі. А саме, ми створюємо потік потоків (структуру,
+    яку ми назвемо
+    <INDEX>таблиця</INDEX>
+    <EM>таблицею</EM>), у якій кожен потік є перетворенням попереднього:
+    <SNIPPET>
+      <INDEX><DECLARATION>make_tableau</DECLARATION></INDEX> 
+      <NAME>make_tableau</NAME>
+      <SCHEME>
+(define (make-tableau transform s)
+  (cons-stream s
+               (make-tableau transform
+                             (transform s))))
+      </SCHEME>
+      <PYTHON>
+def make_tableau(transform, s):
+    return pair(s, lambda: make_tableau(transform, transform(s)))
+      </PYTHON>
+    </SNIPPET>
+    Таблиця має вигляд
+    <LATEX>
+      \[
+      \begin{array}{llllll}
+      s_{00} &amp; s_{01} &amp; s_{02} &amp; s_{03} &amp; s_{04} &amp; \ldots\\
+      &amp; s_{10} &amp; s_{11} &amp; s_{12} &amp; s_{13} &amp; \ldots\\
+      &amp;        &amp; s_{20} &amp; s_{21} &amp; s_{22} &amp; \ldots\\
+      &amp;        &amp;        &amp;        &amp; \ldots &amp;
+      \end{array}
+      \]
+    </LATEX>
+    Нарешті, ми утворюємо послідовність, беручи перший член кожного рядка
+    таблиці:
+    <SNIPPET>
+      <INDEX><DECLARATION>accelerated_sequence</DECLARATION></INDEX> 
+      <NAME>accelerated_sequence</NAME>
+      <REQUIRES>stream_functions</REQUIRES>
+      <REQUIRES>make_tableau</REQUIRES>
+      <EXAMPLE>accelerated_sequence_example</EXAMPLE>
+      <SCHEME>
+(define (accelerated-sequence transform s)
+  (stream-map stream-car
+              (make-tableau transform s)))
+      </SCHEME>
+      <PYTHON>
+def accelerated_sequence(transform, s):
+    return stream_map(head, make_tableau(transform, s))
+      </PYTHON>
+    </SNIPPET>
+  </TEXT>
+  <TEXT>
+    Ми можемо продемонструвати таку <QUOTE>надприскореність</QUOTE>
+    послідовності <LATEXINLINE>$\pi$</LATEXINLINE>:
+    <SNIPPET>
+      <NAME>accelerated_sequence_example</NAME>
+      <REQUIRES>stream_functions</REQUIRES>
+      <REQUIRES>accelerated_sequence</REQUIRES>
+      <REQUIRES>euler_transform</REQUIRES>
+      <REQUIRES>pi_stream</REQUIRES>
+      <REQUIRES>display_stream</REQUIRES>
+      <EXPECTED>3.1415926535911765</EXPECTED>
+      <SCHEME>
+(display-stream (accelerated-sequence euler-transform
+                                      pi-stream))
+      </SCHEME>
+      <SCHEMEOUTPUT>
+4.
+3.166666666666667
+3.142105263157895
+3.141599357319005
+3.1415927140337785
+3.1415926539752927
+3.1415926535911765
+3.141592653589778
+...
+      </SCHEMEOUTPUT>
+      <PYTHON>
+print(display_stream(accelerated_sequence(euler_transform, pi_stream)))
+      </PYTHON>
+      <PYTHON_TEST>
+print(stream_ref(accelerated_sequence(euler_transform, pi_stream),
+           6))
+      </PYTHON_TEST>
+      <PYTHON_OUTPUT>
+4
+3.166666666666667
+3.142105263157895
+3.141599357319005
+3.1415927140337785
+3.1415926539752927
+3.1415926535911765
+3.141592653589778
+...
+      </PYTHON_OUTPUT>
+    </SNIPPET>
+    Результат вражає. Взяття восьми членів послідовності дає
+    правильне значення <LATEXINLINE>$\pi$</LATEXINLINE> до 14 знаків після коми.
+    Якби ми скористалися лише початковою послідовністю
+    <LATEXINLINE>$\pi$</LATEXINLINE>, нам треба було б обчислити порядку <LATEXINLINE>$10^{13}$</LATEXINLINE>
+    членів (тобто розгорнути ряд настільки, щоб окремі члени
+    були менші за <LATEXINLINE>$10^{-13}$</LATEXINLINE>), щоб дістати таку
+    точність!
+    <INDEX><ORDER>pi</ORDER><LATEXINLINE>$\pi$</LATEXINLINE> (pi)<SUBINDEX>потік наближень<CLOSE/></SUBINDEX></INDEX>
+  </TEXT>
+
+  <TEXT>
+    Ми могли б реалізувати ці техніки прискорення й без потоків.
+    Але потокове формулювання особливо елегантне й зручне,
+    бо вся послідовність станів доступна нам як структура даних,
+    якою можна маніпулювати єдиним набором операцій.
+  </TEXT>
+
+  <EXERCISE>
+    <LABEL NAME="ex:stream-internal-def"/>
+    <SPLIT>
+      <SCHEME>
+	Луї Різонер питає, чому процедуру
+	<SCHEMEINLINE>sqrt-stream</SCHEMEINLINE>
+	не написано таким прямолінійнішим способом, без
+	локальної змінної <SCHEMEINLINE>guesses</SCHEMEINLINE>:
+	<SNIPPET EVAL="no">
+	  <SCHEME>
+(define (sqrt-stream x)
+  (cons-stream 1.0
+               (stream-map (lambda (guess)
+                             (sqrt-improve guess x))
+                           (sqrt-stream x))))
+	  </SCHEME>
+	</SNIPPET>
+	Аліса П. Хакер відповідає, що ця версія процедури
+	істотно менш ефективна, бо виконує надлишкові обчислення.
+	Поясніть відповідь Аліси. Чи відрізнялися б дві версії за
+	ефективністю, якби наша реалізація <SCHEMEINLINE>delay</SCHEMEINLINE>
+	використовувала лише <SCHEMEINLINE>(lambda () exp)</SCHEMEINLINE>
+	без оптимізації, яку дає
+	<SCHEMEINLINE>memo-proc</SCHEMEINLINE>
+	(підрозділ<SPACE/><REF NAME="sec:delayed-lists"/>)?
+      </SCHEME>
+      <PYTHON>
+	Луї Різонер незадоволений продуктивністю потоку,
+	який породжує функція
+	<PYTHONINLINE>sqrt_@stream</PYTHONINLINE>, і
+	намагається оптимізувати його, скориставшись запам<APOS/>ятовуванням:
+	<SNIPPET EVAL="no">
+	  <REQUIRES>stream_functions</REQUIRES>
+	  <REQUIRES>memo</REQUIRES>
+	  <PYTHON>
+def sqrt_stream_optimized(x):
+    return pair(1,
+                memo(lambda: stream_map(lambda guess:
+                                            sqrt_improve(guess, x),
+                                        sqrt_stream_optimized(x))))
+	  </PYTHON>
+	</SNIPPET>
+	Аліса П. Хакер натомість пропонує
+	<SNIPPET EVAL="no">
+	  <REQUIRES>stream_functions</REQUIRES>
+	  <REQUIRES>memo</REQUIRES>
+	  <PYTHON>
+def sqrt_stream_optimized_2(x):
+    guesses = pair(1,
+                   memo(lambda: stream_map(lambda guess:
+                                           sqrt_improve(guess, x),
+                                           guesses)))
+    return guesses
+	  </PYTHON>
+	</SNIPPET>
+        і стверджує, що версія Луї
+	істотно менш ефективна, ніж її, бо вона виконує
+	надлишкові обчислення. Поясніть відповідь Аліси.
+	Чи був би підхід Аліси без запам<APOS/>ятовування ефективнішим
+	за початковий <SCHEMEINLINE>sqrt_stream</SCHEMEINLINE>?
+      </PYTHON>
+    </SPLIT>
+  </EXERCISE>
+
+  <EXERCISE><LABEL NAME="ex:stream-limit"/>
+  Напишіть
+  <INDEX><USE>stream_limit</USE></INDEX> 
+  <SPLITINLINE>
+    <SCHEME>процедуру <SCHEMEINLINE>stream-limit</SCHEMEINLINE></SCHEME>
+    <PYTHON>функцію <PYTHONINLINE>stream_limit</PYTHONINLINE>
+    </PYTHON>
+  </SPLITINLINE>
+  яка бере як аргументи потік
+  і число (допуск). Вона має досліджувати потік, доки
+  не знайде два послідовні елементи, які відрізняються за абсолютною величиною
+  менш ніж на допуск, і повернути другий із цих двох елементів. Користуючись
+  цим, ми могли б обчислювати квадратні корені з заданим допуском через
+  <SNIPPET EVAL="no" POSTPADDING="no">
+    <INDEX><DECLARATION>sqrt</DECLARATION><SUBINDEX><ORDER>stream</ORDER>as stream limit</SUBINDEX><FRAGILE/></INDEX>
+    <SCHEME>
+(define (sqrt x tolerance)
+  (stream-limit (sqrt-stream x) tolerance))
+    </SCHEME>
+    <PYTHON>
+def sqrt(x, tolerance):
+    return stream_limit(sqrt_stream(x), tolerance)
+    </PYTHON>
+  </SNIPPET>
+  </EXERCISE>
+
+  <EXERCISE>
+    Скористайтеся рядом
+    <LATEX>
+      \[
+      \begin{array}{lll}
+      \ln 2 &amp;=&amp; 1-\dfrac{1}{2}+\dfrac{1}{3}-\dfrac{1}{4}+\cdots
+      \end{array}
+      \]
+    </LATEX>
+    щоб обчислити три послідовності наближень до натурального логарифма 2,
+  <INDEX>логарифм, наближення <LATEXINLINE>$\ln 2$</LATEXINLINE></INDEX>
+    так само, як ми робили вище для <LATEXINLINE>$\pi$</LATEXINLINE>.
+    Як швидко збігаються ці послідовності?
+    <LABEL NAME="ex:3_64"/>
+  </EXERCISE>
+
+  <INDEX>ітеративний процес<SUBINDEX>як потоковий процес<CLOSE/></SUBINDEX></INDEX>
+
+  <SUBHEADING>
+    <NAME>Нескінченні потоки пар</NAME>
+  </SUBHEADING>
+
+  <INDEX>пара(и)<SUBINDEX>нескінченний потік<OPEN/></SUBINDEX></INDEX>
+  <INDEX>нескінченний потік(и)<SUBINDEX>пар<OPEN/></SUBINDEX></INDEX>
+  <INDEX>відображення<SUBINDEX>вкладене<OPEN/></SUBINDEX></INDEX>
+
+  <TEXT>
+    У підрозділі<SPACE/><REF NAME="sec:nested-mappings"/> ми бачили, як
+    парадигма послідовностей опрацьовує традиційні вкладені цикли як процеси, означені
+    на послідовностях пар. Якщо ми узагальнимо цю техніку на нескінченні потоки,
+    то зможемо писати програми, які нелегко представити як цикли, бо
+    <QUOTE>цикл</QUOTE> має пробігати нескінченну множину.
+  </TEXT>
+
+  <TEXT>
+    Наприклад, припустімо, ми хочемо узагальнити
+    <INDEX><USE>prime_sum_pairs</USE><SUBINDEX>нескінченний потік</SUBINDEX></INDEX> 
+    <SPLITINLINE>
+      <SCHEME>процедуру <SCHEMEINLINE>prime-sum-pairs</SCHEMEINLINE></SCHEME>
+      <PYTHON>функцію <PYTHONINLINE>prime_sum_pairs</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    з підрозділу<SPACE/><REF NAME="sec:nested-mappings"/>, щоб вона породжувала потік
+    пар <EM>усіх</EM> цілих чисел <LATEXINLINE>$(i,j)$</LATEXINLINE> з
+    <LATEXINLINE>$i \leq j$</LATEXINLINE> таких, що
+    <LATEXINLINE>$i+j$</LATEXINLINE>
+    є простим числом. Якщо
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>int-pairs</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>int_pairs</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    — це послідовність усіх пар цілих чисел <LATEXINLINE>$(i,j)$</LATEXINLINE>
+    з <LATEXINLINE>$i \leq j$</LATEXINLINE>, то потрібний нам потік —
+    просто<FOOTNOTE>Як і в
+    підрозділі<SPACE/><REF NAME="sec:sequences-conventional-interfaces"/>, ми
+    представляємо пару цілих чисел як список, а не як
+    <SPLITINLINE>
+      <SCHEME>Lisp</SCHEME>
+    </SPLITINLINE>
+    .</FOOTNOTE>
+    <SNIPPET HIDE="yes">
+      <NAME>int_pairs</NAME>
+      <REQUIRES>pairs_second_attempt</REQUIRES>
+      <REQUIRES>integers_definition</REQUIRES>
+      <REQUIRES>display_stream</REQUIRES>
+      <PYTHON>
+int_pairs = pairs(integers, integers)
+      </PYTHON>
+    </SNIPPET>
+    <SNIPPET>
+      <NAME>prime_sum_pairs_stream</NAME>
+      <REQUIRES>stream_functions</REQUIRES>
+      <REQUIRES>stream_filter</REQUIRES>
+      <REQUIRES>is_prime2</REQUIRES>
+      <REQUIRES>int_pairs</REQUIRES>
+      <EXPECTED>[ 1, [ 12, null ] ]</EXPECTED>
+      <SCHEME>
+(stream-filter (lambda (pair)
+                 (prime? (+ (car pair) (cadr pair))))
+               int-pairs)
+      </SCHEME>
+      <PYTHON>
+print(stream_filter(lambda pair: is_prime(head(pair) + head(tail(pair))),
+              int_pairs))
+      </PYTHON>
+      <PYTHON_TEST>
+print(stream_ref(stream_filter(lambda pair: is_prime(head(pair) + head(tail(pair))),
+              int_pairs), 8))
+      </PYTHON_TEST>
+    </SNIPPET>
+  </TEXT>
+
+  <TEXT>
+    Отже, наша задача — породити потік
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>int-pairs</SCHEMEINLINE>.</SCHEME>
+      <PYTHON><PYTHONINLINE>int_pairs</PYTHONINLINE>.</PYTHON>
+    </SPLITINLINE>
+    Загальніше, припустімо, ми маємо два потоки
+    <LATEXINLINE>$S = (S_i)$</LATEXINLINE> та
+    <LATEXINLINE>$T = (T_j)$</LATEXINLINE>,
+    і уявімо нескінченний прямокутний масив
+    <LATEX>
+      \[
+      \begin{array}{cccc}
+      (S_0,T_0) &amp; (S_0,T_1) &amp; (S_0, T_2) &amp; \ldots\\
+      (S_1,T_0) &amp; (S_1,T_1) &amp; (S_1, T_2) &amp; \ldots\\
+      (S_2,T_0) &amp; (S_2,T_1) &amp; (S_2, T_2) &amp; \ldots\\
+      \ldots
+      \end{array}
+      \]
+    </LATEX>
+    Ми хочемо породити потік, який містить усі пари масиву,
+    що лежать на діагоналі або над нею, тобто пари
+    <LATEX>
+      \[
+      \begin{array}{cccc}
+      (S_0,T_0) &amp; (S_0,T_1) &amp; (S_0, T_2) &amp; \ldots\\
+      &amp; (S_1,T_1) &amp; (S_1, T_2) &amp; \ldots\\
+      &amp;           &amp; (S_2, T_2) &amp; \ldots\\
+      &amp;           &amp;            &amp; \ldots
+      \end{array}
+      \]
+    </LATEX>
+    (Якщо взяти і <LATEXINLINE>$S$</LATEXINLINE>, і
+    <LATEXINLINE>$T$</LATEXINLINE> як потік цілих чисел, то це
+    буде потрібний нам потік
+    <SPLITINLINE><SCHEME><SCHEMEINLINE>int-pairs</SCHEMEINLINE>.)</SCHEME>
+    <PYTHON><PYTHONINLINE>int_pairs</PYTHONINLINE>.)</PYTHON>
+    </SPLITINLINE>
+  </TEXT>
+
+  <TEXT>
+    Назвімо загальний потік пар
+    <SPLITINLINE><SCHEME><SCHEMEINLINE>(pairs S T)</SCHEMEINLINE>,</SCHEME>
+    <PYTHON><PYTHONINLINE>pairs(S, T)</PYTHONINLINE>,</PYTHON>
+    </SPLITINLINE>
+    і вважаймо його складеним із трьох частин: пари
+    <LATEXINLINE>$(S_0,T_0)$</LATEXINLINE>, решти пар у першому
+    рядку та решти пар:<FOOTNOTE>Дивіть
+    вправу<SPACE/><REF NAME="ex:pairs-array"/>, щоб трохи зрозуміти, чому ми
+    обрали саме такий розклад.</FOOTNOTE>
+    <LATEX>
+      \[
+      \begin{array}{c|ccc}
+      (S_0,T_0) &amp; (S_0,T_1) &amp; (S_0, T_2) &amp; \ldots\\
+      \hline{} %--------------------------------------------------- \\
+      &amp; (S_1,T_1) &amp; (S_1, T_2) &amp; \ldots\\
+      &amp;           &amp; (S_2, T_2) &amp; \ldots\\
+      &amp;           &amp;            &amp; \ldots
+      \end{array}
+      \]
+    </LATEX>
+    Зауважте, що третя частина цього розкладу (пари, яких немає в
+    першому рядку) — це (рекурсивно) пари, утворені з
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>(stream-cdr S)</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>stream_tail(S)</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    та
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>(stream-cdr T)</SCHEMEINLINE>.</SCHEME>
+      <PYTHON><PYTHONINLINE>stream_tail(T)</PYTHONINLINE>.
+      </PYTHON>
+    </SPLITINLINE>
+    Також зауважте, що друга частина (решта першого рядка) — це
+    <SNIPPET EVAL="no">
+      <REQUIRES>stream_functions</REQUIRES>
+      <REQUIRES>stream_tail</REQUIRES>
+      <SCHEME>
+(stream-map (lambda (x) (list (stream-car s) x))
+            (stream-cdr t))
+      </SCHEME>
+      <PYTHON>
+stream_map(lambda x: llist(head(s), x),
+           stream_tail(t))
+      </PYTHON>
+    </SNIPPET>
+    Тож ми можемо утворити наш потік пар так:
+    <SNIPPET EVAL="no" LATEX="yes">
+      <REQUIRES>stream_functions</REQUIRES>
+      <REQUIRES>stream_tail</REQUIRES>
+      <SCHEME>
+(define (pairs s t)
+  (cons-stream
+   (list (stream-car s) (stream-car t))
+   ($\langle combine-in-some-way \rangle$
+      (stream-map (lambda (x) (list (stream-car s) x))
+                  (stream-cdr t))
+      (pairs (stream-cdr s) (stream-cdr t)))))
+      </SCHEME>
+      <PYTHON>
+def pairs(s, t):
+    return pair(llist(head(s), head(t)),
+                lambda: <META>combine-in-some-way</META>(
+                            stream_map(lambda x: llist(head(s), x),
+                                       stream_tail(t)),
+                            pairs(stream_tail(s), stream_tail(t))))
+      </PYTHON>
+    </SNIPPET>
+  </TEXT>
+
+  <TEXT>
+    Щоб завершити
+    <SPLITINLINE>
+      <SCHEME>процедуру,</SCHEME><PYTHON>функцію,</PYTHON>
+    </SPLITINLINE>
+    ми мусимо вибрати якийсь спосіб
+    <INDEX>нескінченний потік(и)<SUBINDEX>злиття</SUBINDEX></INDEX>
+    поєднати два внутрішні потоки. Одна ідея — скористатися
+    потоковим аналогом процедури <SCHEMEINLINE>append</SCHEMEINLINE>
+    <SPLITINLINE>
+      <SCHEME>з</SCHEME>
+      <PYTHON>з</PYTHON>
+    </SPLITINLINE>
+    підрозділу<SPACE/><REF NAME="sec:sequences"/>:
+    <SNIPPET HIDE="yes">
+      <NAME>stream_append_example</NAME>
+      <REQUIRES>stream_functions</REQUIRES>
+      <PYTHON>
+ones = pair(1, lambda: ones)
+twos = pair(2, lambda: twos)
+appended = stream_append(ones, twos)
+print(stream_ref(appended, 100))
+      </PYTHON>
+    </SNIPPET>
+    <SNIPPET>
+      <INDEX><DECLARATION>stream_append</DECLARATION></INDEX> 
+      <NAME>stream_append</NAME>
+      <REQUIRES>stream_tail</REQUIRES>
+      <EXAMPLE>stream_append_example</EXAMPLE>
+      <EXPECTED>1</EXPECTED>
+      <SCHEME>
+(define (stream-append s1 s2)
+  (if (stream-null? s1)
+      s2
+      (cons-stream (stream-car s1)
+                   (stream-append (stream-cdr s1) s2))))
+      </SCHEME>
+      <PYTHON>
+def stream_append(s1, s2):
+    return (s2 if is_none(s1)
+            else pair(head(s1),
+                      lambda: stream_append(stream_tail(s1), s2)))
+      </PYTHON>
+    </SNIPPET>
+    Однак це не годиться для нескінченних потоків, бо вона бере всі
+    елементи з першого потоку, перш ніж узяти другий потік. Зокрема,
+    якщо ми спробуємо породити всі пари додатних цілих чисел, користуючись
+    <SNIPPET HIDE="yes">
+      <NAME>pairs_first_attempt</NAME>
+      <REQUIRES>stream_functions</REQUIRES>
+      <REQUIRES>stream_tail</REQUIRES>
+      <REQUIRES>stream_append</REQUIRES>
+      <PYTHON>
+def pairs(s, t):
+    return pair(llist(head(s), head(t)),
+                lambda: stream_append(
+                            stream_map(lambda x: llist(head(s), x),
+                                       stream_tail(t)),
+                            pairs(stream_tail(s), stream_tail(t))))
+      </PYTHON>
+    </SNIPPET>
+    <SNIPPET>
+      <NAME>pairs_first_attempt_usage</NAME>
+      <REQUIRES>pairs_first_attempt</REQUIRES>
+      <EXAMPLE>pairs_first_attempt_example</EXAMPLE>
+      <EXPECTED>[ 1, [ 9, null ] ]</EXPECTED>
+      <SCHEME>
+(pairs integers integers)
+      </SCHEME>
+      <PYTHON>
+print(pairs(integers, integers))
+      </PYTHON>
+    </SNIPPET>
+    <SNIPPET HIDE="yes">
+      <NAME>pairs_first_attempt_example</NAME>
+      <REQUIRES>stream_functions</REQUIRES>
+      <REQUIRES>display_stream</REQUIRES>
+      <REQUIRES>integers_definition</REQUIRES>
+      <SCHEME>
+(pairs integers integers)
+      </SCHEME>
+      <PYTHON>
+print(display_stream(pairs(integers, integers)))
+      </PYTHON>
+      <PYTHON_TEST>
+print(stream_ref(pairs(integers, integers), 8))
+      </PYTHON_TEST>
+    </SNIPPET>
+    наш потік результатів спершу намагатиметься пройти всі пари з
+    першим цілим числом, що дорівнює 1, і тому ніколи не породить пари з будь-яким
+    іншим значенням першого цілого числа.
+  </TEXT>
+
+  <TEXT>
+    Щоб опрацьовувати нескінченні потоки, нам треба вигадати такий порядок поєднання,
+    який гарантує, що кожен елемент зрештою буде досягнутий, якщо дати
+    нашій програмі працювати достатньо довго. Елегантний спосіб зробити це —
+    така функція <SCHEMEINLINE>interleave</SCHEMEINLINE>
+    <SPLITINLINE><SCHEME>процедура</SCHEME><PYTHON>функція</PYTHON></SPLITINLINE>:<FOOTNOTE>Точне
+    формулювання потрібної властивості щодо порядку поєднання
+    таке: має існувати функція <LATEXINLINE>$f$</LATEXINLINE> від
+    двох аргументів, така що пара, яка відповідає
+    елементу<SPACE/><LATEXINLINE>$i$</LATEXINLINE> першого потоку та
+    елементу<SPACE/><LATEXINLINE>$j$</LATEXINLINE> другого потоку,
+    з<APOS/>явиться як елемент номер <LATEXINLINE>$f(i,j)$</LATEXINLINE> вихідного
+    потоку. Трюк із використанням <SCHEMEINLINE>interleave</SCHEMEINLINE>
+    для цього показав нам
+    <INDEX>Тернер, Девід</INDEX>
+    Девід Тернер, який застосував його в мові
+    <INDEX>KRC</INDEX>
+    KRC (<CITATION NAME="TUR81">Тернер 1981</CITATION>).</FOOTNOTE>
+    <SNIPPET HIDE="yes">
+      <NAME>interleave_example</NAME>
+      <REQUIRES>stream_functions</REQUIRES>
+      <REQUIRES>display_stream</REQUIRES>
+      <PYTHON>
+ones = pair(1, lambda: ones)
+twos = pair(2, lambda: twos)
+interleaved = interleave(ones, twos)
+print(display_stream(interleaved))
+      </PYTHON>
+      <PYTHON_TEST>
+ones = pair(1, lambda: ones)
+twos = pair(2, lambda: twos)
+interleaved = interleave(ones, twos)
+print(stream_ref(interleaved, 7))
+      </PYTHON_TEST>
+    </SNIPPET>
+    <SNIPPET>
+      <INDEX><DECLARATION>interleave</DECLARATION></INDEX> 
+      <NAME>interleave</NAME>
+      <REQUIRES>stream_tail</REQUIRES>
+      <EXAMPLE>interleave_example</EXAMPLE>
+      <EXPECTED>2</EXPECTED>
+      <SCHEME>
+(define (interleave s1 s2)
+  (if (stream-null? s1)
+      s2
+      (cons-stream (stream-car s1)
+                   (interleave s2 (stream-cdr s1)))))
+      </SCHEME>
+      <PYTHON>
+def interleave(s1, s2):
+    return (s2 if is_none(s1)
+            else pair(head(s1),
+                      lambda: interleave(s2, stream_tail(s1))))
+      </PYTHON>
+    </SNIPPET>
+    Оскільки <SCHEMEINLINE>interleave</SCHEMEINLINE> бере елементи по черзі
+    з двох потоків, кожен елемент другого потоку зрештою
+    потрапить до переплетеного потоку, навіть якщо перший потік
+    нескінченний.
+  </TEXT>
+
+  <TEXT>
+    Тож ми можемо породити потрібний потік пар так:
+    <SNIPPET POSTPADDING="no">
+      <INDEX><DECLARATION>pairs</DECLARATION></INDEX> 
+      <NAME>pairs_second_attempt</NAME>
+      <REQUIRES>stream_functions</REQUIRES>
+      <REQUIRES>stream_tail</REQUIRES>
+      <REQUIRES>interleave</REQUIRES>
+      <EXAMPLE>pairs_second_attempt_example</EXAMPLE>
+      <EXPECTED>[ 2, [ 4, null ] ]</EXPECTED>
+      <SCHEME>
+(define (pairs s t)
+  (cons-stream
+   (list (stream-car s) (stream-car t))
+   (interleave
+    (stream-map (lambda (x) (list (stream-car s) x))
+                (stream-cdr t))
+    (pairs (stream-cdr s) (stream-cdr t)))))
+      </SCHEME>
+      <PYTHON>
+def pairs(s, t):
+    return pair(llist(head(s), head(t)),
+                lambda: interleave(stream_map(lambda x: llist(head(s), x),
+                                              stream_tail(t)),
+                                   pairs(stream_tail(s),
+                                         stream_tail(t))))
+      </PYTHON>
+    </SNIPPET>
+    <SNIPPET HIDE="yes">
+      <NAME>pairs_second_attempt_example</NAME>
+      <REQUIRES>stream_functions</REQUIRES>
+      <REQUIRES>display_stream</REQUIRES>
+      <REQUIRES>integers_definition</REQUIRES>
+      <SCHEME>
+	(pairs integers integers)
+      </SCHEME>
+      <PYTHON>
+print(display_stream(pairs(integers, integers)))
+      </PYTHON>
+      <PYTHON_TEST>
+print(stream_ref(pairs(integers, integers), 8))
+      </PYTHON_TEST>
+    </SNIPPET>
+
+  </TEXT>
+
+  <EXERCISE>
+    Дослідіть потік
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>(pairs integers integers)</SCHEMEINLINE>.</SCHEME>
+      <PYTHON><PYTHONINLINE>pairs(integers, integers)</PYTHONINLINE>.
+      </PYTHON>
+    </SPLITINLINE>
+    Чи можете ви зробити якісь загальні зауваження про порядок, у якому пари
+    потрапляють до потоку? Наприклад, приблизно скільки пар передує
+    парі (1,100)? парі (99,100)? парі (100,100)? (Якщо ви можете зробити
+    тут точні математичні твердження, то це ще краще. Але не соромтеся давати
+    якісніші відповіді, якщо застрягнете.)
+    <LABEL NAME="ex:stream-pair-order"/>
+  </EXERCISE>
+
+  <EXERCISE>
+    Змініть процедуру <SCHEMEINLINE>pairs</SCHEMEINLINE>
+    <SPLITINLINE>
+      <SCHEME>так,</SCHEME>
+      <PYTHON>так,</PYTHON>
+    </SPLITINLINE>
+    щоб
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>(pairs integers integers)</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>pairs(integers, integers)</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    породжував потік <EM>усіх</EM> пар цілих чисел
+    <LATEXINLINE>$(i,j)$</LATEXINLINE> (без умови
+    <LATEXINLINE>$i \leq j$</LATEXINLINE>). Підказка: вам треба буде
+    домішати додатковий потік.
+    <LABEL NAME="ex:3_67"/>
+  </EXERCISE>
+
+  <EXERCISE>
+    Луї Різонер вважає, що будувати потік пар із трьох частин —
+    це зайве ускладнення. Замість того щоб відокремлювати пару
+    <LATEXINLINE>$(S_0,T_0)$</LATEXINLINE> від решти пар у
+    першому рядку, він пропонує працювати з цілим першим рядком так:
+    <SNIPPET EVAL="no">
+      <REQUIRES>stream_functions</REQUIRES>
+      <REQUIRES>stream_tail</REQUIRES>
+      <SCHEME>
+(define (pairs s t)
+  (interleave
+   (stream-map (lambda (x) (list (stream-car s) x))
+               t)
+   (pairs (stream-cdr s) (stream-cdr t))))
+      </SCHEME>
+      <PYTHON>
+def pairs(s, t):
+    return interleave(stream_map(lambda x: llist(head(s), x),
+                                 t),
+                      pair(stream_tail(s), stream_tail(t)))
+      </PYTHON>
+    </SNIPPET>
+    Чи це працює? Поміркуйте, що станеться, якщо ми обчислимо
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>(pairs integers integers)</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>pairs(integers, integers)</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    користуючись означенням <SCHEMEINLINE>pairs</SCHEMEINLINE> від Луї.
+    <LABEL NAME="ex:pairs-array"/>
+  </EXERCISE>
+
+  <EXERCISE>
+    Напишіть
+    <SPLITINLINE>
+      <SCHEME>процедуру</SCHEME>
+      <PYTHON>функцію</PYTHON>
+    </SPLITINLINE>
+    <SCHEMEINLINE>triples</SCHEMEINLINE>, яка бере три нескінченні потоки
+    <LATEXINLINE>$S$</LATEXINLINE>, <LATEXINLINE>$T$</LATEXINLINE> та
+    <LATEXINLINE>$U$</LATEXINLINE> і породжує потік трійок
+    <LATEXINLINE>$(S_i,T_j,U_k)$</LATEXINLINE> таких, що
+    <LATEXINLINE>$i \leq j \leq k$</LATEXINLINE>. Скористайтеся
+    <SCHEMEINLINE>triples</SCHEMEINLINE>, щоб породити потік усіх
+    <INDEX>піфагорові трійки<SUBINDEX>з потоками</SUBINDEX></INDEX>
+    піфагорових трійок додатних цілих чисел, тобто трійок
+    <LATEXINLINE>$(i,j,k)$</LATEXINLINE> таких, що
+    <LATEXINLINE>$i \leq j$</LATEXINLINE> та
+    <LATEXINLINE>$i^2 + j^2 =k^2$</LATEXINLINE>.
+    <LABEL NAME="ex:stream-pythagorean-triples"/>
+  </EXERCISE>
+
+  <EXERCISE>
+    <LABEL NAME="ex:weighted-pairs"/>
+    Було б добре мати змогу породжувати
+    <INDEX>нескінченний потік(и)<SUBINDEX>злиття</SUBINDEX></INDEX>
+    потоки, у яких пари
+    з<APOS/>являються в якомусь корисному порядку, а не в порядку,
+    що виникає з <EM>ad hoc</EM> процесу переплетення. Ми можемо скористатися технікою,
+    подібною до процедури <SCHEMEINLINE>merge</SCHEMEINLINE>
+    <SPLITINLINE>
+      <SCHEME>з</SCHEME>
+      <PYTHON>з</PYTHON>
+    </SPLITINLINE>
+    вправи<SPACE/><REF NAME="ex:merge"/>, якщо означимо спосіб сказати, що
+    одна пара цілих чисел <QUOTE>менша</QUOTE> за іншу. Один спосіб зробити
+    це — означити
+    <QUOTE>вагову функцію</QUOTE>
+    <LATEXINLINE>$W(i,j)$</LATEXINLINE> і постулювати, що
+    <LATEXINLINE>$(i_1,j_1)$</LATEXINLINE> менша за
+    <LATEXINLINE>$(i_2,j_2)$</LATEXINLINE>, якщо
+    <LATEXINLINE>$W(i_1,j_1) &lt; W(i_2,j_2)$</LATEXINLINE>. Напишіть
+    <INDEX><USE>merge_weighted</USE></INDEX> 
+    <SPLITINLINE>
+      <SCHEME>процедуру <SCHEMEINLINE>merge-weighted</SCHEMEINLINE></SCHEME>
+      <PYTHON>функцію <PYTHONINLINE>merge_weighted</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    яка подібна до <SCHEMEINLINE>merge</SCHEMEINLINE>, крім того, що
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>merge-weighted</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>merge_weighted</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    бере додатковий аргумент <SCHEMEINLINE>weight</SCHEMEINLINE>, який є
+    <SPLITINLINE>
+      <SCHEME>процедурою</SCHEME>
+      <PYTHON>функцією</PYTHON>
+    </SPLITINLINE>
+    що обчислює вагу пари, і використовується, щоб визначити порядок,
+    у якому елементи мають з<APOS/>являтися в отриманому злитому потоці.<FOOTNOTE>Ми
+    вимагатимемо, щоб вагова функція була такою, що вага пари
+    зростає, коли ми рухаємося вздовж рядка або вниз по стовпцю масиву
+    пар.</FOOTNOTE> Користуючись цим, узагальніть <SCHEMEINLINE>pairs</SCHEMEINLINE>
+    до
+    <SPLITINLINE>
+      <SCHEME>процедури <SCHEMEINLINE>weighted-pairs</SCHEMEINLINE></SCHEME>
+      <PYTHON>функції <PYTHONINLINE>weighted_pairs</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    яка бере два потоки разом із
+    <SPLITINLINE>
+      <SCHEME>процедурою</SCHEME>
+      <PYTHON>функцією</PYTHON>
+    </SPLITINLINE>
+    що обчислює вагову функцію, і породжує потік пар,
+    впорядкований за вагою. Скористайтеся своєю
+    <SPLITINLINE>
+      <SCHEME>процедурою</SCHEME>
+      <PYTHON>функцією</PYTHON>
+    </SPLITINLINE>
+    щоб породити
+    <OL>
+      <LI>
+	потік усіх пар додатних цілих чисел
+	<LATEXINLINE>$(i,j)$</LATEXINLINE> з <LATEXINLINE>$i \leq
+        j$</LATEXINLINE>, упорядкованих за сумою
+	<LATEXINLINE>$i + j$</LATEXINLINE>
+      </LI>
+      <LI>
+	потік усіх пар додатних цілих чисел
+	<LATEXINLINE>$(i,j)$</LATEXINLINE> з <LATEXINLINE>$i \leq
+        j$</LATEXINLINE>, де ні <LATEXINLINE>$i$</LATEXINLINE>, ні
+	<LATEXINLINE>$j$</LATEXINLINE> не ділиться на 2, 3 або 5, а
+	пари впорядковані за сумою
+	<LATEXINLINE>$2 i + 3 j + 5 i j$</LATEXINLINE>.
+      </LI>
+    </OL>
+  </EXERCISE>
+
+  <EXERCISE>
+    Числа, які можна виразити як суму двох кубів більш ніж одним
+    способом, іноді називають
+    <INDEX>числа Рамануджана</INDEX>
+    <EM>числами Рамануджана</EM>, на честь
+    математика Срініваси Рамануджана.<FOOTNOTE>Цитуючи некролог
+    Ґ. Г. Гарді про
+    <INDEX>Гарді, Ґодфрі Гарольд</INDEX>
+    <INDEX>Рамануджан, Срініваса</INDEX>
+    Рамануджана (<CITATION NAME="HAR21">Гарді 1921</CITATION>): <QUOTE>Це
+    містер<SPACE/>Літлвуд
+    (я вважаю) зауважив, що <QUOTE>кожне додатне ціле число було одним із його
+    друзів.</QUOTE> Я пам<APOS/>ятаю, як одного разу пішов його відвідати, коли він лежав хворий
+    у Патні. Я приїхав у таксі № 1729 і зауважив, що це число
+    здалося мені досить нудним і що я сподіваюся, що це не погана
+    прикмета. <QUOTE>Ні,</QUOTE> відповів він, <QUOTE>це дуже цікаве число;
+    це найменше число, яке можна виразити як суму двох кубів двома
+    різними способами.</QUOTE></QUOTE> Трюк із використанням зважених пар, щоб
+    породжувати числа Рамануджана, показав нам
+    <INDEX>Лейзерсон, Чарльз Е.</INDEX>
+    Чарльз
+    Лейзерсон.</FOOTNOTE> Упорядковані потоки пар дають елегантний розв<APOS/>язок
+    задачі обчислення цих чисел. Щоб знайти число, яке можна
+    записати як суму двох кубів двома різними способами, нам досить породити
+    потік пар цілих чисел <LATEXINLINE>$(i,j)$</LATEXINLINE>, зважених
+    за сумою <LATEXINLINE>$i^3 + j^3$</LATEXINLINE> (дивіть
+    вправу<SPACE/><REF NAME="ex:weighted-pairs"/>), а потім пошукати в потоці
+    дві послідовні пари з однаковою вагою. Напишіть
+    <SPLITINLINE>
+      <SCHEME>процедуру</SCHEME>
+      <PYTHON>функцію</PYTHON>
+    </SPLITINLINE>
+    щоб породити числа Рамануджана. Перше
+    таке число — 1,729. Які наступні п<APOS/>ять?
+    <LABEL NAME="ex:ramanujan-nums"/>
+  </EXERCISE>
+
+  <EXERCISE>
+    Подібно до вправи<SPACE/><REF NAME="ex:ramanujan-nums"/> породіть
+    потік усіх чисел, які можна записати як суму двох квадратів
+    трьома різними способами (показавши, як їх так записати).
+    <LABEL NAME="ex:3_72"/>
+  </EXERCISE>
+
+  <INDEX>пара(и)<SUBINDEX>нескінченний потік<CLOSE/></SUBINDEX></INDEX>
+  <INDEX>нескінченний потік(и)<SUBINDEX>пар<CLOSE/></SUBINDEX></INDEX>
+  <INDEX>відображення<SUBINDEX>вкладене<CLOSE/></SUBINDEX></INDEX>
+
+  <SUBHEADING> 
+    <NAME>Потоки як сигнали</NAME>
+  </SUBHEADING>
+
+  <INDEX>опрацювання сигналів<SUBINDEX>потокова модель<OPEN/></SUBINDEX></INDEX>
+  <INDEX>нескінченний потік(и)<SUBINDEX>для моделювання сигналів<OPEN/></SUBINDEX></INDEX>
+  
+  <TEXT>
+    Ми почали нашу дискусію про потоки, описавши їх як обчислювальні
+    аналоги <QUOTE>сигналів</QUOTE> в системах опрацювання сигналів.
+    Насправді ми можемо скористатися потоками, щоб моделювати системи опрацювання сигналів дуже
+    прямо, представляючи значення сигналу в послідовні моменти
+    часу як послідовні елементи потоку. Наприклад, ми можемо
+    реалізувати
+    <INDEX>інтегратор для сигналів</INDEX>
+    <EM>інтегратор</EM> або
+    <EM>суматор</EM>, який для вхідного потоку
+    <LATEXINLINE>$x=(x_{i})$</LATEXINLINE>, початкового значення<SPACE/><LATEXINLINE>$C$</LATEXINLINE> і малого приросту <LATEXINLINE>$dt$</LATEXINLINE>
+    накопичує суму
+    <LATEX>
+      \[
+      \begin{array}{lll}
+      S_i &amp;=&amp; C +\sum_{j=1}^{i} x_{j} \, dt
+      \end{array}
+      \]
+    </LATEX>
+    і повертає потік значень <LATEXINLINE>$S=(S_{i})$</LATEXINLINE>.
+    Така функція <SCHEMEINLINE>integral</SCHEMEINLINE>
+    <SPLITINLINE>
+      <SCHEME>процедура</SCHEME>
+      <PYTHON>функція</PYTHON>
+    </SPLITINLINE>
+    нагадує <QUOTE>неявний стиль</QUOTE> означення
+    потоку цілих чисел (підрозділ<SPACE/><REF NAME="sec:infinite-streams"/>):
+    <SNIPPET HIDE="yes">
+      <NAME>integral_1_example</NAME>
+      <REQUIRES>stream_functions</REQUIRES>
+      <PYTHON>
+def numbers_starting_from(t, dt):
+    return pair(t,
+                lambda: numbers_starting_from(t + dt, dt))
+
+dt = 0.01
+linear = numbers_starting_from(0, dt)
+linear_integral = integral(linear, 0, dt)
+# computing integral from 0 to 3 of f(x) = x
+# (the integral is g(x) = 0.5 x^2, and therefore
+# the result is near 0.5 * 3^2 = 4.5)
+print(stream_ref(linear_integral, round(3 / dt)))
+      </PYTHON>
+    </SNIPPET>
+    <SNIPPET>
+      <INDEX><DECLARATION>integral</DECLARATION><FRAGILE/></INDEX> 
+      <NAME>integral_1</NAME>
+      <REQUIRES>add_streams</REQUIRES>
+      <REQUIRES>scale_stream</REQUIRES>
+      <EXAMPLE>integral_1_example</EXAMPLE>
+      <EXPECTED>4.484999999999992</EXPECTED>
+      <SCHEME>
+(define (integral integrand initial-value dt)
+  (define int
+          (cons-stream initial-value
+                       (add-streams (scale-stream integrand dt)
+                                    int)))
+  int)
+      </SCHEME>
+      <PYTHON>
+def integral(integrand, initial_value, dt):
+    integ = pair(initial_value,
+                 lambda: add_streams(scale_stream(integrand, dt),
+                                     integ))
+    return integ
+      </PYTHON>
+    </SNIPPET>
+    <SPLIT>
+      <SCHEME>
+        <FIGURE split_scale="1" web_scale="0.9" src="img_original/ch3-Z-G-49.svg">
+          <CAPTION>Процедура <SCHEMEINLINE>integral</SCHEMEINLINE>
+          як система опрацювання сигналів.
+          </CAPTION>
+          <LABEL NAME="fig:integral_scheme"/>
+        </FIGURE>
+      </SCHEME>
+      <PYTHON>
+        <FIGURE split_scale="1" web_scale="0.9" scale="0.544" src="img_javascript/ch3-Z-G-49.svg">
+          <CAPTION>Функція <SCHEMEINLINE>integral</SCHEMEINLINE>
+          як система опрацювання сигналів.
+          </CAPTION>
+          <LABEL NAME="fig:integral"/>
+        </FIGURE>
+      </PYTHON>
+    </SPLIT>
+</TEXT>
+<TEXT>
+<PDF_ONLY>\noindent</PDF_ONLY>
+    <SPLITINLINE>
+      <SCHEME>
+	Рисунок<SPACE/><REF NAME="fig:integral_scheme"/>
+      </SCHEME>
+      <PYTHON>
+	Рисунок<SPACE/><REF NAME="fig:integral"/>
+      </PYTHON>
+    </SPLITINLINE>
+    — це зображення системи опрацювання
+    сигналів, яка відповідає <SCHEMEINLINE>integral</SCHEMEINLINE>
+    <SPLITINLINE>
+      <SCHEME>процедурі.</SCHEME>
+      <PYTHON>функції.</PYTHON>
+    </SPLITINLINE>
+    Вхідний потік множать на <LATEXINLINE>$dt$</LATEXINLINE> і передають
+    крізь суматор, вихід якого повертають назад крізь той самий суматор.
+    Самопосилання в означенні
+    <SPLITINLINE>
+      <SCHEME>
+	<SCHEMEINLINE>int</SCHEMEINLINE>
+      </SCHEME>
+      <PYTHON>
+	<PYTHONINLINE>integ</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    відображено на рисунку петлею зворотного зв<APOS/>язку, яка
+    з<APOS/>єднує вихід суматора з одним із входів.
+  </TEXT>
+
+  <EXERCISE>
+    <LABEL NAME="ex:rc-circuit"/>
+      Ми можемо моделювати електричні кола, користуючись потоками для представлення значень
+      струмів або напруг у послідовності моментів часу. Наприклад, припустімо,
+      ми маємо
+      <INDEX>RC-коло</INDEX>
+      <INDEX>коло<SUBINDEX>змодельоване потоками</SUBINDEX></INDEX>
+      <INDEX>електричні кола, змодельовані потоками</INDEX>
+      <EM>RC-коло</EM>, яке складається з резистора з опором
+      <LATEXINLINE>$R$</LATEXINLINE> та конденсатора з ємністю
+      <LATEXINLINE>$C$</LATEXINLINE>, з’єднаних послідовно. Відгук напруги
+      <LATEXINLINE>$v$</LATEXINLINE> кола на поданий струм
+      <LATEXINLINE>$i$</LATEXINLINE> визначається формулою на
+      рисунку<SPACE/><REF NAME="fig:rc"/>, структуру якої показує
+      супровідна діаграма потоків сигналів.
+  <WEB_ONLY>
+    <!-- Figure moved later for SICP JS pagination -->
+    <!-- Figure code is duplicated later in this file in a PDF_ONLY -->
+      <FIGURE>
+	<FIGURE split_scale="0.5" web_scale="0.8" scale="0.544" src="img_original/ch3-Z-G-51.svg"></FIGURE>
+	<CAPTION>RC-коло та відповідна
+	<INDEX>діаграма потоків сигналів</INDEX>
+	діаграма потоків сигналів.
+	</CAPTION>
+	<LABEL NAME="fig:rc"/>
+      </FIGURE>
+  </WEB_ONLY>
+    <P>
+      Напишіть
+      <SPLITINLINE>
+	<SCHEME>процедуру</SCHEME>
+	<PYTHON>функцію</PYTHON>
+      </SPLITINLINE>
+      <SCHEMEINLINE>RC</SCHEMEINLINE>, яка моделює це коло.
+      <SCHEMEINLINE>RC</SCHEMEINLINE> має брати як входи значення
+      <LATEXINLINE>$R$</LATEXINLINE>, <LATEXINLINE>$C$</LATEXINLINE> та
+      <LATEXINLINE>$dt$</LATEXINLINE> і повертати
+      <SPLITINLINE>
+	<SCHEME>процедуру</SCHEME>
+	<PYTHON>функцію</PYTHON>
+      </SPLITINLINE>
+      яка бере як входи потік, що представляє струм
+      <LATEXINLINE>$i$</LATEXINLINE>, і початкове значення напруги
+      на конденсаторі <LATEXINLINE>$v_{0}$</LATEXINLINE> і породжує як вихід
+      потік напруг <LATEXINLINE>$v$</LATEXINLINE>. Наприклад, ви
+      маєте мати змогу скористатися <SCHEMEINLINE>RC</SCHEMEINLINE>, щоб змоделювати RC-коло
+      з <LATEXINLINE>$R = 5$</LATEXINLINE> ом,
+      <LATEXINLINE>$C = 1$</LATEXINLINE> фарад і кроком часу 0.5 секунди,
+      обчисливши
+      <SPLITINLINE>
+	<SCHEME><SCHEMEINLINE>(define RC1 (RC 5 1 0.5))</SCHEMEINLINE>.
+	</SCHEME>
+	<PYTHON>
+	  <PYTHONINLINE>const RC1 = RC(5, 1, 0.5)</PYTHONINLINE>.
+	</PYTHON>
+      </SPLITINLINE>
+      Це означає <SCHEMEINLINE>RC1</SCHEMEINLINE> як
+      <SPLITINLINE>
+	<SCHEME>процедуру</SCHEME>
+	<PYTHON>функцію</PYTHON>
+      </SPLITINLINE>
+      яка бере потік, що представляє часову послідовність струмів, і
+      початкову напругу на конденсаторі, і породжує вихідний потік напруг.
+    </P>
+  </EXERCISE>
+
+  <EXERCISE>
+    Аліса П. Хакер проєктує систему для опрацювання сигналів, що надходять від
+    фізичних давачів. Одна важлива властивість, яку вона хоче отримати, — це сигнал,
+    який описує
+    <INDEX>опрацювання сигналів<SUBINDEX>переходи сигналу через нуль</SUBINDEX></INDEX>
+    <INDEX>переходи сигналу через нуль</INDEX>
+    <EM>переходи через нуль</EM> вхідного сигналу. Тобто
+    результівний сигнал має бути <LATEXINLINE>$+1$</LATEXINLINE> щоразу, коли
+    вхідний сигнал змінюється з від’ємного на додатний,
+    <LATEXINLINE>$-1$</LATEXINLINE> щоразу, коли вхідний сигнал змінюється
+    з додатного на від’ємний, і 0 інакше. (Припускайте, що знак входу
+    0 — додатний.) Наприклад, типовий вхідний сигнал із відповідним
+    сигналом переходів через нуль мав би вигляд
+    <SNIPPET EVAL="no" LATEX="yes">
+      <SCHEME>
+$\ldots$ 1  2  1.5  1  0.5  -0.1  -2  -3  -2  -0.5  0.2  3  4 $\ldots$
+$\ldots$  0  0    0  0    0     -1  0   0   0     0    1  0  0 $\ldots$
+      </SCHEME>
+      <PYTHON>
+$\ldots$ 1  2  1.5  1  0.5  -0.1  -2  -3  -2  -0.5  0.2  3  4 $\ldots$
+$\ldots\;$  0  0    0  0    0     -1  0   0   0     0    1  0  0 $\ldots$
+      </PYTHON>
+    </SNIPPET>
+
+    У системі Аліси сигнал від давача представлено як
+    потік
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>sense-data</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>sense_data</PYTHONINLINE></PYTHON>
+    </SPLITINLINE> 
+    а потік
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>zero-crossings</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>zero_crossings</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    — це відповідний потік переходів через нуль. Аліса спершу пише
+    <SPLITINLINE>
+      <SCHEME>процедуру</SCHEME>
+      <PYTHON>функцію</PYTHON>
+    </SPLITINLINE>
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>sign-change-detector</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>sign_change_detector</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    яка бере два значення як аргументи й порівнює знаки цих значень, щоб
+    породити відповідне <LATEXINLINE>$0$</LATEXINLINE>,
+    <LATEXINLINE>$1$</LATEXINLINE> або <LATEXINLINE>$-1$</LATEXINLINE>. Потім
+    вона будує свій потік переходів через нуль так:
+
+    <SNIPPET EVAL="no">
+      <REQUIRES>stream_tail</REQUIRES>
+      <SCHEME>
+(define (make-zero-crossings input-stream last-value)
+  (cons-stream
+   (sign-change-detector (stream-car input-stream) last-value)
+   (make-zero-crossings (stream-cdr input-stream)
+                        (stream-car input-stream))))
+
+(define zero-crossings (make-zero-crossings sense-data 0))
+      </SCHEME>
+      <PYTHON>
+def make_zero_crossings(input_stream, last_value):
+    return pair(sign_change_detector(head(input_stream), last_value),
+                lambda: make_zero_crossings(stream_tail(input_stream),
+                                            head(input_stream)))
+
+zero_crossings = make_zero_crossings(sense_data, 0)
+      </PYTHON>
+    </SNIPPET>
+
+    Начальниця Аліси, Єва Лу Атор, проходить повз і припускає, що ця програма
+    приблизно еквівалентна такій, яка використовує
+    <SPLITINLINE>
+      <SCHEME>
+	узагальнену версію
+	<SCHEMEINLINE>stream-map</SCHEMEINLINE>
+	з вправи<SPACE/><REF NAME="ex:general-stream-map"/>:
+      </SCHEME>
+      <PYTHON>
+	функцію
+	<PYTHONINLINE>stream_map_2</PYTHONINLINE>
+	з вправи<SPACE/><REF NAME="ex:combine-streams"/>:
+      </PYTHON>
+    </SPLITINLINE>
+    <SNIPPET EVAL="no" LATEX="yes">
+      <SCHEME>
+(define zero-crossings
+  (stream-map sign-change-detector sense-data expression))
+      </SCHEME>
+      <PYTHON>
+zero_crossings = stream_map_2(sign_change_detector,
+                              sense_data,
+                              <META>expression</META>)
+      </PYTHON>
+    </SNIPPET>
+    Завершіть програму, підставивши вказаний
+    <META>expression</META>.
+    <LABEL NAME="ex:zero-crossing"/>
+  </EXERCISE>
+
+  <EXERCISE>
+    На жаль, детектор переходів через нуль Аліси
+    <INDEX>опрацювання сигналів<SUBINDEX>переходи сигналу через нуль</SUBINDEX></INDEX>
+    <INDEX>переходи сигналу через нуль</INDEX>
+    <INDEX>опрацювання сигналів<SUBINDEX>згладжування сигналу</SUBINDEX></INDEX>
+    <INDEX>згладжування сигналу</INDEX>
+    з
+    вправи<SPACE/><REF NAME="ex:zero-crossing"/> виявляється недостатнім,
+    бо зашумлений сигнал від давача спричиняє хибні переходи через нуль.
+    Лем Е. Твікіт, фахівець із апаратного забезпечення, радить Алісі згладити
+    сигнал, щоб відфільтрувати шум, перш ніж видобувати переходи через нуль.
+    Аліса слухає його пораду й вирішує видобувати переходи через нуль
+    із сигналу, побудованого усередненням кожного значення даних давача з
+    попереднім значенням. Вона пояснює задачу своєму помічникові, Луї
+    Різонеру, який намагається реалізувати цю ідею, змінивши програму Аліси
+    так:
+    <SNIPPET EVAL="no">
+      <REQUIRES>stream_tail</REQUIRES>
+      <SCHEME>
+(define (make-zero-crossings input-stream last-value)
+  (let ((avpt (/ (+ (stream-car input-stream) last-value) 2)))
+    (cons-stream (sign-change-detector avpt last-value)
+                 (make-zero-crossings (stream-cdr input-stream)
+                                      avpt))))
+      </SCHEME>
+      <PYTHON>
+def make_zero_crossings(input_stream, last_value):
+    avpt = (head(input_stream) + last_value) / 2
+    return pair(sign_change_detector(avpt, last_value),
+                lambda: make_zero_crossings(stream_tail(input_stream),
+                                            avpt))
+      </PYTHON>
+    </SNIPPET>
+    Це не реалізує план Аліси правильно.
+    Знайдіть ваду, яку вніс Луї,
+    і виправте її, не змінюючи структури програми. (Підказка: вам
+    треба буде збільшити кількість аргументів
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>make-zero-crossings</SCHEMEINLINE>.)</SCHEME>
+      <PYTHON><PYTHONINLINE>make_zero_crossings</PYTHONINLINE>.)
+      </PYTHON>
+    </SPLITINLINE>
+    <LABEL NAME="ex:zero-crossing-2"/>
+  </EXERCISE>
+
+  <PDF_ONLY>
+    <!-- Figure moved here from earlier for SICP JS pagination -->
+    <!-- Figure code is copy of code earlier in this file in a WEB_ONLY -->
+      <FIGURE>
+	<FIGURE split_scale="0.5" web_scale="0.8" scale="0.544" src="img_original/ch3-Z-G-51.svg"></FIGURE>
+	<CAPTION>RC-коло та відповідна
+	<INDEX>діаграма потоків сигналів</INDEX>
+	діаграма потоків сигналів.
+	</CAPTION>
+	<LABEL NAME="fig:rc"/>
+      </FIGURE>
+  </PDF_ONLY>
+
+  <EXERCISE>
+    У Єви Лу Атор є зауваження до підходу Луї у
+    вправі<SPACE/><REF NAME="ex:zero-crossing-2"/>.
+    <INDEX>опрацювання сигналів<SUBINDEX>переходи сигналу через нуль</SUBINDEX></INDEX>
+    <INDEX>переходи сигналу через нуль</INDEX>
+    <INDEX>опрацювання сигналів<SUBINDEX>згладжування сигналу</SUBINDEX></INDEX>
+    <INDEX>згладжування сигналу</INDEX>
+    Програма, яку він написав,
+    не модульна, бо вона змішує операцію згладжування з
+    видобуванням переходів через нуль. Наприклад, видобувач не мав би
+    потребувати змін, якби Аліса знайшла кращий спосіб підготувати свій вхідний
+    сигнал. Допоможіть Луї, написавши
+    <SPLITINLINE>
+      <SCHEME>процедуру</SCHEME>
+      <PYTHON>функцію</PYTHON>
+    </SPLITINLINE>
+    <SCHEMEINLINE>smooth</SCHEMEINLINE>, яка бере потік як вхід і
+    породжує потік, у якому кожен елемент — це середнє двох послідовних
+    елементів вхідного потоку. Потім скористайтеся <SCHEMEINLINE>smooth</SCHEMEINLINE> як
+    складовою, щоб реалізувати детектор переходів через нуль у модульнішому стилі.
+    <LABEL NAME="ex:3_76"/>
+  </EXERCISE>
+
+  <INDEX>опрацювання сигналів<SUBINDEX>потокова модель<CLOSE/></SUBINDEX></INDEX>
+  <INDEX>нескінченний потік(и)<SUBINDEX>для моделювання сигналів<CLOSE/></SUBINDEX></INDEX>
+
+</SUBSECTION>

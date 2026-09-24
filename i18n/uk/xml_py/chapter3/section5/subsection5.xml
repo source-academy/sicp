@@ -1,0 +1,665 @@
+<SUBSECTION>
+  <NAME>
+    Модульність функціональних програм і модульність об’єктів
+  </NAME>
+
+  <LABEL NAME="sec:functions-and-objects"/>
+
+  <INDEX>модульність<SUBINDEX>функціональні програми проти<SPACE/>об’єктів<OPEN/></SUBINDEX></INDEX>
+  <INDEX>функціональне програмування<OPEN/></INDEX>
+
+  <TEXT>
+    Як ми бачили в підрозділі<SPACE/><REF NAME="sec:benefits-of-assignment"/>, одна з
+    головних переваг уведення
+    <SPLITINLINE>
+      <SCHEME>присвоєння</SCHEME>
+      <PYTHON>переприсвоєння</PYTHON>
+    </SPLITINLINE>
+    у тому, що ми можемо збільшити
+    модульність наших систем, інкапсулюючи, або <QUOTE>ховаючи,</QUOTE> частини
+    стану великої системи в локальних змінних. Потокові моделі можуть
+    дати еквівалентну модульність без використання
+    <SPLITINLINE>
+      <SCHEME>присвоєння.</SCHEME>
+      <PYTHON>переприсвоєння.</PYTHON>
+    </SPLITINLINE>
+    Як
+    ілюстрацію, ми можемо перереалізувати
+    <INDEX><ORDER>pi</ORDER><LATEXINLINE>$\pi$</LATEXINLINE> (pi)<SUBINDEX>оцінка Діріхле для</SUBINDEX></INDEX>
+    <INDEX>метод Монте-Карло<SUBINDEX>потокове формулювання</SUBINDEX></INDEX>
+    оцінювання<SPACE/><LATEXINLINE>$\pi$</LATEXINLINE> методом Монте-Карло,
+    яке ми розглядали в
+    підрозділі<SPACE/><REF NAME="sec:benefits-of-assignment"/>, з
+    погляду потокового опрацювання.
+  </TEXT>
+
+  <TEXT>
+    Ключове питання модульності було в тому, що ми хотіли сховати внутрішній стан
+    генератора випадкових чисел від програм, які користуються випадковими числами.
+    Ми почали з
+    <SPLITINLINE>
+      <SCHEME>процедури <SCHEMEINLINE>rand-update</SCHEMEINLINE>,</SCHEME>
+      <PYTHON>функції <PYTHONINLINE>rand_update</PYTHONINLINE>,
+      </PYTHON>
+    </SPLITINLINE>
+    чиї послідовні значення давали нам постачання випадкових чисел, і скористалися
+    цим, щоб породити генератор випадкових чисел:
+    <SNIPPET>
+      <REQUIRES>rand_update</REQUIRES>
+      <REQUIRES>random_init</REQUIRES>
+      <EXAMPLE>rand_example</EXAMPLE>
+      <EXPECTED>170892799123</EXPECTED>
+      <SCHEME>
+(define rand
+  (let ((x random-init))
+    (lambda ()
+      (set! x (rand-update x))
+    x)))
+      </SCHEME>
+      <PYTHON>
+def make_rand():
+    x = random_init
+    def rand():
+        nonlocal x
+        x = rand_update(x)
+        return x
+    return rand
+
+rand = make_rand()
+      </PYTHON>
+    </SNIPPET>
+  </TEXT>
+
+  <TEXT>
+    У потоковому формулюванні немає генератора випадкових чисел <EM>як
+    такого</EM>, лише потік випадкових чисел, породжений послідовними викликами
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>rand-update</SCHEMEINLINE>:
+      </SCHEME>
+      <PYTHON><PYTHONINLINE>rand_update</PYTHONINLINE>:
+      </PYTHON>
+    </SPLITINLINE>
+    <SNIPPET>
+      <INDEX><DECLARATION>random_numbers</DECLARATION> (infinite stream)</INDEX>
+      <INDEX>infinite stream(s)<SUBINDEX>of random numbers</SUBINDEX></INDEX>
+      <NAME>random_numbers</NAME>
+      <REQUIRES>stream_functions</REQUIRES>
+      <REQUIRES>rand_update</REQUIRES>
+      <REQUIRES>random_init</REQUIRES>
+      <EXAMPLE>random_numbers_example</EXAMPLE>
+      <EXPECTED>15486198720</EXPECTED>
+      <SCHEME>
+(define random-numbers
+  (cons-stream random-init
+               (stream-map rand-update random-numbers)))
+      </SCHEME>
+      <PYTHON>
+random_numbers = pair(random_init,
+                      lambda: stream_map(rand_update, random_numbers))
+      </PYTHON>
+    </SNIPPET>
+    <SNIPPET HIDE="yes">
+      <NAME>random_numbers_example</NAME>
+      <REQUIRES>stream_functions</REQUIRES>
+      <PYTHON>
+print(eval_stream(random_numbers, 5))
+      </PYTHON>
+      <PYTHON_TEST>
+print(stream_ref(random_numbers, 4))
+      </PYTHON_TEST>
+    </SNIPPET>
+    Ми користуємося цим, щоб побудувати потік результатів
+    експерименту Чезаро (Ces<AGRAVE_LOWER/>ro), виконаного над послідовними парами в
+    потоці
+    <SPLITINLINE>
+      <SCHEME>
+	<SCHEMEINLINE>random-numbers</SCHEMEINLINE>
+      </SCHEME>
+      <PYTHON>
+	<SCHEMEINLINE>random_numbers</SCHEMEINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    :
+    <SNIPPET>
+      <INDEX><DECLARATION>dirichlet_stream</DECLARATION></INDEX> 
+      <INDEX><DECLARATION>map_successive_pairs</DECLARATION></INDEX> 
+      <NAME>cesaro_stream</NAME>
+      <REQUIRES>stream_tail</REQUIRES>
+      <REQUIRES>random_numbers</REQUIRES>
+      <REQUIRES>gcd_definition</REQUIRES>
+      <EXAMPLE>cesaro_stream_example</EXAMPLE>
+      <EXPECTED>True</EXPECTED>
+      <SCHEME>
+(define cesaro-stream
+  (map-successive-pairs (lambda (r1 r2) (= (gcd r1 r2) 1))
+                        random-numbers))
+
+(define (map-successive-pairs f s)
+  (cons-stream
+   (f (stream-car s) (stream-car (stream-cdr s)))
+      (map-successive-pairs f (stream-cdr (stream-cdr s)))))
+      </SCHEME>
+      <PYTHON>
+def map_successive_pairs(f, s):
+    return pair(f(head(s), head(stream_tail(s))),
+                lambda: map_successive_pairs(
+                            f,
+                            stream_tail(stream_tail(s))))
+
+dirichlet_stream = map_successive_pairs(lambda r1, r2: gcd(r1, r2) == 1,
+                                        random_numbers)
+      </PYTHON>
+    </SNIPPET>
+    <SNIPPET HIDE="yes">
+      <NAME>cesaro_stream_example</NAME>
+      <REQUIRES>stream_functions</REQUIRES>
+      <PYTHON>
+print(eval_stream(dirichlet_stream, 20))
+      </PYTHON>
+      <PYTHON_TEST>
+print(stream_ref(dirichlet_stream, 42))
+      </PYTHON_TEST>
+    </SNIPPET>
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>cesaro-stream</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>dirichlet_stream</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    тепер подають до
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>monte-carlo</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>monte_carlo</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    <SPLITINLINE>
+      <SCHEME>процедури,</SCHEME>
+      <PYTHON>функції,</PYTHON>
+    </SPLITINLINE>
+    яка породжує потік оцінок імовірностей. Результати потім
+    перетворюють на потік оцінок <LATEXINLINE>$\pi$</LATEXINLINE>.
+    Ця версія програми не потребує параметра, який казав би, скільки
+    спроб виконати. Кращі оцінки <LATEXINLINE>$\pi$</LATEXINLINE>
+    (від виконання більшої кількості експериментів) отримують, зазираючи далі в
+    потік <SCHEMEINLINE>pi</SCHEMEINLINE>:
+    <SNIPPET>
+      <INDEX><DECLARATION>monte_carlo</DECLARATION><SUBINDEX>infinite stream</SUBINDEX></INDEX>
+      <NAME>monte_carlo_stream</NAME>
+      <REQUIRES>stream_functions</REQUIRES>
+      <REQUIRES>stream_tail</REQUIRES>
+      <REQUIRES>cesaro_stream</REQUIRES>
+      <EXAMPLE>display_pi</EXAMPLE>
+      <EXPECTED>3.0771334062727926</EXPECTED>
+      <SCHEME>
+(define (monte-carlo experiment-stream passed failed)
+  (define (next passed failed)
+    (cons-stream
+     (/ passed (+ passed failed))
+     (monte-carlo
+      (stream-cdr experiment-stream) passed failed)))
+  (if (stream-car experiment-stream)
+      (next (+ passed 1) failed)
+      (next passed (+ failed 1))))
+
+(define pi
+  (stream-map 
+   (lambda (p) (sqrt (/ 6 p)))
+   (monte-carlo cesaro-stream 0 0)))
+      </SCHEME>
+      <PYTHON>
+def monte_carlo(experiment_stream, passed, failed):
+    def next(passed, failed):
+        return pair(passed / (passed + failed),
+                    lambda: monte_carlo(stream_tail(experiment_stream),
+                                        passed, failed))
+    return (next(passed + 1, failed)
+            if head(experiment_stream)
+            else next(passed, failed + 1))
+
+pi = stream_map(lambda p: math_sqrt(6 / p),
+                monte_carlo(dirichlet_stream, 0, 0))
+      </PYTHON>
+      <PYTHON_RUN>
+def monte_carlo(experiment_stream, passed, failed):
+    def next(passed, failed):
+        return pair(passed / (passed + failed),
+                    lambda: monte_carlo(stream_tail(experiment_stream),
+                                        passed, failed))
+    return (next(passed + 1, failed)
+            if head(experiment_stream)
+            else next(passed, failed + 1))
+
+pi = stream_map(lambda p: math_sqrt(6 / p if p != 0 else math_inf),
+                monte_carlo(dirichlet_stream, 0, 0))
+      </PYTHON_RUN>
+    </SNIPPET>
+    <SNIPPET HIDE="yes">
+      <NAME>display_pi</NAME>
+      <REQUIRES>stream_functions</REQUIRES>
+      <PYTHON>
+print(stream_ref(pi, 100))
+      </PYTHON>
+    </SNIPPET>
+    У цьому підході чимала
+    <INDEX>модульність<SUBINDEX>через нескінченні потоки</SUBINDEX></INDEX>
+    модульність, бо ми все ще
+    можемо сформулювати загальну
+    <SPLITINLINE>
+      <SCHEME>процедуру <SCHEMEINLINE>monte-carlo</SCHEMEINLINE></SCHEME>
+      <PYTHON>функцію <PYTHONINLINE>monte_carlo</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    яка може працювати з довільними експериментами. Проте тут немає
+    <SPLITINLINE>
+      <SCHEME>присвоєння</SCHEME>
+      <PYTHON>переприсвоєння</PYTHON>
+    </SPLITINLINE>
+    чи
+    локального стану.
+  </TEXT>
+  <EXERCISE>
+    Вправа<SPACE/><REF NAME="ex:random-with-reset"/> обговорювала узагальнення
+    генератора випадкових чисел, щоб дозволити
+    <INDEX>генератор випадкових чисел<SUBINDEX>з перезапуском, потокова версія</SUBINDEX></INDEX>
+    перезапускати послідовність випадкових чисел
+    так, щоб породжувати повторювані послідовності <QUOTE>випадкових</QUOTE> чисел.
+    Породіть потокове формулювання цього самого генератора, який працює на
+    вхідному потоці запитів
+    <SPLITINLINE>
+      <SCHEME>
+	<SCHEMEINLINE>generate</SCHEMEINLINE>
+      </SCHEME>
+      <PYTHON>
+	<PYTHONINLINE>"generate"</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    нове
+    випадкове число або
+    <SPLITINLINE>
+      <SCHEME>
+	<SCHEMEINLINE>reset</SCHEMEINLINE>
+      </SCHEME>
+      <PYTHON>
+	<PYTHONINLINE>"reset"</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    перезапустити послідовність до
+    заданого значення, і породжує потрібний потік випадкових чисел.
+    Не використовуйте
+    <SPLITINLINE>
+      <SCHEME>присвоєння</SCHEME>
+      <PYTHON>переприсвоєння</PYTHON>
+    </SPLITINLINE>
+    у своєму розв<APOS/>язку.
+    <LABEL NAME="ex:3_81"/>
+  </EXERCISE>
+
+  <EXERCISE>
+    Виконайте вправу<SPACE/><REF NAME="ex:monte-carlo-integration"/> про
+    <INDEX>інтегрування методом Монте-Карло<SUBINDEX>потокове формулювання</SUBINDEX></INDEX>
+    <INDEX><ORDER>pi</ORDER><LATEXINLINE>$\pi$</LATEXINLINE> (pi)<SUBINDEX>наближення інтегруванням методом Монте-Карло</SUBINDEX></INDEX>
+    <INDEX>визначений інтеграл<SUBINDEX>оцінений моделюванням методом Монте-Карло</SUBINDEX></INDEX>
+    інтегрування методом Монте-Карло в термінах потоків. Потокова версія
+    <SPLITINLINE>
+      <SCHEME>
+	<SCHEMEINLINE>estimate-integral</SCHEMEINLINE>
+      </SCHEME>
+      <PYTHON>
+	<SCHEMEINLINE>estimate_integral</SCHEMEINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    не матиме аргументу, який казав би, скільки спроб виконати. Натомість вона
+    породжуватиме потік оцінок, заснованих на дедалі більшій кількості спроб.
+    <LABEL NAME="ex:3_82"/>
+  </EXERCISE>
+
+  <SUBHEADING>
+    <NAME>Погляд функціонального програмування на час</NAME>
+  </SUBHEADING>
+
+  <INDEX>час<SUBINDEX>функціональне програмування і<OPEN/></SUBINDEX></INDEX>
+  <INDEX>функціональне програмування<SUBINDEX>час і<OPEN/></SUBINDEX></INDEX>
+
+  <TEXT>
+    Повернімося тепер до питань об<APOS/>єктів і стану, які були порушені
+    на початку цього розділу, і розгляньмо їх у новому світлі. Ми
+    ввели
+    <SPLITINLINE>
+      <SCHEME>присвоєння</SCHEME>
+      <PYTHON>переприсвоєння</PYTHON>
+    </SPLITINLINE>
+    та змінювані об<APOS/>єкти, щоб дати механізм
+    модульної побудови програм, які моделюють системи зі станом.
+    Ми побудували обчислювальні об<APOS/>єкти з локальними змінними стану й використовували
+    <SPLITINLINE>
+      <SCHEME>присвоєння</SCHEME>
+      <PYTHON>переприсвоєння</PYTHON>
+    </SPLITINLINE>
+    щоб змінювати ці змінні. Ми змоделювали часову поведінку
+    об<APOS/>єктів у світі через часову поведінку відповідних
+    обчислювальних об<APOS/>єктів.
+  </TEXT>
+
+  <TEXT>
+    Тепер ми побачили, що потоки дають альтернативний спосіб моделювати
+    об<APOS/>єкти з локальним станом. Ми можемо моделювати змінну величину, як-от
+    локальний стан якогось об’єкта, користуючись потоком, який представляє
+    часову історію послідовних станів. По суті, ми представляємо час
+    явно, користуючись потоками, тож ми від<APOS/>єднуємо час у нашому змодельованому
+    світі від послідовності подій, які відбуваються під час обчислення.
+    Справді, через наявність
+    <SPLITINLINE>
+      <SCHEME>
+	<SCHEMEINLINE>delay</SCHEMEINLINE>
+      </SCHEME>
+      <PYTHON>
+	відкладеного обчислення
+      </PYTHON>
+    </SPLITINLINE>
+    може бути мало спільного між змодельованим часом у моделі та
+    порядком подій під час обчислення.
+  </TEXT>
+
+  <TEXT>
+    Щоб протиставити ці два підходи до моделювання, розгляньмо
+    ще раз реалізацію <QUOTE>процесора зняття коштів</QUOTE>, який
+    стежить за балансом на
+    <INDEX>банківський рахунок<SUBINDEX>потокова модель</SUBINDEX></INDEX>
+    банківському рахунку. У
+    підрозділі<SPACE/><REF NAME="sec:costs-of-assignment"/> ми реалізували
+    спрощену версію такого процесора:
+    <SNIPPET EVAL="no">
+      <INDEX><DECLARATION>make_simplified_withdraw</DECLARATION></INDEX> 
+      <EXAMPLE>make_simplified_withdraw_example</EXAMPLE>
+      <EXAMPLE>make_simplified_withdraw_example1</EXAMPLE>
+      <EXAMPLE>make_simplified_withdraw_example2</EXAMPLE>
+      <SCHEME>
+(define (make-simplified-withdraw balance)
+  (lambda (amount)
+    (set! balance (- balance amount))
+    balance))
+      </SCHEME>
+      <PYTHON>
+def make_simplified_withdraw(balance):
+    def withdraw(amount):
+        nonlocal balance
+        balance = balance - amount
+        return balance
+    return withdraw
+      </PYTHON>
+    </SNIPPET>
+    Виклики
+    <SPLITINLINE>
+      <SCHEME>
+	<SCHEMEINLINE>make-simplified-withdraw</SCHEMEINLINE>
+      </SCHEME>
+      <PYTHON>
+	<SCHEMEINLINE>make_simplified_withdraw</SCHEMEINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    породжують обчислювальні об’єкти, кожен із локальною змінною стану
+    <SCHEMEINLINE>balance</SCHEMEINLINE>, яка зменшується послідовними викликами
+    об’єкта. Об’єкт бере <SCHEMEINLINE>amount</SCHEMEINLINE> як
+    аргумент і повертає новий баланс. Ми можемо уявити, як користувач банківського
+    рахунку вводить послідовність даних до такого об’єкта й спостерігає
+    послідовність повернених значень, показаних на екрані.
+  </TEXT>
+
+  <TEXT>
+    Альтернативно ми можемо змоделювати процесор зняття коштів як
+    <SPLITINLINE>
+      <SCHEME>процедуру</SCHEME>
+      <PYTHON>функцію</PYTHON>
+    </SPLITINLINE>
+    яка бере як вхід баланс і потік сум для зняття та
+    породжує потік послідовних балансів на рахунку:
+    <SNIPPET>
+      <INDEX><DECLARATION>stream_withdraw</DECLARATION></INDEX> 
+      <NAME>stream_withdraw</NAME>
+      <REQUIRES>stream_tail</REQUIRES>
+      <EXAMPLE>stream_withdraw_example</EXAMPLE>
+      <EXPECTED>50</EXPECTED>
+      <SCHEME>
+(define (stream-withdraw balance amount-stream)
+  (cons-stream
+   balance
+   (stream-withdraw (- balance (stream-car amount-stream))
+                    (stream-cdr amount-stream))))
+      </SCHEME>
+      <PYTHON>
+def stream_withdraw(balance, amount_stream):
+    return pair(balance,
+                lambda: stream_withdraw(balance - head(amount_stream),
+                                        stream_tail(amount_stream)))
+      </PYTHON>
+    </SNIPPET>
+    <SNIPPET HIDE="yes">
+      <NAME>stream_withdraw_example</NAME>
+      <REQUIRES>stream_functions</REQUIRES>
+      <PYTHON>
+my_amounts = pair(50, lambda: pair(100, lambda: pair(40, None)))
+my_account_stream = stream_withdraw(200, my_amounts)
+print(eval_stream(my_account_stream, 3))
+      </PYTHON>
+      <PYTHON_TEST>
+my_amounts = pair(50, lambda: pair(100, lambda: pair(40, None)))
+my_account_stream = stream_withdraw(200, my_amounts)
+print(stream_ref(my_account_stream, 2))
+      </PYTHON_TEST>
+    </SNIPPET>
+    <SPLITINLINE>
+      <SCHEME>
+	<SCHEMEINLINE>Stream-withdraw</SCHEMEINLINE>	
+      </SCHEME>
+      <PYTHON>
+	Функція <PYTHONINLINE>stream_withdraw</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    реалізує добре означену математичну функцію, вихід якої повністю
+    визначений її входом. Припустімо, проте, що вхід
+    <SPLITINLINE>
+      <SCHEME>
+	<SCHEMEINLINE>amount-stream</SCHEMEINLINE>
+      </SCHEME>
+      <PYTHON>
+	<PYTHONINLINE>amount_stream</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    — це потік послідовних значень, уведених користувачем, а отриманий
+    потік балансів відображається. Тоді з погляду користувача, який
+    уводить значення й спостерігає результати, потоковий процес поводиться так само,
+    як об’єкт, породжений
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>make-simplified-withdraw</SCHEMEINLINE>.</SCHEME>
+      <PYTHON><PYTHONINLINE>make_simplified_withdraw</PYTHONINLINE>.
+      </PYTHON>
+    </SPLITINLINE>
+    Проте в потоковій версії немає
+    <SPLITINLINE>
+      <SCHEME>присвоєння,</SCHEME>
+      <PYTHON>переприсвоєння,</PYTHON>
+    </SPLITINLINE>
+    немає локальної змінної
+    стану, а отже, жодної з теоретичних труднощів, із якими ми
+    зіткнулися
+    <INDEX>стан<SUBINDEX>зникає в потоковому формулюванні</SUBINDEX></INDEX>
+    у підрозділі<SPACE/><REF NAME="sec:costs-of-assignment"/>. І все ж система
+    має стан!
+  </TEXT>
+
+  <TEXT>
+    Це справді чудово. Хоч
+    <SPLITINLINE>
+      <SCHEME>
+	<SCHEMEINLINE>stream-withdraw</SCHEMEINLINE>
+      </SCHEME>
+      <PYTHON>
+	<PYTHONINLINE>stream_withdraw</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    реалізує добре означену математичну функцію, поведінка якої не
+    змінюється, сприйняття користувача тут — це взаємодія із системою,
+    яка має змінний стан. Один спосіб розв’язати цей парадокс — усвідомити,
+    що саме часове існування користувача накладає стан на
+    систему. Якби користувач міг відступити від взаємодії й думати в термінах
+    потоків балансів, а не окремих транзакцій, система
+    виглядала б такою, що не має стану.<FOOTNOTE>Подібно до цього у фізиці, коли ми спостерігаємо
+    рухому частинку, ми кажемо, що положення (стан) частинки
+    змінюється. Проте з погляду
+    <INDEX>світова лінія частинки</INDEX>
+    світової лінії частинки в просторі-часі жодної зміни не відбувається.</FOOTNOTE>
+  </TEXT>
+
+  <TEXT>
+    З погляду однієї частини складного процесу інші частини
+    виглядають такими, що змінюються з часом. Вони мають прихований локальний стан, який змінюється з часом. Якщо
+    ми хочемо писати програми, які моделюють такий природний розклад
+    нашого світу (як ми бачимо його зі своєї точки зору як частини цього світу)
+    структурами в нашому комп’ютері, ми створюємо обчислювальні об’єкти, які не є
+    функціональними<EMDASH/>вони мусять змінюватися з часом. Ми моделюємо стан локальними
+    змінними стану, а зміни стану моделюємо
+    <SPLITINLINE>
+      <SCHEME>присвоєннями</SCHEME>
+      <PYTHON>переприсвоєннями</PYTHON>
+    </SPLITINLINE>
+    цим
+    змінним. Роблячи це, ми прирівнюємо час виконання
+    обчислення до часу у світі, частиною якого ми є, і таким чином
+    отримуємо <QUOTE>об’єкти</QUOTE> в нашому комп’ютері.
+  </TEXT>
+
+  <TEXT>
+    Моделювання об’єктами потужне та інтуїтивне, значною мірою тому що це
+    збігається зі сприйняттям взаємодії зі світом, частиною якого ми є.
+    Проте, як ми бачили неодноразово протягом цього розділу,
+    ці моделі породжують колючі проблеми обмеження порядку подій
+    та синхронізації багатьох процесів. Можливість уникнути
+    цих проблем стимулювала розвиток
+    <INDEX>мова програмування<SUBINDEX>функціональна</SUBINDEX></INDEX>
+    <INDEX>функціональне програмування<SUBINDEX>мови функціонального програмування</SUBINDEX></INDEX>
+    <EM>мов функціонального програмування</EM>, які не містять жодного
+    засобу для
+    <SPLITINLINE>
+      <SCHEME>присвоєння</SCHEME>
+      <PYTHON>переприсвоєння</PYTHON>
+    </SPLITINLINE>
+    чи змінюваних даних. У такій мові всі
+    <SPLITINLINE>
+      <SCHEME>процедури</SCHEME>
+      <PYTHON>функції</PYTHON>
+    </SPLITINLINE>
+    реалізують добре означені математичні функції своїх аргументів,
+    поведінка яких не змінюється. Функціональний підхід надзвичайно
+    привабливий для роботи з
+    <INDEX>паралелізм<SUBINDEX>функціональне програмування і</SUBINDEX></INDEX>
+    <INDEX>функціональне програмування<SUBINDEX>паралелізм і</SUBINDEX></INDEX>
+    паралельними системами.<FOOTNOTE>Джон Бекус,
+    <INDEX>Fortran<SUBINDEX>винахідник</SUBINDEX></INDEX>
+    винахідник Fortran, надав високої
+    видимості функціональному програмуванню, коли його нагородили премією Тюрінга ACM
+    у 1978 році. Його промова на врученні
+    <INDEX>Бекус, Джон</INDEX>
+    (<CITATION NAME="BAC78">Бекус 1978</CITATION>)
+    рішуче відстоювала функціональний підхід. Добрий огляд функціонального
+    програмування дано в
+    <INDEX>Гендерсон, Пітер</INDEX>
+    <CITATION NAME="HEN80">Ґендерсон 1980</CITATION> та в
+    <INDEX>Дарлінгтон, Джон</INDEX>
+    <INDEX>Тернер, Девід</INDEX>
+    <CITATION NAME="DAR82">Дарлінгтон, Гендерсон і Тернер 1982</CITATION>.</FOOTNOTE>
+  </TEXT>
+
+  <TEXT>
+    З іншого боку, якщо придивитися, ми можемо побачити, як у функціональні моделі
+    теж закрадаються проблеми, пов’язані з часом. Одна особливо клопітка сфера
+    виникає, коли ми хочемо проєктувати інтерактивні системи, особливо такі, що
+    моделюють взаємодії між незалежними сутностями. Наприклад, розгляньмо ще
+    раз реалізацію банківської системи, яка дозволяє спільні банківські рахунки.
+    У звичайній системі, яка використовує
+    <SPLITINLINE>
+      <SCHEME>присвоєння</SCHEME>
+      <PYTHON>переприсвоєння</PYTHON>
+    </SPLITINLINE>
+    та об’єкти, ми б змоделювали
+    той факт, що Петро й Павло мають спільний рахунок, тим, що і Петро, і Павло надсилають
+    свої транзакційні запити до того самого об’єкта банківського рахунку, як ми бачили в
+    підрозділі<SPACE/><REF NAME="sec:costs-of-assignment"/>. З потокової точки
+    зору, де немає <QUOTE>об’єктів</QUOTE> <EM>як таких</EM>, ми
+    вже показали, що банківський рахунок можна змоделювати як процес, який
+    працює на потоці транзакційних запитів, щоб породити потік
+    відповідей. Відповідно, ми могли б змоделювати той факт, що Петро й Павло мають
+    спільний банківський рахунок, зливши потік транзакційних запитів Петра
+    з потоком запитів Павла й подавши результат до
+    потокового процесу банківського рахунку, як показано на
+    рисунку<SPACE/><REF NAME="fig:joint-account-stream"/>.
+    <FIGURE>
+      <FIGURE split_scale="0.5" web_scale="0.7" scale="0.59" src="img_original/ch3-Z-G-60.svg"></FIGURE>
+      <CAPTION>
+	Спільний
+	<INDEX>банківський рахунок<SUBINDEX>спільний, змодельований потоками</SUBINDEX></INDEX>
+	банківський рахунок, змодельований злиттям двох потоків транзакційних
+	запитів.
+      </CAPTION>
+      <LABEL NAME="fig:joint-account-stream"/>
+    </FIGURE>
+  </TEXT>
+
+  <TEXT>
+    Проблема цього формулювання — у понятті <EM>злиття</EM>. Не
+    годиться зливати два потоки, просто беручи по черзі один
+    запит від Петра й один запит від Павла. Припустімо, Павло звертається
+    до рахунку дуже рідко. Ми навряд чи могли б змусити Петра чекати, доки
+    Павло звернеться до рахунку, перш ніж він зможе видати другу транзакцію.
+    <INDEX>нескінченний потік(и)<SUBINDEX>злиття</SUBINDEX></INDEX>
+    Як би таке злиття не було реалізовано, воно мусить переплести два
+    потоки транзакцій у якийсь спосіб, обмежений <QUOTE>реальним
+    часом</QUOTE>, як його сприймають Петро й Павло, у тому сенсі, що, якщо Петро й
+    Павло зустрінуться, вони можуть погодитися, що певні транзакції були оброблені
+    до зустрічі, а інші транзакції були оброблені після
+    зустрічі.<FOOTNOTE>Зауважте, що для будь-яких двох потоків загалом існує
+    більше ніж один
+    прийнятний порядок переплетення. Тож технічно <QUOTE>злиття</QUOTE> —
+    це
+    <INDEX>недетермінізм, у поведінці паралельних програм</INDEX>
+    <INDEX>нескінченний потік(и)<SUBINDEX>злиття як відношення</SUBINDEX></INDEX>
+    відношення, а не функція<EMDASH/>відповідь не є
+    детермінованою функцією входів. Ми вже згадували
+    (виноска<SPACE/><REF NAME="foot:nondeterministic"/>), що недетермінізм
+    істотний у роботі з паралелізмом. Відношення злиття ілюструє
+    той самий істотний недетермінізм із функціональної перспективи.
+    У підрозділі<SPACE/><REF NAME="sec:nondeterministic-evaluation"/> ми
+    розглянемо недетермінізм ще з однієї точки зору.</FOOTNOTE>
+    Це саме те саме обмеження, з яким нам довелося мати справу в
+    підрозділі<SPACE/><REF NAME="sec:nature-of-time"/>, де ми виявили потребу
+    ввести явну синхронізацію, щоб забезпечити <QUOTE>правильний</QUOTE> порядок
+    подій у паралельному опрацюванні об’єктів зі станом. Тож у
+    спробі підтримати функціональний стиль потреба зливати входи від
+    різних агентів знову вносить ті самі проблеми, які функціональний стиль
+    мав усунути.
+  </TEXT>
+
+  <TEXT>
+    Ми почали цей розділ із метою побудувати обчислювальні моделі,
+    структура яких збігається з нашим сприйняттям реального світу, який ми намагаємося
+    змоделювати. Ми можемо моделювати світ як сукупність окремих,
+    обмежених у часі, взаємодіючих об’єктів зі станом, або ми можемо моделювати світ
+    як єдину позачасову єдність без стану. Кожен погляд має потужні
+    переваги, але жоден погляд сам собою не є цілком задовільним. Велике
+    об’єднання ще має з’явитися.<FOOTNOTE>Об’єктна модель наближає
+    світ, поділяючи його на окремі частини. Функціональна модель не
+    <INDEX>модульність<SUBINDEX>уздовж меж об’єктів</SUBINDEX></INDEX>
+    модуляризується уздовж меж об’єктів. Об’єктна модель корисна, коли
+    неспільний стан <QUOTE>об’єктів</QUOTE> набагато більший за той
+    стан, який вони спільно використовують. Приклад місця, де об’єктний погляд
+    зазнає невдачі, —
+    <INDEX>квантова механіка</INDEX>
+    квантова механіка, де думання про речі як про окремі частинки веде
+    до парадоксів і плутанини. Об’єднання об’єктного погляду з
+    функціональним поглядом може мати мало спільного з програмуванням, а радше
+    з фундаментальними епістемологічними питаннями.</FOOTNOTE>
+
+    <INDEX>потік(и)<CLOSE/></INDEX>
+    <INDEX>модульність<SUBINDEX>функціональні програми проти<SPACE/>об’єктів<CLOSE/></SUBINDEX></INDEX>
+    <INDEX>функціональне програмування<CLOSE/></INDEX>
+    <INDEX>час<SUBINDEX>функціональне програмування і<CLOSE/></SUBINDEX></INDEX>
+    <INDEX>функціональне програмування<SUBINDEX>час і<CLOSE/></SUBINDEX></INDEX>
+
+  </TEXT>
+</SUBSECTION>
