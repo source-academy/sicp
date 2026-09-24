@@ -1,649 +1,503 @@
-<SUBSECTION>
+<SUBSECTION> 
   <NAME>
-    Frames as the Repository of Local State
+    Internal
+    <SPLITINLINE>
+      <SCHEME>Definitions</SCHEME>
+      <PYTHON>Function Definitions</PYTHON>
+    </SPLITINLINE>
   </NAME>
 
-  <LABEL NAME="sec:env-local-state"/>
-  <INDEX>frame (environment model)<SUBINDEX>as repository of local state<OPEN/></SUBINDEX></INDEX>
-  <INDEX>local state<SUBINDEX>maintained in frames<OPEN/></SUBINDEX></INDEX>
-  <INDEX>environment model of evaluation<SUBINDEX>local state<OPEN/></SUBINDEX></INDEX>
+  <LABEL NAME="sec:env-internal-def"/>
+  <INDEX>environment model of evaluation<SUBINDEX>internal declarations<OPEN/></SUBINDEX></INDEX>
+  <INDEX>internal declaration<SUBINDEX><ORDER>environment</ORDER>in environment model<OPEN/></SUBINDEX></INDEX>
 
+  <SPLIT>
+    <PYTHON>
+      <TEXT>
+	In this section we handle the evaluation of function bodies that contain
+	function definitions.
+	Each function opens a new scope for names declared in the function.
+	In order to evaluate a function body when the function is applied,
+	we extend the function<APOS/>s 
+	environment by a new frame that contains the parameters (bound to the
+	arguments) and all names declared in the function body and
+	then evaluate the body in the newly constructed environment.
+      </TEXT>
+    </PYTHON>
+  </SPLIT>
   <TEXT>
-    We can turn to the environment model to see how
+    Section<SPACE/><REF NAME="sec:black-box"/> introduced the idea that
     <SPLITINLINE>
       <SCHEME>procedures</SCHEME>
       <PYTHON>functions</PYTHON>
     </SPLITINLINE>
-    and
+    can have internal
     <SPLITINLINE>
-      <SCHEME>assignment</SCHEME>
-      <PYTHON>reassignment</PYTHON>
+      <SCHEME>
+	definitions,
+      </SCHEME>
+      <PYTHON>
+	function definitions,
+      </PYTHON>
     </SPLITINLINE>
-    can be used to represent objects with local state.  As an
-    example, consider the
-    <INDEX><USE>make_withdraw</USE><SUBINDEX><ORDER>environment</ORDER>in environment model<OPEN/></SUBINDEX></INDEX>
-    <QUOTE>withdrawal processor</QUOTE> from
-    section<SPACE/><REF NAME="sec:local-state-variables"/> created by calling the
+    thus leading to a block structure as in the
+    <INDEX><USE>sqrt</USE><SUBINDEX><ORDER>environment</ORDER>in environment model<OPEN/></SUBINDEX></INDEX>
+    following
     <SPLITINLINE>
       <SCHEME>procedure</SCHEME>
       <PYTHON>function</PYTHON>
     </SPLITINLINE>
+    to compute square roots:
     <SNIPPET EVAL="yes">
-      <NAME>make_withdraw2</NAME>
+      <NAME>another_sqrt</NAME>
+      <REQUIRES>abs_definition</REQUIRES>
+      <REQUIRES>square_definition</REQUIRES>
+      <REQUIRES>average_definition</REQUIRES>
+      <EXAMPLE>sqrt_example7</EXAMPLE>
+      <EXPECTED>2.2360688956433634</EXPECTED>
       <SCHEME>
-(define (make-withdraw balance)
-  (lambda (amount)
-    (if (&gt;= balance amount)
-        (begin (set! balance (- balance amount))
-               balance)
-        "Insufficient funds")))
+(define (sqrt x)
+  (define (good-enough? guess)
+    (&lt; (abs (- (square guess) x)) 0.001))
+  (define (improve guess)
+    (average guess (/ x guess)))
+  (define (sqrt-iter guess)
+    (if (good-enough? guess)
+        guess
+        (sqrt-iter (improve guess))))
+  (sqrt-iter 1.0))
       </SCHEME>
       <PYTHON>
-def make_withdraw(balance):
-    def withdraw(amount):
-        nonlocal balance
-        if balance &gt;= amount:
-            balance = balance - amount
-            return balance
-        else:
-            return "Insufficient funds"
-    return withdraw
+def sqrt(x):
+    def is_good_enough(guess):
+        return abs(square(guess) - x) &lt; 0.001
+    def improve(guess):
+        return average(guess, x / guess)
+    def sqrt_iter(guess):
+        return (guess
+                if is_good_enough(guess)
+                else sqrt_iter(improve(guess)))
+    return sqrt_iter(1)
       </PYTHON>
     </SNIPPET>
-    Let us describe the evaluation of
-    <SNIPPET EVAL="yes">
-      <REQUIRES>make_withdraw2</REQUIRES>
-      <NAME>make_withdraw2_w1_declare</NAME>
-      <SCHEME>
-(define W1 (make-withdraw 100))
-      </SCHEME>
-      <PYTHON>
-W1 = make_withdraw(100)
-      </PYTHON>
-    </SNIPPET>
-    followed by
-    <SNIPPET EVAL="yes">
-      <NAME>make_withdraw2_w1_example</NAME>
-      <REQUIRES>make_withdraw2_w1_declare</REQUIRES>
-      <EXPECTED>50</EXPECTED>
-      <SCHEME>
-(W1 50)
-      </SCHEME>
-      <SCHEMEOUTPUT>
-50
-      </SCHEMEOUTPUT>
-      <PYTHON>
-W1(50)
-      </PYTHON>
-      <PYTHON_RUN>
-print(W1(50))
-      </PYTHON_RUN>
-    </SNIPPET>
+    Now we can use the environment model to see why these internal
+    definitions
+    behave as desired.
     <SPLITINLINE>
       <SCHEME>
-	Figure<SPACE/><REF NAME="fig:make-withdraw_scheme"/>
+    Figure<SPACE/><REF NAME="fig:sqrt-internal_scheme"/>
       </SCHEME>
       <PYTHON>
-	Figure<SPACE/><REF NAME="fig:make-withdraw"/>
+    Figure<SPACE/><REF NAME="fig:sqrt-internal"/>
       </PYTHON>
     </SPLITINLINE>
-    shows the result of
+    shows the point in the evaluation of the expression
     <SPLITINLINE>
-      <SCHEME>defining the
-      <SCHEMEINLINE>make-withdraw</SCHEMEINLINE></SCHEME>
-      <PYTHON>declaring the
-      <PYTHONINLINE>make_withdraw</PYTHONINLINE>
-      </PYTHON>
+      <SCHEME><SCHEMEINLINE>(sqrt 2)</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>sqrt(2)</PYTHONINLINE></PYTHON>
     </SPLITINLINE>
+    where the internal
     <SPLITINLINE>
       <SCHEME>procedure</SCHEME>
       <PYTHON>function</PYTHON>
     </SPLITINLINE>
-    in the global environment. This produces a
     <SPLITINLINE>
-      <SCHEME>procedure</SCHEME>
-      <PYTHON>function</PYTHON>
+      <SCHEME><SCHEMEINLINE>good-enough?</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>is_good_enough</PYTHONINLINE></PYTHON>
     </SPLITINLINE>
-    object that contains a pointer to the
-    global
-    environment. So far, this is no different from the examples we have already
-    seen, except that
-    <SPLITINLINE>
-      <SCHEME>
-	the body of the
-	procedure is itself a
-	<SCHEMEINLINE>lambda</SCHEMEINLINE>
-	expression.
-      </SCHEME>
-      <PYTHON>
-	the body of the function defines another function, which is returned.
-      </PYTHON>
-    </SPLITINLINE>
+    has been called for the first time with
+    <SCHEMEINLINE>guess</SCHEMEINLINE> equal to<SPACE/>1.
     <SPLIT>
       <SCHEME>
         <FIGURE>
-          <FIGURE src="img_original/ch3-Z-G-7.svg"></FIGURE>
+          <FIGURE src="img_original/ch3-Z-G-12.svg"></FIGURE>
           <CAPTION>
-	    Result of defining <SCHEMEINLINE>make-withdraw</SCHEMEINLINE> in the
-	    global environment.
+	    <SCHEMEINLINE>sqrt</SCHEMEINLINE> procedure with internal
+	    definitions.
 	  </CAPTION>
-          <LABEL NAME="fig:make-withdraw_scheme"/>
+          <LABEL NAME="fig:sqrt-internal_scheme"/>
         </FIGURE>
       </SCHEME>
       <PYTHON>
         <FIGURE>
-          <FIGURE src="img_python/ch3-Z-G-7.svg"></FIGURE>
-          <CAPTION>
-	    Result of defining
-	    <PYTHONINLINE>make_withdraw</PYTHONINLINE> in
-	    the global environment.
+          <FIGURE src="img_python/ch3-Z-G-12.svg"></FIGURE>
+          <CAPTION>The
+	    <SCHEMEINLINE>sqrt</SCHEMEINLINE> function with internal
+	    definitions.
 	  </CAPTION>
-          <LABEL NAME="fig:make-withdraw"/>
+          <LABEL NAME="fig:sqrt-internal"/>
         </FIGURE>
       </PYTHON>
     </SPLIT>
   </TEXT>
 
   <TEXT>
-    The interesting part of the computation happens when we apply the 
-    <SPLITINLINE><SCHEME>procedure</SCHEME>
-    <PYTHON>function</PYTHON></SPLITINLINE>
+    Observe the structure of the environment.
     <SPLITINLINE>
-      <SCHEME><SCHEMEINLINE>make-withdraw</SCHEMEINLINE></SCHEME>
-      <PYTHON><PYTHONINLINE>make_withdraw</PYTHONINLINE></PYTHON>
+      <SCHEME>
+	<SCHEMEINLINE>Sqrt</SCHEMEINLINE> is a
+	symbol in the
+	global
+	environment that is bound
+      </SCHEME>
+      <PYTHON>
+      The name
+      <SCHEMEINLINE>sqrt</SCHEMEINLINE> is bound
+      in the global environment
+      </PYTHON>
     </SPLITINLINE>
-    to an argument:
+    to a
+    <SPLITINLINE>
+      <SCHEME>procedure</SCHEME>
+      <PYTHON>function</PYTHON>
+    </SPLITINLINE>
+    object whose associated environment is the
+    global environment.  When <SCHEMEINLINE>sqrt</SCHEMEINLINE> was called, a new
+    environment, E1, was formed, subordinate to the global
+    environment, in which the parameter <SCHEMEINLINE>x</SCHEMEINLINE> is bound
+    to<SPACE/>2. The body of <SCHEMEINLINE>sqrt</SCHEMEINLINE> was then
+    evaluated in<SPACE/>E1. 
+    <SPLIT>
+      <SCHEME>
+	Since the first expression
+	in the body of <SCHEMEINLINE>sqrt</SCHEMEINLINE> is
+      </SCHEME>
+      <PYTHON>
+	Since the first statement in the body is
+      </PYTHON>
+    </SPLIT>
     <SNIPPET EVAL="no">
+      <REQUIRES>abs_definition</REQUIRES>
+      <REQUIRES>square_definition</REQUIRES>
       <SCHEME>
-(define W1 (make-withdraw 100))
+(define (good-enough? guess)
+  (&lt; (abs (- (square guess) x)) 0.001))
       </SCHEME>
       <PYTHON>
-W1 = make_withdraw(100)
+def is_good_enough(guess):
+    return abs(square(guess) - x) &lt; 0.001
       </PYTHON>
     </SNIPPET>
     <SPLIT>
       <SCHEME>
-	We begin, as usual, by setting up an environment E1 in which the
-	formal parameter
-	<SCHEMEINLINE>balance</SCHEMEINLINE> is bound to the argument 100.
-	Within this environment, we evaluate the body of
-	<SCHEMEINLINE>make-withdraw</SCHEMEINLINE>,
-	namely the
-        <SCHEMEINLINE>lambda</SCHEMEINLINE> expression. This
-	constructs a new procedure object, whose code is as
-	specified by the
-	<SCHEMEINLINE>lambda</SCHEMEINLINE> 
-	and whose environment is E1, the environment in which the
-        <SCHEMEINLINE>lambda</SCHEMEINLINE>
-	was evaluated to produce the
-      procedure.
+	evaluating this expression defined the procedure
+	<SCHEMEINLINE>good-enough?</SCHEMEINLINE>
+	in the environment<SPACE/>E1.
       </SCHEME>
       <PYTHON>
-	We begin by setting up an environment E1 in which the
-	parameter
-	<PYTHONINLINE>balance</PYTHONINLINE> is bound to the argument 100
-	and the locally declared variable
-	<PYTHONINLINE>withdraw</PYTHONINLINE> is unassigned.
-	Within this environment, we evaluate the body of
-	<PYTHONINLINE>make_withdraw</PYTHONINLINE>,
-	namely a function definition and a return statement.
-	The function definition constructs a function object
-	which is bound to <PYTHONINLINE>withdraw</PYTHONINLINE> in E1.
+	evaluating this definition created the function
+	<PYTHONINLINE>is_good_enough</PYTHONINLINE>
+	in the environment<SPACE/>E2.
       </PYTHON>
     </SPLIT>
-    The 
-    <SPLITINLINE>
-      <SCHEME>resulting procedure</SCHEME>
-      <PYTHON>function</PYTHON>
-    </SPLITINLINE>
-    object is the value returned by the call to
-    <SPLITINLINE>
-      <SCHEME><SCHEMEINLINE>make-withdraw</SCHEMEINLINE>.</SCHEME>
-      <PYTHON>
-      <PYTHONINLINE>make_withdraw</PYTHONINLINE>.</PYTHON>
-    </SPLITINLINE>
-    This is bound to <SCHEMEINLINE>W1</SCHEMEINLINE> in the
-    global environment, since the
-    <SPLITINLINE>
-      <SCHEME><SCHEMEINLINE>define</SCHEMEINLINE></SCHEME>
-      <PYTHON>declaration assignment</PYTHON>
-    </SPLITINLINE>
-    itself is being evaluated in the global environment.
-    <SPLITINLINE>
-      <SCHEME>
-	Figure<SPACE/><REF NAME="fig:w1_scheme"/>
-      </SCHEME>
-      <PYTHON>
-	Figure<SPACE/><REF NAME="fig:w1"/>
-      </PYTHON>
-    </SPLITINLINE>
-    shows the resulting environment structure.
     <SPLIT>
       <SCHEME>
-        <FIGURE>
-          <FIGURE src="img_original/ch3-Z-G-8.svg"></FIGURE>
-          <CAPTION>
-	    Result of evaluating
-	    <SCHEMEINLINE>(define W1 (make-withdraw 100))</SCHEMEINLINE>.
-	  </CAPTION>
-          <LABEL NAME="fig:w1_scheme"/>
-        </FIGURE>
+	To<SPACE/>be more precise, the symbol 
+	<SCHEMEINLINE>good-enough?</SCHEMEINLINE> was added to the first frame
+	of E1, bound to a procedure
+	object whose associated environment is E1.
       </SCHEME>
       <PYTHON>
-        <FIGURE>
-          <FIGURE src="img_python/ch3-Z-G-8.svg"></FIGURE>
-          <CAPTION>
-	    Result of evaluating
-	    <PYTHONINLINE>W1 = make_withdraw(100)</PYTHONINLINE>.
-	  </CAPTION>
-          <LABEL NAME="fig:w1"/>
-        </FIGURE>
+	To<SPACE/>be more precise, 
+	the name <PYTHONINLINE>is_good_enough</PYTHONINLINE>
+	in the first frame of E2 was bound to a function
+	object whose associated environment is E2.
       </PYTHON>
     </SPLIT>
+    Similarly,
+    <SCHEMEINLINE>improve</SCHEMEINLINE> and 
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>sqrt-iter</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>sqrt_iter</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    were defined as
+    <SPLITINLINE>
+      <SCHEME>procedures in E1.</SCHEME>
+      <PYTHON>functions in E2.</PYTHON>
+    </SPLITINLINE>
+    For conciseness,
+    <SPLITINLINE>
+      <SCHEME>
+	figure<SPACE/><REF NAME="fig:sqrt-internal_scheme"/>
+      </SCHEME>
+      <PYTHON>
+	figure<SPACE/><REF NAME="fig:sqrt-internal"/>
+      </PYTHON>
+    </SPLITINLINE>
+    shows only the
+    <SPLITINLINE>
+      <SCHEME>procedure</SCHEME>
+      <PYTHON>function</PYTHON>
+    </SPLITINLINE>
+    object for 
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>good-enough?</SCHEMEINLINE>.</SCHEME>
+      <PYTHON><PYTHONINLINE>is_good_enough</PYTHONINLINE>.</PYTHON>
+    </SPLITINLINE>
   </TEXT>
 
   <TEXT>
-    Now we can analyze what happens when <SCHEMEINLINE>W1</SCHEMEINLINE>
-    is applied to an argument:
-    <SNIPPET EVAL="no">
-      <SCHEME>
-(W1 50)
-      </SCHEME>
-      <SCHEMEOUTPUT>
-            50
-      </SCHEMEOUTPUT>
-      <PYTHON>
-W1(50)
+    After the local
+    <SPLITINLINE>
+      <SCHEME>procedures</SCHEME>
+      <PYTHON>functions</PYTHON>
+    </SPLITINLINE>
+    were defined, the expression
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>(sqrt-iter 1.0)</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>sqrt_@iter(1)</PYTHONINLINE>
       </PYTHON>
-    </SNIPPET>
-    We begin by constructing a frame in which
-    <SCHEMEINLINE>amount</SCHEMEINLINE>, the
-    <SPLITINLINE><SCHEME>formal</SCHEME></SPLITINLINE> parameter of
-    <SCHEMEINLINE>W1</SCHEMEINLINE>, is bound to the argument 50.  The crucial
-    point to observe is that this frame has as its enclosing environment not the
-    global environment, but rather the environment E1, because this is the
-    environment that is specified by the <SCHEMEINLINE>W1</SCHEMEINLINE>
+    </SPLITINLINE>
+    was evaluated, still in environment
+    <SPLITINLINE>
+      <SCHEME>E1.</SCHEME>
+      <PYTHON>E2.</PYTHON>
+    </SPLITINLINE>
+    So the
     <SPLITINLINE>
       <SCHEME>procedure</SCHEME>
       <PYTHON>function</PYTHON>
     </SPLITINLINE>
-    object. Within this new environment, we evaluate the body of the
+    object bound to 
     <SPLITINLINE>
-      <SCHEME>procedure:</SCHEME>
-      <PYTHON>function:</PYTHON>
+      <SCHEME><SCHEMEINLINE>sqrt-iter</SCHEMEINLINE>
+      in E1 was called with 1 as an argument.  This created an environment E2
+      in which
+      </SCHEME>
+      <PYTHON><PYTHONINLINE>sqrt_@iter</PYTHONINLINE>
+      in E2 was called with 1 as an argument.  This created an environment E3
+      in which
+      </PYTHON>
     </SPLITINLINE>
-    <SNIPPET EVAL="no">
+    <SCHEMEINLINE>guess</SCHEMEINLINE>, the parameter of 
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>sqrt-iter</SCHEMEINLINE>,</SCHEME>
+      <PYTHON><PYTHONINLINE>sqrt_@iter</PYTHONINLINE>,</PYTHON>
+    </SPLITINLINE>
+    is bound to 1.  
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>sqrt-iter</SCHEMEINLINE></SCHEME>
+      <PYTHON>The function <PYTHONINLINE>sqrt_@iter</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    in turn called 
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>good-enough?</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>is_@good_@enough</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    with the value of <SCHEMEINLINE>guess</SCHEMEINLINE>
+    <SPLITINLINE>
       <SCHEME>
-(if (&gt;= balance amount)
-    (begin (set! balance (- balance amount))
-           balance)
-    "Insufficient funds")
+	(from E2) as the argument for 
+	<SCHEMEINLINE>good-enough?</SCHEMEINLINE>.
       </SCHEME>
       <PYTHON>
-if balance &gt;= amount:
-    balance = balance - amount
-    return balance
-else:
-    return "Insufficient funds"
+	(from E3) as the argument for 
+	<PYTHONINLINE>is_@good_@enough</PYTHONINLINE>.
       </PYTHON>
-    </SNIPPET>
-    The resulting environment structure is shown in
+    </SPLITINLINE>
+    This set up another environment,
     <SPLITINLINE>
       <SCHEME>
-	figure<SPACE/><REF NAME="fig:apply-w1_scheme"/>.
+	E3, in which
+	<SCHEMEINLINE>guess</SCHEMEINLINE> (the parameter of 
+	<SCHEMEINLINE>good-enough?</SCHEMEINLINE>)
       </SCHEME>
       <PYTHON>
-	figure<SPACE/><REF NAME="fig:apply-w1"/>.
+	E4, in which
+	<SCHEMEINLINE>guess</SCHEMEINLINE> (the parameter of 
+	<PYTHONINLINE>is_@good_@enough</PYTHONINLINE>)
       </PYTHON>
     </SPLITINLINE>
-    The expression being evaluated references
-    both <SCHEMEINLINE>amount</SCHEMEINLINE> and
-    <SCHEMEINLINE>balance</SCHEMEINLINE>.
+    is bound to 1. Although 
     <SPLITINLINE>
-      <SCHEME><SCHEMEINLINE>Amount</SCHEMEINLINE></SCHEME>
-      <PYTHON>The variable <PYTHONINLINE>amount</PYTHONINLINE>
-      </PYTHON>
+      <SCHEME><SCHEMEINLINE>sqrt-iter</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>sqrt_@iter</PYTHONINLINE></PYTHON>
     </SPLITINLINE>
-    will be found in the first frame in the environment, and
-    <SCHEMEINLINE>balance</SCHEMEINLINE> will be found by following the
-    enclosing-environment pointer to E1.
+    and 
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>good-enough?</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>is_@good_@enough</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    both have a parameter named <SCHEMEINLINE>guess</SCHEMEINLINE>, these are two
+    distinct local variables located in different frames.
     <SPLIT>
       <SCHEME>
-        <FIGURE>
-          <FIGURE src="img_original/ch3-Z-G-9.svg"></FIGURE>
-          <CAPTION>
-	    Environments created by applying the procedure object
-	    <SCHEMEINLINE>W1</SCHEMEINLINE>.
-	  </CAPTION>
-          <LABEL NAME="fig:apply-w1_scheme"/>
-        </FIGURE>
+	Also, E2 and E3 both have E1 as their enclosing environment, because the 
+	<SCHEMEINLINE>sqrt-iter</SCHEMEINLINE> and 
+	<SCHEMEINLINE>good-enough?</SCHEMEINLINE> procedures
+	both have E1 as their environment part.
       </SCHEME>
       <PYTHON>
-        <FIGURE>
-          <FIGURE src="img_python/ch3-Z-G-9.svg"></FIGURE>
-          <CAPTION>
-	    Environments created by applying the function object
-	    <PYTHONINLINE>W1</PYTHONINLINE>.
-	  </CAPTION>
-          <LABEL NAME="fig:apply-w1"/>
-        </FIGURE>
+	Also, E3 and E4 both have E2 as their enclosing environment, because the 
+	<PYTHON><PYTHONINLINE>sqrt_@iter</PYTHONINLINE></PYTHON>
+	and 
+	<PYTHONINLINE>is_@good_@enough</PYTHONINLINE> functions
+	both have E2 as their environment part.
       </PYTHON>
     </SPLIT>
+    One consequence of this is that the
+    <SPLITINLINE>
+      <SCHEME>
+	symbol
+      </SCHEME>
+      <PYTHON>
+	name
+      </PYTHON>
+    </SPLITINLINE>
+    <SCHEMEINLINE>x</SCHEMEINLINE> that appears in the body of 
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>good-enough?</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>is_@good_@enough</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    will reference the binding of <SCHEMEINLINE>x</SCHEMEINLINE> that appears in
+    E1, namely the value of <SCHEMEINLINE>x</SCHEMEINLINE> with which the
+    original <SCHEMEINLINE>sqrt</SCHEMEINLINE>
+    <SPLITINLINE>
+      <SCHEME>procedure</SCHEME>
+      <PYTHON>function</PYTHON>
+    </SPLITINLINE>
+    was called.
+    <INDEX><USE>sqrt</USE><SUBINDEX><ORDER>environment</ORDER>in environment model<CLOSE/></SUBINDEX></INDEX>
   </TEXT>
 
   <TEXT>
-    When the
+    The environment model thus explains the two key properties that make local
     <SPLITINLINE>
-      <SCHEME><SCHEMEINLINE>set!</SCHEMEINLINE></SCHEME>
-      <PYTHON>reassignment</PYTHON>
+      <SCHEME>procedure definitions</SCHEME>
+      <PYTHON>function definitions</PYTHON>
     </SPLITINLINE>
-    is executed, the binding of <SCHEMEINLINE>balance</SCHEMEINLINE> in E1 is
-    changed.  At the completion of the call to
-    <SCHEMEINLINE>W1</SCHEMEINLINE>, <SCHEMEINLINE>balance</SCHEMEINLINE> is 50,
-    and the frame that contains <SCHEMEINLINE>balance</SCHEMEINLINE> is still
-    pointed to by the
-    <SPLITINLINE>
-      <SCHEME>procedure</SCHEME>
-      <PYTHON>function</PYTHON>
-    </SPLITINLINE>
-    object <SCHEMEINLINE>W1</SCHEMEINLINE>.  The frame that binds
-    <SCHEMEINLINE>amount</SCHEMEINLINE> (in which we executed the code that
-    changed <SCHEMEINLINE>balance</SCHEMEINLINE>) is no longer relevant, since
-    the
-    <SPLITINLINE>
-      <SCHEME>procedure</SCHEME>
-      <PYTHON>function</PYTHON>
-    </SPLITINLINE>
-    call that constructed it has terminated, and there are no pointers to that
-    frame from other parts of the environment.  The next time
-    <SCHEMEINLINE>W1</SCHEMEINLINE> is called, this will build a new frame that
-    binds <SCHEMEINLINE>amount</SCHEMEINLINE> and whose enclosing environment is
-    E1. We see that E1 serves as the <QUOTE>place</QUOTE> that holds the local
-    state variable for the
-    <SPLITINLINE>
-      <SCHEME>procedure</SCHEME>
-      <PYTHON>function</PYTHON>
-    </SPLITINLINE>
-    object <SCHEMEINLINE>W1</SCHEMEINLINE>.
-    <SPLITINLINE>
-      <SCHEME>
-	Figure<SPACE/><REF NAME="fig:after-w1_scheme"/>
-      </SCHEME>
-      <PYTHON>
-	Figure<SPACE/><REF NAME="fig:after-w1"/>
-      </PYTHON>
-    </SPLITINLINE>
-    shows the situation after the call to <SCHEMEINLINE>W1</SCHEMEINLINE>.
-    <SPLIT>
-      <SCHEME>
-        <FIGURE>
-          <FIGURE src="img_original/ch3-Z-G-10.svg"></FIGURE>
-          <CAPTION>
-	    Environments after the call to <SCHEMEINLINE>W1</SCHEMEINLINE>.
-	  </CAPTION>
-          <LABEL NAME="fig:after-w1_scheme"/>
-        </FIGURE>
-      </SCHEME>
-      <PYTHON>
-        <FIGURE>
-          <FIGURE src="img_python/ch3-Z-G-10.svg"></FIGURE>
-          <CAPTION>
-	    Environments after the call to
-	    <PYTHONINLINE>W1</PYTHONINLINE>.
-	  </CAPTION>
-          <LABEL NAME="fig:after-w1"/>
-        </FIGURE>
-      </PYTHON>
-    </SPLIT>
-  </TEXT>
-  <TEXT>
-    Observe what happens when we create a second <QUOTE>withdraw</QUOTE> object
-    by making another call to
-    <SPLITINLINE>
-      <SCHEME><SCHEMEINLINE>make_withdraw</SCHEMEINLINE>:</SCHEME>
-      <PYTHON><PYTHONINLINE>make_withdraw</PYTHONINLINE>:
-      </PYTHON>
-    </SPLITINLINE>
-    <SNIPPET EVAL="yes">
-      <REQUIRES>make_withdraw2</REQUIRES>
-      <NAME>make_withdraw2_w2_declare</NAME>
-      <EXPECTED>20</EXPECTED>
-      <SCHEME>
-(define W2 (make-withdraw 100))
-      </SCHEME>
-      <PYTHON>
-W2 = make_withdraw(100)
-      </PYTHON>
-      <PYTHON_RUN>
-W1 = make_withdraw(100)
-W1(50)
-W2 = make_withdraw(100)
-print(W2(80))
-      </PYTHON_RUN>
-    </SNIPPET>
-    This produces the environment structure of
-    <SPLITINLINE>
-      <SCHEME>
-	figure<SPACE/><REF NAME="fig:w2_scheme"/>,
-      </SCHEME>
-      <PYTHON>
-	figure<SPACE/><REF NAME="fig:w2"/>,
-      </PYTHON>
-    </SPLITINLINE>
-    which shows
-    that <SCHEMEINLINE>W2</SCHEMEINLINE> is a
-    <SPLITINLINE>
-      <SCHEME>procedure</SCHEME>
-      <PYTHON>function</PYTHON>
-    </SPLITINLINE>
-    object, that is, a pair with some code and an environment.  The environment
-    E2 for <SCHEMEINLINE>W2</SCHEMEINLINE> was created by the call to
-    <SPLITINLINE>
-      <SCHEME><SCHEMEINLINE>make-withdraw</SCHEMEINLINE>.</SCHEME>
-      <PYTHON><PYTHONINLINE>make_withdraw</PYTHONINLINE>.
-      </PYTHON>
-    </SPLITINLINE>
-    It contains a frame with its own local binding for
-    <SCHEMEINLINE>balance</SCHEMEINLINE>.  On the other hand,
-    <SCHEMEINLINE>W1</SCHEMEINLINE> and <SCHEMEINLINE>W2</SCHEMEINLINE> have the
-    same code: the code specified by the
-    <SPLITINLINE>
-      <SCHEME><SCHEMEINLINE>lambda</SCHEMEINLINE></SCHEME>
-      <PYTHON>lambda</PYTHON>
-    </SPLITINLINE>
-    expression in the body of
-    <SPLITINLINE><SCHEME><SCHEMEINLINE>make-withdraw</SCHEMEINLINE></SCHEME><PYTHON><PYTHONINLINE>make_withdraw</PYTHONINLINE></PYTHON></SPLITINLINE>.<FOOTNOTE>Whether
-    <SCHEMEINLINE>W1</SCHEMEINLINE> and <SCHEMEINLINE>W2</SCHEMEINLINE> share
-    the same physical code stored in the computer, or whether they each keep a
-    copy of the code, is a detail of the implementation.  For the interpreter we
-    implement in chapter<SPACE/><REF NAME="chap:meta"></REF>, the code is in fact shared.</FOOTNOTE> We see
-    here why <SCHEMEINLINE>W1</SCHEMEINLINE> and <SCHEMEINLINE>W2</SCHEMEINLINE>
-    behave as independent objects.  Calls to
-    <SCHEMEINLINE>W1</SCHEMEINLINE> reference the state variable
-    <SCHEMEINLINE>balance</SCHEMEINLINE> stored in E1, whereas calls to 
-    <SCHEMEINLINE>W2</SCHEMEINLINE> reference the
-    <SCHEMEINLINE>balance</SCHEMEINLINE> stored in E2. Thus, changes to the
-    local state of one object do not affect the other object.
-    <SPLIT>
-      <SCHEME>
-        <FIGURE>
-          <FIGURE src="img_original/ch3-Z-G-11.svg"></FIGURE>
-          <CAPTION>
-	    Using <SCHEMEINLINE>(define W2 (make-withdraw 100))</SCHEMEINLINE> to
-	    create a second object.
-	  </CAPTION>
-          <LABEL NAME="fig:w2_scheme"/>
-        </FIGURE>
-      </SCHEME>
-      <PYTHON>
-        <FIGURE>
-          <FIGURE src="img_python/ch3-Z-G-11.svg"></FIGURE>
-          <CAPTION>
-	    Using
-	    <PYTHONINLINE>W2 = make_withdraw(100)</PYTHONINLINE>
-	    to create a second object.
-	  </CAPTION>
-          <LABEL NAME="fig:w2"/>
-        </FIGURE>
-      </PYTHON>
-    </SPLIT>
-  </TEXT>
-
-  <EXERCISE>
-    <LABEL NAME="ex:local-state-variable"/>
-    In the
-    <SPLITINLINE>
-      <SCHEME><SCHEMEINLINE>make-withdraw</SCHEMEINLINE></SCHEME>
-      <PYTHON><PYTHONINLINE>make_withdraw</PYTHONINLINE></PYTHON>
-    </SPLITINLINE>
-    <SPLITINLINE>
-      <SCHEME>procedure,</SCHEME>
-      <PYTHON>function</PYTHON>
-    </SPLITINLINE>
-    the local variable <SCHEMEINLINE>balance</SCHEMEINLINE> is created as a
-    parameter of
-    <SPLITINLINE>
-      <SCHEME><SCHEMEINLINE>make-withdraw</SCHEMEINLINE>.</SCHEME>
-      <PYTHON><PYTHONINLINE>make_withdraw</PYTHONINLINE>.
-      </PYTHON>
-    </SPLITINLINE>
-    We could also create the local state variable
-    <SPLITINLINE>
-      <SCHEME>
-	explicitly,
-      </SCHEME>
-      <PYTHON>
-	separately,
-      </PYTHON>
-    </SPLITINLINE>
-    using 
-    <SPLITINLINE>
-      <SCHEME><SCHEMEINLINE>let</SCHEMEINLINE>,</SCHEME>
-      <PYTHON>
-	what we might call an
-	<INDEX>lambda expression<SUBINDEX>immediately invoked</SUBINDEX></INDEX>
-	<INDEX>immediately invoked lambda expression</INDEX>
-	<EM>immediately invoked lambda
-	expression</EM>
-      </PYTHON>
-    </SPLITINLINE>
-    as follows:
-    <SNIPPET EVAL="yes">
-      <INDEX><DECLARATION>make_withdraw</DECLARATION><SUBINDEX>using immediately invoked lambda expression</SUBINDEX><FRAGILE/></INDEX>
-      <NAME>make_withdraw3</NAME>
-      <EXAMPLE>make_withdraw3_example</EXAMPLE>
-      <EXPECTED>20</EXPECTED>
-      <SCHEME>
-(define (make-withdraw initial-amount)
-  (let ((balance initial-amount))
-        (lambda (amount)
-    (if (&gt;= balance amount)
-        (begin (set! balance (- balance amount))
-               balance)
-        "Insufficient funds"))))
-      </SCHEME>
-      <PYTHON>
-def make_withdraw(initial_amount):
-    def init(balance):
-        def withdraw(amount):
-            nonlocal balance
-            if balance &gt;= amount:
-                balance = balance - amount
-                return balance
-            else:
-                return "Insufficient funds"
-        return withdraw
-    return init(initial_amount)
-      </PYTHON>
-    </SNIPPET>
-    <SNIPPET HIDE="yes">
-      <NAME>make_withdraw3_example</NAME>
-      <PYTHON>
-W1 = make_withdraw(100)
-print(W1(80))
-      </PYTHON>
-    </SNIPPET>
-    <SPLIT>
-      <SCHEME>
-        Recall from section<SPACE/><REF NAME="sec:lambda"/> that 
-	<INDEX>let<SUBINDEX><ORDER>syntactic</ORDER>as syntactic sugar</SUBINDEX></INDEX>
-	<INDEX>let<SUBINDEX>evaluation model</SUBINDEX></INDEX>
-        <SCHEMEINLINE>let</SCHEMEINLINE> is simply syntactic sugar for a
-        <SPLITINLINE>
+    a useful technique for modularizing programs:
+    <UL>
+      <LI>
+	The names of the local
+	<SPLITINLINE>
+	  <SCHEME>procedures</SCHEME>
+	  <PYTHON>functions</PYTHON>
+	</SPLITINLINE>
+	do not interfere with
+	names external to the enclosing
+	<SPLITINLINE>
+	  <SCHEME>procedure,</SCHEME>
+	  <PYTHON>function,</PYTHON>
+	</SPLITINLINE>
+	because the local
+	<SPLITINLINE>
 	  <SCHEME>procedure</SCHEME>
 	  <PYTHON>function</PYTHON>
 	</SPLITINLINE>
-        call:
-        <SNIPPET EVAL="no">
-          <SCHEME>
-(let ((var exp)) body)
-          </SCHEME>
-        </SNIPPET>
-        is interpreted as an alternate syntax for
-        <SNIPPET EVAL="no">
-          <SCHEME>
-((lambda (var) body) exp)
-          </SCHEME>
-        </SNIPPET>
-      </SCHEME>
-      <PYTHON>
-	The <PYTHONINLINE>init</PYTHONINLINE> functino
-	is invoked immediately after it
-	is evaluated. Its only purpose is to create a local variable
-	<PYTHONINLINE>balance</PYTHONINLINE> and
-	initialize it to <PYTHONINLINE>initial_amount</PYTHONINLINE>.
-      </PYTHON>
-    </SPLIT>
-    Use the environment model to analyze this alternate version of
-    <SCHEMEINLINE>make_withdraw</SCHEMEINLINE>, drawing figures like the ones
-    above to illustrate the interactions
-    <SNIPPET EVAL="yes">
-      <NAME>make_withdraw3_example_2</NAME>
-      <REQUIRES>make_withdraw3</REQUIRES>
-      <EXPECTED>20</EXPECTED>
-      <SCHEME>
-(define W1 (make-withdraw 100))
+	names will be bound in the frame that the
+	<SPLITINLINE>
+	  <SCHEME>procedure</SCHEME>
+	  <PYTHON>function</PYTHON>
+	</SPLITINLINE>
+	creates when it is run, rather than being bound in the
+	global environment.
+      </LI>
+      <LI>
+	The local
+	<SPLITINLINE>
+	  <SCHEME>procedures</SCHEME>
+	  <PYTHON>functions</PYTHON>
+	</SPLITINLINE>
+	can access the arguments of the enclosing
+	<SPLITINLINE>
+	  <SCHEME>procedure,</SCHEME>
+	  <PYTHON>function,</PYTHON>
+	</SPLITINLINE>
+	simply by using parameter names as free
+	<SPLITINLINE>
+	  <SCHEME>variables.</SCHEME>
+	  <PYTHON>names.</PYTHON>
+	</SPLITINLINE>
+	This is
+	because the body of the local
+	<SPLITINLINE>
+	  <SCHEME>procedure</SCHEME>
+	  <PYTHON>function</PYTHON>
+	</SPLITINLINE>
+	is evaluated in an environment that is subordinate to the
+	evaluation environment for the enclosing
+	<SPLITINLINE>
+	  <SCHEME>procedure.</SCHEME>
+	  <PYTHON>function.</PYTHON>
+	</SPLITINLINE>
+      </LI>
+    </UL>
+  </TEXT>
 
-(W1 50)
+  <SPLIT>
+    <PYTHON>
+      <SUBHEADING><NAME>Mutual recursion</NAME></SUBHEADING>
 
-(define W2 (make-withdraw 100))
-      </SCHEME>
-      <PYTHON>
-W1 = make_withdraw(100)
-
-W1(50)
-
-W2 = make_withdraw(100)
-      </PYTHON>
-      <PYTHON_TEST>
-W1 = make_withdraw(100)
-W1(50)
-W2 = make_withdraw(100)
-print(W2(80))
-      </PYTHON_TEST>
-    </SNIPPET>
-    Show that the two versions of
-    <SPLITINLINE>
-      <SCHEME><SCHEMEINLINE>make-withdraw</SCHEMEINLINE></SCHEME>
-      <PYTHON><PYTHONINLINE>make_withdraw</PYTHONINLINE>
-      </PYTHON>
-    </SPLITINLINE>
-    create objects with the same behavior.  How do the environment structures
-    differ for the two versions?
-    <SOLUTION>
-      <UL>
-	<LI>Black shows the environment structure of function in exercise 3.10</LI>
-	<LI>Green shows differences in environment structure of original
-	(where <PYTHONINLINE>make_withdraw</PYTHONINLINE> is replaced with the figure 3.9 version)</LI>
-      </UL>
-      <FIGURE src="img_javascript/ex3-10-solution.png">
-        <LABEL NAME="ex:3-10"/>
-      </FIGURE>
-    </SOLUTION>
-  </EXERCISE>
-
-  <INDEX>frame (environment model)<SUBINDEX>as repository of local state<CLOSE/></SUBINDEX></INDEX>
-  <INDEX>local state<SUBINDEX>maintained in frames<CLOSE/></SUBINDEX></INDEX>
-  <INDEX>environment model of evaluation<SUBINDEX>local state<CLOSE/></SUBINDEX></INDEX>
-  <INDEX><USE>make_withdraw</USE><SUBINDEX><ORDER>environment</ORDER>in environment model<CLOSE/></SUBINDEX></INDEX>
+      <TEXT>
+	As we saw, the scope of the names declared in
+	<PYTHONINLINE>sqrt</PYTHONINLINE> is the whole body of
+	<PYTHONINLINE>sqrt</PYTHONINLINE>. This explains why
+	<INDEX>mutual recursion</INDEX>
+	<INDEX>recursion<SUBINDEX>mutual</SUBINDEX></INDEX>
+	<EM>mutual recursion</EM> works, as in this (quite
+	wasteful) way of checking whether a nonnegative
+	integer is even.
+	<SNIPPET>
+	  <NAME>f_is_even_is_odd</NAME>
+	  <PYTHON>
+def f(x):
+    def is_even(n):
+        return (True if n == 0
+                else is_odd(n - 1))
+    def is_odd(n):
+        return (False if n == 0
+                else is_even(n - 1))
+    return is_even(x)
+	  </PYTHON>
+	</SNIPPET>
+	At the time when 
+	<PYTHONINLINE>is_even</PYTHONINLINE> is called during a call to
+	<PYTHONINLINE>f</PYTHONINLINE>, the environment diagram looks
+	like the one in figure<SPACE/><REF NAME="fig:sqrt-internal"/> when
+	<PYTHONINLINE>sqrt_iter</PYTHONINLINE> is called. The functions
+	<PYTHONINLINE>is_even</PYTHONINLINE> and
+	<PYTHONINLINE>is_odd</PYTHONINLINE> are bound in E2 to function objects
+	that point to E2 as the environment in which to evaluate calls to those
+	functions. Thus
+	<PYTHONINLINE>is_odd</PYTHONINLINE> in the body of
+	<PYTHONINLINE>is_even</PYTHONINLINE> refers to the right function.
+	Although
+	<PYTHONINLINE>is_odd</PYTHONINLINE>
+	is defined after
+	<PYTHONINLINE>is_even</PYTHONINLINE>,
+	this is no different from how in the body of
+	<PYTHONINLINE>sqrt_iter</PYTHONINLINE>
+	the name
+	<PYTHONINLINE>improve</PYTHONINLINE>
+	and the name
+	<PYTHONINLINE>sqrt_iter</PYTHONINLINE>
+	itself refer to the right functions.
+      </TEXT>
+      <TEXT>
+	We said that a function<APOS/>s body is evaluated in an environment that
+	contains all names declared in the body of the function.
+	A locally declared name is put into the environment when the function
+	body is entered, but without an associated value. The evaluation of its
+	declaration assignment
+	during evaluation of the function body then assigns to the
+	name the result of evaluating the expression to the right of the
+	<PYTHONINLINE>=</PYTHONINLINE>.
+	Since the addition of the name to the environment is
+	separate from the evaluation of the declaration, and the whole function
+	body
+	is in the scope of the name, an erroneous program could attempt to
+	<INDEX>declaration<SUBINDEX>use of name before</SUBINDEX></INDEX>
+	access the value of a name before its declaration is evaluated;
+	the evaluation of an unassigned name signals an error.<FOOTNOTE>
+	<LABEL NAME="foot:tdz_explained"/>
+	This explains why the program in
+	footnote<SPACE/><REF NAME="foot:tdz"/> of chapter 1 goes wrong.</FOOTNOTE>
+      </TEXT>
+      <INDEX>environment model of evaluation<CLOSE/></INDEX>
+      <INDEX>environment model of evaluation<SUBINDEX>internal declarations<CLOSE/></SUBINDEX></INDEX>
+      <INDEX>internal declaration<SUBINDEX><ORDER>environment</ORDER>in environment model<CLOSE/></SUBINDEX></INDEX>
+    </PYTHON>
+  </SPLIT>
 </SUBSECTION>
