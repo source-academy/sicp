@@ -1,0 +1,338 @@
+<SUBSECTION>
+  <NAME>
+    Спостереження за продуктивністю машини
+  </NAME>
+
+  <LABEL NAME="sec:monitor"/>
+
+  <INDEX>регістрова машина<SUBINDEX>спостереження за продуктивністю<OPEN/></SUBINDEX></INDEX>
+
+  <TEXT>
+    Симуляція корисна не лише для перевірки правильності
+    запропонованого проєкту машини, а й для вимірювання продуктивності об’єкта, який ми моделюємо.
+    <INDEX>моделювання<SUBINDEX><ORDER>monitor</ORDER>для спостереження за продуктивністю регістрової машини</SUBINDEX></INDEX>
+    Наприклад, ми можемо встановити в нашій програмі моделювання
+    <QUOTE>лічильник</QUOTE> який вимірює кількість стекових операцій, використаних в обчисленні.
+    Щоб це зробити, ми модифікуємо наш модельований стек так, щоб він
+    відстежував кількість випадків збереження регістрів у стеку та
+    максимальну глибину, досягнуту стеком, а також додамо до об’єкта стека повідомлення, яке друкує статистику, як показано нижче.
+    Ми також додаємо до базової моделі машини операцію, яка друкує
+    статистику стека, ініціалізуючи
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>the-ops</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>the_ops</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    у
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>make-new-machine</SCHEMEINLINE></SCHEME>
+      <PYTHON>
+      <PYTHONINLINE>make_new_machine</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    значенням
+    <SNIPPET EVAL="no">
+      <INDEX><USE>initialize_stack</USE> operation in register machine</INDEX>
+      <INDEX><USE>print_stack_statistics</USE> operation in register machine</INDEX>
+      <SCHEME>
+(list (list 'initialize-stack
+            (lambda () (stack 'initialize)))
+      (list 'print-stack-statistics
+            (lambda () (stack 'print-statistics))))
+      </SCHEME>
+      <PYTHON>
+llist(llist("initialize_stack", lambda: stack("initialize")),
+     llist("print_stack_statistics", lambda: stack("print_statistics")))
+</PYTHON>
+    </SNIPPET>
+
+    Ось нова версія
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>make-stack</SCHEMEINLINE>:</SCHEME>
+      <PYTHON>
+      <PYTHONINLINE>make_stack</PYTHONINLINE>:</PYTHON>
+    </SPLITINLINE>
+    <SNIPPET>
+      <INDEX><DECLARATION>make_stack</DECLARATION><SUBINDEX>with monitored stack</SUBINDEX></INDEX>
+      <SCHEME>
+(define (make-stack)
+  (let ((s '())
+        (number-pushes 0)
+        (max-depth 0)
+        (current-depth 0))
+    (define (push x)
+      (set! s (cons x s))
+      (set! number-pushes (+ 1 number-pushes))
+      (set! current-depth (+ 1 current-depth))
+      (set! max-depth (max current-depth max-depth)))
+    (define (pop)
+      (if (null? s)
+          (error "Empty stack - - POP")
+          (let ((top (car s)))
+            (set! s (cdr s))
+            (set! current-depth (- current-depth 1))
+            top)))    
+    (define (initialize)
+      (set! s '())
+      (set! number-pushes 0)
+      (set! max-depth 0)
+      (set! current-depth 0)
+      'done)
+    (define (print-statistics)
+      (newline)
+      (display (list 'total-pushes  '= number-pushes
+                     'maximum-depth '= max-depth)))
+    (define (dispatch message)
+      (cond ((eq? message 'push) push)
+            ((eq? message 'pop) (pop))
+            ((eq? message 'initialize) (initialize))
+            ((eq? message 'print-statistics)
+             (print-statistics))
+            (else
+             (error "Unknown request - - STACK" message))))
+    dispatch))
+      </SCHEME>
+      <PYTHON>
+def make_stack():
+    stack = None
+    number_pushes = 0
+    max_depth = 0
+    current_depth = 0
+    def push(x):
+        nonlocal stack, number_pushes, current_depth, max_depth
+        stack = pair(x, stack)
+        number_pushes = number_pushes + 1
+        current_depth = current_depth + 1
+        max_depth = math_max(current_depth, max_depth)
+        return "done"
+    def pop():
+        nonlocal stack, current_depth
+        if is_null(stack):
+            error("empty stack -- pop")
+        else:
+            top = head(stack)
+            stack = tail(stack)
+            current_depth = current_depth - 1
+            return top
+    def initialize():
+        nonlocal stack, number_pushes, max_depth, current_depth
+        stack = None
+        number_pushes = 0
+        max_depth = 0
+        current_depth = 0
+        return "done"
+    def print_statistics():
+        display("total pushes = " + stringify(number_pushes))
+        display("maximum depth = " + stringify(max_depth))
+    def dispatch(message):
+        return (push if message == "push"
+                else pop() if message == "pop"
+                else initialize() if message == "initialize"
+                else print_statistics() if message == "print_statistics"
+                else error("unknown request -- stack", message))
+    return dispatch
+</PYTHON>
+    </SNIPPET>
+  </TEXT>
+
+  <TEXT>
+    Вправи<SPACE/><REF NAME="ex:instruction-count"/>
+    до<SPACE/><REF NAME="ex:breakpoints"/>
+    описують інші корисні засоби спостереження й зневаджування, які можна
+    додати до симулятора регістрових машин.
+  </TEXT>
+  
+  <EXERCISE>
+    Виміряйте кількість поміщень у стек і максимальну глибину стека, потрібні
+    для обчислення
+    <INDEX><USE>factorial</USE><SUBINDEX>використання стека, регістрова машина</SUBINDEX></INDEX>
+    <LATEXINLINE>$n!$</LATEXINLINE> для різних малих значень
+    <LATEXINLINE>$n$</LATEXINLINE> користуючись машиною для факторіалів,
+    показаною на рисунку<SPACE/><REF NAME="fig:fact-machine"/>.  За вашими
+    даними визначте формули через <LATEXINLINE>$n$</LATEXINLINE> для
+    загальної кількості операцій поміщення в стек і максимальної глибини стека,
+    використаних під час обчислення <LATEXINLINE>$n!$</LATEXINLINE> для будь-якого
+    <LATEXINLINE>$n &gt; 1$</LATEXINLINE>. Зауважте, що кожна з них є лінійною
+    функцією від <LATEXINLINE>$n$</LATEXINLINE> і тому визначається двома
+    константами.  Щоб отримати надруковану статистику, вам доведеться доповнити
+    машину для факторіалів інструкціями, які ініціалізують стек і друкують
+    статистику.  Можливо, вам захочеться також змінити машину так, щоб вона
+    повторно читала значення <LATEXINLINE>$n$</LATEXINLINE>, обчислювала
+    факторіал і друкувала
+    результат (як ми робили для машини для НСД на
+    рисунку<SPACE/><REF NAME="fig:gcd-with-io"/>), щоб вам не доводилося
+    щоразу викликати
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>get-register-contents</SCHEMEINLINE>,</SCHEME>
+      <PYTHON><PYTHONINLINE>get_register_contents</PYTHONINLINE>,
+      </PYTHON>
+    </SPLITINLINE>
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>set-register-contents!</SCHEMEINLINE>,</SCHEME>
+      <PYTHON>
+	<PYTHONINLINE>set_register_contents</PYTHONINLINE>,
+      </PYTHON>
+    </SPLITINLINE>
+    та
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>start</SCHEMEINLINE>.</SCHEME>
+      <PYTHON><PYTHONINLINE>start</PYTHONINLINE>.</PYTHON>
+      </SPLITINLINE>
+    <LABEL NAME="ex:measure-fact"/>
+  </EXERCISE>
+
+  <EXERCISE>
+    Додайте 
+    <INDEX>підрахунок інструкцій</INDEX>
+    <EM>підрахунок інструкцій</EM> (instruction counting)
+    до симуляції регістрової машини.
+    Тобто нехай модель машини відстежує кількість виконаних
+    інструкцій.  Розширте об’єкт моделі машини так, щоб він приймав нове повідомлення, яке друкує
+    значення лічильника інструкцій і обнуляє цей лічильник.
+    <LABEL NAME="ex:instruction-count"/>
+  </EXERCISE>
+
+  <EXERCISE>
+    Доповніть симулятор так, щоб він забезпечував 
+    <INDEX>трасування інструкцій</INDEX>
+    <INDEX>трасування<SUBINDEX>виконання інструкцій</SUBINDEX></INDEX>
+    <EM>трасування інструкцій</EM> (instruction tracing).
+    Тобто перед виконанням кожної інструкції симулятор має друкувати
+    <SPLITINLINE><SCHEME>текст</SCHEME></SPLITINLINE> інструкції.  Зробіть так, щоб модель машини приймала
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>trace-on</SCHEMEINLINE></SCHEME>
+      <PYTHON>
+	<PYTHONINLINE>trace_on</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    та
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>trace-off</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>trace_off</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    повідомлення, щоб вмикати й вимикати трасування.
+    <LABEL NAME="ex:reg-machine-instruction-trace"/>
+  </EXERCISE>
+
+  <EXERCISE>
+    Поширте трасування інструкцій із
+    вправи<SPACE/><REF NAME="ex:reg-machine-instruction-trace"/> так,
+    щоб перед друкуванням інструкції симулятор друкував усі мітки, які
+    безпосередньо передують цій інструкції в послідовності контролера.  Будьте
+    уважні, щоб це не заважало підрахунку
+    інструкцій (вправа<SPACE/><REF NAME="ex:instruction-count"/>).
+    Вам доведеться зробити так, щоб симулятор зберігав потрібну інформацію
+    про мітки.
+    <LABEL NAME="ex:5_16"/>
+  </EXERCISE>
+
+  <EXERCISE>
+    Змініть
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>make-register</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>make_register</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    <SPLITINLINE>
+      <SCHEME>процедуру</SCHEME>
+      <PYTHON>функцію</PYTHON>
+    </SPLITINLINE>
+    з підрозділу<SPACE/><REF NAME="sec:machine-model"/> так, щоб регістри можна було
+    <INDEX>регістр(и)<SUBINDEX>трасування</SUBINDEX></INDEX>
+    <INDEX>трасування<SUBINDEX>присвоєння регістру</SUBINDEX></INDEX>
+    трасувати. Регістри мають приймати повідомлення, які вмикають і вимикають
+    трасування.  Коли регістр трасують, присвоєння значення регістру має друкувати
+    ім’я регістра, старий вміст регістра та новий вміст, який присвоюють.
+    Розширте інтерфейс моделі машини, щоб ви могли вмикати й вимикати
+    трасування для вибраних регістрів машини.
+    <LABEL NAME="ex:5_17"/>
+  </EXERCISE>
+
+  <EXERCISE>
+    <LABEL NAME="ex:breakpoints"/>
+    Аліса П. Хакер хоче, щоб у симуляторі була 
+    <INDEX>точка переривання</INDEX>
+    <EM>точка переривання</EM> (breakpoint), яка допоможе їй зневаджувати її проєкти
+    машин.  Вас найняли, щоб установити цю можливість для неї.  Вона хоче
+    мати змогу вказати місце в послідовності контролера, де симулятор
+    зупиниться й дасть їй змогу дослідити стан машини.  Вам треба
+    реалізувати
+    <SPLITINLINE>
+      <SCHEME>процедуру</SCHEME>
+      <PYTHON>функцію</PYTHON>
+    </SPLITINLINE>
+    <SNIPPET EVAL="no" LATEX="yes">
+      <SCHEME>
+(set-breakpoint $machine$ $label$ $n$)
+      </SCHEME>
+      <PYTHON>
+set_breakpoint($machine$, $label$, $n$)
+      </PYTHON>
+    </SNIPPET>
+    яка встановлює точку переривання безпосередньо перед <LATEXINLINE>$n$</LATEXINLINE>-ю
+    інструкцією після заданої мітки.  Наприклад,
+    <SNIPPET EVAL="no">
+      <SCHEME>
+(set-breakpoint gcd-machine 'test-b 4)
+      </SCHEME>
+      <PYTHON>
+set_breakpoint(gcd_machine, "test_b", 4)
+      </PYTHON>
+    </SNIPPET>
+    установлює точку переривання в
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>gcd-machine</SCHEMEINLINE></SCHEME>
+      <PYTHON>
+	<PYTHONINLINE>gcd_machine</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    безпосередньо перед присвоєнням регістру <SCHEMEINLINE>a</SCHEMEINLINE>.
+    Коли симулятор досягає точки переривання, він має надрукувати мітку та
+    зміщення цієї точки й припинити виконувати інструкції.  Тоді Аліса
+    може скористатися
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>get-register-contents</SCHEMEINLINE></SCHEME>
+      <PYTHON>
+	<PYTHONINLINE>get_register_contents</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    та
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>set-register-contents!</SCHEMEINLINE></SCHEME>
+      <PYTHON>
+	<PYTHONINLINE>set_register_contents</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    щоб маніпулювати станом модельованої машини.  Потім вона має мати змогу
+    продовжити виконання, сказавши
+    <SNIPPET EVAL="no" LATEX="yes">
+      <SCHEME>
+(proceed-machine $machine$)
+      </SCHEME>
+      <PYTHON>
+proceed_machine($machine$)
+      </PYTHON>
+    </SNIPPET>
+    Вона також має мати змогу вилучити конкретну точку переривання за допомогою
+    <SNIPPET EVAL="no" LATEX="yes">
+      <SCHEME>
+(cancel-breakpoint $machine$ $label$ $n$)
+      </SCHEME>
+      <PYTHON>
+cancel_breakpoint($machine$, $label$, $n$)
+      </PYTHON>
+    </SNIPPET>
+    або вилучити всі точки переривання за допомогою
+    <SNIPPET EVAL="no" LATEX="yes" POSTPADDING="no">
+      <SCHEME>
+(cancel-all-breakpoints $machine$)
+      </SCHEME>
+      <PYTHON>
+cancel_all_breakpoints($machine$)
+      </PYTHON>
+    </SNIPPET>
+  </EXERCISE>
+
+  <INDEX>регістрова машина<SUBINDEX>симулятор<CLOSE/></SUBINDEX></INDEX>
+  <INDEX>симулятор регістрових машин<CLOSE/></INDEX>
+  <INDEX>моделювання<SUBINDEX><ORDER>register</ORDER>регістрової машини<CLOSE/></SUBINDEX></INDEX>
+  <INDEX>регістрова машина<SUBINDEX>спостереження за продуктивністю<CLOSE/></SUBINDEX></INDEX>
+
+</SUBSECTION>

@@ -1,0 +1,1049 @@
+<SUBSECTION>
+  <NAME>
+    Відокремлення синтаксичного аналізу від виконання
+  </NAME>
+
+  <LABEL NAME="sec:separating-analysis"/>
+
+  <INDEX>синтаксичний аналіз, відокремлений від виконання<SUBINDEX>у метамовному обчислювачі<OPEN/></SUBINDEX></INDEX>
+  <INDEX>аналізувальний обчислювач<OPEN/></INDEX>
+  <INDEX>метамовний обчислювач для Python<SUBINDEX>аналізувальна версія<OPEN/></SUBINDEX></INDEX>
+
+  <TEXT>
+    Реалізований вище обчислювач простий, але він дуже
+    <INDEX>метамовний обчислювач для Python<SUBINDEX>ефективність</SUBINDEX></INDEX>
+    <INDEX>ефективність<SUBINDEX><ORDER>evaluation</ORDER>обчислення</SUBINDEX></INDEX>
+    неефективний, бо синтаксичний аналіз
+    <SPLITINLINE>
+      <SCHEME>
+	виразів
+      </SCHEME>
+      <PYTHON>
+	компонент
+      </PYTHON>
+    </SPLITINLINE>
+    переплетено
+    з їх виконанням.  Тож якщо програму виконують багато разів, її
+    синтаксис аналізують багато разів.  Розгляньмо, наприклад, обчислення
+    <SPLITINLINE><SCHEME><SCHEMEINLINE>(factorial 4)</SCHEMEINLINE></SCHEME>
+    <PYTHON><PYTHONINLINE>factorial(4)</PYTHONINLINE></PYTHON>
+    </SPLITINLINE> за такого означення
+    <SCHEMEINLINE>factorial</SCHEMEINLINE>:
+    <SNIPPET>
+      <NAME>factorial_4_1_7</NAME>
+      <EXAMPLE>factorial_example</EXAMPLE>
+      <EXPECTED>120</EXPECTED>
+      <SCHEME>
+(define (factorial n)
+  (if (= n 1)
+      1
+      (* (factorial (- n 1)) n)))
+      </SCHEME>
+      <PYTHON>
+def factorial(n):
+    return 1 if n == 1 else factorial(n - 1) * n
+</PYTHON>
+    </SNIPPET>
+  </TEXT>
+
+  <TEXT>
+    Щоразу, коли викликають <SCHEMEINLINE>factorial</SCHEMEINLINE>, обчислювач
+    мусить визначити, що тіло — це
+    <SPLITINLINE>
+      <SCHEME>вираз <SCHEMEINLINE>if</SCHEMEINLINE>
+      </SCHEME>
+      <PYTHON>умовний вираз
+      </PYTHON>
+    </SPLITINLINE>
+    , і видобути предикат. Лише тоді він може обчислити
+    предикат і вибрати гілку за його значенням.  Щоразу, коли він обчислює вираз
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>(* (factorial (- n 1)) n)</SCHEMEINLINE>,
+      </SCHEME>
+      <PYTHON><PYTHONINLINE>factorial(n - 1) * n</PYTHONINLINE>,
+      </PYTHON>
+    </SPLITINLINE>
+    або підвирази
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>(factorial (- n 1))</SCHEMEINLINE>
+      </SCHEME>
+      <PYTHON><PYTHONINLINE>factorial(n - 1)</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    та 
+    <SPLITINLINE><SCHEME><SCHEMEINLINE>(- n 1)</SCHEMEINLINE>,</SCHEME>
+    <PYTHON><PYTHONINLINE>n - 1</PYTHONINLINE>,</PYTHON>
+    </SPLITINLINE>
+    обчислювач мусить виконати аналіз випадків у
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>eval</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>evaluate</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    , щоб визначити, що вираз — це застосування, і мусить видобути
+    <SPLITINLINE>
+      <SCHEME>його оператор та операнди.</SCHEME>
+      <PYTHON>вираз функції та вирази аргументів.</PYTHON>
+    </SPLITINLINE>
+    Цей аналіз дорогий.
+    Повторювати його — марнотратно.
+  </TEXT>
+  <TEXT>
+    Ми можемо зробити обчислювач значно ефективнішим, улаштувавши все
+    так, щоб синтаксичний аналіз виконувався лише
+    раз.<FOOTNOTE>Цей прийом — невіддільна складова процесу
+    компіляції, який ми обговоримо в розділі<SPACE/><REF NAME="chap:reg"></REF>.  Джонатан Ріс написав
+    такий інтерпретатор
+    Scheme приблизно 1982 року для проєкту T 
+    <INDEX>Rees, Jonathan A.</INDEX>
+    <INDEX>Adams, Norman I., IV</INDEX>
+    (<CITATION NAME="REE82">Rees and Adams 1982</CITATION>).  
+    <INDEX>Feeley, Marc</INDEX>
+    Марк <CITATION NAME="FEE86">Feeley 1986</CITATION>
+    (див. також
+    <INDEX>Lapalme, Guy</INDEX>
+    <CITATION NAME="FEE87">Feeley and Lapalme 1987</CITATION>)
+    незалежно винайшов цей прийом
+    у своїй магістерській дисертації.</FOOTNOTE> Ми розділимо
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>eval</SCHEMEINLINE>,</SCHEME>
+      <PYTHON><PYTHONINLINE>evaluate</PYTHONINLINE>,</PYTHON>
+    </SPLITINLINE>
+    який бере
+    <SPLITINLINE>
+      <SCHEME>вираз</SCHEME>
+      <PYTHON>компоненту</PYTHON>
+    </SPLITINLINE>
+    та середовище, на дві частини.
+    <SPLITINLINE><SCHEME>Процедура</SCHEME>
+    <PYTHON>Функція</PYTHON></SPLITINLINE>
+    <SCHEMEINLINE>analyze</SCHEMEINLINE> бере лише
+    <SPLITINLINE>
+      <SCHEME>вираз.</SCHEME>
+      <PYTHON>компоненту.</PYTHON>
+    </SPLITINLINE>
+    Вона виконує синтаксичний
+    аналіз і повертає нову
+    <SPLITINLINE><SCHEME>процедуру</SCHEME>
+    <PYTHON>функцію</PYTHON></SPLITINLINE>, так звану 
+    <INDEX>виконавча <SPLITINLINE><SCHEME>procedure</SCHEME><PYTHON>function</PYTHON></SPLITINLINE><SUBINDEX>в аналізувальному обчислювачі</SUBINDEX></INDEX>
+    <EM>виконавчу
+    <SPLITINLINE><SCHEME>процедуру</SCHEME>
+    <PYTHON>функцію</PYTHON></SPLITINLINE></EM>, яка
+    вбирає в себе роботу, яку треба зробити під час виконання проаналізованого
+    <SPLITINLINE>
+      <SCHEME>виразу.</SCHEME>
+      <PYTHON>компоненти.</PYTHON>
+    </SPLITINLINE>
+    Виконавча
+    <SPLITINLINE><SCHEME>процедура</SCHEME>
+    <PYTHON>функція</PYTHON></SPLITINLINE>
+    бере середовище як свій
+    аргумент і завершує обчислення.  Це заощаджує роботу, бо
+    <SCHEMEINLINE>analyze</SCHEMEINLINE> буде викликано лише один раз для
+    <SPLITINLINE>
+      <SCHEME>виразу,</SCHEME>
+      <PYTHON>компоненти,</PYTHON>
+    </SPLITINLINE>
+    тоді як виконавчу
+    <SPLITINLINE><SCHEME>процедуру</SCHEME>
+    <PYTHON>функцію</PYTHON></SPLITINLINE>
+    може бути викликано багато разів.
+  </TEXT>
+
+  <TEXT>
+    З таким поділом на аналіз і виконання
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>eval</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>evaluate</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    тепер стає
+    <SNIPPET HIDE="yes">
+      <NAME>analyze_headline</NAME>
+      <PYTHON>
+# functions from SICP JS 4.1.7
+</PYTHON>
+    </SNIPPET>
+    <SNIPPET>
+      <INDEX><DECLARATION>evaluate</DECLARATION> (metacircular)<SUBINDEX>analyzing version</SUBINDEX></INDEX>
+      <NAME>evaluate_4_1_7</NAME>
+      <REQUIRES>analyze</REQUIRES>
+      <EXAMPLE>evaluate_4_1_7_simple_function</EXAMPLE>
+      <SCHEME>
+(define (eval exp env)
+  ((analyze exp) env))
+      </SCHEME>
+      <PYTHON>
+def evaluate(component, env):
+    return analyze(component)(env)
+</PYTHON>
+    </SNIPPET>
+    <SNIPPET HIDE="yes">
+      <NAME>evaluate_4_1_7_simple_function</NAME>
+      <REQUIRES>evaluate_4_1_7</REQUIRES>
+      <EXPECTED>5</EXPECTED>
+      <PYTHON>
+evaluate(parse("""{
+    def f(x):
+        return x + 1
+    f(4)
+}"""),
+         the_global_environment)
+      </PYTHON>
+    </SNIPPET>
+  </TEXT>
+
+  <TEXT>
+    Результат виклику <SCHEMEINLINE>analyze</SCHEMEINLINE> — це виконавча
+    <SPLITINLINE>
+      <SCHEME>процедура</SCHEME>
+      <PYTHON>функція</PYTHON>
+    </SPLITINLINE>
+    , яку треба застосувати до середовища.  <SCHEMEINLINE>analyze</SCHEMEINLINE>
+    <SPLITINLINE>
+      <SCHEME>Процедура</SCHEME>
+      <PYTHON>функція</PYTHON>
+    </SPLITINLINE>
+    виконує той самий аналіз випадків, що й початковий
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>eval</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>evaluate</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    з підрозділу<SPACE/><REF NAME="sec:core-of-evaluator"/>, хіба що
+    <SPLITINLINE>
+      <SCHEME>процедури</SCHEME>
+      <PYTHON>функції</PYTHON>
+    </SPLITINLINE>
+    , до яких ми скеровуємо, виконують лише аналіз, а не повне обчислення:
+    <SNIPPET HIDE="yes">
+      <NAME>analyze_example</NAME>
+      <PYTHON>
+analyze(parse("""{
+    x = 1
+    x + 1
+}""")) (the_global_environment)
+</PYTHON>
+    </SNIPPET>
+    <SNIPPET>
+      <INDEX><DECLARATION>analyze</DECLARATION><SUBINDEX>metacircular</SUBINDEX></INDEX>
+      <NAME>analyze</NAME>
+      <REQUIRES>headline_4_1_1</REQUIRES>
+      <REQUIRES>list_of_unassigned</REQUIRES>
+      <REQUIRES>functions_4_1_2</REQUIRES>
+      <REQUIRES>functions_4_1_3</REQUIRES>
+      <REQUIRES>functions_4_1_4</REQUIRES>
+      <REQUIRES>analyze_headline</REQUIRES>
+      <REQUIRES>analyze_literal</REQUIRES>
+      <REQUIRES>analyze_variable</REQUIRES>
+      <REQUIRES>analyze_assignment</REQUIRES>
+      <REQUIRES>analyze_if</REQUIRES>
+      <REQUIRES>scan_out_declarations</REQUIRES>
+      <REQUIRES>analyze_lambda</REQUIRES>
+      <REQUIRES>analyze_sequence</REQUIRES>
+      <REQUIRES>analyze_block</REQUIRES>
+      <REQUIRES>analyze_return_statement</REQUIRES>
+      <REQUIRES>analyze_application</REQUIRES>
+      <EXAMPLE>analyze_example</EXAMPLE>
+      <EXPECTED>2</EXPECTED>
+      <SCHEME>
+      (define (analyze exp)
+      (cond ((self-evaluating? exp) 
+            (analyze-self-evaluating exp))
+            ((quoted? exp) (analyze-quoted exp))
+            ((variable? exp) (analyze-variable exp))
+            ((assignment? exp) (analyze-assignment exp))
+            ((definition? exp) (analyze-definition exp))
+            ((if? exp) (analyze-if exp))
+            ((lambda? exp) (analyze-lambda exp))
+            ((begin? exp) (analyze-sequence (begin-actions exp)))
+            ((cond? exp) (analyze (cond-&gt;if exp)))
+            ((application? exp) (analyze-application exp))
+            (else
+            (error "Unknown expression type - - ANALYZE" exp))))
+      </SCHEME>
+      <PYTHON>
+def analyze(component):
+    return analyze_literal(component) if is_literal(component) else analyze_name(component) if is_name(component) else analyze_application(component) if is_application(component) else analyze(operator_combination_to_application(component)) if is_operator_combination(component) else analyze_conditional(component) if is_conditional(component) else analyze_lambda_expression(component) if is_lambda_expression(component) else analyze_sequence(sequence_statements(component)) if is_sequence(component) else analyze_block(component) if is_block(component) else analyze_return_statement(component) if is_return_statement(component) else analyze(function_decl_to_constant_decl(component)) if is_function_definition(component) else analyze_declaration(component) if is_declaration(component) else analyze_assignment(component) if is_assignment(component) else error("unknown syntax -- analyze", component)
+</PYTHON>
+    </SNIPPET>
+  </TEXT>
+  <INDEX><USE>analyze_...</USE><SUBINDEX>метамовний</SUBINDEX><OPEN/></INDEX>
+  <TEXT>
+    Ось найпростіший
+    <SPLITINLINE>
+      <SCHEME>
+	синтаксичний аналіз —
+	процедура,
+	яка обробляє самообчислювані вирази.
+      </SCHEME>
+      <PYTHON>
+	синтаксичний аналіз —
+	функція,
+	яка обробляє літеральні вирази.
+      </PYTHON>
+    </SPLITINLINE>
+    Вона повертає виконавчу
+    <SPLITINLINE>
+      <SCHEME>процедуру</SCHEME>
+      <PYTHON>функцію</PYTHON>
+    </SPLITINLINE>
+    , яка ігнорує свій аргумент-середовище і просто повертає
+    <SPLITINLINE>
+      <SCHEME>вираз:</SCHEME>
+      <PYTHON>значення літерала:</PYTHON>
+    </SPLITINLINE>
+    <SNIPPET HIDE="yes">
+      <NAME>analyze_literal_example</NAME>
+      <PYTHON>
+# None is the empty environment (not used here)	
+analyze_literal(parse("true;"))(None)
+</PYTHON>
+    </SNIPPET>
+    <SNIPPET>
+      <NAME>analyze_literal</NAME>
+      <REQUIRES>functions_4_1_2</REQUIRES>
+      <EXAMPLE>analyze_literal_example</EXAMPLE>
+      <EXPECTED>true</EXPECTED>
+      <SCHEME>
+(define (analyze-self-evaluating exp)
+  (lambda (env) exp))
+      </SCHEME>
+      <PYTHON>
+def analyze_literal(component):
+    return lambda env: (literal_value(component))
+</PYTHON>
+    </SNIPPET>
+  </TEXT>
+
+  <SPLIT>
+    <SCHEME>
+      <TEXT>
+	Для цитованого виразу ми можемо трохи виграти в ефективності,
+	видобувши текст цитати лише один раз, у фазі аналізу,
+	а не у фазі виконання.
+	<SNIPPET>
+	  <NAME>analyze_quoted</NAME>
+	  <EXAMPLE>analyze_quoted_quoted</EXAMPLE>
+	  <SCHEME>
+(define (analyze-quoted exp)
+  (let ((qval (text-of-quotation exp)))
+    (lambda (env) qval)))
+	  </SCHEME>
+	</SNIPPET>
+      </TEXT>
+    </SCHEME>
+    <PYTHON>
+    </PYTHON>
+  </SPLIT>
+  
+  <TEXT>
+    Пошук
+    <SPLITINLINE>
+      <SCHEME>
+	значення змінної	    
+      </SCHEME>
+      <PYTHON>
+	значення імені
+      </PYTHON>
+    </SPLITINLINE>
+    все одно треба робити у фазі виконання, бо він залежить від знання
+    середовища.<FOOTNOTE>Однак є важлива частина
+    <SPLITINLINE>
+      <SCHEME>
+	пошуку змінної    
+      </SCHEME>
+      <PYTHON>
+	пошуку імені
+      </PYTHON>
+    </SPLITINLINE>
+    , яку <EM>можна</EM> зробити в складі синтаксичного аналізу.
+       Як ми покажемо в підрозділі<SPACE/><REF NAME="sec:lexical-addressing"/>,
+	можна визначити позицію в структурі середовища, де
+	буде знайдено значення змінної, і таким чином позбутися потреби сканувати
+	середовище в пошуку запису, що відповідає цій змінній.
+</FOOTNOTE>
+    <SNIPPET HIDE="yes">
+      <NAME>analyze_variable_example</NAME>
+      <REQUIRES>functions_4_1_2</REQUIRES>
+      <REQUIRES>functions_4_1_3</REQUIRES>
+      <REQUIRES>functions_4_1_4</REQUIRES>
+      <PYTHON>
+analyze_name(parse("myname;")) (extend_environment(llist("myname"), llist(1), the_global_environment))
+</PYTHON>
+    </SNIPPET>
+    <SNIPPET>
+      <NAME>analyze_variable</NAME>
+      <EXAMPLE>analyze_variable_example</EXAMPLE>
+      <EXPECTED>1</EXPECTED>
+      <SCHEME>
+(define (analyze-variable exp)
+  (lambda (env) (lookup-variable-value exp env)))
+      </SCHEME>
+      <PYTHON>
+def analyze_name(component):
+    return lambda env: (lookup_symbol_value(symbol_of_name(component), env))
+</PYTHON>
+    </SNIPPET>
+  </TEXT>
+
+
+  <SPLIT>
+    <PYTHON>
+    Щоб проаналізувати застосування, ми аналізуємо
+    вираз функції та вирази аргументів
+    і будуємо виконавчу функцію, яка викликає
+    виконавчу функцію виразу функції
+    (щоб отримати власне функцію, яку треба застосувати) та
+    виконавчі функції виразів аргументів (щоб отримати власне аргументи).
+    Потім ми передаємо їх до
+    	<PYTHONINLINE>execute_application</PYTHONINLINE>,
+    яка є аналогом <SCHEMEINLINE>apply</SCHEMEINLINE> з
+    підрозділу<SPACE/><REF NAME="sec:core-of-evaluator"/>.
+    Функція <PYTHONINLINE>execute_application</PYTHONINLINE>
+    відрізняється від <SCHEMEINLINE>apply</SCHEMEINLINE> тим, що
+    тіло функції для складеної функції
+    вже проаналізовано, тож немає потреби робити подальший аналіз.
+    Натомість ми просто викликаємо виконавчу функцію
+    для тіла в розширеному середовищі.
+    <SNIPPET HIDE="yes">
+      <NAME>analyze_application_example</NAME>
+      <REQUIRES>analyze</REQUIRES>
+      <PYTHON>
+analyze(parse("x + 1;"))
+(extend_environment(llist("x"), llist(5), the_global_environment))
+      </PYTHON>
+    </SNIPPET>
+    <SNIPPET>
+      <INDEX><DECLARATION>execute_application</DECLARATION><SUBINDEX>metacircular</SUBINDEX></INDEX>
+      <NAME>analyze_application</NAME>
+      <REQUIRES>map</REQUIRES>
+      <EXAMPLE>analyze_application_example</EXAMPLE>
+      <EXPECTED>6</EXPECTED>
+      <PYTHON>
+def analyze_application(component):
+    ffun = analyze(function_expression(component))
+    afuns = map(analyze, arg_expressions(component))
+    return lambda env: (execute_application(ffun(env), map(lambda afun: (afun(env)), afuns)))
+def execute_application(fun, args):
+    if is_primitive_function(fun):
+        return apply_primitive_function(fun, args)
+    elif is_compound_function(fun):
+        result = function_body(fun) (extend_environment(function_parameters(fun), args, function_environment(fun)))
+        return return_value_content(result) if is_return_value(result) else None
+    else:
+        error("unknown function type -- execute_application", fun)
+</PYTHON>
+    </SNIPPET>
+    </PYTHON>
+  </SPLIT>
+
+  <SPLIT>
+    <PYTHON>
+      <TEXT>
+	Для умовних виразів
+	ми видобуваємо й аналізуємо предикат, наслідок та альтернативу під
+	час аналізу.
+	<SNIPPET HIDE="yes">
+	  <NAME>analyze_if_example</NAME>
+	  <REQUIRES>analyze</REQUIRES>
+	  <PYTHON>
+analyze_conditional(parse("true ? 3 : 7;")) (the_global_environment)
+</PYTHON>
+	</SNIPPET>
+	<SNIPPET>
+	  <NAME>analyze_if</NAME>
+	  <EXAMPLE>analyze_if_example</EXAMPLE>
+	  <EXPECTED>3</EXPECTED>
+	  <PYTHON>
+def analyze_conditional(component):
+    pfun = analyze(conditional_predicate(component))
+    cfun = analyze(conditional_consequent(component))
+    afun = analyze(conditional_alternative(component))
+    return lambda env: (cfun(env) if is_truthy(pfun(env)) else afun(env))
+</PYTHON>
+	</SNIPPET>
+      </TEXT>
+
+      <TEXT>
+	Аналіз лямбда-виразу
+	також дає великий виграш в ефективності: ми аналізуємо
+	тіло лямбда-виразу лише один раз, хоч
+	функції, що постають з обчислення
+	лямбда-виразу,
+	можуть бути застосовані багато разів.
+	<SNIPPET HIDE="yes">
+	  <NAME>analyze_lambda_example</NAME>
+	  <REQUIRES>list_ref</REQUIRES>
+	  <REQUIRES>analyze</REQUIRES>
+	  <PYTHON>
+llist_ref(analyze_lambda_expression(parse("x =&gt; x;")) (the_global_environment), 2) (extend_environment(llist("x"), llist(7), the_global_environment))
+</PYTHON>
+	</SNIPPET>
+	<SNIPPET>
+	  <NAME>analyze_lambda</NAME>
+	  <EXAMPLE>analyze_lambda_example</EXAMPLE>
+	  <EXPECTED>[ 'return_value', [ 7, None ] ]</EXPECTED>
+	  <PYTHON>
+def analyze_lambda_expression(component):
+    params = lambda_parameter_symbols(component)
+    bfun = analyze(lambda_body(component))
+    return lambda env: (make_function(params, bfun, env))
+</PYTHON>
+	</SNIPPET>
+      </TEXT>
+
+
+      <TEXT>
+	Аналіз послідовності
+	інструкцій складніший.<FOOTNOTE>Деяке
+	уявлення про опрацювання послідовностей дає
+	вправа<SPACE/><REF NAME="ex:analyze-sequence"/>.</FOOTNOTE> Кожну
+	    інструкцію
+	в послідовності проаналізовано, і це дає виконавчу
+	функцію. Ці виконавчі функції
+	поєднують, щоб отримати виконавчу
+	функцію, яка бере середовище як аргумент і послідовно
+	викликає кожну окрему виконавчу
+	функцію з цим середовищем як аргументом.
+	<SNIPPET HIDE="yes">
+	  <NAME>analyze_sequence_example</NAME>
+	  <REQUIRES>analyze</REQUIRES>
+	  <PYTHON>
+analyze_sequence(sequence_statements(parse("10; 20; 30;"))) (the_global_environment)
+</PYTHON>
+	</SNIPPET>
+	<SNIPPET>
+	  <NAME>analyze_sequence</NAME>
+	  <REQUIRES>map</REQUIRES>
+	  <EXAMPLE>analyze_sequence_example</EXAMPLE>
+	  <EXPECTED>30</EXPECTED>
+	  <PYTHON>
+def analyze_sequence(stmts):
+    def sequentially(fun1, fun2):
+        def the_sequence(env):
+            fun1_val = fun1(env)
+            return (fun1_val
+                    if is_return_value(fun1_val)
+                    else fun2(env))
+        return the_sequence
+    def loop(first_fun, rest_funs):
+        return (first_fun
+                if is_none(rest_funs)
+                else loop(sequentially(first_fun, head(rest_funs)),
+                          tail(rest_funs)))
+    funs = map(analyze, stmts)
+    return ((lambda env: None)
+            if is_none(funs)
+            else loop(head(funs), tail(funs)))
+	  </PYTHON>
+	</SNIPPET>
+      </TEXT>
+      <TEXT>
+	Тіло блоку сканують на локальні оголошення лише один раз.
+	Прив’язки встановлюють у середовищі, коли
+	викликають виконавчу функцію для блоку.
+	<SNIPPET HIDE="yes">
+	  <NAME>analyze_block_example</NAME>
+	  <REQUIRES>analyze</REQUIRES>
+	  <PYTHON>
+analyze_block(parse("""{
+    x = 4
+    x
+}""")) (the_global_environment)
+</PYTHON>
+	</SNIPPET>
+	<SNIPPET>
+	  <NAME>analyze_block</NAME>
+	  <REQUIRES>list_of_unassigned</REQUIRES>
+	  <EXAMPLE>analyze_block_example</EXAMPLE>
+	  <EXPECTED>4</EXPECTED>
+	  <PYTHON>
+def analyze_block(component):
+    body = block_body(component)
+    bfun = analyze(body)
+    locals = scan_out_declarations(body)
+    unassigneds = list_of_unassigned(locals)
+    return lambda env: (bfun(extend_environment(locals, unassigneds, env)))
+</PYTHON>
+	</SNIPPET>
+      </TEXT>
+
+      
+            <TEXT>
+	Для інструкцій return ми аналізуємо вираз повернення.
+	Виконавча функція для інструкції return просто викликає
+	виконавчу функцію для виразу повернення й обгортає
+	результат у значення повернення.
+	<SNIPPET HIDE="yes">
+	  <NAME>analyze_return_statement_example</NAME>
+	  <REQUIRES>list_ref</REQUIRES>
+	  <REQUIRES>analyze</REQUIRES>
+	  <PYTHON>
+analyze_return_statement(llist_ref(parse("() =&gt; x + 1;"), 2)) (extend_environment(llist("x"), llist(6), the_global_environment))
+</PYTHON>
+	</SNIPPET>
+	<SNIPPET>
+	  <NAME>analyze_return_statement</NAME>
+	  <EXAMPLE>analyze_return_statement_example</EXAMPLE>
+	  <EXPECTED>[ 'return_value', [ 7, None ] ]</EXPECTED>
+	  <PYTHON>
+def analyze_return_statement(component):
+    rfun = analyze(return_expression(component))
+    return lambda env: (make_return_value(rfun(env)))
+</PYTHON>
+	</SNIPPET>
+      </TEXT>
+
+      
+    </PYTHON>
+  </SPLIT>
+  
+  <TEXT>
+    <SPLITINLINE>
+      <SCHEME>
+	<SCHEMEINLINE>Analyze-assignment</SCHEMEINLINE>
+      </SCHEME>
+      <PYTHON>Функція
+      <PYTHONINLINE>analyze_assignment</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    мусить відкласти власне встановлення змінної до виконання, коли
+    середовище вже буде надано.  Однак те, що
+    <SPLITINLINE>
+      <SCHEME>
+	вираз <SCHEMEINLINE>assignment-value</SCHEMEINLINE> 
+      </SCHEME>
+      <PYTHON>
+	вираз значення присвоєння
+      </PYTHON>
+    </SPLITINLINE>
+    можна проаналізувати (рекурсивно) під час аналізу, — це великий виграш в
+    ефективності, бо
+    <SPLITINLINE>
+      <SCHEME>
+	вираз <SCHEMEINLINE>assignment-value</SCHEMEINLINE>
+      </SCHEME>
+      <PYTHON>
+	вираз значення присвоєння
+      </PYTHON>
+    </SPLITINLINE>
+    тепер буде проаналізовано лише один раз.  Те саме стосується
+    <SPLITINLINE>
+      <SCHEME>означень.</SCHEME>
+      <PYTHON>оголошень констант і змінних.</PYTHON>
+    </SPLITINLINE>
+    <SNIPPET HIDE="yes">
+      <NAME>analyze_assignment_example</NAME>
+      <REQUIRES>analyze</REQUIRES>
+      <PYTHON>
+analyze_assignment(parse("x = x + 1;")) (extend_environment(llist("x"), llist(7), the_global_environment))
+</PYTHON>
+    </SNIPPET>
+    <SNIPPET>
+      <NAME>analyze_assignment</NAME>
+      <EXAMPLE>analyze_assignment_example</EXAMPLE>
+      <EXPECTED>8</EXPECTED>
+      <SCHEME>
+(define (analyze-assignment exp)
+  (let ((var (assignment-variable exp))
+        (vproc (analyze (assignment-value exp))))
+    (lambda (env)
+      (set-variable-value! var (vproc env) env)
+      'ok)))
+
+(define (analyze-definition exp)
+  (let ((var (definition-variable exp))
+        (vproc (analyze (definition-value exp))))
+    (lambda (env)
+      (define-variable! var (vproc env) env)
+      'ok)))
+      </SCHEME>
+      <PYTHON>
+def analyze_assignment(component):
+    symbol = assignment_symbol(component)
+    vfun = analyze(assignment_value_expression(component))
+    def the_assignment(env):
+        value = vfun(env)
+        assign_symbol_value(symbol, value, env)
+        return value
+    return the_assignment
+
+def analyze_declaration(component):
+    symbol = declaration_symbol(component)
+    vfun = analyze(declaration_value_expression(component))
+    def the_declaration(env):
+        assign_symbol_value(symbol, vfun(env), env)
+        return None
+    return the_declaration
+      </PYTHON>
+    </SNIPPET>
+  </TEXT>
+
+  <SPLIT>
+    <SCHEME>
+      <TEXT>
+	Для виразів <SCHEMEINLINE>if</SCHEMEINLINE>
+	ми видобуваємо й аналізуємо предикат, наслідок та альтернативу під
+	час аналізу.
+	<SNIPPET EVAL="no">
+	  <NAME>analyze_if</NAME>
+	  <EXPECTED>3</EXPECTED>
+	  <SCHEME>
+(define (analyze-if exp)
+  (let ((pproc (analyze (if-predicate exp)))
+        (cproc (analyze (if-consequent exp)))
+        (aproc (analyze (if-alternative exp))))
+    (lambda (env)
+      (if (true? (pproc env))
+          (cproc env)
+          (aproc env)))))
+	  </SCHEME>
+	</SNIPPET>
+      </TEXT>
+
+      <TEXT>
+	Аналіз
+	<SCHEMEINLINE>lambda</SCHEMEINLINE>-виразу
+	також дає великий виграш в ефективності: ми аналізуємо
+	тіло <SCHEMEINLINE>lambda</SCHEMEINLINE>-виразу
+	лише один раз, хоч процедури,
+	що постають з обчислення
+	<SCHEMEINLINE>lambda</SCHEMEINLINE>-виразу,
+	можуть бути застосовані багато разів.
+	<SNIPPET EVAL="no">
+	  <NAME>analyze_lambda</NAME>
+	  <SCHEME>
+(define (analyze-lambda exp)
+  (let ((vars (lambda-parameters exp))
+        (bproc (analyze-sequence (lambda-body exp))))
+  (lambda (env) (make-procedure vars bproc env))))
+	  </SCHEME>
+	</SNIPPET>
+      </TEXT>
+
+      <TEXT>
+	Аналіз послідовності
+	виразів (як у
+	<SCHEMEINLINE>begin</SCHEMEINLINE> або в тілі
+	<SCHEMEINLINE>lambda</SCHEMEINLINE>-виразу)
+	складніший.<FOOTNOTE>Деяке
+	уявлення про опрацювання послідовностей дає
+	вправа<SPACE/><REF NAME="ex:analyze-sequence"/>.</FOOTNOTE> Кожен
+	    вираз
+	в послідовності проаналізовано, і це дає виконавчу
+	процедуру. Ці виконавчі
+	процедури поєднують, щоб отримати виконавчу
+	процедуру,
+	яка бере середовище як аргумент і послідовно
+	викликає кожну окрему виконавчу
+	процедуру з цим середовищем як аргументом.
+	<SNIPPET EVAL="no">
+	  <NAME>analyze_sequence</NAME>
+	  <SCHEME>
+(define (analyze-sequence exps)
+  (define (sequentially proc1 proc2)
+    (lambda (env) (proc1 env) (proc2 env)))
+  (define (loop first-proc rest-procs)
+    (if (null? rest-procs)
+        first-proc
+        (loop (sequentially first-proc (car rest-procs))
+              (cdr rest-procs))))
+  (let ((procs (map analyze exps)))
+    (if (null? procs)
+        (error "Empty sequence - - ANALYZE"))
+        (loop (car procs) (cdr procs))))
+	  </SCHEME>
+	</SNIPPET>
+      </TEXT>
+
+      <TEXT>
+	Щоб проаналізувати застосування, ми аналізуємо
+	оператор та операнди
+	і будуємо виконавчу
+	процедуру,
+	яка викликає
+	виконавчу функцію оператора
+	(щоб отримати власне
+	процедуру,
+	яку треба застосувати) та виконавчі
+	процедури
+	операндів
+	(щоб отримати власне аргументи).  Потім ми передаємо їх до
+	<SCHEMEINLINE>execute-application</SCHEMEINLINE>,
+	яка є аналогом <SCHEMEINLINE>apply</SCHEMEINLINE> з
+	підрозділу<SPACE/><REF NAME="sec:core-of-evaluator"/>.
+	<SCHEMEINLINE>Execute-application</SCHEMEINLINE>
+	відрізняється від <SCHEMEINLINE>apply</SCHEMEINLINE> тим, що
+	тіло процедури
+	для складеної
+	процедури
+	вже проаналізовано, тож немає потреби робити подальший аналіз.
+	Натомість ми просто викликаємо виконавчу
+	процедуру
+	для тіла в розширеному середовищі.
+      <SNIPPET EVAL="no">
+	<INDEX><DECLARATION>execute-application</DECLARATION><SUBINDEX>metacircular</SUBINDEX></INDEX>
+	<NAME>analyze_application</NAME>
+	<SCHEME>
+(define (analyze-application exp)
+  (let ((fproc (analyze (operator exp)))
+        (aprocs (map analyze (operands exp))))
+    (lambda (env)
+      (execute-application (fproc env)
+                           (map (lambda (aproc) (aproc env))
+                                aprocs)))))
+
+(define (execute-application proc args)
+  (cond ((primitive-procedure? proc)
+         (apply-primitive-procedure proc args))
+        ((compound-procedure? proc)
+         ((procedure-body proc)
+          (extend-environment (procedure-parameters proc)
+                              args
+                              (procedure-environment proc))))
+        (else
+         (error
+          "Unknown procedure type - - EXECUTE-APPLICATION"
+          proc))))
+	</SCHEME>
+      </SNIPPET>
+      </TEXT>
+    </SCHEME>
+  </SPLIT>
+  <TEXT>
+    Наш новий обчислювач використовує ті самі структури даних, синтаксичні
+    <SPLITINLINE>
+      <SCHEME>процедури,</SCHEME>
+      <PYTHON>функції,</PYTHON>
+    </SPLITINLINE>
+    та
+    <SPLITINLINE>
+      <SCHEME>процедури підтримки часу виконання</SCHEME>
+      <PYTHON>функції підтримки часу виконання</PYTHON>
+    </SPLITINLINE>
+    , що й у підрозділах<SPACE/><REF NAME="sec:representing-expressions"/>,
+    <SPACE/><REF NAME="sec:eval-data-structures"/>
+    та<SPACE/><REF NAME="sec:running-eval"/>.
+  </TEXT>
+  <INDEX><USE>analyze_...</USE><SUBINDEX>метамовний</SUBINDEX><CLOSE/></INDEX>
+  <EXERCISE>
+    <SPLIT>
+      <SCHEME>
+	Розширте обчислювач із цього підрозділу так, щоб він підтримував спеціальну форму
+	<INDEX>аналізувальний обчислювач<SUBINDEX><ORDER>let</ORDER><SCHEMEINLINE>let</SCHEMEINLINE></SUBINDEX></INDEX>
+	<SCHEMEINLINE>let</SCHEMEINLINE>. (Див.
+	вправу<SPACE/><REF NAME="ex:implement-let"/>.)
+	<LABEL NAME="ex:implement-analyze-let"/>
+    </SCHEME>
+    <PYTHON>
+      Розширте обчислювач із цього підрозділу так, щоб він підтримував
+      <INDEX>цикл while<SUBINDEX><ORDER>analyzing</ORDER>реалізація в аналізувальному обчислювачі</SUBINDEX></INDEX>
+      цикли while.
+	(Див. вправу<SPACE/><REF NAME="ex:while_loop"/>.)
+    </PYTHON>
+    </SPLIT>
+  </EXERCISE>
+
+  <EXERCISE>
+    Алісса П. Гакер не розуміє, чому
+    <INDEX><USE>analyze_...</USE><SUBINDEX>метамовний</SUBINDEX></INDEX>
+    <SPLITINLINE>
+      <SCHEME>
+	<SCHEMEINLINE>analyze-sequence</SCHEMEINLINE>
+      </SCHEME>
+      <PYTHON>
+	<PYTHONINLINE>analyze_sequence</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    має бути такою складною.  Усі інші аналізувальні
+    <SPLITINLINE>
+      <SCHEME>процедури</SCHEME>
+      <PYTHON>функції</PYTHON>
+    </SPLITINLINE>
+    — це прямі перетворення відповідних обчислювальних
+    <SPLITINLINE>
+      <SCHEME>процедур</SCHEME>
+      <PYTHON>функцій</PYTHON>
+    </SPLITINLINE>
+    (або
+    <SPLITINLINE>
+      <SCHEME>гілок <SCHEMEINLINE>eval</SCHEMEINLINE></SCHEME>
+      <PYTHON>гілок <PYTHONINLINE>evaluate</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    ) з
+    підрозділу<SPACE/><REF NAME="sec:core-of-evaluator"/>.
+    Вона очікувала, що
+    <SPLITINLINE>
+      <SCHEME>
+	<SCHEMEINLINE>analyze-sequence</SCHEMEINLINE>
+      </SCHEME>
+      <PYTHON>
+	<PYTHONINLINE>analyze_sequence</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    матиме такий вигляд:
+    <!-- 
+	 %***But note one drawback - - eval-sequence used first-exp/etc.
+	 %(the not-really-a-data-abstraction selectors), whereas this
+	 %has to use car/etc., so the match isn't perfectly clear.
+    -->
+    <SNIPPET>
+      <NAME>analyze_sequence_2</NAME>
+      <REQUIRES>map</REQUIRES>
+      <EXAMPLE>analyze_sequence_example</EXAMPLE>
+      <SCHEME>
+(define (analyze-sequence exps)
+  (define (execute-sequence procs env)
+      (cond ((null? (cdr procs)) ((car procs) env))
+            (else ((car procs) env)
+                  (execute-sequence (cdr procs) env))))
+  (let ((procs (map analyze exps)))
+    (if (null? procs)
+        (error "Empty sequence - - ANALYZE"))
+        (lambda (env) (execute-sequence procs env))))
+      </SCHEME>
+      <PYTHON>
+def analyze_sequence(stmts):
+    def execute_sequence(funs, env):
+        if is_none(funs):
+            return None
+        elif is_none(tail(funs)):
+            return head(funs)(env)
+        else:
+            head_val = head(funs)(env)
+            return head_val if is_return_value(head_val) else execute_sequence(tail(funs), env)
+    funs = map(analyze, stmts)
+    return lambda env: (execute_sequence(funs, env))
+</PYTHON>
+    </SNIPPET>
+    Єва Лу Атор пояснює Аліссі, що версія з тексту виконує більшу
+    частину роботи з обчислення послідовності під час аналізу. Аліссина
+    <SPLITINLINE>
+      <SCHEME>процедура виконання послідовності,
+      </SCHEME>
+      <PYTHON>
+	функція виконання послідовності,
+      </PYTHON>
+    </SPLITINLINE>
+    замість того щоб мати виклики окремих виконавчих
+    <SPLITINLINE>
+      <SCHEME>процедур</SCHEME>
+      <PYTHON>функцій</PYTHON>
+    </SPLITINLINE>
+    вбудованими, проходить у циклі
+    <SPLITINLINE>
+      <SCHEME>процедури</SCHEME>
+      <PYTHON>функції</PYTHON>
+    </SPLITINLINE>
+    , щоб викликати їх: по суті, хоч окремі
+    <SPLITINLINE>
+      <SCHEME>вирази</SCHEME>
+      <PYTHON>інструкції</PYTHON>
+    </SPLITINLINE>
+    в послідовності проаналізовано, саму послідовність — ні.
+    <P/>
+    Порівняйте дві версії
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>analyze-sequence</SCHEMEINLINE>.
+      </SCHEME>
+      <PYTHON>
+	<PYTHONINLINE>analyze_sequence</PYTHONINLINE>.
+      </PYTHON>
+    </SPLITINLINE>
+    Наприклад, розгляньмо поширений випадок (типовий для
+    <SPLITINLINE>
+      <SCHEME>тіл процедур</SCHEME>
+      <PYTHON>тіл функцій</PYTHON>
+    </SPLITINLINE>
+    ), коли послідовність містить лише один
+    <SPLITINLINE>
+      <SCHEME>вираз.</SCHEME>
+      <PYTHON>інструкцію.</PYTHON>
+    </SPLITINLINE>
+    Яку роботу виконуватиме виконавча
+    <SPLITINLINE>
+      <SCHEME>процедура</SCHEME>
+      <PYTHON>функція</PYTHON>
+    </SPLITINLINE>
+    , породжена Аліссиною програмою?  А як щодо виконавчої
+    <SPLITINLINE>
+      <SCHEME>процедури</SCHEME>
+      <PYTHON>функції</PYTHON>
+    </SPLITINLINE>
+    , породженої програмою з тексту вище?  Як ці дві версії різняться
+    для послідовності з двох виразів?
+    <LABEL NAME="ex:analyze-sequence"/>
+  </EXERCISE>
+  
+  <EXERCISE>
+    <LABEL NAME="ex:meta_speed"/>
+    Придумайте й виконайте деякі експерименти, щоб порівняти швидкість початкового
+    метамовного обчислювача з версією з цього підрозділу.  Скористайтеся своїми результатами,
+    щоб оцінити частку часу, яку витрачають на аналіз проти виконання
+    для різних
+    <SPLITINLINE>
+      <SCHEME>процедур.</SCHEME>
+      <PYTHON>функцій.</PYTHON>
+    </SPLITINLINE>
+  </EXERCISE>
+
+  <INDEX>синтаксичний аналіз, відокремлений від виконання<SUBINDEX>у метамовному обчислювачі<CLOSE/></SUBINDEX></INDEX>
+  <INDEX>аналізувальний обчислювач<CLOSE/></INDEX>
+  <INDEX>метамовний обчислювач для Python<SUBINDEX>аналізувальна версія<CLOSE/></SUBINDEX></INDEX>
+
+
+  <!-- test cases -->
+
+  <SNIPPET HIDE="yes">
+    <NAME>parse_and_evaluate_4_1_7</NAME>
+    <REQUIRES>evaluate_4_1_7</REQUIRES>
+    <PYTHON>
+def parse_and_evaluate(input):
+    program = parse(input)
+    locals = scan_out_declarations(program)
+    unassigneds = list_of_unassigned(locals)
+    program_env = extend_environment(locals, unassigneds, the_global_environment)
+    return evaluate(program, program_env)
+</PYTHON>
+  </SNIPPET>
+  
+  <SNIPPET HIDE="yes">
+    <NAME>evaluate_4_1_7_test_factorial</NAME>
+    <REQUIRES>parse_and_evaluate_4_1_7</REQUIRES>
+    <EXPECTED>120</EXPECTED>
+    <PYTHON>
+parse_and_evaluate("""
+def factorial(n):
+    return 1 if n == 1 else n * factorial(n - 1)
+factorial(5)
+""")
+    </PYTHON>
+  </SNIPPET>
+  <SNIPPET HIDE="yes">
+    <NAME>evaluate_4_1_7_test_append</NAME>
+    <REQUIRES>append</REQUIRES>
+    <REQUIRES>parse_and_evaluate_4_1_7</REQUIRES>
+    <EXPECTED>[ 'b', [ 'c', [ 'd', None ] ] ]</EXPECTED>
+    <PYTHON>
+parse_and_evaluate("""
+def append(xs, ys):
+    return ys if is_null(xs) else pair(head(xs), append(tail(xs), ys))
+tail(append(list("a", "b"), list("c", "d")))
+""")
+    </PYTHON>
+  </SNIPPET>
+  <SNIPPET HIDE="yes">
+    <NAME>evaluate_4_1_7_test_map</NAME>
+    <REQUIRES>map</REQUIRES>
+    <REQUIRES>parse_and_evaluate_4_1_7</REQUIRES>
+    <EXPECTED>[ 3, [ 4, [ 5, None ] ] ]</EXPECTED>
+    <PYTHON>
+parse_and_evaluate("""
+def map(f, xs):
+    return None if is_null(xs) else pair(f(head(xs)), map(f, tail(xs)))
+tail(map(lambda x: x + 1, list(1, 2, 3, 4)))
+""")
+    </PYTHON>
+  </SNIPPET>
+
+  
+</SUBSECTION>

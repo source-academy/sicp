@@ -49,6 +49,10 @@ For each chapter there are two files:
 * `sicpy_notes_chapter<N>.ex`, an Elixir module (`Cadet.Chatbot.SicpyNotesWithIndex.Chapter<N>`) with one `@summary_<section>` module attribute per section/subsection. Each is an original bullet-point summary of that section, followed by a "Key terms" line drawn from the book's own back-of-book index.
 * `sicpy_index_terms_chapter<N>.json`, a term-to-section-numbers lookup built from the same index entries, for keyword-based retrieval alongside embedding-based search.
 
+## Translations
+
+Ukrainian translation of the SICPy sources is in progress under [`i18n/`](i18n) (workflow, tooling, style guide and glossary in [`i18n/README.md`](i18n/README.md)); it is not built or published yet.
+
 ## Testing the example programs
 
 Each edition's example programs (`programs_js` / `programs_py` / `programs_scm`) can be tested automatically against their expected outputs, via `scripts/test.js`. CI (`.github/workflows/ci.yml`) runs all three on every push/PR; only SICPy chapters 1–3 against CPython are a required check today (see below) — everything else runs informationally (`continue-on-error`), either because the interpreter itself is unproven infrastructure (native JS, Scheme) or because the content isn't finished yet (SICPy chapters 4–5, py-slang).

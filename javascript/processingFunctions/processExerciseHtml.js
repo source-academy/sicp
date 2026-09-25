@@ -1,6 +1,7 @@
 import { recursiveProcessTextHtml } from "../parseXmlHtml";
 import { missingExerciseWarning } from "./warnings.js";
 import { referenceStore } from "./processReferenceHtml";
+import { ui } from "../uiStrings.js";
 
 let unlabeledEx = 0;
 const processExerciseHtml = (node, writeTo, chapArrIndex, exercise_count) => {
@@ -24,7 +25,7 @@ const processExerciseHtml = (node, writeTo, chapArrIndex, exercise_count) => {
 
   writeTo.push(`
     <div class="permalink">
-    <a name="ex_${displayName}" class="permalink"></a><EXERCISE><b><a class="exercise-number permalink" id="ex_${displayName}">Exercise ${displayName} </a></b> 
+    <a name="ex_${displayName}" class="permalink"></a><EXERCISE><b><a class="exercise-number permalink" id="ex_${displayName}">${ui("exercise")} ${displayName} </a></b> 
   `);
 
   recursiveProcessTextHtml(node.firstChild, writeTo);
@@ -32,7 +33,7 @@ const processExerciseHtml = (node, writeTo, chapArrIndex, exercise_count) => {
   if (solution) {
     writeTo.push(`
       <div class="Solution">
-      <div class="solution_btn"><button class="btn btn-secondary solution_btn" href="#solution_${chapArrIndex}_${exercise_count}_div" data-toggle="collapse">Solution</button></div>
+      <div class="solution_btn"><button class="btn btn-secondary solution_btn" href="#solution_${chapArrIndex}_${exercise_count}_div" data-toggle="collapse">${ui("solution")}</button></div>
       <div class="solution_content collapse" id="solution_${chapArrIndex}_${exercise_count}_div"><SOLUTION>
     `);
     recursiveProcessTextHtml(solution.firstChild, writeTo);

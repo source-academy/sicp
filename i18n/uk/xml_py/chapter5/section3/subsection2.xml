@@ -1,0 +1,1905 @@
+<SUBSECTION>
+  <NAME>
+    Підтримання ілюзії нескінченної пам’яті
+  </NAME>
+
+  <LABEL NAME="sec:gc"/>
+  
+  <INDEX>збирання сміття<OPEN/></INDEX>
+
+  <TEXT>
+    Описаний у
+    підрозділі<SPACE/><REF NAME="sec:memory-as-vectors"/> метод подання розв’язує задачу
+    реалізації спискової структури, якщо ми маємо нескінченний обсяг
+    пам’яті. На справжньому комп’ютері ми зрештою вичерпаємо вільний простір, у
+    якому можна будувати нові пари.<FOOTNOTE>Зрештою це, можливо, й не так,
+    бо пам’ять може стати настільки великою, що вичерпати вільну пам’ять
+    за час роботи комп’ютера було б неможливо.  Наприклад, у році близько
+    <SPLITINLINE>
+      <SCHEME>
+        <LATEXINLINE>$3\times 10^{13}$ microseconds</LATEXINLINE>
+      </SCHEME>
+      <PYTHON>
+        <LATEXINLINE>$3\times 10^{16}$ nanoseconds</LATEXINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    тож якби ми виконували
+    <SPLITINLINE>
+      <SCHEME>
+      <SCHEMEINLINE>cons</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>pair</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    раз на
+    <SPLITINLINE>
+      <SCHEME>
+        <LATEXINLINE>microsecond</LATEXINLINE>
+      </SCHEME>
+      <PYTHON>
+        <LATEXINLINE>nanosecond</LATEXINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    нам знадобилося б близько
+    <SPLITINLINE>
+      <SCHEME>
+        <LATEXINLINE>$10^{15}$</LATEXINLINE>
+      </SCHEME>
+      <PYTHON>
+        <LATEXINLINE>$10^{18}$</LATEXINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    комірок пам’яті, щоб побудувати машину,
+    яка могла б працювати 30 років, не вичерпавши пам’ять.  За сьогоднішніми
+    мірками така пам’ять здається абсурдно великою, але вона не є
+    фізично неможливою.  З іншого боку, процесори стають швидшими, і
+    <SPLITINLINE>
+      <SCHEME>
+        майбутній комп’ютер може мати
+      </SCHEME>
+      <PYTHON>
+        сучасні комп’ютери мають дедалі
+      </PYTHON>
+    </SPLITINLINE>
+    більшу кількість процесорів, які працюють
+    паралельно з однією пам’яттю, тож вичерпати пам’ять можна буде, ймовірно, значно
+    швидше, ніж ми припустили.</FOOTNOTE> Однак більшість пар,
+    породжених у типовому обчисленні, використовують лише для зберігання проміжних
+    результатів.  Після того як до цих
+    результатів звернулися, пари більше не потрібні<EMDASH/>це <EM>
+    сміття</EM>.  Наприклад, обчислення
+    <SNIPPET EVAL="no">
+      <SCHEME>
+(accumulate + 0 (filter odd? (enumerate-interval 0 n)))
+      </SCHEME>
+      <PYTHON>
+reduce((x, y) => x + y,
+       0,
+       filter(is_odd, enumerate_interval(0, n)))
+      </PYTHON>
+    </SNIPPET>
+    будує два списки: перелік і результат фільтрування
+    цього переліку.  Коли накопичення завершено, ці списки
+    більше не потрібні, і виділену пам’ять можна повернути.  Якщо ми
+    зможемо періодично збирати все сміття, і якщо це
+    повертатиме пам’ять приблизно з тією самою швидкістю, з якою ми будуємо нові
+    пари, ми збережемо ілюзію, що пам’яті
+    нескінченний обсяг.
+  </TEXT>
+
+  <TEXT>
+    Щоб повертати пам’ять, зайняту парами, нам потрібен спосіб визначати, які
+    виділені пари не потрібні (у тому сенсі, що їхній вміст уже
+    не може вплинути на майбутнє обчислення).  Метод, який ми
+    розглянемо для цього, відомий як <EM>збирання
+    сміття</EM>. Збирання сміття ґрунтується на спостереженні, що в
+    будь-який момент
+    <SPLITINLINE>
+      <SCHEME>інтерпретації програми Lisp</SCHEME>
+      <PYTHON>інтерпретації, заснованої на пам’яті зі списковою структурою,</PYTHON>
+    </SPLITINLINE>
+    єдині об’єкти, які можуть
+    вплинути на майбутнє обчислення, — це ті, до яких можна дістатися
+    якоюсь послідовністю операцій
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>car</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>head</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    і
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>cdr</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>tail</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    , починаючи з вказівників, які зараз лежать у машинних
+    регістрах.<FOOTNOTE>Тут ми припускаємо, що стек подано як список,
+    як описано в підрозділі<SPACE/><REF NAME="sec:memory-as-vectors"/>, тож
+    елементи на стеку доступні через вказівник у регістрі
+    стека.</FOOTNOTE>  Будь-яку комірку пам’яті, недоступну в такий спосіб, можна
+    повернути для повторного використання.
+  </TEXT>
+
+  <TEXT>
+    Є багато способів виконувати збирання сміття.  Метод, який ми
+    розглянемо тут, називають
+    <INDEX>збирач сміття «зупини й копіюй»<OPEN/></INDEX>
+    <INDEX>збирач сміття<SUBINDEX>«зупини й копіюй»<OPEN/></SUBINDEX></INDEX>
+    <EM>«зупини й копіюй»</EM>.  Основна ідея — поділити пам’ять на дві
+    половини: <QUOTE>робочу пам’ять</QUOTE> і <QUOTE>вільну пам’ять.</QUOTE>  Коли
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>cons</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>pair</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    будує пари, він виділяє їх у робочій пам’яті.  Коли робоча пам’ять
+    заповнюється, ми виконуємо збирання сміття, знаходячи всі потрібні пари в
+    робочій пам’яті й копіюючи їх у послідовні розташування вільної пам’яті.
+    (Потрібні пари знаходять, простежуючи всі вказівники
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>car</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>head</PYTHONINLINE></PYTHON>
+    </SPLITINLINE
+    > і
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>cdr</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>tail</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    , починаючи з машинних регістрів.)  Оскільки ми не копіюємо
+    сміття, залишиться, найпевніше, додаткова вільна пам’ять, яку ми можемо
+    використати, щоб виділяти нові пари.  Крім того, нічого в робочій пам’яті
+    не потрібно, бо всі потрібні пари з неї скопійовано.  Отже,
+    якщо ми обміняємо ролі робочої пам’яті й вільної пам’яті, ми можемо
+    продовжити обробку; нові пари виділятимуть у новій робочій
+    пам’яті (яка була старою вільною пам’яттю).  Коли вона заповниться, ми можемо
+    скопіювати потрібні пари в нову вільну пам’ять (яка була старою
+    робочою пам’яттю).<FOOTNOTE>Цю ідею винайшов і вперше реалізував
+    <INDEX>Minsky, Marvin Lee</INDEX>
+    Мінскі, як частину реалізації
+    <INDEX>Lisp<SUBINDEX><ORDER>DEC</ORDER>на DEC PDP-1</SUBINDEX></INDEX>
+    Lisp для PDP-1 у
+    <INDEX>MIT<SUBINDEX>Дослідницька лабораторія електроніки</SUBINDEX></INDEX>
+    дослідницькій лабораторії електроніки MIT.  Її далі розвинули
+    <INDEX>Fenichel, Robert</INDEX>
+    <INDEX>Yochelson, Jerome C.</INDEX>
+    Фенічел і Йохельсон (1969) для використання в реалізації Lisp для
+    <INDEX>Multics time-sharing system</INDEX>
+    системи розподілу часу Multics.  Пізніше
+    <INDEX>Baker, Henry G., Jr.</INDEX>
+    Бейкер (1978) розробив <QUOTE>реальний час</QUOTE>-версію цього методу,
+    яка не вимагає зупиняти обчислення під час збирання сміття.
+    Ідею Бейкера розширили
+    <INDEX>Hewitt, Carl Eddie</INDEX>
+    Гевітт,
+    <INDEX>Lieberman, Henry</INDEX>
+    Ліберман і
+    <INDEX>Moon, David A.</INDEX>
+    Мун (див. Lieberman and Hewitt 1983), щоб
+    скористатися тим, що одна структура є більш плинною,
+    а інша — більш постійною.  
+    <P/>
+    Інша поширена техніка збирання сміття — це метод
+    <INDEX>збирач сміття «познач і змітай»</INDEX>
+    <INDEX>збирач сміття<SUBINDEX>«познач і змітай»</SUBINDEX></INDEX>
+    <EM>«познач і змітай»</EM>. Він полягає в простежуванні всієї структури,
+    доступної з машинних регістрів, і позначенні кожної пари, до якої ми дісталися.
+    Далі ми скануємо всю пам’ять, і будь-яке непозначене розташування
+    <QUOTE>змітають</QUOTE> як сміття й роблять доступним для повторного використання.  Повне
+    обговорення методу «познач і змітай» можна знайти в
+    <INDEX>Allen, John</INDEX>
+    <CITATION NAME="ALL78">Allen 1978</CITATION>.
+    <P/>
+    Алгоритм Мінскі — Фенічела — Йохельсона домінує серед
+    алгоритмів, які використовують у системах з великою пам’яттю, бо він досліджує лише потрібну частину
+    пам’яті.  Це відрізняє його від методу «познач і змітай», у якому фаза змітання
+    мусить перевірити всю пам’ять.  Друга перевага методу «зупини й копіюй»
+    у тому, що це
+    <INDEX>ущільнювальний збирач сміття</INDEX>
+    <INDEX>збирач сміття<SUBINDEX>ущільнювальний</SUBINDEX></INDEX>
+    <EM>ущільнювальний</EM> збирач сміття.  Тобто в
+    кінці фази збирання сміття потрібні дані буде
+    переміщено в послідовні розташування пам’яті, а все сміття
+    стиснуто.  Це може бути надзвичайно важливим міркуванням
+    продуктивності в машинах із віртуальною пам’яттю, у яких звернення до
+    далеко рознесених адрес пам’яті можуть вимагати додаткових операцій
+    підкачки.</FOOTNOTE>
+  </TEXT>
+
+  <SUBHEADING> 
+    <NAME>Реалізація збирача сміття «зупини й копіюй»</NAME>
+  </SUBHEADING>
+
+  <TEXT>
+    Тепер ми скористаємося мовою регістрових машин, щоб детальніше описати
+    алгоритм «зупини й копіюй».  Ми припустимо, що є регістр
+    з назвою
+    <INDEX><USE>root</USE> регістр</INDEX>
+    <SCHEMEINLINE>root</SCHEMEINLINE>, який містить вказівник на структуру,
+    яка зрештою вказує на всі доступні дані.  Цього можна досягти,
+    зберігши вміст усіх машинних регістрів у заздалегідь виділеному списку,
+    на який вказує <SCHEMEINLINE>root</SCHEMEINLINE>, безпосередньо перед початком
+    збирання сміття.<FOOTNOTE>Цей список
+    регістрів не
+    включає
+    регістри, які використовує система
+    <SPLITINLINE>
+      <SCHEME>
+	виділення пам’яті<EMDASH/><SCHEMEINLINE>root</SCHEMEINLINE>,
+      </SCHEME>
+      <PYTHON>
+	виділення пам’яті: <SCHEMEINLINE>root</SCHEMEINLINE>,
+      </PYTHON>
+    </SPLITINLINE>
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>the-cars</SCHEMEINLINE>,</SCHEME>
+      <PYTHON><PYTHONINLINE>the_heads</PYTHONINLINE>,</PYTHON>
+    </SPLITINLINE>
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>the-cdrs</SCHEMEINLINE>,</SCHEME>
+      <PYTHON><PYTHONINLINE>the_tails</PYTHONINLINE>,</PYTHON>
+    </SPLITINLINE>
+    та інші регістри, які ми введемо в цьому підрозділі.</FOOTNOTE>
+    Ми також припускаємо, що, крім поточної робочої пам’яті, є
+    вільна пам’ять, у яку ми можемо скопіювати потрібні дані.  Поточна
+    робоча пам’ять складається з векторів, базові адреси яких містяться в
+    регістрах з назвами
+    <INDEX><USE>the_heads</USE><SUBINDEX>регістр</SUBINDEX></INDEX>
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>the-cars</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>the_heads</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    і
+    <INDEX><USE>the_tails</USE><SUBINDEX>регістр</SUBINDEX></INDEX>
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>the-cdrs</SCHEMEINLINE>,</SCHEME>
+      <PYTHON><PYTHONINLINE>the_tails</PYTHONINLINE>,</PYTHON>
+    </SPLITINLINE>
+    а вільна пам’ять — у регістрах з назвами
+    <INDEX><USE>new_heads</USE> регістр</INDEX>
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>new-cars</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>new_heads</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    і
+    <INDEX><USE>new_tails</USE> регістр</INDEX>
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>new-cdrs</SCHEMEINLINE>.</SCHEME>
+      <PYTHON><PYTHONINLINE>new_tails</PYTHONINLINE>.</PYTHON>
+    </SPLITINLINE>
+  </TEXT>
+
+  <TEXT>
+    Збирання сміття запускають, коли вичерпано вільні комірки в
+    поточній робочій пам’яті, тобто коли операція
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>cons</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>pair</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    намагається інкрементувати вказівник <SCHEMEINLINE>free</SCHEMEINLINE>
+    за межі вектора пам’яті.  Коли процес збирання сміття
+    завершено, вказівник <SCHEMEINLINE>root</SCHEMEINLINE> вказуватиме
+    в нову пам’ять, усі об’єкти, доступні з
+    <SCHEMEINLINE>root</SCHEMEINLINE>, буде переміщено в нову пам’ять,
+    а вказівник <SCHEMEINLINE>free</SCHEMEINLINE> вказуватиме наступне
+    місце в новій пам’яті, де можна виділити нову пару.  Крім того,
+    ролі робочої пам’яті та нової пам’яті буде
+    обміняно<EMDASH/>нові пари будуватимуть у новій пам’яті,
+    починаючи з місця, на яке вказує <SCHEMEINLINE>free</SCHEMEINLINE>, а
+    (попередня) робоча пам’ять буде доступна як нова пам’ять для
+    наступного збирання сміття.
+    <SPLITINLINE>
+      <SCHEME>На рисунку<SPACE/><REF NAME="fig:memory-reconfig_scheme"/></SCHEME>
+      <PYTHON>На рисунку<SPACE/><REF NAME="fig:memory-reconfig"/></PYTHON>
+    </SPLITINLINE>
+    показано розташування пам’яті безпосередньо перед і безпосередньо після
+    збирання сміття.
+    <SPLIT>
+      <SCHEME>
+	<FIGURE web_scale="0.9" src="img_original/Fig5.15c.std.svg">
+          <CAPTION>
+	    Переконфігурація пам’яті в процесі збирання сміття.
+	  </CAPTION>
+          <LABEL NAME="fig:memory-reconfig_scheme"/>
+	</FIGURE>
+      </SCHEME>
+      <PYTHON>
+	<FIGURE>
+	  <FIGURE web_scale="0.9" src="img_javascript/Fig5.15c.std.svg"/>
+          <CAPTION>
+	    Переконфігурація пам’яті в процесі збирання сміття.
+	  </CAPTION>
+          <LABEL NAME="fig:memory-reconfig"/>
+	</FIGURE>
+      </PYTHON>
+    </SPLIT>
+  </TEXT>
+
+  <TEXT>
+    Станом процесу збирання сміття керують,
+    підтримуючи два вказівники:
+    <INDEX><USE>free</USE> регістр</INDEX>
+    <SCHEMEINLINE>free</SCHEMEINLINE> і
+    <INDEX><USE>scan</USE> регістр</INDEX>
+    <SCHEMEINLINE>scan</SCHEMEINLINE>.  Їх ініціалізують так, щоб вони вказували на
+    початок нової пам’яті.  Алгоритм починається з переміщення пари,
+    на яку вказує <SCHEMEINLINE>root</SCHEMEINLINE>, на початок нової
+    пам’яті.  Пару копіюють, вказівник <SCHEMEINLINE>root</SCHEMEINLINE>
+    зсувають так, щоб він вказував на нове розташування, а вказівник
+    <SCHEMEINLINE>free</SCHEMEINLINE> інкрементують.  Крім того,
+    старе розташування пари позначають, щоб показати, що її вміст
+    переміщено.  Це позначення роблять так: у позиції
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>car</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>head</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    ми кладемо спеціальний тег, який сигналізує, що це вже переміщений
+    об’єкт.  (Такий об’єкт традиційно називають
+    <INDEX>розбите серце</INDEX>
+    <EM>розбитим серцем</EM>.)<FOOTNOTE>Термін
+    <EM>розбите серце</EM> придумав
+    <INDEX>Cressey, David</INDEX>
+    Девід Кресі, який написав збирач сміття
+    для
+    <INDEX>MDL</INDEX>
+    <INDEX>Lisp<SUBINDEX>діалект MDL</SUBINDEX></INDEX>
+    MDL, діалекту Lisp, розробленого в MIT на початку 1970-х років.</FOOTNOTE>
+    У позиції
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>cdr</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>tail</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    ми кладемо
+    <INDEX>адреса пересилання</INDEX>
+    <EM>адресу пересилання</EM>, яка вказує на розташування, куди переміщено
+    об’єкт.
+  </TEXT>
+
+  <TEXT>
+    Перемістивши корінь, збирач сміття входить у свій основний
+    цикл.  На кожному кроці алгоритму вказівник
+    <SCHEMEINLINE>scan</SCHEMEINLINE>
+    (який спочатку вказує на переміщений корінь) вказує на пару, яку
+    переміщено в нову пам’ять, але чиї вказівники
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>car</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>head</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    і
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>cdr</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>tail</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    усе ще посилаються на об’єкти в старій пам’яті.  Кожен із цих об’єктів
+    переміщують, а вказівник <SCHEMEINLINE>scan</SCHEMEINLINE> інкрементують.
+    Щоб перемістити об’єкт (наприклад, об’єкт, на який вказує
+    вказівник
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>car</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>head</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    пари, яку ми скануємо), ми перевіряємо, чи об’єкт уже
+    переміщено (що видно з наявності тега розбитого серця
+    в позиції
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>car</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>head</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    об’єкта).  Якщо об’єкт ще не
+    переміщено, ми копіюємо його в місце, на яке вказує
+    <SCHEMEINLINE>free</SCHEMEINLINE>,
+    оновлюємо <SCHEMEINLINE>free</SCHEMEINLINE>, ставимо розбите серце на
+    старому розташуванні об’єкта й оновлюємо вказівник на об’єкт (у цьому
+    прикладі — вказівник
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>car</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>head</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    пари, яку ми скануємо) так, щоб він вказував
+    на нове розташування.  Якщо об’єкт уже переміщено, його
+    адресу пересилання (знайдену в позиції
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>cdr</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>tail</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    розбитого серця) підставляють замість вказівника в парі,
+    яку сканують. Зрештою всі доступні об’єкти буде переміщено й
+    проскановано, і тоді вказівник <SCHEMEINLINE>scan</SCHEMEINLINE>
+    наздожене вказівник <SCHEMEINLINE>free</SCHEMEINLINE>, а процес
+    завершиться.
+  </TEXT>
+  
+  <TEXT>
+    Ми можемо задати алгоритм «зупини й копіюй» як послідовність інструкцій для
+    регістрової машини.  Основний крок переміщення об’єкта виконує
+    підпрограма «
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>relocate-old-result-in-new</SCHEMEINLINE>».</SCHEME>
+      <PYTHON>
+	<PYTHONINLINE>relocate_old_result_in_new</PYTHONINLINE>».
+      </PYTHON>
+    </SPLITINLINE>
+    Ця підпрограма бере свій аргумент — вказівник на об’єкт, який треба перемістити, —
+    з регістра з назвою
+    <INDEX><USE>old</USE> регістр</INDEX>
+    <SCHEMEINLINE>old</SCHEMEINLINE>.  Вона переміщує заданий об’єкт
+    (інкрементуючи в процесі <SCHEMEINLINE>free</SCHEMEINLINE>),
+    кладе вказівник на переміщений об’єкт у регістр з назвою
+    <INDEX><USE>new</USE> регістр</INDEX>
+    <SCHEMEINLINE>new</SCHEMEINLINE> і повертається, перейшовши до точки входу,
+    збереженої в регістрі
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>relocate-continue</SCHEMEINLINE>.</SCHEME>
+      <PYTHON><PYTHONINLINE>relocate_continue</PYTHONINLINE>.
+      </PYTHON>
+    </SPLITINLINE>
+    Щоб почати збирання сміття, ми викликаємо цю підпрограму, щоб перемістити
+    вказівник <SCHEMEINLINE>root</SCHEMEINLINE>, попередньо ініціалізувавши
+    <SCHEMEINLINE>free</SCHEMEINLINE> і <SCHEMEINLINE>scan</SCHEMEINLINE>.
+    Коли переміщення <SCHEMEINLINE>root</SCHEMEINLINE>
+    завершено, ми встановлюємо новий вказівник як новий
+    <SCHEMEINLINE>root</SCHEMEINLINE> і входимо в основний цикл збирача
+    сміття.
+    <SNIPPET EVAL="no">
+      <NAME>begin_garbage_collection</NAME>
+      <SCHEME>
+begin-garbage-collection
+  (assign free (const 0))
+  (assign scan (const 0))
+  (assign old (reg root))
+  (assign relocate-continue (label reassign-root))
+  (goto (label relocate-old-result-in-new))
+reassign-root
+  (assign root (reg new))
+  (goto (label gc-loop))
+      </SCHEME>
+      <PYTHON>
+"begin_garbage_collection",
+  assign("free", constant(0)),
+  assign("scan", constant(0)),
+  assign("old", reg("root")),
+  assign("relocate_continue", label("reassign_root")),
+  go_to(label("relocate_old_result_in_new")),
+"reassign_root",
+  assign("root", reg("new")),
+  go_to(label("gc_loop")),
+      </PYTHON>
+    </SNIPPET>
+  </TEXT>
+
+  <TEXT>
+    В основному циклі збирача сміття ми мусимо визначити, чи є ще
+    об’єкти для сканування.  Ми робимо це, перевіряючи,
+    чи вказівник <SCHEMEINLINE>scan</SCHEMEINLINE> збігається з
+    вказівником <SCHEMEINLINE>free</SCHEMEINLINE>.  Якщо вказівники рівні,
+    то всі доступні об’єкти переміщено, і ми переходимо до
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>gc-flip</SCHEMEINLINE>,</SCHEME>
+      <PYTHON><PYTHONINLINE>gc_flip</PYTHONINLINE>,</PYTHON>
+    </SPLITINLINE>
+    яка все прибирає, щоб ми могли продовжити перерване обчислення.
+    Якщо є ще пари для сканування, ми викликаємо підпрограму переміщення, щоб
+    перемістити
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>car</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>head</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    наступної пари (поклавши вказівник
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>car</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>head</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    у <SCHEMEINLINE>old</SCHEMEINLINE>).  Регістр
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>relocate-continue</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>relocate_continue</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    налаштовують так, щоб підпрограма повернулася й оновила вказівник
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>car</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>head</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    .
+    <SNIPPET EVAL="no">
+      <NAME>gc_loop</NAME>
+      <SCHEME>
+gc-loop
+  (test (op =) (reg scan) (reg free))
+  (branch (label gc-flip))
+  (assign old (op vector-ref) (reg new-cars) (reg scan))
+  (assign relocate-continue (label update-car))
+  (goto (label relocate-old-result-in-new))
+      </SCHEME>
+      <PYTHON>
+"gc_loop",
+  test(list(op("==="), reg("scan"), reg("free"))),
+  branch(label("gc_flip")),
+  assign("old", list(op("vector_ref"), reg("new_heads"), reg("scan"))),
+  assign("relocate_continue", label("update_head")),
+  go_to(label("relocate_old_result_in_new")),
+      </PYTHON>
+    </SNIPPET>
+  </TEXT>
+  
+  <TEXT>
+    На
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>update-car</SCHEMEINLINE>,</SCHEME>
+      <PYTHON><PYTHONINLINE>update_head</PYTHONINLINE>,</PYTHON>
+    </SPLITINLINE>
+    ми змінюємо вказівник
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>car</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>head</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    пари, яку скануємо, а потім переходимо до переміщення
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>cdr</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>tail</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    цієї пари.  Ми повертаємося до
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>update-cdr</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>update_tail</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    , коли це переміщення завершено. Після переміщення й оновлення
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>cdr</SCHEMEINLINE>,</SCHEME>
+      <PYTHON><PYTHONINLINE>tail</PYTHONINLINE>,</PYTHON>
+    </SPLITINLINE>
+    ми закінчили сканування цієї пари, тож продовжуємо основний цикл.
+    <SNIPPET EVAL="no">
+      <NAME>update_head</NAME>
+      <SCHEME>
+update-car
+  (perform
+  (op vector-set!) (reg new-cars) (reg scan) (reg new))
+  (assign old (op vector-ref) (reg new-cdrs) (reg scan))
+  (assign relocate-continue (label update-cdr))
+  (goto (label relocate-old-result-in-new))
+
+update-cdr
+  (perform
+  (op vector-set!) (reg new-cdrs) (reg scan) (reg new))
+  (assign scan (op +) (reg scan) (const 1))
+  (goto (label gc-loop))
+      </SCHEME>
+      <PYTHON>
+"update_head",
+  perform(list(op("vector_set"), 
+               reg("new_heads"), reg("scan"), reg("new"))),
+  assign("old", list(op("vector_ref"), 
+                     reg("new_tails"), reg("scan"))),
+  assign("relocate_continue", label("update_tail")),
+  go_to(label("relocate_old_result_in_new")),
+
+"update_tail",
+  perform(list(op("vector_set"), 
+               reg("new_tails"), reg("scan"), reg("new"))),
+  assign("scan", list(op("+"), reg("scan"), constant(1))),
+  go_to(label("gc_loop")),
+      </PYTHON>
+    </SNIPPET>
+  </TEXT>
+
+  <TEXT>
+    Підпрограма
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>relocate-old-result-in-new</SCHEMEINLINE>
+      </SCHEME>
+      <PYTHON>
+	<PYTHONINLINE>relocate_old_result_in_new</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    переміщує об’єкти так: якщо об’єкт, який треба перемістити (на який вказує
+    <SCHEMEINLINE>old</SCHEMEINLINE>), не є парою, то ми повертаємо той самий
+    вказівник на об’єкт без змін (у <SCHEMEINLINE>new</SCHEMEINLINE>).
+    (Наприклад, ми можемо сканувати пару, чий
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>car</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>head</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    — це число 4.  Якщо ми подаємо
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>car</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>head</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    як <SCHEMEINLINE>n4</SCHEMEINLINE>, як описано в
+    підрозділі<SPACE/><REF NAME="sec:impl-list-ops"/>, то ми хочемо, щоб
+    <QUOTE>переміщений</QUOTE>
+    вказівник
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>car</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>head</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    усе ще був <SCHEMEINLINE>n4</SCHEMEINLINE>.)  Інакше ми
+    мусимо виконати переміщення.  Якщо позиція
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>car</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>head</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    пари, яку треба перемістити, містить тег розбитого серця, то
+    пару насправді вже переміщено, тож ми дістаємо адресу пересилання
+    (з позиції
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>cdr</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>tail</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    розбитого серця) і повертаємо її в
+    <SCHEMEINLINE>new</SCHEMEINLINE>. Якщо вказівник у
+    <SCHEMEINLINE>old</SCHEMEINLINE> указує на ще не переміщену пару, то ми переміщуємо
+    пару в першу вільну комірку нової пам’яті (на яку вказує
+    <SCHEMEINLINE>free</SCHEMEINLINE>) і ставимо розбите серце, зберігши
+    тег розбитого серця й адресу пересилання на старому розташуванні.
+    <SPLITINLINE>
+      <SCHEME>Relocate-old-result-in-new</SCHEME>
+      <PYTHON>The subroutine
+      <PYTHONINLINE>relocate_old_result_in_new</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    використовує регістр
+    <SPLITINLINE>
+      <SCHEME>
+	<INDEX><USE>oldcr</USE> регістр</INDEX>
+	<SCHEMEINLINE>oldcr</SCHEMEINLINE>
+      </SCHEME>
+      <PYTHON>
+	<INDEX><USE>oldht</USE> регістр</INDEX>
+	<PYTHONINLINE>oldht</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    щоб тримати
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>car</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>head</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    або
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>cdr</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>tail</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    об’єкта, на який вказує <SCHEMEINLINE>old</SCHEMEINLINE>.<FOOTNOTE>
+    Збирач сміття використовує низькорівневий предикат
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>pointer-to-pair?</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>is_pointer_to_pair</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    замість операції
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>pair?</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>is_pair</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    над списковою структурою, бо в справжній системі може бути різні речі,
+    які для цілей збирання сміття розглядають як пари.
+    Наприклад,
+    <SPLITINLINE>
+      <SCHEME>
+    у системі Scheme, яка відповідає стандарту IEEE,
+      </SCHEME>
+    </SPLITINLINE>
+    об’єкт-
+    <SPLITINLINE>
+      <SCHEME>
+	процедуру
+      </SCHEME>
+      <PYTHON>
+	      функцію
+      </PYTHON>
+    </SPLITINLINE>
+    може бути реалізовано як особливий різновид
+    <QUOTE>пари</QUOTE>, який не задовольняє
+    предикат
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>pair?</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>is_pair</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    .
+    Для цілей імітації
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>pointer-to-pair?</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>is_pointer_to_pair</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    можна реалізувати як
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>pair?</SCHEMEINLINE>.</SCHEME>
+      <PYTHON><PYTHONINLINE>is_pair</PYTHONINLINE>.</PYTHON>
+    </SPLITINLINE>
+  </FOOTNOTE>
+
+    <SNIPPET EVAL="no" LATEX="yes">
+      <NAME>relocate_old_result_in_new</NAME>
+      <SCHEME>
+relocate-old-result-in-new
+  (test (op pointer-to-pair?) (reg old))
+  (branch (label pair))
+  (assign new (reg old))
+  (goto (reg relocate-continue))
+pair
+  (assign oldcr (op vector-ref) (reg the-cars) (reg old))
+  (test (op broken-heart?) (reg oldcr))
+  (branch (label already-moved))
+  (assign new (reg free)) <EM>; new location for pair</EM>
+  <EM>;; Update free pointer.</EM>
+  (assign free (op +) (reg free) (const 1))
+  <EM>;; Copy the car and cdr to new memory.</EM>
+  (perform (op vector-set!)
+  (reg new-cars) (reg new) (reg oldcr))
+  (assign oldcr (op vector-ref) (reg the-cdrs) (reg old))
+  (perform (op vector-set!)
+  (reg new-cdrs) (reg new) (reg oldcr))
+  <EM>;; Construct the broken heart.</EM>
+  (perform (op vector-set!)
+  (reg the-cars) (reg old) (const broken-heart))
+  (perform
+  (op vector-set!) (reg the-cdrs) (reg old) (reg new))
+  (goto (reg relocate-continue))
+already-moved
+  (assign new (op vector-ref) (reg the-cdrs) (reg old))
+  (goto (reg relocate-continue))
+      </SCHEME>
+      <PYTHON>
+"relocate_old_result_in_new",
+  test(list(op("is_pointer_to_pair"), reg("old"))),
+  branch(label("pair")),
+  assign("new", reg("old")),
+  go_to(reg("relocate_continue")),
+"pair",
+  assign("oldht", list(op("vector_ref"), 
+                       reg("the_heads"), reg("old"))),
+  test(list(op("is_broken_heart"), reg("oldht"))),
+  branch(label("already_moved")),
+  assign("new", reg("free")),     // new location for pair
+  // Update $\texttt{free}$ pointer
+  assign("free", list(op("+"), reg("free"), constant(1))),
+  // Copy the head and tail to new memory
+  perform(list(op("vector_set"),
+               reg("new_heads"), reg("new"),
+               reg("oldht"))),
+  assign("oldht", list(op("vector_ref"), 
+                       reg("the_tails"), reg("old"))),
+  perform(list(op("vector_set"),
+               reg("new_tails"), reg("new"),
+               reg("oldht"))),
+  // Construct the broken heart
+  perform(list(op("vector_set"),
+               reg("the_heads"), reg("old"),
+               constant("broken_heart"))),
+  perform(list(op("vector_set"),
+               reg("the_tails"), reg("old"),
+               reg("new"))),
+  go_to(reg("relocate_continue")),
+"already_moved",
+  assign("new", list(op("vector_ref"), 
+                     reg("the_tails"), reg("old"))),
+  go_to(reg("relocate_continue")),
+      </PYTHON>
+    </SNIPPET>
+  </TEXT>
+
+  <TEXT>
+    У самому кінці процесу збирання сміття ми обмінюємо
+    ролі старої й нової пам’яті, обмінюючи вказівники: обмінюємо
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>the-cars</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>the_heads</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    з
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>new-cars</SCHEMEINLINE>,</SCHEME>
+      <PYTHON><PYTHONINLINE>new_heads</PYTHONINLINE>,</PYTHON>
+    </SPLITINLINE>
+    і
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>the-cdrs</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>the_tails</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    з
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>new-cdrs</SCHEMEINLINE>.</SCHEME>
+      <PYTHON><PYTHONINLINE>new_tails</PYTHONINLINE>.</PYTHON>
+    </SPLITINLINE>
+    Тоді ми будемо готові виконати наступне збирання
+    сміття, коли наступного разу вичерпається пам’ять.
+    <SNIPPET POSTPADDING="no">
+      <NAME>testing_5_3_2</NAME>
+      <REQUIRES>tagged_list</REQUIRES>
+      <REQUIRES>make_go_to</REQUIRES>
+      <REQUIRES>pop</REQUIRES>
+      <REQUIRES>lookup1</REQUIRES>
+      <REQUIRES>go_to_go_to_dest</REQUIRES>
+      <REQUIRES>make_register</REQUIRES>
+      <SCHEME>
+      gc-flip
+      (assign temp (reg the-cdrs))
+      (assign the-cdrs (reg new-cdrs))
+      (assign new-cdrs (reg temp))
+      (assign temp (reg the-cars))
+      (assign the-cars (reg new-cars))
+      (assign new-cars (reg temp))
+      </SCHEME>
+      <PYTHON_RUN>
+// TYPED POINTERS
+
+const NUMBER_TYPE = "number";
+const BOOL_TYPE = "bool";
+const STRING_TYPE = "string";
+const PTR_TYPE = "ptr";
+const PROG_TYPE = "prog";
+const NULL_TYPE = "null";
+const UNDEFINED_TYPE = "undefined";
+const NO_VALUE_YET_TYPE = "*unassigned*";
+const BROKEN_HEART_TYPE = "broken_heart";
+
+function make_ptr_ptr(idx) {
+    return pair(PTR_TYPE, idx);
+}
+
+function make_null_ptr() {
+    return pair(NULL_TYPE, null);
+}
+
+function make_no_value_yet_ptr() {
+    return pair(NO_VALUE_YET_TYPE, null);
+}
+
+function make_prog_ptr(idx) {
+    return pair(PROG_TYPE, idx);
+}
+
+function make_broken_heart_ptr() {
+    return pair(BROKEN_HEART_TYPE, null);
+}
+
+function get_elem_type(elem) {
+    return is_number(elem) ? NUMBER_TYPE :
+        is_boolean(elem) ? BOOL_TYPE :
+        is_string(elem) ? STRING_TYPE :
+        is_null(elem) ? NULL_TYPE :
+        is_undefined(elem) ? UNDEFINED_TYPE :
+        error(elem, "invalid typed elem");
+}
+
+function wrap_ptr(elem) {
+    return pair(get_elem_type(elem), elem);
+}
+
+function unwrap_ptr(ptr) {
+    return tail(ptr);
+}
+
+function is_ptr(ptr) {
+    return is_pair(ptr) &amp;&amp;
+        !is_pair(head(ptr)) &amp;&amp;
+        !is_pair(tail(ptr)) &amp;&amp;
+        (head(ptr) === NUMBER_TYPE ||
+        head(ptr) === BOOL_TYPE ||
+        head(ptr) === STRING_TYPE ||
+        head(ptr) === PTR_TYPE ||
+        head(ptr) === NULL_TYPE ||
+        head(ptr) === UNDEFINED_TYPE ||
+        head(ptr) === PROG_TYPE ||
+        head(ptr) === NO_VALUE_YET_TYPE ||
+        head(ptr) === BROKEN_HEART_TYPE);
+}
+
+function is_number_ptr(ptr) {
+    return is_ptr(ptr) &amp;&amp; head(ptr) === NUMBER_TYPE;
+}
+
+function is_bool_ptr(ptr) {
+    return is_ptr(ptr) &amp;&amp; head(ptr) === BOOL_TYPE;
+}
+
+function is_string_ptr(ptr) {
+    return is_ptr(ptr) &amp;&amp; head(ptr) === STRING_TYPE;
+}
+
+function is_ptr_ptr(ptr) {
+    return is_ptr(ptr) &amp;&amp; head(ptr) === PTR_TYPE;
+}
+
+function is_null_ptr(ptr) {
+    return is_ptr(ptr) &amp;&amp; head(ptr) === NULL_TYPE;
+}
+
+function is_undefined_ptr(ptr) {
+    return is_ptr(ptr) &amp;&amp; head(ptr) === UNDEFINED_TYPE;
+}
+
+function is_prog_ptr(ptr) {
+    return is_ptr(ptr) &amp;&amp; head(ptr) === PROG_TYPE;
+}
+
+function is_no_value_yet_ptr(ptr) {
+    return is_ptr(ptr) &amp;&amp; head(ptr) === NO_VALUE_YET_TYPE;
+}
+
+function is_broken_heart_ptr(ptr) {
+    return is_ptr(ptr) &amp;&amp; head(ptr) === BROKEN_HEART_TYPE;
+}
+
+// Primitive functions and constants
+
+const primitive_function_names_arities = list(
+       pair("display", 1),
+       pair("error", 1),
+       pair("+", 2),
+       pair("-", 2),
+       pair("*", 2),
+       pair("/", 2),
+       pair("%", 2),
+       pair("===", 2),
+       pair("!==", 2),
+       pair("&lt;", 2),
+       pair("&lt;=", 2),
+       pair("&gt;", 2),
+       pair("&gt;=", 2),
+       pair("!", 1),
+       pair("||", 2),
+       pair("&amp;&amp;", 2)
+);
+
+const primitive_constants = list(
+       list("undefined", undefined),
+       list("math_PI"  , math_PI)
+      );
+       
+function make_primitive_function(impl) {
+    return list("primitive", impl);
+}
+
+function setup_environment() {
+    const primitive_function_names =
+        map(head, primitive_function_names_arities);
+    const primitive_function_values =
+        map(name => pair(make_primitive_function(name), false),
+            primitive_function_names);
+    const primitive_constant_names =
+        map(head, primitive_constants);
+    const primitive_constant_values =
+        map(f => pair(head(tail(f)), false),
+            primitive_constants);
+    return pair(pair(
+               append(primitive_function_names, 
+                      primitive_constant_names),
+               append(primitive_function_values, 
+                      primitive_constant_values)),
+               null);
+}
+
+function flatten_list_to_vectors(the_heads, the_tails, lst,
+                                 make_ptr_fn, starting_index) {
+    let free = starting_index;
+    function helper(lst) {
+        if (!is_pair(lst)) {
+            return wrap_ptr(lst);
+        } else {
+            const index = free;
+            free = free + 1;
+            const elem = head(lst);
+            the_heads[index] = helper(elem);
+            the_tails[index] = helper(tail(lst));
+            return make_ptr_fn(index);
+        }
+    }
+    helper(lst);
+    return free;
+}
+
+// MACHINE
+function get_contents(register) {
+    return register("get");
+}
+
+function set_contents(register, value) {
+    return register("set")(value);
+}
+
+function make_stack() {
+    let stack = null;
+
+    function push(x) { 
+        stack = pair(x, stack); 
+        return "done";
+    }
+
+    function pop() {
+        if (is_null(stack)) {
+            error("empty stack -- pop");
+
+        } else {
+            const top = head(stack);
+            stack = tail(stack);
+            return top;
+        }
+    }
+
+    function initialize() {
+        stack = null;
+        return "done";
+    }
+
+    function dispatch(message) {
+        return message === "push"
+               ? push
+               : message === "pop"
+               ? pop()
+               : message === "initialize"
+               ? initialize()
+               : message === "stack"
+               ? stack
+               : error(message, "unknown request -- stack");
+    }
+
+    return dispatch;
+}
+
+function make_new_machine() {
+    const SIZE = make_register("SIZE");
+    const pc = make_register("pc");
+    const flag = make_register("flag");
+    const stack = make_stack();
+    const stack_reassign_proc = make_register("stack_reassign_proc");
+    const free = make_register("free");
+    const root = make_register("root");
+    const root_populate_proc = make_register("root_populate_proc");
+    const root_restore_proc = make_register("root_restore_proc");
+    const gc_registers = list(
+        list("free", free),
+        list("scan", make_register("scan")),
+        list("old", make_register("old")),
+        list("new", make_register("new")),
+        list("relocate_continue", make_register("relocate_continue")),
+        list("temp", make_register("temp")),
+        list("oldht", make_register("oldht"))
+    );
+    const exp = make_register("exp");
+    const env = make_register("env");
+    const evaluator_registers = list(
+        list("exp", exp),
+        list("env", env),
+        list("val", make_register("val")),
+        list("continue", make_register("continue")),
+        list("fun", make_register("fun")),
+        list("argl", make_register("argl")),
+        list("unev", make_register("unev")),
+        list("fun", make_register("fun"))
+    );
+    const aux_registers = list(
+        list("res", make_register("val")),
+        list("err", make_register("err")),
+        list("a", make_register("a")),
+        list("b", make_register("b")),
+        list("c", make_register("c")),
+        list("d", make_register("d")),
+        list("e", make_register("e")),
+        list("f", make_register("f"))
+    );
+    const the_heads = make_register("the_heads");
+    const the_tails = make_register("the_tails");
+    set_contents(the_heads, make_vector());
+    set_contents(the_tails, make_vector());
+    const new_heads = make_register("new_heads");
+    const new_tails = make_register("new_tails");
+    set_contents(new_heads, make_vector());
+    set_contents(new_tails, make_vector());
+    const prog_heads = make_register("prog_heads");
+    const prog_tails = make_register("prog_tails");
+    let the_instruction_sequence = null;
+    let the_ops = list(list("initialize_stack",
+                            () => stack("initialize")));
+    the_ops = append(the_ops, vector_ops);
+    let register_table =
+          list(list("SIZE", SIZE),
+               list("pc", pc),
+               list("flag", flag),
+               list("root", root),
+               list("root_populate_proc", root_populate_proc),
+               list("root_restore_proc", root_restore_proc),
+               list("stack_reassign_proc", stack_reassign_proc),
+               list("the_heads", the_heads),
+               list("the_tails", the_tails),
+               list("new_heads", new_heads),
+               list("new_tails", new_tails),
+               list("prog_heads", prog_heads),
+               list("prog_tails", prog_tails));
+    register_table = append(register_table, gc_registers);
+    register_table = append(register_table, evaluator_registers);
+    register_table = append(register_table, aux_registers);
+
+    function start() {
+        const root_registers = 
+                append(aux_registers, evaluator_registers);
+        set_contents(pc, the_instruction_sequence);
+        set_contents(free,
+                     make_ptr_ptr(flatten_list_to_vectors(
+                                    the_heads("get"),
+                                    the_tails("get"),
+                                    setup_environment(), 
+                                    make_ptr_ptr,
+                                    length(root_registers))));
+        set_contents(env, make_ptr_ptr(length(root_registers)));
+        function root_populate_proc_fn() {
+            const root_ptr = free("get");
+            root("set")(root_ptr);
+            let register_list = root_registers;
+            while (!is_null(register_list)) {
+                const content = head(tail(head(register_list)))("get");
+                const index = unwrap_ptr(free("get"));
+                the_heads("get")[index] = 
+                  content === "*unassigned*"
+                  ? make_null_ptr() : content;
+                free("set")(make_ptr_ptr(index + 1));
+                the_tails("get")[index] = free("get");
+                register_list = tail(register_list);
+            }
+            the_tails("get")[unwrap_ptr(free("get")) - 1] =
+              make_null_ptr();
+        }
+        function root_restore_proc_fn() {
+            let root_ptr = root("get");
+            let register_list = root_registers;
+            while (!is_null(register_list)) {
+                const index = unwrap_ptr(root_ptr);
+                const value = the_heads("get")[index];
+                head(tail(head(register_list)))("set")(value);
+                root_ptr = the_tails("get")[index];
+                register_list = tail(register_list);
+            }
+        }
+        function stack_reassign_proc_fn() {
+            let local_stack = stack("stack");
+            while (!is_null(local_stack)) {
+                const value = head(local_stack);
+                if (is_ptr_ptr(value)) {
+                    const index = unwrap_ptr(value);
+                    const new_ptr = the_tails("get")[index];
+                    set_head(local_stack, new_ptr);
+                } else {}
+                local_stack = tail(local_stack);
+            }
+        }
+        set_contents(root_populate_proc, root_populate_proc_fn);
+        set_contents(root_restore_proc, root_restore_proc_fn);
+        set_contents(stack_reassign_proc, stack_reassign_proc_fn);
+        return execute();  
+    } 
+    function allocate_register(name) {
+        if (is_undefined(assoc(name, register_table))) {
+        register_table = pair(list(name, make_register(name)),
+                              register_table);
+        } else {
+            error(name, "multiply defined register");
+        }
+        return "register allocated";
+    }
+    function lookup_register(name) {
+        const val = assoc(name, register_table);
+        return is_undefined(val)
+               ? error(name, "unknown register")
+               : head(tail(val));
+    }
+    function execute() {
+        const insts = get_contents(pc);
+        if (is_null(insts)) {
+            return "done";
+        } else {
+            const proc = inst_execution_fun(head(insts));
+            proc(); 
+            return execute();
+        }
+    }
+    function dispatch(message) {
+        return message === "start"
+               ? start
+               : message === "install_instruction_sequence"
+               ? seq => { the_instruction_sequence = seq; }
+               : message === "allocate_register"
+               ? allocate_register
+               : message === "get_register"
+               ? lookup_register
+               : message === "install_operations"
+               ? ops => { the_ops = append(the_ops, ops); }
+               : message === "stack"
+               ? stack
+               : message === "operations"
+               ? the_ops
+               : error(message, "unknown request -- machine");
+    }
+    return dispatch;
+}
+
+function make_machine(register_names, ops, controller) {
+    const machine = make_new_machine();
+
+    map(reg_name => machine("allocate_register")(reg_name), register_names);
+    machine("install_operations")(ops);
+    machine("install_instruction_sequence")(assemble(controller, machine));
+
+    return machine;
+}
+
+function start(machine) {
+    return machine("start")();
+}
+
+function get_register_contents(machine, register_name) {
+    return get_contents(get_register(machine, register_name));
+}
+
+function set_register_contents(machine, register_name, value) {
+    set_contents(get_register(machine, register_name), value);
+    return "done";
+}
+
+function get_register(machine, reg_name) {
+    return machine("get_register")(reg_name);
+}
+
+
+// ASSEMBLER
+
+function assemble(controller, machine) {
+    function receive(insts, labels) {
+        update_insts(insts, labels, machine);
+        return insts;
+    }
+    
+    return extract_labels(controller, receive);
+}
+
+function extract_labels(text, receive) {
+    function helper(insts, labels) { 
+        const next_inst = head(text);
+
+        return is_string(next_inst)
+               ? receive(insts, pair(make_label_entry(next_inst, insts), labels))
+               : receive(pair(make_inst(next_inst), insts), labels);
+    }
+
+    return is_undefined(text) || is_null(text)
+           ? receive(null, null)
+           : extract_labels(tail(text), helper);
+}
+
+function update_insts(insts, labels, machine) {
+    const pc = get_register(machine, "pc");
+    const flag = get_register(machine, "flag");
+    const stack = machine("stack");
+    const ops = machine("operations");
+
+    const set_iep = set_inst_execution_fun;
+    const make_ep = make_execution_function;
+    return map(i => set_iep(i,
+                            make_ep(inst_controller_instruction(i),
+                                    labels,
+                                    machine,
+                                    pc,
+                                    flag,
+                                    stack,
+                                    ops)),
+               insts);
+}
+
+function make_inst(inst_controller_instruction) {
+    return pair(inst_controller_instruction, null);
+}
+
+function inst_controller_instruction(inst) {
+    return head(inst);
+}
+
+function inst_execution_fun(inst) {
+    return tail(inst);
+}
+
+function set_inst_execution_fun(inst, fun) {
+    set_tail(inst, fun);
+}
+
+function make_label_entry(label_name, insts) {
+    return pair(label_name, insts);
+}
+
+function lookup_label(labels, label_name) {
+    const val = assoc(label_name, labels);
+
+    return is_undefined(val)
+           ? error(label_name, "undefined label -- assemble")
+           : tail(val);
+}
+
+function make_execution_function(inst, labels, machine, pc, flag, stack, ops) {
+    const x = head(inst);
+
+    return x === "assign"
+           ? make_assign_ef(inst, machine, labels, ops, pc)
+           : x === "test"
+           ? make_test_ef(inst, machine, labels, ops, flag, pc)
+           : x === "branch"
+           ? make_branch_ef(inst, machine, labels, flag, pc)
+           : x === "go_to"
+           ? make_go_to_ef(inst, machine, labels, pc)
+           : x === "save"
+           ? make_save_ef(inst, machine, stack, pc)
+           : x === "restore"
+           ? make_restore_ef(inst, machine, stack, pc)
+           : x === "perform"
+           ? make_perform_ef(inst, machine, labels, ops, pc)
+           : x === "dump_memory" // Added to allow printing the memory vectors
+           ? () => {
+               display(stringify(get_register_contents(machine, "the_heads")));
+               display(stringify(get_register_contents(machine, "the_tails")));
+               advance_pc(pc);
+           }
+           : error(inst, "unknown instruction type -- assemble");
+}
+
+function make_assign_ef(inst, machine, labels, operations, pc) {
+    const target = get_register(machine, assign_reg_name(inst));
+    const value_exp = assign_value_exp(inst);
+    const value_fun = is_operation_exp(value_exp)
+          ? make_operation_exp_ef(value_exp, machine, labels, operations)
+          : make_primitive_exp_ef(value_exp, machine, labels);
+
+    function perform_assign() {
+        set_contents(target, value_fun());
+        advance_pc(pc); 
+    }
+
+    return perform_assign;
+}
+
+function assign_reg_name(assign_instruction) {
+    return head(tail(assign_instruction));
+}
+
+function assign_value_exp(assign_instruction) { 
+    return head(tail(tail(assign_instruction)));
+}
+
+function assign(reg_name, value_exp) {
+    return list("assign", reg_name, value_exp);
+}
+
+function dump_memory() {
+    return list("dump_memory", "the_heads", "the_tails");
+}
+
+function advance_pc(pc) {
+    set_contents(pc, tail(get_contents(pc))); 
+    
+}
+
+function make_test_ef(inst, machine, labels, operations, flag, pc) {
+    const condition = test_condition(inst);
+
+    if (is_operation_exp(condition)) {
+    const condition_fun = make_operation_exp_ef(condition, machine,
+                                             labels, operations);
+
+        function perform_test() {
+            set_contents(flag, unwrap_ptr(condition_fun()));
+            advance_pc(pc); 
+        }
+
+        return perform_test; 
+    } else {
+        error(inst, "bad test instruction -- assemble");
+    }
+}
+
+function test_condition(test_instruction) {
+    return head(tail(test_instruction));
+}
+
+function test(condition) {
+    return list("test", condition);
+}
+
+function make_branch_ef(inst, machine, labels, flag, pc) {
+    const dest = branch_dest(inst);
+    
+    if (is_label_exp(dest)) {
+        const insts = lookup_label(labels, label_exp_label(dest));
+
+        function perform_branch() {
+            if (get_contents(flag)) {
+                set_contents(pc, insts);
+
+            } else {
+                advance_pc(pc);
+            }
+        }
+
+        return perform_branch;
+
+    } else {
+        error(inst, "bad branch instruction -- assemble");
+    }
+}
+
+function branch_dest(branch_instruction) {
+    return head(tail(branch_instruction));
+}
+
+function branch(dest) {
+    return list("branch", dest);
+}
+
+function make_goto(inst, machine, labels, pc) {
+    const dest = goto_dest(inst);
+
+    if (is_label_exp(dest)) {
+        const insts = lookup_label(labels, label_exp_label(dest));
+        return () => set_contents(pc, insts);
+
+    } else if (is_register_exp(dest)) {
+        const reg = get_register(machine, register_exp_reg(dest));
+        return () => set_contents(pc, get_contents(reg));
+
+    } else {
+        error(inst, "bad go_to instruction -- assemble");
+    }
+}
+
+function goto_dest(goto_instruction) {
+    return head(tail(goto_instruction));
+}
+/*
+function go_to(dest) {
+    return list("go_to", dest);
+}
+*/
+function make_save_ef(inst, machine, stack, pc) {
+    const reg = get_register(machine, stack_inst_reg_name(inst));
+
+    function perform_save() {
+        push(stack, get_contents(reg));
+        advance_pc(pc);
+    }
+
+    return perform_save;
+}
+
+function make_restore_ef(inst, machine, stack, pc) {
+    const reg = get_register(machine, stack_inst_reg_name(inst));
+
+    function perform_restore() {
+        set_contents(reg, pop(stack));
+        advance_pc(pc); 
+    }
+
+    return perform_restore;
+}
+
+function stack_inst_reg_name(stack_instruction) {
+    return head(tail(stack_instruction));
+}
+
+function save(register_name) {
+    return list("save", register_name);
+}
+
+function restore(register_name) {
+    return list("restore", register_name);
+}
+
+function make_perform_ef(inst, machine, labels, operations, pc) {
+    const action = perform_action(inst);
+
+    if (is_operation_exp(action)) {
+        const action_fun = make_operation_exp_ef(action, machine, 
+                                              labels, operations);
+        return () => { action_fun(); advance_pc(pc); };
+
+    } else {
+        error(inst, "bad perform instruction -- assemble");
+    }
+}
+
+function perform_action(inst) {
+    return head(tail(inst)); 
+}
+
+function perform(op) {
+    return list("perform", op);
+}
+
+
+function make_primitive_exp_ef(exp, machine, labels) {
+    if (is_constant_exp(exp)) {
+        const c = constant_exp_value(exp);
+        return () => c;
+        
+    } else if (is_label_exp(exp)) {
+        const insts = lookup_label(labels, label_exp_label(exp));
+        return () => insts;
+
+    } else if (is_register_exp(exp)) {
+        const r = get_register(machine, register_exp_reg(exp));
+        return () => get_contents(r); 
+
+    } else {
+        error(exp, "unknown expression type -- assemble");
+    }
+}
+
+/* TODO: probably remove these -- suddenly available through new import chains
+function is_register_exp(exp) {
+    return is_tagged_list(exp, "reg");
+}
+
+function register_exp_reg(exp) {
+    return head(tail(exp));
+}
+
+function reg(name) {
+    return list("reg", name);
+}
+
+function is_constant_exp(exp) {
+    return is_tagged_list(exp, "constant");
+}
+
+function constant_exp_value(exp) {
+    return head(tail(exp));
+}
+
+function constant(value) {
+    return list("constant", wrap_ptr(value));
+}
+
+function is_label_exp(exp) {
+    return is_tagged_list(exp, "label");
+}
+
+function label_exp_label(exp) {
+    return head(tail(exp));
+}
+
+function label(string) {
+    return list("label", string);
+}
+*/
+
+function make_operation_exp_ef(exp, machine, labels, operations) {
+    const op = lookup_prim(op_exp_op(exp), operations);
+    const aprocs = map(e => make_primitive_exp_ef(e, machine, labels),
+                       operation_exp_operands(exp));
+
+    function perform_operation_exp() {
+        return op(map(p => p(), aprocs));
+    }
+    
+    return perform_operation_exp;
+}
+
+/* TODO: probably remove these -- suddenly available through new import chains
+function is_operation_exp(exp) {
+    return is_tagged_list(head(exp), "op");
+}
+
+function operation_exp_operands(operation_exp) {
+    return tail(operation_exp);
+}
+
+function op(name) {
+    return list("op", name);
+}
+*/
+
+function op_exp_op(operation_exp) {
+    return head(tail(head(operation_exp)));
+}
+
+function lookup_prim(symbol, operations) {
+    const val = assoc(symbol, operations);
+
+    return is_undefined(val)
+           ? error(symbol, "unknown operation -- assemble")
+           : head(tail(val));
+}
+
+// PAIR OPERATIONS
+
+// head in "a", tail in "b"
+const pair_controller = list(
+  "pair",
+    save("continue"),
+    assign("continue", label("pair_after_gc")),
+    test(list(op("==="), reg("free"), reg("SIZE"))),
+    branch(label("begin_garbage_collection")),
+  "pair_after_gc",
+    restore("continue"),
+    perform(list(op("vector_set"), reg("the_heads"), reg("free"), reg("a"))),
+    perform(list(op("vector_set"), reg("the_tails"), reg("free"), reg("b"))),
+    assign("res", reg("free")),
+    assign("free", list(op("inc_ptr"), reg("free"))),
+    go_to(reg("continue"))
+);
+
+
+function underlying_javascript_closure(fn) {
+    return args => apply_in_underlying_javascript(fn, args);
+}
+
+function unwrap_args(fn) {
+    return args => fn(map(unwrap_ptr, args));
+}
+
+function wrap_return_value(fn) {
+    return args => wrap_ptr(fn(args));
+}
+
+function primitive_function(fn) {
+    return wrap_return_value(unwrap_args(underlying_javascript_closure(fn)));
+}
+
+// 5.3 MEMORY MANAGEMENT
+
+function vector_ref(vector, idx) {
+    return vector[unwrap_ptr(idx)];
+}
+
+function vector_set(vector, idx, val) {
+    vector[unwrap_ptr(idx)] = val;
+}
+
+function make_vector() {
+    return [];
+}
+
+function inc_ptr(ptr) {
+    return make_ptr_ptr(unwrap_ptr(ptr) + 1);
+}
+
+const vector_ops = list(
+    list("vector_ref", underlying_javascript_closure(vector_ref)),
+    list("vector_set", underlying_javascript_closure(vector_set)),
+    list("inc_ptr", underlying_javascript_closure(inc_ptr))
+);
+
+// MACHINE SETUP
+const ptr_ops =
+  list(
+    list("make_ptr_ptr",
+         underlying_javascript_closure(make_ptr_ptr)),
+    list("make_null_ptr",
+         underlying_javascript_closure(make_null_ptr)),
+    list("make_no_value_yet_ptr",
+         underlying_javascript_closure(make_no_value_yet_ptr)),
+    list("make_prog_ptr", underlying_javascript_closure(make_prog_ptr)),
+    list("make_broken_heart_ptr",
+         underlying_javascript_closure(make_broken_heart_ptr)),
+    list("is_number_ptr",
+         wrap_return_value(underlying_javascript_closure(is_number_ptr))),
+    list("is_bool_ptr",
+         wrap_return_value(underlying_javascript_closure(is_bool_ptr))),
+    list("is_string_ptr",
+         wrap_return_value(underlying_javascript_closure(is_string_ptr))),
+    list("is_ptr_ptr",
+         wrap_return_value(underlying_javascript_closure(is_ptr_ptr))),
+    list("is_null_ptr",
+         wrap_return_value(underlying_javascript_closure(is_null_ptr))),
+    list("is_undefined_ptr",
+         wrap_return_value(underlying_javascript_closure(is_undefined_ptr))),
+    list("is_prog_ptr",
+         wrap_return_value(underlying_javascript_closure(is_prog_ptr))),
+    list("is_no_value_yet_ptr",
+         wrap_return_value(underlying_javascript_closure(is_no_value_yet_ptr))),
+    list("is_broken_heart_ptr",
+         wrap_return_value(underlying_javascript_closure(is_broken_heart_ptr)))
+);
+
+const primitive_ops = list(
+    list("display", primitive_function(display)),
+    list("error", primitive_function(error)),
+    list("+", primitive_function((x, y) => x + y)),
+    list("-", primitive_function((x, y) => x - y)),
+    list("*", primitive_function((x, y) => x * y)),
+    list("/", primitive_function((x, y) => x / y)),
+    list("%", primitive_function((x, y) => x % y)),
+    list("===", primitive_function((x, y) => x === y)),
+    list("!==", primitive_function((x, y) => x !== y)),
+    list("&lt;", primitive_function((x, y) => x &lt; y)),
+    list("&lt;=", primitive_function((x, y) => x &lt;= y)),
+    list("&gt;", primitive_function((x, y) => x &gt; y)),
+    list("&gt;=", primitive_function((x, y) => x &gt;= y)),
+    list("!", primitive_function(x => !x)),
+    list("||", primitive_function((x, y) => x || y)),
+    list("&amp;&amp;", primitive_function((x, y) => x &amp;&amp; y))
+);
+
+const gc_ops = list(
+    list("call_proc", underlying_javascript_closure(proc => proc()))
+);
+
+const gc_controller = list(
+  "begin_garbage_collection",
+    perform(list(op("call_proc"), reg("root_populate_proc"))),
+    assign("free", list(op("make_ptr_ptr"), constant(0))),
+    assign("scan", list(op("make_ptr_ptr"), constant(0))),
+    assign("old", reg("root")),
+    assign("relocate_continue", label("reassign_root")),
+    go_to(label("relocate_old_result_in_new")),
+  "reassign_root",
+    assign("root", reg("new")),
+    go_to(label("gc_loop")),
+  "gc_loop",
+    test(list(op("==="), reg("scan"), reg("free"))),
+    branch(label("gc_flip")),
+    assign("old", list(op("vector_ref"), reg("new_heads"), reg("scan"))),
+    assign("relocate_continue", label("update_head")),
+    go_to(label("relocate_old_result_in_new")),
+  "update_head",
+    perform(list(op("vector_set"), reg("new_heads"), reg("scan"), reg("new"))),
+    assign("old", list(op("vector_ref"), reg("new_tails"), reg("scan"))),
+    assign("relocate_continue", label("update_tail")),
+    go_to(label("relocate_old_result_in_new")),
+  "update_tail",
+    perform(list(op("vector_set"), reg("new_tails"), reg("scan"), reg("new"))),
+    assign("scan", list(op("inc_ptr"), reg("scan"))),
+    go_to(label("gc_loop")),
+  "relocate_old_result_in_new",
+    test(list(op("is_ptr_ptr"), reg("old"))),
+    branch(label("gc_pair")),
+    assign("new", reg("old")),
+    go_to(reg("relocate_continue")),
+  "gc_pair",
+    assign("oldht", list(op("vector_ref"), reg("the_heads"), reg("old"))),
+    test(list(op("is_broken_heart_ptr"), reg("oldht"))),
+    branch(label("already_moved")),
+    assign("new", reg("free")),
+    // new location for pair
+    // Update free pointer
+    assign("free", list(op("inc_ptr"), reg("free"))),
+    // Copy the head and tail to new memory
+    perform(list(op("vector_set"),
+                 reg("new_heads"), reg("new"), reg("oldht"))),
+    assign("oldht", list(op("vector_ref"), reg("the_tails"), reg("old"))),
+    perform(list(op("vector_set"),
+                 reg("new_tails"), reg("new"), reg("oldht"))),
+    // Construct the broken heart
+    assign("oldht", list(op("make_broken_heart_ptr"))),
+    perform(list(op("vector_set"),
+                 reg("the_heads"), reg("old"), reg("oldht"))),
+    perform(list(op("vector_set"),
+                 reg("the_tails"), reg("old"), reg("new"))),
+    go_to(reg("relocate_continue")),
+  "already_moved",
+    assign("new", list(op("vector_ref"), reg("the_tails"), reg("old"))),
+    go_to(reg("relocate_continue")),
+  "gc_flip",
+    perform(list(op("call_proc"), reg("stack_reassign_proc"))),
+    assign("temp", reg("the_tails")),
+    assign("the_tails", reg("new_tails")),
+    assign("new_tails", reg("temp")),
+    assign("temp", reg("the_heads")),
+    assign("the_heads", reg("new_heads")),
+    assign("new_heads", reg("temp")),
+    perform(list(op("call_proc"), reg("root_restore_proc"))),
+    go_to(reg("continue"))
+);
+
+const error_controller = list(
+    "error",
+    perform(list(op("error"), reg("res"), reg("err"))),
+    go_to(label("end_evaluation"))
+);
+
+const begin_controller =  list(
+  "fig_5_14",
+  "pair4",
+    assign("a", constant(4)),
+    assign("b", list(op("make_null_ptr"))),
+    assign("continue", label("garbage1")),
+    go_to(label("pair")),
+    /// The following creates a garbage
+    /// pair (9999, 9999) which will
+    /// not affect live object count at
+    /// the end of the program. You can
+    /// verify by adding more garbage
+    /// or remove this line. Or
+    /// uncomment the use of
+    /// dump_memory() below, before and
+    /// after GC.
+  "garbage1",
+    assign("a", constant(9999)),
+    assign("b", constant(9999)),
+    assign("continue", label("pair2")),
+    go_to(label("pair")),
+  "pair2",
+    assign("a", constant(3)),
+    assign("b", reg("res")),
+    assign("continue", label("garbage2")),
+    go_to(label("pair")), 
+    /// The following creates a garbage
+    /// pair (9999, 9999) which will
+    /// not affect live object count at
+    /// the end of the program. You can
+    /// verify by adding more garbage
+    /// or remove this line. Or
+    /// uncomment the use of
+    /// dump_memory() below, before and
+    /// after GC.
+  "garbage2",
+    assign("a", constant(9999)),
+    assign("b", constant(9999)),
+    assign("continue", label("pair7")),
+    go_to(label("pair")),
+  "pair7",
+    assign("temp", reg("res")),
+    assign("a", constant(2)),
+    assign("b", list(op("make_null_ptr"))),
+    assign("continue", label("pair5")),
+    go_to(label("pair")),
+  "pair5",
+    assign("a", constant(1)),
+    assign("b", reg("res")),
+    assign("continue", label("pair1")),
+    go_to(label("pair")),
+  "pair1",
+    assign("a", reg("res")),
+    assign("b", reg("temp")),
+    assign("continue", label("done")),
+    go_to(label("pair")),
+  "done",
+    // dump_memory(), // uncomment to get a dump of heads and tails vectors
+    assign("continue", label("after_gc")),
+    go_to(label("begin_garbage_collection")),
+  "after_gc",
+    // dump_memory(), // uncomment to get a dump of heads and tails vectors
+    go_to(label("end_evaluation")));
+
+const end_controller = list(
+    "end_evaluation"
+);
+
+const ops = reduce(append, null, list(
+    vector_ops,
+    ptr_ops,
+    gc_ops,
+    primitive_ops
+));
+
+const controller = reduce(append, null, list(
+    begin_controller,
+    pair_controller,
+    gc_controller,
+    error_controller,
+    end_controller
+));
+
+function make_evaluator_machine(size) {
+    const evaluator_machine = make_machine(null, ops, controller);
+    set_register_contents(evaluator_machine, "SIZE", wrap_ptr(size));
+    return evaluator_machine;
+}
+
+const evaluator_machine = make_evaluator_machine(10000);
+
+set_register_contents(evaluator_machine, "a", wrap_ptr(206));
+set_register_contents(evaluator_machine, "b", wrap_ptr(40));
+
+start(evaluator_machine);
+get_register_contents(evaluator_machine, "free");
+// [ 'ptr', 108 ] The number of live objects in the program at termination
+      </PYTHON_RUN>      
+      <EXPECTED>[ 'ptr', 108 ]</EXPECTED>
+      <PYTHON>
+"gc_flip",
+  assign("temp", reg("the_tails")),
+  assign("the_tails", reg("new_tails")),
+  assign("new_tails", reg("temp")),
+  assign("temp", reg("the_heads")),
+  assign("the_heads", reg("new_heads")),
+  assign("new_heads", reg("temp"))
+      </PYTHON>
+    </SNIPPET>
+  </TEXT>
+
+  <INDEX>пам’ять зі списковою структурою<CLOSE/></INDEX>
+  <INDEX>пам’ять<SUBINDEX>зі списковою структурою<CLOSE/></SUBINDEX></INDEX>
+  <INDEX>збирання сміття<CLOSE/></INDEX>
+  <INDEX>збирач сміття «зупини й копіюй»<CLOSE/></INDEX>
+  <INDEX>збирач сміття<SUBINDEX>«зупини й копіюй»<CLOSE/></SUBINDEX></INDEX>
+  
+</SUBSECTION>

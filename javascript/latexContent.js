@@ -1,4 +1,5 @@
 import { getEdition } from "./editions.js";
+import { ui } from "./uiStrings.js";
 
 const edition = getEdition();
 
@@ -42,6 +43,16 @@ const lstLanguageDefinition =
   columns=fullflexible,
   sensitive=true
 }`;
+
+// Ukrainian: Cyrillic needs the T2A font encoding and a Cyrillic-capable
+// Times-like family (tempora); babel's ukrainian (listed last, hence the
+// main language) supplies the localized chapter/contents/figure names and hyphenation.
+const isUkrainian = edition.locale === "uk";
+const fontEncodings = isUkrainian ? "[T2A,T1]" : "[T1]";
+// shorthands off: ukrainian makes `"` active, which breaks code like \texttt{"a"}
+const babelLanguages = isUkrainian
+  ? "american,ukrainian,shorthands=off"
+  : "american";
 
 export const preamble = `\\documentclass[nocrop,7x10]{../mitpress/mit}
 % use: option nocrop to remove cropmarks
@@ -92,12 +103,12 @@ export const preamble = `\\documentclass[nocrop,7x10]{../mitpress/mit}
 \\setlength\\headheight{1pc}
 \\setlength\\textheight{50pc}
 
-\\usepackage[T1]{fontenc}
+${isUkrainian ? "\\usepackage{cmap}\n" : ""}\\usepackage${fontEncodings}{fontenc}
 \\usepackage{textcomp}
 \\usepackage[utf8]{inputenc}
-\\usepackage{mathptmx}
+\\usepackage{mathptmx}${isUkrainian ? "\n\\usepackage{tempora}" : ""}
 %% \\usepackage[bf,big,raggedright,nobottomtitles]{titlesec}
-\\usepackage[american]{babel}
+${isUkrainian ? "\\def\\cyrillicencoding{T2A} % tempora also loads T2B, which lacks \\cyrie/\\cyryi; babel would pick it\n" : ""}\\usepackage[${babelLanguages}]{babel}
 \\usepackage[multidot]{grffile}
 
 \\ifxetex
@@ -198,7 +209,7 @@ export const preamble = `\\documentclass[nocrop,7x10]{../mitpress/mit}
 \\renewcommand{\\footrulewidth}{0pt}
 \\fancyfoot{}
 
-\\renewcommand{\\chaptermark}[1]{\\markboth{Chapter\\,\\thechapter\\quad{}#1}{}}
+\\renewcommand{\\chaptermark}[1]{\\markboth{${ui("chapter")}\\,\\thechapter\\quad{}#1}{}}
 \\renewcommand{\\sectionmark}[1]{\\markright{\\thesection\\quad{}#1}}
 \\renewcommand{\\subsectionmark}[1]{\\markright{\\thesubsection\\quad{}#1}}
 \\renewcommand{\\subsubsectionmark}[1]{\\markright{\\thesubsubsection\\quad{}#1}}

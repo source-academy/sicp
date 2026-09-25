@@ -1,0 +1,982 @@
+<SUBSECTION>
+  <NAME>
+    <SPLITINLINE>
+      <SCHEME>
+        Обчислення послідовностей і хвостова рекурсія
+      </SCHEME>
+      <PYTHON>
+        Обчислення застосувань функцій
+      </PYTHON>
+    </SPLITINLINE>    
+  </NAME>
+
+  <SPLIT>
+    <SCHEME>
+      <LABEL NAME="sec:sequence-evaluation"/>
+      <TEXT>
+        Частина обчислювача з явним керуванням у
+        <SCHEMEINLINE>ev-sequence</SCHEMEINLINE> аналогічна до процедури
+        <SCHEMEINLINE>eval-sequence</SCHEMEINLINE> метациклічного
+        обчислювача’а. Вона опрацьовує послідовності виразів у тілах
+        процедур або в явних виразах
+        <SCHEMEINLINE>begin</SCHEMEINLINE>.
+      </TEXT>
+
+      <TEXT>
+        Явні вирази <SCHEMEINLINE>begin</SCHEMEINLINE> обчислюють так:
+        послідовність виразів, які треба обчислити, кладуть у
+        <SCHEMEINLINE>unev</SCHEMEINLINE>, зберігають
+        <SCHEMEINLINE>continue</SCHEMEINLINE> на стеку і переходять до
+        <SCHEMEINLINE>ev-sequence</SCHEMEINLINE>.
+        <SNIPPET EVAL="no">
+          <INDEX><DECLARATION>ev_sequence_start</DECLARATION></INDEX>
+          <SCHEME>
+ev-begin
+  (assign unev (op begin-actions) (reg exp))
+  (save continue)
+  (goto (label ev-sequence))
+          </SCHEME>
+        </SNIPPET>
+    
+        Неявні послідовності в тілах процедур опрацьовують, переходячи до
+        <SCHEMEINLINE>ev-sequence</SCHEMEINLINE> з
+        <SCHEMEINLINE>compound-apply</SCHEMEINLINE>; на той момент
+        <SCHEMEINLINE>continue</SCHEMEINLINE> уже лежить на стеку, бо його
+        зберегли в <SCHEMEINLINE>ev-application</SCHEMEINLINE>.
+      </TEXT>
+
+      <TEXT>
+        Записи в <SCHEMEINLINE>ev-sequence</SCHEMEINLINE> та
+        <SCHEMEINLINE>ev-sequence-continue</SCHEMEINLINE> утворюють цикл, який
+        послідовно обчислює кожен вираз у послідовності. Список необчислених
+        виразів зберігається в <SCHEMEINLINE>unev</SCHEMEINLINE>. Перед
+        обчисленням кожного виразу ми перевіряємо, чи залишилися в
+        послідовності ще вирази для обчислення. Якщо так, ми зберігаємо решту
+        необчислених виразів (вони лежать у
+        <SCHEMEINLINE>unev</SCHEMEINLINE>) і середовище, у якому їх треба
+        обчислити (воно лежить у <SCHEMEINLINE>env</SCHEMEINLINE>), і
+        викликаємо <SCHEMEINLINE>eval-dispatch</SCHEMEINLINE>, щоб обчислити
+        вираз. Обидва збережені регістри відновлюють після повернення з цього
+        обчислення, у <SCHEMEINLINE>ev-sequence-continue</SCHEMEINLINE>.
+      </TEXT>
+
+      <TEXT>
+        Останній вираз у послідовності опрацьовують інакше, у точці входу
+        <SCHEMEINLINE>ev-sequence-last-exp</SCHEMEINLINE>. Оскільки після
+        нього немає виразів для обчислення, нам не потрібно зберігати
+        <SCHEMEINLINE>unev</SCHEMEINLINE> чи <SCHEMEINLINE>env</SCHEMEINLINE>
+        перед переходом до <SCHEMEINLINE>eval-dispatch</SCHEMEINLINE>. вираз,
+        тож після обчислення останнього виразу не залишається нічого, крім
+        продовження в точці входу, що зараз лежить на стеку (її зберегли
+        <SCHEMEINLINE>ev-application</SCHEMEINLINE> або
+        <SCHEMEINLINE>ev-begin</SCHEMEINLINE>.) Замість того щоб настроїти
+        <SCHEMEINLINE>continue</SCHEMEINLINE> так, щоб
+        <SCHEMEINLINE>eval-dispatch</SCHEMEINLINE> повернувся сюди, а потім
+        відновити <SCHEMEINLINE>continue</SCHEMEINLINE> зі стеку й продовжити
+        в тій точці входу, ми відновлюємо <SCHEMEINLINE>continue</SCHEMEINLINE>
+        зі стеку перед переходом до <SCHEMEINLINE>eval-dispatch</SCHEMEINLINE>,
+        тож <SCHEMEINLINE>eval-dispatch</SCHEMEINLINE> продовжить у тій точці
+        входу після обчислення виразу.
+        <SNIPPET EVAL="no">
+          <INDEX><DECLARATION>ev_sequence</DECLARATION></INDEX>
+          <SCHEME>
+ev-sequence
+  (assign exp (op first-exp) (reg unev))
+  (test (op last-exp?) (reg unev))
+  (branch (label ev-sequence-last-exp))
+  (save unev)
+  (save env)
+  (assign continue (label ev-sequence-continue))
+  (goto (label eval-dispatch))
+ev-sequence-continue
+  (restore env)
+  (restore unev)
+  (assign unev (op rest-exps) (reg unev))
+  (goto (label ev-sequence))
+ev-sequence-last-exp
+  (restore continue)
+  (goto (label eval-dispatch))
+          </SCHEME>
+        </SNIPPET>
+      </TEXT>
+    </SCHEME>
+    <PYTHON>
+      <LABEL NAME="sec:evaluating-function-applications"/>
+
+      <INDEX>обчислювач із явним керуванням для Python<SUBINDEX>застосування функцій<OPEN/></SUBINDEX></INDEX>
+      <INDEX>обчислювач із явним керуванням для Python<SUBINDEX>комбінації<OPEN/></SUBINDEX></INDEX>
+
+      <TEXT>
+        Застосування функції задає комбінація, що містить вираз-функцію та
+        вирази-аргументи. Вираз-функція — це підвираз, значенням якого є
+        функція, а вирази-аргументи — це підвирази, значеннями яких є
+        аргументи, до яких треба застосувати функцію. Метациклічна
+        <PYTHONINLINE>evaluate</PYTHONINLINE> опрацьовує застосування,
+        рекурсивно викликаючи себе, щоб обчислити кожен елемент комбінації, а
+        потім передаючи результати до <PYTHONINLINE>apply</PYTHONINLINE>, яка
+        виконує власне застосування функції. Обчислювач із явним керуванням
+        робить те саме; ці рекурсивні виклики реалізовано інструкціями
+        <PYTHONINLINE>go_to</PYTHONINLINE> разом із використанням стека для
+        збереження регістрів, які буде відновлено після повернення з
+        рекурсивного виклику. Перед кожним викликом ми
+	<INDEX>обчислювач із явним керуванням для Python<SUBINDEX>використання стека</SUBINDEX></INDEX>
+	пильно визначатимемо,
+        які регістри треба зберегти (бо їхні значення знадобляться пізніше).
+        <FOOTNOTE>Це важливий, але тонкий момент у перекладі алгоритмів із
+        процедурної мови, як-от Python, на мову регістрових машин. Замість
+        зберігати лише те, що потрібно, ми могли б зберігати всі регістри
+        (крім <PYTHONINLINE>val</PYTHONINLINE>) перед кожним рекурсивним
+        викликом. Такий підхід називають дисципліною
+	<INDEX>дисципліна обрамленого стека</INDEX>
+        <INDEX>стек<SUBINDEX>обрамлений</SUBINDEX></INDEX>
+	<EM>обрамленого стека</EM> (framed-stack).
+        Він працював би, але міг би зберігати більше регістрів, ніж потрібно;
+        це могло б бути важливим міркуванням у системі, де операції зі стеком
+        дорогі. Збереження регістрів, уміст яких пізніше не знадобиться, може
+        також утримувати непотрібні дані, які інакше могли б бути зібрані як
+        сміття, звільнивши місце для повторного використання.</FOOTNOTE>
+      </TEXT>
+
+      <TEXT>
+        Як і в метациклічному обчислювачі, комбінації-оператори перетворюють
+        на застосування примітивних функцій, що відповідають операторам. Це
+        відбувається в <PYTHONINLINE>ev_operator_combination</PYTHONINLINE>, яка
+        виконує це перетворення на місці в <PYTHONINLINE>comp</PYTHONINLINE>
+        і без зупинки переходить до
+        <PYTHONINLINE>ev_application</PYTHONINLINE>.<!-- 
+        --><FOOTNOTE>
+        Ми припускаємо, що синтаксичний трансформер
+        <PYTHONINLINE>operator_combination_to_application</PYTHONINLINE>
+        доступний як машинна операція. У справжній реалізації, написаній
+        з нуля, ми скористалися б нашим обчислювачем із явним керуванням, щоб
+        проінтерпретувати програму Python, яка виконує такі перетворення рівня
+        вихідного коду, як це та
+        <PYTHONINLINE>function_decl_to_constant_decl</PYTHONINLINE>
+	у синтаксичній фазі, що виконується перед виконанням.
+        <LABEL NAME="foot:syntax-transformer"/>
+      </FOOTNOTE>
+      </TEXT>
+    
+      <TEXT>
+        Обчислення застосування починаємо з обчислення виразу-функції, щоб
+        отримати функцію, яку потім застосуємо до обчислених
+        виразів-аргументів. Щоб обчислити вираз-функцію, ми переносимо його до
+        регістра <PYTHONINLINE>comp</PYTHONINLINE> і переходимо до
+        <PYTHONINLINE>eval_dispatch</PYTHONINLINE>. Середовище в регістрі
+        <PYTHONINLINE>env</PYTHONINLINE> уже те, яке потрібне для обчислення
+        виразу-функції. Проте ми зберігаємо
+        <PYTHONINLINE>env</PYTHONINLINE>, бо воно знадобиться нам пізніше для
+        обчислення виразів-аргументів. Ми також вилучаємо вирази-аргументи
+        до <PYTHONINLINE>unev</PYTHONINLINE> і зберігаємо це на стеку.
+        Ми настроюємо <PYTHONINLINE>continue</PYTHONINLINE> так, щоб після
+        обчислення виразу-функції <PYTHONINLINE>eval_dispatch</PYTHONINLINE>
+        відновив роботу в
+        <PYTHONINLINE>ev_appl_did_function_expression</PYTHONINLINE>. Але
+        спершу ми зберігаємо старе значення
+        <PYTHONINLINE>continue</PYTHONINLINE>, яке вказує контролеру, звідки
+        продовжити після застосування.
+
+        <SNIPPET EVAL="no">
+	  <INDEX><DECLARATION>ev_operator_combination</DECLARATION></INDEX>
+	  <INDEX><DECLARATION>ev_application</DECLARATION></INDEX>
+          <PYTHON>
+"ev_operator_combination",
+  assign("comp", list(op("operator_combination_to_application"),
+                      reg("comp"), reg("env"))),
+"ev_application",
+  save("continue"),
+  save("env"),
+  assign("unev", list(op("arg_expressions"), reg("comp"))),
+  save("unev"),
+  assign("comp", list(op("function_expression"), reg("comp"))),
+  assign("continue", label("ev_appl_did_function_expression")),
+  go_to(label("eval_dispatch")),
+          </PYTHON>
+        </SNIPPET>
+      </TEXT>
+
+      <INDEX>обчислювач із явним керуванням для Python<SUBINDEX>обчислення аргументів<OPEN/></SUBINDEX></INDEX>
+      
+      <TEXT>
+        Повернувшись з обчислення виразу-функції, ми переходимо до обчислення
+        виразів-аргументів застосування й накопичення отриманих аргументів у
+        списку, що лежить в <PYTHONINLINE>argl</PYTHONINLINE>. (Це подібно до
+        обчислення послідовності інструкцій, хіба що ми збираємо значення.)
+        Спершу ми відновлюємо необчислені вирази-аргументи й середовище. Ми
+        ініціалізуємо <PYTHONINLINE>argl</PYTHONINLINE> порожнім списком. Далі
+        присвоюємо регістру <PYTHONINLINE>fun</PYTHONINLINE> функцію, яку
+        отримали внаслідок обчислення виразу-функції. Якщо виразів-аргументів
+        немає, ми переходимо безпосередньо до
+        <PYTHONINLINE>apply_dispatch</PYTHONINLINE>. Інакше ми зберігаємо
+        <PYTHONINLINE>fun</PYTHONINLINE> на стеку й запускаємо цикл обчислення
+        аргументів:<!-- 
+        --><FOOTNOTE>Ми додаємо до функцій роботи зі структурами даних
+        обчислювача з підрозділу<SPACE/><REF NAME="sec:eval-data-structures"/>
+        такі дві функції для роботи зі списками аргументів:
+        <SNIPPET EVAL="no">
+          <INDEX><DECLARATION>empty_arglist</DECLARATION></INDEX> 
+          <INDEX><DECLARATION>adjoin_arg</DECLARATION></INDEX>
+          <NAME>empty_arglist</NAME>
+          <PYTHON>
+function empty_arglist() { return null; }
+<SHORT_SPACE/>
+function adjoin_arg(arg, arglist) {
+    return append(arglist, list(arg));
+}
+          </PYTHON>
+        </SNIPPET>
+        Ми також користуємося додатковою синтаксичною функцією, щоб перевірити, чи
+        це останній вираз-аргумент у застосуванні:
+        <SNIPPET EVAL="no">
+          <INDEX><DECLARATION>is_last_argument_expression</DECLARATION></INDEX> 
+          <NAME>is_last_argument_expression</NAME>
+          <PYTHON>
+function is_last_argument_expression(arg_expression) {
+    return is_null(tail(arg_expression));
+}
+          </PYTHON>
+        </SNIPPET></FOOTNOTE>
+	<SNIPPET EVAL="no">
+          <PYTHON>
+"ev_appl_did_function_expression",
+  restore("unev"), // the argument expressions
+  restore("env"),
+  assign("argl", list(op("empty_arglist"))),
+  assign("fun", reg("val")), // the function
+  test(list(op("is_null"), reg("unev"))),
+  branch(label("apply_dispatch")),
+  save("fun"),
+          </PYTHON>
+	</SNIPPET>
+      </TEXT>
+
+      <TEXT>
+        Кожен оберт циклу обчислення аргументів обчислює один вираз-аргумент зі
+        списку в <PYTHONINLINE>unev</PYTHONINLINE> і накопичує результат в
+        <PYTHONINLINE>argl</PYTHONINLINE>. Щоб обчислити вираз-аргумент, ми
+        кладемо його до регістра <PYTHONINLINE>comp</PYTHONINLINE> і переходимо
+        до <PYTHONINLINE>eval_dispatch</PYTHONINLINE>, попередньо настроївши
+        <PYTHONINLINE>continue</PYTHONINLINE> так, щоб виконання відновилося з
+        фази накопичення аргументів. Але спершу ми зберігаємо вже накопичені
+        аргументи (вони лежать в <PYTHONINLINE>argl</PYTHONINLINE>),
+        середовище (воно лежить у <PYTHONINLINE>env</PYTHONINLINE>) і решту
+        виразів-аргументів, які ще треба обчислити (вони лежать у
+        <PYTHONINLINE>unev</PYTHONINLINE>). Для обчислення останнього
+        виразу-аргументу зроблено окремий випадок, який опрацьовують у
+        <PYTHONINLINE>ev_appl_last_arg</PYTHONINLINE>.
+
+        <SNIPPET EVAL="no">
+          <PYTHON>
+"ev_appl_argument_expression_loop",
+  save("argl"),
+  assign("comp", list(op("head"), reg("unev"))),
+  test(list(op("is_last_argument_expression"), reg("unev"))),
+  branch(label("ev_appl_last_arg")),
+  save("env"),
+  save("unev"),
+  assign("continue", label("ev_appl_accumulate_arg")),
+  go_to(label("eval_dispatch")),
+          </PYTHON>
+        </SNIPPET>
+      </TEXT>
+
+      <TEXT>
+        Коли вираз-аргумент обчислено, його значення накопичують у списку, що
+        лежить в <PYTHONINLINE>argl</PYTHONINLINE>. Тоді вираз-аргумент
+        вилучають зі списку необчислених виразів-аргументів у
+        <PYTHONINLINE>unev</PYTHONINLINE>, і цикл обчислення аргументів
+        продовжується.
+
+        <SNIPPET EVAL="no">
+          <PYTHON>
+"ev_appl_accumulate_arg",
+  restore("unev"),
+  restore("env"),
+  restore("argl"),
+  assign("argl", list(op("adjoin_arg"), reg("val"), reg("argl"))),
+  assign("unev", list(op("tail"), reg("unev"))),
+  go_to(label("ev_appl_argument_expression_loop")),
+          </PYTHON>
+        </SNIPPET>
+      </TEXT>
+
+      <TEXT>
+        Обчислення останнього виразу-аргументу опрацьовують інакше, як і
+        останню інструкцію в послідовності. Немає потреби зберігати середовище
+        чи список необчислених виразів-аргументів перед переходом до
+        <PYTHONINLINE>eval_dispatch</PYTHONINLINE>, бо після обчислення
+        останнього виразу-аргументу вони не знадобляться. Отже, після
+        обчислення ми повертаємося до особливої точки входу
+        <PYTHONINLINE>ev_appl_accum_last_arg</PYTHONINLINE>, яка відновлює
+        список аргументів, накопичує новий аргумент, відновлює збережену
+        функцію і вирушає виконувати застосування.<FOOTNOTE>Оптимізацію, за
+        якої останній вираз-аргумент опрацьовують окремо, називають
+	<INDEX>хвостова рекурсія evlis</INDEX>
+	<EM>хвостовою рекурсією evlis</EM> (evlis tail recursion) (див.
+	<INDEX>Wand, Mitchell</INDEX>
+	<CITATION NAME="WAN80">Wand 1980</CITATION>).
+        Ми могли б зробити цикл обчислення аргументів дещо ефективнішим,
+        якби зробили окремим випадком і обчислення першого
+        виразу-аргументу. Це дало б нам змогу відкласти ініціалізацію
+        <PYTHONINLINE>argl</PYTHONINLINE> до обчислення першого
+        виразу-аргументу й таким чином уникнути збереження
+        <PYTHONINLINE>argl</PYTHONINLINE> у цьому випадку. Компілятор із
+        підрозділу<SPACE/><REF NAME="sec:compilation"/> виконує цю оптимізацію.
+        (Порівняйте з функцією <PYTHONINLINE>construct_arglist</PYTHONINLINE>
+        з підрозділу<SPACE/><REF NAME="sec:compiling-combinations"/>.)</FOOTNOTE>
+
+        <SNIPPET EVAL="no">
+          <PYTHON>
+"ev_appl_last_arg",
+  assign("continue", label("ev_appl_accum_last_arg")),
+  go_to(label("eval_dispatch")),
+"ev_appl_accum_last_arg",
+  restore("argl"),
+  assign("argl", list(op("adjoin_arg"), reg("val"), reg("argl"))),
+  restore("fun"),
+  go_to(label("apply_dispatch")),
+          </PYTHON>
+        </SNIPPET>
+      </TEXT>
+
+      <TEXT>
+        Подробиці циклу обчислення аргументів визначають
+        <INDEX>порядок обчислення<SUBINDEX>в обчислювачі з явним керуванням</SUBINDEX></INDEX>
+	порядок, у якому
+        інтерпретатор обчислює вирази-аргументи комбінації (наприклад, зліва
+        направо чи справа наліво — див. вправу<SPACE/><REF NAME="ex:order-of-evaluation"/>).
+        Метациклічний обчислювач цей порядок не визначає, бо він успадковує
+        свою структуру керування від базового JavaScript, у якому його
+        реалізовано.<!-- 
+        --><FOOTNOTE>
+        Порядок обчислення виразів-аргументів функцією
+        <PYTHONINLINE>list_of_values</PYTHONINLINE> у метациклічному
+        обчислювачі визначається порядком обчислення аргументів
+        <PYTHONINLINE>pair</PYTHONINLINE>, яку використовують для побудови
+        списку аргументів.
+	<INDEX>порядок обчислення<SUBINDEX>у метациклічному обчислювачі</SUBINDEX></INDEX>
+	Версія
+        <PYTHONINLINE>list_of_values</PYTHONINLINE> з виноски<SPACE/><REF
+        NAME="foot:mceval-higher-order"/> у підрозділі<SPACE/><REF NAME="sec:mc-eval"/>
+        викликає <PYTHONINLINE>pair</PYTHONINLINE> безпосередньо; версія з
+        тексту користується <PYTHONINLINE>map</PYTHONINLINE>, яка викликає
+        <PYTHONINLINE>pair</PYTHONINLINE>. (Див. вправу<SPACE/><REF
+        NAME="ex:arg-eval-order"/>.)</FOOTNOTE>
+
+        Оскільки ми користуємося <PYTHONINLINE>head</PYTHONINLINE> у <PYTHONINLINE>ev_appl_argument_expression_loop</PYTHONINLINE>,
+        щоб вилучити послідовні вирази-аргументи з <PYTHONINLINE>unev</PYTHONINLINE>,
+        та <PYTHONINLINE>tail</PYTHONINLINE> у
+        <PYTHONINLINE>ev_appl_@accumulate_arg</PYTHONINLINE>, щоб вилучити решту виразів-аргументів,
+        обчислювач із явним керуванням
+	      обчислюватиме вирази-аргументи комбінації в порядку зліва направо,
+        як того вимагає специфікація ECMAScript.
+      </TEXT>
+
+      <INDEX>обчислювач із явним керуванням для Python<SUBINDEX>обчислення аргументів<CLOSE/></SUBINDEX></INDEX>
+
+      <SUBHEADING> 
+        <NAME>
+          Застосування функції
+        </NAME>
+      </SUBHEADING>
+
+      <LABEL NAME="sec:procedure-application"/>
+
+      <TEXT>
+        Точка входу <PYTHONINLINE>apply_dispatch</PYTHONINLINE> відповідає
+        функції <PYTHONINLINE>apply</PYTHONINLINE> метациклічного
+        обчислювача. Коли ми дістаємося до
+        <PYTHONINLINE>apply_dispatch</PYTHONINLINE>, регістр
+        <PYTHONINLINE>fun</PYTHONINLINE> містить функцію, яку треба
+        застосувати, а <PYTHONINLINE>argl</PYTHONINLINE> містить список
+        обчислених аргументів, до яких її треба застосувати. Збережене
+        значення <PYTHONINLINE>continue</PYTHONINLINE> (спочатку його передали
+        до <PYTHONINLINE>eval_dispatch</PYTHONINLINE> і зберегли в
+        <PYTHONINLINE>ev_application</PYTHONINLINE>), яке вказує, куди
+        повернутися з результатом застосування функції, лежить на стеку. Коли
+        застосування завершено, контролер переходить до точки входу, указаної
+        збереженим <PYTHONINLINE>continue</PYTHONINLINE>, з результатом
+        застосування у <PYTHONINLINE>val</PYTHONINLINE>. Як і з метациклічною
+        <PYTHONINLINE>apply</PYTHONINLINE>, треба розглянути два випадки: або
+        функція, яку треба застосувати, є примітивом, або вона є складеною
+        функцією.
+
+        <SNIPPET EVAL="no">
+          <INDEX><DECLARATION>apply_dispatch</DECLARATION></INDEX>
+          <PYTHON>
+"apply_dispatch",
+  test(list(op("is_primitive_function"), reg("fun"))),
+  branch(label("primitive_apply")),
+  test(list(op("is_compound_function"), reg("fun"))),
+  branch(label("compound_apply")),
+  go_to(label("unknown_function_type")),
+          </PYTHON>
+        </SNIPPET>
+      </TEXT>
+
+      <TEXT>
+        Ми припускаємо, що кожен
+        <INDEX>обчислювач із явним керуванням для Python<SUBINDEX>примітивні функції</SUBINDEX></INDEX>
+	примітив реалізовано так, що він бере свої аргументи з
+        <PYTHONINLINE>argl</PYTHONINLINE> і кладе свій результат у
+        <PYTHONINLINE>val</PYTHONINLINE>. Щоб указати, як машина опрацьовує
+        примітиви, нам довелося б подати послідовність інструкцій контролера для
+        реалізації кожного примітиву й домогтися, щоб
+        <PYTHONINLINE>primitive_apply</PYTHONINLINE> передавала керування
+        інструкціям для примітиву, визначеного вмістом
+        <PYTHONINLINE>fun</PYTHONINLINE>. Оскільки нас цікавить структура
+        процесу обчислення, а не подробиці примітивів, ми натомість
+        просто скористаємося операцією
+        <PYTHONINLINE>apply_primitive_function</PYTHONINLINE>, яка застосовує
+        функцію з fun до аргументів з <PYTHONINLINE>argl</PYTHONINLINE>. Щоб
+        імітувати обчислювач за допомогою імітатора з
+        підрозділу<SPACE/><REF NAME="sec:simulator"/>, ми користуємося
+        функцією <PYTHONINLINE>apply_primitive_function</PYTHONINLINE>, яка
+        звертається до базової системи JavaScript, щоб виконати застосування,
+        так само як ми робили для метациклічного обчислювача в
+        підрозділі<SPACE/><REF
+        NAME="sec:core-of-evaluator"/>. Обчисливши значення примітивного
+        застосування, ми відновлюємо <PYTHONINLINE>continue</PYTHONINLINE> і
+        переходимо до призначеної точки входу.
+        <SNIPPET EVAL="no">
+          <INDEX><DECLARATION>primitive_apply</DECLARATION></INDEX>
+          <PYTHON>
+"primitive_apply",
+  assign("val", list(op("apply_primitive_function"),
+                     reg("fun"), reg("argl"))),
+  restore("continue"),
+  go_to(reg("continue")),
+          </PYTHON>
+        </SNIPPET>
+      </TEXT>
+
+      <TEXT>
+        Послідовність інструкцій із міткою
+        <PYTHONINLINE>compound_apply</PYTHONINLINE> задає застосування
+        <INDEX>обчислювач із явним керуванням для Python<SUBINDEX>складені функції</SUBINDEX></INDEX>
+        складених функцій. Щоб застосувати складену функцію, ми діємо подібно до
+        того, як робили в метациклічному обчислювачі. Ми будуємо фрейм, який
+        зв’язує параметри функції з аргументами, користуємося цим фреймом, щоб
+        розширити середовище, яке несе функція, і обчислюємо в цьому
+        розширеному середовищі тіло функції.
+      </TEXT>
+
+      <TEXT>
+        На цей момент складена функція лежить у регістрі
+        <PYTHONINLINE>fun</PYTHONINLINE>, а її аргументи — в
+        <PYTHONINLINE>argl</PYTHONINLINE>. Ми вилучаємо параметри функції
+        до <PYTHONINLINE>unev</PYTHONINLINE>, а її середовище — до
+        <PYTHONINLINE>env</PYTHONINLINE>. Далі ми замінюємо середовище в
+        <PYTHONINLINE>env</PYTHONINLINE> на середовище, побудоване
+        розширенням його прив’язками параметрів до заданих аргументів. Потім ми
+        вилучаємо тіло функції до <PYTHONINLINE>comp</PYTHONINLINE>.
+        Природним наступним кроком було б відновити збережене
+        <PYTHONINLINE>continue</PYTHONINLINE> і перейти до
+        <PYTHONINLINE>eval_dispatch</PYTHONINLINE>, щоб обчислити тіло, а
+        тоді перейти до відновленого продовження з результатом у
+        <PYTHONINLINE>val</PYTHONINLINE>, як це роблять для останньої
+        інструкції послідовності. Але тут є ускладнення!
+      </TEXT>
+
+      <TEXT>
+	Ускладнення має два аспекти. Перший: у будь-який момент обчислення
+        тіла
+        <INDEX>обчислювач із явним керуванням для Python<SUBINDEX>інструкції return</SUBINDEX><OPEN/></INDEX>
+	інструкція return може вимагати, щоб
+        функція повернула значення виразу-повернення як значення тіла.
+        Але інструкція return може бути вкладена в тіло як завгодно глибоко; тож
+        стек у момент зустрічі з інструкцією return не обов’язково той самий
+        стек, який потрібен для повернення з функції. Один зі способів уможливити
+        коригування стека для повернення — покласти на стек \emph{маркер}, який
+        код повернення може знайти. Це реалізує
+	<INDEX>мова регістрових машин<SUBINDEX><USE>push_marker_to_stack</USE></SUBINDEX></INDEX>
+	<INDEX><USE>push_marker_to_stack</USE> (у регістровій машині)</INDEX>
+        інструкція <PYTHONINLINE>push_marker_to_stack</PYTHONINLINE>. Тоді код
+        повернення може скористатися
+	<INDEX>мова регістрових машин<SUBINDEX><USE>revert_stack_to_marker</USE></SUBINDEX></INDEX>
+	<INDEX><USE>revert_stack_to_marker</USE> (у регістровій машині)</INDEX>
+	інструкцією <PYTHONINLINE>revert_stack_to_marker</PYTHONINLINE>,
+        щоб відновити стек до місця, указаного маркером, перед обчисленням
+        виразу-повернення.<FOOTNOTE>Спеціальні інструкції
+        <PYTHONINLINE>push_marker_to_stack</PYTHONINLINE> і
+        <PYTHONINLINE>revert_stack_to_marker</PYTHONINLINE> не є строго
+        потрібними, і їх можна було б реалізувати явним покладенням і зніманням
+        значення-маркера зі стека. Як маркер можна використати будь-що, що не
+        можна сплутати зі значенням у програмі. Див.
+        вправу<SPACE/><REF NAME="ex:push_marker_to_stack1"/>.</FOOTNOTE>
+      </TEXT>
+
+      <TEXT>
+        Другий аспект ускладнення полягає в тому, що якщо обчислення тіла
+        завершується, не виконавши інструкції return, значенням тіла має бути
+        <PYTHONINLINE>undefined</PYTHONINLINE>. Щоб це опрацювати, ми
+        настроюємо
+        <PYTHONINLINE>continue</PYTHONINLINE> так, щоб він указував на точку
+        входу <PYTHONINLINE>return_undefined</PYTHONINLINE>, перед тим як
+        вирушити до <PYTHONINLINE>eval_dispatch</PYTHONINLINE> обчислювати
+        тіло. Якщо під час обчислення тіла інструкції return не зустрінеться,
+        обчислення тіла продовжиться в
+        <PYTHONINLINE>return_undefined</PYTHONINLINE>.
+        <SNIPPET EVAL="no">
+          <INDEX><DECLARATION>compound_apply</DECLARATION></INDEX>
+          <PYTHON>
+"compound_apply",
+  assign("unev", list(op("function_parameters"), reg("fun"))),
+  assign("env", list(op("function_environment"), reg("fun"))),
+  assign("env", list(op("extend_environment"), 
+                     reg("unev"), reg("argl"), reg("env"))),
+  assign("comp", list(op("function_body"), reg("fun"))),
+  push_marker_to_stack(),
+  assign("continue", label("return_undefined")),
+  go_to(label("eval_dispatch")),
+          </PYTHON>
+        </SNIPPET>
+      </TEXT>
+
+      <TEXT>
+        Єдині місця в інтерпретаторі, де регістру
+        <PYTHONINLINE>env</PYTHONINLINE> присвоюють нове значення, — це
+        <PYTHONINLINE>compound_apply</PYTHONINLINE> та
+        <PYTHONINLINE>ev_block</PYTHONINLINE> (підрозділ<SPACE/><REF
+        NAME="sec:block-assign-def-evaluation"/>). Як і в метациклічному
+        обчислювачі, нове середовище для обчислення тіла функції будують із
+        середовища, яке несе функція, разом зі списком аргументів і відповідним
+        списком імен, які треба зв’язати.
+      </TEXT>
+
+      <INDEX>обчислювач із явним керуванням для Python<SUBINDEX>застосування функцій<CLOSE/></SUBINDEX></INDEX>
+      <INDEX>обчислювач із явним керуванням для Python<SUBINDEX>комбінації<CLOSE/></SUBINDEX></INDEX>
+      
+      <TEXT>
+        Коли інструкцію return обчислюють у
+        <PYTHONINLINE>ev_return</PYTHONINLINE>, ми користуємося
+        інструкцією <PYTHONINLINE>revert_stack_@to_marker</PYTHONINLINE>, щоб
+        відновити стек до його стану на початку виклику функції, вилучивши зі
+        стека всі значення аж до маркера включно. Як наслідок,
+        <PYTHONINLINE>restore("continue")</PYTHONINLINE> відновить
+        продовження виклику функції, яке зберегли в
+        <PYTHONINLINE>ev_application</PYTHONINLINE>. Далі ми переходимо до
+        обчислення виразу-повернення; його результат буде покладено в
+        <PYTHONINLINE>val</PYTHONINLINE> і таким чином стане значенням,
+        поверненим із функції, коли ми продовжимо після обчислення
+        виразу-повернення.
+
+        <SNIPPET EVAL="no">
+	  <INDEX><DECLARATION>ev_return</DECLARATION></INDEX>
+          <PYTHON>
+"ev_return",
+  revert_stack_to_marker(),
+  restore("continue"),
+  assign("comp", list(op("return_expression"), reg("comp"))),
+  go_to(label("eval_dispatch")),
+          </PYTHON>
+        </SNIPPET>
+      </TEXT>
+
+      <TEXT>
+        Якщо під час обчислення тіла функції інструкції return не зустрінеться,
+ 	<INDEX>повернене значення<SUBINDEX><USE>undefined</USE> як</SUBINDEX></INDEX>
+	обчислення продовжиться в
+        <PYTHONINLINE>return_undefined</PYTHONINLINE> — продовженні, яке
+        настроїли в <PYTHONINLINE>compound_apply</PYTHONINLINE>. Щоб
+        повернути <PYTHONINLINE>undefined</PYTHONINLINE> з функції, ми кладемо
+        <PYTHONINLINE>undefined</PYTHONINLINE> у
+        <PYTHONINLINE>val</PYTHONINLINE> і переходимо до точки входу, яку
+        поклали на стек у <PYTHONINLINE>ev_application</PYTHONINLINE>. Перш
+        ніж відновити це продовження зі стека, ми мусимо, однак, усунути
+        маркер, збережений у <PYTHONINLINE>compound_apply</PYTHONINLINE>.
+
+      <SNIPPET EVAL="no" POSTPADDING="no">
+	  <INDEX><DECLARATION>return_undefined</DECLARATION></INDEX>
+        <PYTHON>
+"return_undefined",
+  revert_stack_to_marker(),
+  restore("continue"),
+  assign("val", constant(undefined)),
+  go_to(reg("continue")),
+        </PYTHON>
+      </SNIPPET>
+      </TEXT>
+    </PYTHON>
+  </SPLIT>
+
+  <SUBHEADING> 
+    <NAME>
+      <SPLITINLINE>
+        <PYTHON>
+          Інструкції return і 
+        </PYTHON>
+      </SPLITINLINE>
+      хвостова рекурсія
+    </NAME>
+  </SUBHEADING>
+
+  <LABEL NAME="sec:tail-recursion-return"/>
+
+  <SPLIT>
+    <PYTHON>
+      <INDEX>обчислювач із явним керуванням для Python<SUBINDEX>хвостова рекурсія<OPEN/></SUBINDEX></INDEX>
+    </PYTHON>
+  </SPLIT>
+  <INDEX>хвостова рекурсія<SUBINDEX>обчислювач із явним керуванням і<OPEN/></SUBINDEX></INDEX>
+  <INDEX>інструкція return<SUBINDEX>опрацювання в обчислювачі з явним керуванням</SUBINDEX></INDEX>
+
+  <TEXT>
+    У розділі<SPACE/><REF NAME="chap:fun"></REF> ми казали, що процес, описаний
+    <SPLITINLINE>
+      <SCHEME>процедурою</SCHEME>
+      <PYTHON>функцією</PYTHON>
+    </SPLITINLINE>
+    на кшталт
+        
+    <SNIPPET EVAL="no">
+      <SCHEME>
+(define (sqrt-iter guess x)
+  (if (good-enough? guess x)
+      guess
+      (sqrt-iter (improve guess x)
+                 x)))
+      </SCHEME>
+      <PYTHON>
+function sqrt_iter(guess, x) {
+    return is_good_enough(guess, x)
+           ? guess
+           : sqrt_iter(improve(guess, x), x);
+}
+      </PYTHON>
+    </SNIPPET>
+
+    є ітеративним.  Навіть попри те, що
+    <SPLITINLINE>
+      <SCHEME>процедура</SCHEME>
+      <PYTHON>функція</PYTHON>
+    </SPLITINLINE>
+    синтаксично рекурсивна (означена через саму себе), логічно не
+    конче потрібно, щоб обчислювач зберігав інформацію, переходячи від одного виклику
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>sqrt-iter</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>sqrt_iter</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    до наступного.<FOOTNOTE>Ми бачили в
+    підрозділі<SPACE/><REF NAME="sec:designing-register-machines"/>, як
+    реалізувати такий процес регістровою машиною, що не мала стека; стан
+    процесу зберігався у фіксованому наборі регістрів.</FOOTNOTE> Обчислювач,
+    який може виконувати
+    <SPLITINLINE>
+      <SCHEME>процедуру</SCHEME>
+      <PYTHON>функцію</PYTHON>
+    </SPLITINLINE>
+    на кшталт
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>sqrt-iter</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>sqrt_iter</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    без потреби в дедалі більшому обсязі пам’яті, коли
+    <SPLITINLINE>
+      <SCHEME>процедура</SCHEME>
+      <PYTHON>функція</PYTHON>
+    </SPLITINLINE>
+    продовжує викликати саму себе, називають 
+    <INDEX>хвостово-рекурсивний обчислювач</INDEX>
+    <INDEX>метациклічний обчислювач для Python<SUBINDEX>хвостова рекурсія і</SUBINDEX></INDEX>
+    <INDEX>хвостова рекурсія<SUBINDEX>метациклічний обчислювач і</SUBINDEX></INDEX>
+    <INDEX>інструкція return<SUBINDEX>хвостова рекурсія і</SUBINDEX></INDEX>
+    <EM>хвостово-рекурсивним</EM> обчислювачем.  
+  </TEXT>
+            
+  <SPLIT>
+      <SCHEME>
+        Метациклічна реалізація обчислювача з розділу<SPACE/><REF NAME="chap:meta"></REF>
+        не вказує, чи обчислювач хвостово-рекурсивний, бо той
+        обчислювач успадковує свій механізм збереження стану від базової мови
+        Scheme. З обчислювачем із явним керуванням ми, однак, можемо
+        простежити процес обчислення й побачити, коли виклики процедур
+        спричиняють чисте накопичення інформації на стеку.
+      </SCHEME>
+    <PYTHON>
+      <TEXT>
+        Метациклічна реалізація обчислювача з розділу<SPACE/><REF NAME="chap:meta"></REF> не є
+        хвостово-рекурсивною. Вона реалізує інструкцію return як
+        конструктор об’єкта поверненого значення, що містить значення, яке треба
+        повернути, і перевіряє результат виклику функції, чи він є
+        таким об’єктом. Якщо обчислення тіла функції дає об’єкт поверненого
+        значення, поверненим значенням функції є вміст цього об’єкта;
+        інакше поверненим значенням є
+        <PYTHONINLINE>undefined</PYTHONINLINE>. І побудова об’єкта
+        поверненого значення, і остаточна перевірка результату
+        виклику функції — це відкладені операції, які призводять до накопичення
+        інформації на стеку.
+      </TEXT>
+    </PYTHON>
+  </SPLIT>
+
+  <SPLIT>
+    <SCHEME>
+      <TEXT>
+        Наш обчислювач хвостово-рекурсивний, бо, щоб обчислити останній
+        вираз послідовності, ми переходимо безпосередньо до
+        <SCHEMEINLINE>eval-dispatch</SCHEMEINLINE>, не зберігаючи на стеку
+        жодної інформації. Отже, обчислення останнього виразу в
+        послідовності<EMDASH/>навіть якщо це виклик процедури (як у
+        <SCHEMEINLINE>sqrt-iter</SCHEMEINLINE>, де вираз
+        <SCHEMEINLINE>if</SCHEMEINLINE>, що є останнім виразом у тілі
+        процедури, зводиться до виклику
+        <SCHEMEINLINE>sqrt-iter</SCHEMEINLINE>)<EMDASH/>не спричинить
+        накопичення на стеку жодної інформації.
+
+        Якби ми не здогадалися скористатися тим, що в цьому випадку зберігати
+        інформацію не потрібно, ми могли б реалізувати
+        <SCHEMEINLINE>eval-sequence</SCHEMEINLINE>, опрацьовуючи всі вирази
+        послідовності однаково<EMDASH/>зберігаючи регістри, обчислюючи вираз,
+        повертаючись, щоб відновити регістри, і повторюючи це, доки не буде
+        обчислено всі вирази:<FOOTNOTE>Ми можемо означити
+        <SCHEMEINLINE>no-more-exps?</SCHEMEINLINE> так:
+
+        <SNIPPET EVAL="no">
+          <SCHEME>
+(define (no-more-exps? seq) (null? seq))
+          </SCHEME>
+        </SNIPPET></FOOTNOTE>
+        <SNIPPET EVAL="no">
+          <INDEX><DECLARATION>ev-sequence</DECLARATION><SUBINDEX>without tail recursion</SUBINDEX></INDEX>
+          <SCHEME>
+ev-sequence
+  (test (op no-more-exps?) (reg unev))
+  (branch (label ev-sequence-end))
+  (assign exp (op first-exp) (reg unev))
+  (save unev)
+  (save env)
+  (assign continue (label ev-sequence-continue))
+  (goto (label eval-dispatch))
+ev-sequence-continue
+  (restore env)
+  (restore unev)
+  (assign unev (op rest-exps) (reg unev))
+  (goto (label ev-sequence))
+ev-sequence-end
+  (restore continue)
+  (goto (reg continue))
+          </SCHEME>
+        </SNIPPET>
+      </TEXT>
+    </SCHEME>
+    <PYTHON>
+      <TEXT>
+        Наш обчислювач із явним керуванням <EM>є</EM> хвостово-рекурсивним, бо йому не потрібно загортати
+        повернені значення для перевірки, і він таким чином уникає накопичення стека від відкладених операцій.
+        У <PYTHONINLINE>ev_return</PYTHONINLINE>, щоб обчислити вираз, який
+        обчислює повернене значення функції, ми переходимо безпосередньо до
+        <PYTHONINLINE>eval_dispatch</PYTHONINLINE>, маючи на стеку не більше,
+        ніж безпосередньо перед викликом функції. Ми досягаємо цього, скасовуючи
+        всі збереження на стеку, зроблені функцією (вони непотрібні, бо ми
+        повертаємося), за допомогою
+        <PYTHONINLINE>revert_stack_to_marker</PYTHONINLINE>. Далі, замість того
+        щоб домогтися, аби <PYTHONINLINE>eval_dispatch</PYTHONINLINE> повернувся сюди, і <EM>потім</EM>
+        відновити <PYTHONINLINE>continue</PYTHONINLINE> зі стека й
+        продовжити в тій точці входу, ми відновлюємо
+        <PYTHONINLINE>continue</PYTHONINLINE> зі стека <EM>перед</EM> переходом до
+        <PYTHONINLINE>eval_dispatch</PYTHONINLINE>, щоб
+        <PYTHONINLINE>eval_dispatch</PYTHONINLINE> продовжив у тій точці
+        входу після обчислення виразу. Нарешті, ми переходимо до
+        <PYTHONINLINE>eval_dispatch</PYTHONINLINE>, не зберігаючи на стеку
+        жодної інформації. Отже, коли ми переходимо до обчислення
+        виразу-повернення, стек є таким самим, як безпосередньо перед викликом
+        функції, чиє повернене значення ми збираємося обчислити. Тож обчислення
+        виразу-повернення — навіть якщо це виклик функції (як у
+        <PYTHONINLINE>sqrt_iter</PYTHONINLINE>, де умовний
+        вираз зводиться до виклику
+        <PYTHONINLINE>sqrt_iter</PYTHONINLINE>) — не спричинить накопичення на
+        стеку жодної інформації.<FOOTNOTE>Ця реалізація хвостової рекурсії — це
+        один із різновидів добре відомої техніки оптимізації, яку застосовують
+        багато компіляторів. Компілюючи функцію, що закінчується викликом
+        функції, можна замінити виклик переходом до точки входу викликаної
+        функції. Убудувавши цю стратегію в інтерпретатор, як ми зробили в цьому
+        підрозділі, ми забезпечуємо цю оптимізацію однаково в усій мові.</FOOTNOTE>
+      </TEXT>
+
+      <TEXT>
+        Якби ми не здогадалися скористатися тим, що непотрібну інформацію на
+        стеку не треба утримувати під час обчислення виразу-повернення, ми могли б
+        піти прямолінійним шляхом: обчислити
+	вираз-повернення, повернутися, щоб відновити стек, і нарешті
+	продовжити в
+        точці входу, яка чекає на результат виклику функції:
+
+        <SNIPPET EVAL="no" LATEX="yes">
+          <PYTHON>
+"ev_return",  // alternative implementation: not tail-recursive
+  assign("comp", list(op("return_expression"), reg("comp"))),
+  assign("continue", label("ev_restore_stack")),
+  go_to(label("eval_dispatch")),
+"ev_restore_stack",
+  revert_stack_to_marker(),    // undo saves in current function
+  restore("continue"),         // undo save at $\texttt{ev\char`_application}$
+  go_to(reg("continue")),
+          </PYTHON>
+        </SNIPPET>
+      </TEXT>
+
+    </PYTHON>
+  </SPLIT>
+
+  <TEXT>
+    Це може здатися незначною зміною в нашому попередньому коді для обчислення
+    <SPLITINLINE><SCHEME>послідовності</SCHEME><PYTHON>інструкцій return</PYTHON></SPLITINLINE>:
+    
+    Єдина відмінність у тому, що ми <SPLITINLINE><SCHEME>проходимо цикл
+    збереження-відновлення і для останнього виразу в послідовності, і для
+    решти</SCHEME><PYTHON>відкладаємо скасування будь-яких збережень регістрів на стек
+    доти, доки не обчислимо вираз-повернення</PYTHON></SPLITINLINE>.
+
+    Для будь-якого виразу інтерпретатор і далі даватиме те саме значення. Але ця
+    зміна смертельна для хвостово-рекурсивної реалізації, бо тепер ми мусимо
+    повернутися після обчислення
+    <SPLITINLINE><SCHEME>останнього виразу в
+    послідовності</SCHEME><PYTHON>виразу-повернення</PYTHON></SPLITINLINE>,
+    щоб скасувати (непотрібні) збереження регістрів.
+
+    Ці зайві збереження накопичуватимуться під час гнізда
+    <SPLITINLINE><SCHEME>викликів процедур</SCHEME><PYTHON>викликів функцій</PYTHON></SPLITINLINE>.
+
+    Отже, процеси на кшталт
+    <SPLITINLINE><SCHEME><SCHEMEINLINE>sqrt-iter</SCHEMEINLINE></SCHEME><PYTHON><PYTHONINLINE>sqrt_iter</PYTHONINLINE></PYTHON></SPLITINLINE>
+    вимагатимуть обсягу пам’яті, пропорційного до кількості ітерацій, а не
+    сталого обсягу.
+
+    Ця різниця може бути значною. Наприклад,
+    <INDEX>ітеративний процес<SUBINDEX>реалізований викликом <SPLITINLINE><SCHEME>procedure</SCHEME><PYTHON>function</PYTHON></SPLITINLINE></SUBINDEX></INDEX>
+    з хвостовою рекурсією, нескінченний цикл можна виразити, користуючись лише
+    <SPLITINLINE>
+      <SCHEME>механізмом виклику процедур:</SCHEME>
+      <PYTHON>механізмами виклику функцій і повернення:</PYTHON>
+    </SPLITINLINE>
+    <SNIPPET EVAL="no">
+      <SCHEME>
+(define (count n)
+  (newline)
+  (display n)
+  (count (+ n 1)))
+      </SCHEME>
+      <PYTHON>
+function count(n) {
+    display(n);
+    return count(n + 1);
+}
+      </PYTHON>
+    </SNIPPET>
+
+    Без хвостової рекурсії такій
+    <SPLITINLINE>
+      <SCHEME>процедурі</SCHEME>
+      <PYTHON>функції</PYTHON>
+    </SPLITINLINE>
+    зрештою забракло б місця на стеку, і для вираження справжньої ітерації
+    знадобився б якийсь механізм керування, інший ніж виклик
+    <SPLITINLINE>
+      <SCHEME>процедури</SCHEME>
+      <PYTHON>функції</PYTHON>
+    </SPLITINLINE>
+    .
+  </TEXT>
+
+  <SPLIT>
+    <PYTHON>
+      <TEXT>
+        Зауважте, що наша реалізація для Python вимагає використання
+	<INDEX>хвостова рекурсія<SUBINDEX>інструкція return, потрібна для</SUBINDEX></INDEX>
+        <PYTHONINLINE>return</PYTHONINLINE>, щоб бути хвостово-рекурсивною.
+        Оскільки скасування збережень регістрів відбувається в
+        <PYTHONINLINE>ev_return</PYTHONINLINE>, вилучення
+        <PYTHONINLINE>return</PYTHONINLINE> з наведеної вище функції
+        <PYTHONINLINE>count</PYTHONINLINE> зрештою спричинить брак місця
+        на стеку. Це пояснює використання
+        <PYTHONINLINE>return</PYTHONINLINE> у нескінченних керівних циклах у
+        розділі<SPACE/><REF NAME="chap:meta"></REF>.
+      </TEXT>
+
+      <INDEX>обчислювач із явним керуванням для Python<SUBINDEX>інструкції return</SUBINDEX><CLOSE/></INDEX>
+      
+    </PYTHON>
+  </SPLIT>
+
+  <SPLIT>
+    <PYTHON>
+      <EXERCISE>
+        Поясніть, як
+        <INDEX>обчислювач із явним керуванням для Python<SUBINDEX>хвостова рекурсія</SUBINDEX></INDEX>
+        <INDEX>хвостова рекурсія<SUBINDEX>обчислювач із явним керуванням і</SUBINDEX></INDEX>
+	накопичується стек, якщо вилучити <PYTHONINLINE>return</PYTHONINLINE>
+        з <PYTHONINLINE>count</PYTHONINLINE>:
+        <SNIPPET EVAL="no" POSTPADDING="no">
+          <PYTHON>
+function count(n) {
+    display(n);
+    count(n + 1);
+}
+          </PYTHON>
+        </SNIPPET>
+        <LABEL NAME="ex:missing-return"/>
+      </EXERCISE>
+
+      <EXERCISE>
+        <LABEL NAME="ex:push_marker_to_stack1"/>
+        Реалізуйте еквівалент <PYTHONINLINE>push_marker_to_stack</PYTHONINLINE>,
+        скориставшись <PYTHONINLINE>save</PYTHONINLINE> у
+        <PYTHONINLINE>compound_apply</PYTHONINLINE>, щоб покласти на стек
+        особливе значення-маркер. Реалізуйте еквівалент
+        <PYTHONINLINE>revert_@stack_@to_@marker</PYTHONINLINE> у
+        <PYTHONINLINE>ev_return</PYTHONINLINE> та
+        <PYTHONINLINE>return_undefined</PYTHONINLINE> як цикл, який повторно
+        виконує <PYTHONINLINE>restore</PYTHONINLINE>, доки не натрапить на
+        маркер. Зауважте, що для цього доведеться відновити значення в регістр,
+        інший ніж той, з якого його зберегли. (Хоча ми пильно уникаємо цього в
+        нашому обчислювачі, наша реалізація стека насправді це дозволяє. Див.
+        вправу <REF NAME="ex:stack-behavior"/>.)
+        Це потрібно, бо єдиний спосіб зняти щось зі стека — відновити його в
+        регістр.
+
+        Підказка: вам треба буде створити унікальну константу, яка слугуватиме
+        маркером, наприклад за допомогою
+        <PYTHONINLINE>const marker = list("marker")</PYTHONINLINE>.
+        Оскільки <PYTHONINLINE>list</PYTHONINLINE> створює нову пару, вона не
+        може бути <PYTHONINLINE>===</PYTHONINLINE> до чогось іншого на стеку.
+      </EXERCISE>
+
+
+      <EXERCISE>
+        <!-- FIXME:     \index{explicit-control evaluator for Python!syntactic forms (additional)|xx{\theExercise}}% -->
+        <LABEL NAME="ex:push_marker_to_stack2"/>
+        Реалізуйте
+	<INDEX>мова регістрових машин<SUBINDEX><USE>push_marker_to_stack</USE></SUBINDEX></INDEX>
+	<INDEX><USE>push_marker_to_stack</USE> (у регістровій машині)</INDEX>
+	<PYTHONINLINE>push_marker_to_stack</PYTHONINLINE> та
+	<INDEX>мова регістрових машин<SUBINDEX><USE>revert_stack_to_marker</USE></SUBINDEX></INDEX>
+	<INDEX><USE>revert_stack_to_marker</USE> (у регістровій машині)</INDEX>
+        <PYTHONINLINE>revert_stack_to_marker</PYTHONINLINE> як інструкції
+        регістрової машини, наслідуючи реалізацію
+        <PYTHONINLINE>save</PYTHONINLINE> та
+        <PYTHONINLINE>restore</PYTHONINLINE> з підрозділу<SPACE/><REF NAME="sec:ex-proc"/>. Додайте функції
+        <PYTHONINLINE>push_marker</PYTHONINLINE> та
+        <PYTHONINLINE>pop_marker</PYTHONINLINE> для доступу до стеків,
+        дзеркалячи реалізацію <PYTHONINLINE>push</PYTHONINLINE> та
+        <PYTHONINLINE>pop</PYTHONINLINE> з підрозділу<SPACE/><REF NAME="sec:machine-model"/>. Зауважте, що вам не
+        потрібно насправді вставляти маркер у стек. Натомість ви можете додати
+        локальну змінну стану до моделі стека, щоб відстежувати позицію
+        останнього <PYTHONINLINE>save</PYTHONINLINE>
+        перед кожним <PYTHONINLINE>push_marker_to_stack</PYTHONINLINE>.
+        Якщо ви вирішите покласти маркер на стек, див. підказку у
+        вправі<SPACE/><REF NAME="ex:push_marker_to_stack1"/>.
+      </EXERCISE>
+
+      <INDEX>хвостова рекурсія<SUBINDEX>обчислювач із явним керуванням і<CLOSE/></SUBINDEX></INDEX>
+
+    </PYTHON>
+  </SPLIT>
+
+  <SPLIT>
+    <PYTHON>
+      <INDEX>обчислювач із явним керуванням для Python<SUBINDEX>хвостова рекурсія<CLOSE/></SUBINDEX></INDEX>
+    </PYTHON>
+  </SPLIT>
+
+</SUBSECTION>

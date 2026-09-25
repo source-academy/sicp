@@ -12,6 +12,7 @@ import { IndexHeaderCard, SidebarHeaderCard } from "./TocCards.js";
 import { html, raw } from "hono/html";
 import type { WriteBuffer } from "./types.js";
 import { getPublishedChapterCount, TOTAL_CHAPTER_COUNT } from "./editions.js";
+import { ui } from "./uiStrings.js";
 
 const truncateTitle = chapterTitle => {
   let truncatedTitle = "";
@@ -239,7 +240,7 @@ export const indexHtml = (writeToIndex: WriteBuffer) => {
     const from = publishedChapterCount + 1;
     const range =
       from === TOTAL_CHAPTER_COUNT
-        ? `Chapter ${from}`
+        ? `${ui("chapter")} ${from}`
         : `Chapters ${from}–${TOTAL_CHAPTER_COUNT}`;
     const verb = from === TOTAL_CHAPTER_COUNT ? "is" : "are";
     writeToIndex.push(html`

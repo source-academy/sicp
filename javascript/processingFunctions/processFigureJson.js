@@ -1,5 +1,6 @@
 import { recursiveProcessTextJson, processTextJson } from "../parseXmlJson";
 import { referenceStore } from "./processReferenceJson";
+import { ui } from "../uiStrings.js";
 
 export const processFigureJson = (node, obj) => {
   // FIGURE can have FIGURE inside; src of image can be
@@ -69,7 +70,7 @@ export const processFigureJson = (node, obj) => {
     recursiveProcessTextJson(caption.firstChild, captionBody);
 
     obj["captionHref"] = href;
-    obj["captionName"] = "Figure " + displayName + " ";
+    obj["captionName"] = ui("figure") + " " + displayName + " ";
     obj["captionBody"] = captionBody["child"];
   }
 };

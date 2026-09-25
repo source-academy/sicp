@@ -1,0 +1,752 @@
+<SUBSECTION>
+  <NAME>
+    Модель машини
+  </NAME>
+
+  <LABEL NAME="sec:machine-model"/>
+
+  <TEXT>
+    Модель машини, яку породжує
+    <SPLITINLINE>
+      <SCHEME>make-machine</SCHEME>
+      <PYTHON><PYTHONINLINE>make_machine</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    , подано як
+    <SPLITINLINE>
+      <SCHEME>процедуру</SCHEME>
+      <PYTHON>функцію</PYTHON>
+    </SPLITINLINE>
+    з локальним станом, користуючись технікою передавання повідомлень,
+    розробленою в розділі<SPACE/><REF NAME="chap:state"></REF>.  Щоб побудувати цю модель,
+    <SPLITINLINE>
+      <SCHEME>make-machine</SCHEME>
+      <PYTHON><PYTHONINLINE>make_machine</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    спочатку викликає
+    <SPLITINLINE>
+      <SCHEME>процедуру</SCHEME>
+      <PYTHON>функцію</PYTHON>
+    </SPLITINLINE>
+    <SPLITINLINE>
+      <SCHEME>make-new-machine</SCHEME>
+      <PYTHON><PYTHONINLINE>make_new_machine</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    , щоб побудувати
+    ті частини моделі машини, які спільні для всіх регістрових
+    машин.  Ця базова модель машини, побудована
+    <SPLITINLINE>
+      <SCHEME>make-new-machine</SCHEME>
+      <PYTHON><PYTHONINLINE>make_new_machine</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    , — це по суті контейнер для кількох регістрів і стека разом із
+    механізмом виконання, який опрацьовує інструкції контролера одну за одною.
+  </TEXT>
+
+  <TEXT>
+    <SPLITINLINE>
+      <SCHEME>Make-machine</SCHEME>
+      <PYTHON>
+	Функція
+	<PYTHONINLINE>make_machine</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    тоді розширює цю базову модель (надсилаючи їй
+    повідомлення), щоб охопити регістри, операції та контролер
+    конкретної машини, яку означують.  Спершу вона виділяє регістр у
+    новій машині для кожного з поданих імен регістрів і встановлює
+    в машині зазначені операції.  Потім вона користується
+    <INDEX>асемблер</INDEX>
+    <EM>асемблером</EM> (описаним далі в
+    підрозділі<SPACE/><REF NAME="sec:assembler"/>), щоб перетворити список контролера
+    на інструкції для нової машини, і встановлює їх як
+    послідовність інструкцій, пов’язану з машиною.
+    <SPLITINLINE>
+      <SCHEME>Make-machine</SCHEME>
+      <PYTHON>
+	Функція
+	<PYTHONINLINE>make_machine</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    повертає як своє значення змінену модель машини.
+    <SNIPPET HIDE="yes">
+      <NAME>gcd_machine_complete_example</NAME>
+      <REQUIRES>make_machine</REQUIRES>
+      <REQUIRES>start</REQUIRES>
+      <PYTHON>
+gcd_machine = make_machine(
+    llist("a", "b", "t"),
+    llist(llist("rem", lambda a, b: a % b),
+         llist("=", lambda a, b: a == b)),
+    llist("test_b",
+           test(llist(op("="), reg("b"), constant(0))),
+           branch(label("gcd_done")),
+           assign("t", llist(op("rem"), reg("a"), reg("b"))),
+           assign("a", reg("b")),
+           assign("b", reg("t")),
+           go_to(label("test_b")),
+         "gcd_done"))
+set_register_contents(gcd_machine, "a", 206)
+set_register_contents(gcd_machine, "b", 40)
+start(gcd_machine)
+get_register_contents(gcd_machine, "a")
+</PYTHON>
+    </SNIPPET>
+    <SNIPPET POSTPADDING="no">
+      <INDEX><DECLARATION>make_machine</DECLARATION></INDEX> 
+      <NAME>make_machine</NAME>
+      <REQUIRES>assemble</REQUIRES>
+      <REQUIRES>make_new_machine</REQUIRES>
+      <EXAMPLE>gcd_machine_complete_example</EXAMPLE>
+      <SCHEME>
+(define (make-machine register-names ops controller-text)
+  (let ((machine (make-new-machine)))
+    (for-each (lambda (register-name)
+                ((machine 'allocate-register) register-name))
+              register-names)
+    ((machine 'install-operations) ops)    
+    ((machine 'install-instruction-sequence)
+    (assemble controller-text machine))
+    machine))
+      </SCHEME>
+      <PYTHON>
+def make_machine(register_names, ops, controller):
+    machine = make_new_machine()
+    for_each(lambda register_name: machine("allocate_register")(register_name),
+             register_names)
+    machine("install_operations")(ops)
+    machine("install_instruction_sequence")(assemble(controller, machine))
+    return machine
+</PYTHON>
+    </SNIPPET>
+  </TEXT>
+
+  <SUBHEADING>
+    <NAME>Регістри</NAME>
+  </SUBHEADING>
+
+  <INDEX>регістр(и)<SUBINDEX>подання</SUBINDEX></INDEX>
+
+  <TEXT>
+    Ми подаватимемо регістр як
+    <SPLITINLINE>
+      <SCHEME>процедуру</SCHEME>
+      <PYTHON>функцію</PYTHON>
+    </SPLITINLINE>
+    з локальним станом, як у
+    розділі<SPACE/><REF NAME="chap:state"></REF>.
+    <SPLITINLINE>
+      <SCHEME>Процедура</SCHEME>
+      <PYTHON>Функція</PYTHON>
+    </SPLITINLINE>
+    <SPLITINLINE>
+      <SCHEME>make-register</SCHEME>
+      <PYTHON><PYTHONINLINE>make_register</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    створює регістр, який
+    зберігає значення, до якого можна звертатися або яке можна змінювати:
+    <SNIPPET>
+      <INDEX><DECLARATION>make_register</DECLARATION></INDEX> 
+      <NAME>make_register</NAME>
+      <EXAMPLE>gcd_machine_complete_example</EXAMPLE>
+      <SCHEME>
+(define (make-register name)
+  (let ((contents '*unassigned*))
+    (define (dispatch message)
+      (cond ((eq? message 'get) contents)
+            ((eq? message 'set)
+             (lambda (value) (set! contents value)))
+            (else
+             (error "Unknown request - - REGISTER" message))))
+    dispatch))
+      </SCHEME>
+      <PYTHON>
+def make_register(name):
+    contents = "*unassigned*"
+    def dispatch(message):
+        def set_value(value):
+            nonlocal contents
+            contents = value
+        return (contents if message == "get"
+                else set_value if message == "set"
+                else error("unknown request -- make_register", message))
+    return dispatch
+      </PYTHON>
+    </SNIPPET>
+
+    Такі
+    <SPLITINLINE>
+      <SCHEME>процедури</SCHEME>
+      <PYTHON>функції</PYTHON>
+    </SPLITINLINE>
+    використовують для доступу до регістрів:
+    <SNIPPET POSTPADDING="no">
+      <INDEX><DECLARATION>get_contents</DECLARATION></INDEX> 
+      <INDEX><DECLARATION>set_contents</DECLARATION></INDEX> 
+      <NAME>get_contents</NAME>
+      <EXAMPLE>gcd_machine_complete_example</EXAMPLE>
+      <SCHEME>
+(define (get-contents register)
+  (register 'get))
+
+(define (set-contents! register value)
+  ((register 'set) value))
+      </SCHEME>
+      <PYTHON>
+def get_contents(register):
+    return register("get")
+def set_contents(register, value):
+    return register("set")(value)
+</PYTHON>
+    </SNIPPET>
+  </TEXT>
+
+  <SUBHEADING>
+    <NAME>Стек</NAME>
+  </SUBHEADING>
+
+  <INDEX>стек<SUBINDEX>подання</SUBINDEX></INDEX>
+
+  <TEXT>
+    Стек ми також можемо подати як
+    <SPLITINLINE>
+      <SCHEME>процедуру</SCHEME>
+      <PYTHON>функцію</PYTHON>
+    </SPLITINLINE>
+    з локальним станом.
+    <SPLITINLINE>
+      <SCHEME>Процедура</SCHEME>
+      <PYTHON>Функція</PYTHON>
+    </SPLITINLINE>
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>make-stack</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>make_@stack</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    створює стек, локальний стан якого складається
+    зі списку елементів на стеку.  Стек приймає запити, щоб
+    <SCHEMEINLINE>push</SCHEMEINLINE> елемент на стек, щоб
+    <SCHEMEINLINE>pop</SCHEMEINLINE> верхній елемент зі стека
+    і повернути його, і щоб
+    <SCHEMEINLINE>initialize</SCHEMEINLINE> стек до порожнього стану.
+    <SNIPPET HIDE="yes">
+      <NAME>make_stack</NAME>
+      <EXAMPLE>gcd_machine_complete_example</EXAMPLE>
+      <SCHEME>
+(define (make-stack)
+  (let ((s '()))
+    (define (push x)
+      (set! s (cons x s)))
+    (define (pop)
+      (if (null? s)
+          (error "Empty stack - - POP")
+          (let ((top (car s)))
+            (set! s (cdr s))
+            top)))
+    (define (initialize)
+      (set! s '())
+      'done)
+    (define (dispatch message)
+      (cond ((eq? message 'push) push)
+            ((eq? message 'pop) (pop))
+            ((eq? message 'initialize) (initialize))
+            (else (error "Unknown request - - STACK"
+                         message))))
+    dispatch))
+      </SCHEME>
+      <PYTHON>
+def make_stack():
+    stack = None
+    frame = None
+    def push_marker():
+        nonlocal frame
+        frame = pair(stack, frame)
+        return "done"
+    def pop_marker():
+        nonlocal stack, frame
+        stack = head(frame)
+        frame = tail(frame)
+        return "done"
+    def push(x):
+        nonlocal stack
+        stack = pair(x, stack)
+        return "done"
+    def pop():
+        nonlocal stack
+        if is_null(stack):
+            error("empty stack -- pop")
+        else:
+            top = head(stack)
+            stack = tail(stack)
+            return top
+    def initialize():
+        nonlocal stack
+        stack = None
+        return "done"
+    def dispatch(message):
+        return (push if message == "push"
+                else pop() if message == "pop"
+                else push_marker() if message == "push_marker"
+                else pop_marker() if message == "pop_marker"
+                else initialize() if message == "initialize"
+                else error("unknown request -- stack", message))
+    return dispatch
+def make_push_marker_to_stack_ef(machine, stack, pc):
+    def execution_fun():
+        push_marker(stack)
+        advance_pc(pc)
+    return execution_fun
+def make_revert_stack_to_marker_ef(machine, stack, pc):
+    def execution_fun():
+        pop_marker(stack)
+        advance_pc(pc)
+    return execution_fun
+def push_marker_to_stack():
+    return llist("push_marker_to_stack")
+def revert_stack_to_marker():
+    return llist("revert_stack_to_marker")
+def pop_marker(stack):
+    return stack("pop_marker")
+def push_marker(stack):
+    return stack("push_marker")
+</PYTHON>
+    </SNIPPET>
+    <SNIPPET>
+      <INDEX><DECLARATION>make_stack</DECLARATION></INDEX> 
+      <SCHEME>
+(define (make-stack)
+  (let ((s '()))
+    (define (push x)
+      (set! s (cons x s)))
+    (define (pop)
+      (if (null? s)
+          (error "Empty stack - - POP")
+          (let ((top (car s)))
+            (set! s (cdr s))
+            top)))
+    (define (initialize)
+      (set! s '())
+      'done)
+    (define (dispatch message)
+      (cond ((eq? message 'push) push)
+            ((eq? message 'pop) (pop))
+            ((eq? message 'initialize) (initialize))
+            (else (error "Unknown request - - STACK"
+                         message))))
+    dispatch))
+      </SCHEME>
+      <PYTHON>
+def make_stack():
+    stack = None
+    def push(x):
+        nonlocal stack
+        stack = pair(x, stack)
+        return "done"
+    def pop():
+        nonlocal stack
+        if is_null(stack):
+            error("empty stack -- pop")
+        else:
+            top = head(stack)
+            stack = tail(stack)
+            return top
+    def initialize():
+        nonlocal stack
+        stack = None
+        return "done"
+    def dispatch(message):
+        return (push if message == "push"
+                else pop() if message == "pop"
+                else initialize() if message == "initialize"
+                else error("unknown request -- stack", message))
+    return dispatch
+</PYTHON>
+    </SNIPPET>
+
+    Такі
+    <SPLITINLINE>
+      <SCHEME>процедури</SCHEME>
+      <PYTHON>функції</PYTHON>
+    </SPLITINLINE>
+    використовують для доступу до стеків:
+    <SNIPPET POSTPADDING="no">
+      <INDEX><DECLARATION>pop</DECLARATION></INDEX> 
+      <INDEX><DECLARATION>push</DECLARATION></INDEX> 
+      <NAME>pop</NAME>
+      <EXAMPLE>gcd_machine_complete_example</EXAMPLE>
+      <SCHEME>
+(define (pop stack)
+  (stack 'pop))
+
+(define (push stack value)
+  ((stack 'push) value))
+      </SCHEME>
+      <PYTHON>
+def pop(stack):
+    return stack("pop")
+def push(stack, value):
+    return stack("push")(value)
+</PYTHON>
+    </SNIPPET>
+  </TEXT>
+
+  <SUBHEADING>
+    <NAME>Базова машина</NAME>
+  </SUBHEADING>
+
+  <TEXT>
+    
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>make-new-machine</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>make_new_machine</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    <SPLITINLINE>
+      <SCHEME>процедура,</SCHEME>
+      <PYTHON>функція,</PYTHON>
+    </SPLITINLINE>
+    показана на рисунку<SPACE/><REF NAME="fig:make-new-machine"/>, будує
+    об’єкт, локальний стан якого складається зі стека, початково порожньої послідовності
+    інструкцій, списку операцій, який початково містить операцію, щоб
+    <INDEX><USE>initialize_stack</USE> — операція в регістровій машині</INDEX>
+    ініціалізувати стек, і 
+    <INDEX>таблиця регістрів у симуляторі</INDEX>
+    <EM>таблиця регістрів</EM> (register table), яка початково містить два
+    регістри, названі
+    <INDEX><USE>flag</USE> регістр</INDEX>
+    <SCHEMEINLINE>flag</SCHEMEINLINE> і
+    <INDEX><USE>pc</USE> регістр</INDEX>
+    <SCHEMEINLINE>pc</SCHEMEINLINE>
+    <INDEX>лічильник команд</INDEX>
+    (від <QUOTE>program counter</QUOTE>). Внутрішня
+    <SPLITINLINE>
+      <SCHEME>процедура</SCHEME>
+      <PYTHON>функція</PYTHON>
+    </SPLITINLINE>
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>allocate-register</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>allocate_register</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    додає нові записи до таблиці регістрів, а внутрішня
+    <SPLITINLINE>
+      <SCHEME>процедура</SCHEME>
+      <PYTHON>функція</PYTHON>
+    </SPLITINLINE>
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>lookup-register</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>lookup_register</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    шукає регістри в таблиці.
+  </TEXT>
+    <SPLIT>
+      <SCHEME>
+	<SNIPPET EVAL="no">
+	  <SCHEME>
+(define (make-new-machine)
+  (let ((pc (make-register 'pc))
+        (flag (make-register 'flag))
+        (stack (make-stack))
+        (the-instruction-sequence '()))
+    (let ((the-ops
+           (list (list 'initialize-stack
+                       (lambda () (stack 'initialize)))))
+          (register-table
+           (list (list 'pc pc) (list 'flag flag))))
+      (define (allocate-register name)
+        (if (assoc name register-table)
+            (error "Multiply defined register: " name)
+            (set! register-table
+                  (cons (list name (make-register name))
+                        register-table)))
+        'register-allocated)
+      (define (lookup-register name)
+        (let ((val (assoc name register-table)))
+          (if val
+              (cadr val)
+              (error "Unknown register:" name))))
+      (define (execute)
+        (let ((insts (get-contents pc)))
+          (if (null? insts)
+              'done
+              (begin
+                ((instruction-execution-proc (car insts)))
+                (execute)))))
+      (define (dispatch message)
+        (cond ((eq? message 'start)
+               (set-contents! pc the-instruction-sequence)
+               (execute))
+              ((eq? message 'install-instruction-sequence)
+               (lambda (seq) (set! the-instruction-sequence seq)))
+              ((eq? message 'allocate-register) allocate-register)
+              ((eq? message 'get-register) lookup-register)
+              ((eq? message 'install-operations)
+               (lambda (ops) (set! the-ops (append the-ops ops))))
+              ((eq? message 'stack) stack)
+              ((eq? message 'operations) the-ops)
+              (else (error "Unknown request - - MACHINE" message))))
+      dispatch)))
+	  </SCHEME>
+	</SNIPPET>
+      </SCHEME>
+      <PYTHON>
+	<FIGURE CENTER="no">
+	  <SNIPPET SMALL="yes">
+	    <NAME>make_new_machine</NAME>
+	    <REQUIRES>make_stack</REQUIRES>
+	    <REQUIRES>make_register</REQUIRES>
+	    <REQUIRES>lookup1</REQUIRES>
+	    <REQUIRES>get_contents</REQUIRES>
+	    <REQUIRES>make_inst</REQUIRES>
+	    <EXAMPLE>gcd_machine_complete_example</EXAMPLE>
+	    <PYTHON>
+def make_new_machine():
+    pc = make_register("pc")
+    flag = make_register("flag")
+    stack = make_stack()
+    the_instruction_sequence = None
+    the_ops = llist(llist("initialize_stack", lambda: stack("initialize")))
+    register_table = llist(llist("pc", pc), llist("flag", flag))
+    def allocate_register(name):
+        nonlocal register_table
+        if is_undefined(assoc(name, register_table)):
+            register_table = pair(llist(name, make_register(name)),
+                                  register_table)
+        else:
+            error("multiply defined register", name)
+        return "register allocated"
+    def lookup_register(name):
+        val = assoc(name, register_table)
+        return (error("unknown register", name) if is_undefined(val)
+                else head(tail(val)))
+    def execute():
+        insts = get_contents(pc)
+        if is_null(insts):
+            return "done"
+        else:
+            inst_execution_fun(head(insts))()
+            return execute()
+    def dispatch(message):
+        def start():
+            set_contents(pc, the_instruction_sequence)
+            return execute()
+        def install_instruction_sequence(seq):
+            nonlocal the_instruction_sequence
+            the_instruction_sequence = seq
+        def install_operations(ops):
+            nonlocal the_ops
+            the_ops = append(the_ops, ops)
+        return (start() if message == "start"
+                else install_instruction_sequence
+                     if message == "install_instruction_sequence"
+                else allocate_register if message == "allocate_register"
+                else lookup_register if message == "get_register"
+                else install_operations if message == "install_operations"
+                else stack if message == "stack"
+                else the_ops if message == "operations"
+                else error("unknown request -- machine", message))
+    return dispatch
+	    </PYTHON>
+	  </SNIPPET>
+	  <CAPTION>
+	    Функція
+	    <INDEX><DECLARATION>make_new_machine</DECLARATION></INDEX> 
+	    <PYTHONINLINE>make_new_machine</PYTHONINLINE>
+	    реалізує базову модель машини.
+	  </CAPTION>
+	  <LABEL NAME="fig:make-new-machine"/>
+	</FIGURE>
+      </PYTHON>
+    </SPLIT>
+
+  <TEXT>
+    Регістр <SCHEMEINLINE>flag</SCHEMEINLINE> використовують, щоб керувати розгалуженням
+    у модельованій машині.
+    <SPLITINLINE>
+      <SCHEME>Інструкції <SCHEMEINLINE>Test</SCHEMEINLINE></SCHEME>
+      <PYTHON>Наші інструкції <PYTHONINLINE>test</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    встановлюють вміст
+    <SCHEMEINLINE>flag</SCHEMEINLINE> як результат перевірки (істина або хиба).
+    <SPLITINLINE>
+      <SCHEME>Інструкції <SCHEMEINLINE>Branch</SCHEMEINLINE></SCHEME>
+      <PYTHON>Наші інструкції <PYTHONINLINE>branch</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    вирішують, чи розгалужуватися, досліджуючи вміст
+    <SCHEMEINLINE>flag</SCHEMEINLINE>.
+  </TEXT>
+
+  <TEXT>
+    Регістр <SCHEMEINLINE>pc</SCHEMEINLINE> визначає порядок
+    інструкцій, коли машина працює.  Цей порядок реалізує
+    внутрішня
+    <SPLITINLINE>
+      <SCHEME>процедура</SCHEME>
+      <PYTHON>функція</PYTHON>
+    </SPLITINLINE>
+    <SCHEMEINLINE>execute</SCHEMEINLINE>.
+    У моделі симуляції кожна машинна інструкція — це структура даних,
+    яка містить
+    <SPLITINLINE>
+      <SCHEME>процедуру</SCHEME>
+      <PYTHON>функцію</PYTHON>
+    </SPLITINLINE>
+    без аргументів, звану
+    <INDEX>виконавча <SPLITINLINE><SCHEME>procedure</SCHEME><PYTHON>function</PYTHON></SPLITINLINE> інструкції</INDEX>
+    <INDEX>виконавча <SPLITINLINE><SCHEME>procedure</SCHEME><PYTHON>function</PYTHON></SPLITINLINE><SUBINDEX>у симуляторі регістрових машин</SUBINDEX></INDEX>
+    <SPLITINLINE>
+      <SCHEME><EM>процедура виконання інструкції</EM> (instruction execution procedure),</SCHEME>
+      <PYTHON><EM>функція виконання інструкції</EM> (instruction execution function),</PYTHON>
+    </SPLITINLINE>
+    так, що виклик цієї
+    <SPLITINLINE>
+      <SCHEME>процедури</SCHEME>
+      <PYTHON>функції</PYTHON>
+    </SPLITINLINE>
+    моделює виконання цієї інструкції.  Коли симуляція працює,
+    <SCHEMEINLINE>pc</SCHEMEINLINE> указує на місце в послідовності
+    інструкцій, починаючи з наступної інструкції, яку треба виконати.  
+    <INDEX><USE>execute</USE></INDEX> 
+    <SPLITINLINE>
+      <SCHEME>Функція <SCHEMEINLINE>Execute</SCHEMEINLINE></SCHEME>
+      <PYTHON>Функція <PYTHONINLINE>execute</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    бере цю інструкцію, виконує її, викликаючи виконавчу
+    <SPLITINLINE>
+      <SCHEME>процедуру,</SCHEME>
+      <PYTHON>функцію,</PYTHON>
+    </SPLITINLINE>
+    і повторює цей цикл, доки не залишиться більше інструкцій для виконання
+    (тобто доки <SCHEMEINLINE>pc</SCHEMEINLINE> не вказуватиме на кінець
+    послідовності інструкцій).
+  </TEXT>
+
+  <TEXT>
+    Як частину своєї роботи кожна виконавча
+    <SPLITINLINE>
+      <SCHEME>процедура</SCHEME>
+      <PYTHON>функція</PYTHON>
+    </SPLITINLINE>
+    інструкції
+    змінює
+    <SCHEMEINLINE>pc</SCHEMEINLINE>, указуючи наступну інструкцію, яку треба
+    виконати.
+    <SPLITINLINE>
+      <SCHEME>
+	Інструкції <SCHEMEINLINE>Branch</SCHEMEINLINE> і
+	<SCHEMEINLINE>goto</SCHEMEINLINE>
+      </SCHEME>
+      <PYTHON>
+	Інструкції
+	<PYTHONINLINE>branch</PYTHONINLINE>
+	та
+	<PYTHONINLINE>go_to</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    змінюють <SCHEMEINLINE>pc</SCHEMEINLINE>, щоб він указував на нове місце призначення.
+    Усі інші інструкції просто просувають <SCHEMEINLINE>pc</SCHEMEINLINE>,
+    змушуючи його вказувати на наступну інструкцію послідовності.  Зауважте, що
+    кожен виклик <SCHEMEINLINE>execute</SCHEMEINLINE> викликає
+    <SCHEMEINLINE>execute</SCHEMEINLINE> знову, але це не породжує
+    нескінченного циклу, бо виконання виконавчої
+    <SPLITINLINE>
+      <SCHEME>процедури</SCHEME>
+      <PYTHON>функції</PYTHON>
+    </SPLITINLINE>
+    змінює вміст <SCHEMEINLINE>pc</SCHEMEINLINE>.
+  </TEXT>
+
+  <TEXT>
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>Make-new-machine</SCHEMEINLINE></SCHEME>
+      <PYTHON>
+	Функція
+	<PYTHONINLINE>make_new_machine</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    повертає
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>dispatch</SCHEMEINLINE></SCHEME>
+      <PYTHON>dispatch</PYTHON>
+    </SPLITINLINE>
+    <SPLITINLINE>
+      <SCHEME>процедуру</SCHEME>
+      <PYTHON>функцію</PYTHON>
+    </SPLITINLINE>
+    , яка реалізує доступ до внутрішнього стану через передавання повідомлень.  Зауважте, що
+    запуск машини відбувається через встановлення
+    <SCHEMEINLINE>pc</SCHEMEINLINE> на початок послідовності інструкцій
+    і виклик <SCHEMEINLINE>execute</SCHEMEINLINE>.
+  </TEXT>
+
+  <TEXT>
+    Для зручності ми надаємо альтернативний
+    <SPLITINLINE><SCHEME>процедурний</SCHEME><PYTHON></PYTHON></SPLITINLINE>
+    інтерфейс до операції
+    <SCHEMEINLINE>start</SCHEMEINLINE> машини, пов’язаної з нею, а також
+    <SPLITINLINE>
+      <SCHEME>процедури</SCHEME>
+      <PYTHON>функції</PYTHON>
+    </SPLITINLINE>
+    , щоб установлювати та досліджувати вміст регістрів, як зазначено на початку
+    підрозділу<SPACE/><REF NAME="sec:simulator"/>:
+    <SNIPPET>
+      <INDEX><DECLARATION>start</DECLARATION> register machine</INDEX>
+      <INDEX><DECLARATION>get_register_contents</DECLARATION></INDEX> 
+      <INDEX><DECLARATION>set_register_contents</DECLARATION></INDEX> 
+      <NAME>start</NAME>
+      <EXAMPLE>gcd_machine_complete_example</EXAMPLE>
+      <SCHEME>
+(define (start machine)
+  (machine 'start))
+
+(define (get-register-contents machine register-name)
+  (get-contents (get-register machine register-name)))
+
+(define (set-register-contents! machine register-name value)
+  (set-contents! (get-register machine register-name) value)
+  'done)
+      </SCHEME>
+      <PYTHON>
+def start(machine):
+    return machine("start")
+def get_register_contents(machine, register_name):
+    return get_contents(get_register(machine, register_name))
+def set_register_contents(machine, register_name, value):
+    set_contents(get_register(machine, register_name), value)
+    return "done"
+</PYTHON>
+    </SNIPPET>
+
+    Ці
+    <SPLITINLINE>
+      <SCHEME>процедури</SCHEME>
+      <PYTHON>функції</PYTHON>
+    </SPLITINLINE>
+    (і багато
+    <SPLITINLINE>
+      <SCHEME>процедур</SCHEME>
+      <PYTHON>функцій</PYTHON>
+    </SPLITINLINE>
+    у підрозділах<SPACE/><REF NAME="sec:assembler"/> і <REF NAME="sec:ex-proc"/>)
+    користуються таким кодом, щоб знайти регістр із заданим ім’ям у заданій
+    машині:
+    <SNIPPET POSTPADDING="no">
+      <INDEX><DECLARATION>get_register</DECLARATION></INDEX> 
+      <NAME>get_register</NAME>
+      <EXAMPLE>gcd_machine_complete_example</EXAMPLE>
+      <SCHEME>
+(define (get-register machine reg-name)
+  ((machine 'get-register) reg-name))
+      </SCHEME>
+      <PYTHON>
+def get_register(machine, reg_name):
+    return machine("get_register")(reg_name)
+</PYTHON>
+    </SNIPPET>
+</TEXT>
+</SUBSECTION>

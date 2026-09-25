@@ -1,0 +1,1439 @@
+<SUBSECTION>
+  <NAME>
+    Як працює система запитів
+  </NAME>
+
+  <LABEL NAME="sec:how-query-works"/>
+
+  <INDEX>інтерпретатор запитів<SUBINDEX>огляд<OPEN/></SUBINDEX></INDEX>
+
+  <TEXT>
+    У підрозділі<SPACE/><REF NAME="sec:implementing-the-query-system"/> ми
+    подамо реалізацію інтерпретатора запитів як набір
+    <SPLITINLINE>
+      <SCHEME>процедур.</SCHEME>
+      <PYTHON>функцій.</PYTHON>
+    </SPLITINLINE>
+    У цьому підрозділі ми даємо огляд, який пояснює загальну
+    структуру системи, незалежно від деталей низькорівневої
+    реалізації.  Описавши реалізацію інтерпретатора, ми
+    зможемо зрозуміти деякі його обмеження та деякі тонкощі у зв’язку
+    з тим, чим логічні операції мови запитів відрізняються від операцій
+    математичної логіки.
+  </TEXT>
+
+  <TEXT>
+    Очевидно, що обчислювач запитів має виконувати якийсь
+    пошук, щоб зіставляти запити з фактами та правилами в
+    базі даних.  Один зі способів зробити це — реалізувати систему запитів
+    як недетерміновану програму, скориставшись обчислювачем <SCHEMEINLINE>amb</SCHEMEINLINE>
+    з підрозділу<SPACE/><REF NAME="sec:nondeterministic-evaluation"/>
+    (див. вправу<SPACE/><REF NAME="ex:query-lang-amb"/>).  Інша можливість
+    — керувати пошуком за допомогою потоків.  Наша реалізація дотримується
+    цього другого підходу.
+  </TEXT>
+
+  <TEXT>
+    Система запитів організована навколо двох центральних операцій, які
+    називаються
+    <EM>зіставленням зі зразком</EM> (pattern matching) і <EM>уніфікацією</EM> (unification).
+    Спершу ми описуємо зіставлення зі зразком і пояснюємо, як ця операція
+    разом з організацією інформації у вигляді потоків фреймів дає нам змогу
+    реалізувати і прості, і складені запити.  Далі ми обговорюємо
+    уніфікацію, узагальнення зіставлення зі зразком, потрібне для реалізації
+    правил.  Нарешті, ми показуємо, як весь інтерпретатор запитів складається
+    докупи за допомогою
+    <SPLITINLINE>
+      <SCHEME>процедури</SCHEME>
+      <PYTHON>функції</PYTHON>
+    </SPLITINLINE>
+    , яка класифікує
+    <SPLITINLINE>
+      <SCHEME>вирази</SCHEME>
+      <PYTHON>запити</PYTHON>
+    </SPLITINLINE>
+    так само, як
+    <SPLITINLINE>
+      <SCHEME>
+	<SCHEMEINLINE>eval</SCHEMEINLINE>
+      </SCHEME>
+      <PYTHON>
+	<PYTHONINLINE>evaluate</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    класифікує вирази для інтерпретатора, описаного в
+    підрозділі<SPACE/><REF NAME="sec:mc-eval"/>.
+  </TEXT>
+
+  <SUBHEADING>
+    <NAME>Зіставлення зі зразком</NAME>
+  </SUBHEADING>
+
+  <INDEX>інтерпретатор запитів<SUBINDEX>зіставлення зі зразком<OPEN/></SUBINDEX></INDEX>
+  <INDEX>зіставлення зі зразком<OPEN/></INDEX>
+
+  <TEXT>
+    <EM>Зіставлювач зі зразком</EM> (pattern matcher) — це програма, яка
+    перевіряє, чи якісь дані відповідають заданому зразку.  Наприклад,
+    <SPLITINLINE>
+      <SCHEME>
+	список даних
+	<SCHEMEINLINE>((a b) c (a b))</SCHEMEINLINE>
+      </SCHEME>
+      <PYTHON>
+	дані
+	<PYTHONINLINE>llist(llist("a", "b"), "c", llist("a", "b"))</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    зіставляються зі зразком
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>(?x c ?x)</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>llist($x, "c", $x)</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    за умови, що змінна зразка
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>?x</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>$x</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    зв’язана з
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>(a b)</SCHEMEINLINE>.</SCHEME>
+      <PYTHON><PYTHONINLINE>llist("a", "b")</PYTHONINLINE>.
+    </PYTHON></SPLITINLINE>
+    Ті самі
+    <SPLITINLINE>
+      <SCHEME>
+	дані
+      </SCHEME>
+      <PYTHON>
+	дані
+      </PYTHON>
+    </SPLITINLINE>
+    зіставляються зі зразком
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>(?x ?y ?z)</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>llist($x, $y, $z)</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    так, що
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>?x</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>$x</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    і
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>?z</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>$z</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    обидві зв’язані з
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>(a b)</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>llist("a", "b")</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    , а
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>?y</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>$y</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    зв’язана з
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>c</SCHEMEINLINE>.</SCHEME>
+      <PYTHON><PYTHONINLINE>"c"</PYTHONINLINE>.</PYTHON>
+    </SPLITINLINE>
+    Він також зіставляється зі зразком
+    <SPLITINLINE>
+      <SCHEME>
+      <SCHEMEINLINE>((?x ?y) c (?x ?y))</SCHEMEINLINE></SCHEME>
+      <PYTHON>
+	<PYTHONINLINE>llist(llist($x, $y), "c", llist($x, $y))</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    так, що
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>?x</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>$x</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    зв’язана з
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>a</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>"a"</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    , а
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>?y</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>$y</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    зв’язана з
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>b</SCHEMEINLINE>.</SCHEME>
+      <PYTHON><PYTHONINLINE>"b"</PYTHONINLINE>.</PYTHON>
+    </SPLITINLINE>
+    Однак він не зіставляється зі зразком
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>(?x a ?y)</SCHEMEINLINE>,</SCHEME>
+      <PYTHON><PYTHONINLINE>llist($x, "a", $y)</PYTHONINLINE>,
+      </PYTHON></SPLITINLINE>
+    бо цей зразок задає список, другий елемент якого — це
+    <SPLITINLINE>
+      <SCHEME>символ <SCHEMEINLINE>a</SCHEMEINLINE>.</SCHEME>
+      <PYTHON>рядок <PYTHONINLINE>"a"</PYTHONINLINE>.</PYTHON>
+    </SPLITINLINE>
+  </TEXT>
+
+  <TEXT>
+    Зіставлювач зі зразком, який використовує система запитів, бере як
+    аргументи зразок, дані та
+    <INDEX>інтерпретатор запитів<SUBINDEX>фрейм</SUBINDEX></INDEX>
+    <INDEX>фрейм (інтерпретатор запитів)</INDEX>
+    <EM>фрейм</EM>, що задає прив’язки для
+    різних змінних зразка.  Він перевіряє, чи дані зіставляються зі
+    зразком узгоджено з прив’язками, які вже є
+    у фреймі.  Якщо так, він повертає заданий фрейм, доповнений усіма
+    прив’язками, які могло визначити зіставлення.  Інакше він указує
+    на невдачу зіставлення.
+  </TEXT>
+
+  <TEXT>
+    <SPLITINLINE>
+      <SCHEME>
+	Наприклад, якщо взяти зразок
+      </SCHEME>
+      <PYTHON>
+	Якщо взяти зразок
+      </PYTHON>
+    </SPLITINLINE>
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>(?x ?y ?x)</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>llist($x, $y, $x)</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    і зіставити його з
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>(a b a)</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>llist("a", "b", "a")</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    <SPLITINLINE>
+      <SCHEME>
+	у порожньому фреймі,
+      </SCHEME>
+      <PYTHON>
+	у порожньому фреймі, наприклад,
+      </PYTHON>
+    </SPLITINLINE>
+    ми одержимо фрейм, який задає, що
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>?x</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>$x</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    зв’язана з
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>a</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>"a"</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    , а
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>?y</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>$y</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    зв’язана з
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>b</SCHEMEINLINE>.</SCHEME>
+      <PYTHON><PYTHONINLINE>"b"</PYTHONINLINE>.</PYTHON>
+    </SPLITINLINE>
+    Спроба зіставлення з тим самим зразком, тими самими даними та фреймом,
+    який задає, що
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>?y</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>$y</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    зв’язана з
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>a</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>"a"</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    , зазнає невдачі.  Спроба зіставлення з тим самим зразком, тими самими даними та
+    фреймом, у якому
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>?y</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>$y</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    зв’язана з
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>b</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>"b"</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    , а
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>?x</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>$x</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    незв’язана, поверне заданий фрейм, доповнений прив’язкою
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>?x</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>$x</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    до<SPACE/><SPLITINLINE><SCHEME><SCHEMEINLINE>a</SCHEMEINLINE>.</SCHEME><PYTHON><PYTHONINLINE>"a"</PYTHONINLINE>.</PYTHON></SPLITINLINE>
+  </TEXT>
+
+  <TEXT>
+    Зіставлювача зі зразком цілком досить, щоб опрацьовувати
+    <INDEX>простий запит<SUBINDEX>опрацювання</SUBINDEX></INDEX>
+    прості
+    запити, які не залучають правил.  Наприклад, щоб опрацювати запит
+    <SNIPPET EVAL="no">
+      <SCHEME>
+(job ?x (computer programmer))
+      </SCHEME>
+      <PYTHON>
+	job($x, llist("computer", "programmer"))
+      </PYTHON>
+    </SNIPPET>
+    ми переглядаємо всі твердження в базі даних і відбираємо ті, що
+    зіставляються зі зразком відносно спочатку порожнього фрейму.  Для кожного
+    знайденого зіставлення ми використовуємо повернений ним фрейм, щоб
+    конкретизувати зразок значенням
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>?x</SCHEMEINLINE>.</SCHEME>
+      <PYTHON><PYTHONINLINE>$x</PYTHONINLINE>.</PYTHON>
+    </SPLITINLINE>
+  </TEXT>
+
+  <INDEX>інтерпретатор запитів<SUBINDEX>зіставлення зі зразком<CLOSE/></SUBINDEX></INDEX>
+  <INDEX>зіставлення зі зразком<CLOSE/></INDEX>
+
+  <SUBHEADING>
+    <NAME>Потоки фреймів</NAME>
+  </SUBHEADING>
+
+  <TEXT>
+    Перевірку зразків щодо фреймів організовано через
+    <INDEX>інтерпретатор запитів<SUBINDEX>потоки фреймів</SUBINDEX></INDEX>
+    <INDEX>потік (потоки)<SUBINDEX>використовувані в інтерпретаторі запитів</SUBINDEX></INDEX>
+    потоки.  Маючи один фрейм, процес зіставлення проходить записи
+    бази даних один за одним.  Для кожного запису бази даних зіставлювач
+    породжує або спеціальний символ, що вказує на невдачу зіставлення,
+    або розширення фрейму.  Результати для всіх записів
+    бази даних збираються в потік, який пропускають крізь фільтр,
+    щоб відсіяти невдачі.  Результат — потік усіх фреймів,
+    які розширюють заданий фрейм через зіставлення з якимось твердженням у
+    базі даних.<FOOTNOTE>Оскільки зіставлення зазвичай дуже
+    <INDEX>ефективність<SUBINDEX><ORDER>data</ORDER>доступу до бази даних</SUBINDEX></INDEX>
+    дороге, нам хотілося б
+    уникати застосування повного зіставлювача до кожного елемента бази
+    даних.  Зазвичай це влаштовують, розбиваючи процес на
+    швидке грубе зіставлення й остаточне зіставлення.  Грубе зіставлення
+    фільтрує базу даних, щоб отримати невеликий набір кандидатів для
+    остаточного зіставлення.
+    Якщо діяти обережно, ми можемо впорядкувати базу даних так, що частину роботи
+    грубого зіставлення буде виконано тоді, коли база даних формується, а
+    не тоді, коли ми хочемо відібрати кандидатів.  Це називається
+    <INDEX>база даних<SUBINDEX>індексування</SUBINDEX></INDEX>
+    <INDEX>індексування бази даних</INDEX>
+    <EM>індексуванням</EM> бази даних.  Навколо схем
+    індексування баз даних виросла ціла велика технологія.  Наша реалізація, описана в
+    підрозділі<SPACE/><REF NAME="sec:implementing-the-query-system"/>, містить
+    простеньку форму такої оптимізації.</FOOTNOTE>
+  </TEXT>
+
+  <TEXT>
+    У нашій системі запит бере вхідний потік фреймів і виконує
+    описану вище операцію зіставлення для кожного фрейму в потоці, як
+    показано на
+    <SPLITINLINE>
+      <SCHEME>
+	рисунку<SPACE/><REF NAME="fig:query-stream_scheme"/>.
+      </SCHEME>
+      <PYTHON>
+	рисунку<SPACE/><REF NAME="fig:query-stream"/>.
+      </PYTHON>
+    </SPLITINLINE>
+    Тобто для
+    кожного фрейму у вхідному потоці запит породжує новий потік, що складається
+    з усіх розширень цього фрейму через зіставлення з твердженнями в базі даних.
+    Усі ці потоки потім зливаються в один величезний потік, який містить
+    усі можливі розширення кожного фрейму у вхідному потоці.  Цей потік і
+    є виходом запиту.
+    <SPLIT>
+      <SCHEME>
+	<FIGURE>
+	  <FIGURE split_scale="1" web_scale="0.8" scale="0.59" src="img_original/Fig4.4a.std.svg"/>
+          <CAPTION>Запит опрацьовує потік фреймів.</CAPTION>
+          <LABEL NAME="fig:query-stream_scheme"/>
+	</FIGURE>
+      </SCHEME>
+      <PYTHON>
+	<FIGURE>
+	  <FIGURE split_scale="1" web_scale="0.8" scale="0.59" src="img_javascript/Fig4.4a.std.svg"/>
+          <CAPTION>Запит опрацьовує потік фреймів.</CAPTION>
+          <LABEL NAME="fig:query-stream"/>
+	</FIGURE>
+      </PYTHON>
+    </SPLIT>
+  </TEXT>
+
+  <TEXT>
+    Щоб дати відповідь на
+    <INDEX>простий запит<SUBINDEX>опрацювання</SUBINDEX></INDEX>
+    простий запит, ми використовуємо запит із вхідним потоком,
+    що складається з одного порожнього фрейму.  Одержаний вихідний потік
+    містить усі розширення порожнього фрейму (тобто всі відповіді на
+    наш запит).  Цей потік фреймів потім використовують, щоб породити потік
+    копій початкового зразка запиту зі змінними,
+    конкретизованими значеннями з кожного фрейму, і саме цей потік
+    зрештою друкується.
+  </TEXT>
+
+  <SUBHEADING>
+    <NAME>Складені запити</NAME>
+  </SUBHEADING>
+
+  <INDEX>складений запит<SUBINDEX>опрацювання<OPEN/></SUBINDEX></INDEX>
+
+  <TEXT>
+    Справжня елегантність реалізації через потоки фреймів стає очевидною,
+    коли ми маємо справу зі складеними запитами.  Опрацювання складених
+    запитів використовує здатність нашого зіставлювача вимагати, щоб зіставлення
+    було узгоджене із заданим фреймом.  Наприклад, щоб опрацювати
+    <INDEX><USE>and</USE> (мова запитів)<SUBINDEX>обчислення</SUBINDEX></INDEX>
+    <SCHEMEINLINE>and</SCHEMEINLINE> двох запитів, як-от
+    <SNIPPET EVAL="no">
+      <SCHEME>
+(and (can-do-job ?x (computer programmer trainee))
+     (job ?person ?x))
+      </SCHEME>
+      <PYTHON>
+and(can_do_job($x, llist("computer", "programmer", "trainee")),
+    job($person, $x))
+      </PYTHON>
+    </SNIPPET>
+    (неформально: <QUOTE>Знайти всіх людей, які вміють виконувати роботу
+    стажера-програміста</QUOTE>), ми спершу знаходимо всі записи, що зіставляються
+    зі зразком
+    <SNIPPET EVAL="no">
+      <SCHEME>
+(can-do-job ?x (computer programmer trainee))
+      </SCHEME>
+      <PYTHON>
+can_do_job($x, llist("computer", "programmer", "trainee"))
+      </PYTHON>
+    </SNIPPET>
+    Це породжує потік фреймів, кожен з яких містить прив’язку для
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>?x</SCHEMEINLINE>.</SCHEME>
+      <PYTHON><PYTHONINLINE>$x</PYTHONINLINE>.</PYTHON>
+    </SPLITINLINE>
+    Потім для кожного фрейму в потоці ми знаходимо всі записи, що
+    зіставляються з
+    <SNIPPET EVAL="no">
+      <SCHEME>
+(job ?person ?x)
+      </SCHEME>
+      <PYTHON>
+job($person, $x)
+      </PYTHON>
+    </SNIPPET>
+    узгоджено із заданою прив’язкою для
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>?x</SCHEMEINLINE>.</SCHEME>
+      <PYTHON><PYTHONINLINE>$x</PYTHONINLINE>.</PYTHON>
+    </SPLITINLINE>
+    Кожне таке зіставлення породить фрейм, що містить прив’язки для
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>?x</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>$x</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    і
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>?person</SCHEMEINLINE>.</SCHEME>
+      <PYTHON><PYTHONINLINE>$person</PYTHONINLINE>.</PYTHON>
+    </SPLITINLINE>
+    На <SCHEMEINLINE>and</SCHEMEINLINE> двох запитів можна дивитися як на послідовне
+    поєднання двох складових запитів, як показано на
+    <SPLITINLINE>
+      <SCHEME>
+	рисунку<SPACE/><REF NAME="fig:query-and_scheme"/>.
+      </SCHEME>
+      <PYTHON>
+	рисунку<SPACE/><REF NAME="fig:query-and"/>.
+      </PYTHON>
+    </SPLITINLINE>
+    Фрейми, що проходять крізь
+    перший фільтр запиту, фільтруються й далі розширюються другим запитом.
+    <SPLIT>
+      <SCHEME>
+	<FIGURE>
+	  <FIGURE split_scale="1" web_scale="0.8" scale="0.59" src="img_original/Fig4.5a.std.svg"/>
+          <CAPTION>
+	    Комбінацію <SCHEMEINLINE>and</SCHEMEINLINE> двох запитів
+            одержують, опрацьовуючи потік фреймів послідовно.
+	  </CAPTION>
+          <LABEL NAME="fig:query-and_scheme"/>
+	</FIGURE>
+      </SCHEME>
+      <PYTHON>
+	<FIGURE>
+	  <FIGURE split_scale="1" web_scale="0.8" scale="0.59" src="img_javascript/Fig4.5a.std.svg"/>
+          <CAPTION>
+	    Комбінацію <SCHEMEINLINE>and</SCHEMEINLINE> двох запитів
+            одержують, опрацьовуючи потік фреймів послідовно.
+	  </CAPTION>
+          <LABEL NAME="fig:query-and"/>
+	</FIGURE>
+      </PYTHON>
+    </SPLIT>
+    
+  </TEXT>
+  <TEXT>
+    <SPLITINLINE>
+      <SCHEME>
+    Рисунок<SPACE/><REF NAME="fig:query-or_scheme"/>
+      </SCHEME>
+      <PYTHON>
+    Рисунок<SPACE/><REF NAME="fig:query-or"/>
+      </PYTHON>
+    </SPLITINLINE>
+    показує аналогічний метод
+    обчислення
+    <INDEX><USE>or</USE> (мова запитів)<SUBINDEX>обчислення</SUBINDEX></INDEX>
+    <SCHEMEINLINE>or</SCHEMEINLINE> двох запитів як паралельне
+    поєднання двох складових запитів.  Вхідний потік фреймів
+    розширюється кожним запитом окремо.  Два одержані потоки потім
+    зливаються, утворюючи остаточний вихідний потік.
+
+    <SPLIT>
+      <SCHEME>
+	<FIGURE>
+	  <FIGURE split_scale="1" web_scale="0.8" scale="0.59" src="img_original/Fig4.6a.std.svg"/>
+          <CAPTION>
+	    Комбінацію <SCHEMEINLINE>or</SCHEMEINLINE> двох запитів
+	    одержують, опрацьовуючи потік фреймів паралельно й
+	    зливаючи результати.
+	  </CAPTION>
+          <LABEL NAME="fig:query-or_scheme"/>
+	</FIGURE>
+      </SCHEME>
+      <PYTHON>
+	<FIGURE>
+	  <FIGURE split_scale="1" web_scale="0.8" scale="0.59" src="img_javascript/Fig4.6a.std.svg"/>
+          <CAPTION>
+	    Комбінацію <SCHEMEINLINE>or</SCHEMEINLINE> двох
+	    запитів одержують, опрацьовуючи потік фреймів паралельно
+	    і зливаючи результати.
+	  </CAPTION>
+          <LABEL NAME="fig:query-or"/>
+	</FIGURE>
+      </PYTHON>
+    </SPLIT>
+
+  </TEXT>
+
+  <TEXT>
+    Навіть із цього опису на високому рівні видно, що
+    опрацювання складених запитів може бути повільним.
+    <INDEX>ефективність<SUBINDEX><ORDER>query</ORDER>опрацювання запитів</SUBINDEX></INDEX>
+    Наприклад, оскільки запит може породити більше ніж один вихідний фрейм для кожного
+    вхідного фрейму, і кожен запит у <SCHEMEINLINE>and</SCHEMEINLINE> бере свої
+    вхідні фрейми з попереднього запиту, запит
+    <SCHEMEINLINE>and</SCHEMEINLINE>
+    у найгіршому разі може мати виконати кількість зіставлень, що
+    експоненційна щодо кількості запитів (див.
+    вправу<SPACE/><REF NAME="ex:q-exponential-and"/>).<FOOTNOTE>Але цей різновид
+    експоненційного вибуху не є звичним у запитах
+    <SCHEMEINLINE>and</SCHEMEINLINE>
+    , бо додані умови радше зменшують, ніж збільшують
+    кількість породжених фреймів.</FOOTNOTE>
+    Хоч системи, які опрацьовують лише прості запити, цілком практичні, мати
+    справу зі складними запитами надзвичайно важко.<FOOTNOTE>Існує велика
+    література про системи керування базами даних, присвячена тому, як
+    ефективно опрацьовувати складні запити.</FOOTNOTE>
+  </TEXT>
+
+  <TEXT>
+    З погляду потоків фреймів,
+    <INDEX><USE>not</USE> (мова запитів)<SUBINDEX>обчислення</SUBINDEX></INDEX>
+    <SCHEMEINLINE>not</SCHEMEINLINE> від
+    якогось запиту діє як фільтр, який вилучає всі фрейми, для яких запит можна
+    задовольнити.  Наприклад, маючи зразок
+    <SNIPPET EVAL="no">
+      <SCHEME>
+(not (job ?x (computer programmer)))
+      </SCHEME>
+      <PYTHON>
+not(job($x, llist("computer", "programmer")))
+      </PYTHON>
+    </SNIPPET>
+    ми намагаємося для кожного фрейму у вхідному потоці породити фрейми-розширення,
+    які задовольняють
+    <SPLITINLINE>
+      <SCHEME>
+	<SCHEMEINLINE>(job ?x (computer programmer))</SCHEMEINLINE>.
+      </SCHEME>
+      <PYTHON>
+	<PYTHONINLINE>job($x, llist("computer", "programmer"))</PYTHONINLINE>.
+      </PYTHON>
+    </SPLITINLINE>
+    Ми вилучаємо з вхідного потоку всі фрейми, для яких такі розширення існують.
+    Результат — потік, що складається лише з тих фреймів, у яких прив’язка
+    для
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>?x</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>$x</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    не задовольняє
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>(job ?x (computer programmer))</SCHEMEINLINE>.
+      </SCHEME>
+      <PYTHON>
+	<PYTHONINLINE>job($x, llist("computer", "programmer"))</PYTHONINLINE>.
+      </PYTHON>
+    </SPLITINLINE>
+    Наприклад, опрацьовуючи запит
+    <SNIPPET EVAL="no">
+      <SCHEME>
+(and (supervisor ?x ?y)
+     (not (job ?x (computer programmer))))
+      </SCHEME>
+      <PYTHON>
+and(supervisor($x, $y),
+    not(job($x, llist("computer", "programmer"))))
+      </PYTHON>
+    </SNIPPET>
+    перша клауза породить фрейми з прив’язками для
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>?x</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>$x</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    і
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>?y</SCHEMEINLINE>.</SCHEME>
+      <PYTHON><PYTHONINLINE>$y</PYTHONINLINE>.</PYTHON>
+    </SPLITINLINE>
+    Клауза <SCHEMEINLINE>not</SCHEMEINLINE> потім відфільтрує їх,
+    вилучивши всі фрейми, у яких прив’язка для
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>?x</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>$x</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    задовольняє обмеження, що
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>?x</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>$x</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    є програмістом.<FOOTNOTE>Є тонка різниця між цією
+    реалізацією <SCHEMEINLINE>not</SCHEMEINLINE> як фільтра і звичайним
+    значенням <SCHEMEINLINE>not</SCHEMEINLINE> у математичній логіці.  Див.
+    підрозділ<SPACE/><REF NAME="sec:math-logic"/>.</FOOTNOTE>
+  </TEXT>
+
+  <TEXT>
+    <INDEX><USE>javascript_predicate</USE> (мова запитів)<SUBINDEX>обчислення</SUBINDEX></INDEX>
+    <SPLITINLINE>
+      <SCHEME>
+	<SCHEMEINLINE>lisp-value</SCHEMEINLINE>
+	спеціальна	форма
+      </SCHEME>
+      <PYTHON>
+	<PYTHONINLINE>javascript_predicate</PYTHONINLINE>
+	синтаксична форма
+      </PYTHON>
+    </SPLITINLINE>
+    реалізовано як подібний фільтр над потоками фреймів.  Ми використовуємо кожен фрейм
+    у потоці, щоб конкретизувати змінні у зразку, а тоді застосовуємо
+    <SPLITINLINE>
+      <SCHEME>предикат Lisp</SCHEME>
+      <PYTHON>предикат Python</PYTHON>
+    </SPLITINLINE>
+    .  Ми вилучаємо з вхідного потоку всі фрейми, для яких
+    предикат дає невдачу.
+  </TEXT>
+
+  <INDEX>складений запит<SUBINDEX>опрацювання<CLOSE/></SUBINDEX></INDEX>
+  
+  <SUBHEADING>
+    <NAME>Уніфікація</NAME>
+  </SUBHEADING>
+
+  <INDEX>інтерпретатор запитів<SUBINDEX>уніфікація<OPEN/></SUBINDEX></INDEX>
+  <INDEX>уніфікація<OPEN/></INDEX>
+
+  <TEXT>
+    Щоб мати справу з правилами в мові запитів, ми повинні вміти
+    знаходити правила, висновки яких зіставляються із заданим зразком запиту.  Висновки
+    правил схожі на твердження, хіба що можуть містити
+    змінні, тому нам знадобиться узагальнення зіставлення
+    зі зразком<EMDASH/>яке називається <EM>уніфікацією</EM><EMDASH/>у якому і
+    <QUOTE>зразок</QUOTE>, і <QUOTE>дані</QUOTE> можуть містити змінні.
+  </TEXT>
+
+  <TEXT>
+    Уніфікатор бере два зразки, кожен з яких містить константи та змінні,
+    і визначає, чи можна присвоїти змінним такі значення,
+    за яких два зразки стануть рівними.  Якщо так, він повертає
+    фрейм, що містить ці прив’язки.  Наприклад, уніфікація
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>(?x a ?y)</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>llist($x, "a", $y)</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    і
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>(?y ?z a)</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>llist($y, $z, "a")</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    задасть фрейм, у якому
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>?x</SCHEMEINLINE>,</SCHEME>
+      <PYTHON><PYTHONINLINE>$x</PYTHONINLINE>,</PYTHON>
+    </SPLITINLINE>
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>?y</SCHEMEINLINE>,</SCHEME>
+      <PYTHON><PYTHONINLINE>$y</PYTHONINLINE>,</PYTHON>
+    </SPLITINLINE>
+    і
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>?z</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>$z</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    усі мають бути зв’язані з
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>a</SCHEMEINLINE>.</SCHEME>
+      <PYTHON><PYTHONINLINE>"a"</PYTHONINLINE>.</PYTHON>
+    </SPLITINLINE>
+    З іншого боку, уніфікація
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>(?x ?y a)</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>llist($x, $y, "a")</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    і
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>(?x b ?y)</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>llist($x, "b", $y)</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    зазнає невдачі, бо немає значення для
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>?y</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>$y</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    яке зробило б два зразки рівними.  (Щоб другі елементи
+    зразків стали рівними,
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>?y</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>$y</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    мала б бути
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>b</SCHEMEINLINE>;</SCHEME>
+      <PYTHON><PYTHONINLINE>"b"</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    однак, щоб треті елементи стали рівними,
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>?y</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>$y</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    мала б бути
+    <SPLITINLINE><SCHEME><SCHEMEINLINE>a</SCHEMEINLINE>.)</SCHEME>
+    <PYTHON><PYTHONINLINE>"a"</PYTHONINLINE>.)</PYTHON>
+    </SPLITINLINE>
+    Уніфікатор, який використовує система запитів, як і зіставлювач зі зразком, бере
+    фрейм як вхідні дані й виконує уніфікації, узгоджені з цим фреймом.
+  </TEXT>
+
+  <TEXT>
+    Алгоритм уніфікації — технічно найскладніша частина
+    системи запитів.  Зі складними зразками виконання уніфікації може
+    виглядати так, ніби воно вимагає дедукції.
+    Щоб уніфікувати
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>(?x ?x)</SCHEMEINLINE></SCHEME>
+      <PYTHON>
+	<SNIPPET EVAL="no">
+	  <PYTHON>
+	    llist($x, $x)
+	  </PYTHON>
+	</SNIPPET>
+      </PYTHON>
+    </SPLITINLINE>
+    і
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>((a ?y c) (a b ?z))</SCHEMEINLINE>,</SCHEME>
+      <PYTHON>
+	<SNIPPET EVAL="no">
+	  <PYTHON>
+llist(llist("a", $y, "c"), llist("a", "b", $z))
+	  </PYTHON>
+	</SNIPPET>
+      </PYTHON>
+    </SPLITINLINE>
+    наприклад,
+    алгоритм має вивести, що
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>?x</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>$x</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    має бути
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>(a b c)</SCHEMEINLINE>,</SCHEME>
+      <PYTHON><PYTHONINLINE>llist("a", "b", "c")</PYTHONINLINE>,
+      </PYTHON>
+    </SPLITINLINE>
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>?y</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>$y</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    має бути
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>b</SCHEMEINLINE>,</SCHEME>
+      <PYTHON><PYTHONINLINE>"b"</PYTHONINLINE>,</PYTHON>
+    </SPLITINLINE>
+    а
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>?z</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>$z</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    має бути
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>c</SCHEMEINLINE>.</SCHEME>
+      <PYTHON><PYTHONINLINE>"c"</PYTHONINLINE>.</PYTHON>
+    </SPLITINLINE>
+    Ми можемо розглядати цей процес як розв’язування набору рівнянь між
+    компонентами зразка.  Загалом це сумісні рівняння, для розв’язання яких може
+    знадобитися чимало перетворень.<FOOTNOTE>В однобічному зіставленні зі зразком
+    всі рівняння, які містять змінні зразка, явні й уже
+    розв’язані щодо невідомого (змінної зразка).</FOOTNOTE>  Наприклад,
+    уніфікацію
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>(?x ?x)</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>llist($x, $x)</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    і
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>((a ?y c) (a b ?z))</SCHEMEINLINE></SCHEME>
+      <PYTHON>
+	<PYTHONINLINE>llist(llist("a", $y, "c"), llist("a", "b", $z))</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    можна розглядати як задання сумісних рівнянь
+    <SPLIT>
+      <SCHEME>
+	<LATEX>
+	  \[\begin{array}{lll}
+	  \texttt{?x} &amp; = &amp; \texttt{(a ?y c)} \\
+	  \texttt{?x} &amp; = &amp; \texttt{(a b ?z)}
+	  \end{array}\]
+	</LATEX>
+      </SCHEME>
+      <PYTHON>
+	<LATEX>
+	  \[\begin{array}{lll}
+	  \texttt{\$x} &amp; = &amp; \texttt{llist("a", \$y, "c")} \\
+	  \texttt{\$x} &amp; = &amp; \texttt{llist("a", "b", \$z)} \\
+	  \end{array}\]
+	</LATEX>
+      </PYTHON>
+    </SPLIT>
+    Ці рівняння означають, що
+    <SPLIT>
+      <SCHEME>
+	<LATEX>
+	  \[ (a ?y c) =  (a b ?z) \]
+	</LATEX>
+      </SCHEME>
+      <PYTHON>
+	<LATEX>
+	  \[\begin{array}{lll}
+	  \texttt{llist("a", \$y, "c")} &amp; = &amp;  \texttt{llist("a", "b", \$z)}
+	  \end{array}\]
+	</LATEX>
+      </PYTHON>
+    </SPLIT>
+    а це своєю чергою означає, що
+    <SPLIT>
+      <SCHEME>
+	<LATEX>
+	  \[ \texttt{a} =  \texttt{a},\ 
+             \texttt{?y} = \texttt{b},\ 
+	     \texttt{c} = \texttt{?z} \]
+	</LATEX>
+      </SCHEME>
+      <PYTHON>
+	<LATEX>
+	  \[\begin{array}{lllllll}
+	  \texttt{"a"} &amp; = &amp; \texttt{"a"},\qquad
+             \texttt{\$y} &amp; = &amp; \texttt{"b"},\qquad
+             \texttt{"c"} &amp; = &amp; \texttt{\$z}
+	     \end{array}\]
+	</LATEX>
+      </PYTHON>
+    </SPLIT>
+    і, отже, що
+    <SPLIT>
+      <SCHEME>
+	<LATEX>
+	  \[\begin{array}{lll}
+	  \texttt{?x} &amp; = &amp; \texttt{(a b c)}
+	  \end{array}\]
+	</LATEX>
+      </SCHEME>
+      <PYTHON>
+	<LATEX>
+	  \[\begin{array}{lll}
+	  \texttt{\$x} &amp; = &amp; \texttt{llist("a", "b", "c")}
+	  \end{array}\]
+	</LATEX>
+      </PYTHON>
+    </SPLIT>
+  </TEXT>
+
+  <TEXT>
+    У вдалому зіставленні зі зразком усі змінні зразка стають зв’язаними, а
+    значення, з якими вони зв’язані, містять лише константи.  Це
+    також слушно для всіх прикладів уніфікації, які ми досі бачили.
+    <INDEX>зіставлення зі зразком<SUBINDEX>порівняно з уніфікацією</SUBINDEX></INDEX>
+    <INDEX>уніфікація<SUBINDEX>порівняно зі зіставленням зі зразком</SUBINDEX></INDEX>
+    Проте загалом вдала уніфікація може й не визначити
+    значень змінних повністю: деякі змінні можуть залишитися незв’язаними, а
+    інші — бути зв’язаними зі значеннями, що містять змінні.
+  </TEXT>
+
+  <TEXT>
+    Розгляньмо уніфікацію
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>(?x a)</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>llist($x, "a")</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    і
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>((b ?y) ?z)</SCHEMEINLINE>.</SCHEME>
+      <PYTHON><PYTHONINLINE>llist(llist("b", $y), $z)</PYTHONINLINE>.
+    </PYTHON></SPLITINLINE>
+    Ми можемо вивести, що
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>?x</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>$x</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    <LATEXINLINE>$=$</LATEXINLINE>
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>(b ?y)</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>llist("b", $y)</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    і
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>a</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>"a"</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    <LATEXINLINE>$=$</LATEXINLINE>
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>?z</SCHEMEINLINE>,</SCHEME>
+      <PYTHON><PYTHONINLINE>$z</PYTHONINLINE>,</PYTHON>
+    </SPLITINLINE>
+    але не можемо далі розв’язати щодо
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>?x</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>$x</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    чи
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>?y</SCHEMEINLINE>.</SCHEME>
+      <PYTHON><PYTHONINLINE>$y</PYTHONINLINE>.</PYTHON>
+    </SPLITINLINE>
+    Уніфікація не зазнає невдачі, бо цілком можливо зробити
+    два зразки рівними, присвоївши значення
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>?x</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>$x</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    і
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>?y</SCHEMEINLINE>.</SCHEME>
+      <PYTHON><PYTHONINLINE>$y</PYTHONINLINE>.</PYTHON>
+    </SPLITINLINE>
+    Оскільки це зіставлення жодним чином не обмежує значень, яких може
+    набувати
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>?y</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>$y</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    , жодної прив’язки для
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>?y</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>$y</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    до фрейму-результату не додають. Зіставлення, однак, обмежує значення
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>?x</SCHEMEINLINE>.</SCHEME>
+      <PYTHON><PYTHONINLINE>$x</PYTHONINLINE>.</PYTHON>
+    </SPLITINLINE>
+    Яке б значення не мала
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>?y</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>$y</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    ,
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>?x</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>$x</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    має бути
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>(b ?y)</SCHEMEINLINE>.</SCHEME>
+      <PYTHON><PYTHONINLINE>llist("b", $y)</PYTHONINLINE>.
+      </PYTHON>
+    </SPLITINLINE>
+    Отже, прив’язку
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>?x</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>$x</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    до зразка
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>(b ?y)</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>llist("b", $y)</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    додають до фрейму.  Якщо значення для
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>?y</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>$y</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    буде визначено пізніше й додано до фрейму (через зіставлення зі зразком або
+    уніфікацію, які мають бути узгоджені з цим фреймом), то
+    раніше зв’язаний
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>?x</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>$x</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    вказуватиме на це значення.<FOOTNOTE>Інший спосіб думати про уніфікацію —
+    це те, що вона породжує найзагальніший зразок, який є спеціалізацією
+    двох вхідних зразків.
+    <SPLITINLINE>
+      <SCHEME>
+	Тобто уніфікація
+	<SCHEMEINLINE>(?x a)</SCHEMEINLINE>
+      </SCHEME>
+      <PYTHON>
+	Це означає, що уніфікація
+	<PYTHONINLINE>llist($x, "a")</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    і
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>((b<SPACE/>?y)<SPACE/>?z)</SCHEMEINLINE></SCHEME>
+      <PYTHON>
+	<PYTHONINLINE>llist(llist("b", $y), $z)</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    дає
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>((b ?y) a)</SCHEMEINLINE>,</SCHEME>
+      <PYTHON><PYTHONINLINE>llist(llist("b", $y), "a")</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    і
+    <SPLITINLINE>
+      <PYTHON>
+	що
+      </PYTHON>
+    </SPLITINLINE>
+    уніфікація
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>(?x a ?y)</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>llist($x, "a", $y)</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    і
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>(?y ?z a)</SCHEMEINLINE>,</SCHEME>
+      <PYTHON><PYTHONINLINE>llist($y, $z, "a")</PYTHONINLINE>,
+      </PYTHON>
+    </SPLITINLINE>
+    обговорена вище, дає
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>(a a a)</SCHEMEINLINE>.</SCHEME>
+      <PYTHON><PYTHONINLINE>llist("a", "a", "a")</PYTHONINLINE>.
+      </PYTHON>
+    </SPLITINLINE>
+    Для нашої реалізації зручніше вважати результатом
+    уніфікації фрейм, а не зразок.</FOOTNOTE>
+  </TEXT>
+
+  <INDEX>інтерпретатор запитів<SUBINDEX>уніфікація<CLOSE/></SUBINDEX></INDEX>
+  <INDEX>уніфікація<CLOSE/></INDEX>
+  
+  <SUBHEADING>
+    <NAME>Застосування правил</NAME>
+  </SUBHEADING>
+
+  <INDEX>правило (мова запитів)<SUBINDEX>застосування<OPEN/></SUBINDEX></INDEX>
+
+  <TEXT>
+    Уніфікація — ключ до тієї компоненти системи запитів, яка робить
+    висновки з правил.  Щоб побачити, як це відбувається, розгляньмо
+    опрацювання запиту, який залучає застосування правила, як-от
+    <SNIPPET EVAL="no">
+      <SCHEME>
+(lives-near ?x (Hacker Alyssa P))
+      </SCHEME>
+      <PYTHON>
+lives_near($x, llist("Hacker", "Alyssa", "P"))
+      </PYTHON>
+    </SNIPPET>
+    Щоб опрацювати цей запит, ми спершу за допомогою звичайної
+    <SPLITINLINE>
+      <SCHEME>процедури</SCHEME>
+      <PYTHON>функції</PYTHON>
+    </SPLITINLINE>
+    зіставлення зі зразком, описаної вище, дивимося, чи є в базі даних якісь твердження,
+    що зіставляються з цим зразком.  (У цьому разі їх не буде, бо наша база
+    даних не містить прямих тверджень про те, хто живе поблизу кого.)  Наступний
+    крок — спробувати уніфікувати зразок запиту з висновком кожного
+    правила.  Ми виявляємо, що зразок уніфікується з висновком правила
+    <SNIPPET EVAL="no">
+      <SCHEME>
+(rule (lives-near ?person-1 ?person-2)
+      (and (address ?person-1 (?town . ?rest-1))
+           (address ?person-2 (?town . ?rest-2))
+           (not (same ?person-1 ?person-2))))
+      </SCHEME>
+      <PYTHON>
+rule(lives_near($person_1, $person_2),
+     and(address($person_1, pair($town, $rest_1)),
+         address($person_2, llist($town, $rest_2)),
+         not(same($person_1, $person_2))))
+      </PYTHON>
+    </SNIPPET>
+    що дає фрейм, який задає, що
+    <SPLITINLINE>
+      <SCHEME>
+	<SCHEMEINLINE>?person-2</SCHEMEINLINE>
+	зв’язана з
+	<SCHEMEINLINE>(Hacker Alyssa P)</SCHEMEINLINE>
+	а
+	<SCHEMEINLINE>?x</SCHEMEINLINE>
+	має бути зв’язана з (мати те саме значення, що й)
+	<SCHEMEINLINE>?person-1</SCHEMEINLINE>.
+      </SCHEME>
+      <PYTHON>
+	<PYTHONINLINE>$x</PYTHONINLINE>
+	має бути зв’язана з (мати те саме значення, що й)
+	<PYTHONINLINE>$person_1</PYTHONINLINE>
+	а
+	<PYTHONINLINE>$person_2</PYTHONINLINE>
+	зв’язана з
+	<PYTHONINLINE>llist("Hacker", "Alyssa", "P")</PYTHONINLINE>.
+      </PYTHON>
+    </SPLITINLINE>
+    Тепер відносно цього фрейму ми обчислюємо складений запит, заданий тілом
+    правила.  Вдалі зіставлення розширять цей фрейм, надавши
+    прив’язку для
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>?person-1</SCHEMEINLINE>,</SCHEME>
+      <PYTHON><PYTHONINLINE>$person_1</PYTHONINLINE>,</PYTHON>
+    </SPLITINLINE>
+    а отже, і значення для
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>?x</SCHEMEINLINE>,</SCHEME>
+      <PYTHON><PYTHONINLINE>$x</PYTHONINLINE>,</PYTHON>
+    </SPLITINLINE>
+    яке ми можемо використати, щоб конкретизувати початковий зразок запиту.
+  </TEXT>
+
+  <TEXT>
+    Загалом обчислювач запитів застосовує правило в такий спосіб,
+    коли намагається встановити зразок запиту у фреймі, який
+    задає прив’язки для деяких змінних зразка:
+
+    <UL>
+      <LI>
+	Уніфікувати запит із висновком правила, щоб утворити, якщо
+	це вдасться, розширення початкового фрейму.
+      </LI>
+      <LI>
+	Відносно розширеного фрейму обчислити запит, утворений
+	тілом правила.
+      </LI>
+    </UL>
+  </TEXT>
+
+  <TEXT>
+    Зверніть увагу, як це схоже на метод застосування
+    <SPLITINLINE>
+      <SCHEME>процедури</SCHEME>
+      <PYTHON>функції</PYTHON>
+    </SPLITINLINE>
+    в обчислювачі
+    <INDEX>інтерпретатор запитів<SUBINDEX>порівняно з інтерпретатором <SPLITINLINE><SCHEME>Lisp</SCHEME><PYTHON>Python</PYTHON></SPLITINLINE></SUBINDEX></INDEX>
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>eval/apply</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>evaluate</PYTHONINLINE>/<PDF_ONLY>\linebreak[2]</PDF_ONLY><PYTHONINLINE>apply</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    для
+    <SPLITINLINE>
+      <SCHEME>Lisp:</SCHEME>
+      <PYTHON>Python:</PYTHON>
+    </SPLITINLINE>
+    <UL>
+      <LI>
+	Зв’язати
+	<SPLITINLINE>
+	  <SCHEME>параметри’процедури</SCHEME>
+	  <PYTHON>параметри’функції</PYTHON>
+	</SPLITINLINE>
+	з її аргументами, утворивши фрейм, який розширює початкове
+	<SPLITINLINE>
+	  <SCHEME>середовище процедури</SCHEME>
+	  <PYTHON>середовище функції</PYTHON>
+	</SPLITINLINE>
+	.
+      </LI>
+      <LI>
+	Відносно розширеного середовища обчислити вираз,
+	утворений тілом
+	<SPLITINLINE>
+	  <SCHEME>процедури.</SCHEME>
+	  <PYTHON>функції.</PYTHON>
+	</SPLITINLINE>
+      </LI>
+    </UL>
+    Подібність між цими двома обчислювачами не повинна дивувати.
+    Так само як
+    <SPLITINLINE>
+      <SCHEME>означення процедур</SCHEME>
+      <PYTHON>означення функцій</PYTHON>
+    </SPLITINLINE>
+    є засобом абстрагування в
+    <SPLITINLINE>
+      <SCHEME>Lisp,</SCHEME>
+      <PYTHON>Python,</PYTHON>
+    </SPLITINLINE>
+    означення правил є засобом абстрагування в мові запитів.
+    В обох випадках ми розкриваємо абстракцію, створюючи відповідні
+    прив’язки й обчислюючи тіло правила або
+    <SPLITINLINE>
+      <SCHEME>процедури</SCHEME>
+      <PYTHON>функції</PYTHON>
+    </SPLITINLINE>
+    відносно них.
+  </TEXT>
+
+  <INDEX>правило (мова запитів)<SUBINDEX>застосування<CLOSE/></SUBINDEX></INDEX>
+  
+  <SUBHEADING>
+    <NAME>Прості запити</NAME>
+  </SUBHEADING>
+
+  <INDEX>простий запит<SUBINDEX>опрацювання<OPEN/></SUBINDEX></INDEX>
+
+  <TEXT>
+    Раніше в цьому підрозділі ми бачили, як обчислювати прості запити
+    за відсутності правил.  Тепер, коли ми побачили, як застосовувати правила, ми можемо
+    описати, як обчислювати прості запити, використовуючи і правила, і
+    твердження.
+  </TEXT>
+
+  <TEXT>
+    Маючи зразок запиту та потік фреймів, ми для кожного
+    фрейму у вхідному потоці породжуємо два потоки:
+    <UL>
+      <LI>потік розширених фреймів, одержаних зіставленням зразка
+      з усіма твердженнями в базі даних (за допомогою зіставлювача зі зразком),
+      та
+
+      </LI>
+      <LI>потік розширених фреймів, одержаних застосуванням усіх
+      можливих правил (за допомогою уніфікатора).<FOOTNOTE>Оскільки уніфікація — це
+      <INDEX>зіставлення зі зразком<SUBINDEX>порівняно з уніфікацією</SUBINDEX></INDEX>
+      <INDEX>уніфікація<SUBINDEX>порівняно зі зіставленням зі зразком</SUBINDEX></INDEX>
+      узагальнення зіставлення, ми могли б спростити систему, використавши
+      уніфікатор для породження обох потоків.  Однак те, що легкий випадок ми
+      опрацьовуємо простим зіставлювачем, показує, як зіставлення (на противагу
+      повноцінній уніфікації) може бути корисним саме собою.</FOOTNOTE>
+      </LI>
+    </UL>
+    Дописавши ці два потоки один до одного, одержуємо потік, який складається з усіх
+    способів задовольнити заданий зразок узгоджено з
+    початковим фреймом.  Ці потоки (по одному для кожного фрейму у вхідному
+    потоці) тепер усі зливаються в один великий потік, який, отже,
+    складається з усіх способів, якими будь-який із фреймів у початковому вхідному
+    потоці можна розширити, щоб одержати зіставлення із заданим зразком.
+  </TEXT>
+
+  <INDEX>простий запит<SUBINDEX>опрацювання<CLOSE/></SUBINDEX></INDEX>
+  
+  <SUBHEADING>
+    <NAME>Обчислювач запитів і керівний цикл</NAME>
+  </SUBHEADING>
+
+  <TEXT>
+    Попри складність базових операцій зіставлення, система
+    організована майже так само, як
+    <INDEX>інтерпретатор запитів<SUBINDEX>обчислювач запитів</SUBINDEX></INDEX>
+    <INDEX>інтерпретатор запитів<SUBINDEX>порівняно з інтерпретатором <SPLITINLINE><SCHEME>Lisp</SCHEME><PYTHON>Python</PYTHON></SPLITINLINE></SUBINDEX></INDEX>
+    обчислювач будь-якої мови.  
+    <SPLITINLINE>
+      <SCHEME>Процедура</SCHEME>
+      <PYTHON>Функція</PYTHON>
+    </SPLITINLINE>
+    , яка координує операції зіставлення, називається 
+    <INDEX><USE>evaluate_query</USE></INDEX> 
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>qeval</SCHEMEINLINE>,</SCHEME>
+      <PYTHON><PYTHONINLINE>evaluate_query</PYTHONINLINE>,
+      </PYTHON>
+    </SPLITINLINE>
+    і вона відіграє роль, аналогічну до ролі
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>eval</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>evaluate</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    <SPLITINLINE>
+      <SCHEME>процедури</SCHEME>
+      <PYTHON>функції</PYTHON>
+    </SPLITINLINE>
+    для
+    <SPLITINLINE>
+      <SCHEME>Lisp.</SCHEME>
+      <PYTHON>Python.</PYTHON>
+    </SPLITINLINE>
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>Qeval</SCHEMEINLINE></SCHEME>
+      <PYTHON>Функція
+      <PYTHONINLINE>evaluate_query</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    бере як вхідні дані запит і потік фреймів.  Її вихід — потік
+    фреймів, що відповідають вдалим зіставленням зі зразком запиту, які
+    розширюють якийсь фрейм у вхідному потоці, як показано на
+    <SPLITINLINE>
+      <SCHEME>
+	рисунку<SPACE/><REF NAME="fig:query-stream_scheme"/>.
+      </SCHEME>
+      <PYTHON>
+	рисунку<SPACE/><REF NAME="fig:query-stream"/>.
+      </PYTHON>
+    </SPLITINLINE>
+    Як
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>eval</SCHEMEINLINE>,</SCHEME>
+      <PYTHON><PYTHONINLINE>evaluate</PYTHONINLINE>,</PYTHON>
+    </SPLITINLINE>
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>qeval</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>evaluate_query</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    класифікує різні типи виразів (запитів) і скеровує до відповідної
+    <SPLITINLINE>
+      <SCHEME>процедури</SCHEME>
+      <PYTHON>функції</PYTHON>
+    </SPLITINLINE>
+    для кожного з них.  Є
+    <SPLITINLINE>
+      <SCHEME>процедура</SCHEME>
+      <PYTHON>функція</PYTHON>
+    </SPLITINLINE>
+    для кожної
+    <SPLITINLINE>
+      <SCHEME>спеціальної</SCHEME>
+      <PYTHON>синтаксичної</PYTHON>
+    </SPLITINLINE>
+    форми
+    (<SCHEMEINLINE>and</SCHEMEINLINE>, <SCHEMEINLINE>or</SCHEMEINLINE>,
+    <SCHEMEINLINE>not</SCHEMEINLINE> і
+    <SPLITINLINE>
+      <SCHEME>
+	<SCHEMEINLINE>lisp-value</SCHEMEINLINE>)
+      </SCHEME>
+      <PYTHON>
+	<PYTHONINLINE>javascript_predicate</PYTHONINLINE>)
+      </PYTHON>
+    </SPLITINLINE>
+    і одна — для простих запитів.
+    <COMMENT>
+      Ми вживаємо докладнішу назву
+      <PYTHONINLINE>evaluate_query</PYTHONINLINE>, а не
+      <PYTHONINLINE>qeval</PYTHONINLINE>, бо в підрозділі 4.1 ми були змушені
+      вжити <PYTHONINLINE>evaluate</PYTHONINLINE> замість
+      <PYTHONINLINE>eval</PYTHONINLINE>.
+    </COMMENT>
+  </TEXT>
+
+  <TEXT>
+    <INDEX>керівний цикл<SUBINDEX><ORDER>query</ORDER>в інтерпретаторі запитів</SUBINDEX></INDEX>
+    <INDEX>інтерпретатор запитів<SUBINDEX>керівний цикл</SUBINDEX></INDEX>
+    Керівний цикл, аналогічний до
+    <SPLITINLINE>
+      <SCHEME>
+	<SCHEMEINLINE>driver-loop</SCHEMEINLINE>
+      </SCHEME>
+      <PYTHON>
+	<PYTHONINLINE>driver_loop</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    <SPLITINLINE>
+      <SCHEME>процедури</SCHEME>
+      <PYTHON>функції</PYTHON>
+    </SPLITINLINE>
+    для інших обчислювачів у цьому розділі, читає запити
+    <SPLITINLINE>
+      <SCHEME>з термінала.</SCHEME>
+      <PYTHON>які вводить користувач.</PYTHON>
+    </SPLITINLINE>
+    Для кожного запиту він викликає
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>qeval</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>evaluate_query</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    із запитом і потоком, що складається з одного порожнього фрейму.  Це
+    породить потік усіх можливих зіставлень (усіх можливих розширень
+    порожнього фрейму).  Для кожного фрейму в одержаному потоці він конкретизує
+    початковий запит значеннями змінних, знайденими у фреймі.
+    Цей потік конкретизованих запитів потім друкується.<FOOTNOTE>Причина, чому ми
+    використовуємо
+    <INDEX>потік (потоки)<SUBINDEX>використовувані в інтерпретаторі запитів</SUBINDEX></INDEX>
+    <INDEX>інтерпретатор запитів<SUBINDEX>потоки фреймів</SUBINDEX></INDEX>
+    потоки (а не списки) фреймів, полягає в тому, що
+    рекурсивне застосування правил може породити нескінченну кількість значень, які
+    задовольняють запит.  Відкладене обчислення, втілене в потоках, тут
+    критично важливе: система друкуватиме відповіді одну за одною в міру їх породження,
+    незалежно від того, скінченна чи нескінченна кількість
+    відповідей.</FOOTNOTE>
+  </TEXT>
+
+  <TEXT>
+    Керівний цикл також перевіряє спеціальну команду
+    <INDEX><USE>assert</USE> (інтерпретатор запитів)</INDEX>
+    <INDEX>інтерпретатор запитів<SUBINDEX>додавання правила або твердження</SUBINDEX></INDEX>
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>assert!</SCHEMEINLINE>,</SCHEME>
+      <PYTHON><PYTHONINLINE>assert</PYTHONINLINE>,</PYTHON>
+    </SPLITINLINE>
+    яка сигналізує, що вхід — це не запит, а твердження або правило,
+    яке треба додати до бази даних.  Наприклад,
+    <SNIPPET EVAL="no" POSTPADDING="no">
+      <SCHEME>
+(assert! (job (Bitdiddle Ben) (computer wizard)))
+
+(assert! (rule (wheel ?person)
+         (and (supervisor ?middle-manager ?person)
+              (supervisor ?x ?middle-manager))))
+      </SCHEME>
+      <PYTHON>
+assert(job(llist("Bitdiddle", "Ben"), llist("computer", "wizard")))
+
+assert(rule(wheel($person),
+            and(supervisor($middle_manager, $person),
+                supervisor($x, $middle_manager))))
+      </PYTHON>
+      <INDEX>query interpreter<SUBINDEX>overview<CLOSE/></SUBINDEX></INDEX>
+    </SNIPPET>
+  </TEXT>
+
+
+</SUBSECTION>

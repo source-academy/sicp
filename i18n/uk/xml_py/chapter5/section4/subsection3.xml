@@ -1,0 +1,365 @@
+<SUBSECTION>
+  <NAME>
+    <SPLITINLINE>
+      <SCHEME>
+        Умовні вирази, присвоєння й означення
+      </SCHEME>
+      <PYTHON>
+        Блоки, присвоєння й оголошення
+      </PYTHON>
+    </SPLITINLINE>
+  </NAME>
+
+  <LABEL NAME="sec:block-assign-def-evaluation"/>
+  
+  <SPLIT>
+    <SCHEME>
+  
+  <LABEL NAME="sec:cond-assign-def-evaluation"/>
+  <TEXT>
+    Як і в метациклічному обчислювачі, спеціальні синтаксичні форми опрацьовують,
+    вибірково обчислюючи фрагменти виразу. Для виразу
+    <SCHEMEINLINE>if</SCHEMEINLINE> ми мусимо обчислити предикат і на
+    основі значення предиката вирішити, чи обчислювати наслідок, чи
+    альтернативу.
+  </TEXT>
+
+  <TEXT>
+    Перед обчисленням предиката ми зберігаємо сам вираз
+    <SCHEMEINLINE>if</SCHEMEINLINE>, щоб пізніше вилучити з нього наслідок або
+    альтернативу. Ми також зберігаємо середовище, яке знадобиться пізніше для
+    обчислення наслідку чи альтернативи, і зберігаємо
+    <SCHEMEINLINE>continue</SCHEMEINLINE>, яке знадобиться пізніше, щоб
+    повернутися до обчислення виразу, який чекає на значення
+    <SCHEMEINLINE>if</SCHEMEINLINE>.
+    <SNIPPET EVAL="no">
+      <SCHEME>
+ev-if
+(save exp)                    <EM>; save expression for later</EM>
+(save env)
+(save continue)
+(assign continue (label ev-if-decide))
+(assign exp (op if-predicate) (reg exp))
+(goto (label eval-dispatch))  <EM>; evaluate the predicate</EM>
+      </SCHEME>
+    </SNIPPET>
+  </TEXT>
+
+  <TEXT>
+    Коли ми повертаємося з обчислення предиката, ми перевіряємо, істинний він чи
+    хибний, і залежно від результату кладемо до
+    <SCHEMEINLINE>exp</SCHEMEINLINE> або наслідок, або альтернативу, перш ніж
+    перейти до <SCHEMEINLINE>eval-dispatch</SCHEMEINLINE>. Зауважте, що
+    відновлення <SCHEMEINLINE>env</SCHEMEINLINE> та
+    <SCHEMEINLINE>continue</SCHEMEINLINE> тут настроює
+    <SCHEMEINLINE>eval-dispatch</SCHEMEINLINE> так, щоб він мав правильне
+    середовище і продовжив у правильному місці, де його чекає значення виразу
+    <SCHEMEINLINE>if</SCHEMEINLINE>.
+    <SNIPPET EVAL="no">
+      <SCHEME>
+ev-if-decide
+(restore continue)
+(restore env)
+(restore exp)
+(test (op true?) (reg val))
+(branch (label ev-if-consequent))
+ev-if-alternative
+(assign exp (op if-alternative) (reg exp))
+(goto (label eval-dispatch))
+ev-if-consequent
+(assign exp (op if-consequent) (reg exp))
+(goto (label eval-dispatch))
+      </SCHEME>
+    </SNIPPET>
+  </TEXT>
+    </SCHEME>
+    <PYTHON>
+      <SUBHEADING> 
+        <NAME>Блоки</NAME>
+      </SUBHEADING>
+
+      <INDEX>обчислювач із явним керуванням для Python<SUBINDEX>блоки</SUBINDEX></INDEX>
+      <INDEX>обчислювач із явним керуванням для Python<SUBINDEX>оголошення</SUBINDEX></INDEX>
+
+      <TEXT>
+        Тіло блоку обчислюють щодо поточного середовища,
+	розширеного фреймом, який зв’язує всі локальні імена зі значенням
+	<PYTHONINLINE>"*unassigned*"</PYTHONINLINE>. Ми тимчасово
+        користуємося регістром <PYTHONINLINE>val</PYTHONINLINE>, щоб
+	утримувати список усіх змінних, оголошених у блоці; його отримують за
+	допомогою
+	<INDEX>сканування оголошень<SUBINDEX>в обчислювачі з явним керуванням</SUBINDEX></INDEX>
+	<PYTHONINLINE>scan_out_declarations</PYTHONINLINE>
+	з підрозділу<SPACE/><REF NAME="sec:core-of-evaluator"/>. Функції
+  <PYTHONINLINE>scan_@out_@declarations</PYTHONINLINE> та
+  <PYTHONINLINE>list_of_unassigned</PYTHONINLINE> припускають
+  доступними як машинні операції.<FOOTNOTE>
+	Виноска<SPACE/><REF NAME="foot:syntax-transformer"/>
+	наводить на думку, що справжня реалізація виконувала б
+	синтаксичні перетворення перед виконанням програми.
+  Так само й імена, оголошені в блоках, слід виокремлювати
+  на етапі попереднього опрацювання, а не щоразу під час обчислення блоку.
+	</FOOTNOTE>
+	<SNIPPET EVAL="no" LATEX="yes" POSTPADDING="no">
+	  <INDEX><DECLARATION>ev_block</DECLARATION></INDEX>
+	  <PYTHON>
+"ev_block",
+  assign("comp", list(op("block_body"), reg("comp"))),
+  assign("val", list(op("scan_out_declarations"), reg("comp"))),
+
+  save("comp"),    // so we can use it to temporarily hold $\texttt{*unassigned*}$ values
+  assign("comp", list(op("list_of_unassigned"), reg("val"))),
+  assign("env", list(op("extend_environment"),
+                     reg("val"), reg("comp"), reg("env"))),
+  restore("comp"), // the block body
+  go_to(label("eval_dispatch")),
+	  </PYTHON>
+	</SNIPPET>
+      </TEXT>
+      <!-- Removed based on email with subject SICP JS: 5.4 Parse from Julie 2021-02-06 
+      <TEXT>
+    According to section<SPACE/><REF NAME="sec:representing-expressions"/>, all lambda
+    expressions and functions have a block as their body. However,
+    <PYTHONINLINE>compound_apply</PYTHONINLINE> does not jump to
+    <PYTHONINLINE>ev_block</PYTHONINLINE> but to the dispatcher, seemingly an
+    additional hoop. By deferring to the dispatcher rather than using a fixed label, we
+    open up for more flexible parsing, such as forgoing blocks when there are no variable
+    declarations (so no need to scan out declarations), or forgoing sequences where there
+    is only a single statement. If the parser follows the specification in
+    section<SPACE/><REF NAME="sec:representing-expressions"/>,
+    <PYTHONINLINE>compound_apply</PYTHONINLINE> will always jump (via the
+    dispatcher) to <PYTHONINLINE>ev_block</PYTHONINLINE>, and
+    <PYTHONINLINE>ev_block</PYTHONINLINE> will always jump (via the dispatcher) to
+    <PYTHONINLINE>ev_sequence</PYTHONINLINE>.
+      </TEXT>
+      -->
+    </PYTHON>
+  </SPLIT>
+  
+  <SUBHEADING> 
+    <NAME>
+      Присвоєння й
+      <SPLITINLINE>
+	<SCHEME>означення</SCHEME>
+	<PYTHON>оголошення</PYTHON>
+      </SPLITINLINE>
+    </NAME>
+  </SUBHEADING>
+
+  <TEXT>
+    Присвоєння
+    <INDEX>обчислювач із явним керуванням для Python<SUBINDEX>присвоєння</SUBINDEX></INDEX>
+    опрацьовує
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>ev-assignment</SCHEMEINLINE>, до якої</SCHEME>
+      <PYTHON><PYTHONINLINE>ev_assignment</PYTHONINLINE>,
+      </PYTHON>
+    </SPLITINLINE>
+    доходять від
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>eval-dispatch</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>eval_@dispatch</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    з виразом-присвоєнням у <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>exp</SCHEMEINLINE>.</SCHEME>
+      <PYTHON><PYTHONINLINE>comp</PYTHONINLINE>.</PYTHON>
+    </SPLITINLINE> Код у
+    <SPLITINLINE>
+      <SCHEME>
+      <SCHEMEINLINE>ev-assignment</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>ev_assignment</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    спершу обчислює частину-значення виразу, а тоді встановлює нове
+    значення в середовищі.
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>Set-variable-value!</SCHEMEINLINE></SCHEME>
+      <PYTHON>
+	Функція
+	<PYTHONINLINE>assign_symbol_value</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    , як припускають, доступна як машинна операція.
+    <SNIPPET EVAL="no">
+      <INDEX><DECLARATION>ev_assignment</DECLARATION></INDEX> 
+      <SCHEME>
+ev-assignment
+(assign unev (op assignment-variable) (reg exp))
+(save unev)                   <EM>; save variable for later</EM>
+(assign exp (op assignment-value) (reg exp))
+(save env)
+(save continue)
+(assign continue (label ev-assignment-1))
+(goto (label eval-dispatch))  <EM>; evaluate the assignment value</EM>
+ev-assignment-1
+(restore continue)
+(restore env)
+(restore unev)
+(perform
+(op set-variable-value!) (reg unev) (reg val) (reg env))
+(assign val (const ok))
+(goto (reg continue))
+      </SCHEME>
+      <PYTHON>
+"ev_assignment",
+  assign("unev", list(op("assignment_symbol"), reg("comp"))),
+  save("unev"), // save variable for later
+  assign("comp", list(op("assignment_value_expression"), reg("comp"))),
+  save("env"),
+  save("continue"),
+  assign("continue", label("ev_assignment_install")),
+  go_to(label("eval_dispatch")), // evaluate assignment value
+"ev_assignment_install",
+  restore("continue"),
+  restore("env"),
+  restore("unev"),
+  perform(list(op("assign_symbol_value"),
+               reg("unev"), reg("val"), reg("env"))),
+  go_to(reg("continue")),
+      </PYTHON>
+    </SNIPPET>
+  </TEXT>
+
+  <TEXT>
+    <SPLIT>
+      <SCHEME>
+        Означення опрацьовують подібним чином:
+      </SCHEME>
+      <PYTHON>
+        Оголошення
+	<INDEX>обчислювач із явним керуванням для Python<SUBINDEX>оголошення</SUBINDEX></INDEX>
+	змінних і констант опрацьовують подібним чином.
+        Зауважте, що хоч значенням присвоєння є значення, яке присвоїли,
+        значенням оголошення є
+        <PYTHONINLINE>undefined</PYTHONINLINE>. Це опрацьовують,
+        установлюючи <PYTHONINLINE>val</PYTHONINLINE> у
+        <PYTHONINLINE>undefined</PYTHONINLINE> перед продовженням. 
+        Як і в метациклічному обчислювачі, ми перетворюємо означення функції
+        на оголошення константи, вираз-значення якого є лямбда-виразом. Це відбувається в
+        <PYTHONINLINE>ev_function_definition</PYTHONINLINE>, яка виконує
+        перетворення на місці в <PYTHONINLINE>comp</PYTHONINLINE> і
+        без зупинки переходить до <PYTHONINLINE>ev_declaration</PYTHONINLINE>.
+      </PYTHON>
+    </SPLIT>
+    <SNIPPET EVAL="no" POSTPADDING="no">
+      <INDEX><DECLARATION>ev_function_definition</DECLARATION></INDEX> 
+      <INDEX><DECLARATION>ev_declaration</DECLARATION></INDEX> 
+      <SCHEME>
+ev-definition
+(assign unev (op definition-variable) (reg exp))
+(save unev)                   <EM>; save variable for later</EM>
+(assign exp (op definition-value) (reg exp))
+(save env)
+(save continue)
+(assign continue (label ev-definition-1))
+(goto (label eval-dispatch))  <EM>; evaluate the definition value</EM>
+ev-definition-1
+(restore continue)
+(restore env)
+(restore unev)
+(perform
+(op define-variable!) (reg unev) (reg val) (reg env))
+(assign val (const ok))
+(goto (reg continue))
+      </SCHEME>
+      <PYTHON>
+"ev_function_definition",
+  assign("comp", 
+         list(op("function_decl_to_constant_decl"), reg("comp"))),
+"ev_declaration",
+  assign("unev", list(op("declaration_symbol"), reg("comp"))),
+  save("unev"), // save declared name
+  assign("comp",
+         list(op("declaration_value_expression"), reg("comp"))),
+  save("env"),
+  save("continue"),
+  assign("continue", label("ev_declaration_assign")),
+  go_to(label("eval_dispatch")), // evaluate declaration value
+"ev_declaration_assign",
+  restore("continue"),
+  restore("env"),
+  restore("unev"),
+  perform(list(op("assign_symbol_value"),
+               reg("unev"), reg("val"), reg("env"))),
+  assign("val", constant(undefined)),
+  go_to(reg("continue")),
+      </PYTHON>
+    </SNIPPET>
+  </TEXT>
+  
+  <EXERCISE>
+    <LABEL NAME="ex:derived-expressions"/>
+    <SPLIT>
+      <SCHEME>
+	<INDEX>похідна складова<SUBINDEX>додавання до обчислювача з явним керуванням</SUBINDEX></INDEX>
+	<INDEX>обчислювач із явним керуванням для Scheme<SUBINDEX>похідні вирази</SUBINDEX></INDEX>
+	<INDEX>обчислювач із явним керуванням для Scheme<SUBINDEX>спеціальні форми (додаткові)</SUBINDEX></INDEX>
+	Розширте обчислювач, щоб він опрацьовував похідні вирази, як-от
+	<SCHEMEINLINE>cond</SCHEMEINLINE>,
+	<SCHEMEINLINE>let</SCHEMEINLINE> тощо
+	(підрозділ<SPACE/><REF NAME="sec:representing-expressions"/>).
+	Ви можете <QUOTE>схитрувати</QUOTE> і припустити, що синтаксичні
+	трансформери, як-от <SCHEMEINLINE>cond-&gt;if</SCHEMEINLINE>, доступні
+	як машинні операції.<FOOTNOTE>Це насправді не хитрощі.  У
+	справжній реалізації, написаній з нуля, ми скористалися б нашим обчислювачем
+	із явним керуванням, щоб проінтерпретувати програму Scheme, яка виконує
+	перетворення рівня вихідного коду
+	<SPLITINLINE>
+	  <SCHEME><SCHEMEINLINE>like cond-&gt;if</SCHEMEINLINE></SCHEME>
+	  <PYTHON><PYTHONINLINE></PYTHONINLINE></PYTHON>
+	  </SPLITINLINE> у синтаксичній фазі, що виконується перед виконанням.</FOOTNOTE>
+      </SCHEME>
+      <PYTHON>
+	Розширте обчислювач, щоб він опрацьовував
+	<INDEX>похідна складова<SUBINDEX>додавання до обчислювача з явним керуванням</SUBINDEX></INDEX>
+	<INDEX>обчислювач із явним керуванням для Python<SUBINDEX>похідні складові</SUBINDEX></INDEX>
+	<INDEX>обчислювач із явним керуванням для Python<SUBINDEX>синтаксичні форми (додаткові)</SUBINDEX></INDEX>
+	цикли while, перекладаючи їх у застосування функції
+	<PYTHONINLINE>while_loop</PYTHONINLINE>, як показано у
+	вправі<SPACE/><REF NAME="ex:while_loop"/>.
+	Ви можете вставити оголошення функції
+	<PYTHONINLINE>while_loop</PYTHONINLINE> перед програмами користувача.
+	Ви можете <QUOTE>схитрувати</QUOTE>, припустивши, що синтаксичний трансформер
+	<PYTHONINLINE>while_to_application</PYTHONINLINE> доступний
+	як машинна операція.<!--<FOOTNOTE>This isn<APOS/>t really cheating.  In an
+	actual implementation built from scratch, we would use our explicit-control
+	evaluator to interpret a Python program that performs source-level
+	transformations like
+	<PYTHONINLINE>while_to_application</PYTHONINLINE>
+	in a syntax phase that runs before execution.</FOOTNOTE>--> Зверніться до
+	вправи<SPACE/><REF NAME="ex:while_loop"/>, щоб обговорити, чи
+	цей підхід працює, якщо всередині циклу while дозволено інструкції
+	return, break і continue. Якщо ні,
+	як можна змінити обчислювач із явним керуванням, щоб він виконував програми
+	з циклами while, які містять ці інструкції?
+      </PYTHON>
+    </SPLIT>
+  </EXERCISE>
+
+  <SPLIT>
+    <SCHEME>
+      <EXERCISE>
+	Реалізуйте <SCHEMEINLINE>cond</SCHEMEINLINE> як нову базову
+        <INDEX>обчислювач із явним керуванням для Scheme<SUBINDEX>синтаксичні форми (додаткові)</SUBINDEX></INDEX>
+	спеціальну форму,
+	не зводячи її до <SCHEMEINLINE>if</SCHEMEINLINE>. Вам доведеться
+	побудувати цикл, який перевіряє предикати послідовних
+	клауз <SCHEMEINLINE>cond</SCHEMEINLINE>, доки не знайдеться істинна,
+	а тоді скористатися <SCHEMEINLINE>ev-sequence</SCHEMEINLINE>, щоб обчислити
+	дії цієї клаузи.
+        <LABEL NAME="ex:eceval-cond"/>
+      </EXERCISE>
+    </SCHEME>
+  </SPLIT>
+
+  <EXERCISE>
+    Змініть обчислювач так, щоб він вживав
+    <INDEX>обчислювач із явним керуванням для Python<SUBINDEX>обчислення в нормальному порядку</SUBINDEX></INDEX>
+    <INDEX>нормальний порядок обчислення<SUBINDEX><ORDER>explicit</ORDER>в обчислювачі з явним керуванням</SUBINDEX></INDEX>
+    обчислення в нормальному порядку,
+    за основу взявши лінивий обчислювач із
+    підрозділу<SPACE/><REF NAME="sec:lazy-evaluation"/>.
+    <LABEL NAME="ex:5_26"/>
+  </EXERCISE>
+</SUBSECTION>

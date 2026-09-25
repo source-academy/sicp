@@ -1,0 +1,203 @@
+<SUBSECTION>
+  <NAME>
+    Абстракція в проєктуванні машин
+  </NAME>
+
+  <INDEX>абстракція<SUBINDEX><ORDER>register</ORDER>у проєктуванні регістрових машин<OPEN/></SUBINDEX></INDEX>
+
+  <TEXT>
+    Ми часто означатимемо машину так, щоб вона містила <QUOTE>примітивні</QUOTE>
+    операції, які насправді дуже складні.  Наприклад, у
+    підрозділах<SPACE/><REF NAME="sec:eceval"/> і <REF NAME="sec:compilation"/>
+    ми розглядатимемо
+    <SPLITINLINE>
+      <SCHEME>маніпуляції зі зв’язуванням імен у середовищі Scheme</SCHEME>
+      <PYTHON>маніпуляції зі зв’язуванням імен у середовищі Python</PYTHON>
+    </SPLITINLINE>
+    як примітивні.  Така абстракція корисна,
+    бо дає нам змогу ігнорувати подробиці частин машини, щоб ми
+    могли зосередитися на інших аспектах проєкту.  Проте те, що ми
+    замели чимало складності під килим, не означає, що
+    проєкт машини нереалістичний.  Ми завжди можемо замінити складні
+    <QUOTE>примітиви</QUOTE> простішими примітивними операціями.
+  </TEXT>
+
+  <TEXT>
+    Розгляньмо машину для НСД. Машина має інструкцію, яка обчислює
+    остачу від ділення вмісту регістрів <SCHEMEINLINE>a</SCHEMEINLINE>
+    і <SCHEMEINLINE>b</SCHEMEINLINE> та присвоює результат регістру
+    <SCHEMEINLINE>t</SCHEMEINLINE>.  Якщо ми хочемо побудувати машину для НСД
+    без примітивної операції взяття остачі, ми мусимо вказати, як
+    обчислювати остачі через простіші операції, як-от віднімання.
+    Справді, ми можемо написати 
+    <SPLITINLINE>
+      <SCHEME>процедуру Scheme</SCHEME>
+      <PYTHON>функцію Python</PYTHON>
+    </SPLITINLINE>
+    , яка знаходить остачі в такий спосіб:
+    <SNIPPET HIDE="yes">
+      <NAME>remainder_example</NAME>
+      <PYTHON>
+print(remainder(29, 5))
+      </PYTHON>
+    </SNIPPET>
+    <SNIPPET>
+      <NAME>remainder</NAME>
+      <EXAMPLE>remainder_example</EXAMPLE>
+      <SCHEME>
+(define (remainder n d)
+  (if (&lt; n d)
+      n
+      (remainder (- n d) d)))
+      </SCHEME>
+      <PYTHON>
+def remainder(n, d):
+    return n if n &lt; d else remainder(n - d, d)
+</PYTHON>
+    </SNIPPET>
+
+    Отже, ми можемо замінити операцію взяття остачі, пов’язану зі
+    шляхами даних машини для НСД, на операцію віднімання та перевірку
+    порівняння.  Рисунок<SPACE/><REF NAME="fig:gcd-machine-rem"/> показує шляхи даних і
+    контролер для розширеної машини. Інструкцію
+    <FIGURE>
+      <FIGURE web_scale="0.3" src="img_original/Fig5.5b.std.svg"/>
+      <LABEL NAME="fig:gcd-machine-rem"/>
+      <CAPTION>
+	Шляхи даних і контролер для розширеної машини для НСД.
+      </CAPTION>
+    </FIGURE>
+    <SNIPPET EVAL="no">
+      <SCHEME>
+(assign t (op rem) (reg a) (reg b))
+      </SCHEME>
+      <PYTHON>
+assign("t", llist(op("rem"), reg("a"), reg("b")))
+      </PYTHON>
+    </SNIPPET>
+    в означенні контролера машини для НСД замінено послідовністю
+    інструкцій, яка містить цикл, як показано на
+    рисунку<SPACE/><REF NAME="fig:gcd-machine-rem-controller"/>.
+    <!--  %(registers a b t) %(operations &lt; - =) -->
+    <FIGURE CENTER="no">
+      <SNIPPET>
+	<NAME>gcd_elaborated</NAME>
+	<EXAMPLE>gcd_elaborated_example</EXAMPLE>
+	<EXPECTED>2</EXPECTED>
+	<SCHEME>
+(controller
+ test-b
+   (test (op =) (reg b) (const 0))
+   (branch (label gcd-done))
+   (assign t (reg a))
+ rem-loop
+   (test (op &lt;) (reg t) (reg b))
+   (branch (label rem-done))
+   (assign t (op -) (reg t) (reg b))
+   (goto (label rem-loop))
+ rem-done
+   (assign a (reg b))
+   (assign b (reg t))
+   (goto (label test-b))
+ gcd-done)
+	</SCHEME>
+	<PYTHON>
+controller(
+  llist(
+    "test_b",
+      test(llist(op("="), reg("b"), constant(0))),
+      branch(label("gcd_done")),
+      assign("t", reg("a")),
+    "rem_loop",
+      test(llist(op("&lt;"), reg("t"), reg("b"))),
+      branch(label("rem_done")),
+      assign("t", llist(op("-"), reg("t"), reg("b"))),
+      go_to(label("rem_loop")),
+    "rem_done",
+      assign("a", reg("b")),
+      assign("b", reg("t")),
+      go_to(label("test_b")),
+    "gcd_done"))
+	</PYTHON>
+      </SNIPPET>
+      <SNIPPET HIDE="yes">
+	<NAME>gcd_elaborated_example</NAME>
+	<REQUIRES>controller</REQUIRES>
+	<REQUIRES>make_machine</REQUIRES>
+	<REQUIRES>start</REQUIRES>
+	<REQUIRES>gcd_elaborated_declaration</REQUIRES>
+	<PYTHON>
+gcd_elaborated_machine = make_machine(
+    llist("a", "b", "t"),
+    llist(llist("=", lambda a, b: a == b),
+         llist("&lt;", lambda a, b: a &lt; b),
+         llist("-", lambda a, b: a - b)),
+    controller_sequence(gcd_elaborated_controller))
+set_register_contents(gcd_elaborated_machine, "a", 206)
+set_register_contents(gcd_elaborated_machine, "b", 40)
+start(gcd_elaborated_machine)
+print(get_register_contents(gcd_elaborated_machine, "a"))
+</PYTHON>
+      </SNIPPET>
+      <SNIPPET HIDE="yes">
+	<NAME>gcd_elaborated_declaration</NAME>
+	<PYTHON>
+gcd_elaborated_controller =
+	</PYTHON>
+      </SNIPPET>
+
+      <CAPTION>Послідовність інструкцій контролера для машини для НСД на
+      рисунку<SPACE/><REF NAME="fig:gcd-machine-rem"/>.</CAPTION>
+      <LABEL NAME="fig:gcd-machine-rem-controller"/>
+    </FIGURE>
+  </TEXT>
+
+  <EXERCISE>
+    Спроєктуйте машину для обчислення
+    <INDEX><USE>sqrt</USE><SUBINDEX>регістрова машина для</SUBINDEX></INDEX>
+    квадратних коренів методом Ньютона, як роз’яснено
+    в підрозділі <REF NAME="sec:sqrt"/> і втілено таким кодом із підрозділу<SPACE/><REF NAME="sec:block-structure"/>:
+    <SNIPPET>
+      <REQUIRES>square_definition</REQUIRES>
+      <REQUIRES>average_definition</REQUIRES>
+      <EXAMPLE>sqrt_example_2</EXAMPLE>
+      <EXPECTED>2.2360688956433634</EXPECTED>
+      <SCHEME>
+(define (sqrt x)
+  (define (good-enough? guess)
+    (&lt; (abs (- (square guess) x)) 0.001))
+  (define (improve guess)
+    (average guess (/ x guess)))
+  (define (sqrt-iter guess)
+    (if (good-enough? guess)
+        guess
+        (sqrt-iter (improve guess))))
+  (sqrt-iter 1.0))
+      </SCHEME>
+      <PYTHON>
+def sqrt(x):
+    def is_good_enough(guess):
+        return math_abs(square(guess) - x) &lt; 0.001
+    def improve(guess):
+        return average(guess, x / guess)
+    def sqrt_iter(guess):
+        return guess if is_good_enough(guess) else sqrt_iter(improve(guess))
+    return sqrt_iter(1)
+</PYTHON>
+    </SNIPPET>
+    Почніть з припущення, що
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>good-enough?</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>is_good_enough</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    та операція <SCHEMEINLINE>improve</SCHEMEINLINE> доступна як
+    примітив.  Тоді покажіть, як розгорнути їх у термінах арифметичних
+    операцій.  Опишіть кожну версію проєкту машини <SCHEMEINLINE>sqrt</SCHEMEINLINE>,
+    намалювавши діаграму шляхів даних і записавши означення контролера
+    мовою регістрових машин.
+    <LABEL NAME="ex:sqrt-machine"/>
+  </EXERCISE>
+
+  <INDEX>абстракція<SUBINDEX><ORDER>register</ORDER>у проєктуванні регістрових машин<CLOSE/></SUBINDEX></INDEX>
+
+</SUBSECTION>

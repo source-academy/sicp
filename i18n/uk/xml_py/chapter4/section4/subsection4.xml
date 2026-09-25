@@ -1,0 +1,4010 @@
+<SUBSECTION>
+  <NAME>
+    Реалізація системи запитів
+  </NAME>
+
+  <LABEL NAME="sec:implementing-the-query-system"/>
+  <TEXT>
+    У підрозділі<SPACE/><REF NAME="sec:how-query-works"/> описано, як працює
+    система запитів.  Тепер ми наповнимо це деталями, подавши повну
+    реалізацію системи.
+  </TEXT>
+
+  <SUBSUBSECTION>
+    <NAME>Керівний цикл <SPLITINLINE><SCHEME>та конкретизація</SCHEME></SPLITINLINE></NAME>
+    <LABEL NAME="sec:query-driver"/>
+
+    <TEXT>
+      Керівний цикл
+      <INDEX>керівний цикл<SUBINDEX><ORDER>query</ORDER>в інтерпретаторі запитів</SUBINDEX></INDEX>
+      <INDEX>інтерпретатор запитів<SUBINDEX>керівний цикл<OPEN/></SUBINDEX></INDEX>
+      системи запитів багаторазово читає вхідні вирази.
+      Якщо вираз — це правило або твердження, яке треба додати до
+      бази даних, то цю інформацію додають.  Інакше
+      вважають, що вираз — це запит.  Керівний цикл передає цей запит до
+      <SPLITINLINE><SCHEME>обчислювача <SCHEMEINLINE>qeval</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>evaluate_query</PYTHONINLINE>
+      </PYTHON>
+      </SPLITINLINE>
+      разом із початковим потоком фреймів, що складається з одного порожнього фрейму.
+      Результат обчислення — це потік фреймів, породжений задоволенням
+      запиту значеннями змінних, знайденими в базі даних.  Ці фрейми
+      використовують, щоб утворити новий потік з копій початкового запиту, у
+      яких змінні конкретизовано значеннями, наданими потоком
+      фреймів, і цей остаточний потік
+      <SPLITINLINE>
+	<SCHEME>друкують на терміналі:</SCHEME>
+	<PYTHON>показують:</PYTHON>
+      </SPLITINLINE>
+      <SNIPPET HIDE="yes">
+	<NAME>lp_header</NAME>
+	<PYTHON>
+# functions from SICP JS 4.4.4
+</PYTHON>
+      </SNIPPET>
+      <SNIPPET>
+	<INDEX>prompts<SUBINDEX>query interpreter</SUBINDEX></INDEX>
+	<INDEX><DECLARATION>query_driver_loop</DECLARATION></INDEX> 
+	<NAME>query_driver_loop</NAME>
+	<REQUIRES>functions_4_1_1</REQUIRES>
+	<REQUIRES>functions_4_1_2</REQUIRES>
+	<REQUIRES>functions_4_1_3</REQUIRES>
+	<REQUIRES>functions_4_1_4</REQUIRES>
+	<REQUIRES>lp_header</REQUIRES>
+	<REQUIRES>is_assertion</REQUIRES>
+	<REQUIRES>instantiate</REQUIRES>
+	<REQUIRES>evaluate_query</REQUIRES>
+	<REQUIRES>singleton_stream</REQUIRES>
+	<REQUIRES>add_rule_or_assertion</REQUIRES>
+	<REQUIRES>put_and</REQUIRES>
+	<REQUIRES>disjoin</REQUIRES>
+	<REQUIRES>negate</REQUIRES>
+	<REQUIRES>javascript_predicate</REQUIRES>
+	<REQUIRES>display_stream</REQUIRES>
+	<REQUIRES>always_true</REQUIRES>
+	<REQUIRES>is_variable_2</REQUIRES>
+	<REQUIRES>is_variable_4</REQUIRES>
+	<REQUIRES>convert_to_query_syntax</REQUIRES>
+	<REQUIRES>unparse</REQUIRES>
+	<REQUIRES>user_read</REQUIRES>
+	<EXAMPLE>query_driver_loop_example</EXAMPLE>
+	<SCHEME>
+(define input-prompt ";;; Query input:")
+(define output-prompt ";;; Query results:")
+
+(define (query-driver-loop)
+  (prompt-for-input input-prompt)
+  (let ((q (query-syntax-process (read))))
+    (cond ((assertion-to-be-added? q)
+           (add-rule-or-assertion! (add-assertion-body q))
+           (newline)
+           (display "Assertion added to data base.")
+           (query-driver-loop))
+          (else
+           (newline)
+           (display output-prompt)
+           (display-stream
+            (stream-map
+             (lambda (frame)
+              (instantiate q
+               frame
+               (lambda (v f)
+                 (contract-question-mark v))))
+             (qeval q (singleton-stream '()))))
+  (query-driver-loop)))))
+	</SCHEME>
+	<PYTHON>
+input_prompt = "Query input:"
+output_prompt = "Query results:"
+def query_driver_loop():
+    input = user_read(input_prompt) + ";"
+    if is_none(input):
+        print("evaluator terminated")
+    else:
+        expression = parse(input)
+        query = convert_to_query_syntax(expression)
+        if is_assertion(query):
+            add_rule_or_assertion(assertion_body(query))
+            print("Assertion added to data base.")
+        else:
+            print(output_prompt)
+            display_stream(stream_map(lambda frame: (unparse(instantiate_expression(expression, frame))), evaluate_query(query, singleton_stream(None))))
+        return query_driver_loop()
+</PYTHON>
+	<PYTHON_RUN>
+input_prompt = "Query input:"
+def query_driver_loop():
+    input = user_read(input_prompt)
+    if is_none(input):
+        print("--- evaluator terminated ---")
+    else:
+        exp = parse(input + ";")
+        q = convert_to_query_syntax(exp)
+        print("---- driver loop input -----")
+        print(unparse(exp))
+        if is_assertion(q):
+            add_rule_or_assertion(assertion_body(q))
+            print("Assertion added to data base.")
+        else:
+            print("", "------ query results -------")
+            display_stream(stream_map(lambda frame: (unparse(instantiate_expression(exp, frame))), evaluate_query(q, singleton_stream(None))))
+        return query_driver_loop()
+</PYTHON_RUN>
+      </SNIPPET>
+      <SNIPPET HIDE="yes">
+	<NAME>query_driver_loop_example</NAME>
+	<REQUIRES>append_to_form</REQUIRES>
+	<PYTHON>
+query_driver_loop()
+# enter: append_to_form($x, $y, llist("a", "b", "c", "d"))
+</PYTHON>
+      </SNIPPET>
+      <SNIPPET HIDE="yes">
+	<NAME>process_query_example_1</NAME>
+	<PYTHON>
+parse_query_verbose('assert(son("Adam", "Cain"))')
+parse_query_verbose('son("Adam", x)')
+	</PYTHON>
+      </SNIPPET>
+      <SNIPPET HIDE="yes">
+	<NAME>process_query</NAME>
+	<REQUIRES>query_driver_loop</REQUIRES>
+	<EXAMPLE>process_query_example_1</EXAMPLE>
+	<PYTHON>
+def process_query(input):
+    if is_none(input):
+        print("--- evaluator terminated ---")
+    else:
+        exp = parse(input + ";")
+        q = convert_to_query_syntax(exp)
+        print("---- driver loop input -----")
+        print(unparse(exp))
+        if is_assertion(q):
+            add_rule_or_assertion(assertion_body(q))
+            print("Assertion added to data base.")
+        else:
+            print("", "------ query results -------")
+            display_stream(stream_map(lambda frame: (unparse(instantiate_expression(exp, frame))), evaluate_query(q, singleton_stream(None))))
+def first_answer(input):
+    exp = parse(input + ";")
+    q = convert_to_query_syntax(exp)
+    frames = evaluate_query(q, singleton_stream(None))
+    return "no matching data" if is_none(frames) else unparse(instantiate_expression(exp, head(frames)))
+</PYTHON>
+	<PYTHON_TEST>
+def process_query(input):
+    if is_none(input):
+        print("--- evaluator terminated ---")
+    else:
+        exp = parse(input + ";")
+        q = convert_to_query_syntax(exp)
+        if is_assertion(q):
+            add_rule_or_assertion(assertion_body(q))
+        else:
+            print("", "------ query results -------")
+            display_stream(stream_map(lambda frame: (unparse(instantiate_expression(exp, frame))), evaluate_query(q, singleton_stream(None))))
+def first_answer(input):
+    exp = parse(input + ";")
+    q = convert_to_query_syntax(exp)
+    frames = evaluate_query(q, singleton_stream(None))
+    return "no matching data" if is_none(frames) else unparse(instantiate_expression(exp, head(frames)))
+</PYTHON_TEST>
+      </SNIPPET>
+      <SPLIT>
+	<SCHEME>
+	  Тут, як і в інших обчислювачах у цьому розділі,
+	  ми використовуємо
+	  <INDEX>абстрактний синтаксис<SUBINDEX>в інтерпретаторі запитів</SUBINDEX></INDEX>
+	  абстрактний синтаксис для виразів мови запитів.
+	  Реалізацію
+	  синтаксису виразів, разом із предикатом
+	  <SCHEMEINLINE>assertion-to-be-added?</SCHEMEINLINE>
+	  і селектором
+	  <SCHEMEINLINE>add-assertion-body</SCHEMEINLINE>,
+	  подано в підрозділі<SPACE/><REF NAME="sec:query-syntax"/>.
+	  <SCHEMEINLINE>Add-rule-or-assertion!</SCHEMEINLINE>
+	  означено в підрозділі<SPACE/><REF NAME="sec:query-db"/>.
+	</SCHEME>
+	<PYTHON>
+	  Тут, як і в інших обчислювачах у цьому розділі, ми використовуємо
+	  <INDEX>абстрактний синтаксис<SUBINDEX>в інтерпретаторі запитів</SUBINDEX></INDEX>
+	  <INDEX><USE>parse</USE><SUBINDEX>в інтерпретаторі запитів</SUBINDEX></INDEX>
+	  <PYTHONINLINE>parse</PYTHONINLINE>, щоб
+	  перетворити компоненту мови запитів, задану рядком,
+	  на синтаксичне подання Python. (Ми додаємо
+	  крапку з комою до рядка вхідного виразу, бо
+	  <PYTHONINLINE>parse</PYTHONINLINE> очікує інструкцію.)
+	  Потім ми далі перетворюємо синтаксичне подання 
+	  до концептуального рівня, доречного
+	  для системи запитів, за допомогою
+	  <PYTHONINLINE>convert_to_query_syntax</PYTHONINLINE>,
+	  яку оголошено в підрозділі<SPACE/><REF NAME="sec:query-syntax"/>
+	  разом із предикатом
+	  <PYTHONINLINE>is_assertion</PYTHONINLINE>
+	  і селектором
+	  <PYTHONINLINE>assertion_body</PYTHONINLINE>. 
+	  Функцію <PYTHONINLINE>add_rule_or_assertion</PYTHONINLINE>
+	  оголошено в підрозділі<SPACE/><REF NAME="sec:query-db"/>.
+	  Фрейми, одержані внаслідок обчислення запиту, використовують, щоб конкретизувати
+	  синтаксичне подання, а результат розбирають у рядок для
+	  друку. Функції
+          <INDEX>інтерпретатор запитів<SUBINDEX>конкретизація<OPEN/></SUBINDEX></INDEX>
+	  <INDEX><USE>instantiate_expression</USE></INDEX>
+	  <PYTHONINLINE>instantiate_expression</PYTHONINLINE> і
+	  <INDEX><USE>unparse</USE><SUBINDEX>в інтерпретаторі запитів</SUBINDEX></INDEX>
+	  <PYTHONINLINE>unparse</PYTHONINLINE> оголошено в 
+	  підрозділі<SPACE/><REF NAME="sec:query-syntax"/>.
+	</PYTHON>
+      </SPLIT>
+    </TEXT>
+      <SPLIT>
+	<SCHEME>
+	  <TEXT>
+	    Перш ніж якось обробляти вхідний вираз, керівний цикл
+	    синтаксично перетворює його на форму, яка робить обробку
+	    ефективнішою. Це передбачає зміну 
+	    <INDEX>змінна зразка<SUBINDEX>подання</SUBINDEX></INDEX>
+	    <INDEX>інтерпретатор запитів<SUBINDEX>подання змінних зразка</SUBINDEX></INDEX>
+	    подання змінних зразка.  Коли запит конкретизують, будь-які
+	    змінні, що залишилися незв’язаними, перетворюють назад на вхідне
+	    подання, перш ніж друкувати.  Ці перетворення виконують
+	    дві процедури
+	    <SCHEMEINLINE>query-syntax-process</SCHEMEINLINE>
+	    і
+	    <SCHEMEINLINE>contract-question-mark</SCHEMEINLINE>
+	    (підрозділ<SPACE/><REF NAME="sec:query-syntax"/>).
+	  </TEXT>
+
+	  <TEXT>
+          Щоб
+          <INDEX>інтерпретатор запитів<SUBINDEX>конкретизація<OPEN/></SUBINDEX></INDEX>
+          конкретизувати вираз, ми копіюємо його, замінюючи будь-які змінні у
+	  виразі їхніми значеннями в заданому фреймі.  Ці значення
+	  самі конкретизують, бо можуть містити змінні (наприклад,
+	  якщо
+	  <SCHEMEINLINE>?x</SCHEMEINLINE>
+	  у <SCHEMEINLINE>exp</SCHEMEINLINE> зв’язана з
+	  <SCHEMEINLINE>?y</SCHEMEINLINE>
+	  як результат уніфікації, а
+	  <SCHEMEINLINE>?y</SCHEMEINLINE>
+	  своєю чергою зв’язана з<SPACE/>5).
+	  Дію, яку треба вжити, якщо змінну не можна
+	  конкретизувати, задає
+	  процедурний
+	  аргумент
+	  <SCHEMEINLINE>instantiate</SCHEMEINLINE>.
+	  <SNIPPET>
+	    <NAME>instantiate</NAME>
+	    <REQUIRES>make_binding</REQUIRES>
+	    <REQUIRES>variable</REQUIRES>
+	    <REQUIRES>express</REQUIRES>
+	    <EXAMPLE>append_to_form_example_5</EXAMPLE>
+	    <SCHEME>
+(define (instantiate exp frame unbound-var-handler)
+(define (copy exp)
+  (cond ((var? exp)
+         (let ((binding (binding-in-frame exp frame)))
+           (if binding
+               (copy (binding-value binding))
+               (unbound-var-handler exp frame))))
+        ((pair? exp)
+         (cons (copy (car exp)) (copy (cdr exp))))
+        (else exp)))
+  (copy exp))
+	    </SCHEME>
+	  </SNIPPET>
+	  Процедури, які працюють із прив’язками, означено в
+	  підрозділі<SPACE/><REF NAME="sec:query-bindings"/>.
+	  </TEXT>
+	</SCHEME>
+      </SPLIT>
+  </SUBSUBSECTION>
+
+  <INDEX>інтерпретатор запитів<SUBINDEX>конкретизація<CLOSE/></SUBINDEX></INDEX>
+  <INDEX>інтерпретатор запитів<SUBINDEX>керівний цикл<CLOSE/></SUBINDEX></INDEX>
+  
+  <SUBSUBSECTION>
+    <NAME>Обчислювач</NAME>
+    <LABEL NAME="sec:query-eval"/>
+
+    <TEXT>
+      Функція
+      <INDEX>інтерпретатор запитів<SUBINDEX>обчислювач запитів<OPEN/></SUBINDEX></INDEX>
+      <SPLITINLINE>
+	<SCHEME><SCHEMEINLINE>qeval</SCHEMEINLINE></SCHEME>
+	<PYTHON><PYTHONINLINE>evaluate_query</PYTHONINLINE>
+	</PYTHON>
+      </SPLITINLINE>
+      <SPLITINLINE>
+	<SCHEME>процедура,</SCHEME>
+	<PYTHON>функція,</PYTHON>
+      </SPLITINLINE>
+      яку викликає
+      <SPLITINLINE>
+	<SCHEME>
+	  <SCHEMEINLINE>query-driver-loop</SCHEMEINLINE>,
+	</SCHEME>
+	<PYTHON>
+	  <PYTHONINLINE>query_driver_loop</PYTHONINLINE>,
+	</PYTHON>
+      </SPLITINLINE>
+      — основний обчислювач системи запитів.  Він бере як вхідні дані запит
+      і потік фреймів, а повертає потік розширених фреймів.
+      Він розпізнає
+      <SPLITINLINE>
+	<SCHEME>спеціальні</SCHEME>
+	<PYTHON>синтаксичні</PYTHON>
+      </SPLITINLINE>
+      форми через 
+      <INDEX>кероване даними програмування<SUBINDEX>в інтерпретаторі запитів</SUBINDEX></INDEX>
+      керовану даними диспетчеризацію за допомогою <SCHEMEINLINE>get</SCHEMEINLINE> і
+      <SCHEMEINLINE>put</SCHEMEINLINE>, так само, як ми робили, реалізуючи узагальнені
+      операції в розділі<SPACE/><REF NAME="chap:data"></REF>.  Будь-який запит, не розпізнаний як
+      <SPLITINLINE>
+	<SCHEME>спеціальну</SCHEME>
+	<PYTHON>синтаксичну</PYTHON>
+      </SPLITINLINE>
+      форму, вважають простим запитом, який має опрацювати
+      <SPLITINLINE>
+	<SCHEME>
+	  <SCHEMEINLINE>simple-query</SCHEMEINLINE>.
+	</SCHEME>
+	<PYTHON>
+	  <PYTHONINLINE>simple_query</PYTHONINLINE>.
+	</PYTHON>
+      </SPLITINLINE>
+      <SNIPPET>
+	<INDEX><DECLARATION>evaluate_query</DECLARATION></INDEX> 
+	<NAME>evaluate_query</NAME>
+	<REQUIRES>operation_table_from_chapter_3</REQUIRES>
+	<REQUIRES>operation_table</REQUIRES>
+	<REQUIRES>simple_query</REQUIRES>
+	<REQUIRES>type</REQUIRES>
+	<EXAMPLE>append_to_form_example_5</EXAMPLE>
+	<SCHEME>
+(define (qeval query frame-stream)
+  (let ((qproc (get (type query) 'qeval)))
+    (if qproc
+        (qproc (contents query) frame-stream)
+        (simple-query query frame-stream))))
+	</SCHEME>
+	<PYTHON>
+def evaluate_query(query, frame_stream):
+    qfun = get(type(query), "evaluate_query")
+    return simple_query(query, frame_stream) if is_none(qfun) else qfun(contents(query), frame_stream)
+</PYTHON>
+      </SNIPPET>
+      <SPLITINLINE>
+	<SCHEME><SCHEMEINLINE>Type</SCHEMEINLINE></SCHEME>
+	<PYTHON>Функції <PYTHONINLINE>type</PYTHONINLINE>
+	</PYTHON>
+      </SPLITINLINE>
+      і <SCHEMEINLINE>contents</SCHEMEINLINE>, означені в
+      підрозділі<SPACE/><REF NAME="sec:query-syntax"/>, втілюють 
+      <SPLITINLINE>
+	<SCHEME>
+	  абстрактний синтаксис спеціальних форм.
+	</SCHEME>
+	<PYTHON>
+	  абстрактний синтаксис синтаксичних форм.
+	</PYTHON>
+      </SPLITINLINE>
+    </TEXT>
+
+    <SUBHEADING>
+      <NAME>Прості запити</NAME>
+    </SUBHEADING>
+
+    <INDEX>простий запит<SUBINDEX>опрацювання<OPEN/></SUBINDEX></INDEX>
+    
+    <TEXT>
+      Функцію
+      <SPLITINLINE>
+	<SCHEME>
+	  <SCHEMEINLINE>simple-query</SCHEMEINLINE>
+	</SCHEME>
+	<PYTHON>
+	  <PYTHONINLINE>simple_query</PYTHONINLINE>
+	</PYTHON>
+      </SPLITINLINE>
+      <SPLITINLINE>
+	<SCHEME>процедура</SCHEME>
+	<PYTHON>функція</PYTHON>
+      </SPLITINLINE>
+      викликають для простих запитів.  Він бере як аргументи простий запит (зразок)
+      разом із потоком фреймів, а повертає потік, утворений
+      розширенням кожного фрейму всіма зіставленнями із запитом у базі даних.
+      <SNIPPET>
+	<INDEX><DECLARATION>simple_query</DECLARATION></INDEX> 
+	<NAME>simple_query</NAME>
+	<REQUIRES>stream_flatmap</REQUIRES>
+	<REQUIRES>find_assertions</REQUIRES>
+	<REQUIRES>apply_rules</REQUIRES>
+	<EXAMPLE>append_to_form_example_5</EXAMPLE>
+	<SCHEME>
+(define (simple-query query-pattern frame-stream)
+  (stream-flatmap
+   (lambda (frame)
+     (stream-append-delayed
+      (find-assertions query-pattern frame)
+      (delay (apply-rules query-pattern frame))))
+   frame-stream))
+	</SCHEME>
+	<PYTHON>
+def simple_query(query_pattern, frame_stream):
+    return stream_flatmap(lambda frame: (stream_append_delayed(find_assertions(query_pattern, frame), lambda : (apply_rules(query_pattern, frame)))), frame_stream)
+</PYTHON>
+      </SNIPPET>
+    </TEXT>
+
+    <TEXT>
+      Для кожного фрейму у вхідному потоці ми використовуємо
+      <SPLITINLINE>
+	<SCHEME>
+	  <SCHEMEINLINE>find-assertions</SCHEMEINLINE>
+	</SCHEME>
+	<PYTHON>
+	  <PYTHONINLINE>find_assertions</PYTHONINLINE>
+	</PYTHON>
+      </SPLITINLINE>
+      (підрозділ<SPACE/><REF NAME="sec:query-match"/>), щоб зіставити зразок
+      з усіма твердженнями в базі даних, породивши потік розширених
+      фреймів, і використовуємо
+      <SPLITINLINE>
+	<SCHEME>
+	  <SCHEMEINLINE>apply-rules</SCHEMEINLINE>
+	</SCHEME>
+	<PYTHON>
+	  <PYTHONINLINE>apply_rules</PYTHONINLINE>
+	</PYTHON>
+      </SPLITINLINE>
+      (підрозділ<SPACE/><REF NAME="sec:query-unify"/>), щоб застосувати
+      усі можливі правила, породивши ще один потік розширених фреймів.
+      Ці два потоки об’єднують (за допомогою
+      <SPLITINLINE>
+	<SCHEME>
+	  <SCHEMEINLINE>stream-append-delayed</SCHEMEINLINE>,
+	</SCHEME>
+	<PYTHON>
+	  <PYTHONINLINE>stream_append_delayed</PYTHONINLINE>,
+	</PYTHON>
+      </SPLITINLINE>
+      підрозділ<SPACE/><REF NAME="sec:query-streams"/>), щоб утворити потік усіх
+      способів задовольнити заданий зразок узгоджено з
+      початковим фреймом (див. вправу<SPACE/><REF NAME="ex:q-why-not-append"/>).
+      Потоки для окремих вхідних фреймів об’єднують за допомогою
+      <SPLITINLINE>
+	<SCHEME>
+	  <SCHEMEINLINE>stream-flatmap</SCHEMEINLINE>
+	</SCHEME>
+	<PYTHON>
+	  <PYTHONINLINE>stream_flatmap</PYTHONINLINE>
+	</PYTHON>
+      </SPLITINLINE>
+      (підрозділ<SPACE/><REF NAME="sec:query-streams"/>), щоб утворити один великий потік
+      усіх способів, якими будь-який із фреймів у початковому вхідному потоці можна
+      розширити, щоб одержати зіставлення із заданим зразком.
+    </TEXT>
+
+    <INDEX>простий запит<SUBINDEX>опрацювання<CLOSE/></SUBINDEX></INDEX>
+    
+    <SUBHEADING>
+      <NAME>Складені запити</NAME>
+    </SUBHEADING>
+
+    <INDEX>складений запит<SUBINDEX>опрацювання<OPEN/></SUBINDEX></INDEX>
+
+    <TEXT>
+      <SPLITINLINE>
+	<SCHEME>
+	  <SCHEMEINLINE>And</SCHEMEINLINE>
+	  <INDEX><USE>and</USE> (мова запитів)<SUBINDEX>обчислення</SUBINDEX></INDEX>
+	  — запити опрацьовують, як показано на
+	  рисунку<SPACE/><REF NAME="fig:query-and_scheme"/>
+	  за допомогою
+	</SCHEME>
+	<PYTHON>
+	  Ми опрацьовуємо
+	  <INDEX><USE>and</USE> (мова запитів)<SUBINDEX>обчислення</SUBINDEX></INDEX>
+	  <PYTHONINLINE>and</PYTHONINLINE>
+	  -запити, як показано на
+	  рисунку<SPACE/><REF NAME="fig:query-and"/>
+	  за допомогою
+	</PYTHON>
+      </SPLITINLINE>
+      <SCHEMEINLINE>conjoin</SCHEMEINLINE>
+      <SPLITINLINE>
+	<SCHEME>процедури. <SCHEMEINLINE>Conjoin</SCHEMEINLINE></SCHEME>
+        <PYTHON>функції, яка</PYTHON>
+      </SPLITINLINE>
+      бере як вхідні дані кон’юнкти й потік фреймів, а повертає потік
+      розширених фреймів.  Спершу <SCHEMEINLINE>conjoin</SCHEMEINLINE> опрацьовує
+      потік фреймів, щоб знайти потік усіх можливих розширень фреймів,
+      які задовольняють перший запит у кон’юнкції.  Потім, узявши це за
+      новий потік фреймів, він рекурсивно застосовує
+      <SCHEMEINLINE>conjoin</SCHEMEINLINE> до решти запитів.
+      <SNIPPET>
+	<INDEX><DECLARATION>conjoin</DECLARATION></INDEX> 
+	<NAME>conjoin</NAME>
+	<REQUIRES>is_empty_conjunction</REQUIRES>
+	<REQUIRES>operation_table_from_chapter_3</REQUIRES>
+	<REQUIRES>operation_table</REQUIRES>
+	<REQUIRES>is_empty_conjunction</REQUIRES>
+	<REQUIRES>stream_append_delayed</REQUIRES>
+	<EXAMPLE>append_to_form_example_5</EXAMPLE>
+	<SCHEME>
+(define (conjoin conjuncts frame-stream)
+  (if (empty-conjunction? conjuncts)
+      frame-stream
+      (conjoin (rest-conjuncts conjuncts)
+               (qeval (first-conjunct conjuncts)
+                      frame-stream))))
+	</SCHEME>
+	<PYTHON>
+def conjoin(conjuncts, frame_stream):
+    return frame_stream if is_empty_conjunction(conjuncts) else conjoin(rest_conjuncts(conjuncts), evaluate_query(first_conjunct(conjuncts), frame_stream))
+</PYTHON>
+      </SNIPPET>
+      Вираз
+      <SPLITINLINE>
+	<SCHEME>вираз</SCHEME>
+	<PYTHON>інструкція</PYTHON>
+      </SPLITINLINE>
+      <SNIPPET>
+	<NAME>put_and</NAME>
+	<REQUIRES>conjoin</REQUIRES>
+	<EXAMPLE>append_to_form_example_5</EXAMPLE>
+	<SCHEME>
+(put 'and 'qeval conjoin)
+	</SCHEME>
+	<PYTHON>
+put("and", "evaluate_query", conjoin)
+	</PYTHON>
+      </SNIPPET>
+      налаштовує
+      <SPLITINLINE>
+	<SCHEME><SCHEMEINLINE>qeval</SCHEMEINLINE></SCHEME>
+	<PYTHON><PYTHONINLINE>evaluate_query</PYTHONINLINE>
+	</PYTHON>
+      </SPLITINLINE>
+      скеровувати до <SCHEMEINLINE>conjoin</SCHEMEINLINE>, коли трапляється
+      <SCHEMEINLINE>and</SCHEMEINLINE>
+      <SPLITINLINE>
+	<SCHEME>форма</SCHEME>
+      </SPLITINLINE>
+      is encountered.
+    </TEXT>
+
+    <TEXT>
+      <SPLITINLINE>
+	<SCHEME>
+	  <SCHEMEINLINE>Or</SCHEMEINLINE>
+	  <INDEX><USE>or</USE> (мова запитів)<SUBINDEX>обчислення</SUBINDEX></INDEX>
+	  — запити опрацьовують
+	</SCHEME>
+	<PYTHON>
+	  Ми опрацьовуємо
+	  <INDEX><USE>or</USE> (мова запитів)<SUBINDEX>обчислення</SUBINDEX></INDEX>
+	  <SCHEMEINLINE>or</SCHEMEINLINE>-запити
+	</PYTHON>
+      </SPLITINLINE>
+      подібно, як показано на
+      <SPLITINLINE>
+	<SCHEME>
+      рисунку<SPACE/><REF NAME="fig:query-or_scheme"/>.
+	</SCHEME>
+	<PYTHON>
+      рисунку<SPACE/><REF NAME="fig:query-or"/>.
+	</PYTHON>
+      </SPLITINLINE>
+      Вихідні потоки для різних диз’юнктів
+      <SCHEMEINLINE>or</SCHEMEINLINE> обчислюють окремо й зливають за допомогою
+      функції
+      <SPLITINLINE>
+	<SCHEME>
+	  <SCHEMEINLINE>interleave-delayed</SCHEMEINLINE>
+	</SCHEME>
+	<PYTHON>
+	  <PYTHONINLINE>interleave_delayed</PYTHONINLINE>
+	</PYTHON>
+      </SPLITINLINE>
+      <SPLITINLINE>
+	<SCHEME>процедури</SCHEME>
+	<PYTHON>функції</PYTHON>
+      </SPLITINLINE>
+      з підрозділу<SPACE/><REF NAME="sec:query-streams"/>.
+      (Див. вправи<SPACE/><REF NAME="ex:q-why-not-append"/>
+      і<SPACE/><REF NAME="ex:q-why-interleave"/>.)
+      <SNIPPET>
+	<INDEX><DECLARATION>disjoin</DECLARATION></INDEX> 
+	<NAME>disjoin</NAME>
+	<REQUIRES>operation_table_from_chapter_3</REQUIRES>
+	<REQUIRES>operation_table</REQUIRES>
+	<REQUIRES>is_empty_conjunction</REQUIRES>
+	<REQUIRES>stream_append_delayed</REQUIRES>
+	<EXAMPLE>append_to_form_example_5</EXAMPLE>
+	<SCHEME>
+(define (disjoin disjuncts frame-stream)
+  (if (empty-disjunction? disjuncts)
+      the-empty-stream
+      (interleave-delayed
+       (qeval (first-disjunct disjuncts) frame-stream)
+       (delay (disjoin (rest-disjuncts disjuncts)
+                       frame-stream)))))
+
+(put 'or 'qeval disjoin)
+	</SCHEME>
+	<PYTHON>
+def disjoin(disjuncts, frame_stream):
+    return None if is_empty_disjunction(disjuncts) else interleave_delayed(evaluate_query(first_disjunct(disjuncts), frame_stream), lambda : (disjoin(rest_disjuncts(disjuncts), frame_stream)))
+put("or", "evaluate_query", disjoin)
+</PYTHON>
+      </SNIPPET>
+    </TEXT>
+
+    <TEXT>
+      Предикати й селектори для
+      <SPLITINLINE>
+	<SCHEME>синтаксису</SCHEME>
+	<PYTHON>подання</PYTHON>
+      </SPLITINLINE>
+      кон’юнктів і диз’юнктів
+      подано в підрозділі<SPACE/><REF NAME="sec:query-syntax"/>.
+    </TEXT>
+
+    <SUBHEADING>
+      <NAME>Фільтри</NAME>
+    </SUBHEADING>
+
+    <TEXT>
+      <SPLITINLINE>
+	<SCHEME>
+	  <SCHEMEINLINE>Not</SCHEMEINLINE>
+	  <INDEX><USE>not</USE> (мова запитів)<SUBINDEX>обчислення</SUBINDEX></INDEX>
+	  —
+	</SCHEME>
+	<PYTHON>
+	  Синтаксичну форму 
+	  <INDEX><USE>not</USE> (мова запитів)<SUBINDEX>обчислення</SUBINDEX></INDEX>
+	  <SCHEMEINLINE>not</SCHEMEINLINE>
+	</PYTHON>
+      </SPLITINLINE>
+      опрацьовують методом, окресленим у
+      підрозділі<SPACE/><REF NAME="sec:how-query-works"/>.  Ми намагаємося розширити
+      кожен фрейм у вхідному потоці, щоб задовольнити заперечуваний запит, і
+      включаємо заданий фрейм до вихідного потоку лише тоді, коли його не можна розширити.
+      <!-- mutual recursion -->
+      <SNIPPET>
+	<INDEX><DECLARATION>negate</DECLARATION></INDEX> 
+	<NAME>negate</NAME>
+	<REQUIRES>operation_table_from_chapter_3</REQUIRES>
+	<REQUIRES>operation_table</REQUIRES>
+	<REQUIRES>stream_flatmap</REQUIRES>
+	<REQUIRES>singleton_stream</REQUIRES>
+	<EXAMPLE>append_to_form_example_5</EXAMPLE>
+	<SCHEME>
+(define (negate operands frame-stream)
+  (stream-flatmap
+   (lambda (frame)
+     (if (stream-null? (qeval (negated-query operands)
+                              (singleton-stream frame)))
+         (singleton-stream frame)
+         the-empty-stream))
+   frame-stream))
+
+(put 'not 'qeval negate)
+	</SCHEME>
+	<PYTHON>
+def negate(exps, frame_stream):
+    return stream_flatmap(lambda frame: (singleton_stream(frame) if is_none(evaluate_query(negated_query(exps), singleton_stream(frame))) else None), frame_stream)
+put("not", "evaluate_query", negate)
+</PYTHON>
+      </SNIPPET>
+    </TEXT>
+
+    <TEXT>
+      <SPLITINLINE>
+	<SCHEME>
+	  <INDEX><USE>lisp-value</USE> (мова запитів)<SUBINDEX>обчислення</SUBINDEX></INDEX>
+	  <SCHEMEINLINE>Lisp-value</SCHEMEINLINE>
+	</SCHEME>
+	<PYTHON>
+	  Синтаксичну форму
+	  <INDEX><USE>javascript_predicate</USE> (мова запитів)<SUBINDEX>обчислення</SUBINDEX></INDEX>
+	  <PYTHONINLINE>javascript_predicate</PYTHONINLINE>
+	  syntactic form
+	</PYTHON>
+      </SPLITINLINE>
+      опрацьовують фільтром, подібним до <SCHEMEINLINE>not</SCHEMEINLINE>.
+      <SPLIT>
+	<SCHEME>
+	  Кожен фрейм у
+	  потоці використовують, щоб конкретизувати змінні у зразку, застосовують
+	  зазначений предикат, а фрейми, для яких предикат
+	  повертає хибу, відфільтровують із вхідного потоку.  Виникає помилка,
+	  якщо є незв’язані змінні зразка.
+	</SCHEME>
+	<PYTHON>
+	  Кожен фрейм у
+	  потоці використовують, щоб конкретизувати змінні в предикаті,
+	  конкретизований предикат обчислюють, а фрейми, для яких
+	  предикат дає хибу, відфільтровують із вхідного потоку.
+	  Конкретизований предикат обчислюють за допомогою
+	  <PYTHONINLINE>evaluate</PYTHONINLINE>
+	  з підрозділу<SPACE/><REF NAME="sec:mc-eval"/> із
+	  <PYTHONINLINE>the_global_environment</PYTHONINLINE>, а
+	  отже, він може опрацювати будь-який вираз Python, аби всі
+	  змінні зразка були конкретизовані до обчислення.
+	</PYTHON>
+      </SPLIT>
+      <!-- mutual recursion -->
+	<SNIPPET HIDE="yes">
+	  <NAME>compound_queries_5_example</NAME>
+	  <REQUIRES>compound_queries_4</REQUIRES>
+	  <REQUIRES>process_query</REQUIRES>
+	  <PYTHON>
+first_answer('and(salary(person, amount), javascript_predicate(amount &gt; 50000))')
+# parse_query_verbose('and(salary(person, amount), javascript_predicate(amount &gt; 50000))', "verbose")
+</PYTHON>
+	</SNIPPET>
+	<SNIPPET>
+          <INDEX><DECLARATION>javascript_predicate</DECLARATION> (query interpreter)</INDEX>
+	  <NAME>javascript_predicate</NAME>
+	  <REQUIRES>operation_table_from_chapter_3</REQUIRES>
+	  <REQUIRES>operation_table</REQUIRES>
+	  <REQUIRES>stream_flatmap</REQUIRES>
+	  <REQUIRES>singleton_stream</REQUIRES>
+	  <EXAMPLE>compound_queries_5_example</EXAMPLE>
+	  <SCHEME>
+(define (lisp-value call frame-stream)
+  (stream-flatmap
+   (lambda (frame)
+     (if (execute
+          (instantiate
+           call
+           frame
+           (lambda (v f)
+             (error "Unknown pat var - - LISP-VALUE" v))))
+              (singleton-stream frame)
+              the-empty-stream))
+        frame-stream))
+
+        (put 'lisp-value 'qeval lisp-value)
+	  </SCHEME>
+	  <PYTHON>
+def javascript_predicate(exps, frame_stream):
+    return stream_flatmap(lambda frame: (singleton_stream(frame) if evaluate(instantiate_expression(javascript_predicate_expression(exps), frame), the_global_environment) else None), frame_stream)
+put("javascript_predicate", "evaluate_query", javascript_predicate)
+</PYTHON>
+	</SNIPPET>
+    </TEXT>
+
+    <TEXT>
+      <SPLIT>
+	<SCHEME>
+	  <SCHEMEINLINE>Execute</SCHEMEINLINE>,
+	  який застосовує предикат до аргументів, мусить
+	  <SCHEMEINLINE>eval</SCHEMEINLINE>
+	  вираз предиката, щоб одержати процедуру, яку треба
+	  застосувати.  Однак він не має обчислювати аргументи, бо вони
+	  вже є фактичними аргументами, а не виразами, обчислення яких
+	  (у Lisp) дасть аргументи.
+	  Зауважте, що
+	  <SCHEMEINLINE>execute</SCHEMEINLINE> реалізовано за допомогою
+	  <INDEX><DECLARATION>eval</DECLARATION><SUBINDEX>використовуваний в інтерпретаторі запитів</SUBINDEX></INDEX>
+	  <SCHEMEINLINE>eval</SCHEMEINLINE>
+	  та <SCHEMEINLINE>apply</SCHEMEINLINE> з
+	  базової системи Lisp.
+	</SCHEME>
+	<PYTHON>
+	</PYTHON>
+      </SPLIT>
+      <COMMENT>
+	Оригінал тут обмежувальніший. Ми вважаємо, що дозвіл
+	застосовувати примітивні функції і простіший, і
+	потужніший. (Ми могли б позбутися синтаксичних функцій
+	<SCHEMEINLINE>predicate</SCHEMEINLINE> and
+	<SCHEMEINLINE>args</SCHEMEINLINE>.)
+      </COMMENT>
+      <SNIPPET>
+	<NAME>execute</NAME>
+	<REQUIRES>functions_4_1_1</REQUIRES>
+	<REQUIRES>functions_4_1_2</REQUIRES>
+	<REQUIRES>functions_4_1_3</REQUIRES>
+	<REQUIRES>functions_4_1_4</REQUIRES>
+	<REQUIRES>is_empty_conjunction</REQUIRES>
+	<EXAMPLE>compound_queries_5_example</EXAMPLE>
+	<SCHEME>
+(define (execute exp)
+  (apply (eval (predicate exp) user-initial-environment)
+         (args exp)))
+	</SCHEME>
+      </SNIPPET>
+    </TEXT>
+
+    <TEXT>
+      The
+      <SPLITINLINE>
+	<SCHEME><SCHEMEINLINE>always-true</SCHEMEINLINE> — спеціальна форма</SCHEME>
+	<PYTHON>
+	  <PYTHONINLINE>always_true</PYTHONINLINE> — синтаксична форма
+	</PYTHON>
+      </SPLITINLINE>
+      забезпечує запит, який завжди задовольняється.  Вона ігнорує свій вміст
+      (зазвичай порожній) і просто пропускає всі фрейми у вхідному
+      потоці.
+      <SPLITINLINE>
+	<SCHEME>
+	  <SCHEMEINLINE>Always-true</SCHEMEINLINE>
+	  використовує
+	  селектор <SCHEMEINLINE>rule-body</SCHEMEINLINE>
+	  (підрозділ<SPACE/><REF NAME="sec:query-syntax"/>)
+	</SCHEME>
+	<PYTHON>
+	  The
+	  <PYTHONINLINE>rule_body</PYTHONINLINE>
+	  selector (section<SPACE/><REF NAME="sec:query-syntax"/>)
+	  <PYTHONINLINE>always_true</PYTHONINLINE>
+	</PYTHON>
+      </SPLITINLINE>
+      <INDEX>правило (мова запитів)<SUBINDEX>без тіла</SUBINDEX></INDEX>
+      щоб надати тіла правилам, означеним без тіл (тобто
+      правилам, тіла яких завжди задовольняються).
+      <SNIPPET>
+	<INDEX><DECLARATION>always_true</DECLARATION></INDEX> 
+	<NAME>always_true</NAME>
+	<REQUIRES>operation_table_from_chapter_3</REQUIRES>
+	<REQUIRES>operation_table</REQUIRES>
+	<EXAMPLE>append_to_form_example_5</EXAMPLE>
+	<SCHEME>
+(define (always-true ignore frame-stream) frame-stream)
+
+(put 'always-true 'qeval always-true)
+	</SCHEME>
+	<PYTHON>
+def always_true(ignore, frame_stream):
+    return frame_stream
+put("always_true", "evaluate_query", always_true)
+</PYTHON>
+      </SNIPPET>
+      Селектори, які визначають синтаксис
+      <SCHEMEINLINE>not</SCHEMEINLINE>
+      і
+      <SPLITINLINE>
+	<SCHEME><SCHEMEINLINE>lisp-value</SCHEMEINLINE></SCHEME>
+	<PYTHON>
+	  <PYTHONINLINE>javascript_predicate</PYTHONINLINE>
+	</PYTHON>
+      </SPLITINLINE>
+      подано в підрозділі<SPACE/><REF NAME="sec:query-syntax"/>.
+    </TEXT>
+  </SUBSUBSECTION>
+
+  <INDEX>складений запит<SUBINDEX>опрацювання<CLOSE/></SUBINDEX></INDEX>
+  <INDEX>інтерпретатор запитів<SUBINDEX>обчислювач запитів<CLOSE/></SUBINDEX></INDEX>
+  
+  <SUBSUBSECTION>
+    <NAME>Знаходження тверджень зіставленням зі зразком</NAME>
+    <LABEL NAME="sec:query-match"/>
+    
+    <TEXT>
+      <SPLITINLINE>
+	<SCHEME><SCHEMEINLINE>Find-assertions</SCHEMEINLINE>,
+	</SCHEME>
+	<PYTHON>
+	  Функція <PYTHONINLINE>find_assertions</PYTHONINLINE>,
+	</PYTHON>
+      </SPLITINLINE>
+      <INDEX>інтерпретатор запитів<SUBINDEX>зіставлення зі зразком<OPEN/></SUBINDEX></INDEX>
+      <INDEX>зіставлення зі зразком<SUBINDEX>реалізація<OPEN/></SUBINDEX></INDEX>
+      яку викликає
+      <SPLITINLINE>
+	<SCHEME><SCHEMEINLINE>simple-query</SCHEMEINLINE>
+	</SCHEME>
+	<PYTHON><PYTHONINLINE>simple_query</PYTHONINLINE>
+	</PYTHON>
+      </SPLITINLINE>
+      (підрозділ<SPACE/><REF NAME="sec:query-eval"/>), бере як вхідні дані зразок
+      і фрейм. Він повертає потік фреймів, кожен з яких розширює заданий
+      зіставленням заданого зразка з базою даних.  Він використовує
+      <SPLITINLINE>
+	<SCHEME><SCHEMEINLINE>fetch-assertions</SCHEMEINLINE>
+	</SCHEME>
+	<PYTHON><PYTHONINLINE>fetch_assertions</PYTHONINLINE>
+	</PYTHON>
+      </SPLITINLINE>
+      (підрозділ<SPACE/><REF NAME="sec:query-db"/>), щоб одержати потік усіх
+      тверджень у базі даних, які слід перевірити на зіставлення зі
+      зразком і фреймом.  Причина, чому тут потрібен
+      <SPLITINLINE>
+	<SCHEME><SCHEMEINLINE>fetch-assertions</SCHEMEINLINE>
+	</SCHEME>
+	<PYTHON><PYTHONINLINE>fetch_@assertions</PYTHONINLINE>
+	</PYTHON>
+      </SPLITINLINE>
+      тут у тім, що ми часто можемо застосувати прості перевірки, які вилучать багато
+      записів із бази даних із пулу кандидатів на вдале
+      зіставлення. Система все одно працювала б, якби ми вилучили
+      <SPLITINLINE>
+	<SCHEME><SCHEMEINLINE>fetch-assertions</SCHEMEINLINE>
+	</SCHEME>
+	<PYTHON><PYTHONINLINE>fetch_assertions</PYTHONINLINE>
+	</PYTHON>
+      </SPLITINLINE>
+      і просто перевіряли потік усіх тверджень у базі даних, але
+      обчислення було б менш ефективним, бо нам довелося б робити
+      набагато більше викликів зіставлювача.
+      <SNIPPET>
+	<INDEX><DECLARATION>find_assertions</DECLARATION></INDEX> 
+	<NAME>find_assertions</NAME>
+	<REQUIRES>stream_flatmap</REQUIRES>
+	<REQUIRES>check_an_assertion</REQUIRES>
+	<REQUIRES>fetch_assertions</REQUIRES>
+	<EXAMPLE>append_to_form_example_5</EXAMPLE>
+	<SCHEME>
+(define (find-assertions pattern frame)
+  (stream-flatmap (lambda (datum)
+                    (check-an-assertion datum pattern frame))
+                  (fetch-assertions pattern frame)))
+	</SCHEME>
+	<PYTHON>
+def find_assertions(pattern, frame):
+    return stream_flatmap(lambda datum: (check_an_assertion(datum, pattern, frame)), fetch_assertions(pattern, frame))
+</PYTHON>
+      </SNIPPET>
+    </TEXT>
+
+    <TEXT>
+      <SPLITINLINE>
+	<SCHEME><SCHEMEINLINE>Check-an-assertion</SCHEMEINLINE>
+	</SCHEME>
+	<PYTHON>
+	  Функція <PYTHONINLINE>check_an_assertion</PYTHONINLINE>
+	</PYTHON>
+      </SPLITINLINE>
+      бере як аргументи об’єкт даних
+      <SPLITINLINE>
+	<SCHEME>
+	  (твердження),       
+	</SCHEME>
+	<PYTHON>
+	  (твердження),
+	</PYTHON>
+      </SPLITINLINE>
+      зразок і фрейм, а
+      повертає або одноелементний потік, що містить розширений фрейм, або
+      <SPLITINLINE>
+	<SCHEME><SCHEMEINLINE>the-empty-stream</SCHEMEINLINE>
+	</SCHEME>
+	<PYTHON><PYTHONINLINE>None</PYTHONINLINE>
+	</PYTHON>
+      </SPLITINLINE>
+      якщо зіставлення зазнає невдачі.
+      <SNIPPET>
+	<INDEX><DECLARATION>check_an_assertion</DECLARATION></INDEX>
+	<NAME>check_an_assertion</NAME>
+	<REQUIRES>pattern_match</REQUIRES>
+	<REQUIRES>singleton_stream</REQUIRES>
+	<EXAMPLE>append_to_form_example_5</EXAMPLE>
+	<SCHEME>
+(define (check-an-assertion assertion query-pat query-frame)
+  (let ((match-result
+         (pattern-match query-pat assertion query-frame)))
+    (if (eq? match-result 'failed)
+        the-empty-stream
+        (singleton-stream match-result))))
+	</SCHEME>
+	<PYTHON>
+def check_an_assertion(assertion, query_pat, query_frame):
+    match_result = pattern_match(query_pat, assertion, query_frame)
+    return None if match_result == "failed" else singleton_stream(match_result)
+</PYTHON>
+      </SNIPPET>
+      Базовий зіставлювач зі зразком повертає або
+      <SPLITINLINE>
+	<SCHEME>символ <SCHEMEINLINE>failed</SCHEMEINLINE></SCHEME>
+	<PYTHON>рядок <PYTHONINLINE>"failed"</PYTHONINLINE>
+	</PYTHON>
+      </SPLITINLINE>
+      або розширення заданого фрейму.  Основна ідея зіставлювача —
+      перевіряти зразок щодо даних елемент за елементом, накопичуючи
+      прив’язки для змінних зразка.  Якщо зразок і об’єкт даних
+      однакові, зіставлення вдале, і ми повертаємо фрейм
+      накопичених прив’язок.  Інакше, якщо зразок — це змінна
+      <SPLITINLINE><PYTHON>(перевірена функцією
+      <PYTHONINLINE>is_variable</PYTHONINLINE>, оголошеною в
+      підрозділі<SPACE/><REF NAME="sec:query-syntax"/>)</PYTHON></SPLITINLINE>
+      ми розширюємо поточний фрейм, зв’язуючи змінну з даними,
+      якщо це узгоджується з прив’язками, які вже є у фреймі.  Якщо
+      і зразок, і дані — пари, ми (рекурсивно) зіставляємо
+      <SPLITINLINE>
+	<SCHEME><SCHEMEINLINE>car</SCHEMEINLINE></SCHEME>
+	<PYTHON>голову</PYTHON>
+      </SPLITINLINE>
+      зразка з
+      <SPLITINLINE>
+	<SCHEME><SCHEMEINLINE>car</SCHEMEINLINE></SCHEME>
+	<PYTHON>головою</PYTHON>
+      </SPLITINLINE>
+      даних, щоб одержати фрейм; у цьому фреймі ми потім зіставляємо
+      <SPLITINLINE>
+	<SCHEME><SCHEMEINLINE>cdr</SCHEMEINLINE></SCHEME>
+	<PYTHON>хвіст</PYTHON>
+      </SPLITINLINE>
+      зразка з
+      <SPLITINLINE>
+	<SCHEME><SCHEMEINLINE>cdr</SCHEMEINLINE></SCHEME>
+	<PYTHON>хвостом</PYTHON>
+      </SPLITINLINE>
+      даних.  Якщо жоден із цих випадків не застосовний, зіставлення зазнає невдачі, і
+      ми повертаємо
+      <SPLITINLINE>
+	<SCHEME>символ <SCHEMEINLINE>failed</SCHEMEINLINE>.</SCHEME>
+	<PYTHON>рядок <PYTHONINLINE>"failed"</PYTHONINLINE>.
+	</PYTHON>
+      </SPLITINLINE>
+      <SNIPPET>
+	<INDEX><DECLARATION>pattern_match</DECLARATION></INDEX> 
+	<NAME>pattern_match</NAME>
+	<REQUIRES>extend_if_consistent</REQUIRES>
+	<REQUIRES>variable</REQUIRES>
+	<EXAMPLE>append_to_form_example_5</EXAMPLE>
+	<SCHEME>
+(define (pattern-match pat dat frame)
+  (cond ((eq? frame 'failed) 'failed)
+        ((equal? pat dat) frame)
+        ((var? pat) (extend-if-consistent pat dat frame))
+        ((and (pair? pat) (pair? dat))
+         (pattern-match (cdr pat)
+                        (cdr dat)
+                        (pattern-match (car pat)
+                                       (car dat)
+                                       frame)))
+        (else 'failed)))
+	</SCHEME>
+	<PYTHON>
+def pattern_match(pattern, data, frame):
+    return "failed" if frame == "failed" else frame if pattern == data else extend_if_consistent(pattern, data, frame) if is_variable(pattern) else pattern_match(tail(pattern), tail(data), pattern_match(head(pattern), head(data), frame)) if is_pair(pattern) and is_pair(data) else "failed"
+</PYTHON>
+      </SNIPPET>
+    </TEXT>
+
+    <TEXT>
+      Ось
+      <SPLITINLINE>
+	<SCHEME>процедура</SCHEME>
+	<PYTHON>функція</PYTHON>
+      </SPLITINLINE>
+      , яка розширює фрейм, додаючи нову прив’язку, якщо вона узгоджується
+      з прив’язками, які вже є у фреймі:
+      <!-- mutual recursion -->
+      <!-- <REQUIRES>pattern_match</REQUIRES> -->
+      <SNIPPET>
+	<INDEX><DECLARATION>extend_if_consistent</DECLARATION></INDEX> 
+	<NAME>extend_if_consistent</NAME>
+	<REQUIRES>make_binding</REQUIRES>
+	<EXAMPLE>append_to_form_example_5</EXAMPLE>
+	<SCHEME>
+(define (extend-if-consistent var dat frame)
+  (let ((binding (binding-in-frame var frame)))
+    (if binding
+        (pattern-match (binding-value binding) dat frame)
+        (extend var dat frame))))
+	</SCHEME>
+	<PYTHON>
+def extend_if_consistent(variable, data, frame):
+    binding = binding_in_frame(variable, frame)
+    return extend(variable, data, frame) if is_none(binding) else pattern_match(binding_value(binding), data, frame)
+</PYTHON>
+      </SNIPPET>
+      Якщо у фреймі немає прив’язки для змінної, ми просто додаємо
+      прив’язку змінної до даних.  Інакше ми зіставляємо, у
+      фреймі, дані зі значенням змінної у фреймі.  Якщо
+      збережене значення містить лише константи, як воно й мусить, якщо його зберегли
+      під час зіставлення зі зразком, за допомогою
+      <SPLITINLINE>
+	<SCHEME><SCHEMEINLINE>extend-if-consistent</SCHEMEINLINE>,</SCHEME>
+	<PYTHON><PYTHONINLINE>extend_if_consistent</PYTHONINLINE>,
+	</PYTHON>
+      </SPLITINLINE>
+      то зіставлення просто перевіряє, чи збережене й нове значення
+      однакові.  Якщо так, він повертає незмінений фрейм; якщо ні — вказує
+      на невдачу.  Збережене значення, однак, може містити змінні зразка,
+      якщо його зберегли під час уніфікації (див.
+      підрозділ<SPACE/><REF NAME="sec:query-unify"/>). Рекурсивне зіставлення
+      збереженого зразка з новими даними додасть або перевірить прив’язки для
+      змінних у цьому зразку.  Наприклад, припустімо, ми маємо фрейм, у якому
+      <SPLITINLINE>
+	<SCHEME><SCHEMEINLINE>?x</SCHEMEINLINE></SCHEME>
+	<PYTHON><PYTHONINLINE>$x</PYTHONINLINE></PYTHON>
+      </SPLITINLINE>
+      зв’язана з
+      <SPLITINLINE>
+	<SCHEME><SCHEMEINLINE>(f ?y)</SCHEMEINLINE></SCHEME>
+	<PYTHON><PYTHONINLINE>llist("f", $y)</PYTHONINLINE>
+	</PYTHON>
+      </SPLITINLINE>
+      а
+      <SPLITINLINE>
+	<SCHEME><SCHEMEINLINE>?y</SCHEMEINLINE></SCHEME>
+	<PYTHON><PYTHONINLINE>$y</PYTHONINLINE></PYTHON>
+      </SPLITINLINE>
+      незв’язана, і ми хочемо доповнити цей фрейм прив’язкою
+      <SPLITINLINE>
+	<SCHEME><SCHEMEINLINE>?x</SCHEMEINLINE></SCHEME>
+	<PYTHON><PYTHONINLINE>$x</PYTHONINLINE></PYTHON>
+      </SPLITINLINE>
+      до
+      <SPLITINLINE>
+	<SCHEME><SCHEMEINLINE>(f b)</SCHEMEINLINE>.</SCHEME>
+	<PYTHON><PYTHONINLINE>llist("f", "b")</PYTHONINLINE>.
+	</PYTHON>
+      </SPLITINLINE>
+      Ми шукаємо
+      <SPLITINLINE>
+	<SCHEME><SCHEMEINLINE>?x</SCHEMEINLINE></SCHEME>
+	<PYTHON><PYTHONINLINE>$x</PYTHONINLINE></PYTHON>
+      </SPLITINLINE>
+      і виявляємо, що вона зв’язана з
+      <SPLITINLINE>
+	<SCHEME><SCHEMEINLINE>(f ?y)</SCHEMEINLINE>.</SCHEME>
+	<PYTHON><PYTHONINLINE>llist("f", $y)</PYTHONINLINE>.
+	</PYTHON>
+      </SPLITINLINE>
+      Це приводить нас до зіставлення
+      <SPLITINLINE>
+	<SCHEME><SCHEMEINLINE>(f ?y)</SCHEMEINLINE></SCHEME>
+	<PYTHON><PYTHONINLINE>llist("f", $y)</PYTHONINLINE>
+	</PYTHON>
+      </SPLITINLINE>
+      із запропонованим новим значенням
+      <SPLITINLINE>
+	<SCHEME><SCHEMEINLINE>(f b)</SCHEMEINLINE></SCHEME>
+	<PYTHON><PYTHONINLINE>llist("f", "b")</PYTHONINLINE>
+	</PYTHON>
+      </SPLITINLINE>
+      у тому самому фреймі.  Зрештою це зіставлення розширює фрейм, додаючи
+      прив’язку
+      <SPLITINLINE>
+	<SCHEME><SCHEMEINLINE>?y</SCHEMEINLINE></SCHEME>
+	<PYTHON><PYTHONINLINE>$y</PYTHONINLINE></PYTHON>
+      </SPLITINLINE>
+      до
+      <SPLITINLINE>
+	<SCHEME><SCHEMEINLINE>b</SCHEMEINLINE>.</SCHEME>
+	<PYTHON><PYTHONINLINE>"b"</PYTHONINLINE>.</PYTHON>
+      </SPLITINLINE>
+      <SPLITINLINE>
+	<SCHEME><SCHEMEINLINE>?X</SCHEMEINLINE></SCHEME>
+	<PYTHON>Змінна <PYTHONINLINE>$x</PYTHONINLINE>
+	</PYTHON>
+      </SPLITINLINE>
+      залишається зв’язаною з
+      <SPLITINLINE>
+	<SCHEME><SCHEMEINLINE>(f ?y)</SCHEMEINLINE>.</SCHEME>
+	<PYTHON><PYTHONINLINE>llist("f", $y)</PYTHONINLINE>.
+	</PYTHON>
+      </SPLITINLINE>
+      Ми ніколи не змінюємо збережену прив’язку й ніколи не зберігаємо більше ніж одну прив’язку
+      для заданої змінної.
+    </TEXT>
+
+    <TEXT>
+      Функції
+      <SPLITINLINE>
+	<SCHEME>процедури</SCHEME>
+	<PYTHON>функції</PYTHON>
+      </SPLITINLINE>
+      використовувані
+      <SPLITINLINE>
+	<SCHEME><SCHEMEINLINE>extend-if-consistent</SCHEMEINLINE></SCHEME>
+	<PYTHON>
+	<PYTHONINLINE>extend_if_consistent</PYTHONINLINE></PYTHON>
+      </SPLITINLINE>
+      для роботи з прив’язками, означено в
+      підрозділі<SPACE/><REF NAME="sec:query-bindings"/>.
+    </TEXT>
+
+    <SPLIT>
+      <SCHEME>
+	<SUBHEADING>
+	  <NAME>Зразки з крапковим хвостом</NAME>
+	</SUBHEADING>
+
+	<TEXT>
+	  Якщо зразок містить крапку, за якою йде змінна зразка, то
+	  ця змінна зразка зіставляється з рештою списку даних (а не з
+	  наступним елементом списку даних), як і слід було б сподіватися
+	  <INDEX>крапковий хвіст<SUBINDEX><ORDER>query</ORDER>у зразку запиту</SUBINDEX></INDEX>
+	  від крапково-хвостової нотації, описаної у
+	  вправі<SPACE/><REF NAME="ex:dotted-arglist"/>.  Хоч зіставлювач зі зразком,
+	  який ми щойно реалізували, не шукає крапок, він
+	  поводиться так, як ми хочемо.  Це тому, що примітив Lisp
+	  <SCHEMEINLINE>read</SCHEMEINLINE>, який використовує
+	  <SCHEMEINLINE>query-driver-loop</SCHEMEINLINE>, щоб прочитати запит
+	  і подати його як спискову структуру, трактує крапки особливим чином.
+	</TEXT>
+
+	<TEXT>
+	  Коли <SCHEMEINLINE>read</SCHEMEINLINE> бачить
+	  <INDEX><DECLARATION>read</DECLARATION><SUBINDEX>опрацювання крапково-хвостової нотації</SUBINDEX></INDEX>
+	  <INDEX>крапковий хвіст<SUBINDEX><ORDER>read</ORDER><SCHEMEINLINE>read</SCHEMEINLINE> і</SUBINDEX></INDEX>
+	  крапку, то замість того, щоб зробити
+	  наступний елемент
+	  наступним елементом списку (<SCHEMEINLINE>car</SCHEMEINLINE> від
+	  <SCHEMEINLINE>cons</SCHEMEINLINE>, чий
+	  <SCHEMEINLINE>cdr</SCHEMEINLINE> буде рештою списку), він
+	  робить наступний елемент <SCHEMEINLINE>cdr</SCHEMEINLINE>
+	  спискової структури.  Наприклад, спискову структуру, яку породжує
+	  <SCHEMEINLINE>read</SCHEMEINLINE> для зразка
+	  <SCHEMEINLINE>(computer ?type)</SCHEMEINLINE>, можна побудувати,
+	  обчисливши вираз
+	  <SCHEMEINLINE>(cons 'computer (cons '?type '()))</SCHEMEINLINE>,
+	  а ту, що для <SCHEMEINLINE>(computer ?type)</SCHEMEINLINE>, можна
+	  побудувати, обчисливши вираз
+	  <SCHEMEINLINE>(cons 'computer '?type)</SCHEMEINLINE>.
+	</TEXT>
+
+	<TEXT>
+	  Отже, коли <SCHEMEINLINE>pattern-match</SCHEMEINLINE> рекурсивно
+	  порівнює <SCHEMEINLINE>car</SCHEMEINLINE>-и та
+	  <SCHEMEINLINE>cdr</SCHEMEINLINE>-и списку даних і зразка, що
+	  мав крапку, він зрештою зіставляє змінну після крапки (яка
+	  є <SCHEMEINLINE>cdr</SCHEMEINLINE> зразка) з підсписком
+	  списку даних, зв’язуючи змінну з цим списком.  Наприклад,
+	  зіставлення зразка <SCHEMEINLINE>(computer ?type)</SCHEMEINLINE>
+	  з <SCHEMEINLINE>(computer programmer trainee)</SCHEMEINLINE>
+	  зіставить <SCHEMEINLINE>?type</SCHEMEINLINE> зі списком
+	  <SCHEMEINLINE>(programmer trainee)</SCHEMEINLINE>.
+	</TEXT>
+      </SCHEME>
+      <PYTHON>
+	<COMMENT>
+	  У виданні для Python крапково-хвостова нотація не потрібна. Ми
+	  просто використовуємо конструктор <PYTHONINLINE>pair</PYTHONINLINE>,
+	  а не конструктор <PYTHONINLINE>list</PYTHONINLINE>,
+	  коли хочемо послатися на решту списку, як показано в
+	  підрозділі<SPACE/><REF NAME="sec:deductive-info-retrieval"/>.
+	  Див. також підрозділ<SPACE/><REF NAME="sec:query-syntax"/>.
+	</COMMENT>
+      </PYTHON>
+    </SPLIT>
+
+  </SUBSUBSECTION>
+
+  <INDEX>інтерпретатор запитів<SUBINDEX>зіставлення зі зразком<CLOSE/></SUBINDEX></INDEX>
+  <INDEX>зіставлення зі зразком<SUBINDEX>реалізація<CLOSE/></SUBINDEX></INDEX>
+  
+  <SUBSUBSECTION>
+    <NAME>Правила та уніфікація</NAME>
+    <LABEL NAME="sec:query-unify"/>
+
+    <INDEX>правило (мова запитів)<SUBINDEX>застосування<OPEN/></SUBINDEX></INDEX>
+    
+    <TEXT>
+      <SPLITINLINE>
+	<SCHEME><SCHEMEINLINE>Apply-rules</SCHEMEINLINE></SCHEME>
+	<PYTHON>
+	  Функція <PYTHONINLINE>apply_rules</PYTHONINLINE>
+	</PYTHON>
+      </SPLITINLINE>
+      — це аналог
+      <SPLITINLINE>
+	<SCHEME><SCHEMEINLINE>find-assertions</SCHEMEINLINE></SCHEME>
+	<PYTHON><PYTHONINLINE>find_assertions</PYTHONINLINE>
+	</PYTHON>
+      </SPLITINLINE>
+      (підрозділ <REF NAME="sec:query-match"/>).  Він бере як вхідні дані
+      зразок і фрейм і утворює потік фреймів-розширень, застосовуючи
+      правила з бази даних.
+      <SPLITINLINE>
+	<SCHEME><SCHEMEINLINE>Stream-flatmap</SCHEMEINLINE></SCHEME>
+	<PYTHON>
+	  Функція <PYTHONINLINE>stream_flatmap</PYTHONINLINE>
+	</PYTHON>
+      </SPLITINLINE>
+      відображає
+      <SPLITINLINE>
+	<SCHEME><SCHEMEINLINE>apply-a-rule</SCHEMEINLINE></SCHEME>
+	<PYTHON><PYTHONINLINE>apply_a_@rule</PYTHONINLINE>
+	</PYTHON>
+      </SPLITINLINE>
+      на потік можливо застосовних правил (відібраних
+      <SPLITINLINE>
+	<SCHEME><SCHEMEINLINE>fetch-rules</SCHEMEINLINE>,</SCHEME>
+	<PYTHON><PYTHONINLINE>fetch_rules</PYTHONINLINE>,
+	</PYTHON>
+      </SPLITINLINE>
+      підрозділ <REF NAME="sec:query-db"/>) і об’єднує одержані
+      потоки фреймів.
+      <!-- mutual recursion -->
+      <SNIPPET>
+	<INDEX><DECLARATION>apply_rules</DECLARATION></INDEX> 
+	<NAME>apply_rules</NAME>
+	<REQUIRES>stream_flatmap</REQUIRES>
+	<REQUIRES>apply_a_rule</REQUIRES>
+	<REQUIRES>fetch_rules</REQUIRES>
+	<EXAMPLE>append_to_form_example_5</EXAMPLE>
+	<SCHEME>
+(define (apply-rules pattern frame)
+  (stream-flatmap (lambda (rule)
+                    (apply-a-rule rule pattern frame))
+                  (fetch-rules pattern frame)))
+	</SCHEME>
+	<PYTHON>
+def apply_rules(pattern, frame):
+    return stream_flatmap(lambda rule: (apply_a_rule(rule, pattern, frame)), fetch_rules(pattern, frame))
+</PYTHON>
+      </SNIPPET>
+    </TEXT>
+
+    <TEXT>
+      <SPLITINLINE>
+	<SCHEME>
+	  <SCHEMEINLINE>Apply-a-rule</SCHEMEINLINE>
+	  застосовує правила
+	</SCHEME>
+	<PYTHON>
+	  Функція <PYTHONINLINE>apply_a_rule</PYTHONINLINE>
+	  застосовує правило
+	</PYTHON>
+      </SPLITINLINE>
+      методом, окресленим у
+      підрозділі<SPACE/><REF NAME="sec:how-query-works"/>.  Спершу вона доповнює свій
+      аргумент-фрейм, уніфікуючи висновок правила зі зразком у
+      заданому фреймі.  Якщо це вдається, вона обчислює тіло правила в цьому новому
+      фреймі.
+    </TEXT>
+
+    <TEXT>
+      Однак перш ніж усе це станеться, програма перейменовує всі змінні
+      у правилі на унікальні нові імена.  Причина цього — запобігти тому,
+      щоб змінні для різних застосувань правила сплутались одна
+      з одною.  Наприклад, якщо два правила обидва використовують змінну 
+      <SPLITINLINE>
+	<SCHEME>з іменем<SPACE/><SCHEMEINLINE>?x</SCHEMEINLINE>,</SCHEME>
+	<PYTHON>з іменем<SPACE/><PYTHONINLINE>$x</PYTHONINLINE>,</PYTHON>
+      </SPLITINLINE>
+      то кожне з них може додати прив’язку для
+      <SPLITINLINE>
+	<SCHEME><SCHEMEINLINE>?x</SCHEMEINLINE></SCHEME>
+	<PYTHON><PYTHONINLINE>$x</PYTHONINLINE></PYTHON>
+      </SPLITINLINE>
+      до фрейму, коли його застосовують.  Ці два
+      <SPLITINLINE>
+	<SCHEME><SCHEMEINLINE>?x</SCHEMEINLINE><APOS/>s</SCHEME>
+	<PYTHON><PYTHONINLINE>$x</PYTHONINLINE><APOS/>s</PYTHON>
+      </SPLITINLINE>
+      не мають нічого спільного одне з одним, і нас не слід уводити в оману,
+      ніби ці дві прив’язки мусять бути узгоджені.  Замість перейменовувати
+      змінні, ми могли б придумати витонченішу структуру середовища; однак
+      обраний тут підхід із перейменуванням найпростіший,
+      хоч і не найефективніший.  (Див.
+      вправу<SPACE/><REF NAME="ex:query-local-names"/>.)  Ось
+      <SPLITINLINE>
+	<SCHEME><SCHEMEINLINE>apply-a-rule</SCHEMEINLINE></SCHEME>
+	<PYTHON><PYTHONINLINE>apply_a_rule</PYTHONINLINE>
+	</PYTHON>
+      </SPLITINLINE>
+      <SPLITINLINE>
+	<SCHEME>процедура:</SCHEME>
+	<PYTHON>функція:</PYTHON>
+      </SPLITINLINE>
+      <SNIPPET>
+	<INDEX><DECLARATION>apply_a_rule</DECLARATION></INDEX>
+	<NAME>apply_a_rule</NAME>
+	<REQUIRES>rename_variables_in</REQUIRES>
+	<REQUIRES>unify_match</REQUIRES>
+	<REQUIRES>singleton_stream</REQUIRES>
+	<REQUIRES>is_rule</REQUIRES>
+	<EXAMPLE>append_to_form_example_5</EXAMPLE>
+	<SCHEME>
+(define (apply-a-rule rule query-pattern query-frame)
+ (let ((clean-rule (rename-variables-in rule)))
+       (let ((unify-result
+             (unify-match query-pattern
+                          (conclusion clean-rule)
+                          query-frame)))
+   (if (eq? unify-result 'failed)
+       the-empty-stream
+       (qeval (rule-body clean-rule)
+              (singleton-stream unify-result))))))
+	</SCHEME>
+	<PYTHON>
+def apply_a_rule(rule, query_pattern, query_frame):
+    clean_rule = rename_variables_in(rule)
+    unify_result = unify_match(query_pattern, conclusion(clean_rule), query_frame)
+    return None if unify_result == "failed" else evaluate_query(rule_body(clean_rule), singleton_stream(unify_result))
+</PYTHON>
+      </SNIPPET>
+      Селектори
+      <SPLITINLINE>
+	<SCHEME><SCHEMEINLINE>rule-body</SCHEMEINLINE></SCHEME>
+	<PYTHON><PYTHONINLINE>rule_body</PYTHONINLINE></PYTHON>
+      </SPLITINLINE>
+      і <SCHEMEINLINE>conclusion</SCHEMEINLINE>, які видобувають частини
+      правила, означено в підрозділі<SPACE/><REF NAME="sec:query-syntax"/>.
+    </TEXT>
+
+    <TEXT>
+      Ми породжуємо унікальні імена змінних, зіставляючи унікальний ідентифікатор
+      (наприклад, число) з кожним застосуванням правила і поєднуючи цей
+      ідентифікатор з початковими іменами змінних.  Наприклад, якщо
+      ідентифікатор застосування правила — 7, ми могли б змінити кожну
+      <SPLITINLINE>
+	<SCHEME><SCHEMEINLINE>?x</SCHEMEINLINE></SCHEME>
+	<PYTHON><PYTHONINLINE>$x</PYTHONINLINE></PYTHON>
+      </SPLITINLINE>
+      у правилі на
+      <SPLITINLINE>
+	<SCHEME><SCHEMEINLINE>?x-7</SCHEMEINLINE></SCHEME>
+	<PYTHON><PYTHONINLINE>$x_7</PYTHONINLINE></PYTHON>
+      </SPLITINLINE>
+      і кожну
+      <SPLITINLINE>
+	<SCHEME><SCHEMEINLINE>?y</SCHEMEINLINE></SCHEME>
+	<PYTHON><PYTHONINLINE>$y</PYTHONINLINE></PYTHON>
+      </SPLITINLINE>
+      у правилі на
+      <SPLITINLINE>
+	<SCHEME><SCHEMEINLINE>?y-7</SCHEMEINLINE>.</SCHEME>
+	<PYTHON><PYTHONINLINE>$y_7</PYTHONINLINE>.</PYTHON>
+      </SPLITINLINE>
+      <SPLITINLINE>
+	<SCHEME>(<SCHEMEINLINE>Make-new-variable</SCHEMEINLINE></SCHEME>
+	<PYTHON>(Функції
+	<PYTHONINLINE>make_new_variable</PYTHONINLINE>
+      </PYTHON></SPLITINLINE>
+      і
+      <SPLITINLINE>
+	<SCHEME><SCHEMEINLINE>new-rule-application-id</SCHEMEINLINE></SCHEME>
+	<PYTHON><PYTHONINLINE>new_rule_application_id</PYTHONINLINE>
+	</PYTHON>
+      </SPLITINLINE>
+      включено до синтаксичних
+      <SPLITINLINE>
+	<SCHEME>процедур</SCHEME>
+	<PYTHON>функцій</PYTHON>
+      </SPLITINLINE>
+      у підрозділі<SPACE/><REF NAME="sec:query-syntax"/>.)
+      <SNIPPET>
+	<INDEX><DECLARATION>rename_variables_in</DECLARATION></INDEX>
+	<NAME>rename_variables_in</NAME>
+	<REQUIRES>is_variable_4</REQUIRES>
+	<EXAMPLE>append_to_form_example_5</EXAMPLE>
+	<SCHEME>
+(define (rename-variables-in rule)
+  (let ((rule-application-id (new-rule-application-id)))
+    (define (tree-walk exp)
+      (cond ((var? exp)
+             (make-new-variable exp rule-application-id))
+            ((pair? exp)
+             (cons (tree-walk (car exp))
+                   (tree-walk (cdr exp))))
+            (else exp)))
+    (tree-walk rule)))
+	</SCHEME>
+	<PYTHON>
+def rename_variables_in(rule):
+    rule_application_id = new_rule_application_id()
+    def tree_walk(exp):
+        return make_new_variable(exp, rule_application_id) if is_variable(exp) else pair(tree_walk(head(exp)), tree_walk(tail(exp))) if is_pair(exp) else exp
+    return tree_walk(rule)
+</PYTHON>
+      </SNIPPET>
+    </TEXT>
+
+    <INDEX>правило (мова запитів)<SUBINDEX>застосування<CLOSE/></SUBINDEX></INDEX>
+    
+    <TEXT>
+      Алгоритм
+      <INDEX>інтерпретатор запитів<SUBINDEX>уніфікація<OPEN/></SUBINDEX></INDEX>
+      <INDEX>уніфікація<SUBINDEX>реалізація<OPEN/></SUBINDEX></INDEX>
+      уніфікації реалізовано як
+      <SPLITINLINE>
+	<SCHEME>процедуру</SCHEME>
+	<PYTHON>функцію</PYTHON>
+      </SPLITINLINE>
+      , яка бере як вхідні дані два зразки та фрейм і повертає або
+      розширений фрейм, або
+      <SPLITINLINE>
+	<SCHEME>символ <SCHEMEINLINE>failed</SCHEMEINLINE>.</SCHEME>
+	<PYTHON>рядок <PYTHONINLINE>"failed"</PYTHONINLINE>.
+	</PYTHON>
+      </SPLITINLINE>
+      Уніфікатор схожий на зіставлювач зі зразком, хіба що він
+      симетричний<EMDASH/>змінні дозволені з обох боків зіставлення.
+      <SPLITINLINE>
+	<SCHEME><SCHEMEINLINE>Unify-match</SCHEMEINLINE></SCHEME>
+	<PYTHON>Функція <PYTHONINLINE>unify_match</PYTHONINLINE>
+	</PYTHON>
+      </SPLITINLINE>
+      загалом та сама, що й
+      <SPLITINLINE>
+	<SCHEME><SCHEMEINLINE>pattern-match</SCHEMEINLINE>,</SCHEME>
+	<PYTHON>
+	  <PYTHONINLINE>pattern_match</PYTHONINLINE>,
+	</PYTHON>
+      </SPLITINLINE>
+      хіба що є
+      <SPLITINLINE>
+	<SCHEME>
+	  додатковий код
+	</SCHEME>
+	<PYTHON>
+	  додаткова клауза
+	</PYTHON>
+      </SPLITINLINE>
+      (позначений
+      <QUOTE>***</QUOTE> нижче), щоб опрацювати
+      випадок, коли об’єкт праворуч від зіставлення — змінна.
+      <SNIPPET>
+	<INDEX><DECLARATION>unify_match</DECLARATION></INDEX> 
+	<NAME>unify_match</NAME>
+	<REQUIRES>extend_if_possible</REQUIRES>
+	<REQUIRES>variable</REQUIRES>
+	<EXAMPLE>append_to_form_example_5</EXAMPLE>
+	<SCHEME>
+(define (unify-match p1 p2 frame)
+  (cond ((eq? frame 'failed) 'failed)
+        ((equal? p1 p2) frame)
+        ((var? p1) (extend-if-possible p1 p2 frame))
+        ((var? p2) (extend-if-possible p2 p1 frame))  <EM>; ***</EM>
+        ((and (pair? p1) (pair? p2))
+         (unify-match (cdr p1)
+                      (cdr p2)
+                      (unify-match (car p1)
+                                   (car p2)
+                                   frame)))
+        (else 'failed)))
+	</SCHEME>
+	<PYTHON>
+def unify_match(p1, p2, frame):
+    return "failed" if frame == "failed" else frame if p1 == p2 else extend_if_possible(p1, p2, frame) if is_variable(p1) else extend_if_possible(p2, p1, frame) if is_variable(p2) else unify_match(tail(p1), tail(p2), unify_match(head(p1), head(p2), frame)) if is_pair(p1) and is_pair(p2) else "failed"
+</PYTHON>
+      </SNIPPET>
+    </TEXT>
+
+    <TEXT>
+      В уніфікації, як і в однобічному зіставленні зі зразком, ми хочемо прийняти
+      запропоноване розширення фрейму, лише якщо воно узгоджується з наявними
+      прив’язками.  Функція
+      <SPLITINLINE>
+	<SCHEME>процедура</SCHEME>
+	<PYTHON>функція</PYTHON>
+      </SPLITINLINE>
+      <SPLITINLINE>
+	<SCHEME><SCHEMEINLINE>extend-if-possible</SCHEMEINLINE></SCHEME>
+	<PYTHON><PYTHONINLINE>extend_if_possible</PYTHONINLINE>
+	</PYTHON>
+      </SPLITINLINE>
+      використовувана в уніфікації, та сама, що й
+      <SPLITINLINE>
+	<SCHEME><SCHEMEINLINE>extend-if-consistent</SCHEMEINLINE></SCHEME>
+	<PYTHON>функція <PYTHONINLINE>extend_if_consistent</PYTHONINLINE>
+	</PYTHON>
+      </SPLITINLINE>
+      використовувана в зіставленні зі зразком, хіба що має дві особливі перевірки, позначені
+      <QUOTE>***</QUOTE> у програмі нижче.  У
+      першому випадку, якщо змінна, яку ми намагаємося зіставити, не зв’язана, але
+      значення, з яким ми намагаємося її зіставити, сама є (іншою) змінною,
+      треба перевірити, чи це значення зв’язане, і якщо так, зіставити
+      його значення.  Якщо обидві сторони зіставлення незв’язані, ми можемо зв’язати будь-яку
+      з одною.
+    </TEXT>
+
+    <TEXT>
+      Друга перевірка стосується спроб зв’язати змінну зі зразком,
+      що містить цю змінну.  Така ситуація може трапитися щоразу, коли змінна
+      повторюється в обох зразках.  Розгляньмо, наприклад,
+      уніфікацію двох зразків
+      <SPLITINLINE>
+	<SCHEME><SCHEMEINLINE>(?x ?x)</SCHEMEINLINE></SCHEME>
+	<PYTHON><PYTHONINLINE>llist($x, $x)</PYTHONINLINE></PYTHON>
+      </SPLITINLINE>
+      and
+      <SPLITINLINE>
+	<SCHEME>
+	  <SCHEMEINLINE>(?y </SCHEMEINLINE><LATEXINLINE>$\langle expression$ $involving$</LATEXINLINE> <SCHEMEINLINE>?y</SCHEMEINLINE><LATEXINLINE>$\rangle$</LATEXINLINE><SCHEMEINLINE>)</SCHEMEINLINE>
+	</SCHEME>
+	<PYTHON>
+	  <PYTHONINLINE>llist($y,</PYTHONINLINE>
+	  <LATEXINLINE>$\langle$</LATEXINLINE><META>expression</META> <META>involving</META> <PYTHONINLINE>$y</PYTHONINLINE><LATEXINLINE>$\rangle$</LATEXINLINE><PYTHONINLINE>)</PYTHONINLINE>
+	</PYTHON>
+      </SPLITINLINE>
+      у фреймі, де і
+      <SPLITINLINE>
+	<SCHEME><SCHEMEINLINE>?x</SCHEMEINLINE></SCHEME>
+	<PYTHON><PYTHONINLINE>$x</PYTHONINLINE></PYTHON>
+      </SPLITINLINE>
+      і
+      <SPLITINLINE>
+	<SCHEME><SCHEMEINLINE>?y</SCHEMEINLINE></SCHEME>
+	<PYTHON><PYTHONINLINE>$y</PYTHONINLINE></PYTHON>
+      </SPLITINLINE>
+      незв’язані.  Спершу
+      <SPLITINLINE>
+	<SCHEME><SCHEMEINLINE>?x</SCHEMEINLINE></SCHEME>
+	<PYTHON><PYTHONINLINE>$x</PYTHONINLINE></PYTHON>
+      </SPLITINLINE>
+      зіставляють із
+      <SPLITINLINE>
+	<SCHEME><SCHEMEINLINE>?y</SCHEMEINLINE>,</SCHEME>
+	<PYTHON><PYTHONINLINE>$y</PYTHONINLINE>,</PYTHON>
+      </SPLITINLINE>
+      утворюючи прив’язку
+      <SPLITINLINE>
+	<SCHEME>
+	<SCHEMEINLINE>?x</SCHEMEINLINE></SCHEME>
+	<PYTHON><PYTHONINLINE>$x</PYTHONINLINE></PYTHON>
+      </SPLITINLINE>
+      до
+      <SPLITINLINE>
+	<SCHEME><SCHEMEINLINE>?y</SCHEMEINLINE>.</SCHEME>
+	<PYTHON><PYTHONINLINE>$y</PYTHONINLINE>.</PYTHON>
+      </SPLITINLINE>
+      Потім ту саму
+      <SPLITINLINE>
+	<SCHEME><SCHEMEINLINE>?x</SCHEMEINLINE></SCHEME>
+	<PYTHON><PYTHONINLINE>$x</PYTHONINLINE></PYTHON>
+      </SPLITINLINE>
+      зіставляють із заданим
+      виразом, що містить	  
+      <SPLITINLINE>
+	<SCHEME>
+	  <SCHEMEINLINE>?y</SCHEMEINLINE>.
+	</SCHEME>
+	<PYTHON>
+	  <PYTHONINLINE>$y</PYTHONINLINE>.
+	</PYTHON>
+      </SPLITINLINE>
+      Оскільки
+      <SPLITINLINE>
+	<SCHEME><SCHEMEINLINE>?x</SCHEMEINLINE></SCHEME>
+	<PYTHON><PYTHONINLINE>$x</PYTHONINLINE></PYTHON>
+      </SPLITINLINE>
+      вже зв’язана з
+      <SPLITINLINE>
+	<SCHEME><SCHEMEINLINE>?y</SCHEMEINLINE>,</SCHEME>
+	<PYTHON><PYTHONINLINE>$y</PYTHONINLINE>,</PYTHON>
+      </SPLITINLINE>
+      це приводить до зіставлення
+      <SPLITINLINE>
+	<SCHEME><SCHEMEINLINE>?y</SCHEMEINLINE></SCHEME>
+	<PYTHON><PYTHONINLINE>$y</PYTHONINLINE></PYTHON>
+      </SPLITINLINE>
+      з
+      <SPLITINLINE>
+	<SCHEME>
+	  expression.
+	</SCHEME>
+	<PYTHON>
+	  expression.
+	</PYTHON>
+      </SPLITINLINE>
+      Якщо думати про уніфікатор як про знаходження набору
+      значень змінних зразка, які роблять зразки однаковими, то
+      ці зразки задають вказівки знайти таке
+      <SPLITINLINE>
+	<SCHEME><SCHEMEINLINE>?y</SCHEMEINLINE></SCHEME>
+	<PYTHON><PYTHONINLINE>$y</PYTHONINLINE></PYTHON>
+      </SPLITINLINE>
+      щоб
+      <SPLITINLINE>
+	<SCHEME><SCHEMEINLINE>?y</SCHEMEINLINE></SCHEME>
+	<PYTHON><PYTHONINLINE>$y</PYTHONINLINE></PYTHON>
+      </SPLITINLINE>
+      дорівнювало виразу, що містить
+      <SPLITINLINE>
+	<SCHEME><SCHEMEINLINE>?y</SCHEMEINLINE>.</SCHEME>
+	<PYTHON><PYTHONINLINE>$y</PYTHONINLINE>.</PYTHON>
+      </SPLITINLINE>
+      <SPLITINLINE>
+	<SCHEME>
+	  Загального методу розв’язування таких рівнянь немає, тож ми
+	</SCHEME>
+	<PYTHON>
+	  Ми
+	</PYTHON>
+      </SPLITINLINE>
+      відкидаємо такі
+      прив’язки; ці випадки розпізнає предикат 
+      <SPLITINLINE><SCHEME><SCHEMEINLINE>depends-on?</SCHEMEINLINE></SCHEME><PYTHON><PYTHONINLINE>depends_on</PYTHONINLINE></PYTHON></SPLITINLINE>.<FOOTNOTE>Загалом
+      уніфікація
+      <SPLITINLINE>
+	<SCHEME>
+	  <SCHEMEINLINE>?y</SCHEMEINLINE>
+	  з виразом, що містить
+	</SCHEME>
+	<PYTHON>
+	  <PYTHONINLINE>$y</PYTHONINLINE>
+	  з виразом, що містить
+	</PYTHON>
+      </SPLITINLINE>
+      <SPLITINLINE>
+	<SCHEME><SCHEMEINLINE>?y</SCHEMEINLINE></SCHEME>
+	<PYTHON><PYTHONINLINE>$y</PYTHONINLINE></PYTHON>
+      </SPLITINLINE>
+      вимагала б від нас уміння знайти
+      <INDEX>нерухома точка<SUBINDEX>уніфікація і</SUBINDEX></INDEX>
+      нерухому точку рівняння
+      <SPLITINLINE>
+	<SCHEME>
+	  <SCHEMEINLINE>?y</SCHEMEINLINE>
+	  <LATEXINLINE>$ = \textit{expression involving}$</LATEXINLINE> <SCHEMEINLINE>?y</SCHEMEINLINE>.
+	</SCHEME>
+	<PYTHON>
+	  <PYTHONINLINE>$y</PYTHONINLINE>
+	  <LATEXINLINE>$ = \langle$</LATEXINLINE><META>expression</META> <META>involving</META> <PYTHONINLINE>$y</PYTHONINLINE><LATEXINLINE>$\rangle$</LATEXINLINE>.
+	</PYTHON>
+      </SPLITINLINE>
+	  <SPLITINLINE>
+	    <SCHEME>
+	      Іноді можна синтаксично утворити вираз, який виглядає
+	      як розв’язок.  Наприклад,
+	      <SCHEMEINLINE>?y</SCHEMEINLINE>
+	    </SCHEME>
+	    <PYTHON>
+	      Іноді можна синтаксично утворити вираз, який виглядає
+	      як розв’язок.  Наприклад,
+	      <PYTHONINLINE>$y</PYTHONINLINE>
+	    </PYTHON>
+	  </SPLITINLINE>
+	  <LATEXINLINE>$=$</LATEXINLINE>
+	  <SPLITINLINE>
+	    <SCHEME><SCHEMEINLINE>(f ?y)</SCHEMEINLINE></SCHEME>
+	    <PYTHON><PYTHONINLINE>llist("f", $y)</PYTHONINLINE>
+	    </PYTHON>
+	  </SPLITINLINE>
+	  ніби має нерухому точку
+	  <SPLITINLINE>
+	    <SCHEME><SCHEMEINLINE>(f (f (f </SCHEMEINLINE><ELLIPSIS/>
+	    <SCHEMEINLINE>)))</SCHEMEINLINE>,
+	    </SCHEME>
+	    <PYTHON>
+	      <PYTHONINLINE>llist("f", llist("f", llist("f",</PYTHONINLINE>
+	      <ELLIPSIS/>
+	      <PYTHONINLINE>)))</PYTHONINLINE>,
+	    </PYTHON>
+	  </SPLITINLINE>
+	  яку ми можемо одержати, почавши з виразу
+	  <SPLITINLINE>
+	    <SCHEME><SCHEMEINLINE>(f ?y)</SCHEMEINLINE></SCHEME>
+	    <PYTHON><PYTHONINLINE>llist("f", $y)</PYTHONINLINE>
+	    </PYTHON>
+	  </SPLITINLINE>
+	  і багаторазово підставляючи
+	  <SPLITINLINE>
+	    <SCHEME><SCHEMEINLINE>(f ?y)</SCHEMEINLINE></SCHEME>
+	    <PYTHON><PYTHONINLINE>llist("f", $y)</PYTHONINLINE>
+	    </PYTHON>
+	  </SPLITINLINE>
+	  замість
+	  <SPLITINLINE>
+	    <SCHEME><SCHEMEINLINE>?y</SCHEMEINLINE>.</SCHEME>
+	    <PYTHON><PYTHONINLINE>$y</PYTHONINLINE>.</PYTHON>
+	  </SPLITINLINE>
+	  На жаль, не кожне таке рівняння має змістовну нерухому точку.  Питання,
+	  які тут постають, подібні до питань роботи з 
+	  <INDEX>нескінченний ряд</INDEX>
+	  нескінченними рядами в математиці.  Наприклад, ми знаємо, що 2 — це
+	  розв’язок рівняння <LATEXINLINE>$y = 1 + y/2$</LATEXINLINE>.
+	  Почавши з виразу <LATEXINLINE>$1 + y/2$</LATEXINLINE> і
+	  багаторазово підставляючи <LATEXINLINE>$1 + y/2$</LATEXINLINE> замість
+	  <LATEXINLINE>$y$</LATEXINLINE>, одержуємо
+	  <LATEX>
+            \[
+	    2 \ = \ y \ = \ 1 + y/2 \ = \ 1 + (1+y/2)/2 \ = \ 1 + 1/2 + y/4 \ = \ \cdots,
+	    \]
+	  </LATEX>
+	  що приводить до
+	  <LATEX>
+            \[ 2 \ = \  1 + 1/2 + 1/4 + 1/8 +\cdots. \]
+	  </LATEX>
+	  Однак якщо ми спробуємо те саме перетворення, почавши зі
+	  спостереження, що <LATEXINLINE>$-1$</LATEXINLINE> — це розв’язок
+	  рівняння <LATEXINLINE>$y \ = \  1 + 2y$</LATEXINLINE>, то одержимо
+	  <LATEX>
+            \[ -1 \ = \  y \ = \  1 + 2y \ = \  1 + 2(1 + 2y) \ = \  1 + 2 + 4y \ = \  \cdots, \]
+	  </LATEX>
+	  що приводить до 
+	  <LATEX>
+            \[ -1 \ = \  1 + 2 + 4 + 8 +\cdots. \]
+	  </LATEX>
+	  Хоч формальні перетворення, використані для виведення цих двох рівнянь,
+	  ідентичні, перший результат — слушне твердження про нескінченні
+	  ряди, а другий — ні.  Подібно й для наших результатів уніфікації
+	  міркування з довільним синтаксично побудованим виразом може
+	  привести до помилок.
+        <SPLIT>
+	  <PYTHON>
+	    <TEXT>
+	    Тим не менш, більшість систем логічного програмування сьогодні дозволяють
+	    циклічні посилання, приймаючи циклічну структуру даних
+	    як результат зіставлення.  Це обґрунтовано
+	    теоретично через <EM>раціональні дерева</EM>
+	    <INDEX>Jaffar, Joxan</INDEX>
+	    <INDEX>Stuckey, Peter J.</INDEX>
+	    <INDEX>tree<SUBINDEX>rational</SUBINDEX></INDEX>
+	    <INDEX>раціональне дерево</INDEX>
+	    (<CITATION NAME="JAF86">Jaffar and Stuckey 1986</CITATION>).
+	    Прийняття
+	    циклічної структури даних дозволяє самопосилальні дані, як-от
+	    структуру даних працівника, що посилається на роботодавця,
+	    який своєю чергою посилається на працівника.
+	    </TEXT>
+	</PYTHON>
+      </SPLIT>
+	</FOOTNOTE>
+      З іншого боку, ми не хочемо відкидати спроби
+      зв’язати змінну із самою собою.  Наприклад, розгляньмо уніфікацію
+      <SPLITINLINE>
+	<SCHEME><SCHEMEINLINE>(?x<SPACE/>?x)</SCHEMEINLINE></SCHEME>
+	<PYTHON><PYTHONINLINE>llist($x, $x)</PYTHONINLINE></PYTHON>
+      </SPLITINLINE>
+      and
+      <SPLITINLINE>
+	<SCHEME><SCHEMEINLINE>(?y<SPACE/>?y)</SCHEMEINLINE>.</SCHEME>
+	<PYTHON><PYTHONINLINE>llist($y, $y)</PYTHONINLINE>.</PYTHON>
+      </SPLITINLINE>
+      Друга спроба зв’язати
+      <SPLITINLINE>
+	<SCHEME><SCHEMEINLINE>?x</SCHEMEINLINE></SCHEME>
+	<PYTHON><PYTHONINLINE>$x</PYTHONINLINE></PYTHON>
+      </SPLITINLINE>
+      з
+      <SPLITINLINE>
+	<SCHEME><SCHEMEINLINE>?y</SCHEMEINLINE></SCHEME>
+	<PYTHON><PYTHONINLINE>$y</PYTHONINLINE></PYTHON>
+      </SPLITINLINE>
+      зіставляє
+      <SPLITINLINE>
+	<SCHEME><SCHEMEINLINE>?y</SCHEMEINLINE></SCHEME>
+	<PYTHON><PYTHONINLINE>$y</PYTHONINLINE></PYTHON>
+      </SPLITINLINE>
+      <SPLITINLINE>
+	<SCHEME>(збережене значення <SCHEMEINLINE>?x</SCHEMEINLINE></SCHEME>
+	<PYTHON>(збережене значення
+	<PYTHONINLINE>$x</PYTHONINLINE></PYTHON>
+	</SPLITINLINE>)
+      з
+      <SPLITINLINE>
+	<SCHEME>
+	<SCHEMEINLINE>?y</SCHEMEINLINE></SCHEME>
+	<PYTHON><PYTHONINLINE>$y</PYTHONINLINE></PYTHON>
+      </SPLITINLINE>
+      <SPLITINLINE>
+	<SCHEME>(нове значення <SCHEMEINLINE>?x</SCHEMEINLINE>).</SCHEME>
+	<PYTHON>(нове значення
+	<PYTHONINLINE>$x</PYTHONINLINE></PYTHON>).
+      </SPLITINLINE>
+      Про це дбає клауза
+      <SPLITINLINE>
+	<SCHEME><SCHEMEINLINE>equal?</SCHEMEINLINE></SCHEME>
+	<PYTHON><PYTHONINLINE>equal</PYTHONINLINE></PYTHON>
+      </SPLITINLINE>
+      у
+      <SPLITINLINE>
+	<SCHEME><SCHEMEINLINE>unify-match</SCHEMEINLINE>.</SCHEME>
+	<PYTHON><PYTHONINLINE>unify_match</PYTHONINLINE>.
+	</PYTHON>
+      </SPLITINLINE>
+	<!-- mutual recursion -->
+	<!-- <REQUIRES>unify_match</REQUIRES> -->
+      <SNIPPET>
+        <INDEX><DECLARATION>extend_if_possible</DECLARATION></INDEX> 
+	<NAME>extend_if_possible</NAME>
+	<REQUIRES>make_binding</REQUIRES>
+	<REQUIRES>depends_on</REQUIRES>
+	<REQUIRES>variable</REQUIRES>
+	<EXAMPLE>append_to_form_example_5</EXAMPLE>
+	<SCHEME>
+(define (extend-if-possible var val frame)
+  (let ((binding (binding-in-frame var frame)))
+    (cond (binding
+           (unify-match
+            (binding-value binding) val frame))
+          ((var? val)                      <EM>; ***</EM>
+           (let ((binding (binding-in-frame val frame)))
+             (if binding
+                 (unify-match
+                  var (binding-value binding) frame)
+                 (extend var val frame))))
+          ((depends-on? val var frame)     <EM>; ***</EM>
+           'failed)
+          (else (extend var val frame)))))
+	</SCHEME>
+	<PYTHON>
+def extend_if_possible(variable, value, frame):
+    binding = binding_in_frame(variable, frame)
+    if  not  is_none(binding):
+        return unify_match(binding_value(binding), value, frame)
+    elif is_variable(value):
+        binding = binding_in_frame(value, frame)
+        return unify_match(variable, binding_value(binding), frame) if not is_none(binding) else extend(variable, value, frame)
+    elif depends_on(value, variable, frame):
+        return "failed"
+    else:
+        return extend(variable, value, frame)
+</PYTHON>
+      </SNIPPET>
+    </TEXT>
+
+    <TEXT>
+      <SPLITINLINE>
+	<SCHEME><SCHEMEINLINE>Depends-on?</SCHEMEINLINE></SCHEME>
+	<PYTHON>Функція <PYTHONINLINE>depends_on</PYTHONINLINE>
+	</PYTHON>
+      </SPLITINLINE>
+      — це предикат, який перевіряє, чи вираз, запропонований як значення
+      змінної зразка, залежить від цієї змінної. Це треба робити відносно
+      поточного фрейму, бо вираз може містити входження змінної,
+      яка вже має значення, що залежить від нашої тестової змінної.
+      Структура
+      <SPLITINLINE>
+	<SCHEME><SCHEMEINLINE>depends-on?</SCHEMEINLINE></SCHEME>
+	<PYTHON><PYTHONINLINE>depends_on</PYTHONINLINE></PYTHON>
+      </SPLITINLINE>
+      — це простий рекурсивний обхід дерева, у якому ми підставляємо значення
+      змінних, коли це потрібно.
+      <SNIPPET POSTPADDING="no">
+	<INDEX><DECLARATION>depends_on</DECLARATION></INDEX>
+	<NAME>depends_on</NAME>
+	<REQUIRES>variable</REQUIRES>
+	<REQUIRES>make_binding</REQUIRES>
+	<EXAMPLE>append_to_form_example_5</EXAMPLE>
+	<SCHEME>
+(define (depends-on? exp var frame)
+  (define (tree-walk e)
+    (cond ((var? e)
+           (if (equal? var e)
+                true
+                (let ((b (binding-in-frame e frame)))
+                  (if b
+                      (tree-walk (binding-value b))
+                      false))))
+          ((pair? e)
+           (or (tree-walk (car e))
+               (tree-walk (cdr e))))
+          (else false)))
+        (tree-walk exp))
+	</SCHEME>
+	<PYTHON>
+def depends_on(expression, variable, frame):
+    def tree_walk(e):
+        if is_variable(e):
+            if variable == e:
+                return True
+            else:
+                b = binding_in_frame(e, frame)
+                return False if is_none(b) else tree_walk(binding_value(b))
+        else:
+            return tree_walk(head(e)) or tree_walk(tail(e)) if is_pair(e) else False
+    return tree_walk(expression)
+</PYTHON>
+      </SNIPPET>
+    </TEXT>
+
+    <INDEX>інтерпретатор запитів<SUBINDEX>уніфікація<CLOSE/></SUBINDEX></INDEX>
+    <INDEX>уніфікація<SUBINDEX>реалізація<CLOSE/></SUBINDEX></INDEX>
+    
+  </SUBSUBSECTION>
+
+  <SUBSUBSECTION>
+    <NAME>Ведення бази даних</NAME>
+    <LABEL NAME="sec:query-db"/>
+    
+    <TEXT>
+      Одна важлива проблема в проєктуванні мов логічного програмування —
+      улаштувати все так, щоб під час перевірки заданого зразка переглядалося якомога менше
+      <INDEX>інтерпретатор запитів<SUBINDEX>база даних<OPEN/></SUBINDEX></INDEX>
+      <INDEX>база даних<SUBINDEX>індексування</SUBINDEX></INDEX>
+      <INDEX>індексування бази даних</INDEX>
+      недоречних записів бази даних.  Для цього
+      ми подаватимемо твердження як список, чий перший елемент — рядок, який
+      подає вид інформації
+      твердження.
+      <SPLITINLINE>
+	<SCHEME>
+	  Тоді,
+	  крім зберігання всіх тверджень в одному великому потоці,
+	  ми зберігаємо всі твердження, чиї
+	  <SCHEMEINLINE>car</SCHEMEINLINE>-и
+	  є сталими символами, в окремих потоках, у таблиці, індексованій
+	  цим символом. Щоб дістати твердження, яке може зіставитися зі зразком, ми спершу
+	  перевіряємо, чи
+	  <SCHEMEINLINE>car</SCHEMEINLINE>
+	  зразка — сталий символ. Якщо так, ми повертаємо (для перевірки
+	  зіставлювачем) усі збережені твердження, які мають той самий
+	  <SCHEMEINLINE>car</SCHEMEINLINE>.
+	  Якщо <APOS/>
+	  <SCHEMEINLINE>car</SCHEMEINLINE>
+	  зразка не є сталим символом, ми повертаємо всі збережені твердження.
+	  Мудріші методи могли б також скористатися інформацією у
+	  фреймі або спробувати оптимізувати й випадок, коли
+	  <SCHEMEINLINE>car</SCHEMEINLINE>
+	  зразка не є сталим символом.
+	  Ми не вбудовуємо наші критерії індексування (використання
+	  <SCHEMEINLINE>car</SCHEMEINLINE>,
+	  опрацювання лише випадку сталих символів) у програму;
+	  натомість ми звертаємося до предикатів і селекторів, які втілюють наші
+	  критерії.
+	</SCHEME>
+	<PYTHON>
+	  Ми зберігаємо твердження 
+	  в окремих потоках, по одному на кожен вид інформації, у таблиці,
+	  індексованій цим видом.
+	  Щоб дістати твердження, яке може зіставитися зі зразком, ми
+	  повертаємо (для перевірки
+	  зіставлювачем) усі збережені твердження, які мають такий самий
+	  перший елемент (той самий вид інформації). Мудріші
+	  методи могли б також скористатися інформацією у фреймі.
+	  Ми не вбудовуємо наші критерії індексування у програму,
+	  натомість ми звертаємося до предикатів і селекторів, які втілюють наші
+	  критерії.
+	</PYTHON>
+      </SPLITINLINE>
+      <SNIPPET>
+	<INDEX><DECLARATION>fetch_assertions</DECLARATION></INDEX> 
+	<NAME>fetch_assertions</NAME>
+	<REQUIRES>get_stream</REQUIRES>
+	<REQUIRES>index_key_of</REQUIRES>
+	<EXAMPLE>append_to_form_example_5</EXAMPLE>
+	<SCHEME>
+(define THE-ASSERTIONS the-empty-stream)
+
+(define (fetch-assertions pattern frame)
+  (if (use-index? pattern)
+      (get-indexed-assertions pattern)
+      (get-all-assertions)))
+
+(define (get-all-assertions) THE-ASSERTIONS)
+
+(define (get-indexed-assertions pattern)
+  (get-stream (index-key-of pattern) 'assertion-stream))
+	</SCHEME>
+	<PYTHON>
+def fetch_assertions(pattern, frame):
+    return get_indexed_assertions(pattern)
+def get_indexed_assertions(pattern):
+    return get_stream(index_key_of(pattern), "assertion-stream")
+</PYTHON>
+      </SNIPPET>
+      <SPLITINLINE>
+	<SCHEME><SCHEMEINLINE>Get-stream</SCHEMEINLINE></SCHEME>
+	<PYTHON>Функція <PYTHONINLINE>get_stream</PYTHONINLINE>
+	</PYTHON>
+      </SPLITINLINE>
+      шукає потік у таблиці й повертає порожній потік, якщо там нічого
+      не збережено.
+      <SNIPPET>
+	<NAME>get_stream</NAME>
+	<REQUIRES>operation_table_from_chapter_3</REQUIRES>
+	<REQUIRES>operation_table</REQUIRES>
+	<EXAMPLE>append_to_form_example_5</EXAMPLE>
+	<SCHEME>
+(define (get-stream key1 key2)
+  (let ((s (get key1 key2)))
+    (if s s the-empty-stream)))
+	</SCHEME>
+	<PYTHON>
+def get_stream(key1, key2):
+    s = get(key1, key2)
+    return None if is_none(s) else s
+</PYTHON>
+      </SNIPPET>
+    </TEXT>
+    <TEXT>
+      <SPLIT>
+	<SCHEME>
+	  Правила зберігають подібно, за
+	  <SCHEMEINLINE>car</SCHEMEINLINE>
+	  висновку правила.  Висновки правил, однак, — довільні зразки,
+	  тож вони відрізняються від тверджень тим, що можуть містити змінні.
+	  Зразок, чий
+	  <SCHEMEINLINE>car</SCHEMEINLINE>
+	  є сталим символом, може зіставитися з правилами, чиї висновки починаються зі
+	  змінної, а також із правилами, чиї висновки мають той самий
+	  <SCHEMEINLINE>car</SCHEMEINLINE>.
+	  Тож коли ми дістаємо правила, які можуть зіставитися зі зразком, чий
+	  <SCHEMEINLINE>car</SCHEMEINLINE> —
+	  сталий символ, ми дістаємо всі правила, чиї висновки починаються зі
+	  змінної, а також ті, чиї висновки мають той самий
+	  <SCHEMEINLINE>car</SCHEMEINLINE>,
+	  що й зразок.  Для цього ми зберігаємо всі правила, чиї висновки
+	  починаються зі змінної, в окремому потоці в нашій таблиці, індексованому
+	  символом <SCHEMEINLINE>?</SCHEMEINLINE>.
+	</SCHEME>
+	<PYTHON>
+	  Правила зберігають подібно, за першим елементом
+	  висновку правила.  
+	  Зразок 
+	  може зіставитися з правилами, чиї висновки мають той самий перший елемент.
+	  Тож коли ми дістаємо правила, які можуть зіставитися зі зразком,
+	  ми дістаємо всі правила, чиї висновки мають той самий перший елемент,
+	  що й зразок.
+	</PYTHON>
+      </SPLIT>
+      <SNIPPET>
+	<INDEX><DECLARATION>fetch_rules</DECLARATION></INDEX> 
+	<NAME>fetch_rules</NAME>
+	<REQUIRES>get_stream</REQUIRES>
+	<REQUIRES>index_key_of</REQUIRES>
+	<EXAMPLE>append_to_form_example_5</EXAMPLE>
+	<SCHEME>
+(define THE-RULES the-empty-stream)
+
+(define (fetch-rules pattern frame)
+  (if (use-index? pattern)
+      (get-indexed-rules pattern)
+      (get-all-rules)))
+
+(define (get-all-rules) THE-RULES)
+
+(define (get-indexed-rules pattern)
+  (stream-append
+   (get-stream (index-key-of pattern) 'rule-stream)
+   (get-stream '? 'rule-stream)))
+	</SCHEME>
+	<PYTHON>
+def fetch_rules(pattern, frame):
+    return get_indexed_rules(pattern)
+def get_indexed_rules(pattern):
+    return get_stream(index_key_of(pattern), "rule-stream")
+</PYTHON>
+      </SNIPPET>
+    </TEXT>
+    <TEXT>
+      <SPLITINLINE>
+	<SCHEME><SCHEMEINLINE>Add-rule-or-assertion!</SCHEMEINLINE></SCHEME>
+	<PYTHON>Функція
+	<PYTHONINLINE>add_rule_or_assertion</PYTHONINLINE></PYTHON>
+      </SPLITINLINE>
+      використовує
+      <SPLITINLINE>
+	<SCHEME><SCHEMEINLINE>query-driver-loop</SCHEMEINLINE></SCHEME>
+	<PYTHON><PYTHONINLINE>query_driver_loop</PYTHONINLINE>
+	</PYTHON>
+      </SPLITINLINE>
+      , щоб додати твердження та правила до бази даних.  Кожен елемент зберігають в
+      індексі.
+      <SNIPPET>
+	<INDEX><DECLARATION>add_rule_or_assertion</DECLARATION></INDEX> 
+	<NAME>add_rule_or_assertion</NAME>
+	<REQUIRES>is_rule</REQUIRES>
+	<REQUIRES>store_assertion_in_index</REQUIRES>
+	<REQUIRES>fetch_assertions</REQUIRES>
+	<REQUIRES>fetch_rules</REQUIRES>
+	<EXAMPLE>append_to_form_example_5</EXAMPLE>
+	<SCHEME>
+(define (add-rule-or-assertion! assertion)
+  (if (rule? assertion)
+      (add-rule! assertion)
+      (add-assertion! assertion)))
+
+(define (add-assertion! assertion)
+  (store-assertion-in-index assertion)
+  (let ((old-assertions THE-ASSERTIONS))
+    (set! THE-ASSERTIONS
+          (cons-stream assertion old-assertions))
+          'ok))
+
+(define (add-rule! rule)
+  (store-rule-in-index rule)
+  (let ((old-rules THE-RULES))
+    (set! THE-RULES (cons-stream rule old-rules))
+    'ok))
+	</SCHEME>
+	<PYTHON>
+def add_rule_or_assertion(assertion):
+    return add_rule(assertion) if is_rule(assertion) else add_assertion(assertion)
+def add_assertion(assertion):
+    store_assertion_in_index(assertion)
+    return "ok"
+def add_rule(rule):
+    store_rule_in_index(rule)
+    return "ok"
+</PYTHON>
+      </SNIPPET>
+    </TEXT>
+
+    <TEXT>  
+      Щоб справді зберегти твердження або правило, ми кладемо його у відповідний потік.
+      <SNIPPET>
+	<NAME>store_assertion_in_index</NAME>
+	<REQUIRES>operation_table_from_chapter_3</REQUIRES>
+	<REQUIRES>operation_table</REQUIRES>
+	<REQUIRES>index_key_of</REQUIRES>
+	<REQUIRES>get_stream</REQUIRES>
+	<REQUIRES>is_rule</REQUIRES>
+	<EXAMPLE>append_to_form_example_5</EXAMPLE>
+	<SCHEME>
+(define (store-assertion-in-index assertion)
+  (if (indexable? assertion)
+      (let ((key (index-key-of assertion)))
+        (let ((current-assertion-stream
+          (get-stream key 'assertion-stream)))
+      (put key
+           'assertion-stream
+           (cons-stream assertion
+                        current-assertion-stream))))))
+
+(define (store-rule-in-index rule)
+  (let ((pattern (conclusion rule)))
+    (if (indexable? pattern)
+        (let ((key (index-key-of pattern)))
+          (let ((current-rule-stream
+            (get-stream key 'rule-stream)))
+        (put key
+             'rule-stream
+             (cons-stream rule
+                          current-rule-stream)))))))
+	</SCHEME>
+	<PYTHON>
+def store_assertion_in_index(assertion):
+    key = index_key_of(assertion)
+    current_assertion_stream = get_stream(key, "assertion-stream")
+    put(key, "assertion-stream", pair(assertion, lambda : (current_assertion_stream)))
+def store_rule_in_index(rule):
+    pattern = conclusion(rule)
+    key = index_key_of(pattern)
+    current_rule_stream = get_stream(key, "rule-stream")
+    put(key, "rule-stream", pair(rule, lambda : (current_rule_stream)))
+</PYTHON>
+      </SNIPPET>
+    </TEXT>
+    <TEXT>
+      <SPLIT>
+	<SCHEME>
+	  Наступні
+	  процедури
+	  визначають, як використовують індекс бази даних.  Зразок (твердження або
+	  висновок правила) буде збережено в таблиці, якщо він починається зі змінної або
+	  сталого символа.
+	  <SNIPPET>
+	    <NAME>is_indexable</NAME>
+	    <REQUIRES>variable</REQUIRES>
+	    <EXAMPLE>append_to_form_example_5</EXAMPLE>
+	    <SCHEME>
+	      (define (indexable? pat)
+	      (or (constant-symbol? (car pat))
+	      (var? (car pat))))
+	    </SCHEME>
+	  </SNIPPET>
+	  Ключ, під яким зразок зберігають у таблиці, — це або
+	  <SCHEMEINLINE>?</SCHEMEINLINE>
+	  (якщо він починається зі змінної), або сталий
+	  символ,
+	  з якого він починається.
+	</SCHEME>
+	<PYTHON>
+	  Ключ, під яким зразок
+	  (твердження або висновок правила)
+	  зберігають у таблиці, — це рядок,
+	з якого він починається.
+	</PYTHON>
+      </SPLIT>
+      <SNIPPET POSTPADDING="no">
+	<NAME>index_key_of</NAME>
+	<REQUIRES>variable</REQUIRES>
+	<EXAMPLE>append_to_form_example_5</EXAMPLE>
+	<SCHEME>
+(define (index-key-of pat)
+  (let ((key (car pat)))
+    (if (var? key) '? key)))
+	</SCHEME>
+	<PYTHON>
+def index_key_of(pattern):
+    return head(pattern)
+</PYTHON>
+      </SNIPPET>
+      <SPLIT>
+	<SCHEME>
+	  Індекс використовуватимуть, щоб дістати елементи, які можуть зіставитися зі зразком,
+	  якщо зразок починається зі
+	сталого символа.
+	<SNIPPET>
+	  <NAME>use_index</NAME>
+	  <EXAMPLE>append_to_form_example_5</EXAMPLE>
+	<SCHEME>
+(define (use-index? pat)
+  (constant-symbol? (car pat)))
+	</SCHEME>
+	</SNIPPET>
+	</SCHEME>
+      </SPLIT>
+      </TEXT>
+
+      <SPLIT>
+	<SCHEME>
+    <EXERCISE>
+      Яка мета прив’язок
+      <SCHEMEINLINE>let</SCHEMEINLINE>
+      у
+      процедурах
+      <SCHEMEINLINE>add-assertion!</SCHEMEINLINE>
+      and
+      <SCHEMEINLINE>add-rule!</SCHEMEINLINE>?
+      Що було б не так із таким означенням
+      <SCHEMEINLINE>add-assertion!</SCHEMEINLINE>?
+      Підказка: пригадайте означення нескінченного потоку одиниць із
+      підрозділу<SPACE/><REF NAME="sec:infinite-streams"/>:
+	  <SCHEMEINLINE>(define ones (cons-stream 1 ones))</SCHEMEINLINE>.
+      <SNIPPET POSTPADDING="no">
+	<INDEX><DECLARATION>add_assertion</DECLARATION></INDEX>
+	<NAME>add_assertion</NAME>
+	<REQUIRES>store_assertion_in_index</REQUIRES>
+	<REQUIRES>fetch_assertions</REQUIRES>
+	<EXAMPLE>append_to_form_example_5</EXAMPLE>
+	<SCHEME>
+(define (add-assertion! assertion)
+  (store-assertion-in-index assertion)
+  (set! THE-ASSERTIONS
+        (cons-stream assertion THE-ASSERTIONS))
+  'ok)
+	</SCHEME>
+      </SNIPPET>
+    </EXERCISE>
+	</SCHEME>
+      </SPLIT>
+  </SUBSUBSECTION>
+
+  <INDEX>інтерпретатор запитів<SUBINDEX>база даних<CLOSE/></SUBINDEX></INDEX>
+  
+  <SUBSUBSECTION>
+    <NAME>Операції над потоками</NAME>
+    <LABEL NAME="sec:query-streams"/>
+    
+    <INDEX>інтерпретатор запитів<SUBINDEX>операції над потоками<OPEN/></SUBINDEX></INDEX>
+
+    <TEXT>
+      Система запитів використовує кілька операцій над потоками, не поданих
+      у розділі<SPACE/><REF NAME="chap:state"></REF>.
+    </TEXT>
+
+    <TEXT>
+      <SPLITINLINE>
+	<SCHEME><SCHEMEINLINE>Stream-append-delayed</SCHEMEINLINE></SCHEME>
+	<PYTHON>Функції
+	<PYTHONINLINE>stream_append_delayed</PYTHONINLINE></PYTHON>
+      </SPLITINLINE>
+      and
+      <SPLITINLINE>
+	<SCHEME><SCHEMEINLINE>interleave-delayed</SCHEMEINLINE></SCHEME>
+	<PYTHON><PYTHONINLINE>interleave_delayed</PYTHONINLINE>
+	</PYTHON>
+      </SPLITINLINE>
+      такі самі, як
+      <SPLITINLINE>
+	<SCHEME><SCHEMEINLINE>stream-append</SCHEMEINLINE></SCHEME>
+	<PYTHON><PYTHONINLINE>stream_append</PYTHONINLINE>
+	</PYTHON>
+      </SPLITINLINE>
+      and
+      і <SCHEMEINLINE>interleave</SCHEMEINLINE>
+      (підрозділ<SPACE/><REF NAME="sec:exploiting-streams"/>),
+      хіба що беруть відкладений аргумент (як
+      <SCHEMEINLINE>integral</SCHEMEINLINE>
+      <SPLITINLINE>
+	<SCHEME>процедура</SCHEME>
+	<PYTHON>функція</PYTHON>
+      </SPLITINLINE>
+      у підрозділі<SPACE/><REF NAME="sec:streams-and-delayed-evaluation"/>).
+      Це в деяких випадках відкладає зациклення (див.
+      вправу<SPACE/><REF NAME="ex:q-why-not-append"/>).
+      <SNIPPET>
+	<INDEX><DECLARATION>stream_append_delayed</DECLARATION></INDEX> 
+	<INDEX><DECLARATION>interleave_delayed</DECLARATION></INDEX> 
+	<NAME>stream_append_delayed</NAME>
+	<EXAMPLE>append_to_form_example_5</EXAMPLE>
+	<SCHEME>
+(define (stream-append-delayed s1 delayed-s2)
+  (if (stream-null? s1)
+      (force delayed-s2)
+      (cons-stream
+       (stream-car s1)
+       (stream-append-delayed (stream-cdr s1) delayed-s2))))
+
+(define (interleave-delayed s1 delayed-s2)
+  (if (stream-null? s1)
+      (force delayed-s2)
+      (cons-stream
+       (stream-car s1)
+       (interleave-delayed (force delayed-s2)
+                           (delay (stream-cdr s1))))))
+	</SCHEME>
+	<PYTHON>
+def stream_append_delayed(s1, delayed_s2):
+    return delayed_s2() if is_none(s1) else pair(head(s1), lambda : (stream_append_delayed(stream_tail(s1), delayed_s2)))
+def interleave_delayed(s1, delayed_s2):
+    return delayed_s2() if is_none(s1) else pair(head(s1), lambda : (interleave_delayed(delayed_s2(), lambda : (stream_tail(s1)))))
+</PYTHON>
+      </SNIPPET>
+    </TEXT>
+
+    <TEXT>
+      <SPLITINLINE>
+	<SCHEME><SCHEMEINLINE>Stream-flatmap</SCHEMEINLINE>,</SCHEME>
+	<PYTHON>Функція
+	<PYTHONINLINE>stream_flatmap</PYTHONINLINE>,</PYTHON>
+      </SPLITINLINE>
+      , який використовують у всьому обчислювачі запитів, щоб відобразити
+      <SPLITINLINE>
+	<SCHEME>procedure</SCHEME>
+	<PYTHON>function</PYTHON>
+      </SPLITINLINE>
+      на потік фреймів і об’єднати одержані потоки фреймів,
+      — це потоковий аналог функції <SCHEMEINLINE>flatmap</SCHEMEINLINE>,
+      <SPLITINLINE>
+	<SCHEME>procedure</SCHEME>
+	<PYTHON>function</PYTHON>
+      </SPLITINLINE>
+      уведеної для звичайних списків у
+      підрозділі<SPACE/><REF NAME="sec:nested-mappings"/>. На відміну від звичайної
+      <SCHEMEINLINE>flatmap</SCHEMEINLINE>, однак, ми накопичуємо потоки
+      через процес переплетення, а не просто дописування (див.
+      вправи<SPACE/><REF NAME="ex:q-why-interleave"/>
+      і<SPACE/><REF NAME="ex:q-why-delay"/>).
+      <SNIPPET>
+	<INDEX><DECLARATION>stream_flatmap</DECLARATION></INDEX> 
+	<INDEX><DECLARATION>flatten_stream</DECLARATION></INDEX> 
+	<NAME>stream_flatmap</NAME>
+	<REQUIRES>stream_append_delayed</REQUIRES>
+	<EXAMPLE>append_to_form_example_5</EXAMPLE>
+	<SCHEME>
+(define (stream-flatmap proc s)
+  (flatten-stream (stream-map proc s)))
+
+(define (flatten-stream stream)
+  (if (stream-null? stream)
+      the-empty-stream
+      (interleave-delayed
+       (stream-car stream)
+       (delay (flatten-stream (stream-cdr stream))))))
+	</SCHEME>
+	<PYTHON>
+def stream_flatmap(fun, s):
+    return flatten_stream(stream_map(fun, s))
+def flatten_stream(stream):
+    return None if is_none(stream) else interleave_delayed(head(stream), lambda : (flatten_stream(stream_tail(stream))))
+</PYTHON>
+      </SNIPPET>
+    </TEXT>
+
+    <TEXT>
+      Обчислювач також використовує таку просту
+      <SPLITINLINE>
+	<SCHEME>процедуру</SCHEME>
+	<PYTHON>функцію</PYTHON>
+      </SPLITINLINE>
+      щоб породити потік, що складається з одного елемента:
+      <SNIPPET>
+	<INDEX><DECLARATION>singleton_stream</DECLARATION></INDEX> 
+	<NAME>singleton_stream</NAME>
+	<EXAMPLE>append_to_form_example_5</EXAMPLE>
+	<SCHEME>
+(define (singleton-stream x)
+  (cons-stream x the-empty-stream))
+	</SCHEME>
+	<PYTHON>
+def singleton_stream(x):
+    return pair(x, lambda : (None))
+</PYTHON>
+      </SNIPPET>
+    </TEXT>
+  </SUBSUBSECTION>
+
+  <INDEX>інтерпретатор запитів<SUBINDEX>операції над потоками<CLOSE/></SUBINDEX></INDEX>
+  
+  <SUBSUBSECTION>
+    <NAME>
+      Query 
+      <SPLITINLINE>
+	<SCHEME>Синтаксичні процедури</SCHEME>
+	<PYTHON>Синтаксичні функції та конкретизація</PYTHON>
+      </SPLITINLINE>
+    </NAME>
+    <LABEL NAME="sec:query-syntax"/>
+
+    <INDEX>інтерпретатор запитів<SUBINDEX>синтаксис мови запитів<OPEN/></SUBINDEX></INDEX>
+    <INDEX>подання, специфічне для мови запитів<OPEN/></INDEX>
+
+    <SPLIT>
+      <PYTHON>
+	<TEXT>
+	  Ми бачили в підрозділі<SPACE/><REF NAME="sec:query-driver"/>, що 
+	  керівний цикл спершу перетворює вхідний рядок на синтаксичне
+	  подання Python.
+	  Вхід розроблено так, щоб він виглядав як
+	  вираз Python, аби ми могли використати функцію
+	  <PYTHONINLINE>parse</PYTHONINLINE> 
+	  з підрозділу<SPACE/><REF NAME="sec:representing-expressions"/> і
+	  також підтримати нотацію Python у
+	  <PYTHONINLINE>javascript_predicate</PYTHONINLINE>.
+	  Наприклад, 
+	  <SNIPPET EVAL="no">
+	    <PYTHON>
+parse('job($x, list("computer", "wizard"));')
+	    </PYTHON>
+	  </SNIPPET>
+	  yields
+	  <SNIPPET EVAL="no">
+	    <PYTHON_OUTPUT>
+list("application",
+     list("name", "job"),
+     list(list("name", "$x"),
+          list("application",
+               list("name", "list"),
+               list(list("literal", "computer"),
+                    list("literal", "wizard")))))
+	    </PYTHON_OUTPUT>
+	  </SNIPPET>
+	  Тег
+	  <PYTHONINLINE>"application"</PYTHONINLINE> вказує, що
+	  синтаксично запит буде трактовано як застосування функції в JavaScript.
+	  Функція
+	  <PYTHONINLINE>unparse</PYTHONINLINE> перетворює синтаксис
+	  назад на рядок:
+	  <SNIPPET EVAL="no">
+	    <PYTHON>
+unparse(parse('job($x, list("computer", "wizard"));'))
+	    </PYTHON>
+	    <PYTHON_OUTPUT>
+'job($x, list("computer", "wizard"))'
+	    </PYTHON_OUTPUT>
+	  </SNIPPET>
+	  В обробнику запитів ми припустили
+	  <SPLITINLINE>
+	    <SCHEME>
+	      доречніше,
+	      специфічне для мови запитів
+	    </SCHEME>
+	    <PYTHON>
+	      специфічне для мови запитів
+	    </PYTHON>
+	  </SPLITINLINE>
+	  подання тверджень, правил і запитів.
+	  Функція
+	  <PYTHONINLINE>convert_@to_@query_@syntax</PYTHONINLINE>
+	  перетворює синтаксичне подання на те подання. 
+	  Використавши той самий приклад,
+	  <SNIPPET EVAL="no">
+	    <PYTHON>
+convert_to_query_syntax(parse('job($x, list("computer", "wizard"));'))
+	    </PYTHON>
+	  </SNIPPET>
+	  yields
+	  <SNIPPET EVAL="no">
+	    <PYTHON_OUTPUT>
+list("job", list("name", "$x"), list("computer", "wizard"))
+	    </PYTHON_OUTPUT>
+	  </SNIPPET>
+	  Функції системи запитів, як-от
+	  <PYTHONINLINE>add_rule_or_assertion</PYTHONINLINE>
+	  у підрозділі<SPACE/><REF NAME="sec:query-db"/>
+	  і
+	  <PYTHONINLINE>evaluate_query</PYTHONINLINE>
+	  у підрозділі<SPACE/><REF NAME="sec:query-eval"/>,
+	  працюють із поданням, специфічним для мови запитів, використовуючи 
+	  селектори й предикати, як-от 
+	  <PYTHONINLINE>type</PYTHONINLINE>,
+	  <PYTHONINLINE>contents</PYTHONINLINE>, 
+	  <PYTHONINLINE>is_rule</PYTHONINLINE> і
+	  <PYTHONINLINE>first_conjunct</PYTHONINLINE>, оголошені нижче.	  
+	  Рисунок<SPACE/><REF NAME="fig:syntax-abstraction-lp"/> зображує три
+	  <INDEX>бар’єр абстракції<SUBINDEX>у мові запитів</SUBINDEX></INDEX>
+	  бар’єри абстракції, які використовує система запитів, і те, як функції-перетворення
+	  <PYTHONINLINE>parse</PYTHONINLINE>,
+	  <PYTHONINLINE>unparse</PYTHONINLINE> і
+	  <PYTHONINLINE>convert_to_query_syntax</PYTHONINLINE> їх з’єднують.
+          <FIGURE>
+            <FIGURE web_scale="0.8" scale="0.65" src="img_javascript/ch4-syntax-abstraction-logic-programming.svg"></FIGURE>
+            <CAPTION>Синтаксична абстракція в системі запитів.</CAPTION>
+            <LABEL NAME="fig:syntax-abstraction-lp"/>
+          </FIGURE>
+	</TEXT>
+
+      <SUBHEADING>
+	<NAME>Робота зі змінними зразка</NAME>
+      </SUBHEADING>
+
+      <TEXT>
+	Предикат
+	<PYTHONINLINE>is_variable</PYTHONINLINE> використовують на 
+	поданні, специфічному для мови запитів, під час обробки запитів і
+	на синтаксичному поданні Python під час конкретизації,
+	щоб розпізнати імена, які починаються зі знака долара.
+	<INDEX>інтерпретатор запитів<SUBINDEX>подання змінних зразка</SUBINDEX></INDEX>
+	<INDEX>змінна зразка<SUBINDEX>подання</SUBINDEX></INDEX>
+	Ми припускаємо, що є функція <PYTHONINLINE>char_at</PYTHONINLINE>, яка
+	повертає рядок, що містить лише символ заданого рядка
+	у заданій позиції.<FOOTNOTE>Насправді одержати рядок, що
+	містить перший
+	символ рядка <PYTHONINLINE>s</PYTHONINLINE> у JavaScript, можна так:
+	<PYTHONINLINE>s.charAt(0)</PYTHONINLINE>.
+      </FOOTNOTE>
+      <SNIPPET EVAL="no">
+	<INDEX><DECLARATION>is_variable</DECLARATION><SUBINDEX>in query system</SUBINDEX></INDEX>
+	<NAME>is_variable_2</NAME>
+	<PYTHON>
+def is_variable(exp):
+    return is_name(exp) and char_at(symbol_of_name(exp), 0) == "$"
+</PYTHON>
+	  <PYTHON_RUN>
+is_variable = is_name
+</PYTHON_RUN>
+      </SNIPPET>
+      </TEXT>
+        <TEXT>
+          Унікальні змінні будують під час застосування правила
+          (у підрозділі<SPACE/><REF NAME="sec:query-unify"/>) за допомогою
+          наступних функцій. 
+          Унікальний ідентифікатор застосування правила — це число, яке
+          збільшують щоразу, коли застосовують правило.<FOOTNOTE>Створення
+          нових змінних конкатенацією рядків і розпізнавання
+          змінних за їхнім першим символом під час обробки запиту
+          дещо марнотратне. Ефективніший розв’язок
+	  позначав би змінні зразка окремим тегом у
+	  поданні, специфічному для мови запитів, і використовував би
+	  побудову пар, а не конкатенацію рядків, щоб створювати
+	  нові змінні. Ми обрали менш ефективний розв’язок,
+	  щоб спростити виклад.</FOOTNOTE>
+	  <SNIPPET>
+	    <INDEX><DECLARATION>make_new_variable</DECLARATION></INDEX>
+	    <NAME>is_variable_4</NAME>
+	    <PYTHON>
+rule_counter = 0
+def new_rule_application_id():
+    rule_counter = rule_counter + 1
+    return rule_counter
+def make_new_variable(variable, rule_application_id):
+    return make_name(symbol_of_name(variable) + "_" + stringify(rule_application_id))
+</PYTHON>
+	  </SNIPPET>
+	</TEXT>
+
+      <SUBHEADING>
+      <NAME>Функція <PYTHONINLINE>convert_to_query_syntax</PYTHONINLINE></NAME>
+      </SUBHEADING>
+      <TEXT>
+	  Функція <PYTHONINLINE>convert_to_query_syntax</PYTHONINLINE>
+	  рекурсивно
+	  <INDEX>подання, специфічне для мови запитів<SUBINDEX>перетворення синтаксису Python на</SUBINDEX></INDEX>
+	  перетворює синтаксичне подання Python на
+	  подання, специфічне для мови запитів, спрощуючи 
+	  твердження, правила й запити так, що символ імені у
+	  виразі-функції застосування стає тегом, хіба що якщо
+	  символ — це <PYTHONINLINE>"pair"</PYTHONINLINE>
+	  або <PYTHONINLINE>"list"</PYTHONINLINE>, то будують (нетеговану) пару або
+	  список Python. Це означає, що
+	  <PYTHONINLINE>convert_@to_@query_@syntax</PYTHONINLINE>
+	  інтерпретує
+	  застосування
+	  конструкторів <PYTHONINLINE>pair</PYTHONINLINE> і
+	  <PYTHONINLINE>list</PYTHONINLINE> під час перетворення,
+	  а функції обробки, як-от
+	  <PYTHONINLINE>pattern_match</PYTHONINLINE>
+	  з підрозділу<SPACE/><REF NAME="sec:query-match"/> і
+	  <PYTHONINLINE>unify_match</PYTHONINLINE>
+	  з підрозділу<SPACE/><REF NAME="sec:query-unify"/>, 
+	  можуть працювати безпосередньо з потрібними парами та
+	  списками, а не з синтаксичним поданням, породженим синтаксичним аналізатором.
+	  (Одноелементний) список <QUOTE>аргументів</QUOTE>
+	  <PYTHONINLINE>javascript_predicate</PYTHONINLINE>
+	  залишається неопрацьованим, як пояснено нижче.
+	  Змінна залишається незмінною, а
+	  літерал спрощують до примітивного значення, яке він містить.
+	  <SNIPPET>
+	    <INDEX><DECLARATION>convert_to_query_syntax</DECLARATION></INDEX>
+	    <NAME>convert_to_query_syntax</NAME>
+	    <REQUIRES>map</REQUIRES>
+	    <REQUIRES>functions_4_1_2</REQUIRES>
+	    <EXAMPLE>append_to_form_example_5</EXAMPLE>
+	    <PYTHON>
+def convert_to_query_syntax(exp):
+    if is_application(exp):
+        function_symbol = symbol_of_name(function_expression(exp))
+        if function_symbol == "javascript_predicate":
+            return pair(function_symbol, arg_expressions(exp))
+        else:
+            processed_args = map(convert_to_query_syntax, arg_expressions(exp))
+            return pair(head(processed_args), head(tail(processed_args))) if function_symbol == "pair" else processed_args if function_symbol == "list" else pair(function_symbol, processed_args)
+    elif is_variable(exp):
+        return exp
+    else:
+        return literal_value(exp)
+</PYTHON>
+	  </SNIPPET>
+      </TEXT>
+      <TEXT>
+	  Виняток із цієї обробки — це
+	  <PYTHONINLINE>javascript_predicate</PYTHONINLINE>.
+	  Оскільки конкретизоване синтаксичне подання Python
+	  його виразу-предиката
+	  передають до 
+	  <PYTHONINLINE>evaluate</PYTHONINLINE>
+	  з підрозділу<SPACE/><REF NAME="sec:core-of-evaluator"/>,
+	  початкове синтаксичне подання, яке надходить від
+	  <PYTHONINLINE>parse</PYTHONINLINE>,
+	  має залишитися недоторканим у поданні виразу,
+	  специфічному для мови запитів.
+	  У цьому прикладі
+	  з підрозділу<SPACE/><REF NAME="sec:deductive-info-retrieval"/>
+	  <SNIPPET EVAL="no">
+	    <PYTHON>
+and(salary($person, $amount), javascript_predicate($amount &gt; 50000))
+	    </PYTHON>
+	  </SNIPPET>
+	  <PYTHONINLINE>convert_to_query_syntax</PYTHONINLINE> породжує структуру даних,
+	  у якій синтаксичне подання Python вбудовано в
+	  подання, специфічне для мови запитів:
+	  <SNIPPET EVAL="no">
+	    <PYTHON_OUTPUT>
+list("and",
+     list("salary", list("name", "$person"), list("name", "$amount")),
+     list("javascript_predicate",
+          list("binary_operator_combination",
+               "&gt;",
+               list("name", "$amount"),
+               list("literal", 50000))))
+	    </PYTHON_OUTPUT>
+	  </SNIPPET>
+	  Щоб обчислити підвираз <PYTHONINLINE>javascript_predicate</PYTHONINLINE>
+	  цього опрацьованого запиту, функція
+	  <PYTHONINLINE>javascript_@predicate</PYTHONINLINE> з
+	  підрозділу<SPACE/><REF NAME="sec:query-eval"/> викликає функцію
+	  <PYTHONINLINE>instantiate_@expression</PYTHONINLINE> (нижче)
+	  для вбудованого синтаксичного
+	  подання Python виразу <PYTHONINLINE>$amount &gt; 50000</PYTHONINLINE>, щоб
+	  замінити змінну
+	  <PYTHONINLINE>list("name", "$amount")</PYTHONINLINE> на літерал,
+	  наприклад <PYTHONINLINE>list("literal", 70000)</PYTHONINLINE>, який представляє
+	  примітивне значення, з яким зв’язано 
+	  <PYTHONINLINE>$amount</PYTHONINLINE> — тут 70000.
+	  Обчислювач Python може обчислити конкретизований предикат, який тепер представляє
+	  <PYTHONINLINE>70000 &gt; 50000</PYTHONINLINE>. 
+      </TEXT>
+
+    
+      <SUBHEADING>
+	<NAME>Конкретизація виразу</NAME>
+      </SUBHEADING>
+
+      <INDEX>інтерпретатор запитів<SUBINDEX>конкретизація<OPEN/></SUBINDEX></INDEX>
+
+      <TEXT>
+	Функція <PYTHONINLINE>javascript_predicate</PYTHONINLINE>
+	з підрозділу<SPACE/><REF NAME="sec:query-eval"/> і керівний цикл
+	з підрозділу<SPACE/><REF NAME="sec:query-driver"/> викликають
+	<PYTHONINLINE>instantiate_@expression</PYTHONINLINE> для
+	виразу, щоб одержати копію, у якій будь-яку змінну у
+	виразі замінено її значенням у заданому фреймі.
+	Вхідний і результівний вирази використовують синтаксичне
+	подання Python, тож будь-яке значення, одержане конкретизацією
+	змінної, треба перетворити з його форми в прив’язці на
+	синтаксичне подання Python.
+	  <SNIPPET>
+	    <INDEX><DECLARATION>instantiate_expression</DECLARATION></INDEX> 
+	    <NAME>instantiate</NAME>
+	    <REQUIRES>make_binding</REQUIRES>
+	    <REQUIRES>variable</REQUIRES>
+	    <REQUIRES>express</REQUIRES>
+	    <REQUIRES>convert</REQUIRES>
+	    <EXAMPLE>append_to_form_example_5</EXAMPLE>
+	    <PYTHON>
+def instantiate_expression(expression, frame):
+    return convert(instantiate_term(expression, frame)) if is_variable(expression) else pair(instantiate_expression(head(expression), frame), instantiate_expression(tail(expression), frame)) if is_pair(expression) else expression
+</PYTHON>
+	  </SNIPPET>
+	  Функція
+	  <PYTHONINLINE>instantiate_term</PYTHONINLINE> бере
+	  змінну, пару або примітивне значення як перший аргумент і фрейм
+	  як другий аргумент і рекурсивно замінює змінні в
+	  першому аргументі їхніми значеннями у фреймі,
+	  доки не дійде до примітивного значення або незв’язаної змінної.
+	  Коли процес натрапляє на пару, будують нову пару,
+	  частини якої — конкретизовані версії початкових частин.
+	  Наприклад, якщо 
+	  <PYTHONINLINE>$x</PYTHONINLINE>
+	  зв’язана з парою
+	  <LATEXINLINE>$[\texttt{\$y}, 5]$</LATEXINLINE>
+	  у фреймі <LATEXINLINE>$f$</LATEXINLINE>
+	  як результат уніфікації, а 
+	<PYTHONINLINE>$y</PYTHONINLINE>
+	своєю чергою зв’язана з<SPACE/>3,
+	то результат застосування
+	<PYTHONINLINE>instantiate_term</PYTHONINLINE> до
+	<PYTHONINLINE>list("name", "$x")</PYTHONINLINE> і
+	<LATEXINLINE>$f$</LATEXINLINE> — це пара
+	 <LATEXINLINE>$[3, 5]$</LATEXINLINE>.
+	  <SNIPPET LATEX="yes">
+	    <INDEX><DECLARATION>instantiate_term</DECLARATION></INDEX>
+	    <NAME>express</NAME>
+	    <PYTHON>
+def instantiate_term(term, frame):
+    if is_variable(term):
+        binding = binding_in_frame(term, frame)
+        return term if is_none(binding) else instantiate_term(binding_value(binding), frame)
+    elif is_pair(term):
+        return pair(instantiate_term(head(term), frame), instantiate_term(tail(term), frame))
+    else:
+        return term
+</PYTHON>
+	  </SNIPPET>
+	  Функція
+	  <PYTHONINLINE>convert</PYTHONINLINE>
+	  будує синтаксичне подання Python для змінної,
+	  пари або примітивного значення, поверненого
+	  <PYTHONINLINE>instantiate_term</PYTHONINLINE>.
+	  Пара у вихідному виразі стає застосуванням
+	  конструктора пар Python, а примітивне значення стає літералом.
+	  <SNIPPET LATEX="yes">
+	    <INDEX><DECLARATION>convert</DECLARATION></INDEX>
+	    <NAME>convert</NAME>
+	    <PYTHON>
+def convert(term):
+    return term if is_variable(term) else make_application(make_name("pair"), llist(convert(head(term)), convert(tail(term)))) if is_pair(term) else make_literal(term)
+</PYTHON>
+	  </SNIPPET>
+	  <SNIPPET HIDE="yes">
+	    <NAME>append_to_form_example_5</NAME>
+	    <REQUIRES>append_to_form</REQUIRES>
+	    <PYTHON>
+process_query("""assert(
+rule(append_to_form(null, $y, $y)))""")
+process_query("""assert(
+rule(append_to_form(pair($u, $v), $y, pair($u, $z)),
+     append_to_form($v, $y, $z)))""")
+process_query("""append_to_form($x, $y, list("a", "b", "c", "d"))""")
+</PYTHON>
+	  </SNIPPET>
+	  Щоб проілюструвати ці три функції, розгляньмо, що стається, коли запит
+	  <SNIPPET>
+	    <PYTHON>
+job($x, llist("computer", "wizard"))
+	    </PYTHON>
+	  </SNIPPET>
+	  чиє синтаксичне подання Python наведено
+	  на початку підрозділу<SPACE/><REF NAME="sec:query-syntax"/>,
+	  опрацьовує керівний цикл.
+	  Скажімо, фрейм <LATEXINLINE>$g$</LATEXINLINE> з потоку результатів
+	  зв’язує змінну 
+	  <PYTHONINLINE>$x</PYTHONINLINE> з парою
+	  <LATEXINLINE>$[\texttt{"Bitdiddle"}, \texttt{\$y}]$</LATEXINLINE> і 
+	  змінну <PYTHONINLINE>$y</PYTHONINLINE> з парою
+	  <LATEXINLINE>$[\texttt{"Ben"}, \texttt{null}]$</LATEXINLINE>. Тоді
+	  <SNIPPET LATEX="yes">
+	    <PYTHON>
+instantiate_term(llist("name", "$\$$x"), $g$)
+	    </PYTHON>
+	  </SNIPPET>
+	  повертає список
+	  <SNIPPET>
+	    <PYTHON_OUTPUT>
+list("Bitdiddle", "Ben")
+	    </PYTHON_OUTPUT>
+	  </SNIPPET>
+	  а
+	  <PYTHONINLINE>convert</PYTHONINLINE> перетворює його на
+	  <SNIPPET>
+	    <PYTHON_OUTPUT>
+list("application",
+     list("name", "pair"),
+     list(list("literal", "Bitdiddle"),
+          list("application",
+               list("name", "pair"),
+               list(list("literal", "Ben"),
+                    list("literal", null)))))
+	    </PYTHON_OUTPUT>
+	  </SNIPPET>
+	  Результат
+	  <PYTHONINLINE>instantiate_expression</PYTHONINLINE>,
+	  застосованої до синтаксичного подання Python запиту та
+	  фрейму <LATEXINLINE>$g$</LATEXINLINE>, такий:
+	  <SNIPPET>
+	    <PYTHON_OUTPUT>
+list("application",
+     list("name", "job"),
+     list(list("application",
+               list("name", "pair"),
+               list(list("literal", "Bitdiddle"),
+                    list("application",
+                         list("name", "pair"),
+                         list(list("literal", "Ben"),
+                              list("literal", null))))),
+          list("application",
+               list("name", "list"),
+               list(list("literal", "computer"),
+                    list("literal", "wizard")))))
+	    </PYTHON_OUTPUT>
+	  </SNIPPET>
+	  Керівний цикл розбирає це подання й показує його як:
+	  <SNIPPET>
+	    <PYTHON_OUTPUT>
+'job(list("Bitdiddle", "Ben"), list("computer", "wizard"))'
+	    </PYTHON_OUTPUT>
+	  </SNIPPET>
+      </TEXT>
+
+      <INDEX>інтерпретатор запитів<SUBINDEX>конкретизація<CLOSE/></SUBINDEX></INDEX>
+
+      <SUBHEADING>
+	<NAME>Функція <PYTHONINLINE>unparse</PYTHONINLINE></NAME>
+      </SUBHEADING>
+
+      <TEXT>
+	  Функція <PYTHONINLINE>unparse</PYTHONINLINE>
+	  перетворює компоненту, задану в синтаксичному поданні Python,
+	  на рядок, застосовуючи синтаксичні правила
+	  з підрозділу<SPACE/><REF NAME="sec:representing-expressions"/>.
+	  Ми описуємо <PYTHONINLINE>unparse</PYTHONINLINE> лише для
+	  тих видів виразів, які трапляються в прикладах
+	  підрозділу<SPACE/><REF NAME="sec:deductive-info-retrieval"/>, залишивши інструкції
+	  та решту видів виразів
+	  як вправу<SPACE/><REF NAME="ex:parse"/>. Літерал перетворюють,
+	  <PYTHONINLINE>stringify</PYTHONINLINE> до його значення, а
+	  ім’я перетворюють на його
+	  <INDEX>символ(и)<SUBINDEX>у <USE>unparse</USE></SUBINDEX></INDEX>
+	  символ.
+	  Застосування форматують, розбираючи вираз-функцію,
+	  який тут можна вважати іменем, а далі — розділені комами
+	  рядки виразів-аргументів, узяті в дужки.
+	  Комбінації бінарних операторів форматують інфіксною нотацією.
+	  <SNIPPET LATEX="yes">
+	    <INDEX><DECLARATION>unparse</DECLARATION><SUBINDEX>in query interpreter</SUBINDEX></INDEX>
+	    <NAME>unparse</NAME>
+	    <REQUIRES>map</REQUIRES>
+	    <REQUIRES>is_list_construction</REQUIRES>
+	    <REQUIRES>element_expressions</REQUIRES>
+	    <REQUIRES>comma_separated</REQUIRES>
+	    <PYTHON>
+function unparse(exp) {
+    return is_literal(exp)
+           ? stringify(literal_value(exp))
+           : is_name(exp)
+           ? symbol_of_name(exp)
+           : is_list_construction(exp)
+           ? unparse(make_application(make_name("list"), 
+                                      element_expressions(exp)))
+           : is_application(exp) &amp;&amp; is_name(function_expression(exp))
+           ? symbol_of_name(function_expression(exp)) +
+                 "(" +
+                 comma_separated(map(unparse, arg_expressions(exp))) +
+                 ")"
+           : is_binary_operator_combination(exp)
+           ? "(" + unparse(first_operand(exp)) +
+             " " + operator_symbol(exp) +
+             " " + unparse(second_operand(exp)) +
+             ")"
+           <METAPHRASE>unparsing other kinds of Python components</METAPHRASE>
+           : error(exp, "unknown syntax -- unparse")
+}
+	    </PYTHON>
+	    <PYTHON_RUN>
+def has_char(x, c):
+    found = False
+    i = 0
+    while char_at(x, i) != None:
+        found = found or char_at(x, i) == c
+        i = i + 1
+    return found
+def better_stringify(x):
+    return "'" + x + "'" if is_string(x) and not has_char(x, "'") else stringify(x)
+def unparse(exp):
+    return better_stringify(literal_value(exp)) if is_literal(exp) else symbol_of_name(exp) if is_name(exp) else unparse(make_application(make_name("list"), element_expressions(exp))) if is_list_construction(exp) else symbol_of_name(function_expression(exp)) + "(" + comma_separated(map(unparse, arg_expressions(exp))) + ")" if is_application(exp) and is_name(function_expression(exp)) else "(" + unparse(first_operand(exp)) + " " + operator_symbol(exp) + " " + unparse(second_operand(exp)) + ")" if is_binary_operator_combination(exp) else error("unknown syntax -- unparse", exp)
+</PYTHON_RUN>
+    </SNIPPET>
+	  <SNIPPET>
+	    <NAME>comma_separated</NAME>
+	    <REQUIRES>accumulate</REQUIRES>
+	    <PYTHON>
+def comma_separated(strings):
+    return reduce(lambda s, acc: (s + ("" if acc == "" else ", " + acc)), "", strings)
+</PYTHON>
+	  </SNIPPET>
+	  Функція
+	  <PYTHONINLINE>unparse</PYTHONINLINE>
+	  працювала б добре й без клаузи
+	  <SNIPPET>
+	    <PYTHON>
+: is_list_construction(exp)
+? unparse(make_application(make_name("list"), 
+                           element_expressions(exp)))
+	    </PYTHON>
+	  </SNIPPET>
+	  але вихідний рядок був би зайво
+	  багатослівним у випадках, коли змінні зразка конкретизовано
+	  списками. У наведеному вище прикладі, де обробка запиту
+	  <SNIPPET>
+	    <PYTHON>
+job($x, llist("computer", "wizard"))
+	    </PYTHON>
+	  </SNIPPET>
+	  дає фрейм, який зв’язує 
+	  <PYTHONINLINE>$x</PYTHONINLINE>
+	  з <LATEXINLINE>$[\texttt{"Bitdiddle"}, [\texttt{"Ben"}, \texttt{null}]]$</LATEXINLINE>,
+	  <PYTHONINLINE>unparse</PYTHONINLINE> дає
+	  <SNIPPET EVAL="no">
+	  <PYTHON_OUTPUT>
+'job(list("Bitdiddle", "Ben"), list("computer", "wizard"))'
+	  </PYTHON_OUTPUT>
+	  </SNIPPET>
+	  Однак без цієї клаузи він дав би
+	  <SNIPPET EVAL="no">
+	  <PYTHON_OUTPUT>
+'job(pair("Bitdiddle", pair("Ben", null)), list("computer", "wizard"))'
+	  </PYTHON_OUTPUT>
+	  </SNIPPET>
+	  що явно будує дві пари, з яких складається перший список.
+          Щоб досягти лаконічнішого форматування, ужитого в усьому 
+	  підрозділі<SPACE/><REF NAME="sec:deductive-info-retrieval"/>,
+	  ми вставили клаузу, яка перевіряє,
+	  чи вираз будує список, і якщо так,
+	  форматує його як одне застосування
+	  <PYTHONINLINE>list</PYTHONINLINE> до списку виразів-елементів,
+	  які ми видобуваємо з виразу.
+	  Побудова списку — це літерал
+	  <PYTHONINLINE>null</PYTHONINLINE> або
+	  застосування
+	  <PYTHONINLINE>pair</PYTHONINLINE>,
+	  чий другий аргумент сам є побудовою списку.
+	  <SNIPPET EVAL="no">
+	    <INDEX><DECLARATION>is_list_construction</DECLARATION></INDEX>
+	    <NAME>is_list_construction</NAME>
+	    <PYTHON>
+def is_list_construction(exp):
+    return (is_literal(exp) and is_none(literal_value(exp))) or (is_application(exp) and is_name(function_expression(exp)) and symbol_of_name(function_expression(exp)) == "pair" and is_list_construction(head(tail(arg_expressions(exp)))))
+</PYTHON>
+	  </SNIPPET>
+	  Видобування виразів-елементів із заданої побудови списку
+	  зводиться до збирання перших аргументів застосувань
+	  <PYTHONINLINE>pair</PYTHONINLINE>, доки не дійдемо до літерала
+	  <PYTHONINLINE>null</PYTHONINLINE>.
+	  <SNIPPET EVAL="no" POSTPADDING="no" LATEX="yes">
+	    <INDEX><DECLARATION>element_expressions</DECLARATION></INDEX>
+	    <NAME>element_expressions</NAME>
+	    <PYTHON>
+def element_expressions(list_constr):
+    return None if is_literal(list_constr) else pair(head(arg_expressions(list_constr)), element_expressions(head(tail(arg_expressions(list_constr)))))
+</PYTHON>
+	    <PYTHON_RUN>
+def element_expressions(list_constr):
+    return None if is_literal(list_constr) else pair(head(arg_expressions(list_constr)), element_expressions(head(tail(arg_expressions(list_constr)))))
+</PYTHON_RUN>
+	  </SNIPPET>
+      </TEXT>
+
+      <SUBHEADING>
+	<NAME>Предикати й селектори для подання, специфічного для мови запитів</NAME>
+      </SUBHEADING>
+
+    <TEXT>
+      Функції <PYTHONINLINE>type</PYTHONINLINE>
+      і <SCHEMEINLINE>contents</SCHEMEINLINE>, використовувані
+      <PYTHONINLINE>evaluate_query</PYTHONINLINE>
+      (підрозділ<SPACE/><REF NAME="sec:query-eval"/>), визначають, що
+      синтаксичну форму подання, специфічного для мови запитів,
+      розпізнають за
+      рядком у її першому елементі.
+      Вони такі самі, як функції
+      <PYTHONINLINE>type_tag</PYTHONINLINE>
+      і <SCHEMEINLINE>contents</SCHEMEINLINE>
+      functions
+      з підрозділу<SPACE/><REF NAME="sec:manifest-types"/>, хіба що інакше
+      повідомлення про помилку.
+      <SNIPPET>
+	<INDEX><DECLARATION>type</DECLARATION> in query system</INDEX>
+	<INDEX><DECLARATION>contents</DECLARATION></INDEX>
+	<NAME>type</NAME>
+	<EXAMPLE>append_to_form_example_5</EXAMPLE>
+	<REQUIRES>functions_4_1_2</REQUIRES>
+	<PYTHON>
+def type(exp):
+    return head(exp) if is_pair(exp) else error("unknown expression type", exp)
+def contents(exp):
+    return tail(exp) if is_pair(exp) else error("unknown expression contents", exp)
+</PYTHON>
+      </SNIPPET>
+    </TEXT>
+    <TEXT>
+      Наступні функції, використовувані
+      <PYTHONINLINE>query_driver_loop</PYTHONINLINE>      
+      (у підрозділі<SPACE/><REF NAME="sec:query-driver"/>),
+      визначають, що правила й твердження додають до бази даних командою
+      <PYTHONINLINE>assert</PYTHONINLINE>, яку функція
+      <PYTHONINLINE>convert_to_query_syntax</PYTHONINLINE> перетворює
+      на пару вигляду
+      <PYTHONINLINE>["assert", </PYTHONINLINE><META>правило-або-твердження</META><PYTHONINLINE>]</PYTHONINLINE>:
+      <SNIPPET>
+	<INDEX><DECLARATION>is_assertion</DECLARATION></INDEX>
+	<INDEX><DECLARATION>assertion_body</DECLARATION></INDEX>
+	<NAME>is_assertion</NAME>
+	<REQUIRES>type</REQUIRES>
+	<EXAMPLE>append_to_form_example_5</EXAMPLE>
+	<PYTHON>
+def is_assertion(exp):
+    return type(exp) == "assert"
+def assertion_body(exp):
+    return head(contents(exp))
+</PYTHON>
+      </SNIPPET>
+    </TEXT>
+    <TEXT>
+      Ось оголошення предикатів і селекторів
+      для синтаксичних форм <SCHEMEINLINE>and</SCHEMEINLINE>,
+      <SCHEMEINLINE>or</SCHEMEINLINE>, <SCHEMEINLINE>not</SCHEMEINLINE> і
+      <PYTHONINLINE>javascript_predicate</PYTHONINLINE>
+      syntactic forms
+      (section<SPACE/><REF NAME="sec:query-eval"/>):
+      <SNIPPET>
+	<INDEX><DECLARATION>is_empty_conjunction</DECLARATION></INDEX>
+	<INDEX><DECLARATION>first_conjunct</DECLARATION></INDEX>
+	<INDEX><DECLARATION>rest_conjuncts</DECLARATION></INDEX>
+	<INDEX><DECLARATION>is_empty_disjunction</DECLARATION></INDEX>
+	<INDEX><DECLARATION>first_disjunct</DECLARATION></INDEX>
+	<INDEX><DECLARATION>rest_disjuncts</DECLARATION></INDEX>
+	<INDEX><DECLARATION>negated_query</DECLARATION></INDEX>
+	<INDEX><DECLARATION>javascript_predicate_expression</DECLARATION></INDEX>
+	<NAME>is_empty_conjunction</NAME>
+	<EXAMPLE>append_to_form_example_5</EXAMPLE>
+	<PYTHON>
+def is_empty_conjunction(exps):
+    return is_none(exps)
+<SHORT_SPACE/>
+def first_conjunct(exps):
+    return head(exps)
+<SHORT_SPACE/>
+def rest_conjuncts(exps):
+    return tail(exps)
+def is_empty_disjunction(exps):
+    return is_none(exps)
+<SHORT_SPACE/>
+def first_disjunct(exps):
+    return head(exps)
+<SHORT_SPACE/>
+def rest_disjuncts(exps):
+    return tail(exps)
+def negated_query(exps):
+    return head(exps)
+def javascript_predicate_expression(exps):
+    return head(exps)
+</PYTHON>
+      </SNIPPET>
+    </TEXT>
+    <TEXT>
+      Наступні три
+      функції
+      визначають подання правил, специфічне для мови запитів:
+      <SNIPPET POSTPADDING="no">
+	<INDEX><DECLARATION>is_rule</DECLARATION></INDEX>
+	<INDEX><DECLARATION>conclusion</DECLARATION></INDEX>
+	<INDEX><DECLARATION>rule_body</DECLARATION></INDEX>
+	<NAME>is_rule</NAME>
+	<REQUIRES>functions_4_1_2</REQUIRES>
+	<EXAMPLE>append_to_form_example_5</EXAMPLE>
+	<PYTHON>
+def is_rule(assertion):
+    return is_tagged_list(assertion, "rule")
+def conclusion(rule):
+    return head(tail(rule))
+<SHORT_SPACE/>
+def rule_body(rule):
+    return llist("always_true") if is_none(tail(tail(rule))) else head(tail(tail(rule)))
+</PYTHON>
+      </SNIPPET>
+    </TEXT>
+      </PYTHON>
+    </SPLIT>
+
+    <INDEX>інтерпретатор запитів<SUBINDEX>синтаксис мови запитів<CLOSE/></SUBINDEX></INDEX>
+    <INDEX>подання, специфічне для мови запитів<CLOSE/></INDEX>
+
+    <SPLIT>
+      <SCHEME>
+    <TEXT>
+      <SCHEMEINLINE>Type</SCHEMEINLINE>
+      і <SCHEMEINLINE>contents</SCHEMEINLINE>, використовувані
+      <SCHEMEINLINE>qeval</SCHEMEINLINE>
+      (підрозділ<SPACE/><REF NAME="sec:query-eval"/>), визначають, що
+      спеціальну форму
+      розпізнають за
+      символом у її <SCHEMEINLINE>car</SCHEMEINLINE>.
+      Вони такі самі, як процедури
+      <SCHEMEINLINE>type-tag</SCHEMEINLINE>
+      і <SCHEMEINLINE>contents</SCHEMEINLINE>
+      procedures
+      з підрозділу<SPACE/><REF NAME="sec:manifest-types"/>, хіба що інакше
+      повідомлення про помилку.
+      <SNIPPET>
+	<NAME>type_scheme</NAME>
+	<EXAMPLE>append_to_form_example_5</EXAMPLE>
+	<REQUIRES>functions_4_1_2</REQUIRES>
+	<SCHEME>
+(define (type exp)
+  (if (pair? exp)
+      (car exp)
+      (error "Unknown expression TYPE" exp)))
+
+(define (contents exp)
+  (if (pair? exp)
+      (cdr exp)
+      (error "Unknown expression CONTENTS" exp)))
+	</SCHEME>
+      </SNIPPET>
+    </TEXT>
+    <TEXT>
+      Наступні
+      процедури,
+      використовувані
+      <SCHEMEINLINE>query-driver-loop</SCHEMEINLINE>
+      (у підрозділі<SPACE/><REF NAME="sec:query-driver"/>), визначають,
+      що правила й твердження додають до бази даних виразами
+      вигляду
+      <SCHEMEINLINE>(assert! rule-or-assertion)</SCHEMEINLINE>:
+      <SNIPPET>
+	<NAME>is_assertion_scheme</NAME>
+	<REQUIRES>type</REQUIRES>
+	<EXAMPLE>append_to_form_example_5</EXAMPLE>
+	<SCHEME>
+(define (assertion-to-be-added? exp)
+  (eq? (type exp) 'assert!))
+
+(define (add-assertion-body exp)
+  (car (contents exp)))
+	</SCHEME>
+      </SNIPPET>
+    </TEXT>
+    <TEXT>
+      Ось синтаксичні означення для спеціальних форм <SCHEMEINLINE>and</SCHEMEINLINE>,
+      <SCHEMEINLINE>or</SCHEMEINLINE>, <SCHEMEINLINE>not</SCHEMEINLINE> і
+      <SCHEMEINLINE>lisp-value</SCHEMEINLINE>
+      (підрозділ<SPACE/><REF NAME="sec:query-eval"/>):
+      <SNIPPET>
+	<NAME>is_empty_conjunction_scheme</NAME>
+	<EXAMPLE>append_to_form_example_5</EXAMPLE>
+	<SCHEME>
+(define (empty-conjunction? exps) (null? exps))
+(define (first-conjunct exps) (car exps))
+(define (rest-conjuncts exps) (cdr exps))
+
+(define (empty-disjunction? exps) (null? exps))
+(define (first-disjunct exps) (car exps))
+(define (rest-disjuncts exps) (cdr exps))
+
+(define (negated-query exps) (car exps))
+
+(define (predicate exps) (car exps))
+(define (args exps) (cdr exps))
+	</SCHEME>
+      </SNIPPET>
+    </TEXT>
+    <TEXT>
+      Наступні три
+      процедури
+      визначають синтаксис правил:
+      <SNIPPET>
+	<NAME>is_rule_scheme</NAME>
+	<REQUIRES>functions_4_1_2</REQUIRES>
+	<EXAMPLE>append_to_form_example_5</EXAMPLE>
+	<SCHEME>
+(define (rule? statement)
+  (tagged-list? statement 'rule))
+
+(define (conclusion rule) (cadr rule))
+
+(define (rule-body rule)
+  (if (null? (cddr rule))
+      '(always-true)
+      (caddr rule)))
+	</SCHEME>
+      </SNIPPET>
+    </TEXT>
+
+    <TEXT>
+	  <SCHEMEINLINE>Query-driver-loop</SCHEMEINLINE>
+	  (підрозділ<SPACE/><REF NAME="sec:query-driver"/>) викликає
+	  <SCHEMEINLINE>query-syntax-process</SCHEMEINLINE>,
+	  щоб перетворити змінні зразка у виразі, які
+	  мають форму <SCHEMEINLINE>?symbol</SCHEMEINLINE>,
+	  на внутрішній формат <SCHEMEINLINE>(? symbol)</SCHEMEINLINE>.
+	  Тобто зразок, як-от
+	  <SCHEMEINLINE>(job ?x ?y)</SCHEMEINLINE>, система насправді подає
+	  внутрішньо як
+	  <SCHEMEINLINE>(job (? x) (? y))</SCHEMEINLINE>. Це підвищує
+	  ефективність обробки запитів, бо означає, що система може
+	  перевірити, чи вираз є змінною зразка, перевіривши,
+	  чи <SCHEMEINLINE>car</SCHEMEINLINE> виразу — це
+	  символ <SCHEMEINLINE>?</SCHEMEINLINE>, а не видобуваючи
+	  символи з імені. Синтаксичне перетворення виконує
+	  наступна процедура:<FOOTNOTE>Більшість систем Lisp дають користувачеві
+	  змогу змінити звичайну процедуру <SCHEMEINLINE>read</SCHEMEINLINE>,
+	  щоб виконувати такі перетворення, означивши 
+	  <INDEX>макросимвол читача</INDEX>
+	  <INDEX><DECLARATION>read</DECLARATION><SUBINDEX>макросимволи</SUBINDEX></INDEX>
+	  <INDEX><USE>'</USE> (одинарна лапка)<SUBINDEX><ORDER>read</ORDER><SCHEMEINLINE>read</SCHEMEINLINE> і</SUBINDEX></INDEX>
+	  <INDEX><DECLARATION>quote</DECLARATION><SUBINDEX><ORDER>read</ORDER><SCHEMEINLINE>read</SCHEMEINLINE> і</SUBINDEX></INDEX>
+	  <EM>макросимволи читача</EM>.  Взяті в лапки
+	  вирази вже обробляють саме так: читач автоматично
+	  перекладає <SCHEMEINLINE>'expression</SCHEMEINLINE> на
+	  <SCHEMEINLINE>(quote expression)</SCHEMEINLINE>, перш ніж його
+	  побачить обчислювач.  Ми могли б зробити так, щоб
+	  <SCHEMEINLINE>?expression</SCHEMEINLINE> перетворювався на
+	  <SCHEMEINLINE>(? expression)</SCHEMEINLINE> так само; однак
+	  задля ясності ми включили процедуру
+	  перетворення сюди явно.
+	  <P/>
+	  <INDEX>символьні рядки<SUBINDEX>примітивні процедури для</SUBINDEX></INDEX>
+	  <SCHEMEINLINE>Expand-question-mark</SCHEMEINLINE> і
+	  <SCHEMEINLINE>contract-question-mark</SCHEMEINLINE> використовують кілька
+	  процедур зі <SCHEMEINLINE>string</SCHEMEINLINE> у назвах.
+	  Це примітиви Scheme.</FOOTNOTE>
+	  <SNIPPET>
+            <INDEX><DECLARATION>map-over-symbols</DECLARATION></INDEX> 
+	    <NAME>query_process_scheme</NAME>
+	    <SCHEME>
+(define (query-syntax-process exp)
+  (map-over-symbols expand-question-mark exp))
+
+(define (map-over-symbols proc exp)
+  (cond ((pair? exp)
+         (cons (map-over-symbols proc (car exp))
+               (map-over-symbols proc (cdr exp))))
+        ((symbol? exp) (proc exp))
+        (else exp)))
+
+(define (expand-question-mark symbol)
+  (let ((chars (symbol-&gt;string symbol)))
+    (if (string=? (substring chars 0 1) "?")
+        (list '?
+              (string-&gt;symbol
+               (substring chars 1 (string-length chars))))
+        symbol)))
+	    </SCHEME>
+	  </SNIPPET>
+	</TEXT>
+	<TEXT>
+	  Щойно змінні перетворено в такий спосіб, змінні у
+	  зразку — це списки, що починаються з
+	  <SCHEMEINLINE>?</SCHEMEINLINE>,
+	  а сталі символи
+	  (які треба розпізнавати для
+	  індексування бази даних, підрозділ<SPACE/><REF NAME="sec:query-db"/>) —
+	  це просто символи.
+	  <SNIPPET>
+	    <NAME>is_var_scheme</NAME>
+	    <REQUIRES>functions_4_1_2</REQUIRES>
+	    <EXAMPLE>append_to_form_example_5</EXAMPLE>
+	    <SCHEME>
+	      (define (var? exp)
+	      (tagged-list? exp '?))
+
+	      (define (constant-symbol? exp) (symbol? exp))
+	    </SCHEME>
+	  </SNIPPET>
+	</TEXT>
+	<TEXT>
+	  Унікальні змінні будують під час застосування правила
+	  (у підрозділі<SPACE/><REF NAME="sec:query-unify"/>) за допомогою
+	  наступних процедур.
+	  Унікальний ідентифікатор застосування правила — це число, яке
+	  збільшують щоразу, коли застосовують правило.
+	  <SNIPPET>
+	    <NAME>new_rule_application_id</NAME>
+	    <EXAMPLE>append_to_form_example_5</EXAMPLE>
+	    <SCHEME>
+	      (define rule-counter 0)
+
+	      (define (new-rule-application-id)
+	      (set! rule-counter (+ 1 rule-counter))
+	      rule-counter)
+
+	      (define (make-new-variable var rule-application-id)
+	      (cons '? (cons rule-application-id (cdr var))))
+	    </SCHEME>
+	  </SNIPPET>
+	</TEXT>
+	<TEXT>
+	  Коли <SCHEMEINLINE>query-driver-loop</SCHEMEINLINE> конкретизує
+	  запит, щоб надрукувати відповідь, він перетворює будь-які незв’язані змінні зразка
+	  назад на потрібну форму для друку за допомогою
+	  <SNIPPET>
+	    <NAME>contract_question_mark_scheme</NAME>
+	    <SCHEME>
+(define (contract-question-mark variable)
+  (string-&gt;symbol
+   (string-append "?" 
+     (if (number? (cadr variable))
+         (string-append (symbol-&gt;string (caddr variable))
+                                     "-"
+                                     (number-&gt;string (cadr variable)))
+         (symbol-&gt;string (cadr variable))))))
+	    </SCHEME>
+	  </SNIPPET>
+	</TEXT>
+      </SCHEME>
+    </SPLIT>
+  </SUBSUBSECTION>
+
+  <SUBSUBSECTION>
+    <NAME>Фрейми та прив’язки</NAME>
+    <LABEL NAME="sec:query-bindings"/>
+
+    <INDEX>інтерпретатор запитів<SUBINDEX>фрейм<OPEN/></SUBINDEX></INDEX>
+    <INDEX>фрейм (інтерпретатор запитів)<SUBINDEX>подання</SUBINDEX></INDEX>
+    
+    <TEXT>
+      Фрейми подають як списки прив’язок, які є
+      парами «змінна-значення»:
+      <SNIPPET POSTPADDING="no">
+	<INDEX><DECLARATION>make_binding</DECLARATION></INDEX>
+	<INDEX><DECLARATION>binding_variable</DECLARATION></INDEX>
+	<INDEX><DECLARATION>binding_value</DECLARATION></INDEX>
+	<INDEX><DECLARATION>binding_in_frame</DECLARATION></INDEX>
+	<INDEX><DECLARATION>extend</DECLARATION></INDEX>
+	<NAME>make_binding</NAME>
+	<REQUIRES>assoc</REQUIRES>
+	<REQUIRES>operation_table_from_chapter_3</REQUIRES>
+	<REQUIRES>operation_table</REQUIRES>
+	<EXAMPLE>append_to_form_example_5</EXAMPLE>
+	<SCHEME>
+(define (make-binding variable value)
+  (cons variable value))
+
+(define (binding-variable binding)
+  (car binding))
+
+(define (binding-value binding)
+  (cdr binding))
+
+(define (binding-in-frame variable frame)
+  (assoc variable frame))
+
+(define (extend variable value frame)
+  (cons (make-binding variable value) frame))
+	</SCHEME>
+	<PYTHON>
+def make_binding(variable, value):
+    return pair(variable, value)
+def binding_variable(binding):
+    return head(binding)
+def binding_value(binding):
+    return tail(binding)
+def binding_in_frame(variable, frame):
+    return assoc(variable, frame)
+def extend(variable, value, frame):
+    return pair(make_binding(variable, value), frame)
+</PYTHON>
+      </SNIPPET>
+    </TEXT>
+
+    <INDEX>інтерпретатор запитів<SUBINDEX>фрейм<CLOSE/></SUBINDEX></INDEX>
+    
+    <EXERCISE>
+      Луї Різонер дивується, чому
+      <SPLITINLINE>
+	<SCHEME><SCHEMEINLINE>simple-query</SCHEMEINLINE></SCHEME>
+	<PYTHON><PYTHONINLINE>simple_query</PYTHONINLINE>
+	</PYTHON>
+      </SPLITINLINE>
+      and <SCHEMEINLINE>disjoin</SCHEMEINLINE>
+      <SPLITINLINE>
+	<SCHEME>procedures</SCHEME>
+	<PYTHON>functions</PYTHON>
+      </SPLITINLINE>
+      (підрозділ<SPACE/><REF NAME="sec:query-eval"/>) реалізовано з
+      <SPLITINLINE>
+	<SCHEME>
+	  explicit <SCHEMEINLINE>delay</SCHEMEINLINE>
+	  operations, 
+	</SCHEME>
+	<PYTHON>delayed expressions</PYTHON>
+      </SPLITINLINE>
+      , а не означено так:
+      <!-- mutual recursion -->
+      <SNIPPET EVAL="no">
+	<INDEX><DECLARATION>simple_query</DECLARATION><SUBINDEX>without delayed expression</SUBINDEX></INDEX>
+	<INDEX><DECLARATION>disjoin</DECLARATION><SUBINDEX>without delayed expression</SUBINDEX></INDEX>
+	<NAME>simple_query_pattern</NAME>
+	<REQUIRES>stream_flatmap</REQUIRES>
+	<REQUIRES>find_assertions</REQUIRES>
+	<REQUIRES>apply_rules</REQUIRES>
+	<REQUIRES>is_empty_conjunction</REQUIRES>
+	<SCHEME>
+(define (simple-query query-pattern frame-stream)
+  (stream-flatmap
+   (lambda (frame)
+     (stream-append (find-assertions query-pattern frame)
+                    (apply-rules query-pattern frame)))
+   frame-stream))
+
+(define (disjoin disjuncts frame-stream)
+  (if (empty-disjunction? disjuncts)
+      the-empty-stream
+      (interleave
+       (qeval (first-disjunct disjuncts) frame-stream)
+       (disjoin (rest-disjuncts disjuncts) frame-stream))))
+	</SCHEME>
+	<PYTHON>
+def simple_query(query_pattern, frame_stream):
+    return stream_flatmap(lambda frame: (stream_append(find_assertions(query_pattern, frame), apply_rules(query_pattern, frame))), frame_stream)
+def disjoin(disjuncts, frame_stream):
+    return None if is_empty_disjunction(disjuncts) else interleave(evaluate_query(first_disjunct(disjuncts), frame_stream), disjoin(rest_disjuncts(disjuncts), frame_stream))
+</PYTHON>
+      </SNIPPET>
+      Чи можете ви навести приклади запитів, де ці простіші означення
+      привели б до небажаної поведінки?
+      <LABEL NAME="ex:q-why-not-append"/>
+    </EXERCISE>
+
+    <EXERCISE>
+      Чому <SCHEMEINLINE>disjoin</SCHEMEINLINE> і
+      <SPLITINLINE>
+	<SCHEME><SCHEMEINLINE>stream-flatmap</SCHEMEINLINE></SCHEME>
+	<PYTHON><PYTHONINLINE>stream_flatmap</PYTHONINLINE>
+	</PYTHON>
+      </SPLITINLINE>
+      переплітають потоки, а не просто дописують їх?  Наведіть приклади, які
+      показують, чому переплетення працює краще.  (Підказка: чому ми використали
+      <SCHEMEINLINE>interleave</SCHEMEINLINE> у
+      підрозділі<SPACE/><REF NAME="sec:exploiting-streams"/>?)
+      <LABEL NAME="ex:q-why-interleave"/>
+    </EXERCISE>
+
+    <EXERCISE>
+      <LABEL NAME="ex:q-why-delay"/>
+    Чому
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>flatten-stream</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>flatten_stream</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    використовує
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>delay</SCHEMEINLINE> explicitly?</SCHEME>
+      <PYTHON>відкладений вираз у своєму тілі?</PYTHON>
+    </SPLITINLINE>
+    Що було б не так із означенням його так:
+    <SNIPPET EVAL="no" POSTPADDING="no">
+      <NAME>flatten_stream</NAME>
+      <SCHEME>
+(define (flatten-stream stream)
+  (if (stream-null? stream)
+      the-empty-stream
+      (interleave
+       (stream-car stream)
+       (flatten-stream (stream-cdr stream)))))
+      </SCHEME>
+      <PYTHON>
+def flatten_stream(stream):
+    return None if is_none(stream) else interleave(head(stream), flatten_stream(stream_tail(stream)))
+</PYTHON>
+    </SNIPPET>
+    </EXERCISE>
+
+    <EXERCISE>
+      Алісса П. Гакер пропонує використати простішу версію
+      <INDEX><USE>stream_flatmap</USE></INDEX>
+      <SPLITINLINE>
+	<SCHEME><SCHEMEINLINE>stream-flatmap</SCHEMEINLINE></SCHEME>
+	<PYTHON><PYTHONINLINE>stream_flatmap</PYTHONINLINE>
+	</PYTHON>
+      </SPLITINLINE>
+      у <SCHEMEINLINE>negate</SCHEMEINLINE>,
+      <SPLITINLINE>
+	<SCHEME><SCHEMEINLINE>lisp-value</SCHEMEINLINE>,</SCHEME>
+	<PYTHON><PYTHONINLINE>javascript_predicate</PYTHONINLINE>,
+	</PYTHON>
+      </SPLITINLINE>
+      and
+      <SPLITINLINE>
+	<SCHEME><SCHEMEINLINE>find-assertions</SCHEMEINLINE>.</SCHEME>
+	<PYTHON><PYTHONINLINE>find_assertions</PYTHONINLINE>.
+	</PYTHON>
+      </SPLITINLINE>
+      Вона зауважує, що
+      <SPLITINLINE>
+	<SCHEME>procedure</SCHEME>
+	<PYTHON>function</PYTHON>
+      </SPLITINLINE>
+      у цих випадках завжди породжує або порожній потік, або одноелементний потік,
+      тож жодного переплетення при об’єднанні цих потоків не потрібно.
+      combining these streams.
+      <OL>
+	<LI>
+          Заповніть пропущені вирази в програмі Алісси.
+          <SNIPPET EVAL="no" LATEX="yes">
+	    <NAME>simple_stream_flatmap</NAME>
+	    <SCHEME>
+(define (simple-stream-flatmap proc s)
+  (simple-flatten (stream-map proc s)))
+
+(define (simple-flatten stream)
+  (stream-map ??
+              (stream-filter ?? stream)))
+	    </SCHEME>
+	    <PYTHON>
+function simple_stream_flatmap(fun, s) {
+    return simple_flatten(stream_map(fun, s))
+}
+function simple_flatten(stream) {
+    return stream_map(<METAPHRASE>??</METAPHRASE>,
+                      stream_filter(<METAPHRASE>??</METAPHRASE>, stream))
+}
+	    </PYTHON>
+          </SNIPPET>
+	</LI>
+	<LI>
+          Чи зміниться поведінка системи запитів, якщо ми змінимо її в такий
+	  спосіб?
+	</LI>
+      </OL>
+      <LABEL NAME="ex:4_71"/>
+    </EXERCISE>
+
+    <EXERCISE>
+      Реалізуйте в мові запитів
+      <INDEX>мова запитів<SUBINDEX>розширення</SUBINDEX></INDEX>
+      <INDEX>складений запит<SUBINDEX>опрацювання</SUBINDEX></INDEX>
+      <INDEX><USE>unique</USE> (мова запитів)</INDEX>
+      <SPLITINLINE>
+	<SCHEME>нову спеціальну форму під назвою
+	<SCHEMEINLINE>unique</SCHEMEINLINE>.</SCHEME>
+	<PYTHON>нову синтаксичну форму під назвою
+	<PYTHONINLINE>unique</PYTHONINLINE>.</PYTHON>
+      </SPLITINLINE>
+      <SPLITINLINE>
+	<SCHEME>
+	  <SCHEMEINLINE>Unique</SCHEMEINLINE>
+	</SCHEME>
+	<PYTHON>
+	  Застосування <PYTHONINLINE>unique</PYTHONINLINE>
+	</PYTHON>
+      </SPLITINLINE>
+      мають бути вдалими, якщо в базі даних є рівно один елемент, що задовольняє
+      заданий запит.  Наприклад,
+      <SNIPPET EVAL="no">
+	<NAME>unique_example_1</NAME>
+	<SCHEME>
+(unique (job ?x (computer wizard)))
+	</SCHEME>
+	<PYTHON>
+unique(job($x, llist("computer", "wizard")))
+	</PYTHON>
+      </SNIPPET>
+      має надрукувати одноелементний потік
+      <SNIPPET EVAL="no">
+	<NAME>unique_example_2</NAME>
+	<SCHEME>
+(unique (job (Bitdiddle Ben) (computer wizard)))
+	</SCHEME>
+	<PYTHON>
+unique(job(llist("Bitdiddle", "Ben"), llist("computer", "wizard")))
+	</PYTHON>
+      </SNIPPET>
+      бо Бен — єдиний комп’ютерний чарівник, а
+      <SNIPPET EVAL="no">
+	<NAME>unique_example_3</NAME>
+	<SCHEME>
+(unique (job ?x (computer programmer)))
+	</SCHEME>
+	<PYTHON>
+unique(job($x, llist("computer", "programmer")))
+	</PYTHON>
+      </SNIPPET>
+      має надрукувати порожній потік, бо комп’ютерних
+      програмістів більше ніж один.  Понад те,
+      <SNIPPET EVAL="no">
+	<NAME>unique_example_4</NAME>
+	<SCHEME>
+(and (job ?x ?j) (unique (job ?anyone ?j)))
+	</SCHEME>
+	<PYTHON>
+and(job($x, $j), unique(job($anyone, $j)))
+	</PYTHON>
+      </SNIPPET>
+      має перелічити всі посади, які обіймає лише одна людина, і
+      людей, які їх обіймають.
+      <P/>
+      Реалізація <SCHEMEINLINE>unique</SCHEMEINLINE> має дві частини.
+      Перша — написати
+      <SPLITINLINE>
+	<SCHEME>процедуру</SCHEME>
+	<PYTHON>функцію</PYTHON>
+      </SPLITINLINE>
+      , яка опрацьовує цю
+      <SPLITINLINE>
+	<SCHEME>спеціальну</SCHEME>
+	<PYTHON>синтаксичну</PYTHON>
+      </SPLITINLINE>
+      форму, а друга — змусити
+      <SPLITINLINE>
+	<SCHEME><SCHEMEINLINE>qeval</SCHEMEINLINE></SCHEME>
+	<PYTHON><PYTHONINLINE>evaluate_query</PYTHONINLINE>
+	</PYTHON>
+      </SPLITINLINE>
+      скеровувати до цієї
+      <SPLITINLINE>
+	<SCHEME>процедури.</SCHEME>
+	<PYTHON>функції.</PYTHON>
+      </SPLITINLINE>
+      Друга частина тривіальна, бо
+      <SPLITINLINE>
+	<SCHEME><SCHEMEINLINE>qeval</SCHEMEINLINE></SCHEME>
+	<PYTHON><PYTHONINLINE>evaluate_query</PYTHONINLINE>
+	</PYTHON>
+      </SPLITINLINE>
+      виконує диспетчеризацію керовано даними.  Якщо вашу
+      <SPLITINLINE>
+	<SCHEME>процедуру</SCHEME>
+	<PYTHON>функцію</PYTHON>
+      </SPLITINLINE>
+      названо
+      <SPLITINLINE>
+	<SCHEME><SCHEMEINLINE>uniquely-asserted</SCHEMEINLINE>,</SCHEME>
+	<PYTHON><PYTHONINLINE>uniquely_asserted</PYTHONINLINE>,
+	</PYTHON>
+      </SPLITINLINE>
+      усе, що потрібно зробити, — це
+      <SNIPPET EVAL="no">
+	<NAME>put_unique</NAME>
+	<REQUIRES>operation_table_from_chapter_3</REQUIRES>
+	<REQUIRES>operation_table</REQUIRES>
+	<SCHEME>
+(put 'unique 'qeval uniquely-asserted)
+	</SCHEME>
+	<PYTHON>
+put("unique", "evaluate_query", uniquely_asserted)
+	</PYTHON>
+      </SNIPPET>
+      and
+      <SPLITINLINE>
+	<SCHEME><SCHEMEINLINE>qeval</SCHEMEINLINE></SCHEME>
+	<PYTHON><PYTHONINLINE>evaluate_query</PYTHONINLINE>
+	</PYTHON>
+      </SPLITINLINE>
+      скеровуватиме до цієї
+      <SPLITINLINE>
+	<SCHEME>процедури</SCHEME>
+	<PYTHON>функції</PYTHON>
+      </SPLITINLINE>
+      для кожного запиту, чий
+      <SCHEMEINLINE>type</SCHEMEINLINE>
+      <SPLITINLINE>
+	<SCHEME>(<SCHEMEINLINE>car</SCHEMEINLINE>)</SCHEME>
+	<PYTHON>(head)</PYTHON>
+      </SPLITINLINE>
+      is the
+      <SPLITINLINE>
+	<SCHEME>symbol</SCHEME>
+	<PYTHON>string</PYTHON>
+      </SPLITINLINE>
+      <SPLITINLINE>
+	<SCHEME><SCHEMEINLINE>unique</SCHEMEINLINE>.</SCHEME>
+	<PYTHON><PYTHONINLINE>"unique"</PYTHONINLINE>.</PYTHON>
+      </SPLITINLINE>
+      <P/>
+      Справжня проблема — написати
+      <SPLITINLINE>
+	<SCHEME>процедуру</SCHEME>
+	<PYTHON>функцію</PYTHON>
+      </SPLITINLINE>
+      <SPLITINLINE>
+	<SCHEME><SCHEMEINLINE>uniquely-asserted</SCHEMEINLINE>.</SCHEME>
+	<PYTHON><PYTHONINLINE>uniquely_asserted</PYTHONINLINE>.
+	</PYTHON>
+      </SPLITINLINE>
+      Вона має брати як вхідні дані <SCHEMEINLINE>contents</SCHEMEINLINE>
+      <SPLITINLINE>
+	<SCHEME>(<SCHEMEINLINE>cdr</SCHEMEINLINE>)</SCHEME>
+	<PYTHON>(tail)</PYTHON>
+      </SPLITINLINE>
+      запиту <SCHEMEINLINE>unique</SCHEMEINLINE> разом із потоком
+      фреймів.  Для кожного фрейму в потоці вона має використати
+      <SPLITINLINE>
+	<SCHEME><SCHEMEINLINE>qeval</SCHEMEINLINE></SCHEME>
+	<PYTHON><PYTHONINLINE>evaluate_query</PYTHONINLINE>
+	</PYTHON>
+      </SPLITINLINE>
+      , щоб знайти потік усіх розширень фрейму, які задовольняють заданий
+      запит.  Будь-який потік, у якому немає рівно одного елемента, слід
+      вилучити.  Решту потоків слід повернути, щоб накопичити
+      в один великий потік, який і є результатом запиту
+      <SCHEMEINLINE>unique</SCHEMEINLINE>.  Це подібно до
+      implementation of the <SCHEMEINLINE>not</SCHEMEINLINE>
+      <SPLITINLINE>
+	<SCHEME>спеціальної</SCHEME>
+	<PYTHON>синтаксичної</PYTHON>
+      </SPLITINLINE>
+      form.
+      <P/>
+      Перевірте свою реалізацію, склавши запит, який перелічує всіх людей, які
+      керують рівно однією людиною.
+      <LABEL NAME="ex:unique"/>
+    </EXERCISE>
+
+    <EXERCISE>
+      Наша реалізація <SCHEMEINLINE>and</SCHEMEINLINE> як послідовного
+      поєднання запитів
+      <INDEX>інтерпретатор запитів<SUBINDEX>поліпшення</SUBINDEX></INDEX>
+      <INDEX><USE>and</USE> (мова запитів)<SUBINDEX>обчислення</SUBINDEX></INDEX>
+      <INDEX>складений запит<SUBINDEX>опрацювання</SUBINDEX></INDEX>
+      <SPLITINLINE>
+	<SCHEME>
+	  (рисунок<SPACE/><REF NAME="fig:query-and_scheme"/>)
+	</SCHEME>
+	<PYTHON>
+	  (рисунок<SPACE/><REF NAME="fig:query-and"/>)
+	</PYTHON>
+      </SPLITINLINE>
+      елегантна, але вона неефективна: опрацьовуючи другий запит
+      <SCHEMEINLINE>and</SCHEMEINLINE>, ми мусимо сканувати базу даних для кожного
+      фрейму, породженого першим запитом.  Якщо база даних має
+      <LATEXINLINE>$N$</LATEXINLINE> елементів, а типовий запит породжує
+      кількість вихідних фреймів, пропорційну до <LATEXINLINE>$N$</LATEXINLINE>
+      (скажімо, <LATEXINLINE>$N/k$</LATEXINLINE>), то сканування бази даних для
+      кожного фрейму, породженого першим запитом, вимагатиме
+      <LATEXINLINE>$N^{2}/k$</LATEXINLINE> викликів зіставляча зі зразком.
+      Інший підхід — опрацювати дві клаузи
+      <SCHEMEINLINE>and</SCHEMEINLINE> окремо, а потім шукати всі пари вихідних
+      фреймів, які сумісні.  Якщо кожен запит породжує
+      <LATEXINLINE>$N/k$</LATEXINLINE> вихідних фреймів, то це означає, що ми
+      мусимо виконати <LATEXINLINE>$N^{2}/k^{2}$</LATEXINLINE> перевірок
+      сумісності<EMDASH/>у <LATEXINLINE>$k$</LATEXINLINE> разів менше, ніж
+      кількість зіставлень, потрібних у нашому поточному методі.
+      <P/>
+      Придумайте реалізацію <SCHEMEINLINE>and</SCHEMEINLINE>, яка використовує
+      цю стратегію.  Ви мусите реалізувати
+      <SPLITINLINE>
+	<SCHEME>процедуру</SCHEME>
+	<PYTHON>функцію</PYTHON>
+      </SPLITINLINE>
+      , яка бере два фрейми як вхідні дані, перевіряє, чи прив’язки в
+      фреймах сумісні, і, якщо так, породжує фрейм, що зливає два
+      набори прив’язок.  Ця операція подібна до уніфікації.
+      <LABEL NAME="ex:q-exponential-and"/>
+    </EXERCISE>
+
+    <EXERCISE>
+      У підрозділі<SPACE/><REF NAME="sec:math-logic"/> ми бачили, що
+      <INDEX>інтерпретатор запитів<SUBINDEX>поліпшення</SUBINDEX></INDEX>
+      <INDEX>інтерпретатор запитів<SUBINDEX>проблеми з <SCHEMEINLINE>not</SCHEMEINLINE> і <SCHEMEINLINE>javascript_predicate</SCHEMEINLINE></SUBINDEX></INDEX>
+      <INDEX>складений запит<SUBINDEX>опрацювання</SUBINDEX></INDEX>
+      <INDEX><USE>not</USE> (мова запитів)<SUBINDEX>обчислення</SUBINDEX></INDEX>
+      <SCHEMEINLINE>not</SCHEMEINLINE> і
+      <INDEX><USE>javascript_predicate</USE> (мова запитів)<SUBINDEX>обчислення</SUBINDEX></INDEX>
+      <SPLITINLINE>
+	<SCHEME><SCHEMEINLINE>lisp-value</SCHEMEINLINE></SCHEME>
+	<PYTHON><PYTHONINLINE>javascript_predicate</PYTHONINLINE>
+	</PYTHON>
+      </SPLITINLINE>
+      можуть спричинити <QUOTE>неправильні</QUOTE> відповіді мови запитів, якщо
+      ці операції фільтрування застосовують до фреймів, у яких змінні
+      незв’язані.  Придумайте спосіб виправити цю ваду.  Одна ідея —
+      виконувати фільтрування <QUOTE>відкладено</QUOTE>, дописавши до
+      фрейму <QUOTE>обіцянку</QUOTE> відфільтрувати, яку виконують лише тоді, коли
+      зв’язано досить змінних, щоб зробити операцію можливою.  Ми могли б
+      зачекати з фільтруванням, доки не буде виконано всі інші операції.
+      Однак задля ефективності ми хотіли б виконувати фільтрування
+      якнайшвидше, щоб зменшити кількість проміжних фреймів,
+      які породжуються.
+      <LABEL NAME="ex:not-query-filter"/>
+    </EXERCISE>
+
+    <EXERCISE>
+      Перепроєктуйте мову запитів як
+      <INDEX>інтерпретатор запитів<SUBINDEX><ORDER>nondeterministic</ORDER>як недетермінована програма</SUBINDEX></INDEX>
+      недетерміновану програму, яку треба
+      реалізувати за допомогою обчислювача з
+      підрозділу<SPACE/><REF NAME="sec:nondeterministic-evaluation"/>, а не як потокову
+      програму.  За такого підходу кожен запит даватиме одну відповідь
+      (а не потік усіх відповідей), і користувач може ввести
+      <SPLITINLINE>
+	<SCHEME><SCHEMEINLINE>try-again</SCHEMEINLINE></SCHEME>
+	<PYTHON><PYTHONINLINE>retry</PYTHONINLINE>
+	</PYTHON>
+      </SPLITINLINE>
+      , щоб побачити більше відповідей.  Ви повинні виявити, що більшу частину механізму, який ми побудували
+      у цьому підрозділі, поглинають недетермінований пошук і повернення назад.
+      Ви, ймовірно, також виявите, однак, що ваша нова мова запитів має
+      тонкі відмінності в поведінці від реалізованої тут.  Чи можете ви
+      знайти приклади, які ілюструють цю відмінність?
+      <LABEL NAME="ex:query-lang-amb"/>
+    </EXERCISE>
+
+
+    <EXERCISE>
+      Коли ми реалізовували обчислювач
+      <SPLITINLINE>
+	<SCHEME>Lisp</SCHEME>
+	<PYTHON>Python</PYTHON>
+      </SPLITINLINE>
+      у підрозділі<SPACE/><REF NAME="sec:mc-eval"/>, ми бачили, як використовувати
+      локальні середовища, щоб уникати
+      <INDEX>середовище<SUBINDEX>порівняно з перейменуванням</SUBINDEX></INDEX>
+      <INDEX>інтерпретатор запитів<SUBINDEX>порівняно з інтерпретатором <SPLITINLINE><SCHEME>Lisp</SCHEME><PYTHON>Python</PYTHON></SPLITINLINE></SUBINDEX></INDEX>
+      конфліктів імен між параметрами
+      <SPLITINLINE>
+	<SCHEME>процедур.</SCHEME>
+	<PYTHON>функцій.</PYTHON>
+      </SPLITINLINE>
+      Наприклад, обчислюючи
+      <SNIPPET>
+	<NAME>sum_of_squares_in_lp</NAME>
+	<SCHEME>
+(define (square x)
+  (* x x))
+
+(define (sum-of-squares x y)
+  (+ (square x) (square y)))
+
+(sum-of-squares 3 4)
+	</SCHEME>
+	<PYTHON>
+def square(x):
+    return x * x
+def sum_of_squares(x, y):
+    return square(x) + square(y)
+sum_of_squares(3, 4)
+</PYTHON>
+      </SNIPPET>
+      немає плутанини між <SCHEMEINLINE>x</SCHEMEINLINE> у
+      <SCHEMEINLINE>square</SCHEMEINLINE> і <SCHEMEINLINE>x</SCHEMEINLINE>
+      у
+      <SPLITINLINE>
+	<SCHEME><SCHEMEINLINE>sum-of-squares</SCHEMEINLINE>,</SCHEME>
+	<PYTHON><PYTHONINLINE>sum_of_squares</PYTHONINLINE>,
+	</PYTHON>
+      </SPLITINLINE>
+      бо ми обчислюємо тіло кожної
+      <SPLITINLINE>
+	<SCHEME>процедури</SCHEME>
+	<PYTHON>функції</PYTHON>
+      </SPLITINLINE>
+      в середовищі, спеціально побудованому так, щоб містити
+      прив’язки для локальних
+      <SPLITINLINE>
+	<SCHEME>змінних.</SCHEME>
+	<PYTHON>імен.</PYTHON>
+      </SPLITINLINE>
+      У системі запитів ми використали
+      іншу стратегію, щоб уникати конфліктів імен під час застосування правил.  Щоразу,
+      застосовуючи правило, ми перейменовуємо змінні на нові імена,
+      гарантовано унікальні.  Аналогічна стратегія для обчислювача
+      <SPLITINLINE>
+	<SCHEME>Lisp</SCHEME>
+	<PYTHON>Python</PYTHON>
+      </SPLITINLINE>
+      полягала б у тому, щоб позбутися локальних середовищ і просто
+      перейменовувати змінні в тілі
+      <SPLITINLINE>
+	<SCHEME>процедури</SCHEME>
+	<PYTHON>функції</PYTHON>
+      </SPLITINLINE>
+      щоразу, коли ми застосовуємо
+      <SPLITINLINE>
+	<SCHEME>процедуру.</SCHEME>
+	<PYTHON>функцію.</PYTHON>
+      </SPLITINLINE>
+      <P/>
+      Реалізуйте в мові запитів метод застосування правил, який використовує
+      середовища, а не перейменування.  Подивіться, чи можете ви розбудувати свою
+      структуру середовища, щоб створити в мові запитів конструкції
+      для роботи з великими системами, як-от аналог правил для
+      <INDEX>блочна структура<SUBINDEX><ORDER>query</ORDER>у мові запитів</SUBINDEX></INDEX>
+      <INDEX>середовище<SUBINDEX><ORDER>query</ORDER>в інтерпретаторі запитів</SUBINDEX></INDEX>
+      <INDEX>інтерпретатор запитів<SUBINDEX>структура середовища в</SUBINDEX></INDEX>
+      <INDEX>правило (мова запитів)<SUBINDEX>застосування</SUBINDEX></INDEX>
+      блоково структурованих
+      <SPLITINLINE>
+	<SCHEME>процедур.</SCHEME>
+	<PYTHON>функцій.</PYTHON>
+      </SPLITINLINE>
+      Чи можете ви пов’язати будь-що з цим із задачею робити виведення в
+      контексті (наприклад, <QUOTE>Якби я припустив, що <LATEXINLINE>$P$</LATEXINLINE>
+      істинне, то зміг би вивести <LATEXINLINE>$A$</LATEXINLINE>
+      і <LATEXINLINE>$B$</LATEXINLINE>.</QUOTE>) як метод розв’язування
+      задач?  (Ця задача відкрита.)
+      <LABEL NAME="ex:query-local-names"/>
+    </EXERCISE>
+  </SUBSUBSECTION>
+</SUBSECTION>

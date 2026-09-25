@@ -100,10 +100,13 @@ export const schemeLanguage: LanguageDescriptor = {
 // tree an edition draws from is decided once, when the edition itself is
 // declared — e.g. the Scheme edition reuses xml/ (the JS tree) rather than
 // having its own, so its companion is JavaScript, not itself.
-// Output dirs are named `<base>_<language.key>` (e.g. json_js / json_py),
-// so the key carries the edition marker for every dir.
+// Output dirs are named `<base>_<dirKey>` (e.g. json_js / json_py /
+// json_py_uk), so the key carries the edition marker for every dir.
+// dirKey is the language key, plus "_<locale>" for a translated edition.
 export type Edition = {
   readonly language: LanguageDescriptor;
+  readonly locale: string | undefined; // translation, e.g. "uk"; undefined = English original
+  readonly dirKey: string;
   readonly companionLanguage: LanguageDescriptor;
   readonly inputDirName: string; // source tree relative to repo root, e.g. "xml"
   readonly outputBaseName: string; // base name of the PDF/deploy artifacts, e.g. "sicpjs" (Python: "sicpy")
@@ -111,6 +114,8 @@ export type Edition = {
 
 export const javascriptEdition: Edition = {
   language: javascriptLanguage,
+  locale: undefined,
+  dirKey: "js",
   companionLanguage: schemeLanguage,
   inputDirName: "xml",
   outputBaseName: "sicpjs"
@@ -118,6 +123,8 @@ export const javascriptEdition: Edition = {
 
 export const pythonEdition: Edition = {
   language: pythonLanguage,
+  locale: undefined,
+  dirKey: "py",
   companionLanguage: schemeLanguage,
   inputDirName: "xml_py",
   outputBaseName: "sicpy"
@@ -127,6 +134,8 @@ export const pythonEdition: Edition = {
 // Scheme side of every split instead of the JavaScript side.
 export const schemeEdition: Edition = {
   language: schemeLanguage,
+  locale: undefined,
+  dirKey: "scm",
   companionLanguage: javascriptLanguage,
   inputDirName: "xml",
   outputBaseName: "sicp" // the original SICP
@@ -163,11 +172,45 @@ export function getCompanionLanguage(
   return edition.companionLanguage;
 }
 
-// Selects the edition to build, via the SICP_EDITION environment variable.
+// A translated edition reads from <inputDirName>_<locale>, the merge of the
+// English tree and i18n/<locale>/ (`yarn i18n merge <locale>`), and writes to
+// dirs / artifacts with the locale appended (json_py_uk, sicpy_uk.pdf, ...).
+// Only the Python edition has translations so far.
+const supportedLocales = new Set(["uk"]);
+
+function localize(base: Edition, locale: string): Edition {
+  if (base !== pythonEdition) {
+    throw new Error(
+      `SICP_LOCALE "${locale}" is only supported with SICP_EDITION=py`
+    );
+  }
+  return {
+    ...base,
+    locale,
+    dirKey: `${base.dirKey}_${locale}`,
+    inputDirName: `${base.inputDirName}_${locale}`,
+    outputBaseName: `${base.outputBaseName}_${locale}`
+  };
+}
+
+// Selects the edition to build, via the SICP_EDITION environment variable
+// (and, optionally, SICP_LOCALE for a translation of it).
 // Defaults to the JavaScript edition when unset, so existing builds are
 // byte-for-byte unchanged. An unrecognized value is rejected rather than
 // silently falling back, to catch typos (e.g. SICP_EDITION=pyton).
 export function getEdition(): Edition {
+  const base = getBaseEdition();
+  const locale = process.env.SICP_LOCALE?.trim().toLowerCase();
+  if (!locale) return base;
+  if (!supportedLocales.has(locale)) {
+    throw new Error(
+      `Unknown SICP_LOCALE "${process.env.SICP_LOCALE}" (expected ${[...supportedLocales].map(l => `"${l}"`).join(", ")})`
+    );
+  }
+  return localize(base, locale);
+}
+
+function getBaseEdition(): Edition {
   const requested = process.env.SICP_EDITION?.trim().toLowerCase();
   switch (requested) {
     case undefined:

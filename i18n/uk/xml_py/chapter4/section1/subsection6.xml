@@ -1,0 +1,848 @@
+<SUBSECTION>
+  <NAME>
+    Внутрішні
+    <SPLITINLINE>
+      <SCHEME>означення</SCHEME>
+      <PYTHON>оголошення</PYTHON>
+    </SPLITINLINE>
+  </NAME>
+
+  <LABEL NAME="sec:internal-definitions"/>
+
+  <INDEX>блочна структура<OPEN/></INDEX>
+
+  <SPLIT>
+    <SCHEME>
+      <INDEX>внутрішнє означення<SUBINDEX>область видимості імені<OPEN/></SUBINDEX></INDEX>
+      <INDEX>область видимості змінної<SUBINDEX>внутрішнє <SCHEMEINLINE>define</SCHEMEINLINE></SUBINDEX></INDEX>
+      
+      <TEXT>
+	Наша модель середовищ обчислення та наш метамовний обчислювач
+	виконують означення послідовно, розширюючи фрейм середовища по
+	одному означенню за раз. Це особливо зручно для інтерактивної
+	розробки програм, коли програміст має вільно перемішувати
+	застосування процедур та означення процедур. Однак якщо уважно
+	поміркувати про внутрішні означення, які вживають для реалізації блочної
+	структури (її запроваджено в підрозділі<SPACE/><REF NAME="sec:black-box"/>),
+	то ми виявимо, що розширення середовища по одному імені за раз може
+	бути не найкращим способом означувати локальні змінні.
+      </TEXT>
+
+      <TEXT>
+	Розгляньмо процедуру з внутрішніми означеннями,	таку як
+	<SNIPPET EVAL="no">
+	  <SCHEME>
+(define (f x)
+   (define (even? n)
+      (if (= n 0)
+          true
+          (odd? (- n 1))))
+   (define (odd? n)
+      (if (= n 0)
+          false
+          (even? (- n 1))))
+   $\langle$ rest of body of$\rangle$ f)
+	  </SCHEME>
+	</SNIPPET>
+      </TEXT>
+
+      <TEXT>
+	Наш намір тут такий: ім’я <SCHEMEINLINE>odd?</SCHEMEINLINE>
+	в тілі процедури <SCHEMEINLINE>even?</SCHEMEINLINE>	має
+	вказувати на процедуру <SCHEMEINLINE>odd?</SCHEMEINLINE>, яку 
+	означено після <SCHEMEINLINE>even?</SCHEMEINLINE>.
+	Область видимості імені <SCHEMEINLINE>odd?</SCHEMEINLINE> — це все
+	тіло <SCHEMEINLINE>f</SCHEMEINLINE>, а не лише та частина тіла
+	<SCHEMEINLINE>f</SCHEMEINLINE>, яка починається з того місця, де
+	трапляється <SCHEMEINLINE>define</SCHEMEINLINE> для <SCHEMEINLINE>odd?</SCHEMEINLINE>.
+	Справді, якщо взяти до уваги, що <SCHEMEINLINE>odd?</SCHEMEINLINE>
+	сам означено в термінах
+	<SCHEMEINLINE>even?</SCHEMEINLINE><EMDASH/>так що
+	<SCHEMEINLINE>even?</SCHEMEINLINE> і <SCHEMEINLINE>odd?</SCHEMEINLINE>
+	— це взаємно рекурсивні процедури<EMDASH/>то ми бачимо, що єдине
+	задовільне тлумачення двох
+	<SCHEMEINLINE>define</SCHEMEINLINE>-ів — це розглядати їх так, ніби імена
+	<SCHEMEINLINE>even?</SCHEMEINLINE> і <SCHEMEINLINE>odd?</SCHEMEINLINE>
+	додаються до середовища одночасно. Загальніше, у
+	блочній структурі область видимості локального імені — це все
+	тіло процедури, у якому обчислюють <SCHEMEINLINE>define</SCHEMEINLINE>.
+      </TEXT>
+
+      <TEXT>
+	Так уже сталося, що наш інтерпретатор обчислюватиме виклики
+	<SCHEMEINLINE>f</SCHEMEINLINE> правильно, але з
+	<QUOTE>випадкової</QUOTE> причини: оскільки означення
+	внутрішніх процедур ідуть першими, жодного виклику цих процедур
+	не буде обчислено, поки їх усі не означено. Тож
+	<SCHEMEINLINE>odd?</SCHEMEINLINE> буде означено на той час, коли
+	виконується <SCHEMEINLINE>even?</SCHEMEINLINE>.  Насправді наш механізм
+	послідовного обчислення дасть той самий результат, що й механізм, який
+	безпосередньо реалізує одночасне означення, для будь-якої
+	процедури, у якій 
+	<INDEX>внутрішнє означення<SUBINDEX>обмеження на</SUBINDEX></INDEX>
+	внутрішні означення стоять першими в тілі, а обчислення
+	виразів значень для означених змінних насправді не використовує жодної
+	з означених змінних. (Приклад процедури, яка не
+	дотримується цих обмежень, тож послідовне означення не
+	еквівалентне одночасному означенню, див. у
+	вправі<SPACE/><REF NAME="ex:simultaneous-def_scheme"/>.)<FOOTNOTE>Бажання,
+	щоб програми не залежали від цього механізму обчислення, — причина
+	зауваження <QUOTE>адміністрація не несе відповідальності</QUOTE> у
+	виносці<SPACE/><REF NAME="foot:management"/> розділу<SPACE/><REF NAME="chap:fun"></REF>.
+	Наполягаючи, що внутрішні означення стоять першими і не використовують одне
+	одного, поки обчислюють ці означення, стандарт IEEE
+	для Scheme залишає розробникам певний вибір щодо механізму, який
+	обчислює ці означення.  Вибір одного правила обчислення, а
+	не іншого, тут може здатися дрібним питанням, яке впливає лише на
+	тлумачення <QUOTE>погано сформованих</QUOTE> програм. Однак ми
+	побачимо в підрозділі<SPACE/><REF NAME="sec:lexical-addressing"/>, що перехід
+	до моделі одночасної області видимості для внутрішніх означень дає змогу уникнути деяких
+	прикрих труднощів, які інакше виникли б під час реалізації компілятора.
+	</FOOTNOTE>
+      </TEXT>
+
+      <TEXT>
+	Проте є простий спосіб обробляти означення
+	так, щоб внутрішньо означені імена справді мали одночасну
+	область видимості<EMDASH/>треба лише створити всі локальні змінні, які будуть у
+	поточному середовищі, перш ніж обчислювати будь-які з виразів значень.
+	Один зі способів зробити це — синтаксичне перетворення
+	виразів <SCHEMEINLINE>lambda</SCHEMEINLINE>. Перш ніж обчислювати
+	тіло <SCHEMEINLINE>lambda</SCHEMEINLINE>-виразу, ми 
+	<INDEX>сканування назовні внутрішніх означень</INDEX>
+	<INDEX>внутрішнє означення<SUBINDEX>сканування назовні</SUBINDEX></INDEX>
+	<QUOTE>скануємо назовні</QUOTE> й усуваємо всі внутрішні означення в
+	тілі.  Внутрішньо означені змінні буде створено за допомогою
+	<SCHEMEINLINE>let</SCHEMEINLINE>, а потім їм присвоєно їхні значення
+	через присвоєння. Наприклад, процедура
+	<SNIPPET EVAL="no" LATEX="yes">
+	  <SCHEME>
+(lambda vars
+   (define u e1)
+   (define v e2)
+   e3)
+	  </SCHEME>
+	</SNIPPET>
+	перетворилася б на
+	<SNIPPET EVAL="no" LATEX="yes">
+	  <SCHEME>
+(lambda vars
+   (let ((u '*unassigned*)
+         (v '*unassigned*))
+      (set! u e1)
+      (set! v e2)
+      e3))
+	  </SCHEME>
+	</SNIPPET>
+	де <SCHEMEINLINE>*unassigned*</SCHEMEINLINE> — спеціальний символ, який
+	змушує пошук значення змінної повідомляти про помилку, якщо зроблено спробу
+	скористатися	значенням ще не присвоєної змінної.
+      </TEXT>
+
+      <TEXT>
+	Альтернативну стратегію сканування назовні внутрішніх означень показано
+	у вправі<SPACE/><REF NAME="ex:alternative-scanout_scheme"/>. На відміну від
+	перетворення, показаного вище, вона нав’язує обмеження, що
+	значення означених змінних можна обчислювати, не використовуючи жодного зі
+	значень цих змінних.<FOOTNOTE>Стандарт IEEE для Scheme дозволяє
+	різні стратегії реалізації, зазначаючи, що дотримуватися цього обмеження
+	має програміст, а не реалізація, яка мала б його
+	нав’язувати.  Деякі реалізації Scheme, зокрема
+	<INDEX>MIT Scheme<SUBINDEX>внутрішні означення</SUBINDEX></INDEX>
+	MIT Scheme, вживають перетворення, показане вище.  Отже, деякі програми, які
+	не дотримуються цього обмеження, насправді працюватимуть у таких
+	реалізаціях.</FOOTNOTE>
+	<INDEX>внутрішнє означення<SUBINDEX>область видимості імені<CLOSE/></SUBINDEX></INDEX>
+      </TEXT>
+    </SCHEME>
+
+    <PYTHON>
+      <INDEX>внутрішнє оголошення<SUBINDEX>область видимості імені<OPEN/></SUBINDEX></INDEX>
+      <INDEX>область видимості імені<SUBINDEX>внутрішнє оголошення<OPEN/></SUBINDEX></INDEX>
+
+      <TEXT>
+	У Python область видимості оголошення
+	— це весь блок, який безпосередньо оточує оголошення,
+	а не лише та частина блоку, що починається з того місця, де
+	трапляється оголошення.
+	Цей підрозділ ближче розглядає такий вибір проєкту.
+      </TEXT>
+      <TEXT>
+	Повернімося до пари взаємно рекурсивних функцій
+	<PYTHONINLINE>is_even</PYTHONINLINE> та
+	<PYTHONINLINE>is_odd</PYTHONINLINE> з
+	підрозділу<SPACE/><REF NAME="sec:env-internal-def"/>,
+	оголошених локально
+	в тілі функції<SPACE/><PYTHONINLINE>f</PYTHONINLINE>.
+	<SNIPPET LATEX="yes">
+	  <NAME>f_is_even_is_odd_2</NAME>
+	  <PYTHON>
+def f(x):
+    def is_even(n):
+        return True if n == 0 else is_odd(n - 1)
+    def is_odd(n):
+        return False if n == 0 else is_even(n - 1)
+    return is_even(x)
+</PYTHON>
+	</SNIPPET>
+	Наш намір тут такий: ім’я
+	 <PYTHONINLINE>is_odd</PYTHONINLINE>
+	в тілі функції <PYTHONINLINE>is_even</PYTHONINLINE>
+	має вказувати на функцію <PYTHONINLINE>is_odd</PYTHONINLINE>,
+	яку оголошено після <PYTHONINLINE>is_even</PYTHONINLINE>.
+	Область видимості імені <PYTHONINLINE>is_odd</PYTHONINLINE> — це весь
+	блок тіла <SCHEMEINLINE>f</SCHEMEINLINE>, а не лише та частина
+	тіла<SPACE/><SCHEMEINLINE>f</SCHEMEINLINE>, що починається з того місця, де
+	трапляється оголошення <PYTHONINLINE>is_odd</PYTHONINLINE>.
+	Справді, якщо взяти до уваги, що
+	<PYTHONINLINE>is_odd</PYTHONINLINE> сам означено в термінах
+	<PYTHONINLINE>is_even</PYTHONINLINE><EMDASH/>так що
+	<PYTHONINLINE>is_even</PYTHONINLINE> та
+	<PYTHONINLINE>is_odd</PYTHONINLINE> — це взаємно рекурсивні
+	функції<EMDASH/>то ми бачимо, що єдине	задовільне тлумачення
+	двох оголошень — це розглядати їх так, ніби імена
+	<PYTHONINLINE>is_even</PYTHONINLINE> та
+	<PYTHONINLINE>is_odd</PYTHONINLINE>
+	додаються до середовища одночасно. Загальніше, у
+	блочній структурі область видимості локального імені — це весь блок,
+	у якому обчислюють оголошення.
+      </TEXT>
+      <TEXT>
+	Обчислення блоків у метамовному обчислювачі з
+	підрозділу<SPACE/><REF NAME="sec:core-of-evaluator"/> досягає такої
+	одночасної області видимості для локальних імен тим, що
+        <INDEX>сканування оголошень назовні<SUBINDEX>у метамовному обчислювачі</SUBINDEX></INDEX>
+	<INDEX>внутрішнє оголошення<SUBINDEX>сканування назовні</SUBINDEX></INDEX>
+	сканує назовні оголошення в блоці та розширює поточне
+	середовище фреймом, який містить прив’язки для всіх оголошених
+	імен, перш ніж обчислювати оголошення. Отже, нове середовище,
+	у якому обчислюють тіло блоку, вже містить
+	прив’язки для 
+	<PYTHONINLINE>is_even</PYTHONINLINE> та
+	<PYTHONINLINE>is_odd</PYTHONINLINE>, і кожне входження
+	одного з цих імен указує на правильну прив’язку. Щойно їхні
+	оголошення обчислено,
+	ці імена зв’язано з їхніми оголошеними значеннями, а саме з функціональними
+	об’єктами, які мають розширене середовище як свою середовищну
+	частину. Тож, наприклад,
+	на той час, коли
+	<PYTHONINLINE>is_even</PYTHONINLINE> 	
+	застосовують у тілі
+	<PYTHONINLINE>f</PYTHONINLINE>, його середовище
+	вже містить правильну прив’язку для символу
+	<PYTHONINLINE>is_odd</PYTHONINLINE>, і
+	обчислення імені 
+	<PYTHONINLINE>is_odd</PYTHONINLINE> в тілі
+	<PYTHONINLINE>is_even</PYTHONINLINE> дістає правильне
+	значення.
+      </TEXT>
+      <EXERCISE>
+	Розгляньмо функцію <PYTHONINLINE>f_3</PYTHONINLINE>
+	з підрозділу<SPACE/><REF NAME="sec:lambda"/>:
+        <SNIPPET PAGE="64" EVAL="no">
+          <NAME>f_helper_definition3_repeated</NAME>
+          <PYTHON>
+def f_3(x, y):
+    a = 1 + x * y
+    b = 1 - y
+    return x * square(a) + y * b + a * b
+</PYTHON>
+        </SNIPPET>
+	<OL>
+	  <LI>
+	    Намалюйте діаграму середовища, яке діє під час обчислення
+	    виразу повернення
+	    <PYTHONINLINE>f_3</PYTHONINLINE>.
+	  </LI>
+	  <LI>
+	    Обчислюючи застосування функції, обчислювач створює два
+	    фрейми: один для параметрів і один для імен, оголошених 
+	    <EM>безпосередньо</EM> в блоці тіла функції,
+	    а не у внутрішньому блоці.
+	    Оскільки всі ці імена мають
+	    ту саму область видимості, реалізація могла б об’єднати ці два фрейми.
+	    Змініть обчислювач
+	    так, щоб обчислення блоку тіла не створювало
+	    нового фрейму.
+	    Можете припустити, що це не призведе до дублювання імен
+	    у фреймі (вправа<SPACE/><REF NAME="ex:directly"/> це обґрунтовує).
+	  </LI>
+	</OL>
+	<LABEL NAME="ex:4_16"/>
+      </EXERCISE>
+      <EXERCISE>
+	<LABEL NAME="ex:hoisting"/>    
+	Єва Лу Атор пише програми, у яких
+	означення функцій та інші інструкції перемішано.
+	Їй треба подбати, щоб оголошення обчислювалися раніше,
+	ніж застосовують функції. Вона нарікає: <QUOTE>Чому б
+	обчислювачу не подбати про цю роботу і не
+	<INDEX>підіймання означень функцій</INDEX>
+	<INDEX>означення функції<SUBINDEX>підіймання</SUBINDEX></INDEX>
+	підняти всі оголошення
+	функцій на початок блоку, у якому вони з’являються? Означення функцій поза блоками слід підняти на початок програми.</QUOTE>
+	<OL>
+	  <LI>
+	    Змініть обчислювач за пропозицією Єви.
+	  </LI>
+	  <LI>
+	    Проєктувальники Python вирішили піти Євиним шляхом.
+	    Обговоріть це рішення.
+	  </LI>
+	  <LI>
+	    Крім того, проєктувальники Python вирішили дозволити переприсвоєння
+	    імені, оголошеного означенням функції.
+	    Відповідно змініть свій розв’язок
+	    і обговоріть це рішення.
+	  </LI>
+	</OL>
+      </EXERCISE>
+      <EXERCISE>
+	<LABEL NAME="ex:lambda_calculus"/>
+	Рекурсивні функції в нашому
+	<INDEX>рекурсивна функція<SUBINDEX>задання без оголошення</SUBINDEX></INDEX>
+	інтерпретаторі отримують у
+	обхідний спосіб: спершу оголошують ім’я, яке вказуватиме на рекурсивну
+	функцію, і присвоюють йому спеціальне значення
+	<PYTHONINLINE>"*unassigned*"</PYTHONINLINE>; потім означують
+	рекурсивну функцію в області видимості цього імені; і нарешті присвоюють
+	означену функцію цьому імені. На той час, коли рекурсивну функцію
+	застосовують, кожне входження цього імені в тілі правильно вказує на
+	рекурсивну функцію. Дивовижно, але рекурсивні
+	функції можна задати без оголошень і без переприсвоєння. Наступна програма обчислює
+	10! за допомогою рекурсивної
+	<INDEX>факторіал<SUBINDEX><ORDER>declaration</ORDER>без оголошення чи переприсвоєння</SUBINDEX></INDEX>
+	факторіальної функції:<FOOTNOTE>Цей приклад ілюструє програмний
+	прийом формулювання рекурсивних функцій без переприсвоєння. Найзагальніший
+	прийом такого роду — це
+	<INDEX><ORDER>Y</ORDER><LATEXINLINE>$Y$</LATEXINLINE> operator</INDEX>
+	<INDEX>Scheme<SUBINDEX><ORDER>Y</ORDER><LATEXINLINE>$Y$</LATEXINLINE> оператор, записаний на</SUBINDEX></INDEX>
+	<LATEXINLINE>$Y$</LATEXINLINE>
+	<EM>оператор</EM>, яким можна дати <QUOTE>чисту
+	<LATEXINLINE>$\lambda$</LATEXINLINE>-численню</QUOTE> реалізацію
+	рекурсії.  (Деталі про лямбда-числення див. у
+	<INDEX>Stoy, Joseph E.</INDEX><INDEX>Gabriel, Richard P.</INDEX>
+	<CITATION NAME="STO77">Stoy 1977</CITATION>, а виклад
+	<LATEXINLINE>$Y$</LATEXINLINE>-оператора мовою
+	Scheme — у <CITATION NAME="GAB88">Gabriel 1988</CITATION>.)</FOOTNOTE>
+	<SNIPPET>
+	  <NAME>lambda_calculus_factorial</NAME>
+	  <EXPECTED>3628800</EXPECTED>
+	  <PYTHON>
+(lambda n: ((lambda fact: (fact(fact, n))) (lambda ft, k: (1 if k == 1 else k * ft(ft, k - 1)))))(10)
+</PYTHON>
+	</SNIPPET>
+	<OL>
+	  <LI>
+	    Перевірте (обчисливши вираз), що це справді обчислює
+	    факторіали.  Придумайте аналогічний вираз для обчислення чисел Фібоначчі.
+	  </LI>
+	  <LI>
+	    Розгляньмо функцію <PYTHONINLINE>f</PYTHONINLINE>, наведену
+	    вище:
+	    <SNIPPET LATEX="yes">
+	      <NAME>f_is_even_is_odd_3</NAME>
+	      <PYTHON>
+def f(x):
+    def is_even(n):
+        return True if n == 0 else is_odd(n - 1)
+    def is_odd(n):
+        return False if n == 0 else is_even(n - 1)
+    return is_even(x)
+</PYTHON>
+	    </SNIPPET>
+	    Заповніть пропущені вирази, щоб завершити альтернативне
+	    оголошення <SCHEMEINLINE>f</SCHEMEINLINE>, у якому
+	    немає внутрішніх означень функцій:
+	    <SNIPPET EVAL="no" LATEX="yes" POSTPADDING="no">
+	      <PYTHON>
+def f(x):
+    return (lambda is_even, is_odd: is_even(is_even, is_odd, x))(
+            lambda is_ev, is_od, n: True if n == 0 else is_od(<METAPHRASE>??</METAPHRASE>, <METAPHRASE>??</METAPHRASE>, <METAPHRASE>??</METAPHRASE>),
+            lambda is_ev, is_od, n: False if n == 0 else is_ev(<METAPHRASE>??</METAPHRASE>, <METAPHRASE>??</METAPHRASE>, <METAPHRASE>??</METAPHRASE>))
+	      </PYTHON>
+	    </SNIPPET>
+	  </LI>
+	</OL>
+	<SOLUTION>
+	  Частина (a)
+	  <SNIPPET>
+	    <REQUIRES>accumulate</REQUIRES>
+	    <PYTHON>
+# solution provided by GitHub user LucasGdosR
+
+# The Fibonacci function receives n as an argument
+# It applies the fib function recursively, passing n as an argument,
+# as well as the initial arguments (k = 1, fib1 = 1, fib2 = 1)
+(lambda n: (lambda fib: fib(fib, n, 2, 1, 1))
+      # The fib function is then defined as ft,
+      # with parameters n, k, fib1, and fib2
+      # Establish the base cases: n == 1 or n == 2
+      (lambda ft, n, k, fib1, fib2:
+                  1 if n == 1 else
+                  1 if n == 2 else
+                  # Iterate until k equals n. Notice k starts at 2, and gets incremented every iteration
+                  # When k reaches n, return the accumulated fib2
+                  fib2 if k == n else
+                  # Otherwise, accumulate the sum as the new fib2
+                  ft(ft, n, k + 1, fib2, fib1 + fib2)))
+	    </PYTHON>
+	  </SNIPPET>
+	  Частина (b)
+	  <SNIPPET>
+	    <PYTHON>
+# solution provided by GitHub user LucasGdosR
+def f(x):
+    return (lambda is_even, is_odd: (is_even(is_even, is_odd, x))) (lambda is_ev, is_od, n: (True if n == 0 else is_od(is_ev, is_od, n - 1)), lambda is_ev, is_od, n: (False if n == 0 else is_ev(is_ev, is_od, n - 1)))
+</PYTHON>
+	  </SNIPPET>
+	</SOLUTION>
+      </EXERCISE>
+    </PYTHON>
+  </SPLIT>
+
+    <SPLIT>
+      <SCHEME>
+  <EXERCISE>
+    <LABEL NAME="ex:internal-defs"/>
+	У цій вправі ми реалізуємо щойно описаний метод інтерпретації
+	внутрішніх означень.
+	Ми припускаємо, що обчислювач підтримує <SCHEMEINLINE>let</SCHEMEINLINE>
+	(див. вправу<SPACE/><REF NAME="ex:implement-let"/>).
+	<OL>
+	  <LI>
+	    Змініть
+	    <INDEX><USE>lookup-variable-value</USE><SUBINDEX>для висканих означень</SUBINDEX></INDEX>
+	    <SCHEMEINLINE>lookup-variable-value</SCHEMEINLINE>
+	    (підрозділ<SPACE/><REF NAME="sec:operations-on-environments"/>)
+	    так, щоб воно повідомляло про помилку, якщо знайдене значення — це символ
+	    <SCHEMEINLINE>*unassigned*</SCHEMEINLINE>.
+	  </LI>
+	  <LI>
+	    Напишіть процедуру
+	    <INDEX><USE>scan-out-defines</USE></INDEX> 
+	    <SCHEMEINLINE>scan-out-defines</SCHEMEINLINE>,
+	    яка бере тіло процедури й повертає еквівалентне тіло без
+	    внутрішніх означень, виконуючи описане вище перетворення.
+	  </LI>
+	  <LI>
+	    Установіть <SCHEMEINLINE>scan-out-defines</SCHEMEINLINE> в
+	    інтерпретаторі — або в <SCHEMEINLINE>make-procedure</SCHEMEINLINE>,
+	    або в <SCHEMEINLINE>procedure-body</SCHEMEINLINE> (див.
+	    підрозділ<SPACE/><REF NAME="sec:eval-data-structures"/>).
+	    Яке місце краще? Чому?
+	  </LI>
+	</OL>
+  </EXERCISE>
+
+  <EXERCISE>
+	Намалюйте діаграми середовища, яке діє під час обчислення
+	виразу <LATEXINLINE>e3</LATEXINLINE> у процедурі з тексту,
+	порівнюючи, як його буде структуровано, коли означення інтерпретують
+	послідовно, з тим, як його буде структуровано, коли означення сканують
+	назовні, як описано. Чому в перетвореній програмі є зайвий фрейм?
+	Поясніть, чому ця різниця в структурі середовища ніколи не може
+	вплинути на поведінку правильної програми.  Придумайте спосіб, як
+	змусити інтерпретатор реалізувати правило <QUOTE>одночасної</QUOTE> області видимості
+	для внутрішніх означень, не будуючи зайвого фрейму.
+  </EXERCISE>
+      </SCHEME>
+    </SPLIT>
+  <SPLIT>
+    <SCHEME>
+      <EXERCISE>
+	<LABEL NAME="ex:alternative-scanout_scheme"/>
+	Розгляньмо альтернативну стратегію сканування назовні означень, яка
+	перетворює приклад з тексту на
+	<SNIPPET EVAL="no" LATEX="yes">
+	  <SCHEME>
+(lambda vars
+   (let ((u '*unassigned*)
+         (v '*unassigned*))
+      (let ((a e1)
+            (b e2))
+         (set! u a)
+   (set! v b))
+   e3))
+	  </SCHEME>
+	</SNIPPET>
+	Тут <SCHEMEINLINE>a</SCHEMEINLINE> та <SCHEMEINLINE>b</SCHEMEINLINE>
+	мають позначати нові імена змінних, створені інтерпретатором,
+	яких немає	в програмі користувача. Розгляньмо
+	<INDEX><DECLARATION>solve</DECLARATION> диференціальне рівняння<SUBINDEX><ORDER>scan</ORDER>з висканими означеннями</SUBINDEX></INDEX>
+	процедуру <SCHEMEINLINE>solve</SCHEMEINLINE> для
+	диференціальних рівнянь із
+	підрозділу<SPACE/><REF NAME="sec:streams-and-delayed-evaluation"/>:
+	<SNIPPET>
+	  <SCHEME>
+(define (solve f y0 dt)
+(define y (integral (delay dy) y0 dt))
+(define dy (stream-map f y))
+      y)
+	  </SCHEME>
+	</SNIPPET>
+	Чи працюватиме ця процедура, якщо внутрішні означення сканувати назовні так,
+	як показано в цій вправі? А якщо сканувати їх так, як показано в
+	тексті?  Поясніть.
+      </EXERCISE>
+    </SCHEME>
+    <PYTHON>
+      <SUBHEADING>
+      <NAME>Послідовне опрацювання оголошень</NAME>
+      </SUBHEADING>
+      <TEXT>
+	<INDEX>послідовне опрацювання оголошень проти<SPACE/>сканування назовні<OPEN/></INDEX>
+	<INDEX>сканування оголошень назовні<SUBINDEX>послідовне опрацювання оголошень проти<OPEN/></SUBINDEX></INDEX>
+	<LABEL NAME="add_binding_to_frame"/>	
+	Проєкт нашого обчислювача з
+	підрозділу<SPACE/><REF NAME="sec:core-of-evaluator"/> накладає
+	навантаження під час виконання на обчислення блоків: йому треба сканувати
+	тіло блоку на локально оголошені імена, розширювати
+	поточне середовище новим фреймом, який прив’язує ці імена, і обчислювати
+	тіло блоку в цьому розширеному середовищі. Інакше обчислення
+	блоку могло б розширити поточне середовище порожнім фреймом.
+	Обчислення кожного оголошення в тілі блоку тоді додавало б
+	нову прив’язку до цього фрейму.
+	Щоб реалізувати цей проєкт, спершу спростимо
+	<PYTHONINLINE>eval_block</PYTHONINLINE>:
+	<SNIPPET EVAL="no">
+          <NAME>eval_block_simplified</NAME>
+          <PYTHON>
+def eval_block(component, env):
+    body = block_body(component)
+    return evaluate(body, extend_environment(None, None, env))
+          </PYTHON>
+	</SNIPPET>
+	Функція 
+	<PYTHONINLINE>eval_declaration</PYTHONINLINE> уже не
+	може припускати, що середовище вже має прив’язку для
+	цього імені.
+	Замість того щоб користуватися
+	<PYTHONINLINE>assign_symbol_value</PYTHONINLINE>, щоб
+	змінити наявну прив’язку, вона викликає нову функцію,
+	<PYTHONINLINE>add_binding_to_frame</PYTHONINLINE>, щоб
+	додати до першого фрейму середовища прив’язку імені
+	до значення виразу значення.
+	<SNIPPET EVAL="no">
+          <NAME>eval_declaration_simplified</NAME>
+          <PYTHON>
+def eval_declaration(component, env):
+    add_binding_to_frame(declaration_symbol(component), evaluate(declaration_value_expression(component), env), first_frame(env))
+    return None
+def add_binding_to_frame(symbol, value, frame):
+    set_head(frame, pair(symbol, head(frame)))
+    set_tail(frame, pair(value, tail(frame)))
+</PYTHON>
+	</SNIPPET>
+      </TEXT>
+    </PYTHON>
+  </SPLIT>
+    <SPLIT>
+      <SCHEME>
+      <EXERCISE>
+	Бен Бітдідл, Алісса П. Гакер і Єва Лу Атор сперечаються про
+	бажаний результат обчислення виразу
+	<SNIPPET>
+	  <SCHEME>
+(let ((a 1))
+   (define (f x)
+      (define b (+ a x))
+      (define a 5)
+      (+ a b))
+   (f 10))
+	  </SCHEME>
+	</SNIPPET>
+	Бен твердить, що результат треба отримати за послідовним правилом
+	для <SCHEMEINLINE>define</SCHEMEINLINE>: <SCHEMEINLINE>b</SCHEMEINLINE>
+	означено як 11, потім <SCHEMEINLINE>a</SCHEMEINLINE> означено
+	як 5, тож результат — 16.  Алісса заперечує, що взаємна рекурсія вимагає
+	правила одночасної області видимості для внутрішніх означень процедур, і що
+	необґрунтовано обробляти імена процедур інакше, ніж інші імена.
+	Тож вона обстоює механізм, реалізований у
+	вправі<SPACE/><REF NAME="ex:internal-defs"/>. Це призвело б до того, що
+	<SCHEMEINLINE>a</SCHEMEINLINE> було б неприсвоєним на той час, коли
+	обчислюють значення для <SCHEMEINLINE>b</SCHEMEINLINE>.  Отже, на
+	Аліссину думку процедура мала б спричинити помилку.  У Єви
+	третя думка.  Вона каже, що якщо означення
+	<SCHEMEINLINE>a</SCHEMEINLINE> та <SCHEMEINLINE>b</SCHEMEINLINE>
+	справді мають бути одночасними, то при обчисленні
+	<SCHEMEINLINE>b</SCHEMEINLINE> слід використати значення 5 для
+	<SCHEMEINLINE>a</SCHEMEINLINE>.  Отже, на Євину думку
+	<SCHEMEINLINE>a</SCHEMEINLINE> має бути 5,
+	<SCHEMEINLINE>b</SCHEMEINLINE> має бути 15, а результат — 20.
+	Яку з цих	думок (якщо якусь) ви підтримуєте?  Чи можете ви придумати спосіб
+	реалізувати внутрішні означення так, щоб вони поводилися так, як воліє
+	Єва?<FOOTNOTE>Розробники Scheme у MIT підтримують Аліссу з
+	таких міркувань: Єва в принципі права<EMDASH/>ці означення
+	слід розглядати як одночасні.  Але, здається, важко реалізувати
+	загальний, ефективний механізм, який робить те, що вимагає Єва. За
+	відсутності такого механізму краще згенерувати помилку в
+	складних випадках одночасних означень (Аліссина думка), ніж
+	дістати неправильну відповідь (як хотів би Бен).</FOOTNOTE>
+	<LABEL NAME="ex:simultaneous-def_scheme"/>
+      </EXERCISE>
+      </SCHEME>
+    </SPLIT>
+  <SPLIT>
+    <SCHEME>
+      <EXERCISE>
+	<LABEL NAME="ex:letrec"/>  
+	Оскільки внутрішні означення виглядають послідовними, але насправді
+	одночасні, дехто воліє їх цілком уникати й натомість користуватися
+	спеціальною формою
+	<INDEX><DECLARATION>letrec</DECLARATION></INDEX>  
+	<INDEX><DECLARATION>special forms (those marked <EM>ns</EM> are not in the IEEE Scheme standard)</DECLARATION><SUBINDEX><ORDER>letrec</ORDER><SCHEMEINLINE>letrec</SCHEMEINLINE></SUBINDEX></INDEX>
+	<SCHEMEINLINE>letrec</SCHEMEINLINE>.  
+	<SCHEMEINLINE>Letrec</SCHEMEINLINE> схожа на
+	<SCHEMEINLINE>let</SCHEMEINLINE>, тож не дивно, що змінні, які вона зв’язує,
+	зв’язано одночасно і вони мають ту саму область видимості
+	одна щодо одної.  Зразкову	процедуру <SCHEMEINLINE>f</SCHEMEINLINE>, наведену вище,
+	можна записати без внутрішніх означень, але з точно таким самим
+	змістом, як
+	<SNIPPET EVAL="no">
+	  <SCHEME>
+(define (f x)
+   (letrec ((even?
+               (lambda (n)
+                  (if (= n 0)
+                      true
+                      (odd? (- n 1)))))
+            (odd?
+               (lambda (n)
+                  (if (= n 0)
+                      false
+                      (even? (- n 1))))))
+      $\langle$rest of body of$\rangle$ f))
+	  </SCHEME>
+	</SNIPPET>
+	Вирази <SCHEMEINLINE>Letrec</SCHEMEINLINE>, які мають вигляд
+	<SNIPPET EVAL="no">
+	  <SCHEME>
+(letrec ((var$_{1}$ exp$_{1}$) $\ldots$ (var$_{n}$ exp$_{n}$))
+    body)
+	  </SCHEME>
+	</SNIPPET>
+	— це варіант <SCHEMEINLINE>let</SCHEMEINLINE>, у якому
+	вирази <LATEXINLINE>exp$_{k}$</LATEXINLINE>, що дають
+	початкові значення для змінних <LATEXINLINE>var$_{k}$</LATEXINLINE>,
+	обчислюють у середовищі, яке містить усі
+	прив’язки <SCHEMEINLINE>letrec</SCHEMEINLINE>.  Це уможливлює рекурсію в
+	прив’язках, як-от взаємна рекурсія
+	<SCHEMEINLINE>even?</SCHEMEINLINE> та <SCHEMEINLINE>odd?</SCHEMEINLINE>
+	у наведеному вище прикладі, або обчислення 10
+	<INDEX>факторіал<SUBINDEX><ORDER>letrec</ORDER>з <SCHEMEINLINE>letrec</SCHEMEINLINE></SUBINDEX></INDEX>
+	факторіала за допомогою
+	<SNIPPET>
+	  <SCHEME>
+(letrec ((fact
+            (lambda (n)
+               (if (= n 1)
+                   1
+                   (* n (fact (- n 1)))))))
+        (fact 10))
+	  </SCHEME>
+	</SNIPPET>
+	<OL>
+	  <LI>
+	    Реалізуйте <SCHEMEINLINE>letrec</SCHEMEINLINE> як похідний
+	    вираз, перетворюючи вираз <SCHEMEINLINE>letrec</SCHEMEINLINE>
+	    на вираз <SCHEMEINLINE>let</SCHEMEINLINE>, як
+	    показано в тексті вище або у
+	    вправі<SPACE/><REF NAME="ex:alternative-scanout_scheme"/>. Тобто
+	    змінні <SCHEMEINLINE>letrec</SCHEMEINLINE> слід створити
+	    за допомогою <SCHEMEINLINE>let</SCHEMEINLINE>, а потім присвоїти їм
+	    значення через <SCHEMEINLINE>set!</SCHEMEINLINE>.
+	  </LI>
+	  <LI>
+	    Луїс Різонер спантеличений усією цією метушнею навколо внутрішніх
+	    означень.  На його думку, якщо вам не до вподоби вживати
+	    <SCHEMEINLINE>define</SCHEMEINLINE> усередині процедури, то можна просто
+	    скористатися <SCHEMEINLINE>let</SCHEMEINLINE>. Покажіть, що в його міркуванні
+	    хибне, намалювавши діаграму середовища, яка показує
+	    середовище, у якому обчислюють
+	    <LATEXINLINE>$\langle$</LATEXINLINE>решта тіла<LATEXINLINE>$\rangle$</LATEXINLINE>
+	    <SCHEMEINLINE>f</SCHEMEINLINE>
+	    під час
+	    обчислення виразу <SCHEMEINLINE>(f 5)</SCHEMEINLINE>, коли
+	    <SCHEMEINLINE>f</SCHEMEINLINE> означено, як у цій вправі. Намалюйте
+	    діаграму середовища для того самого обчислення, але з
+	    <SCHEMEINLINE>let</SCHEMEINLINE> замість
+	    <SCHEMEINLINE>letrec</SCHEMEINLINE> в означенні
+	    <SCHEMEINLINE>f</SCHEMEINLINE>.
+	  </LI>
+	</OL>
+      </EXERCISE>
+    </SCHEME>
+    <PYTHON>
+      <TEXT>
+	За послідовного опрацювання оголошень область видимості
+	оголошення вже не є весь блок, який безпосередньо оточує
+	оголошення, а лише та частина блоку, що починається з
+	того місця, де трапляється оголошення.
+	Хоч одночасної області видимості в нас уже немає, послідовне
+	опрацювання оголошень
+	обчислюватиме виклики функції
+	<SCHEMEINLINE>f</SCHEMEINLINE> з початку цього підрозділу
+	правильно, але з
+	<QUOTE>випадкової</QUOTE> причини: оскільки оголошення
+	внутрішніх функцій ідуть першими, жодного виклику цих функцій
+	не буде обчислено, поки їх усі не оголошено. Тож
+	<PYTHONINLINE>is_odd</PYTHONINLINE> буде оголошено на той час, коли
+	виконується <PYTHONINLINE>is_even</PYTHONINLINE>.  Насправді
+	послідовне опрацювання оголошень 
+	дасть той самий результат, що й наш обчислювач, який сканує імена назовні, з
+	підрозділу<SPACE/><REF NAME="sec:core-of-evaluator"/>
+	для будь-якої функції,
+	у якій 
+	<INDEX>внутрішнє оголошення<SUBINDEX>обмеження на</SUBINDEX></INDEX>
+	внутрішні оголошення стоять першими в тілі, а обчислення виразів
+	значень для оголошених імен насправді не використовує жодного з
+	оголошених імен.
+	Вправа<SPACE/><REF NAME="ex:simultaneous-def"/> показує
+	приклад функції, яка не
+	дотримується цих обмежень, тож альтернативний обчислювач не
+	еквівалентний нашому обчислювачу, який сканує імена назовні.
+      </TEXT>
+      <TEXT>
+	Послідовне опрацювання оголошень ефективніше й простіше
+	реалізувати, ніж сканування імен назовні.
+	Однак за послідовного опрацювання те,
+	на яке оголошення вказує ім’я, може залежати від порядку, у якому
+	обчислюють інструкції в блоці.
+	У вправі<SPACE/><REF NAME="ex:simultaneous-def"/> ми бачимо, що
+	думки можуть різнитися щодо того, чи це бажано.
+      </TEXT>
+      <INDEX>послідовне опрацювання оголошень проти<SPACE/>сканування назовні<CLOSE/></INDEX>
+      <INDEX>сканування оголошень назовні<SUBINDEX>послідовне опрацювання оголошень проти<CLOSE/></SUBINDEX></INDEX>
+      <EXERCISE>
+	<LABEL NAME="ex:simultaneous-def"/> 
+	Бен Бітдідл, Алісса П. Гакер і Єва Лу Атор сперечаються про
+	бажаний результат обчислення програми
+	<SNIPPET>
+	  <NAME>mystery_f</NAME>
+	  <PYTHON>
+a = 1
+def f(x):
+    b = a + x
+    a = 5
+    return a + b
+f(10)
+</PYTHON>
+	</SNIPPET>
+	Бен твердить, що результат треба отримати за послідовного
+	опрацювання оголошень:
+	<SCHEMEINLINE>b</SCHEMEINLINE> оголошено як 11, потім
+	<SCHEMEINLINE>a</SCHEMEINLINE> оголошено як 5, тож результат — 16.
+	Алісса заперечує, що взаємна рекурсія вимагає правила одночасної області
+	видимості для внутрішніх означень функцій, і що необґрунтовано
+	обробляти імена функцій інакше, ніж інші імена.  Тож вона обстоює
+	механізм, реалізований у
+	підрозділі<SPACE/><REF NAME="sec:core-of-evaluator"/>. Це
+	призвело б до того, що <SCHEMEINLINE>a</SCHEMEINLINE> було б неприсвоєним на той час, коли
+	обчислюють значення для <SCHEMEINLINE>b</SCHEMEINLINE>.  Отже,
+	на Аліссину думку функція мала б спричинити помилку.  У Єви
+	третя думка.  Вона каже, що якщо оголошення
+	<SCHEMEINLINE>a</SCHEMEINLINE> та <SCHEMEINLINE>b</SCHEMEINLINE>
+	справді мають бути одночасними, то при обчисленні
+	<SCHEMEINLINE>b</SCHEMEINLINE> слід використати значення 5 для
+	<SCHEMEINLINE>a</SCHEMEINLINE>.  Отже, на Євину думку
+	<SCHEMEINLINE>a</SCHEMEINLINE> має бути 5,
+	<SCHEMEINLINE>b</SCHEMEINLINE> має бути 15, а результат — 20.
+	Яку з цих	думок (якщо якусь) ви підтримуєте?  Чи можете ви придумати спосіб
+	реалізувати внутрішні оголошення так, щоб вони поводилися так, як воліє
+	Єва?<FOOTNOTE>Проєктувальники Python підтримують Аліссу з
+	таких міркувань: Єва в принципі права<EMDASH/>ці оголошення
+	слід розглядати як одночасні.  Але, здається, важко реалізувати
+	загальний, ефективний механізм, який робить те, що вимагає Єва. За
+	відсутності такого механізму краще згенерувати помилку в
+	складних випадках одночасних оголошень (Аліссина думка), ніж
+	дістати неправильну відповідь (як хотів би Бен).</FOOTNOTE>
+      </EXERCISE>
+    </PYTHON>
+  </SPLIT>
+
+
+  <SPLIT>
+    <SCHEME>
+  <EXERCISE>
+    <LABEL NAME="ex:lambda_calculus_scheme"/>
+	Дивовижно, але Луїсова інтуїція у
+	вправі<SPACE/><REF NAME="ex:letrec"/> правильна. Справді
+	<INDEX>рекурсивна процедура<SUBINDEX>задання без <SCHEMEINLINE>define</SCHEMEINLINE></SUBINDEX></INDEX>
+	можна задати рекурсивні процедури, не вживаючи
+	<SCHEMEINLINE>letrec</SCHEMEINLINE> (і навіть
+	<SCHEMEINLINE>define</SCHEMEINLINE>), хоч метод, який
+	це дає, значно тонший, ніж уявляв Луїс.
+	Наступний вираз обчислює 10
+	<INDEX>факторіал<SUBINDEX><ORDER>letrec</ORDER>без <SCHEMEINLINE>letrec</SCHEMEINLINE> чи <SCHEMEINLINE>define</SCHEMEINLINE></SUBINDEX></INDEX>
+	факторіал, застосовуючи рекурсивну
+	факторіальну процедуру:<FOOTNOTE>Цей приклад ілюструє програмний
+	прийом формулювання рекурсивних процедур без уживання
+	<SCHEMEINLINE>define</SCHEMEINLINE>. Найзагальніший прийом такого роду — це
+	<INDEX><ORDER>Y</ORDER><LATEXINLINE>$Y$</LATEXINLINE> operator</INDEX>
+	<LATEXINLINE>$Y$</LATEXINLINE>
+	<EM>оператор</EM>, яким можна дати <QUOTE>чисту
+	<LATEXINLINE>$\lambda$</LATEXINLINE>-численню</QUOTE> реалізацію
+	рекурсії.  (Деталі про лямбда-числення див. у
+	<INDEX>Stoy, Joseph E.</INDEX><INDEX>Gabriel, Richard P.</INDEX>
+	<CITATION NAME="STO77">Stoy 1977</CITATION>, а виклад
+	<LATEXINLINE>$Y$</LATEXINLINE>-оператора мовою Scheme — у
+	<CITATION NAME="GAB88">Gabriel 1988</CITATION>.)</FOOTNOTE>
+	<SNIPPET>
+	  <SCHEME>
+((lambda (n)
+    ((lambda (fact)
+        (fact fact n))
+     (lambda (ft k)
+        (if (= k 1)
+            1
+            (* k (ft ft (- k 1)))))))
+ 10)
+	  </SCHEME>
+	</SNIPPET>
+	<OL>
+	  <LI>
+	    Перевірте (обчисливши вираз), що це справді обчислює
+	    факторіали.  Придумайте аналогічний вираз для обчислення чисел Фібоначчі.
+	  </LI>
+	  <LI>
+	    Розгляньмо наступну процедуру, яка містить взаємно рекурсивні
+	    внутрішні означення:
+	    <SNIPPET>
+              <SCHEME>
+(define (f x)
+   (define (even? n)
+      (if (= n 0)
+          true
+      (odd? (- n 1))))
+   (define (odd? n)
+      (if (= n 0)
+          false
+          (even? (- n 1))))
+   (even? x))
+              </SCHEME>
+	    </SNIPPET>
+	    Заповніть пропущені вирази, щоб завершити альтернативне означення
+	    <SCHEMEINLINE>f</SCHEMEINLINE>, яке не вживає ні внутрішніх
+	    означень, ні <SCHEMEINLINE>letrec</SCHEMEINLINE>:
+	    <SNIPPET EVAL="no">
+              <SCHEME>
+(define (f x)
+   ((lambda (even? odd?)
+  (even? even? odd? x))
+    (lambda (ev? od? n)
+  (if (= n 0) true (od? ?? ?? ??)))
+    (lambda (ev? od? n)
+  (if (= n 0) false (ev? ?? ?? ??)))))
+              </SCHEME>
+	    </SNIPPET>
+	  </LI>
+	</OL>
+  </EXERCISE>
+    </SCHEME>
+  </SPLIT>
+
+  <INDEX>блочна структура<CLOSE/></INDEX>
+  <INDEX>внутрішнє оголошення<SUBINDEX>область видимості імені<CLOSE/></SUBINDEX></INDEX>
+  <INDEX>область видимості імені<SUBINDEX>внутрішнє оголошення<CLOSE/></SUBINDEX></INDEX>
+</SUBSECTION>

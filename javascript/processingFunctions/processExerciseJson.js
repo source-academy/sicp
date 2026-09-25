@@ -1,6 +1,7 @@
 import { recursiveProcessTextJson } from "../parseXmlJson";
 import { missingExerciseWarning } from "./warnings.js";
 import { referenceStore } from "./processReferenceJson";
+import { ui } from "../uiStrings.js";
 
 let unlabeledEx = 0;
 const processExerciseJson = (node, obj) => {
@@ -23,7 +24,7 @@ const processExerciseJson = (node, obj) => {
   const displayName = referenceStore[labelName].displayName;
 
   obj["tag"] = "EXERCISE";
-  obj["title"] = "Exercise " + displayName;
+  obj["title"] = ui("exercise") + " " + displayName;
   obj["id"] = `#ex-${displayName}`;
 
   recursiveProcessTextJson(node.firstChild, obj);

@@ -56,6 +56,11 @@ const markdownWriteTo: WriteBuffer = []; // accumulates the single-file md outpu
 const edition = getEdition();
 const __dirname = path.resolve(import.meta.dirname);
 const inputDir = path.join(__dirname, "..", edition.inputDirName);
+if (edition.locale && !fs.existsSync(inputDir)) {
+  throw new Error(
+    `${edition.inputDirName}/ does not exist; create it with \`yarn i18n merge ${edition.locale}\``
+  );
+}
 
 // Front matter authored for the JavaScript edition (Guy Steele's foreword,
 // the Henz/Wrigstad preface, and their acknowledgments) that has no Python
@@ -316,7 +321,7 @@ const createIndexHtml = version => {
 async function main() {
   parseType = process.argv[2];
   if (parseType == "pdf") {
-    outputDir = path.join(__dirname, "..", "latex_pdf_" + edition.language.key);
+    outputDir = path.join(__dirname, "..", "latex_pdf_" + edition.dirKey);
 
     switchParseFunctionsLatex(parseType);
     createMain(inputDir, outputDir, parseType);
@@ -340,17 +345,9 @@ async function main() {
     version = process.argv[3];
 
     if (version == "split") {
-      outputDir = path.join(
-        __dirname,
-        "..",
-        "html_split_" + edition.language.key
-      );
+      outputDir = path.join(__dirname, "..", "html_split_" + edition.dirKey);
     } else if (version == "scheme") {
-      outputDir = path.join(
-        __dirname,
-        "..",
-        "html_scheme_" + edition.language.key
-      );
+      outputDir = path.join(__dirname, "..", "html_scheme_" + edition.dirKey);
     }
 
     switchParseFunctionsHtml(version);
@@ -372,7 +369,7 @@ async function main() {
 
     recursiveXmlToHtmlInOrder("parseXml");
   } else if (parseType == "md") {
-    outputDir = path.join(__dirname, "..", "md_" + edition.language.key);
+    outputDir = path.join(__dirname, "..", "md_" + edition.dirKey);
 
     createMain(inputDir, outputDir, parseType);
 
@@ -400,7 +397,7 @@ async function main() {
   } else if (parseType == "programs") {
     // Programs dir carries the language marker for both editions
     // (programs_js, programs_py) rather than using the "" / "_py" suffix.
-    outputDir = path.join(__dirname, "..", "programs_" + edition.language.key);
+    outputDir = path.join(__dirname, "..", "programs_" + edition.dirKey);
 
     createMain(inputDir, outputDir, parseType);
     console.log("setup snippets\n");
@@ -408,7 +405,7 @@ async function main() {
     console.log("setup snippets done\n");
     recursiveTranslateXml("", "parseXml");
   } else if (parseType == "json") {
-    outputDir = path.join(__dirname, "..", "json_" + edition.language.key);
+    outputDir = path.join(__dirname, "..", "json_" + edition.dirKey);
 
     createMain(inputDir, outputDir, parseType);
 

@@ -1,0 +1,476 @@
+<SUBSECTION>
+  <NAME>
+    Поєднання послідовностей інструкцій
+  </NAME>
+
+  <LABEL NAME="sec:combining-instruction-sequences"/>
+
+  <INDEX>послідовність інструкцій<OPEN/></INDEX>
+
+  <TEXT>
+    Цей підрозділ описує подробиці того, як подають і поєднують
+    послідовності інструкцій.  Пригадайте з
+    підрозділу<SPACE/><REF NAME="sec:instruction-sequences"/>, що послідовність
+    інструкцій подають як список потрібних регістрів, змінюваних регістрів
+    і власне інструкцій.  Ми також вважатимемо мітку
+    <SPLITINLINE><SCHEME>(символ)</SCHEME><PYTHON>(рядок)</PYTHON></SPLITINLINE>
+    виродженим випадком послідовності інструкцій, яка
+    не потребує жодного регістра і не змінює жодного.
+    Тож, щоб визначити регістри, потрібні
+    та змінювані послідовностями інструкцій, ми користуємося селекторами
+    <SNIPPET EVAL="no">
+      <INDEX><DECLARATION>registers_needed</DECLARATION></INDEX>
+      <INDEX><DECLARATION>registers_modified</DECLARATION></INDEX>
+      <INDEX><DECLARATION>instructions</DECLARATION></INDEX>
+      <NAME>registers_needed</NAME>
+      <SCHEME>
+(define (registers-needed s)
+  (if (symbol? s) '() (car s)))
+
+ (define (registers-modified s)
+   (if (symbol? s) '() (cadr s)))
+
+(define (statements s)
+  (if (symbol? s) (list s) (caddr s)))
+      </SCHEME>
+      <PYTHON>
+function registers_needed(s) {
+    return is_string(s) ? null : head(s);
+}
+function registers_modified(s) {
+    return is_string(s) ? null : head(tail(s));
+}
+function instructions(s) {
+    return is_string(s) ? list(s) : head(tail(tail(s)));
+}
+      </PYTHON>
+    </SNIPPET>
+    а щоб визначити, чи задана
+    послідовність потребує або змінює заданий регістр, ми користуємося предикатами
+    <SNIPPET EVAL="no">
+      <INDEX><DECLARATION>needs_register</DECLARATION></INDEX>
+      <INDEX><DECLARATION>modifies_register</DECLARATION></INDEX>
+      <NAME>needs_register</NAME>
+      <SCHEME>
+(define (needs-register? seq reg)
+  (memq reg (registers-needed seq)))
+
+(define (modifies-register? seq reg)
+  (memq reg (registers-modified seq)))
+      </SCHEME>
+      <PYTHON>
+function needs_register(seq, reg) {
+    return ! is_null(member(reg, registers_needed(seq)));
+}
+function modifies_register(seq, reg) {
+    return ! is_null(member(reg, registers_modified(seq)));
+}
+      </PYTHON>
+    </SNIPPET>
+    У термінах цих предикатів і селекторів ми можемо реалізувати
+    різні об’єднувачі послідовностей інструкцій, уживані в усьому компіляторі.
+  </TEXT>
+
+  <TEXT>
+    Базовий об’єднувач —
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>append-instruction-sequences</SCHEMEINLINE>.
+      </SCHEME>
+      <PYTHON>
+	<PYTHONINLINE>append_instruction_sequences</PYTHONINLINE>.
+      </PYTHON>
+    </SPLITINLINE>
+    Він бере як
+    аргументи
+    <SPLITINLINE>
+      <SCHEME>довільну кількість</SCHEME>
+      <PYTHON>дві</PYTHON>
+    </SPLITINLINE>
+    послідовностей інструкцій, які треба
+    виконати послідовно, і повертає послідовність інструкцій, інструкції якої
+    є інструкціями
+    <SPLITINLINE>
+      <SCHEME>всіх</SCHEME>
+      <PYTHON>цих двох</PYTHON>
+    </SPLITINLINE>
+    послідовностей, приєднаних одна до одної.
+    Тонкий момент — визначити регістри, потрібні та змінювані результівною послідовністю.
+    Вона змінює ті регістри, які
+    <SPLITINLINE>
+      <SCHEME>змінює будь-яка з послідовностей;</SCHEME>
+      <PYTHON>змінює будь-яка з двох послідовностей;</PYTHON>
+    </SPLITINLINE>
+    вона потребує ті регістри, які треба ініціалізувати, перш ніж
+    можна буде виконати першу послідовність (регістри, потрібні першій послідовності), разом із тими регістрами, які потрібні
+    <SPLITINLINE>
+      <SCHEME>будь-якій з інших послідовностей і які не ініціалізовано (не змінено) послідовностями, що передують їй.</SCHEME>
+      <PYTHON>другій послідовності й які не ініціалізовано (не змінено) першою послідовністю.</PYTHON>
+    </SPLITINLINE>
+  </TEXT>
+
+  <TEXT>
+    <SPLITINLINE>
+      <SCHEME>
+	Послідовності приєднують по дві за раз за допомогою
+      <SCHEMEINLINE>append-2-sequences</SCHEMEINLINE>. Ця
+      </SCHEME>
+      <PYTHON>Функції <PYTHONINLINE>append_instruction_sequences</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    дано дві послідовності інструкцій <SCHEMEINLINE>seq1</SCHEMEINLINE> і
+    <SCHEMEINLINE>seq2</SCHEMEINLINE>, і вона повертає послідовність інструкцій, чиї
+    <SPLITINLINE>
+      <SCHEME>
+        інструкції
+      </SCHEME>
+      <PYTHON>
+        інструкції
+      </PYTHON>
+    </SPLITINLINE>
+    є
+    <SPLITINLINE>
+      <SCHEME>
+        інструкціями
+      </SCHEME>
+      <PYTHON>
+        інструкціями
+      </PYTHON>
+    </SPLITINLINE>
+    <SCHEMEINLINE>seq1</SCHEMEINLINE>, за якими йдуть
+    <SPLITINLINE>
+      <SCHEME>
+        інструкції
+      </SCHEME>
+      <PYTHON>
+        інструкції
+      </PYTHON>
+    </SPLITINLINE>
+    <SCHEMEINLINE>seq2</SCHEMEINLINE>, чиї змінювані
+    регістри — це ті регістри, які змінює або
+    <SCHEMEINLINE>seq1</SCHEMEINLINE>, або <SCHEMEINLINE>seq2</SCHEMEINLINE>, а
+    потрібні регістри — це регістри, потрібні
+    <SCHEMEINLINE>seq1</SCHEMEINLINE>, разом із тими регістрами, потрібними
+    <SCHEMEINLINE>seq2</SCHEMEINLINE>, які не змінює
+    <SCHEMEINLINE>seq1</SCHEMEINLINE>.  (У термінах операцій над множинами нова множина
+    потрібних регістрів — це об’єднання множини регістрів, потрібних
+    <SCHEMEINLINE>seq1</SCHEMEINLINE>, з різницею регістрів,
+    потрібних <SCHEMEINLINE>seq2</SCHEMEINLINE>, і регістрів, змінених
+    <SCHEMEINLINE>seq1</SCHEMEINLINE>.)  Отже,
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>append-instruction-sequences</SCHEMEINLINE></SCHEME>
+      <PYTHON>
+	<PYTHONINLINE>append_instruction_sequences</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    реалізовано так:
+    <SNIPPET EVAL="no">
+      <INDEX><DECLARATION>append_instruction_sequences</DECLARATION></INDEX>
+      <NAME>append_instruction_sequences</NAME>
+      <SCHEME>
+(define (append-instruction-sequences . seqs)
+  (define (append-2-sequences seq1 seq2)
+    (make-instruction-sequence
+     (list-union (registers-needed seq1)
+                 (list-difference (registers-needed seq2)
+                                  (registers-modified seq1)))
+     (list-union (registers-modified seq1)
+                 (registers-modified seq2))
+     (append (statements seq1) (statements seq2))))
+  (define (append-seq-list seqs)
+    (if (null? seqs)
+        (empty-instruction-sequence)
+        (append-2-sequences (car seqs)
+                            (append-seq-list (cdr seqs)))))
+  (append-seq-list seqs))
+      </SCHEME>
+      <PYTHON>
+function append_instruction_sequences(seq1, seq2) {
+    return make_instruction_sequence(
+               list_union(registers_needed(seq1),
+                          list_difference(registers_needed(seq2),
+                                          registers_modified(seq1))),
+               list_union(registers_modified(seq1),
+                          registers_modified(seq2)),
+               append(instructions(seq1), instructions(seq2)));
+}
+      </PYTHON>
+    </SNIPPET>
+  </TEXT>
+  <TEXT>
+    Ця
+    <SPLITINLINE>
+      <SCHEME>процедура</SCHEME>
+      <PYTHON>функція</PYTHON>
+    </SPLITINLINE>
+    використовує кілька простих операцій для маніпулювання множинами,
+    поданими як списки, подібно до (неупорядкованого) подання множин,
+    описаного в підрозділі<SPACE/><REF NAME="sec:representing-sets"/>:
+    <SNIPPET EVAL="no">
+      <INDEX><DECLARATION>list_union</DECLARATION></INDEX>
+      <INDEX><DECLARATION>list_difference</DECLARATION></INDEX>
+      <NAME>list_union</NAME>
+      <SCHEME>
+(define (list-union s1 s2)
+  (cond ((null? s1) s2)
+        ((memq (car s1) s2) (list-union (cdr s1) s2))
+        (else (cons (car s1) (list-union (cdr s1) s2)))))
+
+(define (list-difference s1 s2)
+  (cond ((null? s1) '())
+        ((memq (car s1) s2) (list-difference (cdr s1) s2))
+        (else (cons (car s1)
+                    (list-difference (cdr s1) s2)))))
+      </SCHEME>
+      <PYTHON>
+function list_union(s1, s2) {
+    return is_null(s1)
+           ? s2
+           : is_null(member(head(s1), s2))
+           ? pair(head(s1), list_union(tail(s1), s2))
+           : list_union(tail(s1), s2);
+}
+function list_difference(s1, s2) {
+    return is_null(s1)
+           ? null
+           : is_null(member(head(s1), s2))
+           ? pair(head(s1), list_difference(tail(s1), s2))
+           : list_difference(tail(s1), s2);
+}
+      </PYTHON>
+    </SNIPPET>
+  </TEXT>
+  <TEXT>
+    <SPLITINLINE>
+      <SCHEME>
+        <SCHEMEINLINE>Preserving</SCHEMEINLINE>,
+      </SCHEME>
+      <PYTHON>
+        Функція <PYTHONINLINE>preserving</PYTHONINLINE>,
+      </PYTHON>
+    </SPLITINLINE>
+    другий за важливістю об’єднувач послідовностей
+    інструкцій, бере список регістрів
+    <SCHEMEINLINE>regs</SCHEMEINLINE> і дві послідовності інструкцій
+    <SCHEMEINLINE>seq1</SCHEMEINLINE> і <SCHEMEINLINE>seq2</SCHEMEINLINE>, які
+    треба виконати послідовно.  Він повертає послідовність інструкцій, чиї
+    <SPLITINLINE>
+      <SCHEME>
+        інструкції
+      </SCHEME>
+      <PYTHON>
+        інструкції
+      </PYTHON>
+    </SPLITINLINE>
+    є
+    <SPLITINLINE>
+      <SCHEME>
+        інструкціями
+      </SCHEME>
+      <PYTHON>
+        інструкціями
+      </PYTHON>
+    </SPLITINLINE>
+    <SCHEMEINLINE>seq1</SCHEMEINLINE>, за якими йдуть
+    <SPLITINLINE>
+      <SCHEME>
+        інструкції
+      </SCHEME>
+      <PYTHON>
+        інструкції
+      </PYTHON>
+    </SPLITINLINE>
+    <SCHEMEINLINE>seq2</SCHEMEINLINE>, з відповідними
+    інструкціями <SCHEMEINLINE>save</SCHEMEINLINE> і <SCHEMEINLINE>restore</SCHEMEINLINE>
+    навколо <SCHEMEINLINE>seq1</SCHEMEINLINE>, щоб захистити
+    регістри з <SCHEMEINLINE>regs</SCHEMEINLINE>, які змінює
+    <SCHEMEINLINE>seq1</SCHEMEINLINE>, але які потрібні
+    <SCHEMEINLINE>seq2</SCHEMEINLINE>.  Щоб цього досягти,
+    <SCHEMEINLINE>preserving</SCHEMEINLINE> спершу створює послідовність, яка має
+    потрібні <SCHEMEINLINE>save</SCHEMEINLINE>, за якими йдуть
+    <SPLITINLINE>
+      <SCHEME>
+        інструкції
+      </SCHEME>
+      <PYTHON>
+        інструкції
+      </PYTHON>
+    </SPLITINLINE>
+    <SCHEMEINLINE>seq1</SCHEMEINLINE>, за якими йдуть потрібні
+    <SCHEMEINLINE>restore</SCHEMEINLINE>.  Ця послідовність потребує регістрів,
+    які зберігають і відновлюють, крім регістрів, потрібних
+    <SCHEMEINLINE>seq1</SCHEMEINLINE>, і змінює регістри, які змінює
+    <SCHEMEINLINE>seq1</SCHEMEINLINE>, крім тих, які зберігають і
+    відновлюють.  Потім цю розширену послідовність і <SCHEMEINLINE>seq2</SCHEMEINLINE>
+    приєднують звичайним способом.  Така
+    <SPLITINLINE>
+      <SCHEME>процедура</SCHEME>
+      <PYTHON>функція</PYTHON>
+    </SPLITINLINE>
+    реалізує цю стратегію рекурсивно, спускаючись списком регістрів,
+    які треба зберегти:<SPLITINLINE><SCHEME><FOOTNOTE>Зауважте, що <SCHEMEINLINE>preserving</SCHEMEINLINE>
+    викликає <SCHEMEINLINE>append</SCHEMEINLINE> з трьома
+    <INDEX><USE>append</USE><SUBINDEX><ORDER>arbitrary</ORDER>з довільною кількістю аргументів</SUBINDEX></INDEX>
+    аргументами.  Хоча означення <SCHEMEINLINE>append</SCHEMEINLINE>,
+    наведене в цій книзі, приймає лише два аргументи, Scheme стандартно надає
+    процедуру <SCHEMEINLINE>append</SCHEMEINLINE>,
+    яка приймає довільну кількість аргументів.</FOOTNOTE></SCHEME></SPLITINLINE>
+    <SNIPPET EVAL="no">
+      <INDEX><DECLARATION>preserving</DECLARATION></INDEX>
+      <NAME>preserving</NAME>
+      <SCHEME>
+(define (preserving regs seq1 seq2)
+  (if (null? regs)
+      (append-instruction-sequences seq1 seq2)
+      (let ((first-reg (car regs)))
+        (if (and (needs-register? seq2 first-reg)
+                 (modifies-register? seq1 first-reg))
+            (preserving (cdr regs)
+             (make-instruction-sequence
+              (list-union (list first-reg)
+                          (registers-needed seq1))
+              (list-difference (registers-modified seq1)
+                               (list first-reg))
+              (append `((save ,first-reg))
+                      (statements seq1)
+                      `((restore ,first-reg))))
+             seq2)
+            (preserving (cdr regs) seq1 seq2)))))
+      </SCHEME>
+      <PYTHON>
+function preserving(regs, seq1, seq2) {
+    if (is_null(regs)) {
+        return append_instruction_sequences(seq1, seq2);
+    } else {
+        const first_reg = head(regs);
+        return needs_register(seq2, first_reg) &amp;&amp;
+               modifies_register(seq1, first_reg)
+               ? preserving(tail(regs),
+                     make_instruction_sequence(
+                         list_union(list(first_reg),
+                                    registers_needed(seq1)),
+                         list_difference(registers_modified(seq1),
+                                         list(first_reg)),
+                         append(list(save(first_reg)),
+                                append(instructions(seq1),
+                                       list(restore(first_reg))))),
+                     seq2)
+               : preserving(tail(regs), seq1, seq2);
+    }
+}
+      </PYTHON>
+    </SNIPPET>
+  </TEXT>
+
+  <TEXT>
+    Ще один об’єднувач послідовностей,
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>tack-on-instruction-sequence</SCHEMEINLINE>,
+      </SCHEME>
+      <PYTHON>
+	<PYTHONINLINE>tack_on_instruction_sequence</PYTHONINLINE>,
+      </PYTHON>
+    </SPLITINLINE>
+    використовує
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>compile-lambda</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>compile_lambda_expression</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    , щоб приєднати
+    тіло
+    <SPLITINLINE>
+      <SCHEME>процедури</SCHEME>
+      <PYTHON>функції</PYTHON>
+    </SPLITINLINE>
+    до іншої послідовності.  Оскільки тіло
+    <SPLITINLINE>
+      <SCHEME>процедури</SCHEME>
+      <PYTHON>функції</PYTHON>
+    </SPLITINLINE>
+    не <QUOTE>вбудоване</QUOTE> в послідовність, яку виконують як частину об’єднаної
+    послідовності, його використання регістрів не впливає на використання регістрів послідовності,
+    у яку його вбудовано. Тож ми ігноруємо
+    множини потрібних і змінюваних регістрів
+    тіла
+    <SPLITINLINE>
+      <SCHEME>процедури</SCHEME>
+      <PYTHON>функції</PYTHON>
+    </SPLITINLINE>
+    , коли приєднуємо його до іншої послідовності.
+    <SNIPPET EVAL="no">
+      <INDEX><DECLARATION>tack_on_instruction_sequence</DECLARATION></INDEX>
+      <NAME>tack_on_instruction_sequence</NAME>
+      <SCHEME>
+(define (tack-on-instruction-sequence seq body-seq)
+  (make-instruction-sequence
+   (registers-needed seq)
+   (registers-modified seq)
+   (append (statements seq) (statements body-seq))))
+      </SCHEME>
+      <PYTHON>
+function tack_on_instruction_sequence(seq, body_seq) {
+    return make_instruction_sequence(
+               registers_needed(seq),
+               registers_modified(seq),
+               append(instructions(seq), instructions(body_seq)));
+}
+      </PYTHON>
+    </SNIPPET>
+  </TEXT>
+
+  <TEXT>
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>Compile-if</SCHEMEINLINE></SCHEME>
+      <PYTHON>Функції
+      <PYTHONINLINE>compile_conditional</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    та
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>compile-procedure-call</SCHEMEINLINE>
+      </SCHEME>
+      <PYTHON><PYTHONINLINE>compile_function_call</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    використовують спеціальний об’єднувач під назвою
+    <SPLITINLINE>
+      <SCHEME>
+	<SCHEMEINLINE>parallel-instruction-sequences</SCHEMEINLINE>
+      </SCHEME>
+      <PYTHON>
+	<PYTHONINLINE>parallel_instruction_sequences</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    , щоб приєднати дві альтернативні гілки, які йдуть після перевірки.  Ці дві гілки
+    ніколи не виконуватимуться послідовно; за будь-якого конкретного обчислення
+    перевірки буде обрано одну гілку або іншу.  Через це
+    регістри, потрібні другій гілці, все ще потрібні об’єднаній
+    послідовності, навіть якщо їх змінює перша гілка.
+    <SNIPPET EVAL="no" POSTPADDING="no">
+      <INDEX><DECLARATION>parallel_instruction_sequences</DECLARATION></INDEX>
+      <NAME>parallel_instruction_sequences</NAME>
+      <SCHEME>
+(define (parallel-instruction-sequences seq1 seq2)
+  (make-instruction-sequence
+   (list-union (registers-needed seq1)
+               (registers-needed seq2))
+   (list-union (registers-modified seq1)
+               (registers-modified seq2))
+   (append (statements seq1) (statements seq2))))
+      </SCHEME>
+      <PYTHON>
+function parallel_instruction_sequences(seq1, seq2) {
+    return make_instruction_sequence(
+               list_union(registers_needed(seq1),
+                          registers_needed(seq2)),
+               list_union(registers_modified(seq1),
+                          registers_modified(seq2)),
+               append(instructions(seq1), instructions(seq2)));
+}
+      </PYTHON>
+    </SNIPPET>
+  </TEXT>
+
+  <INDEX>послідовність інструкцій<CLOSE/></INDEX>
+
+</SUBSECTION>

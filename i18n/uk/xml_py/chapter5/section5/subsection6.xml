@@ -1,0 +1,869 @@
+<SUBSECTION>
+  <NAME>
+    Лексична адресація
+  </NAME>
+
+  <LABEL NAME="sec:lexical-addressing"/>
+
+  <INDEX>компілятор для Python<SUBINDEX>лексична адресація<OPEN/></SUBINDEX></INDEX>
+  <INDEX>лексична адресація<OPEN/></INDEX>
+
+  <TEXT>
+    Одна з найпоширеніших оптимізацій, які виконують компілятори, — це
+    оптимізація пошуку
+    <SPLITINLINE>
+      <SCHEME>змінної</SCHEME>
+      <PYTHON>імені</PYTHON>
+    </SPLITINLINE>
+    . Наш компілятор, як ми його досі реалізували, породжує код, який
+    використовує операцію
+    <SPLITINLINE>
+      <SCHEME>
+	<SCHEMEINLINE>lookup-variable-value</SCHEMEINLINE>
+      </SCHEME>
+      <PYTHON>
+	<PYTHONINLINE>lookup_symbol_value</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    обчислювача.
+    <SPLITINLINE>
+      <SCHEME>
+        Вона шукає
+      </SCHEME>
+      <PYTHON>
+	Вона шукає
+      </PYTHON>
+    </SPLITINLINE>
+    <SPLITINLINE>
+      <SCHEME>змінну</SCHEME>
+      <PYTHON>ім’я</PYTHON>
+    </SPLITINLINE>
+    , порівнюючи
+    <SPLITINLINE>
+      <SCHEME>її</SCHEME>
+      <PYTHON>його</PYTHON>
+    </SPLITINLINE>
+    з кожним
+    <SPLITINLINE>
+      <SCHEME>
+	змінною
+      </SCHEME>
+      <PYTHON>
+	іменем
+      </PYTHON>
+    </SPLITINLINE>
+    , яке зараз зв’язане, проходячи фрейм
+    за фреймом назовні через середовище часу виконання.  Цей пошук може бути
+    дорогим, якщо фрейми глибоко вкладені або якщо є багато
+    <SPLITINLINE>
+      <SCHEME>змінних.</SCHEME>
+      <PYTHON>імен.</PYTHON>
+    </SPLITINLINE>
+    Наприклад, розгляньмо задачу пошуку значення
+    <SCHEMEINLINE>x</SCHEMEINLINE> під час обчислення виразу
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>(* x y z)</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>x * y * z</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    у застосуванні
+    <SPLITINLINE>
+      <SCHEME>процедури</SCHEME>
+      <PYTHON>функції з п’ятьма аргументами</PYTHON>
+    </SPLITINLINE>
+    , яку повертає
+    <SNIPPET>
+      <SCHEME>
+(let ((x 3) (y 4))
+  (lambda (a b c d e)
+    (let ((y (* a b x))
+          (z (+ c d x)))
+      (* x y z))))
+      </SCHEME>
+      <PYTHON>
+((x, y) =>
+   (a, b, c, d, e) =>
+     ((y, z) => x * y * z)(a * b * x, c + d + x))(3, 4)
+      </PYTHON>
+    </SNIPPET>
+    <SPLIT>
+      <SCHEME>
+	Оскільки вираз <SCHEMEINLINE>let</SCHEMEINLINE> — це лише синтаксичний
+	цукор для комбінації <SCHEMEINLINE>lambda</SCHEMEINLINE>
+	, цей вираз еквівалентний до
+	<SNIPPET>
+	  <SCHEME>
+((lambda (x y)
+   (lambda (a b c d e)
+     ((lambda (y z) (* x y z))
+      (* a b x)
+      (+ c d x))))
+  3
+  4)
+	  </SCHEME>
+	</SNIPPET>
+      </SCHEME>
+    </SPLIT>
+    Щоразу, коли
+    <SPLITINLINE>
+      <SCHEME>
+	<SCHEMEINLINE>lookup-variable-value</SCHEMEINLINE>
+      </SCHEME>
+      <PYTHON>
+	<PYTHONINLINE>lookup_symbol_value</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    шукає <SCHEMEINLINE>x</SCHEMEINLINE>, він мусить визначити, що
+    символ
+    <SPLITINLINE>
+      <SCHEME>
+	<SCHEMEINLINE>x</SCHEMEINLINE> не
+	<SCHEMEINLINE>eq?</SCHEMEINLINE> до
+	<SCHEMEINLINE>y</SCHEMEINLINE> чи
+	<SCHEMEINLINE>z</SCHEMEINLINE> (у першому фреймі), ані до
+	<SCHEMEINLINE>a</SCHEMEINLINE>, <SCHEMEINLINE>b</SCHEMEINLINE>,
+	<SCHEMEINLINE>c</SCHEMEINLINE>, <SCHEMEINLINE>d</SCHEMEINLINE> чи
+	<SCHEMEINLINE>e</SCHEMEINLINE> (у другому фреймі).
+      </SCHEME>
+      <PYTHON>
+	<PYTHONINLINE>"x"</PYTHONINLINE> не
+	дорівнює
+	<PYTHONINLINE>"y"</PYTHONINLINE> чи
+	<PYTHONINLINE>"z"</PYTHONINLINE> (у першому фреймі), ані
+	<PYTHONINLINE>"a"</PYTHONINLINE>,
+	<PYTHONINLINE>"b"</PYTHONINLINE>,
+	<PYTHONINLINE>"c"</PYTHONINLINE>,
+	<PYTHONINLINE>"d"</PYTHONINLINE> чи
+	<PYTHONINLINE>"e"</PYTHONINLINE> (у другому фреймі).
+      </PYTHON>
+    </SPLITINLINE>
+    <SPLIT>
+      <SCHEME>
+	Наразі ми припустимо, що наші програми не використовують
+	<SCHEMEINLINE>define</SCHEMEINLINE><EMDASH/>що змінні зв’язують лише
+	за допомогою <SCHEMEINLINE>lambda</SCHEMEINLINE>.
+      </SCHEME>
+    </SPLIT>
+    Оскільки наша мова має
+    <INDEX>лексична область видимості<SUBINDEX>структура середовища і</SUBINDEX></INDEX>
+    лексичну область видимості, середовище часу виконання для будь-якого
+    <SPLITINLINE>
+      <SCHEME>
+        виразу
+      </SCHEME>
+      <PYTHON>
+        компонента
+      </PYTHON>
+    </SPLITINLINE>
+    матиме структуру, паралельну лексичній структурі програми, у якій
+    цей
+    <SPLITINLINE>
+      <SCHEME>
+        вираз
+      </SCHEME>
+      <PYTHON>
+        компонент
+      </PYTHON>
+    </SPLITINLINE>
+    з’являється.<SPLITINLINE><SCHEME><FOOTNOTE>Це не так, якщо
+    ми дозволяємо внутрішні означення, хіба що ми скануємо їх назовні.
+    Див. вправу<SPACE/><REF NAME="ex:lexical-address-end"/>.
+    </FOOTNOTE></SCHEME></SPLITINLINE>
+    Отже, компілятор може знати, коли він аналізує
+    наведений вище вираз,
+    що кожного разу, коли
+    <SPLITINLINE>
+      <SCHEME>процедуру</SCHEME>
+      <PYTHON>функцію</PYTHON>
+    </SPLITINLINE>
+    застосовують,
+    <SPLITINLINE>
+      <SCHEME>
+	зв’язування змінної
+	<SCHEMEINLINE>x</SCHEMEINLINE>
+      </SCHEME>
+      <PYTHON>
+	зв’язування для
+	<PYTHONINLINE>x</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    у
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>(* x y z)</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>x * y * z</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    буде знайдено за два фрейми від
+    поточного фрейму, і це буде перше
+    <SPLITINLINE>
+      <SCHEME>зв’язування</SCHEME>
+      <PYTHON>зв’язування</PYTHON>
+    </SPLITINLINE>
+    у тому фреймі.
+  </TEXT>
+  <TEXT>
+    Ми можемо скористатися цим фактом, винайшовши новий різновид операції
+    пошуку
+    <SPLITINLINE>
+      <SCHEME>змінної</SCHEME>
+      <PYTHON>імені</PYTHON>
+    </SPLITINLINE>
+    —
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>lexical-address-lookup</SCHEMEINLINE>,</SCHEME>
+      <PYTHON><PYTHONINLINE>lexical_address_lookup</PYTHONINLINE>,
+      </PYTHON>
+    </SPLITINLINE>
+    яка бере як аргументи середовище та
+    <INDEX>лексична адресація<SUBINDEX>лексична адреса</SUBINDEX></INDEX>
+    <EM>лексичну адресу</EM>, що
+    складається з двох чисел: <EM>номера фрейму</EM>, який задає, скільки
+    фреймів пропустити, і <EM>номера зміщення</EM>, який задає,
+    скільки
+    <SPLITINLINE>
+      <SCHEME>змінних</SCHEME>
+      <PYTHON>зв’язувань</PYTHON>
+    </SPLITINLINE>
+    пропустити в тому фреймі.
+    <INDEX><USE>lexical_address_lookup</USE></INDEX>
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>Lexical-address-lookup</SCHEMEINLINE></SCHEME>
+      <PYTHON>
+	Операція
+	<PYTHONINLINE>lexical_address_lookup</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    видасть значення
+    <SPLITINLINE>
+      <SCHEME>змінної</SCHEME>
+      <PYTHON>імені</PYTHON>
+    </SPLITINLINE>
+    , збережене за цією лексичною адресою
+    відносно поточного середовища.  Якщо ми додамо операцію
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>lexical-address-lookup</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>lexical_address_lookup</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    до нашої машини, ми зможемо змусити компілятор породжувати код, який
+    посилається на
+    <SPLITINLINE>
+      <SCHEME>змінні</SCHEME>
+      <PYTHON>імена</PYTHON>
+    </SPLITINLINE>
+    за допомогою цієї операції, а не
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>lookup-variable-value</SCHEMEINLINE>.</SCHEME>
+      <PYTHON><PYTHONINLINE>lookup_symbol_value</PYTHONINLINE>.
+      </PYTHON>
+    </SPLITINLINE>
+    Так само наш скомпільований код може використовувати нову
+    <INDEX><USE>lexical_address_assign</USE></INDEX>
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>lexical-address-set!</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>lexical_address_assign</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    операцію замість
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>set-variable-value!</SCHEMEINLINE>.</SCHEME>
+      <PYTHON><PYTHONINLINE>assign_symbol_value</PYTHONINLINE>.
+      </PYTHON>
+    </SPLITINLINE>
+    <SPLIT>
+      <PYTHON>
+	За лексичної адресації немає потреби включати будь-які
+	символьні посилання на імена в об’єктний код,
+	і фрейми не мусять містити символів під час виконання.
+      </PYTHON>
+    </SPLIT>
+  </TEXT>
+  <TEXT>
+    Щоб породжувати такий код, компілятор мусить уміти визначати
+    лексичну адресу
+    <SPLITINLINE>
+      <SCHEME>змінної</SCHEME>
+      <PYTHON>імені</PYTHON>
+    </SPLITINLINE>
+    , посилання на яку він збирається компілювати.  Лексична адреса
+    <SPLITINLINE>
+      <SCHEME>змінної</SCHEME>
+      <PYTHON>імені</PYTHON>
+    </SPLITINLINE>
+    у програмі залежить від того, де
+    ми перебуваємо в коді.  Наприклад, у наведеній далі програмі
+    адреса <SCHEMEINLINE>x</SCHEMEINLINE> у виразі
+    <LATEXINLINE>$e_1$</LATEXINLINE> — це (2,0)<EMDASH/>два фрейми назад
+    і перше
+    <SPLITINLINE>
+      <SCHEME>зв’язування</SCHEME>
+      <PYTHON>ім’я</PYTHON>
+    </SPLITINLINE>
+    у фреймі.  У цій точці
+    <SCHEMEINLINE>y</SCHEMEINLINE> має
+    адресу (0,0), а <SCHEMEINLINE>c</SCHEMEINLINE> — адресу (1,2).
+    У виразі
+    <LATEXINLINE>$e_2$</LATEXINLINE>
+    <SCHEMEINLINE>x</SCHEMEINLINE> має адресу (1,0),
+    <SCHEMEINLINE>y</SCHEMEINLINE> — адресу (1,1), а
+    <SCHEMEINLINE>c</SCHEMEINLINE> — адресу (0,2).
+    <SNIPPET EVAL="no" LATEX="yes">
+      <SCHEME>
+((lambda (x y)
+   (lambda (a b c d e)
+     ((lambda (y z) e1)
+        e2
+        (+ c d x))))
+ 3
+ 4)
+      </SCHEME>
+      <PYTHON>
+((x, y) =>
+   (a, b, c, d, e) =>
+     ((y, z) => $e_1$)($e_2$, c + d + x))(3, 4);
+      </PYTHON>
+    </SNIPPET>
+  </TEXT>
+
+  <TEXT>
+    Один зі способів, у який компілятор може породжувати код, що використовує
+    лексичну адресацію, — підтримувати структуру даних звану
+    <INDEX>середовище часу компіляції</INDEX>
+    <EM>середовищем часу компіляції</EM>.  Воно відстежує, які
+    <SPLITINLINE>
+      <SCHEME>змінні</SCHEME>
+      <PYTHON>зв’язування</PYTHON>
+    </SPLITINLINE>
+    будуть на яких
+    позиціях у яких фреймах у середовищі часу виконання, коли виконують
+    конкретну операцію доступу
+    <SPLITINLINE>
+      <SCHEME>до змінної</SCHEME>
+      <PYTHON>до імені</PYTHON>
+    </SPLITINLINE>
+    .  Середовище часу
+    компіляції — це список фреймів, кожен із яких містить список
+    <SPLITINLINE>
+      <SCHEME>змінних.</SCHEME>
+      <PYTHON>символів.</PYTHON>
+    </SPLITINLINE>
+    <SPLITINLINE>
+      <SCHEME>
+	(Звісно, зі змінними не буде зв’язано жодних значень,
+	бо значення не обчислюють під час компіляції.)
+      </SCHEME>
+      <PYTHON>
+	З символами не буде пов’язано жодних значень,
+	бо значення не обчислюють під час компіляції.
+	(Вправа <REF NAME="ex:constant-optimisations"/>
+	це змінить — як оптимізацію для констант.)
+      </PYTHON>
+    </SPLITINLINE>
+    Середовище часу
+    компіляції стає додатковим аргументом
+    <SCHEMEINLINE>compile</SCHEMEINLINE> і
+    передається кожному генератору коду.  Виклик
+    <SCHEMEINLINE>compile</SCHEMEINLINE> на верхньому рівні використовує
+    <SPLITINLINE>
+      <SCHEME>
+	порожнє середовище часу компіляції.
+      </SCHEME>
+      <PYTHON>
+	середовище часу компіляції, яке містить імена всіх примітивних
+	функцій і примітивних значень.
+      </PYTHON>
+    </SPLITINLINE>
+    Коли компілюють
+    <SPLITINLINE>
+      <SCHEME>
+	тіло <SCHEMEINLINE>lambda</SCHEMEINLINE>
+      </SCHEME>
+      <PYTHON>
+	тіло лямбда-виразу
+      </PYTHON>
+    </SPLITINLINE>
+    ,
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>compile-lambda-body</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>compile_lambda_body</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    розширює середовище часу компіляції фреймом, який містить
+    параметри
+    <SPLITINLINE>
+      <SCHEME>
+	процедури
+      </SCHEME>
+      <PYTHON>функції
+      </PYTHON>
+    </SPLITINLINE>
+    , тож
+    <SPLITINLINE>
+      <SCHEME>послідовність, яка утворює</SCHEME>
+    </SPLITINLINE>
+    тіло, компілюють у цьому розширеному середовищі.
+    <SPLIT>
+      <PYTHON>
+	Так само, коли
+	компілюють тіло блоку,
+	<PYTHONINLINE>compile_block</PYTHONINLINE>
+	розширює середовище часу компіляції фреймом, який містить
+	<INDEX>компілятор для Python<SUBINDEX>сканування назовні внутрішніх оголошень</SUBINDEX></INDEX>
+	висканувані назовні локальні імена тіла.
+      </PYTHON>
+    </SPLIT>
+    У кожній точці компіляції
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>compile-variable</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>compile_name</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    і
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>compile-assignment</SCHEMEINLINE></SCHEME>
+      <PYTHON>
+	<PYTHONINLINE>compile_assignment_declaration</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    використовують середовище часу
+    компіляції, щоб породити відповідні лексичні адреси.
+  </TEXT>
+
+  <TEXT>
+    <SPLIT>
+      <SCHEME>
+	Вправи<SPACE/><REF NAME="ex:lexical-address-start"/>
+	—<SPACE/><REF NAME="ex:lexical-address-end"/> описують, як
+	завершити цей начерк стратегії лексичної адресації, щоб
+	вбудувати лексичний пошук у компілятор.
+	Вправа<SPACE/><REF NAME="ex:cte-open-code"/> описує інше використання
+	середовища часу компіляції.
+      </SCHEME>
+      <PYTHON>
+	Вправи<SPACE/><REF NAME="ex:lexical-address-start"/>
+	—<SPACE/><REF NAME="ex:impl-lex-addr"/> описують, як
+	завершити цей начерк стратегії лексичної адресації, щоб
+	вбудувати лексичний пошук у компілятор.
+	Вправи<SPACE/><REF NAME="ex:lexical-constants"/>
+	і<SPACE/><REF NAME="ex:constant-optimisations"/>
+	описують інші використання середовища часу компіляції.
+      </PYTHON>
+    </SPLIT>
+  </TEXT>
+
+  <SPLIT>
+    <SCHEME>
+      <INDEX>компілятор для Scheme<SUBINDEX>лексична адресація<CLOSE/></SUBINDEX></INDEX>
+      <INDEX>лексична адресація<CLOSE/></INDEX>
+    </SCHEME>
+    <PYTHON>
+      <INDEX>компілятор для Python<SUBINDEX>лексична адресація<CLOSE/></SUBINDEX></INDEX>
+      <INDEX>лексична адресація<CLOSE/></INDEX>
+    </PYTHON>
+  </SPLIT>
+  
+  <EXERCISE>
+    Напишіть
+    <SPLITINLINE>
+      <SCHEME>процедуру</SCHEME>
+      <PYTHON>функцію</PYTHON>
+    </SPLITINLINE>
+    <INDEX><USE>lexical_address_lookup</USE></INDEX>
+    <INDEX><USE>lexical_address_assign</USE></INDEX>
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>lexical-address-lookup</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>lexical_address_lookup</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    яка реалізує нову операцію пошуку.  Вона має брати два
+    аргументи<EMDASH/>лексичну адресу й середовище часу виконання<EMDASH/>і
+    повертати значення
+    <SPLITINLINE>
+      <SCHEME>змінної</SCHEME>
+      <PYTHON>імені</PYTHON>
+    </SPLITINLINE>
+    , збережене за заданою лексичною адресою.
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>Lexical-address-lookup</SCHEMEINLINE></SCHEME>
+      <PYTHON>Функція
+      <PYTHONINLINE ALLOW_BREAK="yes">lexical_@address_@lookup</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    має сигналізувати про помилку, якщо значення
+    <SPLITINLINE>
+      <SCHEME>змінної</SCHEME>
+      <PYTHON>імені</PYTHON>
+    </SPLITINLINE>
+    — це
+    <SPLITINLINE>
+      <SCHEME>символ <SCHEMEINLINE>*unassigned*</SCHEMEINLINE>.<FOOTNOTE>Це
+      та модифікація пошуку змінних,
+      якої вимагає реалізація
+      <INDEX>сканування назовні внутрішніх означень<SUBINDEX><ORDER>compiler</ORDER>у компіляторі</SUBINDEX></INDEX>
+      <INDEX>компілятор для Python<SUBINDEX>сканування назовні внутрішніх означень</SUBINDEX></INDEX>
+      методу сканування, який усуває внутрішні
+      означення (вправа<SPACE/><REF NAME="ex:lexical-address-end"/>).
+      Нам треба буде усунути ці означення, щоб лексична адресація
+      працювала.</FOOTNOTE>
+      </SCHEME>
+      <PYTHON>рядок <PYTHONINLINE>"*unassigned*"</PYTHONINLINE>.
+      </PYTHON>
+    </SPLITINLINE>
+    <COMMENT>
+      The footnote can be safely dropped, because the scanning
+      method is the default in the JavaScript adaptation.
+    </COMMENT>
+    Також напишіть
+    <SPLITINLINE>
+      <SCHEME>процедуру</SCHEME>
+      <PYTHON>функцію</PYTHON>
+    </SPLITINLINE>
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>lexical-address-set!</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>lexical_address_assign</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    яка реалізує операцію, що змінює значення
+    <SPLITINLINE>
+      <SCHEME>змінної</SCHEME>
+      <PYTHON>імені</PYTHON>
+    </SPLITINLINE>
+    за заданою лексичною адресою.
+    <LABEL NAME="ex:lexical-address-start"/>
+    <LABEL NAME="ex:lexical-address-lookup"/>
+  </EXERCISE>
+
+  <EXERCISE>
+    Змініть компілятор так, щоб він підтримував
+    <INDEX>середовище часу компіляції</INDEX>
+    середовище часу компіляції, як
+    описано вище.  Тобто додайте аргумент-середовище часу компіляції до
+    <SCHEMEINLINE>compile</SCHEMEINLINE> і різних генераторів коду та
+    розширюйте його в
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>compile-lambda-body</SCHEMEINLINE>.</SCHEME>
+      <PYTHON>
+	<PYTHONINLINE>compile_lambda_body</PYTHONINLINE> і
+	<PYTHONINLINE>compile_block</PYTHONINLINE>.
+      </PYTHON>
+    </SPLITINLINE>
+    <LABEL NAME="ex:5_43"/>
+  </EXERCISE>
+
+  <EXERCISE>
+    Напишіть
+    <SPLITINLINE>
+      <SCHEME>процедуру</SCHEME>
+      <PYTHON>функцію</PYTHON>
+    </SPLITINLINE>
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>find-variable</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>find_symbol</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    яка бере як аргументи
+    <SPLITINLINE>
+      <SCHEME>змінну</SCHEME>
+      <PYTHON>символ</PYTHON>
+    </SPLITINLINE>
+    і
+    <INDEX>середовище часу компіляції</INDEX>
+    середовище часу компіляції та
+    повертає лексичну адресу
+    <SPLITINLINE>
+      <SCHEME>змінної</SCHEME>
+      <PYTHON>символу</PYTHON>
+    </SPLITINLINE>
+    щодо цього
+    середовища.  Наприклад, у наведеному вище фрагменті програми
+    середовище часу компіляції під час компіляції виразу
+    <LATEXINLINE>$e_1$</LATEXINLINE> таке:
+    <SPLIT>
+      <SCHEME><SCHEMEINLINE>((y z) (a b c d e) (x y))</SCHEMEINLINE>.
+      </SCHEME>
+      <PYTHON>
+	<SNIPPET>
+	  <PYTHON>
+list(list("y", "z"),
+     list("a", "b", "c", "d", "e"),
+     list("x", "y"))
+	  </PYTHON>
+	</SNIPPET>
+      </PYTHON>
+    </SPLIT>
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>Find-variable</SCHEMEINLINE></SCHEME>
+      <PYTHON>Функція <PYTHONINLINE>find_symbol</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    має видавати
+    <SNIPPET>
+      <SCHEME>
+(find-variable 'c '((y z) (a b c d e) (x y)))
+      </SCHEME>
+      <SCHEMEOUTPUT>
+(1 2)
+      </SCHEMEOUTPUT>
+      <PYTHON>
+find_symbol("c", list(list("y", "z"),
+                      list("a", "b", "c", "d", "e"),
+                      list("x", "y")));
+      </PYTHON>
+      <PYTHON_OUTPUT>
+list(1, 2)
+      </PYTHON_OUTPUT>
+    </SNIPPET>
+
+    <SNIPPET>
+      <SCHEME>
+(find-variable 'x '((y z) (a b c d e) (x y)))
+      </SCHEME>
+      <SCHEMEOUTPUT>
+      (2 0)
+      </SCHEMEOUTPUT>
+      <PYTHON>
+find_symbol("x", list(list("y", "z"),
+                      list("a", "b", "c", "d", "e"),
+                      list("x", "y")));
+      </PYTHON>
+      <PYTHON_OUTPUT>
+list(2, 0)
+      </PYTHON_OUTPUT>
+    </SNIPPET>
+    <SNIPPET POSTPADDING="no">
+      <SCHEME>
+(find-variable 'w '((y z) (a b c d e) (x y)))
+      </SCHEME>
+      <SCHEMEOUTPUT>
+not-found
+      </SCHEMEOUTPUT>
+      <PYTHON>
+find_symbol("w", list(list("y", "z"),
+                      list("a", "b", "c", "d", "e"),
+                      list("x", "y")));
+      </PYTHON>
+      <PYTHON_OUTPUT>
+"not found"
+      </PYTHON_OUTPUT>
+    </SNIPPET>
+    <LABEL NAME="ex:find-variable"/>
+  </EXERCISE>
+
+  <EXERCISE>
+    Скориставшись
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>find-variable</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>find_symbol</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    з вправи<SPACE/><REF NAME="ex:find-variable"/>,
+    перепишіть
+    <SPLITINLINE>
+      <SCHEME>
+	<SCHEMEINLINE>compile-variable</SCHEMEINLINE>
+	і
+	<SCHEMEINLINE>compile-assignment</SCHEMEINLINE>
+      </SCHEME>
+      <PYTHON>
+	<PYTHONINLINE>compile_assignment_declaration</PYTHONINLINE>
+	і
+	<PYTHONINLINE>compile_name</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    так, щоб вони видавали інструкції з лексичними адресами.
+    <SPLIT>
+      <SCHEME>
+	У випадках, коли <SCHEMEINLINE>find-variable</SCHEMEINLINE>
+	повертає <SCHEMEINLINE>not-found</SCHEMEINLINE>
+	(тобто коли змінної немає в
+	середовищі часу компіляції), генератори коду мають використати
+	операції обчислювача, як і раніше, щоб знайти зв’язування.
+	(Єдине місце, де може бути змінна, не знайдена під час компіляції, — це
+	глобальне середовище, яке є частиною середовища часу виконання, але
+	не є частиною середовища часу
+	компіляції.<FOOTNOTE>Лексичні адреси не можна використовувати для доступу
+	до змінних у глобальному середовищі, бо ці імена можна означити
+	й переозначити інтерактивно в будь-який момент.  Коли внутрішні означення
+	висканувано назовні, як
+	у вправі<SPACE/><REF NAME="ex:lexical-address-end"/>,
+	єдині означення, які бачить
+	компілятор, — це означення верхнього рівня, які діють на глобальне
+	середовище.  Компіляція означення не призводить до внесення означеного
+	імені в середовище часу компіляції.</FOOTNOTE>
+	Тож, якщо хочете, ви можете змусити операції обчислювача дивитися просто
+	в глобальне середовище, яке можна дістати операцією
+	<SCHEMEINLINE>(op<SPACE/>get-global-environment)</SCHEMEINLINE>,
+	замість того щоб вони шукали в усьому середовищі часу
+	виконання, знайденому в <SCHEMEINLINE>env</SCHEMEINLINE>.)
+      </SCHEME>
+      <PYTHON>
+	У випадках, коли <PYTHONINLINE>find_symbol</PYTHONINLINE>
+	повертає <PYTHONINLINE>"not found"</PYTHONINLINE>
+	(тобто коли імені немає в середовищі часу компіляції),
+	ви маєте повідомити про помилку часу компіляції.
+      </PYTHON>
+    </SPLIT>
+    Перевірте змінений компілятор на кількох простих випадках, як-от вкладена
+    комбінація
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>lambda</SCHEMEINLINE></SCHEME>
+      <PYTHON>lambda</PYTHON>
+    </SPLITINLINE>
+    на початку цього підрозділу.
+    <LABEL NAME="ex:impl-lex-addr"/>
+  </EXERCISE>
+
+  <SPLIT>
+    <SCHEME>
+      <EXERCISE>
+	У підрозділі<SPACE/><REF NAME="sec:internal-definitions"/> ми доводили, що
+	внутрішні означення для блочної структури не слід вважати
+	<QUOTE>справжніми</QUOTE> <SCHEMEINLINE>define</SCHEMEINLINE>.  Радше тіло
+	процедури
+	слід інтерпретувати так, ніби внутрішні змінні, які означують,
+	встановлено як звичайні змінні <SCHEMEINLINE>lambda</SCHEMEINLINE>
+	, ініціалізовані своїми правильними значеннями за допомогою
+	<SCHEMEINLINE>set!</SCHEMEINLINE>.
+	Підрозділ<SPACE/><REF NAME="sec:internal-definitions"/> і
+	вправа<SPACE/><REF NAME="ex:internal-defs"/> показали, як змінити
+	метамовний інтерпретатор, щоб досягти цього
+	<INDEX>сканування назовні внутрішніх означень<SUBINDEX><ORDER>compiler</ORDER>у компіляторі</SUBINDEX></INDEX>
+	<INDEX>компілятор для Scheme<SUBINDEX>сканування назовні внутрішніх означень</SUBINDEX></INDEX>
+	скануванням назовні внутрішніх
+	означень.  Змініть компілятор так, щоб він виконував те саме перетворення
+	перед тим, як компілювати тіло
+	процедури
+	.
+	<LABEL NAME="ex:lexical-address-end"/>
+      </EXERCISE>
+    </SCHEME>
+    <PYTHON>
+      <EXERCISE>
+	У Python спроба присвоїти нове значення імені, оголошеному
+	як
+	<INDEX>константа (у Python)<SUBINDEX>виявлення присвоєння</SUBINDEX></INDEX>
+	константа, призводить до помилки.
+	Вправа<SPACE/><REF NAME="ex:mutable"/> показує, як
+	виявляти такі помилки під час виконання. З прийомами, поданими в цьому
+	підрозділі, ми можемо виявляти спроби присвоїти нове значення константі
+	<EM>під час компіляції</EM>. Для цього розширте функції
+	<PYTHONINLINE>compile_lambda_body</PYTHONINLINE> і
+	<PYTHONINLINE>compile_block</PYTHONINLINE>
+	так, щоб вони записували в середовище часу компіляції, чи оголошено ім’я як змінну (за допомогою
+	<PYTHONINLINE>let</PYTHONINLINE> або як параметр), чи як
+	константу (за допомогою
+	<PYTHONINLINE>const</PYTHONINLINE>
+	або
+	<PYTHONINLINE>function</PYTHONINLINE>).
+	Змініть <PYTHONINLINE>compile_assignment</PYTHONINLINE>
+	так, щоб вона повідомляла про відповідну помилку, коли виявляє
+	присвоєння константі.
+	<LABEL NAME="ex:lexical-constants"/>
+      </EXERCISE>
+    </PYTHON>
+  </SPLIT>
+
+  <SPLIT>
+    <SCHEME>
+      <EXERCISE>
+	У цьому підрозділі ми зосередилися на використанні середовища часу
+	компіляції для породження лексичних адрес.  Але середовища часу компіляції
+	мають інші застосування.  Наприклад, у
+	вправі<SPACE/><REF NAME="ex:open-code"/> ми підвищили ефективність
+	скомпільованого коду
+	<INDEX>компілятор для Scheme<SUBINDEX>відкрите кодування примітивів</SUBINDEX></INDEX>
+	<INDEX>відкрите кодування примітивів</INDEX>
+	<INDEX>зарезервовані слова</INDEX>
+	<INDEX>середовище часу компіляції<SUBINDEX>відкрите кодування і</SUBINDEX></INDEX>
+	відкритим кодуванням примітивних
+	процедур. Наша реалізація розглядала імена відкрито закодованих
+	процедур як зарезервовані слова.  Якби програма перезв’язала таке ім’я,
+	механізм, описаний у вправі<SPACE/><REF NAME="ex:open-code"/>, усе одно
+	закодував би його відкрито як примітив, ігноруючи нове зв’язування.  Наприклад,
+	розгляньмо
+	процедуру
+	<SNIPPET>
+	  <SCHEME>
+(lambda (+ * a b x y)
+  (+ (* a x) (* b y)))
+	  </SCHEME>
+	</SNIPPET>
+	яка обчислює лінійну комбінацію <SCHEMEINLINE>x</SCHEMEINLINE> і
+	<SCHEMEINLINE>y</SCHEMEINLINE>.  Ми могли б викликати її з аргументами
+	<SCHEMEINLINE>+matrix</SCHEMEINLINE>, <SCHEMEINLINE>*matrix</SCHEMEINLINE>
+	і чотирма матрицями, але компілятор із відкритим кодуванням усе одно закодував би відкрито
+	<SCHEMEINLINE>+</SCHEMEINLINE> і <SCHEMEINLINE>*</SCHEMEINLINE> у
+	<SCHEMEINLINE>(+ (* a x) (* b y))</SCHEMEINLINE>
+	як примітивні <SCHEMEINLINE>+</SCHEMEINLINE> і
+	<SCHEMEINLINE>*</SCHEMEINLINE>.  Змініть компілятор із відкритим кодуванням так, щоб він звертався до
+	середовища часу компіляції, аби скомпілювати правильний код для
+	виразів, які містять імена примітивних
+	процедур.
+	(Код працюватиме правильно, поки програма не
+	<SCHEMEINLINE>define</SCHEMEINLINE>
+	чи
+	<SCHEMEINLINE>set!</SCHEMEINLINE>
+	ці імена.)
+	<LABEL NAME="ex:cte-open-code"/>
+      </EXERCISE>
+    </SCHEME>
+    <PYTHON>
+      <EXERCISE>
+        <LABEL NAME="ex:constant-optimisations"/>
+        Знання про константи під час компіляції відчиняє двері до багатьох
+        оптимізацій, які дають нам змогу породжувати ефективніший об’єктний код. На
+        додачу до розширення
+	<INDEX>середовище часу компіляції</INDEX>
+	середовища часу компіляції у
+        вправі<SPACE/><REF NAME="ex:lexical-constants"/>, щоб позначати імена,
+	оголошені константами, ми можемо зберігати
+        значення константи, якщо воно відоме під час компіляції, або іншу інформацію,
+	яка може допомогти нам оптимізувати код.
+        <OL>
+          <LI>
+            Оголошення константи, як-от <PYTHONINLINE>const</PYTHONINLINE><FIXED_SPACE/><META>name</META><FIXED_SPACE/><PYTHONINLINE>=</PYTHONINLINE><FIXED_SPACE/><META>literal</META><PYTHONINLINE>;</PYTHONINLINE>, дає нам змогу
+            замінити всі входження <META>name</META> у межах області видимості
+            цього оголошення на <META>literal</META>, щоб <META>name</META>
+            не доводилося шукати в середовищі часу виконання. Цю оптимізацію
+            називають <EM>поширенням констант</EM>. Скористайтеся розширеним середовищем часу
+            компіляції, щоб зберігати літеральні константи, і змініть
+            <PYTHONINLINE>compile_name</PYTHONINLINE> так, щоб воно використовувало збережену
+            константу в породженій інструкції <PYTHONINLINE>assign</PYTHONINLINE>
+	    замість
+            операції <PYTHONINLINE>lookup_symbol_value</PYTHONINLINE>.
+          </LI>
+          <LI>
+	    Означення функції — це похідний компонент, який розгортається в
+	    оголошення константи. Припустімо, що імена примітивних функцій
+	    у глобальному середовищі також вважають константами.
+	    Якщо ми додатково розширимо наше середовище часу
+	    компіляції, щоб воно відстежувало, які імена вказують на скомпільовані
+	    функції, а які — на примітивні, ми можемо перенести
+            перевірку, яка з’ясовує, чи функція скомпільована, чи примітивна,
+            з часу виконання на час компіляції. Це робить об’єктний код
+            ефективнішим, бо замінює перевірку, яку треба виконувати раз на
+            кожне застосування функції в породженому коді, на перевірку, яку виконує
+            компілятор. Користуючись таким розширеним середовищем часу компіляції,
+            змініть <PYTHONINLINE>compile_function_call</PYTHONINLINE>
+	    так, щоб, якщо можна визначити
+	    під час компіляції, чи викликана функція скомпільована, чи примітивна,
+	    породжувалися лише інструкції з
+	    <PYTHONINLINE>compiled_branch</PYTHONINLINE> або
+            <PYTHONINLINE>primitive_branch</PYTHONINLINE>
+            .
+          </LI>
+          <LI>
+            Заміна імен констант на їхні літеральні значення, як у частині (a),
+            відкриває шлях до іншої оптимізації, а саме заміни
+            застосувань примітивних функцій до літеральних значень
+            обчисленим під час компіляції результатом. Ця оптимізація, звана
+            <EM>згортанням констант</EM>, замінює вирази, як-от
+            <PYTHONINLINE>40 + 2</PYTHONINLINE>, на
+            <PYTHONINLINE>42</PYTHONINLINE>, виконуючи додавання
+            в компіляторі. Розширте компілятор так, щоб він виконував згортання констант для
+            арифметичних операцій над числами та для конкатенації рядків.
+            <LABEL NAME="foot:ex-ast-transformations"/>
+          </LI>
+        </OL>
+      </EXERCISE>
+    </PYTHON>
+  </SPLIT>
+</SUBSECTION>

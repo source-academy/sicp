@@ -1,0 +1,831 @@
+<SUBSECTION>
+  <NAME>
+    Запуск обчислювача як програми
+  </NAME>
+
+  <LABEL NAME="sec:running-eval"/>
+
+  <INDEX>метамовний обчислювач для Python<SUBINDEX>запуск<OPEN/></SUBINDEX></INDEX>
+
+  <TEXT>
+    Маючи обчислювач, ми тримаємо в руках опис
+    <SPLITINLINE>
+      <SCHEME>(записаний мовою Lisp)</SCHEME>
+      <PYTHON>(записаний мовою Python)</PYTHON>
+    </SPLITINLINE>
+    процесу, яким обчислюють
+    <SPLITINLINE>
+      <SCHEME>вирази Lisp</SCHEME>
+      <PYTHON>інструкції та вирази Python</PYTHON>
+    </SPLITINLINE>
+    .  Одна з переваг запису обчислювача як програми —
+    те, що ми можемо запустити цю програму.  Це дає нам, прямо в
+    <SPLITINLINE>
+      <SCHEME>Lisp,</SCHEME>
+      <PYTHON>Python,</PYTHON>
+    </SPLITINLINE>
+    робочу модель того, як
+    <SPLITINLINE>
+      <SCHEME>Lisp</SCHEME>
+      <PYTHON>Python</PYTHON>
+    </SPLITINLINE>
+    сам обчислює вирази.  Вона може правити за основу
+    для експериментів із правилами обчислення, як ми робитимемо далі в цьому розділі.
+  </TEXT>
+
+  <TEXT>
+    Наша програма-обчислювач зводить вирази, зрештою, до застосування
+    <SPLITINLINE>
+      <SCHEME>
+	<INDEX>метамовний обчислювач для Scheme<SUBINDEX>примітивні процедури<OPEN/></SUBINDEX></INDEX>
+      </SCHEME>
+      <PYTHON>
+	<INDEX>метамовний обчислювач для Python<SUBINDEX>примітивні функції<OPEN/></SUBINDEX></INDEX>
+      </PYTHON>
+    </SPLITINLINE>
+    примітивних
+    <SPLITINLINE>
+      <SCHEME>процедур.</SCHEME>
+      <PYTHON>функцій.</PYTHON>
+    </SPLITINLINE>
+    Отже, щоб запустити обчислювач, нам досить створити механізм,
+    який звертається до
+    <SPLITINLINE>
+      <SCHEME>Lisp</SCHEME>
+      <PYTHON>Python</PYTHON>
+    </SPLITINLINE>
+    -системи, щоб змоделювати застосування примітивних
+    <SPLITINLINE>
+      <SCHEME>процедур.</SCHEME>
+      <PYTHON>функцій.</PYTHON>
+    </SPLITINLINE>
+  </TEXT>
+
+  <TEXT>
+    Для кожного імені й оператора примітивної
+    <SPLITINLINE>
+      <SCHEME>процедури</SCHEME>
+      <PYTHON>функції</PYTHON>
+    </SPLITINLINE>
+    мусить існувати прив’язка, щоб коли
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>eval</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>evaluate</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    обчислює
+    <SPLITINLINE>
+      <SCHEME>оператор</SCHEME>
+      <PYTHON>вираз-функцію</PYTHON>
+    </SPLITINLINE>
+    застосування примітива, він знайшов
+    об’єкт, який передати в <SCHEMEINLINE>apply</SCHEMEINLINE>.  Тож ми створюємо
+    <INDEX>метамовний обчислювач для Python<SUBINDEX>глобальне середовище</SUBINDEX></INDEX>
+    <INDEX>глобальне середовище<SUBINDEX><ORDER>metacircular</ORDER>у метамовному обчислювачі</SUBINDEX></INDEX>
+    глобальне середовище, яке зіставляє унікальні об’єкти з іменами
+    примітивних
+    <SPLITINLINE>
+      <SCHEME>процедур</SCHEME>
+      <PYTHON>функцій та операторів</PYTHON>
+    </SPLITINLINE>
+    , які можуть траплятися у виразах, які ми обчислюватимемо.  
+    <INDEX>символ(и)<SUBINDEX>у глобальному середовищі</SUBINDEX></INDEX>
+    <SPLIT>
+      <SCHEME>
+	Глобальне середовище також містить прив’язки для символів
+	<INDEX>метамовний обчислювач для Scheme<SUBINDEX><ORDER>true and false</ORDER><SCHEMEINLINE>true</SCHEMEINLINE> і <SCHEMEINLINE>false</SCHEMEINLINE></SUBINDEX></INDEX>
+	<SCHEMEINLINE>true</SCHEMEINLINE> і <SCHEMEINLINE>false</SCHEMEINLINE>,
+      </SCHEME>
+      <PYTHON>
+	Глобальне середовище також містить прив’язки для
+	<INDEX>метамовний обчислювач для Python<SUBINDEX><ORDER>None</ORDER><USE>None</USE></SUBINDEX></INDEX>
+	<PYTHONINLINE>None</PYTHONINLINE>
+	та інших імен,
+      </PYTHON>
+    </SPLIT>
+    щоб їх можна було використовувати як константи у виразах, які треба обчислити.
+    <SNIPPET PAGE="365" HIDE="yes" EVAL="no">
+      <NAME>headline_4_1_4</NAME>
+      <PYTHON>
+# functions from SICP JS 4.1.4
+</PYTHON>
+    </SNIPPET>
+    <SNIPPET PAGE="381">
+      <INDEX><DECLARATION>setup_environment</DECLARATION></INDEX>
+      <NAME>setup_environment</NAME>
+      <REQUIRES>append</REQUIRES>
+      <EXAMPLE>setup_environment_example</EXAMPLE>
+      <REQUIRES>tagged_list</REQUIRES>
+      <REQUIRES>extend_environment</REQUIRES>
+      <REQUIRES>enclosing_environment</REQUIRES>
+      <REQUIRES>make_frame</REQUIRES>
+      <REQUIRES>primitive_constants</REQUIRES>
+      <REQUIRES>primitive_procedures</REQUIRES>
+      <REQUIRES>primitive_procedure</REQUIRES>
+      <EXPECTED>'/'</EXPECTED>
+      <SCHEME>
+(define (setup-environment)
+  (let ((initial-env
+         (extend-environment (primitive-procedure-names)
+                             (primitive-procedure-objects)
+                             the-empty-environment)))
+    (define-variable! 'true true initial-env)
+    (define-variable! 'false false initial-env)
+    initial-env))
+      </SCHEME>
+      <PYTHON>
+def setup_environment():
+    return extend_environment(append(primitive_function_symbols, primitive_constant_symbols), append(primitive_function_objects, primitive_constant_values), the_empty_environment)
+</PYTHON>
+    </SNIPPET>
+    <SNIPPET PAGE="381" HIDE="yes">
+      <NAME>setup_environment_example</NAME>
+      <REQUIRES>list_ref</REQUIRES>
+      <PYTHON>
+the_global_environment = setup_environment()
+the_global_environment
+</PYTHON>
+      <PYTHON_TEST>
+the_global_environment = setup_environment()
+llist_ref(head(head(the_global_environment)), 12)
+</PYTHON_TEST>
+    </SNIPPET>
+    <SNIPPET PAGE="381">
+      <INDEX><DECLARATION>the_global_environment</DECLARATION></INDEX>
+      <NAME>the_global_environment</NAME>
+      <REQUIRES>setup_environment</REQUIRES>
+      <EXAMPLE>the_global_environment_example</EXAMPLE>
+      <SCHEME>
+(define the-global-environment (setup-environment))
+      </SCHEME>
+      <PYTHON>
+the_global_environment = setup_environment()
+</PYTHON>
+    </SNIPPET>
+    <SNIPPET PAGE="381" HIDE="yes">
+      <NAME>the_global_environment_example</NAME>
+      <PYTHON>
+the_global_environment
+      </PYTHON>
+    </SNIPPET>
+  </TEXT>
+
+  <SPLIT>
+    <SCHEME>
+      <TEXT>
+	Не має значення, як ми подаємо об’єкти примітивних процедур, аби
+	лише <SCHEMEINLINE>apply</SCHEMEINLINE> міг розпізнавати їх і застосовувати
+	за допомогою процедур <SCHEMEINLINE>primitive-procedure?</SCHEMEINLINE>
+	і <SCHEMEINLINE>apply-primitive-procedure</SCHEMEINLINE>. Ми
+	вирішили подавати примітивну процедуру як список, що починається з
+	символа <SCHEMEINLINE>primitive</SCHEMEINLINE> і містить процедуру
+	в базовій мові Lisp, яка реалізує цей примітив.
+	<SNIPPET PAGE="382">
+	  <NAME>primitive_procedure</NAME>
+	  <SCHEME>
+(define (primitive-procedure? proc)
+  (tagged-list? proc 'primitive))
+
+(define (primitive-implementation proc) (cadr proc))
+	  </SCHEME>
+	</SNIPPET>
+      </TEXT>
+    </SCHEME>
+    <PYTHON>
+      <TEXT>
+	Не має значення, як ми подаємо об’єкти примітивних функцій, аби
+	лише <SCHEMEINLINE>apply</SCHEMEINLINE> міг розпізнавати їх і застосовувати
+	за допомогою функцій <PYTHONINLINE>is_primitive_function</PYTHONINLINE>
+	і <PYTHONINLINE>apply_primitive_function</PYTHONINLINE>.  Ми
+	вирішили подавати примітивну функцію як список, що починається з
+	рядка <PYTHONINLINE>"primitive"</PYTHONINLINE> і
+	містить функцію в базовій мові JavaScript, яка реалізує цей
+	примітив.
+	<SNIPPET PAGE="382">
+	  <INDEX><DECLARATION>is_primitive_function</DECLARATION></INDEX>
+	  <INDEX><DECLARATION>primitive_implementation</DECLARATION></INDEX>
+	  <NAME>primitive_procedure</NAME>
+	  <REQUIRES>tagged_list</REQUIRES>
+	  <EXAMPLE>primitive_procedure_example</EXAMPLE>
+	  <EXPECTED>true</EXPECTED>
+	  <PYTHON>
+def is_primitive_function(fun):
+    return is_tagged_list(fun, "primitive")
+<SHORT_SPACE/>
+def primitive_implementation(fun):
+    return head(tail(fun))
+</PYTHON>
+	</SNIPPET>
+	<SNIPPET PAGE="382" HIDE="yes">
+	  <NAME>primitive_procedure_example</NAME>
+	  <PYTHON>
+my_primitive_plus = llist("primitive", lambda x, y: (x + y))
+print(is_primitive_function(my_primitive_plus))
+print(primitive_implementation(my_primitive_plus))
+</PYTHON>
+	  <PYTHON_TEST>
+my_primitive_plus = llist("primitive", lambda x, y: (x + y))
+primitive_implementation(my_primitive_plus)
+is_primitive_function(my_primitive_plus)
+</PYTHON_TEST>
+	</SNIPPET>
+      </TEXT>
+    </PYTHON>
+  </SPLIT>
+
+  <TEXT>
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>Setup-environment</SCHEMEINLINE></SCHEME>
+      <PYTHON>Функція
+      <PYTHONINLINE>setup_environment</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    дістане імена та реалізаційні
+    <SPLITINLINE>
+      <SCHEME>процедури</SCHEME>
+      <PYTHON>функції</PYTHON>
+    </SPLITINLINE>
+    примітивів зі списку:<FOOTNOTE>Будь-яку
+    <SPLITINLINE>
+      <SCHEME>процедуру</SCHEME>
+      <PYTHON>функцію</PYTHON>
+    </SPLITINLINE>
+    , означену в базовій
+    <SPLITINLINE>
+      <SCHEME>мові Lisp</SCHEME>
+      <PYTHON>мові Python</PYTHON>
+    </SPLITINLINE>
+    , можна використати як примітив для метамовного обчислювача.  Ім’я
+    примітива, встановленого в обчислювачі, не обов’язково має збігатися
+    з ім’ям його реалізації в базовій
+    <SPLITINLINE>
+      <SCHEME>мові Lisp;</SCHEME>
+      <PYTHON>мові Python</PYTHON>
+      </SPLITINLINE>
+    тут імена збігаються, бо метамовний обчислювач реалізує
+    <SPLITINLINE>
+      <SCHEME>Scheme</SCHEME>
+      <PYTHON>Python</PYTHON>
+    </SPLITINLINE>    
+    власними силами.
+    Так, наприклад, ми могли б узяти 
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>(list 'first car)</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>llist("first", head)</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE> 
+    або 
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>(list 'square (lambda (x) (* x x)))</SCHEMEINLINE>
+      </SCHEME>
+      <PYTHON>
+	<PYTHONINLINE>llist("square", lambda x: x * x)</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    у списку 
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>primitive-procedures</SCHEMEINLINE>.</SCHEME>
+      <PYTHON><PYTHONINLINE>primitive_functions</PYTHONINLINE>.
+      </PYTHON>
+    </SPLITINLINE></FOOTNOTE>
+    <SNIPPET PAGE="382" EVAL="no" LATEX="yes">
+      <INDEX><DECLARATION>primitive_function_symbols</DECLARATION></INDEX>
+      <INDEX><DECLARATION>primitive_function_objects</DECLARATION></INDEX>
+      <NAME>primitive_procedures</NAME>
+      <REQUIRES>map</REQUIRES>
+      <EXAMPLE>primitive_procedures_example</EXAMPLE>
+      <EXPECTED>20</EXPECTED>
+      <SCHEME>
+(define primitive-procedures
+  (list (list 'car car)
+        (list 'cdr cdr)
+        (list 'cons cons)
+        (list 'null? null?)
+        (list 'display display)
+        (list 'read read)
+        (list '+ +)
+        (list '- -)
+        (list '* *)
+;;      more primitives
+        ))
+
+(define (primitive-procedure-names)
+  (map car
+       primitive-procedures))
+
+(define (primitive-procedure-objects)
+  (map (lambda (proc) (list 'primitive (cadr proc)))
+       primitive-procedures))
+      </SCHEME>
+      <PYTHON>
+primitive_functions = llist(llist("head",    head             ),
+                             llist("tail",    tail             ),
+                             llist("pair",    pair             ),
+                             llist("is_null", is_none          ),
+                             llist("+",       lambda x, y: x + y  ),
+                             <METAPHRASE>more primitive functions</METAPHRASE>
+                            )
+<SHORT_SPACE/>
+primitive_function_symbols = \
+    map(lambda f: head(f), primitive_functions)
+<SHORT_SPACE/>
+primitive_function_objects = \
+    map(lambda f: llist("primitive", head(tail(f))),
+        primitive_functions)
+      </PYTHON>
+      <PYTHON_RUN>
+primitive_functions = llist(llist("head", head), llist("tail", tail), llist("pair", pair), llist("list", list), llist("is_null", is_none), llist("display", print), llist("error", error), llist("math_abs", abs), llist("+", lambda x, y: (x + y)), llist("-", lambda x, y: (x - y)), llist("-unary", lambda x: (- x)), llist("*", lambda x, y: (x * y)), llist("/", lambda x, y: (x / y)), llist("%", lambda x, y: (x % y)), llist("===", lambda x, y: (x == y)), llist("!==", lambda x, y: (x != y)), llist("&lt;", lambda x, y: (x &lt; y)), llist("&lt;=", lambda x, y: (x &lt;= y)), llist("&gt;", lambda x, y: (x &gt; y)), llist("&gt;=", lambda x, y: (x &gt;= y)), llist("!", lambda x: ( not x)))
+primitive_function_symbols = map(head, primitive_functions)
+primitive_function_objects = map(lambda fun: (llist("primitive", head(tail(fun)))), primitive_functions)
+</PYTHON_RUN>
+    </SNIPPET>
+    <SNIPPET PAGE="382" HIDE="yes">
+      <NAME>primitive_procedures_example</NAME>
+      <REQUIRES>length</REQUIRES>
+      <PYTHON>
+primitive_functions
+      </PYTHON>
+      <PYTHON_TEST>
+length(primitive_functions)
+      </PYTHON_TEST>
+    </SNIPPET>
+  </TEXT>
+
+  <SPLIT>
+    <SCHEME>
+    </SCHEME>
+    <PYTHON>
+      <TEXT>
+	Подібно до примітивних функцій, ми означаємо інші примітивні
+	константи, які встановлює в глобальне середовище функція
+	<PYTHONINLINE>setup_environment</PYTHONINLINE>.
+	<SNIPPET PAGE="382" EVAL="no" LATEX="yes">
+	  <NAME>primitive_constants</NAME>
+	  <REQUIRES>map</REQUIRES>
+	  <EXAMPLE>primitive_constants_example</EXAMPLE>
+	  <EXPECTED>5</EXPECTED>
+	  <PYTHON>
+primitive_constants = llist(llist("undefined", None),
+                             llist("math_PI",   math_pi)
+                             <METAPHRASE>more primitive constants</METAPHRASE>
+                            )
+<SHORT_SPACE/>
+primitive_constant_symbols = \
+    map(lambda c: head(c), primitive_constants)
+<SHORT_SPACE/>
+primitive_constant_values = \
+    map(lambda c: head(tail(c)), primitive_constants)
+	  </PYTHON>
+	  <PYTHON_RUN>
+primitive_constants = llist(llist("undefined", None), llist("Infinity", math_inf), llist("math_PI", math_pi), llist("math_E", math_e), llist("NaN", math_nan))
+primitive_constant_symbols = map(lambda c: (head(c)), primitive_constants)
+primitive_constant_values = map(lambda c: (head(tail(c))), primitive_constants)
+</PYTHON_RUN>
+	</SNIPPET>
+
+	<SNIPPET PAGE="382" HIDE="yes">
+	  <NAME>primitive_constants_example</NAME>
+	  <REQUIRES>length</REQUIRES>
+	  <PYTHON>
+primitive_constants
+	  </PYTHON>
+	  <PYTHON_TEST>
+length(primitive_constants)
+	  </PYTHON_TEST>
+	</SNIPPET>
+      </TEXT>
+    </PYTHON>
+  </SPLIT>
+  
+  <TEXT>
+    Щоб застосувати 
+    <SPLITINLINE>
+      <SCHEME>примітивну процедуру,</SCHEME>
+      <PYTHON>примітивну функцію,</PYTHON>
+    </SPLITINLINE>
+    ми просто застосовуємо реалізаційну
+    <SPLITINLINE>
+      <SCHEME>процедуру</SCHEME>
+      <PYTHON>функцію</PYTHON>
+    </SPLITINLINE>
+    до аргументів, користуючись базовою
+    <SPLITINLINE>
+      <SCHEME>мовою Lisp</SCHEME>
+      <PYTHON>мовою Python</PYTHON>
+    </SPLITINLINE>
+    :<FOOTNOTE>
+    <SPLIT>
+      <SCHEME>    
+	<SCHEMEINLINE>Apply-in-underlying-scheme</SCHEMEINLINE> — це та
+	процедура <SCHEMEINLINE>apply</SCHEMEINLINE>, яку ми використовували
+	в попередніх розділах.  Процедура <SCHEMEINLINE>apply</SCHEMEINLINE>
+	метамовного обчислювача
+	(підрозділ<SPACE/><REF NAME="sec:core-of-evaluator"/>) моделює
+	роботу цього примітива.  Наявність двох різних речей, названих
+	<SCHEMEINLINE>apply</SCHEMEINLINE>, породжує технічну проблему
+	під час запуску метамовного обчислювача, бо означення
+	<SCHEMEINLINE>apply</SCHEMEINLINE> метамовного
+	обчислювача замаскує означення примітива.  Один зі способів
+	обійти це — перейменувати метамовний <SCHEMEINLINE>apply</SCHEMEINLINE>,
+	щоб уникнути конфлікту з ім’ям примітивної процедури. Ми натомість
+	припустили, що ми зберегли посилання на базовий
+	<SCHEMEINLINE>apply</SCHEMEINLINE>, виконавши
+	<SNIPPET>
+	  <NAME>apply_in_underlying</NAME>
+	  <SCHEME>
+(define apply-in-underlying-scheme apply)
+	  </SCHEME>
+	</SNIPPET>
+	перед означенням метамовного <SCHEMEINLINE>apply</SCHEMEINLINE>.
+	Це дає нам змогу звертатися до початкової версії
+	<SCHEMEINLINE>apply</SCHEMEINLINE> під іншим ім’ям.
+      </SCHEME>
+      <PYTHON>
+	<LABEL NAME="foot:vector-array"/>
+        Метод <PYTHONINLINE>apply</PYTHONINLINE> у Python
+	очікує аргументи функції у <EM>векторі</EM>. (Вектори
+	в Python називають <QUOTE>масивами</QUOTE>.)
+	Тож <PYTHONINLINE>arglist</PYTHONINLINE> перетворюють на 
+        <INDEX>вектор (структура даних)<SUBINDEX><ORDER>arguments</ORDER>для аргументів <PYTHONINLINE>apply</PYTHONINLINE></SUBINDEX></INDEX>
+	вектор<EMDASH/>тут за допомогою циклу
+	while (див. вправу<SPACE/><REF NAME="ex:while_loop"/>):
+	<SNIPPET PAGE="382"  EVAL="no" LATEX="yes">
+	  <INDEX><DECLARATION>apply_in_underlying_javascript</DECLARATION></INDEX>
+	  <INDEX><USE>apply</USE> (primitive method)</INDEX>
+	  <INDEX><PRIMITIVE/><SUBINDEX><USE>apply</USE><ECMA>apply</ECMA></SUBINDEX></INDEX>
+	  <NAME>apply_in_underlying</NAME>
+	  <PYTHON>
+def apply_in_underlying_javascript(prim, arglist):
+    arg_vector = []
+    # empty vector
+    i = 0
+    while  not is_none(arglist):
+        arg_vector[i] = head(arglist)
+        # store value at index $\texttt{i}$
+        i = i + 1
+        arglist = tail(arglist)
+    return prim.apply(prim, arg_vector)
+    # $\texttt{apply}$ is accessed via $\texttt{prim}$
+</PYTHON>
+	</SNIPPET>
+	Ми також скористалися
+	<PYTHONINLINE>apply_in_underlying_javascript</PYTHONINLINE>
+	для оголошення функції
+	<PYTHONINLINE>apply_@generic</PYTHONINLINE>
+	у підрозділі<SPACE/><REF NAME="sec:data-directed"/>.
+      </PYTHON>
+    </SPLIT></FOOTNOTE>
+    <SNIPPET PAGE="382">
+      <INDEX><DECLARATION>apply_primitive_function</DECLARATION></INDEX> 
+      <NAME>apply_primitive_procedure</NAME>
+      <EXAMPLE>apply_primitive_procedure_example</EXAMPLE>
+      <EXPECTED>3</EXPECTED>
+      <SCHEME>
+(define (apply-primitive-procedure proc args)
+  (apply-in-underlying-scheme
+   (primitive-implementation proc) args))
+      </SCHEME>
+      <PYTHON>
+def apply_primitive_function(fun, arglist):
+    return apply_in_underlying_javascript(primitive_implementation(fun), arglist)
+</PYTHON>
+    </SNIPPET>
+    <SNIPPET PAGE="382" HIDE="yes">
+      <NAME>apply_primitive_procedure_example</NAME>
+      <REQUIRES>primitive_procedure</REQUIRES>
+      <REQUIRES>primitive_procedure_example</REQUIRES>
+      <PYTHON>
+apply_primitive_function(my_primitive_plus, llist(1, 2))
+      </PYTHON>
+    </SNIPPET>
+
+    <INDEX>метамовний обчислювач для Python<SUBINDEX>примітивні <SPLITINLINE><SCHEME>procedures</SCHEME><PYTHON>functions</PYTHON></SPLITINLINE><CLOSE/></SUBINDEX></INDEX>
+    
+  </TEXT>
+
+  <SNIPPET PAGE="383" HIDE="yes">
+    <NAME>functions_4_1_4</NAME>
+    <REQUIRES>headline_4_1_4</REQUIRES>
+    <REQUIRES>true</REQUIRES>
+    <REQUIRES>primitive_procedure</REQUIRES>
+    <REQUIRES>primitive_procedures</REQUIRES>
+    <REQUIRES>primitive_constants</REQUIRES>
+    <REQUIRES>apply_primitive_procedure</REQUIRES>
+    <REQUIRES>setup_environment</REQUIRES>
+    <REQUIRES>the_global_environment</REQUIRES>
+    <PYTHON></PYTHON>
+  </SNIPPET>
+
+  <TEXT>
+  <SPLIT>
+    <SCHEME>
+	Для зручності запуску метамовного обчислювача ми подаємо
+	<INDEX>метамовний обчислювач для Scheme<SUBINDEX>керівний цикл</SUBINDEX></INDEX>
+	<INDEX>керівний цикл<SUBINDEX><ORDER>metacircular</ORDER>у метамовному обчислювачі</SUBINDEX></INDEX>
+	<EM>керівний цикл</EM>, який моделює цикл «читання, обчислення, друк»
+	базової системи Lisp.  Він друкує 
+	<INDEX>запрошення</INDEX>
+	<EM>запрошення</EM>, читає вхідний вираз, обчислює цей вираз у
+	глобальному середовищі й друкує результат.  Перед кожним
+	надрукованим результатом ми ставимо <EM>запрошення виводу</EM>,
+	щоб відрізняти значення виразу від іншого виводу, який може бути
+	надруковано.<FOOTNOTE>Примітивна процедура
+	<INDEX><DECLARATION>read</DECLARATION></INDEX>
+	<INDEX><DECLARATION>primitive <SPLITINLINE><SCHEME>procedures</SCHEME><PYTHON>functions</PYTHON></SPLITINLINE> (those marked <EM>ns</EM> are not in the IEEE Scheme standard)</DECLARATION><SUBINDEX><ORDER>read</ORDER><SCHEMEINLINE>read</SCHEMEINLINE></SUBINDEX></INDEX>
+	<SCHEMEINLINE>read</SCHEMEINLINE> чекає на введення від користувача й
+	повертає наступний повний введений вираз. Наприклад, якщо
+	користувач вводить <SCHEMEINLINE>(+ 23 x)</SCHEMEINLINE>,
+	<SCHEMEINLINE>read</SCHEMEINLINE> повертає триелементний список,
+	який містить символ <SCHEMEINLINE>+</SCHEMEINLINE>, число 23 і
+	символ <SCHEMEINLINE>x</SCHEMEINLINE>.
+	<INDEX><USE>'</USE> (одинарна лапка)<SUBINDEX><ORDER>read</ORDER><SCHEMEINLINE>read</SCHEMEINLINE> і</SUBINDEX></INDEX>
+	<INDEX><DECLARATION>quote</DECLARATION><SUBINDEX><ORDER>read</ORDER><SCHEMEINLINE>read</SCHEMEINLINE> і</SUBINDEX></INDEX>
+	Якщо користувач вводить <SCHEMEINLINE>'x</SCHEMEINLINE>,
+	<SCHEMEINLINE>read</SCHEMEINLINE> повертає двоелементний список, який
+	містить символ <SCHEMEINLINE>quote</SCHEMEINLINE> і символ
+	<SCHEMEINLINE>x</SCHEMEINLINE>.</FOOTNOTE>
+	<SNIPPET PAGE="383">
+	  <NAME>driver_loop</NAME>
+	  <REQUIRES>functions_4_1_1</REQUIRES>
+	  <REQUIRES>functions_4_1_2</REQUIRES>
+	  <REQUIRES>functions_4_1_3</REQUIRES>
+	  <REQUIRES>functions_4_1_4</REQUIRES>
+	  <REQUIRES>user_print</REQUIRES>
+	  <EXAMPLE>driver_loop_example</EXAMPLE>
+	  <SCHEME>
+(define input-prompt ";;; M-Eval input:\n")
+(define output-prompt ";;; M-Eval value:\n")
+
+(define (driver-loop)
+  (prompt-for-input input-prompt)
+  (let ((input (read)))
+    (if (null? input)
+      'EVALUATOR-TERMINATED
+      (let ((output (eval input the-global-environment)))
+        (announce-output output-prompt)
+        (user-print output)
+        (driver-loop)))))
+
+(define (prompt-for-input string)
+  (newline) (display string))
+
+(define (announce-output string)
+  (newline) (display string))
+	  </SCHEME>
+	</SNIPPET>
+    </SCHEME>
+    <PYTHON>
+	Для зручності запуску метамовного обчислювача ми подаємо
+	<INDEX>метамовний обчислювач для Python<SUBINDEX>керівний цикл</SUBINDEX></INDEX>
+	<INDEX>керівний цикл<SUBINDEX><ORDER>metacircular</ORDER>у метамовному обчислювачі</SUBINDEX></INDEX>
+	<EM>керівний цикл</EM>, який моделює цикл «читання, обчислення, друк»
+	базової системи JavaScript. Він друкує 
+	<INDEX>запрошення</INDEX>
+	<INDEX>запрошення<SUBINDEX>метамовний обчислювач</SUBINDEX></INDEX>
+	<EM>запрошення</EM> й читає вхідну програму як рядок.
+	Він перетворює рядок програми
+	на подання інструкції у вигляді списку з тегами, як описано в
+	підрозділі<SPACE/><REF NAME="sec:representing-expressions"/><EMDASH/>цей
+	процес зветься розбором і його виконує примітивна функція
+	<PYTHONINLINE>parse</PYTHONINLINE>.
+	Перед кожним надрукованим результатом ми ставимо
+	<EM>запрошення виводу</EM>, щоб відрізняти значення
+	програми від іншого виводу, який може бути надруковано. Керівний цикл дістає
+	глобальне середовище попередньої програми як аргумент.
+	Як описано в кінці підрозділу<SPACE/><REF NAME="sec:env-internal-def"/>,
+	керівний цикл поводиться з програмою так, ніби вона в блоці: він
+	вичитує назовні оголошення, розширює задане середовище фреймом,
+	який містить прив’язку кожного імені до
+	<PYTHONINLINE>"*unassigned*"</PYTHONINLINE>, й обчислює
+	програму щодо розширеного середовища, яке
+	потім передають як аргумент наступній ітерації керівного циклу.
+	<SNIPPET PAGE="383">
+	  <INDEX><DECLARATION>driver_loop</DECLARATION><SUBINDEX>for metacircular evaluator</SUBINDEX></INDEX>
+	  <NAME>driver_loop</NAME>
+	  <REQUIRES>functions_4_1_1</REQUIRES>
+	  <REQUIRES>functions_4_1_2</REQUIRES>
+	  <REQUIRES>functions_4_1_3</REQUIRES>
+	  <REQUIRES>functions_4_1_4</REQUIRES>
+	  <REQUIRES>user_print</REQUIRES>
+	  <REQUIRES>user_read</REQUIRES>
+	  <EXAMPLE>driver_loop_example</EXAMPLE>
+	  <PYTHON>
+input_prompt = "M-evaluate input: "
+output_prompt = "M-evaluate value: "
+def driver_loop(env):
+    input = user_read(input_prompt)
+    if is_none(input):
+        print("evaluator terminated")
+    else:
+        program = parse(input)
+        locals = scan_out_declarations(program)
+        unassigneds = list_of_unassigned(locals)
+        program_env = extend_environment(locals, unassigneds, env)
+        output = evaluate(program, program_env)
+        user_print(output_prompt, output)
+        return driver_loop(program_env)
+</PYTHON>
+	  <PYTHON_RUN>
+input_prompt = "\nM-evaluate input:\n"
+output_prompt = "\nM-evaluate value:\n"
+def driver_loop(env, history):
+    input = user_read(history)
+    if is_none(input):
+        print(history + "\n--- session end ---\n", "")
+    else:
+        program = parse(input)
+        locals = scan_out_declarations(program)
+        unassigneds = list_of_unassigned(locals)
+        program_env = extend_environment(locals, unassigneds, env)
+        output = evaluate(program, program_env)
+        new_history = history + input_prompt + input + output_prompt + to_string(output)
+        return driver_loop(program_env, new_history)
+"metacircular evaluator loaded"
+</PYTHON_RUN>
+	</SNIPPET>
+    </PYTHON>
+  </SPLIT>
+    <SPLIT>
+      <SCHEME>
+      </SCHEME>
+      <PYTHON>
+	Ми використовуємо функцію <PYTHONINLINE>prompt</PYTHONINLINE> з Python,
+	щоб попросити в користувача вхідний рядок і прочитати його:
+	<SNIPPET PAGE="383">
+	  <INDEX><DECLARATION>user_read</DECLARATION></INDEX>
+	  <NAME>user_read</NAME>
+	  <PYTHON>
+def user_read(prompt_string):
+    return prompt(prompt_string)
+</PYTHON>
+	</SNIPPET>
+      </PYTHON>
+    </SPLIT>
+    Функція
+    <INDEX><USE>prompt</USE> (примітивна функція)</INDEX>
+    <INDEX><PRIMITIVE/><SUBINDEX><USE>prompt</USE> (\textit{ns})</SUBINDEX></INDEX>
+    <PYTHONINLINE>prompt</PYTHONINLINE> повертає
+    <PYTHONINLINE>null</PYTHONINLINE>, коли користувач скасовує
+    введення. Ми використовуємо спеціальну
+    <SPLITINLINE>
+      <SCHEME>процедуру друку <SCHEMEINLINE>user-print</SCHEMEINLINE>,</SCHEME>
+      <PYTHON>функцію друку <PYTHONINLINE>user_print</PYTHONINLINE>,
+      </PYTHON>
+    </SPLITINLINE>
+    щоб не друкувати частину середовища складеної
+    <SPLITINLINE>
+      <SCHEME>процедури,</SCHEME>
+      <PYTHON>функції,</PYTHON>
+    </SPLITINLINE>
+    яка може бути дуже довгим списком (або навіть містити цикли).
+    <SNIPPET PAGE="383">
+      <INDEX><DECLARATION>user_print</DECLARATION></INDEX>
+      <NAME>user_print</NAME>
+      <EXAMPLE>user_print_example</EXAMPLE>
+      <SCHEME>
+(define (user-print object)
+  (if (compound-procedure? object)
+      (display (list 'compound-procedure
+                     (procedure-parameters object)
+                     (procedure-body object)
+                     '&lt;-procedure-env-&gt;))
+      (display object)))
+      </SCHEME>
+      <PYTHON>
+def user_print(string, object):
+    def prepare(object):
+        return "&lt; compound-function &gt;" if is_compound_function(object) else "&lt; primitive-function &gt;" if is_primitive_function(object) else pair(prepare(head(object)), prepare(tail(object))) if is_pair(object) else object
+    print(string + " " + stringify(prepare(object)))
+</PYTHON>
+      <PYTHON_RUN>
+def to_string(object):
+    return "&lt;compound-function&gt;" if is_compound_function(object) else "&lt;primitive-function&gt;" if is_primitive_function(object) else "[" + to_string(head(object)) + ", " + to_string(tail(object)) + "]" if is_pair(object) else stringify(object)
+def user_print(prompt_string, object):
+    print(prompt_string + "\n" + to_string(object) + "\n", "----------------------------")
+</PYTHON_RUN>
+    </SNIPPET>
+    <SNIPPET PAGE="383" HIDE="yes">
+      <NAME>user_print_example</NAME>
+      <REQUIRES>functions_4_1_1</REQUIRES>
+      <REQUIRES>functions_4_1_2</REQUIRES>
+      <REQUIRES>functions_4_1_3</REQUIRES>
+      <REQUIRES>functions_4_1_4</REQUIRES>
+      <PYTHON> 
+user_print("output: ", 
+           evaluate(parse("1 + 2;"),
+                    the_global_environment))
+      </PYTHON>
+    </SNIPPET>
+  </TEXT>
+  <TEXT>
+    Тепер, щоб запустити обчислювач, нам лишається лише ініціалізувати
+    глобальне середовище й запустити керівний цикл.  Ось приклад взаємодії:
+    <SNIPPET PAGE="383-384">
+      <NAME>driver_loop_example</NAME>
+      <REQUIRES>driver_loop</REQUIRES>
+      <SCHEME>
+(define the-global-environment (setup-environment))
+(driver-loop)
+      </SCHEME>
+      <PYTHON>
+the_global_environment = setup_environment()
+driver_loop(the_global_environment)
+</PYTHON>
+      <PYTHON_RUN>
+driver_loop(the_global_environment, "--- session start ---")
+      </PYTHON_RUN>
+    </SNIPPET>
+
+    <SNIPPET>
+      <NAME>meta_append</NAME>
+      <REQUIRES>driver_loop</REQUIRES>
+      <REQUIRES>driver_loop_example</REQUIRES>
+      <SCHEMEPROMPT>
+;;; M-Eval input:
+      </SCHEMEPROMPT>
+      <SCHEME>
+(define (append x y)
+   (if (null? x)
+       y
+       (cons (car x)
+         (append (cdr x) y))))
+      </SCHEME>
+      <SCHEMEOUTPUT>
+;;; M-Eval value:
+ok
+      </SCHEMEOUTPUT>
+      <PYTHON_PROMPT>
+M-evaluate input:
+      </PYTHON_PROMPT>
+      <PYTHON>
+def append(xs, ys):
+    return ys if is_none(xs) else pair(head(xs), append(tail(xs), ys))
+</PYTHON>
+      <PYTHON_RUN>
+# press "Run" to start the driver loop
+# M-evaluate input:
+# def append(xs, ys): return ys if is_none(xs) else pair(head(xs), append(tail(xs), ys))
+# M-evaluate value:
+# None
+# M-evaluate input:
+# append(llist("a", "b", "c"), llist("d", "e", "f"))
+# M-evaluate value:
+# ["a", ["b", ["c", ["d", ["e", ["f", None]]]]]]
+</PYTHON_RUN>
+      <PYTHON_OUTPUT>
+M-evaluate value:
+undefined
+      </PYTHON_OUTPUT>
+    </SNIPPET>
+    <SNIPPET POSTPADDING="no">
+      <NAME>meta_append_example</NAME>
+      <REQUIRES>append</REQUIRES>
+      <REQUIRES>driver_loop</REQUIRES>
+      <REQUIRES>driver_loop_example</REQUIRES>
+      <SCHEMEPROMPT>
+;;; M-Eval input:
+      </SCHEMEPROMPT>
+      <SCHEME>
+(append '(a b c) '(d e f))
+      </SCHEME>
+      <SCHEMEOUTPUT>
+;;; M-Eval value:
+(a b c d e f)
+      </SCHEMEOUTPUT>
+      <PYTHON_PROMPT>
+M-evaluate input:    
+      </PYTHON_PROMPT>
+      <PYTHON>
+append(llist("a", "b", "c"), llist("d", "e", "f"))
+      </PYTHON>
+      <PYTHON_RUN>
+# press "Run" to start the driver loop
+# M-evaluate input:
+# def append(xs, ys): return ys if is_none(xs) else pair(head(xs), append(tail(xs), ys))
+# M-evaluate value:
+# None
+# M-evaluate input:
+# append(llist("a", "b", "c"), llist("d", "e", "f"))
+# M-evaluate value:
+# ["a", ["b", ["c", ["d", ["e", ["f", None]]]]]]
+</PYTHON_RUN>
+      <PYTHON_OUTPUT>
+M-evaluate value: 
+["a", ["b", ["c", ["d", ["e", ["f", null]]]]]]
+      </PYTHON_OUTPUT>
+    </SNIPPET>
+  </TEXT>
+
+  <EXERCISE>
+    Єва Лу Атор і Луї Різонер експериментують із
+    метамовним обчислювачем.  Єва вводить означення
+    <SCHEMEINLINE>map</SCHEMEINLINE> й запускає кілька тестових програм, які його використовують.
+    Вони працюють добре.  Луї ж, навпаки, встановив системну версію
+    <SCHEMEINLINE>map</SCHEMEINLINE> як примітив для метамовного
+    обчислювача.  Коли він пробує її, усе йде жахливо не так.  Поясніть, чому
+    <SCHEMEINLINE>map</SCHEMEINLINE> Луї не працює, хоч у Єви працює.
+    <LABEL NAME="ex:mceval-map"/>
+  </EXERCISE>
+
+  <INDEX>метамовний обчислювач для Python<SUBINDEX>запуск<CLOSE/></SUBINDEX></INDEX>
+
+</SUBSECTION>

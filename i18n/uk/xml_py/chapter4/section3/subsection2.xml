@@ -1,0 +1,1046 @@
+<SUBSECTION>
+  <NAME>
+    Приклади недетермінованих програм
+  </NAME>
+
+  <LABEL NAME="sec:amb-examples"/>
+  <TEXT>
+    У підрозділі<SPACE/><REF NAME="sec:amb-implementation"/> описано
+    реалізацію обчислювача <SCHEMEINLINE>amb</SCHEMEINLINE>.  Спершу, однак,
+    ми наведемо кілька прикладів того, як його можна використовувати.  Перевага
+    недетермінованого програмування в тому, що ми можемо приховати подробиці того,
+    як виконується пошук, і завдяки цьому
+    виражати свої програми на вищому рівні
+    <INDEX>абстракція<SUBINDEX><ORDER>search</ORDER>пошук у недетермінованому програмуванні</SUBINDEX></INDEX>
+    абстракції.
+  </TEXT>
+
+  <SUBHEADING>
+    <NAME>Логічні головоломки</NAME>
+  </SUBHEADING>
+
+  <INDEX>головоломки<SUBINDEX>логічні головоломки<OPEN/></SUBINDEX></INDEX>
+  <INDEX>логічні головоломки<OPEN/></INDEX>
+  <INDEX>недетерміновані програми<SUBINDEX>логічні головоломки<OPEN/></SUBINDEX></INDEX>
+
+  <TEXT>
+    Наведена головоломка (адаптована з
+    <INDEX>Дінесман, Говард П.</INDEX>
+    <CITATION NAME="DIN68">Dinesman 1968</CITATION>) 
+    типова для великого класу простих логічних головоломок:
+    <BLOCKQUOTE>
+      Фірма, що розробляє програмне забезпечення,
+      <INDEX>Gargle</INDEX>
+      Gargle розростається, і Алісса, Бен, Сай,  Лем та Луї
+      переїжджають у низку з п’яти окремих кабінетів у
+      новій будівлі. Алісса не переїжджає в останній кабінет. Бен не
+      переїжджає в перший кабінет. Сай бере ні перший, ні останній кабінет.
+      Лем переїжджає в кабінет після Бенового. Кабінет Луї не сусідній з
+      кабінетом Сая. Кабінет Сая не сусідній з Беновим. Хто в який кабінет переїжджає?
+      <!--
+	  Baker    => Alyssa
+	  Cooper   => Ben
+	  Fletcher => Cy
+	  Miller   => Lem
+	  Smith    => Louis
+      Baker, Cooper, Fletcher, Miller, and Smith live on different floors of
+      an apartment house that contains only five floors.  Baker does not
+      live on the top floor.  Cooper does not live on the bottom floor.
+      Fletcher does not live on either the top or the bottom floor.  Miller
+      lives on a higher floor than does Cooper.  Smith does not live on a
+      floor adjacent to Fletcher<APOS/>s.  Fletcher does not live on a floor
+      adjacent to Cooper<APOS/>s.  Where does everyone live? -->
+    </BLOCKQUOTE>
+  </TEXT>
+  <TEXT>
+    Ми можемо з’ясувати, хто в який кабінет переїжджає, прямо,
+    перелічивши всі можливості та наклавши задані
+    обмеження:<FOOTNOTE>Наша програма користується такою
+    <SPLITINLINE>
+      <SCHEME>процедурою</SCHEME>
+      <PYTHON>функцією</PYTHON>
+    </SPLITINLINE>
+    щоб визначити, чи всі елементи списку різні:
+    <SNIPPET HIDE="yes">
+      <NAME>distinct_example</NAME>
+      <PYTHON>
+distinct(llist(1, 2, 4, 4, 5))
+      </PYTHON>
+    </SNIPPET>
+    <SNIPPET>
+      <INDEX><DECLARATION>distinct</DECLARATION></INDEX> 
+      <NAME>distinct</NAME>
+      <REQUIRES>memq</REQUIRES>
+      <EXAMPLE>distinct_example</EXAMPLE>
+      <EXPECTED>false</EXPECTED>
+      <SCHEME>
+(define (distinct? items)
+  (cond ((null? items) true)
+        ((null? (cdr items)) true)
+        ((member (car items) (cdr items)) false)
+        (else (distinct? (cdr items)))))
+      </SCHEME>
+      <PYTHON>
+def distinct(items):
+    return True if is_none(items) else True if is_none(tail(items)) else distinct(tail(items)) if is_none(member(head(items), tail(items))) else False
+</PYTHON>
+    </SNIPPET>
+    <SPLITINLINE>
+      <SCHEME>
+	<SCHEMEINLINE>Member</SCHEMEINLINE>
+	<INDEX><USE>member</USE></INDEX> 
+	поводиться так само, як
+	<SCHEMEINLINE>memq</SCHEMEINLINE>
+	, але для перевірки рівності користується <SCHEMEINLINE>equal?</SCHEMEINLINE> замість
+	<SCHEMEINLINE>eq?</SCHEMEINLINE>.
+      </SCHEME>
+    </SPLITINLINE></FOOTNOTE>
+    <SNIPPET CHAP="3" VARIANT="non-det">
+      <INDEX><DECLARATION>office_move</DECLARATION></INDEX>
+      <NAME>office_move</NAME>
+      <REQUIRES>distinct</REQUIRES>
+      <EXAMPLE>office_move_example</EXAMPLE>
+      <EXPECTED>[ 'alyssa', [ 3, null ] ]</EXPECTED>
+      <SCHEME>
+(define (multiple-dwelling)
+  (let ((baker (amb 1 2 3 4 5))
+        (cooper (amb 1 2 3 4 5))
+        (fletcher (amb 1 2 3 4 5))
+        (miller (amb 1 2 3 4 5))
+        (smith (amb 1 2 3 4 5)))
+    (require
+     (distinct? (list baker cooper fletcher miller smith)))
+    (require (not (= baker 5)))
+    (require (not (= cooper 1)))
+    (require (not (= fletcher 5)))
+    (require (not (= fletcher 1)))
+    (require (&gt; miller cooper))
+    (require (not (= (abs (- smith fletcher)) 1)))
+    (require (not (= (abs (- fletcher cooper)) 1)))
+    (list (list 'baker baker)
+          (list 'cooper cooper)
+          (list 'fletcher fletcher)
+          (list 'miller miller)
+          (list 'smith smith))))
+      </SCHEME>
+      <PYTHON>
+def office_move():
+    alyssa = amb(1, 2, 3, 4, 5)
+    ben = amb(1, 2, 3, 4, 5)
+    cy = amb(1, 2, 3, 4, 5)
+    lem = amb(1, 2, 3, 4, 5)
+    louis = amb(1, 2, 3, 4, 5)
+    require(distinct(llist(alyssa, ben, cy, lem, louis)))
+    require(alyssa != 5)
+    require(ben != 1)
+    require(cy != 5)
+    require(cy != 1)
+    require(lem &gt; ben)
+    require(abs(louis - cy) != 1)
+    require(abs(cy - ben) != 1)
+    return llist(llist("alyssa", alyssa), llist("ben", ben), llist("cy", cy), llist("lem", lem), llist("louis", louis))
+</PYTHON>
+    </SNIPPET>
+    <SNIPPET HIDE="yes">
+      <NAME>office_move_example</NAME>
+      <SCHEME>
+(multiple-dwelling)
+      </SCHEME>
+      <PYTHON>
+office_move()
+      </PYTHON>
+      <PYTHON_TEST>
+head(office_move())
+      </PYTHON_TEST>
+    </SNIPPET>
+  </TEXT>
+
+  <TEXT>
+    Обчислення виразу
+    <SPLITINLINE><SCHEME><SCHEMEINLINE>(multiple-dwelling)</SCHEMEINLINE>
+  </SCHEME>
+  <PYTHON><PYTHONINLINE>office_move()</PYTHONINLINE>
+  </PYTHON>
+    </SPLITINLINE>
+    дає результат
+    <SNIPPET EVAL="no">
+    <SCHEME>
+((baker 3) (cooper 2) (fletcher 4) (miller 5) (smith 1))
+    </SCHEME>
+    <PYTHON>
+llist(llist("alyssa", 3), llist("ben", 2), llist("cy", 4),
+     llist("lem", 5), llist("louis", 1))
+    </PYTHON>
+    </SNIPPET>
+    Хоч ця проста
+    <SPLITINLINE>
+      <SCHEME>процедура</SCHEME>
+      <PYTHON>функція</PYTHON>
+    </SPLITINLINE>
+    і працює, вона дуже повільна.
+    Вправи<SPACE/><REF NAME="ex:better-office-move1"/>
+    і<SPACE/><REF NAME="ex:better-office-move2"/> обговорюють деякі можливі
+    поліпшення.
+  </TEXT>
+
+  <EXERCISE>
+    <LABEL NAME="ex:office_move_1"/>
+    Змініть процедуру переїзду в кабінети
+    <SPLITINLINE>
+      <SCHEME>процедуру</SCHEME>
+      <PYTHON>функцію</PYTHON>
+    </SPLITINLINE>
+    так, щоб вона не вимагала, що кабінет Луї не сусідній з кабінетом Сая.
+    Скільки розв’язків має ця змінена головоломка?
+  </EXERCISE>
+
+  <EXERCISE>
+    <LABEL NAME="ex:better-office-move1"/>
+    Чи впливає порядок обмежень у процедурі переїзду в кабінети
+    <SPLITINLINE>
+      <SCHEME>процедурі</SCHEME>
+      <PYTHON>функції</PYTHON>
+    </SPLITINLINE>
+    на відповідь? Чи впливає він на час пошуку відповіді?  Якщо ви
+    вважаєте, що впливає, продемонструйте швидшу програму, одержану з наведеної
+    перевпорядкуванням обмежень.  Якщо ви вважаєте, що не впливає,
+    обґрунтуйте свою думку.
+  </EXERCISE>
+
+  <EXERCISE>
+    <LABEL NAME="ex:better-office-move2"/>
+    У задачі про переїзд у кабінети скільки наборів присвоєнь
+    людей кабінетам існує — і до, і після вимоги, що
+    присвоєння кабінетів мають бути різні?  Дуже неефективно породжувати всі
+    можливі присвоєння людей кабінетам і потім покладатися на
+    повернення назад, щоб їх усунути.  Наприклад, більшість обмежень
+    залежать лише від однієї чи двох
+    <SPLITINLINE>
+      <SCHEME>змінних,</SCHEME>
+      <PYTHON>імен,</PYTHON>
+    </SPLITINLINE>
+    у зіставленні «людина–кабінет», тож їх можна накласти ще до того, як вибрано кабінети для всіх людей.
+    Напишіть і продемонструйте значно ефективнішу недетерміновану
+    <SPLITINLINE>
+      <SCHEME>процедуру</SCHEME>
+      <PYTHON>функцію</PYTHON>
+    </SPLITINLINE>
+    яка розв’язує цю задачу так, що породжує лише ті можливості, які
+    ще не виключені попередніми обмеженнями.
+    <SPLITINLINE>
+      <SCHEME>
+	(Підказка: це вимагатиме гнізда виразів <SCHEMEINLINE>let</SCHEMEINLINE>
+	.)
+      </SCHEME>
+    </SPLITINLINE>
+  </EXERCISE>
+
+  <EXERCISE>
+    <LABEL NAME="ex:office_move_4"/>
+    Напишіть звичайну
+    <INDEX>недетерміноване програмування проти<SPACE/>програмування на Python</INDEX>
+    <SPLITINLINE>
+      <SCHEME>Scheme</SCHEME>
+      <PYTHON>Python</PYTHON>
+    </SPLITINLINE>
+    програму, яка розв’язує головоломку про переїзд у кабінети.
+  </EXERCISE>
+
+  <EXERCISE>
+    <LABEL NAME="ex:liars"/>
+    Розв’яжіть таку головоломку <QUOTE>Брехуни</QUOTE> (адаптовану з
+    <INDEX>Філіпс, Губерт</INDEX>
+    <CITATION NAME="PHI34">Phillips 1934</CITATION>):
+    <BLOCKQUOTE>
+      Алісса, Сай, Єва, Лем і Луї збираються на діловий обід у SoSoService.
+      Їхні страви приносять одну за одною, через значний час після того, як вони
+      зробили замовлення. Щоб розважити Бена, який чекає на них у конторі
+      на нараду, вони вирішують, що кожен скаже одне правдиве і одне хибне
+      твердження про своє замовлення:
+      <UL>
+	<LI>
+          Алісса:
+	  <QUOTE>Страву Лема принесли другою. Мою принесли третьою.</QUOTE>
+	</LI>
+	<LI>
+	  Сай:
+	  <QUOTE>Мою принесли першою. Страву Єви принесли другою.</QUOTE>
+	</LI>
+	<LI>
+	  Єва:
+	  <QUOTE>Мою принесли третьою, а бідолашному Саєві дісталася остання.</QUOTE>
+	</LI>
+	<LI>
+	  Лем:
+	  <QUOTE>Мою принесли другою. Страву Луї принесли четвертою.</QUOTE>
+	</LI>
+	<LI>
+	  Луї:
+	  <QUOTE>Мою принесли четвертою. Страву Алісси принесли першою.</QUOTE>
+	</LI>
+      </UL>
+      У якому ж насправді порядку п’ятеро відвідувачів одержали свої страви?
+      <!--
+	   Betty => Alyssa
+	   Ethel => Cy
+	   Joan  => Eva
+	   Kitty => Lem
+	   Mary  => Louis
+
+      Five schoolgirls sat for an examination.  Their parents<EMDASH/>so they
+      thought<EMDASH/>showed an undue degree of interest in the result.  They
+      therefore agreed that, in writing home about the examination, each 
+      girl should make one true statement and one untrue one.  The following
+      are the relevant passages from their letters:
+      <UL>
+	<LI>
+	  Betty:
+	  <QUOTE>Kitty was second in the examination.  I was only third.</QUOTE>
+	</LI>
+	<LI>
+	  Ethel:
+	  <QUOTE>You<APOS/>ll be glad to hear that I was on top.
+	  Joan was second.</QUOTE>
+	</LI>
+	<LI>
+	  Joan: <QUOTE>I was third, and poor old Ethel was bottom.</QUOTE>
+	</LI>
+	<LI>
+	  Kitty: <QUOTE>I came out second.  Mary was only fourth.</QUOTE>
+	</LI>
+	<LI>
+	  Mary: <QUOTE>I was fourth.  Top place was taken by Betty.</QUOTE>
+	</LI>
+      </UL>
+      What in fact was the order in which the five girls were placed? -->
+    </BLOCKQUOTE>
+  </EXERCISE>
+
+  <EXERCISE>
+    <LABEL NAME="ex:checking"/>
+    Скористайтеся обчислювачем <SCHEMEINLINE>amb</SCHEMEINLINE>, щоб розв’язати таку
+    головоломку (адаптовану з
+    <INDEX>Філіпс, Губерт</INDEX>
+    <CITATION NAME="PHI61">Phillips 1961</CITATION>):
+      <BLOCKQUOTE>
+	Алісса, Бен, Сай, Єва та Луї беруть кожен окремий розділ SICP JS
+	і розв’язують усі вправи з цього розділу.
+	Луї розв’язує вправи з розділу <QUOTE>Функції</QUOTE>,
+	Алісса — з розділу <QUOTE>Дані</QUOTE>, а
+	Сай — з розділу <QUOTE>Стан</QUOTE>.
+	Вони вирішують перевіряти роботу одне одного, і
+	Алісса зголошується перевіряти вправи з розділу <QUOTE>Мета</QUOTE>.
+	Вправи з розділу <QUOTE>Регістрові машини</QUOTE> розв’язує Бен,
+	а перевіряє Луї.
+	Той, хто перевіряє вправи з розділу <QUOTE>Функції</QUOTE>,
+	розв’язує вправи, які перевіряє Єва.
+	Хто перевіряє вправи з	<QUOTE>Дані</QUOTE> розділу?
+      </BLOCKQUOTE>
+	   Спробуйте написати програму так, щоб вона працювала ефективно (див.
+	   вправу<SPACE/><REF NAME="ex:better-office-move2"/>).  Також визначте,
+	   скільки розв’язків буде, якщо не сказано, що Алісса перевіряє
+	   вправи з розділу <QUOTE>Мета</QUOTE>.
+	   <!-- <BLOCKQUOTE>
+	   A father x owning a yacht called y.
+	   =>
+	   A person x solving the exercises in chapter y.
+
+	   A father x having a daughter called y.
+	   =>
+	   A person x checking the exercises in chapter y.
+
+	   Moore             => Alyssa!      Mary Ann  => Meta!
+	   Sir Barnacle Hood => Louis!       Gabrielle => Functions!
+	   Hall              => Cy!          Lorna     => Data!
+	   Downing           => Ben!         Rosalind  => State!
+	   Parker            => Eva!         Melissa   => Register Machines!
+
+	   Mary Ann Moore<APOS/>s father has a yacht and so has each of his four
+	   friends:  Colonel Downing, Mr.<SPACE/>Hall, Sir Barnacle Hood, and
+	   Dr.<SPACE/>Parker.
+	   Each of the five also has one daughter and each has named his
+	   yacht after a daughter of one of the others.
+	   Sir Barnacle<APOS/>s yacht is the Gabrielle,
+	   Mr.<SPACE/>Moore owns the Lorna;
+	   Mr.<SPACE/>Hall the Rosalind.
+	   The Melissa, owned by Colonel Downing,
+	   is named after Sir Barnacle<APOS/>s daughter.
+	   Gabrielle<APOS/>s father owns the yacht that is named after
+	   Dr.<SPACE/>Parker<APOS/>s daughter.
+	   Who is Lorna<APOS/>s father?
+	   </BLOCKQUOTE>
+	   Try to write the program so that it runs efficiently (see
+	   exercise<SPACE/><REF NAME="ex:better-office-move2"/>).  Also determine
+	   how many solutions there are if we are not told that Mary Ann<APOS/>s last
+	   name is Moore. -->
+  </EXERCISE>
+
+  <INDEX>головоломки<SUBINDEX>логічні головоломки<CLOSE/></SUBINDEX></INDEX>
+  <INDEX>логічні головоломки<CLOSE/></INDEX>
+  <INDEX>недетерміновані програми<SUBINDEX>логічні головоломки<CLOSE/></SUBINDEX></INDEX>
+
+  <EXERCISE>
+    <LABEL NAME="ex:queens_amb"/>
+    Вправа<SPACE/><REF NAME="ex:8queens"/> описувала
+    <INDEX>шахи, задача про вісім ферзів</INDEX>
+    <INDEX>задача про вісім ферзів</INDEX>
+    <INDEX>головоломки<SUBINDEX>задача про вісім ферзів</SUBINDEX></INDEX>
+    <INDEX>недетерміноване програмування проти<SPACE/>програмування на Python</INDEX>
+    <QUOTE>задачу про вісім ферзів</QUOTE> — розставити ферзів на шахівниці так, щоб
+    жодні два не били один одного. Напишіть недетерміновану програму, яка розв’язує цю
+    головоломку.
+  </EXERCISE>
+
+  <SUBHEADING>
+    <NAME>Розбір природної мови</NAME>
+  </SUBHEADING>
+
+  <INDEX>розбір природної мови<OPEN/></INDEX>
+  <INDEX>недетерміновані програми<SUBINDEX>розбір природної мови<OPEN/></SUBINDEX></INDEX>
+
+  <TEXT>
+    Програми, призначені приймати природну мову як вхідні дані, зазвичай починають зі
+    спроби <EM>розібрати</EM> ці вхідні дані, тобто зіставити їх
+    з певною граматичною структурою.  Наприклад, ми могли б спробувати
+    розпізнавати прості речення, що складаються з артикля, за яким іде іменник,
+    а за ним — дієслово, як-от <QUOTE>The cat eats.</QUOTE>  Щоб виконати
+    такий аналіз, ми маємо вміти визначати частини мови
+    окремих слів.  Можна почати з кількох списків, які класифікують різні
+    слова:<FOOTNOTE>Тут ми користуємося домовленістю, що перший елемент кожного
+    списку задає частину мови для решти слів цього
+    списку.</FOOTNOTE>
+    <SNIPPET>
+      <INDEX><DECLARATION>nouns</DECLARATION></INDEX> 
+      <INDEX><DECLARATION>verbs</DECLARATION></INDEX> 
+      <INDEX><DECLARATION>articles</DECLARATION></INDEX> 
+      <NAME>nouns</NAME>
+      <SCHEME>
+(define nouns '(noun student professor cat class))
+
+(define verbs '(verb studies lectures eats sleeps))
+
+(define articles '(article the a))
+      </SCHEME>
+      <PYTHON>
+nouns = llist("noun", "student", "professor", "cat", "class")
+verbs = llist("verb", "studies", "lectures", "eats", "sleeps")
+articles = llist("article", "the", "a")
+</PYTHON>
+    </SNIPPET>
+    Також нам потрібна
+    <INDEX>граматика</INDEX>
+    <EM>граматика</EM>, тобто набір правил, які описують, як
+    граматичні елементи складаються з простіших елементів.  Дуже
+    проста граматика могла б постановити, що речення завжди складається з двох
+    частин<EMDASH/>іменникової групи, за якою йде дієслово<EMDASH/>а іменникова
+    група складається з артикля, за яким іде іменник.  З цією граматикою
+    речення <QUOTE>The cat eats</QUOTE> розбирається так:
+    <SNIPPET EVAL="no">
+      <SCHEME>
+(sentence (noun-phrase (article the) (noun cat))
+          (verb eats))
+      </SCHEME>
+      <PYTHON>
+llist("sentence",
+     llist("noun-phrase", llist("article", "the"), llist("noun", "cat"),
+     llist("verb", "eats"))
+      </PYTHON>
+    </SNIPPET>
+  </TEXT>
+
+  <INDEX><USE>parse_...</USE><OPEN/></INDEX>
+  
+  <TEXT>
+    Ми можемо породити такий розбір простою програмою, яка має окремі
+    <SPLITINLINE>
+      <SCHEME>процедури</SCHEME>
+      <PYTHON>функції</PYTHON>
+    </SPLITINLINE>
+    для кожного з граматичних правил.  Щоб розібрати речення, ми визначаємо дві
+    його складові частини й повертаємо список із цих двох елементів, позначений
+    символом <SCHEMEINLINE>sentence</SCHEMEINLINE>:
+    <SNIPPET CHAP="3" VARIANT="non-det">
+      <NAME>parse_sentence</NAME>
+      <REQUIRES>parse_noun_phrase</REQUIRES>
+      <REQUIRES>nouns</REQUIRES>
+      <EXAMPLE>parse_input_example</EXAMPLE>
+      <EXPECTED>[ "sentence", [ ["noun-phrase", [["article", ["the", null]], [["noun", ["cat", null]], null]]], [["verb", ["eats", null]], null]]]</EXPECTED>   
+      <SCHEME>
+(define (parse-sentence)
+  (list 'sentence
+        (parse-noun-phrase)
+        (parse-word verbs)))
+      </SCHEME>
+      <PYTHON>
+def parse_sentence():
+    return llist("sentence", parse_noun_phrase(), parse_word(verbs))
+</PYTHON>
+    </SNIPPET>
+    Іменникову групу так само розбирають, знаходячи артикль, за яким іде
+    іменник:
+    <SNIPPET CHAP="3" VARIANT="non-det">
+      <NAME>parse_noun_phrase</NAME>
+      <REQUIRES>nouns</REQUIRES>
+      <REQUIRES>parse_word</REQUIRES>
+      <EXAMPLE>parse_input_example</EXAMPLE>
+      <SCHEME>
+(define (parse-noun-phrase)
+  (list 'noun-phrase
+        (parse-word articles)
+        (parse-word nouns)))
+      </SCHEME>
+      <PYTHON>
+def parse_noun_phrase():
+    return llist("noun-phrase", parse_word(articles), parse_word(nouns))
+</PYTHON>
+    </SNIPPET>
+  </TEXT>
+
+  <TEXT>
+    На найнижчому рівні розбір зводиться до повторюваної перевірки, що
+    наступне
+    <SPLITINLINE>
+      <SCHEME>нерозібране</SCHEME>
+      <PYTHON>ще-не-розібране</PYTHON>
+    </SPLITINLINE>
+    слово належить до списку слів для
+    потрібної частини мови.  Щоб це реалізувати, ми підтримуємо глобальну
+    змінну
+    <SPLITINLINE>
+      <SCHEME>
+	<SCHEMEINLINE>*unparsed*</SCHEMEINLINE>,
+      </SCHEME>
+      <PYTHON>
+	<PYTHONINLINE>not_yet_parsed</PYTHONINLINE>,
+      </PYTHON>
+    </SPLITINLINE>
+    яка містить вхідні дані, ще не розібрані.  Щоразу, коли ми перевіряємо слово,
+    ми вимагаємо, щоб
+    <SPLITINLINE>
+      <SCHEME>
+	<SCHEMEINLINE>*unparsed*</SCHEMEINLINE>
+      </SCHEME>
+      <PYTHON>
+	<PYTHONINLINE>not_yet_parsed</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    була непорожньою і починалася зі слова з призначеного
+    списку.  Якщо так, ми вилучаємо це слово з
+    <SPLITINLINE>
+      <SCHEME>
+	<SCHEMEINLINE>*unparsed*</SCHEMEINLINE>
+      </SCHEME>
+      <PYTHON>
+	<PYTHONINLINE>not_yet_parsed</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    і повертаємо його разом із його частиною мови (яку знаходять
+    на початку списку):<FOOTNOTE>Зауважте, що
+    <SPLITINLINE>
+      <SCHEME>
+	<SCHEMEINLINE>parse-word</SCHEMEINLINE>
+      </SCHEME>
+      <PYTHON>
+	<PYTHONINLINE>parse_word</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    користується
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>set!</SCHEMEINLINE></SCHEME>
+      <PYTHON>присвоєнням</PYTHON>
+    </SPLITINLINE>
+    щоб змінити список вхідних
+    <SPLITINLINE>
+      <SCHEME>нерозібраних</SCHEME>
+      <PYTHON>ще-не-розібраних</PYTHON>
+    </SPLITINLINE>
+    даних.  Щоб це працювало, наш
+    обчислювач <SCHEMEINLINE>amb</SCHEMEINLINE> має скасовувати наслідки
+    <SPLITINLINE>
+      <SCHEME>операцій <SCHEMEINLINE>set!</SCHEMEINLINE></SCHEME>
+      <PYTHON>присвоєнь</PYTHON>
+    </SPLITINLINE>
+    коли він повертається назад.</FOOTNOTE>
+    <SNIPPET CHAP="3" VARIANT="non-det">
+      <NAME>parse_word</NAME>
+      <REQUIRES>memq</REQUIRES>
+      <REQUIRES>unparsed</REQUIRES>
+      <EXAMPLE>parse_input_example</EXAMPLE>
+      <SCHEME>
+(define (parse-word word-list)
+  (require (not (null? *unparsed*)))
+  (require (memq (car *unparsed*) (cdr word-list)))
+  (let ((found-word (car *unparsed*)))
+    (set! *unparsed* (cdr *unparsed*))
+    (list (car word-list) found-word)))
+      </SCHEME>
+      <PYTHON>
+def parse_word(word_list):
+    require( not is_none(not_yet_parsed))
+    require( not is_none(member(head(not_yet_parsed), tail(word_list))))
+    found_word = head(not_yet_parsed)
+    not_yet_parsed = tail(not_yet_parsed)
+    return llist(head(word_list), found_word)
+</PYTHON>
+    </SNIPPET>
+  </TEXT>
+
+  <TEXT>
+    Щоб запустити розбір, нам досить задати
+    <SPLITINLINE>
+      <SCHEME>
+	<SCHEMEINLINE>*unparsed*</SCHEMEINLINE>
+      </SCHEME>
+      <PYTHON>
+	<PYTHONINLINE>not_yet_parsed</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    як
+    всі вхідні дані, спробувати розібрати речення й перевірити, що нічого не
+    залишилося:
+    <SNIPPET CHAP="3" VARIANT="non-det">
+      <NAME>unparsed</NAME>
+      <SCHEME>
+(define *unparsed* '())
+      </SCHEME>
+      <PYTHON>
+not_yet_parsed = None
+</PYTHON>
+    </SNIPPET>
+    <SNIPPET CHAP="3" VARIANT="non-det">
+      <NAME>parse_input</NAME>
+      <REQUIRES>unparsed</REQUIRES>
+      <REQUIRES>parse_sentence</REQUIRES>
+      <EXAMPLE>parse_input_example</EXAMPLE>
+      <SCHEME>
+(define (parse input)
+  (set! *unparsed* input)
+  (let ((sent (parse-sentence)))
+    (require (null? *unparsed*))
+    sent))
+      </SCHEME>
+      <PYTHON>
+def parse_input(input):
+    not_yet_parsed = input
+    sent = parse_sentence()
+    require(is_none(not_yet_parsed))
+    return sent
+</PYTHON>
+    </SNIPPET>
+  </TEXT>
+  <TEXT>
+    Тепер ми можемо випробувати розбірник і переконатися, що він працює для нашого простого
+    тестового речення:
+    <SNIPPET CHAP="3" VARIANT="non-det">
+      <NAME>parse_input_example</NAME>
+      <REQUIRES>parse_input</REQUIRES>
+      <SCHEMEPROMPT>
+;;; Amb-Eval input:
+      </SCHEMEPROMPT>
+      <SCHEME>
+(parse '(the cat eats))
+      </SCHEME>
+      <SCHEMEOUTPUT>
+;;; Starting a new problem
+;;; Amb-Eval value:
+(sentence (noun-phrase (article the) (noun cat)) (verb eats))
+      </SCHEMEOUTPUT>
+      <PYTHON_PROMPT>
+amb-evaluate input:      
+      </PYTHON_PROMPT>
+      <PYTHON>
+parse_input(llist("the",  "cat",  "eats"))
+      </PYTHON>
+      <PYTHON_RUN>
+parse_input(llist("the",  "cat",  "eats"))
+      </PYTHON_RUN>
+      <PYTHON_OUTPUT>
+Starting a new problem
+amb-evaluate value:
+list("sentence",
+     list("noun-phrase", list("article", "the"), list("noun", "cat")),
+     list("verb", "eats"))
+      </PYTHON_OUTPUT>
+    </SNIPPET>
+  </TEXT>
+
+  <TEXT>
+    Обчислювач <SCHEMEINLINE>amb</SCHEMEINLINE> тут корисний, бо ним
+    зручно виражати обмеження розбору за допомогою
+    <SCHEMEINLINE>require</SCHEMEINLINE>. Автоматичний пошук і повернення назад
+    справді виправдовують себе, однак, коли ми розглядаємо складніші граматики, де
+    є вибір щодо того, як можна розкласти одиниці.
+  </TEXT>
+
+  <TEXT>
+    Додаймо до нашої граматики список прийменників:
+    <SNIPPET CHAP="3" VARIANT="non-det">
+      <INDEX><DECLARATION>prepositions</DECLARATION></INDEX> 
+      <NAME>prepositions</NAME>
+      <SCHEME>
+(define prepositions '(prep for to in by with))
+      </SCHEME>
+      <PYTHON>
+prepositions = llist("prep", "for", "to", "in", "by", "with")
+</PYTHON>
+    </SNIPPET>
+    і означмо прийменникову групу (наприклад, <QUOTE>for the cat</QUOTE>) як
+    прийменник, за яким іде іменникова група:
+    <SNIPPET CHAP="3" VARIANT="non-det">
+      <NAME>parse_prepositional_phrase</NAME>
+      <REQUIRES>parse_word</REQUIRES>
+      <REQUIRES>prepositions</REQUIRES>
+      <EXAMPLE>parse_input_example_2</EXAMPLE>
+      <EXPECTED>[ "sentence", [ [ "noun-phrase", [ [ "simple-noun-phrase", [["article", ["the", null]], [["noun", ["student", null]], null]]], [ [ "prep-phrase", [ ["prep", ["with", null]], [ [ "simple-noun-phrase", [["article", ["the", null]], [["noun", ["cat", null]], null]]], null]]], null]]], [ [ "verb-phrase", [ ["verb", ["sleeps", null]], [ [ "prep-phrase", [ ["prep", ["in", null]], [ [ "simple-noun-phrase", [["article", ["the", null]], [["noun", ["class", null]], null]]], null]]], null]]], null]]]</EXPECTED>   
+      <SCHEME>
+(define (parse-prepositional-phrase)
+  (list 'prep-phrase
+        (parse-word prepositions)
+        (parse-noun-phrase)))
+      </SCHEME>
+      <PYTHON>
+def parse_prepositional_phrase():
+    return llist("prep-phrase", parse_word(prepositions), parse_noun_phrase())
+</PYTHON>
+    </SNIPPET>
+    Тепер ми можемо означити речення як іменникову групу, за якою йде дієслівна
+    група, де дієслівна група — це або дієслово, або дієслівна група,
+    розширена прийменниковою групою:<FOOTNOTE>Зауважте, що це
+    означення рекурсивне<EMDASH/>за дієсловом може йти будь-яка кількість
+    прийменникових груп.</FOOTNOTE>
+    <SNIPPET CHAP="3" VARIANT="non-det">
+      <NAME>parse_sentence_2</NAME>
+      <REQUIRES>parse_prepositional_phrase</REQUIRES>
+      <REQUIRES>parse_word</REQUIRES>
+      <REQUIRES>parse_noun_phrase_2</REQUIRES>
+      <EXAMPLE>parse_input_example_2</EXAMPLE>
+      <SCHEME>
+(define (parse-sentence)
+  (list 'sentence
+        (parse-noun-phrase)
+        (parse-verb-phrase)))
+
+(define (parse-verb-phrase)
+  (define (maybe-extend verb-phrase)
+    (amb verb-phrase
+         (maybe-extend (list 'verb-phrase
+                             verb-phrase
+                             (parse-prepositional-phrase)))))
+  (maybe-extend (parse-word verbs)))
+      </SCHEME>
+      <PYTHON>
+def parse_sentence():
+    return llist("sentence", parse_noun_phrase(), parse_verb_phrase())
+def parse_verb_phrase():
+    def maybe_extend(verb_phrase):
+        return amb(verb_phrase, maybe_extend(llist("verb-phrase", verb_phrase, parse_prepositional_phrase())))
+    return maybe_extend(parse_word(verbs))
+</PYTHON>
+    </SNIPPET>
+    <SNIPPET CHAP="3" VARIANT="non-det" HIDE="yes">
+      <NAME>parse_input_2</NAME>
+      <REQUIRES>unparsed</REQUIRES>
+      <REQUIRES>parse_sentence_2</REQUIRES>
+      <SCHEME>
+(define (parse input)
+  (set! *unparsed* input)
+  (let ((sent (parse-sentence)))
+    (require (null? *unparsed*))
+    sent))
+      </SCHEME>
+      <PYTHON>
+def parse_input(input):
+    not_yet_parsed = input
+    sent = parse_sentence()
+    require(is_none(not_yet_parsed))
+    return sent
+</PYTHON>
+    </SNIPPET>
+  </TEXT>
+
+  <TEXT>
+    Заодно ми можемо також уточнити означення іменникових
+    груп, щоб дозволити такі речі, як <QUOTE>a cat in the class.</QUOTE>  Те,
+    що ми раніше називали іменниковою групою, тепер називатимемо простою іменниковою групою,
+    а іменникова група тепер буде або простою іменниковою групою, або іменниковою групою,
+    розширеною прийменниковою групою:
+    <SNIPPET CHAP="3" VARIANT="non-det">
+      <NAME>parse_noun_phrase_2</NAME>
+      <REQUIRES>parse_prepositional_phrase</REQUIRES>
+      <REQUIRES>parse_word</REQUIRES>
+      <REQUIRES>nouns</REQUIRES>
+      <EXAMPLE>parse_input_example_2</EXAMPLE>
+      <SCHEME>
+(define (parse-simple-noun-phrase)
+  (list 'simple-noun-phrase
+        (parse-word articles)
+        (parse-word nouns)))
+
+(define (parse-noun-phrase)
+  (define (maybe-extend noun-phrase)
+    (amb noun-phrase
+         (maybe-extend (list 'noun-phrase
+                             noun-phrase
+                             (parse-prepositional-phrase)))))
+  (maybe-extend (parse-simple-noun-phrase)))
+      </SCHEME>
+      <PYTHON>
+def parse_simple_noun_phrase():
+    return llist("simple-noun-phrase", parse_word(articles), parse_word(nouns))
+def parse_noun_phrase():
+    def maybe_extend(noun_phrase):
+        return amb(noun_phrase, maybe_extend(llist("noun-phrase", noun_phrase, parse_prepositional_phrase())))
+    return maybe_extend(parse_simple_noun_phrase())
+</PYTHON>
+    </SNIPPET>
+  </TEXT>
+
+  <INDEX><USE>parse_...</USE><CLOSE/></INDEX>
+  
+  <TEXT>
+    Наша нова граматика дає нам змогу розбирати складніші речення.  Наприклад
+    <SNIPPET CHAP="3" VARIANT="non-det">
+      <NAME>parse_input_example_2</NAME>
+      <REQUIRES>parse_input_2</REQUIRES>
+      <SCHEME>
+(parse '(the student with the cat sleeps in the class))
+      </SCHEME>
+      <PYTHON>
+parse_input(llist("the", "student", "with", "the", "cat",
+                 "sleeps", "in", "the", "class"))
+      </PYTHON>
+    </SNIPPET>
+  дає
+  <SNIPPET EVAL="no">
+    <SCHEME>
+(sentence
+ (noun-phrase
+  (simple-noun-phrase (article the) (noun student))
+  (prep-phrase (prep with)
+   (simple-noun-phrase
+    (article the) (noun cat))))
+ (verb-phrase
+  (verb sleeps)
+  (prep-phrase (prep in)
+   (simple-noun-phrase
+    (article the) (noun class)))))
+    </SCHEME>
+    <PYTHON>
+llist("sentence",
+     llist("noun-phrase",
+          llist("simple-noun-phrase", 
+               llist("article", "the"), llist("noun", "student")),
+          llist("prep-phrase", llist("prep", "with"),
+               llist("simple-noun-phrase",
+                    llist("article", "the"),
+                    llist("noun", "cat")))),
+     llist("verb-phrase",
+          llist("verb", "sleeps"),
+          llist("prep-phrase", llist("prep", "in"),
+               llist("simple-noun-phrase", 
+                    llist("article", "the"),
+                    llist("noun", "class")))))
+    </PYTHON>
+  </SNIPPET>
+  </TEXT>
+
+  <TEXT>
+    Зауважте, що задані вхідні дані можуть мати більше ніж один законний розбір.  У
+    реченні <QUOTE>The professor lectures to the student with the cat,</QUOTE>
+    може бути, що професор читає лекцію разом з кішкою, або що кішка належить студентові.
+    Наша недетермінована програма знаходить обидві можливості:
+    <SNIPPET CHAP="3" VARIANT="non-det">
+      <NAME>multiple_legal_parses</NAME>
+      <REQUIRES>parse_input_2</REQUIRES>
+      <SCHEME>
+(parse '(the professor lectures to the student with the cat))
+      </SCHEME>
+      <PYTHON>
+parse_input(llist("the", "professor", "lectures",
+                 "to", "the", "student", "with", "the", "cat"))
+      </PYTHON>
+    </SNIPPET>
+    дає
+    <SNIPPET EVAL="no">
+      <SCHEME>
+(sentence
+ (simple-noun-phrase (article the) (noun professor))
+ (verb-phrase
+  (verb-phrase
+   (verb lectures)
+   (prep-phrase (prep to)
+    (simple-noun-phrase
+     (article the) (noun student))))
+  (prep-phrase (prep with)
+   (simple-noun-phrase
+    (article the) (noun cat)))))
+      </SCHEME>
+      <PYTHON>
+llist("sentence",
+     llist("simple-noun-phrase",
+          llist("article", "the"), llist("noun", "professor")),
+     llist("verb-phrase",
+          llist("verb-phrase",
+               llist("verb", "lectures"),
+               llist("prep-phrase", llist("prep", "to"),
+                    llist("simple-noun-phrase",
+                    llist("article", "the"),
+		    llist("noun", "student")))),
+          llist("prep-phrase", llist("prep", "with"),
+               llist("simple-noun-phrase",
+                    llist("article", "the"),
+                    llist("noun", "cat")))))
+      </PYTHON>
+    </SNIPPET>
+    Прохання до обчислювача повторити дає
+    <SNIPPET EVAL="no">
+      <SCHEME>
+(sentence
+ (simple-noun-phrase (article the) (noun professor))
+ (verb-phrase
+  (verb lectures)
+  (prep-phrase (prep to)
+   (noun-phrase
+    (simple-noun-phrase
+     (article the) (noun student))
+    (prep-phrase (prep with)
+     (simple-noun-phrase
+      (article the) (noun cat)))))))
+      </SCHEME>
+      <PYTHON>
+llist("sentence",
+     llist("simple-noun-phrase", 
+          llist("article", "the"), llist("noun", "professor")),
+     llist("verb-phrase",
+          llist("verb", "lectures"),
+          llist("prep-phrase", llist("prep", "to"),
+               llist("noun-phrase",
+                    llist("simple-noun-phrase",
+                         llist("article", "the"),
+                         llist("noun", "student")),
+                    llist("prep-phrase", llist("prep", "with"),
+                         llist("simple-noun-phrase",
+                              llist("article", "the"),
+                              llist("noun", "cat")))))))
+      </PYTHON>
+    </SNIPPET>
+  </TEXT>
+
+  <INDEX>недетерміновані програми<SUBINDEX>розбір природної мови<CLOSE/></SUBINDEX></INDEX>
+  
+  <EXERCISE>
+    <LABEL NAME="ex:five_ways"/>
+    З наведеною вище граматикою таке речення можна розібрати п’ятьма
+    різними способами: <QUOTE>The professor lectures to the student in the class
+    with the cat.</QUOTE> Наведіть ці п’ять розборів і поясніть відмінності у
+    смислових відтінках між ними.
+  </EXERCISE>
+
+  <EXERCISE>
+    <LABEL NAME="ex:ordered_parsing"/>
+    The
+    <INDEX>недетермінований обчислювач<SUBINDEX>порядок обчислення аргументів</SUBINDEX></INDEX>
+    обчислювачі з підрозділів<SPACE/><REF NAME="sec:mc-eval"/> і
+    <REF NAME="sec:lazy-evaluation"/> не визначають, у якому порядку
+    <SPLITINLINE>
+      <SCHEME>operands</SCHEME>
+      <PYTHON>argument expressions</PYTHON>
+    </SPLITINLINE>
+    обчислюються.
+    Ми побачимо, що обчислювач <SCHEMEINLINE>amb</SCHEMEINLINE>
+    обчислює їх зліва направо. Поясніть, чому наша програма розбору
+    не працювала б, якби
+    <SPLITINLINE>
+      <SCHEME>операнди</SCHEME>
+      <PYTHON>вирази-аргументи</PYTHON>
+    </SPLITINLINE>
+    обчислювалися в якомусь іншому порядку.
+  </EXERCISE>
+
+  <EXERCISE>
+    <LABEL NAME="ex:louis_verb_phrase"/>
+    Луї Різонер пропонує: оскільки дієслівна група — це або дієслово, або
+    дієслівна група, за якою йде прийменникова група, було б значно
+    пряміше
+    <SPLITINLINE>
+      <SCHEME>означити</SCHEME>
+      <PYTHON>оголосити</PYTHON>
+    </SPLITINLINE>
+    таку
+    <SPLITINLINE>
+      <SCHEME>процедуру</SCHEME>
+      <PYTHON>функцію</PYTHON>
+    </SPLITINLINE>
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>parse-verb-phrase</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>parse_verb_phrase</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    (і так само для іменникових груп):
+    <SNIPPET EVAL="no">
+      <SCHEME>
+(define (parse-verb-phrase)
+  (amb (parse-word verbs)
+       (list 'verb-phrase
+             (parse-verb-phrase)
+             (parse-prepositional-phrase))))
+      </SCHEME>
+      <PYTHON>
+def parse_verb_phrase():
+    return amb(parse_word(verbs), llist("verb-phrase", parse_verb_phrase(), parse_prepositional_phrase()))
+</PYTHON>
+    </SNIPPET>
+    Чи це працює?  Чи зміниться поведінка програми, якщо ми поміняємо місцями
+    порядок виразів у <SCHEMEINLINE>amb</SCHEMEINLINE>?
+  </EXERCISE>
+
+  <EXERCISE>
+    <LABEL NAME="ex:complex_sentences"/>
+    Розширте наведену вище граматику, щоб опрацьовувати складніші речення.  Наприклад,
+    ви могли б розширити іменникові та дієслівні групи так, щоб вони включали прикметники
+    та прислівники, або могли б опрацьовувати складносурядні речення.<FOOTNOTE>Така
+    граматика може стати як завгодно складною, але вона
+    є лише
+    <INDEX>розбір природної мови<SUBINDEX>справжнє розуміння мови проти<SPACE/>іграшкового розбірника</SUBINDEX></INDEX>
+    іграшкою в тому, що стосується справжнього розуміння мови.
+    Справжнє розуміння природної мови комп’ютером вимагає вигадливої
+    суміші синтаксичного аналізу та тлумачення значення.  З іншого
+    боку, навіть іграшкові розбірники можуть бути корисні для підтримки гнучких
+    мов команд для таких програм, як системи пошуку інформації.
+    <INDEX>Вінстон, Патрік Генрі</INDEX>
+    <CITATION NAME="WIN92">Winston 1992</CITATION> обговорює обчислювальні підходи до
+    справжнього розуміння мови, а також застосування простих граматик
+    до мов команд.</FOOTNOTE>
+  </EXERCISE>
+
+  <EXERCISE>
+    <LABEL NAME="ex:sentence-generate"/>
+    Алісса П. Гакер цікавиться радше
+    <INDEX>породження речень</INDEX>
+    породженням цікавих речень
+    ніж їхнім розбором.  Вона міркує, що якщо просто змінити
+    <SPLITINLINE>
+      <SCHEME>процедуру
+      <SCHEMEINLINE>parse-word</SCHEMEINLINE>
+      </SCHEME>
+      <PYTHON>функцію
+      <PYTHONINLINE>parse_word</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    так, щоб вона ігнорувала <QUOTE>вхідне речення</QUOTE> і натомість завжди
+    вдавалася й породжувала відповідне слово, то ми можемо скористатися програмами, які ми
+    побудували для розбору, щоб натомість породжувати.  Реалізуйте Аліссину ідею
+    і покажіть перші півдесятка чи близько того породжених речень.<FOOTNOTE>Хоч
+    ідея Алісси цілком працює (і напрочуд проста), речення,
+    які вона породжує, трохи нудні<EMDASH/>вони не
+    добирають можливих речень цієї мови в якийсь дуже цікавий спосіб.
+    Насправді граматика в багатьох місцях високо рекурсивна, і
+    Аліссина техніка <QUOTE>провалюється</QUOTE> в одну з цих рекурсій
+    і застрягає.  Див. вправу<SPACE/><REF NAME="ex:ramb"/>, щоб дізнатися, як
+    із цим упоратися.</FOOTNOTE>
+  </EXERCISE>
+
+  <INDEX>розбір природної мови<CLOSE/></INDEX>
+  <INDEX>недетерміновані обчислення<CLOSE/></INDEX>
+
+</SUBSECTION>

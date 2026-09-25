@@ -1,0 +1,818 @@
+<SUBSECTION>
+  <NAME>
+    <SPLITINLINE>
+      <SCHEME>Ядро обчислювача із явним керуванням</SCHEME>
+      <PYTHON>Диспетчер і базове обчислення</PYTHON>
+    </SPLITINLINE>
+  </NAME>
+
+  <LABEL NAME="sec:eceval-core"/>
+
+  <SPLITINLINE>
+    <SCHEME>
+      <INDEX>обчислювач із явним керуванням для Scheme<SUBINDEX>контролер<OPEN/></SUBINDEX></INDEX>
+    </SCHEME>
+    <PYTHON>
+      <INDEX>обчислювач із явним керуванням для Python<SUBINDEX>контролер<OPEN/></SUBINDEX></INDEX>
+    </PYTHON>
+  </SPLITINLINE>
+
+  <TEXT>
+    Центральний елемент обчислювача — послідовність інструкцій, що починається з
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>eval-dispatch</SCHEMEINLINE>.</SCHEME>
+      <PYTHON><PYTHONINLINE>eval_dispatch</PYTHONINLINE>. </PYTHON>
+    </SPLITINLINE>
+    Вона відповідає
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>eval</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>evaluate</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    <SPLITINLINE>
+      <SCHEME>процедурі</SCHEME>
+      <PYTHON>функції</PYTHON>
+    </SPLITINLINE>
+    метамовного обчислювача, описаного в підрозділі<SPACE/><REF
+    NAME="sec:core-of-evaluator"/>. Коли контролер починає з
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>eval-dispatch</SCHEMEINLINE>,</SCHEME>
+      <PYTHON><PYTHONINLINE>eval_dispatch</PYTHONINLINE>,
+      </PYTHON>
+    </SPLITINLINE>
+    він обчислює
+    <SPLITINLINE><SCHEME>вираз</SCHEME><PYTHON>компонент</PYTHON></SPLITINLINE>,
+    заданий у
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>exp</SCHEMEINLINE></SCHEME>
+      <PYTHON><SCHEMEINLINE>comp</SCHEMEINLINE></PYTHON>
+    </SPLITINLINE>
+    у середовищі, заданому <SCHEMEINLINE>env</SCHEMEINLINE>. Коли обчислення
+    завершено, контролер переходить до точки входу, збереженої в
+    <SCHEMEINLINE>continue</SCHEMEINLINE>, а регістр <SCHEMEINLINE>val</SCHEMEINLINE>
+    міститиме значення
+    <SPLITINLINE><SCHEME>виразу.</SCHEME><PYTHON>компонента.</PYTHON></SPLITINLINE>
+    Як і в метамовного
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>eval</SCHEMEINLINE>,</SCHEME>
+      <PYTHON><PYTHONINLINE>evaluate</PYTHONINLINE>,</PYTHON>
+    </SPLITINLINE>
+    структура
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>eval-dispatch</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>eval_dispatch</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    — це аналіз випадків за синтаксичним типом
+    <SPLITINLINE><SCHEME>виразу</SCHEME><PYTHON>компонента</PYTHON></SPLITINLINE>,
+    який треба обчислити.<FOOTNOTE>У нашому контролері диспетчеризацію записано
+    як послідовність інструкцій
+    <SCHEMEINLINE>test</SCHEMEINLINE> і <SCHEMEINLINE>branch</SCHEMEINLINE>.
+    Її можна було б записати у
+    <SPLITINLINE>
+      <SCHEME>стилі, керованому даними (і в справжній системі, найпевніше, саме так і зробили б), щоб не</SCHEME>
+      <PYTHON>стилі, керованому даними, що дає змогу не</PYTHON>
+    </SPLITINLINE>
+    виконувати послідовні перевірки
+    <SPLITINLINE>
+      <SCHEME>та щоб полегшити</SCHEME>
+      <PYTHON>і полегшує</PYTHON>
+    </SPLITINLINE>
+    оголошення нових типів
+    <SPLITINLINE><SCHEME>виразів</SCHEME><PYTHON>компонентів</PYTHON></SPLITINLINE>.
+    <SPLITINLINE>
+      <SCHEME>
+        Машина, призначена для виконання програм мовою Lisp, найпевніше мала б
+        інструкцію <SCHEMEINLINE>dispatch-on-type</SCHEMEINLINE>, яка ефективно
+        виконувала б таку диспетчеризацію, керовану даними.
+      </SCHEME>
+      <!-- <PYTHON> -->
+      <!--   Most common Python implementations today do not interpret the Python -->
+      <!--   source code directly. Instead, the source code is transformed into an intermediate -->
+      <!--   representation called <EM>bytecode</EM>, which is typically interpreted in a loop -->
+      <!--   that branches on the value of each bytecode, similar to -->
+      <!--   <PYTHONINLINE>eval_dispatch</PYTHONINLINE>. Some Python interpreters are register -->
+      <!--   machines, like ours; others are stack machines, in which operations pop and push -->
+      <!--   operands from and to a stack instead of keeping a large number of registers. For -->
+      <!--   performance reasons, most Python interpreters compile commonly executed parts -->
+      <!--   of a program from bytecode to machine code. This is called Just-In-Time -->
+      <!--   compilation (JIT). We will address compilation in section -->
+      <!--   <REF NAME="sec:compilation"/>. -->
+      <!-- </PYTHON> -->
+    </SPLITINLINE></FOOTNOTE>
+    <SNIPPET EVAL="no" POSTPADDING="no">
+      <INDEX><DECLARATION>eval_dispatch</DECLARATION></INDEX> 
+      <SCHEME>
+eval-dispatch
+(test (op self-evaluating?) (reg exp))
+(branch (label ev-self-eval))
+(test (op variable?) (reg exp))
+(branch (label ev-variable))
+(test (op quoted?) (reg exp))
+(branch (label ev-quoted))
+(test (op assignment?) (reg exp))
+(branch (label ev-assignment))
+(test (op definition?) (reg exp))
+(branch (label ev-definition))
+(test (op if?) (reg exp))
+(branch (label ev-if))
+(test (op lambda?) (reg exp))
+(branch (label ev-lambda))
+(test (op begin?) (reg exp))
+(branch (label ev-begin))
+(test (op application?) (reg exp))
+(branch (label ev-application))
+(goto (label unknown-expression-type))
+      </SCHEME>
+      <PYTHON>
+"eval_dispatch",
+  test(list(op("is_literal"), reg("comp"))),
+  branch(label("ev_literal")),
+  test(list(op("is_name"), reg("comp"))),
+  branch(label("ev_name")),
+  test(list(op("is_application"), reg("comp"))),
+  branch(label("ev_application")),
+  test(list(op("is_operator_combination"), reg("comp"))),
+  branch(label("ev_operator_combination")),
+  test(list(op("is_conditional"), reg("comp"))),
+  branch(label("ev_conditional")),
+  test(list(op("is_lambda_expression"), reg("comp"))),
+  branch(label("ev_lambda")),
+  test(list(op("is_sequence"), reg("comp"))),
+  branch(label("ev_sequence")),
+  test(list(op("is_block"), reg("comp"))),
+  branch(label("ev_block")),
+  test(list(op("is_return_statement"), reg("comp"))),
+  branch(label("ev_return")),
+  test(list(op("is_function_definition"), reg("comp"))),
+  branch(label("ev_function_definition")),
+  test(list(op("is_declaration"), reg("comp"))),
+  branch(label("ev_declaration")),
+  test(list(op("is_assignment"), reg("comp"))),
+  branch(label("ev_assignment")),
+  go_to(label("unknown_component_type")),
+      </PYTHON>
+    </SNIPPET>
+  </TEXT>
+
+  <SUBHEADING>
+    <NAME>Обчислення простих виразів</NAME>
+  </SUBHEADING>
+
+  <SPLITINLINE>
+    <SCHEME>
+      <INDEX>обчислювач із явним керуванням для Scheme<SUBINDEX>вирази без підвиразів для обчислення<OPEN/></SUBINDEX></INDEX>
+    </SCHEME>
+    <PYTHON>
+      <INDEX>обчислювач із явним керуванням для Python<SUBINDEX>вирази без підвиразів для обчислення<OPEN/></SUBINDEX></INDEX>
+    </PYTHON>
+  </SPLITINLINE>
+
+  <TEXT>
+    Числа й рядки<SPLITINLINE><SCHEME> (які обчислюються самі собою)</SCHEME></SPLITINLINE>,
+    <SPLITINLINE>
+      <SCHEME>змінні, цитати</SCHEME>
+      <PYTHON>імена</PYTHON>
+    </SPLITINLINE>
+    та
+    <SPLITINLINE>
+      <SCHEME>вирази <SCHEMEINLINE>lambda</SCHEMEINLINE></SCHEME>
+      <PYTHON>лямбда-вирази</PYTHON>
+    </SPLITINLINE>
+    не мають підвиразів для обчислення. Для них обчислювач просто
+    кладе правильне значення в регістр <SCHEMEINLINE>val</SCHEMEINLINE> і
+    продовжує виконання з точки входу, заданої в
+    <SCHEMEINLINE>continue</SCHEMEINLINE>. Обчислення простих виразів виконує
+    такий код контролера:
+    <SNIPPET EVAL="no">
+      <INDEX><DECLARATION>ev_literal</DECLARATION></INDEX> 
+      <INDEX><DECLARATION>ev_name</DECLARATION></INDEX> 
+      <INDEX><DECLARATION>ev_lambda</DECLARATION></INDEX> 
+      <SCHEME>
+ev-self-eval
+(assign val (reg exp))
+(goto (reg continue))
+ev-variable
+(assign val (op lookup-variable-value) (reg exp) (reg env))
+(goto (reg continue))
+ev-quoted
+(assign val (op text-of-quotation) (reg exp))
+(goto (reg continue))
+ev-lambda
+(assign unev (op lambda-parameters) (reg exp))
+(assign exp (op lambda-body) (reg exp))
+(assign val (op make-procedure)
+(reg unev) (reg exp) (reg env))
+(goto (reg continue))
+      </SCHEME>
+      <PYTHON>
+"ev_literal",
+  assign("val", list(op("literal_value"), reg("comp"))),
+  go_to(reg("continue")),
+
+"ev_name",
+  assign("val", list(op("symbol_of_name"), reg("comp"), reg("env"))),
+  assign("val", list(op("lookup_symbol_value"),
+                     reg("val"), reg("env"))),
+  go_to(reg("continue")),
+
+"ev_lambda",
+  assign("unev", list(op("lambda_parameter_symbols"), reg("comp"))),
+  assign("comp", list(op("lambda_body"), reg("comp"))),
+  assign("val", list(op("make_function"),
+                     reg("unev"), reg("comp"), reg("env"))),
+  go_to(reg("continue")),
+      </PYTHON>
+    </SNIPPET>
+    Зверніть увагу, як
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>ev-lambda</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>ev_lambda</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    використовує регістри
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>unev</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>unev</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    і
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>exp</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>comp</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    для зберігання параметрів і тіла лямбда-виразу, щоб передати їх операції
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>make-procedure</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>make_function</PYTHONINLINE>
+    </PYTHON></SPLITINLINE>
+    разом із середовищем у <SCHEMEINLINE>env</SCHEMEINLINE>.
+  </TEXT>
+
+  <SPLITINLINE>
+    <SCHEME>
+      <INDEX>обчислювач із явним керуванням для Scheme<SUBINDEX>вирази без підвиразів для обчислення<CLOSE/></SUBINDEX></INDEX>
+    </SCHEME>
+    <PYTHON>
+      <INDEX>обчислювач із явним керуванням для Python<SUBINDEX>вирази без підвиразів для обчислення<CLOSE/></SUBINDEX></INDEX>
+    </PYTHON>
+  </SPLITINLINE>
+  
+  <SPLIT>
+    
+    <SCHEME>
+      <SUBHEADING> 
+	<NAME>
+	  Обчислення застосувань процедур
+	</NAME>
+      </SUBHEADING>
+
+      <TEXT>
+	<INDEX>обчислювач із явним керуванням для Scheme<SUBINDEX>застосування процедури<OPEN/></SUBINDEX></INDEX>
+	<INDEX>обчислювач із явним керуванням для Scheme<SUBINDEX>комбінації<OPEN/></SUBINDEX></INDEX>
+	Застосування процедури задає комбінація, що містить оператор і операнди.
+	Оператор — це підвираз, значенням якого є процедура, а операнди — це
+	підвирази, значеннями яких є аргументи, до яких процедуру треба
+	застосувати. Метамовний
+	<SCHEMEINLINE>eval</SCHEMEINLINE>
+	опрацьовує застосування, рекурсивно викликаючи себе, щоб обчислити кожен
+	елемент комбінації, а потім передає результати
+	<SCHEMEINLINE>apply</SCHEMEINLINE>, який виконує власне
+	застосування процедури.  Обчислювач із явним керуванням робить те саме; ці
+	рекурсивні виклики реалізовано інструкціями
+	<SCHEMEINLINE>goto</SCHEMEINLINE>
+	разом із
+	<INDEX>обчислювач із явним керуванням для Python<SUBINDEX>використання стека</SUBINDEX></INDEX>
+	використанням стека для збереження регістрів, які треба буде відновити
+	після повернення з рекурсивного виклику.  Перед кожним викликом ми
+	уважно визначатимемо, які регістри треба зберегти (бо їхні значення
+	знадобляться пізніше).<FOOTNOTE>Це важливий, але тонкий момент у
+	перекладі алгоритмів із процедурної мови, як-от Lisp,
+	на мову регістрових машин.  Замість зберігати лише потрібне, ми могли б
+	зберігати всі регістри (крім
+	<SCHEMEINLINE>val</SCHEMEINLINE>) перед кожним рекурсивним викликом.
+	Це називають
+	<INDEX>дисципліна обрамленого стека</INDEX>
+	<INDEX>стек<SUBINDEX>обрамлений</SUBINDEX></INDEX>
+	дисципліною <EM>обрамленого стека</EM>.  Це
+	працювало б, але могло б зберігати більше регістрів, ніж потрібно; у
+	системі, де операції зі стеком дорогі, це могло б бути важливим
+	міркуванням.  Зберігання регістрів, вміст яких пізніше не знадобиться,
+	може також утримувати непотрібні дані, які інакше можна було б
+	зібрати як сміття, звільнивши місце для повторного використання.</FOOTNOTE>
+      </TEXT>
+      <TEXT>
+	Ми починаємо обчислення застосування з обчислення
+	оператора, щоб отримати процедуру, яку пізніше застосуємо до обчислених
+	операндів. Щоб обчислити оператор, ми переміщуємо його в регістр
+	<SCHEMEINLINE>exp</SCHEMEINLINE>
+	і переходимо до <SCHEMEINLINE>eval-dispatch</SCHEMEINLINE>.
+	Середовище в регістрі <SCHEMEINLINE>env</SCHEMEINLINE> уже
+	правильне для обчислення оператора.
+	Однак ми зберігаємо <SCHEMEINLINE>env</SCHEMEINLINE>, бо воно
+	знадобиться пізніше для обчислення операндів. Також ми виймаємо операнди
+	в <SCHEMEINLINE>unev</SCHEMEINLINE> і зберігаємо це на стеку.  Ми
+	налаштовуємо <SCHEMEINLINE>continue</SCHEMEINLINE> так, щоб
+	<SCHEMEINLINE>eval-dispatch</SCHEMEINLINE> продовжив із
+	<SCHEMEINLINE>ev-appl-did-operator</SCHEMEINLINE>
+	після обчислення оператора.  Спершу, однак, ми зберігаємо старе значення
+	<SCHEMEINLINE>continue</SCHEMEINLINE>, яке каже контролеру, де
+	продовжити після застосування.
+	<SNIPPET EVAL="no">
+	  <INDEX><DECLARATION>ev_operator_combination</DECLARATION></INDEX> 
+	  <INDEX><DECLARATION>ev_application</DECLARATION></INDEX> 
+	  <SCHEME>
+ev-application
+  (save continue)
+  (save env)
+  (assign unev (op operands) (reg exp))
+  (save unev)
+  (assign exp (op operator) (reg exp))
+  (assign continue (label ev-appl-did-operator))
+  (goto (label eval-dispatch))
+	  </SCHEME>
+	</SNIPPET>
+      </TEXT>
+      <INDEX>обчислювач із явним керуванням для Scheme<SUBINDEX>обчислення операндів<OPEN/></SUBINDEX></INDEX>
+      <TEXT>
+	Повернувшись після обчислення підвиразу-оператора,
+	ми переходимо до обчислення операндів комбінації
+	й накопичуємо отримані аргументи в списку, який тримаємо в
+	<SCHEMEINLINE>argl</SCHEMEINLINE>.
+	Спершу ми відновлюємо необчислені операнди й середовище.  Ми
+	ініціалізуємо <SCHEMEINLINE>argl</SCHEMEINLINE> порожнім списком.  Далі ми
+	присвоюємо регістру
+	<SCHEMEINLINE>proc</SCHEMEINLINE>
+	процедуру, яку отримали в результаті обчислення оператора.
+	Якщо операндів немає, ми переходимо безпосередньо до
+	<SCHEMEINLINE>apply-dispatch</SCHEMEINLINE>. Інакше ми зберігаємо
+	<SCHEMEINLINE>proc</SCHEMEINLINE>
+	на стеку й запускаємо цикл обчислення аргументів:<FOOTNOTE>Ми додаємо до
+	процедур для структур даних обчислювача
+	в підрозділі<SPACE/><REF NAME="sec:eval-data-structures"/> такі дві
+	процедури для роботи зі списками аргументів:
+	<SNIPPET EVAL="no">
+	  <INDEX><DECLARATION>empty_arglist</DECLARATION></INDEX> 
+	  <INDEX><DECLARATION>adjoin_arg</DECLARATION></INDEX> 
+	  <NAME>empty_arglist_duplicate</NAME>
+	  <SCHEME>
+(define (empty-arglist) '())
+
+(define (adjoin-arg arg arglist)
+  (append arglist (list arg)))
+	  </SCHEME>
+	</SNIPPET>
+	Ми також використовуємо додаткову синтаксичну процедуру,
+	щоб перевірити, чи операнд останній
+	у комбінації:
+	<SNIPPET EVAL="no">
+	  <INDEX><DECLARATION>is_last_argument_expression</DECLARATION></INDEX> 
+	  <NAME>is_last_argument_expression_duplicate</NAME>
+	  <SCHEME>
+(define (last-operand? ops)
+(null? (cdr ops)))
+	  </SCHEME>
+	</SNIPPET></FOOTNOTE>
+	<SNIPPET EVAL="no">
+	  <SCHEME>
+ev-appl-did-operator
+  (restore unev)                  ; the operands
+  (restore env)
+  (assign argl (op empty-arglist))
+  (assign proc (reg val))         ; the operator
+  (test (op no-operands?) (reg unev))
+  (branch (label apply-dispatch))
+  (save proc)
+	  </SCHEME>
+	</SNIPPET>
+      </TEXT>
+
+      <TEXT>
+	Кожен цикл обчислення аргументів обчислює один
+	операнд
+	зі списку в <SCHEMEINLINE>unev</SCHEMEINLINE> і накопичує
+	результат у <SCHEMEINLINE>argl</SCHEMEINLINE>. Щоб обчислити
+	операнд, ми кладемо його в регістр
+	<SCHEMEINLINE>exp</SCHEMEINLINE>
+	і переходимо до
+	<SCHEMEINLINE>eval-dispatch</SCHEMEINLINE>,
+	попередньо налаштувавши <SCHEMEINLINE>continue</SCHEMEINLINE> так, щоб виконання
+	продовжилося з фази накопичення аргументів.  Але спершу ми зберігаємо
+	вже накопичені аргументи (які тримає <SCHEMEINLINE>argl</SCHEMEINLINE>),
+	середовище (яке тримає <SCHEMEINLINE>env</SCHEMEINLINE>) і решту
+	операндів
+	для обчислення (які тримає <SCHEMEINLINE>unev</SCHEMEINLINE>).  Для обчислення останнього
+	операнда зроблено окремий випадок, який опрацьовують
+	на <SCHEMEINLINE>ev-appl-last-arg</SCHEMEINLINE>.
+	<SNIPPET EVAL="no">
+	  <SCHEME>
+ev-appl-operand-loop
+  (save argl)
+  (assign exp (op first-operand) (reg unev))
+  (test (op last-operand?) (reg unev))
+  (branch (label ev-appl-last-arg))
+  (save env)
+  (save unev)
+  (assign continue (label ev-appl-accumulate-arg))
+  (goto (label eval-dispatch))
+	  </SCHEME>
+	</SNIPPET>
+      </TEXT>
+
+      <TEXT>
+	Коли операнд обчислено, значення накопичується в списку,
+	який тримає <SCHEMEINLINE>argl</SCHEMEINLINE>.  Потім операнд
+	видаляють зі списку необчислених операндів
+	у <SCHEMEINLINE>unev</SCHEMEINLINE>, і
+	цикл обчислення аргументів продовжується.
+	<SNIPPET EVAL="no">
+	  <SCHEME>
+ev-appl-accumulate-arg
+  (restore unev)
+  (restore env)
+  (restore argl)
+  (assign argl (op adjoin-arg) (reg val) (reg argl))
+  (assign unev (op rest-operands) (reg unev))
+  (goto (label ev-appl-operand-loop))
+	  </SCHEME>
+	</SNIPPET>
+      </TEXT>
+
+      <TEXT>
+	Обчислення останнього аргументу опрацьовують інакше.  Немає
+	потреби зберігати середовище чи список необчислених
+	операндів перед переходом до
+	<SCHEMEINLINE>eval-dispatch</SCHEMEINLINE>,
+	бо вони не знадобляться після обчислення останнього
+	операнда.
+	Тож ми повертаємося після обчислення до спеціальної точки входу
+	<SCHEMEINLINE>ev-appl-accum-last-arg</SCHEMEINLINE>,
+	яка відновлює список аргументів, накопичує новий аргумент, відновлює
+	збережену процедуру й переходить до виконання застосування.<FOOTNOTE>Оптимізацію,
+	за якої останній операнд опрацьовують особливо, називають
+	<INDEX>хвостова рекурсія evlis</INDEX>
+	<EM>хвостовою рекурсією evlis</EM> (див.
+	<INDEX>Wand, Mitchell</INDEX>
+	<CITATION NAME="WAN80">Wand 1980</CITATION>). Ми могли б зробити цикл
+	обчислення аргументів дещо ефективнішим, якби зробили окремим випадком
+	також обчислення першого
+	операнда.  Це дало б змогу відкласти
+	ініціалізацію <SCHEMEINLINE>argl</SCHEMEINLINE> до обчислення
+	першого операнда, щоб
+	уникнути збереження <SCHEMEINLINE>argl</SCHEMEINLINE> у цьому випадку.  Компілятор
+	з підрозділу<SPACE/><REF NAME="sec:compilation"/> виконує цю
+	оптимізацію. (Порівняйте з процедурою
+	<SCHEMEINLINE>construct-arglist</SCHEMEINLINE>
+	з підрозділу<SPACE/><REF NAME="sec:compiling-combinations"/>.)</FOOTNOTE>
+	<SNIPPET EVAL="no">
+	  <SCHEME>
+ev-appl-last-arg
+  (assign continue (label ev-appl-accum-last-arg))
+  (goto (label eval-dispatch))
+ev-appl-accum-last-arg
+  (restore argl)
+  (assign argl (op adjoin-arg) (reg val) (reg argl))
+  (restore proc)
+  (goto (label apply-dispatch))
+	  </SCHEME>
+	</SNIPPET>
+      </TEXT>
+
+      <TEXT>
+	Подробиці циклу обчислення аргументів визначають
+	<INDEX>порядок обчислення<SUBINDEX>в обчислювачі із явним керуванням</SUBINDEX></INDEX>
+	порядок, у якому інтерпретатор обчислює
+	операнди комбінації (наприклад,
+	зліва направо чи справа наліво<EMDASH/>див.
+	вправу<SPACE/><REF NAME="ex:order-of-evaluation"/>).  Цей порядок не
+	визначає метамовний обчислювач, який успадковує свою структуру
+	керування від базової мови Scheme, якою його реалізовано.<FOOTNOTE>
+        Порядок обчислення операндів у метамовному обчислювачі
+        визначає порядок обчислення аргументів
+        <SCHEMEINLINE>cons</SCHEMEINLINE> у процедурі
+        <SCHEMEINLINE>list-of-values</SCHEMEINLINE> з підрозділу<SPACE/><REF
+        NAME="sec:core-of-evaluator"/> (див. вправу<SPACE/><REF
+        NAME="ex:arg-eval-order"/>).</FOOTNOTE>
+        Оскільки селектор <SCHEMEINLINE>first-operand</SCHEMEINLINE> (який використовують
+        у <SCHEMEINLINE>ev-appl-operand-loop</SCHEMEINLINE>, щоб виймати послідовні
+        операнди з <SCHEMEINLINE>unev</SCHEMEINLINE>) реалізовано як
+        <SCHEMEINLINE>car</SCHEMEINLINE>, а селектор
+        <SCHEMEINLINE>rest-operands</SCHEMEINLINE> реалізовано як
+        <SCHEMEINLINE>cdr</SCHEMEINLINE>, обчислювач із явним керуванням
+        обчислюватиме операнди комбінації в порядку зліва направо.
+      </TEXT>
+
+      <INDEX>обчислювач із явним керуванням для Scheme<SUBINDEX>обчислення операндів<CLOSE/></SUBINDEX></INDEX>
+      
+      <SUBHEADING> 
+	<NAME>
+	  Застосування процедури
+	</NAME>
+      </SUBHEADING>
+
+      <LABEL NAME="sec:procedure-application"/>
+      <TEXT>
+	Точка входу
+	<SCHEMEINLINE>apply-dispatch</SCHEMEINLINE>
+	відповідає процедурі <SCHEMEINLINE>apply</SCHEMEINLINE>
+	метамовного обчислювача.  Коли ми доходимо до
+	<SCHEMEINLINE>apply-dispatch</SCHEMEINLINE>,
+	регістр <SCHEMEINLINE>proc</SCHEMEINLINE> містить процедуру,
+	яку треба застосувати, а <SCHEMEINLINE>argl</SCHEMEINLINE> містить список
+	обчислених аргументів, до яких її треба застосувати.  Збережене значення
+	<SCHEMEINLINE>continue</SCHEMEINLINE> (яке спочатку передали
+	<SCHEMEINLINE>eval-dispatch</SCHEMEINLINE>
+	і зберегли на
+	<SCHEMEINLINE>ev-application</SCHEMEINLINE>),
+	котре каже, куди повернутися з результатом
+	застосування процедури, лежить на стеку.  Коли застосування завершено,
+	контролер переходить до точки входу, заданої збереженим
+	<SCHEMEINLINE>continue</SCHEMEINLINE>, а результат застосування лежить у
+	<SCHEMEINLINE>val</SCHEMEINLINE>.  Як і в метамовного
+	<SCHEMEINLINE>apply</SCHEMEINLINE>, треба розглянути два випадки.  Або
+	процедура, яку треба застосувати, примітивна, або вона складена
+	процедура.
+	<SNIPPET EVAL="no">
+	  <INDEX><DECLARATION>apply_dispatch</DECLARATION></INDEX> 
+	  <SCHEME>
+apply-dispatch
+  (test (op primitive-procedure?) (reg proc))
+  (branch (label primitive-apply))
+  (test (op compound-procedure?) (reg proc))  
+  (branch (label compound-apply))
+  (goto (label unknown-procedure-type))
+	  </SCHEME>
+	</SNIPPET>
+      </TEXT>
+
+      <TEXT>
+	Ми припускаємо, що кожну
+	<INDEX>обчислювач із явним керуванням для Python<SUBINDEX>примітивні процедури</SUBINDEX></INDEX>
+	примітивну процедуру реалізовано так, що вона бере свої
+	аргументи з <SCHEMEINLINE>argl</SCHEMEINLINE> і кладе результат у
+	<SCHEMEINLINE>val</SCHEMEINLINE>.  Щоб задати, як машина опрацьовує
+	примітиви, нам довелося б подати послідовність інструкцій контролера
+	для кожного примітива й організувати для
+	<SCHEMEINLINE>primitive-apply</SCHEMEINLINE>
+	перехід до
+	інструкцій того примітива, який визначають
+	вміст
+	<SCHEMEINLINE>proc</SCHEMEINLINE>.
+	Оскільки нас цікавить структура процесу обчислення, а
+	не подробиці примітивів, ми натомість просто скористаємося операцією
+	<SCHEMEINLINE>apply-primitive-procedure</SCHEMEINLINE>,
+	яка застосовує
+	процедуру з proc
+	до аргументів з <SCHEMEINLINE>argl</SCHEMEINLINE>.  Щоб
+	імітувати обчислювач за допомогою симулятора
+	з підрозділу<SPACE/><REF NAME="sec:simulator"/>, ми використовуємо
+	процедуру <SCHEMEINLINE>apply-primitive-procedure</SCHEMEINLINE>,
+	яка звертається до базової системи Scheme, щоб виконати застосування,
+	так само, як ми робили для метамовного
+	обчислювача в підрозділі<SPACE/><REF NAME="sec:running-eval"/>.  Обчисливши
+	значення примітивного застосування, ми відновлюємо
+	<SCHEMEINLINE>continue</SCHEMEINLINE> і переходимо
+	до призначеної точки входу.
+	<SNIPPET EVAL="no">
+	  <INDEX><DECLARATION>primitive_apply</DECLARATION></INDEX> 
+	  <SCHEME>
+primitive-apply
+  (assign val (op apply-primitive-procedure)
+              (reg proc)
+              (reg argl))
+  (restore continue)
+  (goto (reg continue))
+	  </SCHEME>
+	</SNIPPET>
+      </TEXT>
+
+      <TEXT>
+	<INDEX>обчислювач із явним керуванням для Python<SUBINDEX>складені <SPLITINLINE><SCHEME>procedures</SCHEME><PYTHON>functions</PYTHON></SPLITINLINE></SUBINDEX></INDEX>
+	Щоб застосувати складену процедуру, ми діємо так само, як у
+	метамовному обчислювачі.  Ми будуємо фрейм,
+	який зв’язує
+	параметри
+	процедури з аргументами, використовуємо цей фрейм, щоб розширити середовище,
+	яке несе процедура,
+	і обчислюємо в цьому розширеному середовищі
+	послідовність виразів, яка утворює тіло
+	процедури.
+        <SCHEMEINLINE>Ev-sequence</SCHEMEINLINE>, описаний нижче
+        в підрозділі<SPACE/><REF NAME="sec:sequence-evaluation"/>,
+        опрацьовує обчислення цієї послідовності.
+	<SNIPPET EVAL="no">
+	  <INDEX><DECLARATION>compound_apply</DECLARATION></INDEX> 
+	  <SCHEME>
+compound-apply
+  (assign unev (op procedure-parameters) (reg proc))
+  (assign env (op procedure-environment) (reg proc))
+  (assign env (op extend-environment)
+              (reg unev) (reg argl) (reg env))
+  (assign unev (op procedure-body) (reg proc))
+  (goto (label ev-sequence))
+	  </SCHEME>
+	</SNIPPET>
+      </TEXT>
+      <TEXT>
+	<SCHEMEINLINE>Compound-apply</SCHEMEINLINE> — єдине
+	місце в інтерпретаторі, де регістру
+	<SCHEMEINLINE>env</SCHEMEINLINE> присвоюють
+	нове значення. Так само, як у метамовному обчислювачі, нове середовище
+	будують із середовища, яке несе
+	процедура, разом зі списком аргументів і відповідним списком
+	змінних, які треба зв’язати.
+      </TEXT>
+
+      <INDEX>обчислювач із явним керуванням для Scheme<SUBINDEX><SPLITINLINE><SCHEME>procedure</SCHEME><PYTHON>function</PYTHON></SPLITINLINE> застосування<CLOSE/></SUBINDEX></INDEX>
+      <INDEX>обчислювач із явним керуванням для Scheme<SUBINDEX>комбінації<CLOSE/></SUBINDEX></INDEX>
+    </SCHEME>
+
+    <PYTHON>
+      
+      <SUBHEADING> 
+        <NAME>
+          Умовні вирази
+        </NAME>
+      </SUBHEADING>
+
+      <TEXT>
+        Як і в метамовному обчислювачі, синтаксичні форми опрацьовують, вибірково
+        обчислюючи фрагменти компонента. Для
+        <INDEX>обчислювач із явним керуванням для Python<SUBINDEX>умовні вирази</SUBINDEX></INDEX>
+	умовного виразу ми мусимо обчислити
+        предикат і вирішити, залежно від значення предиката, чи обчислювати
+        наслідок, чи альтернативу.
+      </TEXT>
+
+      <TEXT>
+        Перед обчисленням предиката ми зберігаємо сам умовний вираз, який лежить у
+        <PYTHONINLINE>comp</PYTHONINLINE>, щоб пізніше мати змогу вийняти
+        наслідок або альтернативу. Щоб обчислити вираз-предикат, ми переміщуємо його в
+        регістр <PYTHONINLINE>comp</PYTHONINLINE> і переходимо до
+        <PYTHONINLINE>eval_dispatch</PYTHONINLINE>. Середовище в регістрі
+        <PYTHONINLINE>env</PYTHONINLINE> уже правильне для
+        обчислення предиката. Однак ми зберігаємо
+        <PYTHONINLINE>env</PYTHONINLINE>, бо воно знадобиться пізніше для
+        обчислення наслідку або альтернативи. Ми налаштовуємо
+        <PYTHONINLINE>continue</PYTHONINLINE> так, щоб обчислення продовжилося на
+        <PYTHONINLINE>ev_conditional_decide</PYTHONINLINE> після того, як предикат
+        обчислено. Спершу, однак, ми зберігаємо старе значення
+        <PYTHONINLINE>continue</PYTHONINLINE>, яке знадобиться пізніше, щоб
+        повернутися до обчислення інструкції, яка чекає на значення
+        умовного виразу.
+        <SNIPPET EVAL="no">
+          <INDEX><DECLARATION>ev_conditional</DECLARATION></INDEX> 
+          <PYTHON>
+"ev_conditional",
+  save("comp"), // save conditional for later
+  save("env"),
+  save("continue"),
+  assign("continue", label("ev_conditional_decide")),
+  assign("comp", list(op("conditional_predicate"), reg("comp"))),
+  go_to(label("eval_dispatch")), // evaluate the predicate
+          </PYTHON>
+        </SNIPPET>
+      </TEXT>
+
+      <TEXT>
+        Коли ми продовжуємо на <PYTHONINLINE>ev_conditional_decide</PYTHONINLINE> після
+	обчислення предиката, ми перевіряємо, істинний він чи хибний,
+        і, залежно від результату, кладемо в
+        <PYTHONINLINE>comp</PYTHONINLINE> або наслідок, або альтернативу, перш ніж перейти до
+        <PYTHONINLINE>eval_dispatch</PYTHONINLINE>.<FOOTNOTE>
+        У цьому розділі ми використовуватимемо функцію
+        <INDEX><DECLARATION>is_falsy</DECLARATION><SUBINDEX>чому її використано в обчислювачі із явним керуванням</SUBINDEX></INDEX>
+        <PYTHONINLINE>is_falsy</PYTHONINLINE>, щоб перевірити значення предиката.
+        Це дає нам змогу записати гілки для наслідку й альтернативи в тому самому
+        порядку, як в умовному виразі, і просто провалитися до гілки наслідку,
+        коли предикат істинний. Функцію <PYTHONINLINE>is_falsy</PYTHONINLINE>
+        оголошено як протилежну до
+        <PYTHONINLINE>is_truthy</PYTHONINLINE>, яку використовують для перевірки предикатів
+        умовних виразів у підрозділі<SPACE/><REF NAME="sec:core-of-evaluator"/>.</FOOTNOTE>
+	Зверніть увагу, що відновлення
+	<PYTHONINLINE>env</PYTHONINLINE> і
+	<PYTHONINLINE>continue</PYTHONINLINE> тут налаштовує
+	<PYTHONINLINE>eval_dispatch</PYTHONINLINE> на правильне середовище
+	й на продовження в потрібному місці, де він отримає значення умовного виразу.
+	<SNIPPET EVAL="no" POSTPADDING="no">
+          <PYTHON>
+"ev_conditional_decide",
+  restore("continue"),
+  restore("env"),
+  restore("comp"),
+  test(list(op("is_falsy"), reg("val"))),
+  branch(label("ev_conditional_alternative")),
+"ev_conditional_consequent",
+  assign("comp", list(op("conditional_consequent"), reg("comp"))),
+  go_to(label("eval_dispatch")),
+"ev_conditional_alternative",
+  assign("comp", list(op("conditional_alternative"), reg("comp"))),
+  go_to(label("eval_dispatch")),
+          </PYTHON>
+        </SNIPPET>
+      </TEXT>
+
+      <SUBHEADING> 
+        <NAME>
+          Обчислення послідовностей
+        </NAME>
+      </SUBHEADING>
+
+      <INDEX>обчислювач із явним керуванням для Python<SUBINDEX>послідовності інструкцій<OPEN/></SUBINDEX></INDEX>
+      
+      <TEXT>
+        Частина обчислювача із явним керуванням, що починається на
+        <PYTHONINLINE>ev_sequence</PYTHONINLINE> і опрацьовує
+	послідовності інструкцій, аналогічна до функції
+        <PYTHONINLINE>eval_@sequence</PYTHONINLINE> метамовного обчислювача.  
+      </TEXT>
+      <TEXT>
+        Ділянки на <PYTHONINLINE>ev_sequence_next</PYTHONINLINE> і
+        <PYTHONINLINE>ev_sequence_continue</PYTHONINLINE> утворюють цикл, який
+        послідовно обчислює кожну інструкцію в послідовності.
+        Список необчислених
+        інструкцій тримають в <PYTHONINLINE>unev</PYTHONINLINE>.
+        На <PYTHONINLINE>ev_sequence</PYTHONINLINE> ми кладемо послідовність
+        інструкцій для обчислення в <PYTHONINLINE>unev</PYTHONINLINE>. Якщо
+        послідовність порожня, ми присвоюємо <PYTHONINLINE>val</PYTHONINLINE> значення <PYTHONINLINE>undefined</PYTHONINLINE> і переходимо до
+        <PYTHONINLINE>continue</PYTHONINLINE> через
+        <PYTHONINLINE>ev_sequence_empty</PYTHONINLINE>. Інакше ми запускаємо
+        цикл обчислення послідовності, спершу зберігши значення <PYTHONINLINE>continue</PYTHONINLINE> на стеку, бо
+        регістр <PYTHONINLINE>continue</PYTHONINLINE> використовуватимуть для локального керування потоком у циклі, а початкове
+        значення потрібне, щоб продовжити після послідовності інструкцій. Перед обчисленням
+        кожної інструкції ми перевіряємо, чи є ще інструкції для обчислення
+        в послідовності. Якщо є, ми зберігаємо решту необчислених інструкцій (які тримає
+        <PYTHONINLINE>unev</PYTHONINLINE>) і середовище, у якому їх треба
+        обчислити (яке тримає <PYTHONINLINE>env</PYTHONINLINE>), і викликаємо
+        <PYTHONINLINE>eval_dispatch</PYTHONINLINE>, щоб обчислити інструкцію,
+        покладену в <PYTHONINLINE>comp</PYTHONINLINE>. Два
+        збережені регістри відновлюють після цього обчислення, на
+        <PYTHONINLINE>ev_sequence_continue</PYTHONINLINE>.
+      </TEXT>
+      <TEXT>
+        Останню інструкцію в послідовності опрацьовують інакше, у точці входу
+        <PYTHONINLINE>ev_sequence_last_statement</PYTHONINLINE>. Оскільки після неї
+        більше немає інструкцій для обчислення, нам не потрібно зберігати
+        <PYTHONINLINE>unev</PYTHONINLINE> чи
+        <PYTHONINLINE>env</PYTHONINLINE> перед переходом до
+        <PYTHONINLINE>eval_dispatch</PYTHONINLINE>. Значення всієї
+        послідовності — це значення останньої інструкції, тож після обчислення останньої
+        інструкції не лишається нічого, крім продовження в тій точці входу, яку
+        зберегли на <PYTHONINLINE>ev_sequence</PYTHONINLINE>.
+        Замість налаштовувати <PYTHONINLINE>continue</PYTHONINLINE> так, щоб
+        <PYTHONINLINE>eval_dispatch</PYTHONINLINE> повернувся сюди, а потім
+        відновити <PYTHONINLINE>continue</PYTHONINLINE> зі стека й
+        продовжити з цієї точки входу, ми відновлюємо
+        <PYTHONINLINE>continue</PYTHONINLINE> зі стека перед переходом до
+        <PYTHONINLINE>eval_dispatch</PYTHONINLINE>, щоб
+        <PYTHONINLINE>eval_dispatch</PYTHONINLINE> продовжив із цієї точки входу
+        після обчислення інструкції.
+      </TEXT>
+      <!-- There should be exactly one newline in the following SNIPPET: just before
+	   "ev_sequence_empty" -->
+      <SNIPPET EVAL="no">
+	<INDEX><DECLARATION>ev_sequence</DECLARATION></INDEX>
+        <PYTHON>
+"ev_sequence",
+  assign("unev", list(op("sequence_statements"), reg("comp"))),
+  test(list(op("is_empty_sequence"), reg("unev"))), 
+  branch(label("ev_sequence_empty")),
+  save("continue"),
+"ev_sequence_next",
+  assign("comp", list(op("first_statement"), reg("unev"))),
+  test(list(op("is_last_statement"), reg("unev"))),
+  branch(label("ev_sequence_last_statement")),
+  save("unev"),
+  save("env"),
+  assign("continue", label("ev_sequence_continue")),
+  go_to(label("eval_dispatch")),
+"ev_sequence_continue",
+  restore("env"),
+  restore("unev"),
+  assign("unev", list(op("rest_statements"), reg("unev"))),
+  go_to(label("ev_sequence_next")),
+"ev_sequence_last_statement",
+  restore("continue"),
+  go_to(label("eval_dispatch")),
+
+"ev_sequence_empty",
+  assign("val", constant(undefined)),
+  go_to(reg("continue")), 
+        </PYTHON>
+      </SNIPPET>
+
+      <TEXT>
+        На відміну від <PYTHONINLINE>eval_sequence</PYTHONINLINE> у метамовному
+        обчислювачі, <PYTHONINLINE>ev_sequence</PYTHONINLINE> не потребує перевірки, чи було обчислено
+        інструкцію return, щоб завершити обчислення послідовності. <QUOTE>Явне
+        керування</QUOTE> в цьому обчислювачі дає інструкції return змогу перейти безпосередньо до
+        продовження поточного застосування функції, не відновлюючи
+        обчислення послідовності. Тож обчислення послідовності не мусить дбати
+        про інструкції return і навіть не знає про їхнє існування в
+        мові. Оскільки інструкція return вистрибує з коду обчислення послідовності,
+        відновлення збережених регістрів на <PYTHONINLINE>ev_sequence_continue</PYTHONINLINE>
+        не виконують. Пізніше ми побачимо, як інструкція return прибирає ці значення зі стека. 
+      </TEXT>
+
+      <INDEX>обчислювач із явним керуванням для Python<SUBINDEX>послідовності інструкцій<CLOSE/></SUBINDEX></INDEX>
+      
+    </PYTHON>
+  </SPLIT>
+</SUBSECTION>

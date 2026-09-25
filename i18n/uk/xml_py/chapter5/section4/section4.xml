@@ -1,0 +1,265 @@
+<SECTION>
+  <NAME>Обчислювач із явним керуванням</NAME>
+
+  <PDF_ONLY>
+    <!-- Figure moved here from later for SICP JS pagination -->
+    <!-- Figure code is copy of code later in this file in a WEB_ONLY -->
+  <FIGURE web_scale="0.8" scale="0.4" src="img_original/chip.png">
+    <CAPTION>Кремнієвий чип — реалізація обчислювача для Scheme.
+    </CAPTION>
+    <LABEL NAME="fig:Scheme-chip"/>
+  </FIGURE>
+  </PDF_ONLY>
+
+  <SECTIONCONTENT/>
+
+  <LABEL NAME="sec:eceval"/>
+
+  <INDEX>обчислювач із явним керуванням для Python<OPEN/></INDEX>
+
+  <TEXT>
+    У підрозділі<SPACE/><REF NAME="sec:designing-register-machines"/> ми побачили, як
+    перетворити прості
+    <SPLITINLINE>
+      <SCHEME>програми мовою Scheme</SCHEME>
+      <PYTHON>програми мовою Python</PYTHON>
+    </SPLITINLINE>
+    на описи регістрових
+    машин.  Тепер ми виконаємо це перетворення для складнішої
+    програми — метамовного обчислювача з
+    підрозділів<SPACE/><REF NAME="sec:core-of-evaluator"/><ENDASH/><REF NAME="sec:running-eval"/>,
+    який показує, як поведінку
+    <SPLITINLINE>
+      <SCHEME>інтерпретатора Scheme</SCHEME>
+      <PYTHON>інтерпретатора Python</PYTHON>
+    </SPLITINLINE>
+    можна описати в термінах
+    <SPLITINLINE>
+      <SCHEME>
+	процедур
+	<SCHEMEINLINE>eval</SCHEMEINLINE>
+      </SCHEME>
+      <PYTHON>
+	функцій
+	<SCHEMEINLINE>evaluate</SCHEMEINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    і <SCHEMEINLINE>apply</SCHEMEINLINE>.
+    <EM>Обчислювач із явним керуванням</EM>, який ми розробляємо в цьому
+    підрозділі, показує, як базові
+    <SPLITINLINE>
+      <SCHEME>механізми виклику процедур</SCHEME>
+      <PYTHON>механізми виклику функцій</PYTHON>
+    </SPLITINLINE>
+    і передавання аргументів, уживані в процесі
+    обчислення, можна описати в термінах операцій над
+    регістрами й стеками.  Крім того, обчислювач із явним керуванням може
+    правити за реалізацію
+    <SPLITINLINE>
+      <SCHEME>інтерпретатора Scheme</SCHEME>
+      <PYTHON>інтерпретатора Python</PYTHON>
+    </SPLITINLINE>
+    , написану мовою, дуже схожою на машинну мову
+    звичайних комп’ютерів.  Обчислювач може виконувати
+    симулятор регістрових машин із підрозділу<SPACE/><REF NAME="sec:simulator"/>.
+    Або його можна використати як відправну точку для побудови
+    машинномовної реалізації
+    <SPLITINLINE>
+      <SCHEME>обчислювача Scheme</SCHEME>
+      <PYTHON>обчислювача Python</PYTHON>
+    </SPLITINLINE>
+    або навіть
+    <INDEX>чип Scheme</INDEX>
+    <INDEX>реалізація Scheme на інтегральній схемі</INDEX>
+    <INDEX>реалізація Scheme на чипі</INDEX>
+    <INDEX>Scheme<SUBINDEX>реалізація на інтегральній схемі</SUBINDEX></INDEX>
+    спеціалізованої машини для обчислення
+    <SPLITINLINE>
+      <SCHEME>виразів Scheme.</SCHEME>
+      <PYTHON>програм мовою Python.</PYTHON>
+    </SPLITINLINE>
+    Рисунок<SPACE/><REF NAME="fig:Scheme-chip"/> показує таку апаратну
+    реалізацію: кремнієвий чип, який діє як обчислювач для
+    <SPLITINLINE>
+      <SCHEME>Scheme.</SCHEME>
+      <PYTHON>
+        Scheme — мови, яку використано замість Python у першому виданні цієї книги.
+      </PYTHON>
+    </SPLITINLINE>
+    Розробники чипа почали зі специфікацій шляхів даних і контролера
+    для регістрової машини, подібної до обчислювача, описаного в цьому підрозділі,
+    і скористалися програмами автоматизації проєктування, щоб побудувати
+    розведення інтегральної схеми.<FOOTNOTE>Див.
+    <INDEX>Batali, John Dean</INDEX>
+    <CITATION NAME="BAT82">Batali et al.<SPACE/>1982</CITATION> — більше
+    інформації про цей чип і метод, яким його спроєктовано.</FOOTNOTE>
+  </TEXT>
+
+  <WEB_ONLY>
+    <!-- Figure moved earlier for SICP JS pagination -->
+    <!-- Figure code is copy of code earlier in this file in a PDF_ONLY -->
+  <FIGURE web_scale="0.8" scale="0.4" src="img_original/chip.png">
+    <CAPTION>Кремнієвий чип — реалізація обчислювача для Scheme.
+    <INDEX>чип Scheme</INDEX>
+    <INDEX>реалізація Scheme на інтегральній схемі</INDEX>
+    <INDEX>Scheme<SUBINDEX>реалізація на інтегральній схемі</SUBINDEX></INDEX>
+    <INDEX>реалізація Scheme на чипі</INDEX>
+    </CAPTION>
+    <LABEL NAME="fig:Scheme-chip"/>
+  </FIGURE>
+  </WEB_ONLY>
+
+  
+  <SUBHEADING>
+    <NAME>Регістри та операції</NAME>
+  </SUBHEADING>
+
+  <INDEX>обчислювач із явним керуванням для Python<SUBINDEX>шляхи даних<OPEN/></SUBINDEX></INDEX>
+  <INDEX>обчислювач із явним керуванням для Python<SUBINDEX>операції</SUBINDEX></INDEX>
+
+  <TEXT>
+    Розробляючи обчислювач із явним керуванням, ми повинні задати
+    операції, які використовуватиме наша регістрова машина.  Ми описали
+    метамовний обчислювач у термінах абстрактного синтаксису, користуючись
+    <SPLITINLINE>
+      <SCHEME>процедурами</SCHEME>
+      <PYTHON>функціями</PYTHON>
+    </SPLITINLINE>
+    як-от
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>quoted?</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>is_literal</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    та
+    <SPLITINLINE><SCHEME><SCHEMEINLINE>make-procedure</SCHEMEINLINE>.</SCHEME>
+    <PYTHON>
+      <PYTHONINLINE>make_function</PYTHONINLINE>.
+    </PYTHON>
+    </SPLITINLINE>
+    Реалізуючи цю
+    регістрову машину, ми могли б розгорнути ці
+    <SPLITINLINE>
+      <SCHEME>процедури</SCHEME>
+      <PYTHON>функції</PYTHON>
+    </SPLITINLINE>
+    в послідовності
+    елементарних операцій над пам’яттю зі списковою структурою і реалізувати ці
+    операції на нашій регістровій машині.  Проте це зробило б наш
+    обчислювач дуже довгим, затуливши основну структуру
+    подробицями.  Щоб зробити виклад яснішим, ми включимо як примітивні
+    операції регістрової машини синтаксичні
+    <SPLITINLINE>
+      <SCHEME>процедури</SCHEME>
+      <PYTHON>функції</PYTHON>
+    </SPLITINLINE>
+    з
+    підрозділу<SPACE/><REF NAME="sec:representing-expressions"/> та
+    <SPLITINLINE>
+      <SCHEME>процедури</SCHEME>
+      <PYTHON>функції</PYTHON>
+    </SPLITINLINE>
+    для подання середовищ та інших даних часу виконання з
+    підрозділів<SPACE/><REF NAME="sec:eval-data-structures"/>
+    і<SPACE/><REF NAME="sec:running-eval"/>.
+    Щоб повністю задати обчислювач, який можна було б програмувати
+    низькорівневою машинною мовою або реалізувати апаратно, ми б
+    замінили ці операції елементарнішими, скориставшись
+    реалізацією спискової структури, описану в
+    підрозділі<SPACE/><REF NAME="sec:storage-allocation"/>.
+  </TEXT>
+
+  <TEXT>
+    Наша
+    регістрова машина
+    <SPLITINLINE>
+      <SCHEME>обчислювача Scheme</SCHEME>
+      <PYTHON>обчислювача Python</PYTHON>
+    </SPLITINLINE>
+    містить стек і сім
+    регістрів:
+    <INDEX>обчислювач із явним керуванням для Python<SUBINDEX>регістри</SUBINDEX></INDEX>
+    <INDEX><USE>comp</USE> регістр</INDEX>
+    <SPLITINLINE>
+      <SCHEME> <SCHEMEINLINE>exp</SCHEMEINLINE>, </SCHEME>
+      <PYTHON> <SCHEMEINLINE>comp</SCHEMEINLINE>, </PYTHON>
+    </SPLITINLINE>
+    <INDEX><USE>env</USE> регістр</INDEX>
+    <SCHEMEINLINE>env</SCHEMEINLINE>,
+    <INDEX><USE>val</USE> регістр</INDEX>
+    <SCHEMEINLINE>val</SCHEMEINLINE>,
+    <INDEX><USE>continue</USE> регістр<SUBINDEX><ORDER>explicit</ORDER>в обчислювачі з явним керуванням</SUBINDEX></INDEX>
+    <SCHEMEINLINE>continue</SCHEMEINLINE>,
+    <INDEX><USE>fun</USE> регістр</INDEX>
+    <SPLITINLINE>
+      <SCHEME>
+	<SCHEMEINLINE>proc</SCHEMEINLINE>,
+      </SCHEME>
+      <PYTHON>
+	<SCHEMEINLINE>fun</SCHEMEINLINE>,
+      </PYTHON>
+    </SPLITINLINE>
+    <INDEX><USE>argl</USE> регістр</INDEX>
+    <SCHEMEINLINE>argl</SCHEMEINLINE>, і
+    <INDEX><USE>unev</USE> регістр</INDEX>
+    <SCHEMEINLINE>unev</SCHEMEINLINE>.
+    <SPLITINLINE>
+      <SCHEME>
+	<SCHEMEINLINE>Exp</SCHEMEINLINE>
+      </SCHEME>
+      <PYTHON>
+	Регістр <PYTHONINLINE>comp</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    використовують, щоб зберігати
+    <SPLITINLINE>
+      <SCHEME>
+	вираз
+      </SCHEME>
+      <PYTHON>
+	складову
+      </PYTHON>
+    </SPLITINLINE>
+    , яку треба обчислити, а <SCHEMEINLINE>env</SCHEMEINLINE> містить середовище, у
+    якому має відбуватися обчислення. Наприкінці обчислення
+    <SCHEMEINLINE>val</SCHEMEINLINE> містить значення, одержане обчисленням
+    <SPLITINLINE><SCHEME>виразу</SCHEME><PYTHON>складової</PYTHON></SPLITINLINE>
+    у заданому середовищі. Регістр <SCHEMEINLINE>continue</SCHEMEINLINE>
+    використовують для реалізації рекурсії, як пояснено в підрозділі<SPACE/><REF
+    NAME="sec:stack-recursion"/>. (Обчислювач має викликати себе рекурсивно, бо
+    обчислення <SPLITINLINE><SCHEME>виразу</SCHEME><PYTHON>складової</PYTHON></SPLITINLINE> вимагає обчислення його
+    <SPLITINLINE><SCHEME>підвиразів.</SCHEME><PYTHON>підскладових.</PYTHON></SPLITINLINE>) Регістри
+    <SPLITINLINE>
+      <SCHEME>
+	<SCHEMEINLINE>proc</SCHEMEINLINE>,
+      </SCHEME>
+      <PYTHON>
+	<SCHEMEINLINE>fun</SCHEMEINLINE>,
+      </PYTHON>
+    </SPLITINLINE>
+    <SCHEMEINLINE>argl</SCHEMEINLINE> і <SCHEMEINLINE>unev</SCHEMEINLINE>
+    використовують для обчислення застосувань функцій. 
+  </TEXT>
+
+  <TEXT>
+    Ми не подаватимемо діаграму шляхів даних, яка показує, як з’єднано регістри та
+    операції обчислювача, і не наводитимемо
+    повного списку машинних операцій.  Вони неявно містяться в
+    контролері обчислювача, який буде подано докладно.
+  </TEXT>
+
+  <INDEX>обчислювач із явним керуванням для Python<SUBINDEX>шляхи даних<CLOSE/></SUBINDEX></INDEX>
+  
+  <!-- Subsection 1 : The Core of the Explicit-Control Evaluator -->
+  &amp;subsection5.4.1;
+  
+  <!-- Subsection 2 : Sequence Evaluation and Tail Recursion -->
+  &amp;subsection5.4.2;
+
+  <!-- Subsection 3 : Conditionals, Assignments, and Definitions -->
+  &amp;subsection5.4.3;
+
+  <!-- Subsection 4 : Running the Evaluator -->
+  &amp;subsection5.4.4;
+
+</SECTION>

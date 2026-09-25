@@ -1,0 +1,1293 @@
+<SUBSECTION>
+  <NAME>
+    Компіляція
+    <SPLITINLINE>
+      <SCHEME>виразів</SCHEME>
+      <PYTHON>складових</PYTHON>
+    </SPLITINLINE>
+  </NAME>
+
+  <LABEL NAME="sec:compiling-components"/>
+  <TEXT>
+    У цьому та наступному підрозділі ми реалізуємо генератори коду, яким передає
+    керування
+    <SPLITINLINE>
+      <SCHEME>процедура</SCHEME>
+      <PYTHON>функція</PYTHON>
+    </SPLITINLINE>
+    <SCHEMEINLINE>compile</SCHEMEINLINE>.
+  </TEXT>
+
+  <SUBHEADING>
+    <NAME>Компіляція коду зв’язку</NAME>
+  </SUBHEADING>
+
+  <TEXT>
+    Загалом вивід кожного генератора коду завершується
+    інструкціями<EMDASH/>їх породжує
+    <INDEX>компілятор для Python<SUBINDEX>код зв’язку</SUBINDEX></INDEX>
+    <SPLITINLINE>
+      <SCHEME>процедура</SCHEME>
+      <PYTHON>функція</PYTHON>
+    </SPLITINLINE>
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>compile-linkage</SCHEMEINLINE><EMDASH/>яка</SCHEME>
+      <PYTHON>
+	<PYTHONINLINE>compile_linkage</PYTHONINLINE><EMDASH/>яка
+      </PYTHON>
+    </SPLITINLINE>
+    реалізує потрібний зв’язок.  Якщо зв’язок — це
+    <SPLITINLINE>
+      <SCHEME>
+	<SCHEMEINLINE>return</SCHEMEINLINE>
+      </SCHEME>
+      <PYTHON>
+	<PYTHONINLINE>"return"</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    то
+    ми мусимо згенерувати інструкцію
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>(goto (reg continue))</SCHEMEINLINE>.</SCHEME>
+      <PYTHON><PYTHONINLINE>go_to(reg("continue"))</PYTHONINLINE>.
+      </PYTHON>
+    </SPLITINLINE>
+    Вона потребує регістра <SCHEMEINLINE>continue</SCHEMEINLINE> і не
+    змінює жодного регістра.
+    Якщо зв’язок — це
+    <SPLITINLINE>
+      <SCHEME>
+	<SCHEMEINLINE>next</SCHEMEINLINE>,
+      </SCHEME>
+      <PYTHON>
+	<PYTHONINLINE>"next"</PYTHONINLINE>,
+      </PYTHON>
+    </SPLITINLINE>
+    то нам не потрібно додавати жодної інструкції.  Інакше
+    зв’язок — це мітка, і ми генеруємо
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>goto</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>go_to</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    до цієї мітки — інструкцію, яка не потребує й не
+    змінює жодного регістра.<SPLITINLINE><SCHEME><FOOTNOTE>Ця процедура
+    користується засобом Lisp, який називають
+    <INDEX>список(и)<SUBINDEX>зворотна лапка з</SUBINDEX></INDEX>
+    <INDEX>зворотна лапка</INDEX>
+    <INDEX>квазіцитування</INDEX>
+    <INDEX><USE>`</USE> (зворотна лапка)</INDEX>
+    <INDEX><USE>,</USE> (кома, уживана зі зворотною лапкою)</INDEX>
+    <INDEX>кома, уживана зі зворотною лапкою</INDEX>
+    <EM>зворотною лапкою</EM> (backquote) (або <EM>квазіцитуванням</EM>,
+    quasiquote); він зручний для побудови
+    списків. Поставити символ зворотної лапки перед списком — майже те саме, що взяти його в лапки,
+    хіба що все в списку, позначене комою,
+    обчислюють.
+    <P/>
+    Наприклад, якщо значенням <SCHEMEINLINE>linkage</SCHEMEINLINE> є
+    символ <SCHEMEINLINE>branch25</SCHEMEINLINE>,
+    то вираз
+    <SCHEMEINLINE>`((goto (label ,linkage)))</SCHEMEINLINE>
+    обчислюється до списку
+    <SCHEMEINLINE>((goto (label branch25)))</SCHEMEINLINE>.
+    Так само, якщо значенням <SCHEMEINLINE>x</SCHEMEINLINE> є список
+    <SCHEMEINLINE>(a b c)</SCHEMEINLINE>,
+    то
+    <SCHEMEINLINE>`(1 2 ,x)</SCHEMEINLINE>
+    обчислюється до списку
+    <SCHEMEINLINE>(1 2 a)</SCHEMEINLINE>.</FOOTNOTE></SCHEME></SPLITINLINE>
+    <SNIPPET EVAL="no">
+      <INDEX><DECLARATION>compile_linkage</DECLARATION></INDEX>
+      <NAME>compile_linkage</NAME>
+      <SCHEME>
+(define (compile-linkage linkage)
+  (cond ((eq? linkage 'return)
+         (make-instruction-sequence '(continue) '()
+          '((goto (reg continue)))))
+        ((eq? linkage 'next)
+         (empty-instruction-sequence))
+        (else
+         (make-instruction-sequence '() '()
+          `((goto (label ,linkage)))))))
+      </SCHEME>
+      <PYTHON>
+function compile_linkage(linkage) {
+    return linkage === "return"
+           ? make_instruction_sequence(list("continue"), null,
+                                       list(go_to(reg("continue"))))
+           : linkage === "next"
+           ? make_instruction_sequence(null, null, null)
+           : make_instruction_sequence(null, null, 
+                                       list(go_to(label(linkage))));
+}
+      </PYTHON>
+    </SNIPPET>
+    Код зв’язку приєднують до послідовності інструкцій,
+    <SCHEMEINLINE>preserving</SCHEMEINLINE> регістр
+    <SCHEMEINLINE>continue</SCHEMEINLINE>, бо
+    <SPLITINLINE>
+      <SCHEME>
+	<SCHEMEINLINE>return</SCHEMEINLINE>
+      </SCHEME>
+      <PYTHON>
+	<PYTHONINLINE>"return"</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    зв’язок вимагатиме
+    регістра <SCHEMEINLINE>continue</SCHEMEINLINE>:
+    Якщо задана послідовність інструкцій змінює
+    <SCHEMEINLINE>continue</SCHEMEINLINE>, а код зв’язку його потребує,
+    <SCHEMEINLINE>continue</SCHEMEINLINE> буде збережено й відновлено.
+    <SNIPPET EVAL="no" POSTPADDING="no">
+      <INDEX><DECLARATION>end_with_linkage</DECLARATION></INDEX>
+      <NAME>end_with_linkage</NAME>
+      <SCHEME>
+(define (end-with-linkage linkage instruction-sequence)
+  (preserving '(continue)
+   instruction-sequence
+   (compile-linkage linkage)))
+      </SCHEME>
+      <PYTHON>
+function end_with_linkage(linkage, instruction_sequence) {
+    return preserving(list("continue"),
+                      instruction_sequence,
+                      compile_linkage(linkage));
+}
+      </PYTHON>
+    </SNIPPET>
+  </TEXT>
+
+  <SUBHEADING>
+    <NAME>Компіляція простих
+    <SPLITINLINE>
+      <SCHEME>
+	виразів
+      </SCHEME>
+      <PYTHON>
+	складових
+      </PYTHON>
+    </SPLITINLINE>
+    </NAME>
+  </SUBHEADING>
+
+  <TEXT>
+    Генератори коду для
+    <INDEX>компілятор для Python<SUBINDEX>літерали</SUBINDEX></INDEX>
+    <INDEX>компілятор для Python<SUBINDEX>імена</SUBINDEX></INDEX>
+    <SPLITINLINE>
+      <SCHEME>виразів, що самі себе обчислюють, цитат і змінних</SCHEME>
+      <PYTHON>літеральних виразів та імен</PYTHON>
+    </SPLITINLINE>
+    будують послідовності
+    інструкцій, які присвоюють потрібне значення цільовому регістру,
+    а тоді діють згідно з дескриптором зв’язку.
+  </TEXT>
+  <SPLIT>
+    <PYTHON>
+      <TEXT>
+        Літеральне значення вилучають під час компіляції зі складової, яку
+        компілюють, і кладуть у частину-константу
+        інструкції <PYTHONINLINE>assign</PYTHONINLINE>. Для імені
+        генерують інструкцію, яка під час виконання
+        скомпільованої програми користується операцією
+        <PYTHONINLINE>lookup_symbol_value</PYTHONINLINE>, щоб знайти
+        значення, пов’язане із символом, у поточному середовищі. Як і
+        літеральне значення, символ вилучають під час компіляції зі складової, яку
+        компілюють. Отже,
+        <PYTHONINLINE>symbol_of_name(component)</PYTHONINLINE>
+        виконують лише раз, коли програму компілюють, і символ
+        з’являється як константа в
+        інструкції <PYTHONINLINE>assign</PYTHONINLINE>.
+      </TEXT>
+    </PYTHON>
+  </SPLIT>
+  <TEXT>
+    <SNIPPET EVAL="no">
+      <INDEX><DECLARATION>compile_literal</DECLARATION></INDEX>
+      <INDEX><DECLARATION>compile_name</DECLARATION></INDEX>
+      <NAME>compile_literal</NAME>
+      <SCHEME>
+(define (compile-self-evaluating exp target linkage)
+  (end-with-linkage linkage
+   (make-instruction-sequence '() (list target)
+    `((assign ,target (const ,exp))))))
+
+(define (compile-quoted exp target linkage)
+  (end-with-linkage linkage
+   (make-instruction-sequence '() (list target)
+    `((assign ,target (const ,(text-of-quotation exp)))))))
+
+(define (compile-variable exp target linkage)
+  (end-with-linkage linkage
+   (make-instruction-sequence '(env) (list target)
+    `((assign ,target
+              (op lookup-variable-value)
+              (const ,exp)
+              (reg env))))))
+      </SCHEME>
+      <PYTHON>
+function compile_literal(component, target, linkage) {
+    const literal = literal_value(component);
+    return end_with_linkage(linkage,
+               make_instruction_sequence(null, list(target),
+                   list(assign(target, constant(literal)))));
+}
+function compile_name(component, target, linkage) {
+    const symbol = symbol_of_name(component);
+    return end_with_linkage(linkage,
+               make_instruction_sequence(list("env"), list(target),
+                   list(assign(target,
+                               list(op("lookup_symbol_value"),
+                                    constant(symbol),
+                                    reg("env"))))));
+}
+      </PYTHON>
+    </SNIPPET>
+    <SPLITINLINE>
+      <SCHEME>Усі ці</SCHEME>
+      <PYTHON>Ці</PYTHON>
+    </SPLITINLINE>
+    інструкції-присвоєння змінюють цільовий регістр,
+    а та, яка шукає
+    <SPLITINLINE>
+      <SCHEME>
+	змінну,
+      </SCHEME>
+      <PYTHON>
+	символ,
+      </PYTHON>
+    </SPLITINLINE>
+    потребує регістра <SCHEMEINLINE>env</SCHEMEINLINE>.
+  </TEXT>
+
+  <TEXT>
+    Присвоєння та
+    <INDEX>компілятор для Python<SUBINDEX>присвоєння</SUBINDEX></INDEX>
+    <INDEX>компілятор для Python<SUBINDEX>оголошення</SUBINDEX></INDEX>
+    <SPLITINLINE>
+      <SCHEME>означення</SCHEME>
+      <PYTHON>оголошення</PYTHON>
+    </SPLITINLINE>
+    опрацьовують майже так само, як в
+    інтерпретаторі.
+    <SPLITINLINE>
+      <SCHEME>
+        Ми рекурсивно генеруємо код, який обчислює значення, що його треба
+        присвоїти змінній, і приєднуємо до нього
+        послідовність із двох інструкцій, яка власне встановлює або означує
+        змінну й присвоює значення всього виразу
+        (символ <SCHEMEINLINE>ok</SCHEMEINLINE>) цільовому
+        регістру. Рекурсивна компіляція має ціль
+        <SCHEMEINLINE>val</SCHEMEINLINE> і зв’язок
+        <SCHEMEINLINE>next</SCHEMEINLINE>, тож код
+        покладе свій результат у <SCHEMEINLINE>val</SCHEMEINLINE> і
+        продовжить із кодом, приєднаним після нього. Приєднання
+        виконують, preserving
+        <SCHEMEINLINE>env</SCHEMEINLINE>, бо середовище
+        потрібне для встановлення або означення змінної, а код
+        для значення змінної міг бути компіляцією
+        складного виразу, який міг би змінити регістри
+        в довільний спосіб.
+      </SCHEME>
+      <PYTHON>
+        Функція <PYTHONINLINE>compile_assignment_declaration</PYTHONINLINE>
+        рекурсивно генерує код, який обчислює значення, що його треба
+        пов’язати із символом, і приєднує до нього послідовність із двох
+        інструкцій, яка оновлює значення, пов’язане із символом,
+        у середовищі й присвоює значення всієї складової
+        <!-- (the <PYTHONINLINE>final_value</PYTHONINLINE>) --> <!-- FIXME PAGINATION: can be restored if final_value is visible on this page -->
+ (присвоєне значення для присвоєння або <PYTHONINLINE>undefined</PYTHONINLINE> для оголошення) 
+        цільовому регістру. 
+        <!-- For an assignment, the <PYTHONINLINE>final_value</PYTHONINLINE> is the -->
+        <!-- assigned value, and for a declaration it is <PYTHONINLINE>undefined</PYTHONINLINE>. -->
+        
+        Рекурсивна компіляція має ціль
+        <PYTHONINLINE>val</PYTHONINLINE> і зв’язок
+        <PYTHONINLINE>"next"</PYTHONINLINE>, тож код
+        покладе свій результат у <PYTHONINLINE>val</PYTHONINLINE>
+        і продовжить із кодом, приєднаним після нього. Приєднання
+        виконують, preserving <PYTHONINLINE>env</PYTHONINLINE>,
+        бо середовище потрібне для оновлення зв’язку
+        символ<ENDASH/>значення, а код обчислення значення міг бути компіляцією
+        складного виразу, який міг би змінити регістри
+        в довільний спосіб.
+      </PYTHON>
+    </SPLITINLINE>
+    <SNIPPET EVAL="no">
+      <INDEX><DECLARATION>compile_assignment</DECLARATION></INDEX>
+      <INDEX><DECLARATION>compile_declaration</DECLARATION></INDEX>
+      <NAME>compile_assignment</NAME>
+      <SCHEME>
+(define (compile-assignment exp target linkage)
+  (let ((var (assignment-variable exp))
+        (get-value-code
+         (compile (assignment-value exp) 'val 'next)))
+    (end-with-linkage linkage
+     (preserving '(env)
+      get-value-code
+      (make-instruction-sequence '(env val) (list target)
+       `((perform (op set-variable-value!)
+                  (const ,var)
+                  (reg val)
+                  (reg env))
+         (assign ,target (const ok))))))))
+
+(define (compile-definition exp target linkage)
+  (let ((var (definition-variable exp))
+        (get-value-code
+         (compile (definition-value exp) 'val 'next)))
+    (end-with-linkage linkage
+     (preserving '(env)
+      get-value-code
+      (make-instruction-sequence '(env val) (list target)
+       `((perform (op define-variable!)
+                  (const ,var)
+                  (reg val)
+                  (reg env))
+         (assign ,target (const ok))))))))
+      </SCHEME>
+      <PYTHON>
+function compile_assignment(component, target, linkage) {
+    return compile_assignment_declaration(
+               assignment_symbol(component),
+               assignment_value_expression(component),
+               reg("val"),
+               target, linkage);
+}
+<ALLOW_BREAK/>
+function compile_declaration(component, target, linkage) {
+    return compile_assignment_declaration(
+               declaration_symbol(component),
+               declaration_value_expression(component),
+               constant(undefined),
+               target, linkage);
+}
+function compile_assignment_declaration(
+             symbol, value_expression, final_value,
+             target, linkage) {
+    const get_value_code = compile(value_expression, "val", "next");
+    return end_with_linkage(linkage,
+               preserving(list("env"),
+                   get_value_code,
+                   make_instruction_sequence(list("env", "val"),
+                                             list(target),
+                       list(perform(list(op("assign_symbol_value"),
+                                         constant(symbol),
+                                         reg("val"),
+                                         reg("env"))),
+                            assign(target, final_value)))));
+}
+      </PYTHON>
+    </SNIPPET>
+    Приєднана послідовність із двох інструкцій потребує
+    <SCHEMEINLINE>env</SCHEMEINLINE> і <SCHEMEINLINE>val</SCHEMEINLINE>
+    та змінює ціль.  Зауважте, що хоч ми й зберігаємо
+    <SCHEMEINLINE>env</SCHEMEINLINE> для цієї послідовності, ми не зберігаємо
+    <SCHEMEINLINE>val</SCHEMEINLINE>, бо
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>get-value-code</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>get_value_code</PYTHONINLINE> 
+      </PYTHON>
+    </SPLITINLINE>
+    призначений явно класти свій результат у
+    <SCHEMEINLINE>val</SCHEMEINLINE> для використання цією послідовністю.
+    (Насправді, якби ми таки зберігали <SCHEMEINLINE>val</SCHEMEINLINE>, це була б
+    помилка, бо це спричинило б відновлення попереднього вмісту
+    <SCHEMEINLINE>val</SCHEMEINLINE> одразу після того, як
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>get-value-code</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>get_value_code</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    виконається.)
+  </TEXT>
+
+  <SUBHEADING>
+    <NAME>Компіляція
+    <SPLITINLINE>
+      <SCHEME>
+        умовних виразів
+      </SCHEME>
+      <PYTHON>
+        умовних інструкцій
+      </PYTHON>
+    </SPLITINLINE>
+    </NAME>
+  </SUBHEADING>
+
+  <TEXT>
+    Код для
+    <INDEX>компілятор для Python<SUBINDEX>умовні інструкції</SUBINDEX></INDEX>
+    <SPLITINLINE>
+      <SCHEME>
+	виразу <SCHEMEINLINE>if expression</SCHEMEINLINE>
+      </SCHEME>
+      <PYTHON>
+	умовної інструкції
+      </PYTHON>
+    </SPLITINLINE>
+    , скомпільований із заданими ціллю та зв’язком, має форму
+    <SNIPPET EVAL="no" LATEX="yes">
+      <SCHEME>
+ $\langle compilation\ of\ predicate,\ target$ val$,\ linkage$ next$\rangle$
+ (test (op false?) (reg val))
+ (branch (label false-branch))
+true-branch
+ $\langle compilation\ of\ consequent\ with\ given\ target\ and\ given\ linkage or$ after-if$\rangle$
+false-branch
+ $\langle compilation\ of\ alternative\ with\ given\ target\ and\ linkage\rangle$
+after-if
+      </SCHEME>
+      <PYTHON LATEX="yes">
+<METAPHRASE>compilation of predicate, target <PYTHONINLINE>val</PYTHONINLINE>, linkage <PYTHONINLINE>"next"</PYTHONINLINE></METAPHRASE>
+  test(list(op("is_falsy"), reg("val"))),
+  branch(label("false_branch")),
+"true_branch",
+  <METAPHRASE>compilation of consequent with given target and given linkage or <PYTHONINLINE>after_cond</PYTHONINLINE></METAPHRASE>
+"false_branch",
+  <METAPHRASE>compilation of alternative with given target and linkage</METAPHRASE>
+"after_cond"
+      </PYTHON>
+    </SNIPPET>
+  </TEXT>
+
+  <TEXT>
+    Щоб згенерувати цей код, ми компілюємо предикат, наслідок
+    і альтернативу та поєднуємо отриманий код з інструкціями,
+    що перевіряють результат предиката, і з новозгенерованими мітками для позначення
+    істинної та хибної гілок і кінця
+    умовної інструкції.<FOOTNOTE>Ми не можемо просто використати мітки
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>true-branch</SCHEMEINLINE>,</SCHEME>
+      <PYTHON><PYTHONINLINE>true_branch</PYTHONINLINE>,</PYTHON>
+    </SPLITINLINE>
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>false-branch</SCHEMEINLINE>,</SCHEME>
+      <PYTHON><PYTHONINLINE>false_branch</PYTHONINLINE>,
+      </PYTHON>
+    </SPLITINLINE>
+    and
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>after-if</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>after_cond</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    як показано вище, бо в програмі може бути більше ніж одна
+    <SPLITINLINE><SCHEME><SCHEMEINLINE>if</SCHEMEINLINE></SCHEME><PYTHON>умовна інструкція</PYTHON></SPLITINLINE>
+    .
+    <INDEX>компілятор для Python<SUBINDEX>генерація міток</SUBINDEX></INDEX>
+    Компілятор користується
+    <SPLITINLINE>
+      <SCHEME>procedure</SCHEME>
+      <PYTHON>function</PYTHON>
+    </SPLITINLINE>
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>make-label</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>make_label</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    для генерації міток.
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>Make-label</SCHEMEINLINE></SCHEME>
+      <PYTHON>
+	Функція
+	<PYTHONINLINE>make_label</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    бере як аргумент <SPLITINLINE><SCHEME>символ</SCHEME><PYTHON>рядок</PYTHON></SPLITINLINE> і повертає новий
+    <SPLITINLINE><SCHEME>символ</SCHEME><PYTHON>рядок</PYTHON></SPLITINLINE>, який починається із
+    заданого <SPLITINLINE><SCHEME>символу</SCHEME><PYTHON>рядка</PYTHON></SPLITINLINE>.  Наприклад, послідовні виклики
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>(make-label 'a)</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>make_label("a")</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    повертали б
+    <SPLITINLINE><SCHEME><SCHEMEINLINE>a1</SCHEMEINLINE></SCHEME><PYTHON><PYTHONINLINE>"a1"</PYTHONINLINE></PYTHON></SPLITINLINE>,
+    <SPLITINLINE><SCHEME><SCHEMEINLINE>a2</SCHEMEINLINE></SCHEME><PYTHON><PYTHONINLINE>"a2"</PYTHONINLINE></PYTHON></SPLITINLINE>,
+    і так далі.
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>Make-label</SCHEMEINLINE></SCHEME>
+      <PYTHON>
+	Функція
+	<PYTHONINLINE>make_label</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE><SPLITINLINE>
+      <SCHEME>
+	<INDEX>рядки символів<SUBINDEX>примітивні процедури для</SUBINDEX></INDEX>
+      </SCHEME>
+    </SPLITINLINE>
+    можна реалізувати подібно до генерації унікальних імен змінних у
+    мові запитів, так:<!--
+ --><SNIPPET EVAL="no">
+      <INDEX><DECLARATION>make_label</DECLARATION></INDEX>
+      <NAME>make_label</NAME>
+      <SCHEME>
+(define label-counter 0)
+
+(define (new-label-number)
+  (set! label-counter (+ 1 label-counter))
+  label-counter)
+
+(define (make-label name)
+  (string-&gt;symbol
+    (string-append (symbol-&gt;string name)
+                   (number-&gt;string (new-label-number)))))
+      </SCHEME>
+      <PYTHON>
+let label_counter = 0;
+<SHORT_SPACE/>
+function new_label_number() {
+    label_counter = label_counter + 1;
+    return label_counter;
+}
+function make_label(string) {
+    return string + stringify(new_label_number());
+}
+      </PYTHON>
+    </SNIPPET></FOOTNOTE>
+    У такому розташуванні коду ми мусимо перейти повз істинну гілку,
+    якщо перевірка хибна.  Єдина невелика складність — те, як
+    слід опрацьовувати зв’язок для істинної гілки.  Якщо зв’язок для
+    умовної інструкції — це
+    <SPLITINLINE>
+      <SCHEME>
+	<SCHEMEINLINE>return</SCHEMEINLINE>
+      </SCHEME>
+      <PYTHON>
+	<PYTHONINLINE>"return"</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    або мітка, то і
+    істинна, і хибна гілки користуватимуться тим самим зв’язком.  Якщо зв’язок — це
+    <SPLITINLINE>
+      <SCHEME>
+	<SCHEMEINLINE>next</SCHEMEINLINE>,
+      </SCHEME>
+      <PYTHON>
+	<PYTHONINLINE>"next"</PYTHONINLINE>,
+      </PYTHON>
+    </SPLITINLINE>
+    то істинна гілка завершується переходом повз
+    код хибної гілки до мітки в кінці умовної інструкції.
+    <SNIPPET EVAL="no">
+      <INDEX><DECLARATION>compile_conditional</DECLARATION></INDEX>
+      <NAME>compile_conditional</NAME>
+      <SCHEME>
+(define (compile-if exp target linkage)
+  (let ((t-branch (make-label 'true-branch))
+        (f-branch (make-label 'false-branch))
+        (after-if (make-label 'after-if)))
+    (let ((consequent-linkage
+           (if (eq? linkage 'next) after-if linkage)))
+      (let ((p-code (compile (if-predicate exp) 'val 'next))
+            (c-code
+             (compile
+              (if-consequent exp) target consequent-linkage))
+            (a-code
+             (compile (if-alternative exp) target linkage)))
+        (preserving '(env continue)
+         p-code
+         (append-instruction-sequences
+          (make-instruction-sequence '(val) '()
+           `((test (op false?) (reg val))
+             (branch (label ,f-branch))))
+          (parallel-instruction-sequences
+           (append-instruction-sequences t-branch c-code)
+           (append-instruction-sequences f-branch a-code))
+          after-if))))))
+      </SCHEME>
+      <PYTHON>
+function compile_conditional(component, target, linkage) {
+    const t_branch = make_label("true_branch");
+    const f_branch = make_label("false_branch");
+    const after_cond = make_label("after_cond");
+    const consequent_linkage =
+            linkage === "next" ? after_cond : linkage;
+    const p_code = compile(conditional_predicate(component),
+                           "val", "next");
+    const c_code = compile(conditional_consequent(component),
+                           target, consequent_linkage);
+    const a_code = compile(conditional_alternative(component),
+                           target, linkage);
+    return preserving(list("env", "continue"),
+             p_code,
+             append_instruction_sequences(
+               make_instruction_sequence(list("val"), null,
+                 list(test(list(op("is_falsy"), reg("val"))),
+                      branch(label(f_branch)))),
+               append_instruction_sequences(
+                 parallel_instruction_sequences(
+                   append_instruction_sequences(t_branch, c_code),
+                   append_instruction_sequences(f_branch, a_code)),
+                 after_cond)));
+}
+      </PYTHON>
+    </SNIPPET>
+    <SPLITINLINE>
+      <SCHEME>
+	<SCHEMEINLINE>Env</SCHEMEINLINE>
+      </SCHEME>
+      <PYTHON>
+        <PDF_ONLY>\newpage\noindent </PDF_ONLY>
+	      Регістр <SCHEMEINLINE>env</SCHEMEINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    зберігають навколо коду предиката,
+    бо він може знадобитися істинній та хибній 
+      гілкам, а <SCHEMEINLINE>continue</SCHEMEINLINE> зберігають, бо він може
+    знадобитися коду зв’язку в цих гілках.
+  Код істинної та
+    хибної гілок (які не виконують послідовно) приєднують за допомогою
+    спеціального об’єднувача
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>parallel-instruction-sequences</SCHEMEINLINE>
+      </SCHEME>
+      <PYTHON>
+	<PYTHONINLINE>parallel_instruction_sequences</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    описаного в
+    підрозділі<SPACE/><REF NAME="sec:combining-instruction-sequences"/>.
+  </TEXT>
+
+  <SPLIT>
+    <SCHEME>
+      <TEXT>
+	Зауважте, що <SCHEMEINLINE>cond</SCHEMEINLINE> — це похідний вираз,
+	тож усе, що компілятору треба зробити, щоб його опрацювати, — це застосувати
+	трансформер <SCHEMEINLINE>cond-&gt;if</SCHEMEINLINE>
+	(із підрозділу<SPACE/><REF NAME="sec:representing-expressions"/>) і
+	скомпілювати отриманий вираз <SCHEMEINLINE>if</SCHEMEINLINE>.
+      </TEXT>
+    </SCHEME>
+  </SPLIT>
+
+  <SUBHEADING>
+    <NAME>Компіляція послідовностей</NAME>
+  </SUBHEADING>
+
+  <TEXT>
+    Компіляція
+    <INDEX>компілятор для Python<SUBINDEX>послідовності інструкцій</SUBINDEX></INDEX>
+    <SPLITINLINE>
+      <SCHEME>
+        послідовностей (з тіл процедур або явних виразів <SCHEMEINLINE>begin</SCHEMEINLINE>)
+	повторює їхнє обчислення.
+      </SCHEME>
+      <PYTHON>
+        послідовностей інструкцій
+	повторює їхнє обчислення
+	в обчислювачі з явним керуванням, з одним винятком:
+  якщо в послідовності десь з’являється інструкція return, ми поводимося
+  з нею так, ніби вона була останньою інструкцією.
+      </PYTHON>
+    </SPLITINLINE>
+    Кожен
+    <SPLITINLINE>
+      <SCHEME>
+        вираз
+      </SCHEME>
+      <PYTHON>
+        інструкцію
+      </PYTHON>
+    </SPLITINLINE>
+    послідовності компілюють<EMDASH/>останній
+    <SPLITINLINE>
+      <SCHEME>
+        вираз
+      </SCHEME>
+      <PYTHON>
+        інструкцію (або інструкцію return)
+      </PYTHON>
+    </SPLITINLINE>
+    зі
+    зв’язком, заданим для послідовності, а решту
+    <SPLITINLINE>
+      <SCHEME>
+        виразів
+      </SCHEME>
+      <PYTHON>
+        інструкцій
+      </PYTHON>
+    </SPLITINLINE>
+    зі
+    зв’язком
+    <SPLITINLINE>
+      <SCHEME>
+	<SCHEMEINLINE>next</SCHEMEINLINE>
+      </SCHEME>
+      <PYTHON>
+	<PYTHONINLINE>"next"</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    (щоб виконати решту
+    послідовності). Послідовності інструкцій для окремих
+    <SPLITINLINE>
+      <SCHEME>
+        виразів
+      </SCHEME>
+      <PYTHON>
+        інструкцій
+      </PYTHON>
+    </SPLITINLINE>
+    приєднують одна до одної, утворюючи єдину послідовність інструкцій, так що
+    <SCHEMEINLINE>env</SCHEMEINLINE> (потрібний для решти
+    послідовності)<SPLITINLINE>
+    <SCHEME>
+      та <SCHEMEINLINE>continue</SCHEMEINLINE> (можливо потрібний
+      для зв’язку в кінці послідовності)
+      зберігаються.
+    </SCHEME>
+    <PYTHON>
+      та <SCHEMEINLINE>continue</SCHEMEINLINE> (можливо потрібний
+      для зв’язку в кінці послідовності)
+      зберігаються.<FOOTNOTE>
+Регістр <PYTHONINLINE>continue</PYTHONINLINE> знадобився б
+для зв’язку <PYTHONINLINE>"return"</PYTHONINLINE>,
+який може виникнути внаслідок компіляції
+<PYTHONINLINE>compile_and_go</PYTHONINLINE>
+(підрозділ<SPACE/><REF NAME="sec:interfacing-compiled-code"/>).
+    </FOOTNOTE>
+    </PYTHON>
+  </SPLITINLINE>
+  <SNIPPET EVAL="no">
+    <INDEX><DECLARATION>compile_sequence</DECLARATION></INDEX>
+    <NAME>compile_sequence</NAME>
+    <SCHEME>
+(define (compile-sequence seq target linkage)
+  (if (last-exp? seq)
+      (compile (first-exp seq) target linkage)
+      (preserving '(env continue)
+       (compile (first-exp seq) target 'next)
+       (compile-sequence (rest-exps seq) target linkage))))
+    </SCHEME>
+    <PYTHON>
+function compile_sequence(seq, target, linkage) {
+    return is_empty_sequence(seq)
+           ? compile_literal(make_literal(undefined), target, linkage)
+           : is_last_statement(seq) ||
+                 is_return_statement(first_statement(seq))
+           ? compile(first_statement(seq), target, linkage)
+           : preserving(list("env", "continue"),
+                 compile(first_statement(seq), target, "next"),
+                 compile_sequence(rest_statements(seq), 
+                                  target, linkage));
+}
+    </PYTHON>
+  </SNIPPET>
+  <SPLIT>
+    <PYTHON>
+      Те, що з інструкцією return поводяться так, ніби вона була останньою інструкцією
+      в послідовності, дає змогу не компілювати <QUOTE>мертвий код</QUOTE> після інструкції
+      return, який ніколи
+      не може виконатися.
+      Вилучення перевірки <PYTHONINLINE>is_return_statement</PYTHONINLINE> не змінює поведінки
+      об’єктної програми; проте
+      є багато причин не компілювати мертвий код, і вони поза межами цієї книжки
+      (безпечність, час компіляції, розмір об’єктного коду тощо),
+      і багато компіляторів видають попередження про мертвий код.<FOOTNOTE>Наш компілятор не виявляє всього мертвого коду. Наприклад,
+      умовна інструкція, наслідок і альтернатива якої обидва закінчуються інструкцією
+      return, не завадить компіляції наступних інструкцій. Див.
+      вправи<SPACE/><REF NAME="ex:dead-code"/> та <REF NAME="ex:append_return_undefined"/>.
+      <LABEL NAME="foot:dead-code"/></FOOTNOTE>
+    </PYTHON>
+  </SPLIT>
+  </TEXT>
+
+  <SPLIT>
+    <PYTHON>
+      <!-- FIXME: This SPLIT.JAVASCRIPT contains a lot of SCHEME. Remove. -->
+      <SUBHEADING>
+	<NAME>
+	  Компіляція блоків
+	</NAME>
+      </SUBHEADING>
+
+      <TEXT>
+	Блок
+	<INDEX>компілятор для Python<SUBINDEX>блоки</SUBINDEX></INDEX>
+	компілюють, ставлячи інструкцію <PYTHONINLINE>assign</PYTHONINLINE> перед скомпільованим
+	тілом блоку. Це присвоєння розширює поточне середовище фреймом,
+	який зв’язує імена, оголошені в блоці, зі значенням
+	<PYTHONINLINE>"*unassigned*"</PYTHONINLINE>. Ця операція
+	і потребує, і змінює регістр <PYTHONINLINE>env</PYTHONINLINE>.
+	<SNIPPET EVAL="no" POSTPADDING="no">
+          <INDEX><DECLARATION>compile_block</DECLARATION></INDEX>
+          <INDEX>scanning out declarations<SUBINDEX>in compiler</SUBINDEX></INDEX>
+	  <NAME>compile_block</NAME>
+	  <PYTHON>
+function compile_block(stmt, target, linkage) {
+    const body = block_body(stmt);
+    const locals = scan_out_declarations(body);
+    const unassigneds = list_of_unassigned(locals);
+    return append_instruction_sequences(
+               make_instruction_sequence(list("env"), list("env"),
+                   list(assign("env", list(op("extend_environment"),
+                                           constant(locals),
+                                           constant(unassigneds),
+                                           reg("env"))))),
+               compile(body, target, linkage));
+}
+	  </PYTHON>
+	</SNIPPET>
+      </TEXT>
+    </PYTHON>
+  </SPLIT>
+
+  <SUBHEADING>
+	<NAME>Компіляція
+	<SPLITINLINE>
+	  <SCHEME>
+	    <SCHEMEINLINE>lambda</SCHEMEINLINE>
+	  </SCHEME>
+	  <PYTHON>
+	    лямбда
+	  </PYTHON>
+	</SPLITINLINE>
+	виразів</NAME>
+      </SUBHEADING>
+
+      <TEXT>
+	Лямбда-вирази
+	<INDEX>компілятор для Python<SUBINDEX>лямбда-вирази</SUBINDEX></INDEX>
+	будують
+	<SPLITINLINE>
+	  <SCHEME>процедури.</SCHEME>
+	  <PYTHON>функції.</PYTHON>
+	</SPLITINLINE>
+	Об’єктний код лямбда-виразу мусить мати форму
+	<SNIPPET EVAL="no" LATEX="yes">
+	  <SCHEME>
+$\langle construct\ procedure\ object\ and\ assign\ it\ to\ target\ register\rangle$
+$\langle linkage\rangle$
+	  </SCHEME>
+	  <PYTHON>
+<METAPHRASE>construct function object and assign it to target register</METAPHRASE>
+<METAPHRASE>linkage</METAPHRASE>
+	  </PYTHON>
+	</SNIPPET>
+	Коли ми компілюємо лямбда-вираз, ми також генеруємо код для
+	тіла
+	<SPLITINLINE>
+	  <SCHEME>процедури</SCHEME>
+	  <PYTHON>функції</PYTHON>
+	</SPLITINLINE>
+	. Хоч тіло й не буде виконуватися під час
+	побудови
+	<SPLITINLINE>
+	  <SCHEME>процедури</SCHEME>
+	  <PYTHON>функції</PYTHON>
+	</SPLITINLINE>
+	, зручно вставити його в об’єктний код одразу після
+	коду для
+	<SPLITINLINE>
+	  <SCHEME><SCHEMEINLINE>lambda</SCHEMEINLINE>.</SCHEME>
+	  <PYTHON>lambda expression.</PYTHON>
+	</SPLITINLINE>
+	Якщо зв’язок для лямбда-виразу — це мітка або
+	<SPLITINLINE>
+	  <SCHEME>
+	    <SCHEMEINLINE>return</SCHEMEINLINE>,
+	  </SCHEME>
+	  <PYTHON>
+	    <PYTHONINLINE>"return"</PYTHONINLINE>,
+	  </PYTHON>
+	</SPLITINLINE>
+	це нормально.  Але якщо зв’язок — це
+	<SPLITINLINE>
+	  <SCHEME>
+	    <SCHEMEINLINE>next</SCHEMEINLINE>,
+	  </SCHEME>
+	  <PYTHON>
+	    <PYTHONINLINE>"next"</PYTHONINLINE>,
+	  </PYTHON>
+	</SPLITINLINE>
+	нам треба буде перейти повз код
+	тіла
+	<SPLITINLINE>
+	  <SCHEME>процедури</SCHEME>
+	  <PYTHON>функції</PYTHON>
+	</SPLITINLINE>
+	, скориставшись зв’язком, який переходить до мітки, вставленої після
+	тіла.  Отже, об’єктний код має форму
+	<SNIPPET EVAL="no" LATEX="yes">
+	  <SCHEME>
+ $\langle construct\ procedure\ object\ and\ assign\ it\ to\ target\ register\rangle$
+ $\langle code\ for\ given\ linkage\rangle\ or$ (goto (label after-lambda))
+ $\langle compilation\ of\ procedure\ body\rangle$
+after-lambda
+	  </SCHEME>
+	  <PYTHON>
+<METAPHRASE>construct function object and assign it to target register</METAPHRASE>
+<METAPHRASE>code for given linkage</METAPHRASE> <META>or</META> go_to(label("after_lambda"))
+<METAPHRASE>compilation of function body</METAPHRASE>
+"after_lambda"
+	  </PYTHON>
+	</SNIPPET>
+      </TEXT>
+
+      <TEXT>
+	<SPLITINLINE>
+	  <SCHEME>
+	    <SCHEMEINLINE>Compile-lambda</SCHEMEINLINE>
+	  </SCHEME>
+	  <PYTHON>
+	    Функція
+	  <PYTHONINLINE>compile_lambda_expression</PYTHONINLINE></PYTHON>
+	</SPLITINLINE>
+	генерує код для побудови
+	<SPLITINLINE>
+	  <SCHEME>об’єкта-процедури</SCHEME>
+	  <PYTHON>об’єкта-функції</PYTHON>
+	</SPLITINLINE>
+	, а за ним — код для
+	тіла
+	<SPLITINLINE>
+	  <SCHEME>процедури</SCHEME>
+	  <PYTHON>функції</PYTHON>
+	</SPLITINLINE>
+	. Об’єкт
+	<SPLITINLINE>
+	  <SCHEME>процедури</SCHEME>
+	  <PYTHON>функції</PYTHON>
+	</SPLITINLINE>
+	буде побудовано під час виконання, поєднавши поточне середовище
+	(середовище в точці <SPLITINLINE><SCHEME>означення</SCHEME><PYTHON>оголошення</PYTHON></SPLITINLINE>) із точкою входу в
+	скомпільоване
+	тіло
+	<SPLITINLINE>
+	  <SCHEME>процедури</SCHEME>
+	  <PYTHON>функції</PYTHON>
+	</SPLITINLINE>
+	(новозгенерована мітка).<FOOTNOTE>Нам потрібні машинні операції, щоб
+	реалізувати структуру даних для подання скомпільованих
+	<SPLITINLINE>
+	  <SCHEME>процедур,</SCHEME>
+	  <PYTHON>функцій,</PYTHON>
+	</SPLITINLINE>
+	аналогічну до структури для складених
+	<SPLITINLINE>
+	  <SCHEME>процедур</SCHEME>
+	  <PYTHON>функцій</PYTHON>
+	</SPLITINLINE>
+	, описаної в підрозділі<SPACE/><REF NAME="sec:eval-data-structures"/>:
+	<SNIPPET EVAL="no" POSTPADDING="no">
+	  <INDEX><DECLARATION>make_compiled_function</DECLARATION></INDEX>
+	  <INDEX><DECLARATION>is_compiled_function</DECLARATION></INDEX>
+	  <INDEX><DECLARATION>compiled_function_entry</DECLARATION></INDEX>
+	  <INDEX><DECLARATION>compiled_function_env</DECLARATION></INDEX>
+	  <NAME>make_compiled_function</NAME>
+	  <SCHEME>
+(define (make-compiled-procedure entry env)
+  (list 'compiled-procedure entry env))
+
+(define (compiled-procedure? proc)
+  (tagged-list? proc 'compiled-procedure))
+
+(define (compiled-procedure-entry c-proc) (cadr c-proc))
+
+(define (compiled-procedure-env c-proc) (caddr c-proc))
+	  </SCHEME>
+	  <PYTHON>
+function make_compiled_function(entry, env) {
+    return list("compiled_function", entry, env);
+}
+function is_compiled_function(fun) {
+    return is_tagged_list(fun, "compiled_function");
+}
+function compiled_function_entry(c_fun) {
+    return head(tail(c_fun));
+}
+function compiled_function_env(c_fun) {
+    return head(tail(tail(c_fun)));
+}
+	  </PYTHON>
+	</SNIPPET>
+	<LABEL NAME="foot:compiler-ops"/></FOOTNOTE>
+	<SNIPPET EVAL="no">
+	  <INDEX><DECLARATION>compile_lambda_expression</DECLARATION></INDEX>
+	  <NAME>compile_lambda</NAME>
+	  <SCHEME>
+(define (compile-lambda exp target linkage)
+  (let ((proc-entry (make-label 'entry))
+        (after-lambda (make-label 'after-lambda)))
+    (let ((lambda-linkage
+           (if (eq? linkage 'next) after-lambda linkage)))
+      (append-instruction-sequences
+       (tack-on-instruction-sequence
+        (end-with-linkage lambda-linkage
+         (make-instruction-sequence '(env) (list target)
+          `((assign ,target
+                    (op make-compiled-procedure)
+                    (label ,proc-entry)
+                    (reg env)))))
+        (compile-lambda-body exp proc-entry))
+       after-lambda))))
+	  </SCHEME>
+	  <PYTHON>
+function compile_lambda_expression(exp, target, linkage) {
+    const fun_entry = make_label("entry");
+    const after_lambda = make_label("after_lambda");
+    const lambda_linkage =
+            linkage === "next" ? after_lambda : linkage;
+    return append_instruction_sequences(
+               tack_on_instruction_sequence(
+                   end_with_linkage(lambda_linkage,
+                       make_instruction_sequence(list("env"),
+                                                 list(target),
+                           list(assign(target,
+                                    list(op("make_compiled_function"),
+                                         label(fun_entry),
+                                         reg("env")))))),
+                   compile_lambda_body(exp, fun_entry)),
+               after_lambda);
+}
+	  </PYTHON>
+	</SNIPPET>
+	<SPLITINLINE>
+	  <SCHEME><SCHEMEINLINE>Compile-lambda</SCHEMEINLINE></SCHEME>
+	  <PYTHON>
+	    Функція
+	    <PYTHONINLINE>compile_lambda_expression</PYTHONINLINE>
+	  </PYTHON>
+	</SPLITINLINE>
+	користується спеціальним об’єднувачем
+	<SPLITINLINE>
+	  <SCHEME><SCHEMEINLINE>tack-on-instruction-sequence</SCHEMEINLINE></SCHEME>
+	  <PYTHON>
+	    <PYTHONINLINE>tack_@on_@instruction_@sequence</PYTHONINLINE>
+	  </PYTHON>
+	</SPLITINLINE>
+	(<SPLITINLINE><PYTHON>з </PYTHON></SPLITINLINE>підрозділу<SPACE/><REF NAME="sec:combining-instruction-sequences"/>), а не
+	<SPLITINLINE>
+	  <SCHEME><SCHEMEINLINE>append-instruction-sequences</SCHEMEINLINE>
+	  </SCHEME>
+	  <PYTHON>
+	    <PYTHONINLINE>append_instruction_@sequences</PYTHONINLINE>
+	  </PYTHON>
+	</SPLITINLINE>
+	щоб приєднати
+	тіло
+	<SPLITINLINE>
+	  <SCHEME>процедури</SCHEME>
+	  <PYTHON>функції</PYTHON>
+	</SPLITINLINE>
+	до коду лямбда-виразу, бо
+	тіло не є частиною послідовності інструкцій, які виконуватимуться, коли
+	почнеться виконання поєднаної послідовності; радше воно в цій послідовності лише тому,
+	що це було зручне місце, щоб його туди покласти.
+      </TEXT>
+
+      <TEXT>
+	<SPLITINLINE>
+	  <SCHEME><SCHEMEINLINE>Compile-lambda-body</SCHEMEINLINE></SCHEME>
+	  <PYTHON>
+	    Функція
+	    <PYTHONINLINE>compile_lambda_body</PYTHONINLINE>
+	  </PYTHON>
+	</SPLITINLINE>
+	будує код для тіла
+	<SPLITINLINE>
+	  <SCHEME>процедури.</SCHEME>
+	  <PYTHON>функції.</PYTHON>
+	</SPLITINLINE>
+	Цей код починається з мітки для точки входу.  Далі йдуть інструкції,
+	які змусять середовище обчислення під час виконання переключитися на правильне
+	середовище для обчислення
+	тіла
+	<SPLITINLINE>
+	  <SCHEME>процедури</SCHEME>
+	  <PYTHON>функції</PYTHON>
+	</SPLITINLINE>
+	<EMDASH/>а саме на
+	<SPLITINLINE><SCHEME>середовище означення</SCHEME></SPLITINLINE>
+	
+	<SPLITINLINE>
+	  <SCHEME>процедури,</SCHEME>
+	  <PYTHON>функції,</PYTHON>
+	</SPLITINLINE>
+	розширене прив’язками
+	<SPLITINLINE>
+	  <SCHEME>формальних</SCHEME>
+	</SPLITINLINE>
+	параметрів до аргументів,
+	з якими
+	<SPLITINLINE>
+	  <SCHEME>процедуру</SCHEME>
+	  <PYTHON>функцію</PYTHON>
+	</SPLITINLINE>
+	викликають.  Після цього йде код для
+	
+	<SPLITINLINE>
+	  <SCHEME>
+	    послідовності виразів, яка становить
+	  </SCHEME>
+	</SPLITINLINE>
+	<SPLITINLINE>
+	  <SCHEME>тіло процедури.</SCHEME>
+	  <PYTHON>
+            тіла функції, доповненого так, щоб воно закінчувалося інструкцією return.
+	  </PYTHON>
+	</SPLITINLINE>
+	<SPLIT>
+	  <SCHEME>
+	    Цю послідовність компілюють зі зв’язком return і ціллю
+	    <SCHEMEINLINE>val</SCHEMEINLINE>, тож вона завершиться поверненням із
+	    процедури з результатом процедури в
+	    <SCHEMEINLINE>val</SCHEMEINLINE>.
+	  </SCHEME>
+	  <PYTHON>
+            Доповнене
+            тіло компілюють із ціллю <PYTHONINLINE>val</PYTHONINLINE>, тож його повернене значення буде
+            покладено в <PYTHONINLINE>val</PYTHONINLINE>.  Дескриптор зв’язку, переданий цій компіляції,
+            не має значення, бо його буде проігноровано.<FOOTNOTE>
+            Доповнене тіло функції — це послідовність, що закінчується інструкцією return.
+            Компіляція послідовності інструкцій
+            використовує зв’язок <PYTHONINLINE>"next"</PYTHONINLINE> для всіх своїх складових інструкцій, крім останньої,
+            для якої вона використовує заданий зв’язок.
+            У цьому випадку остання інструкція — це інструкція return, а
+            як ми побачимо в підрозділі<SPACE/><REF NAME="sec:compiling-combinations"/>,
+            інструкція return завжди використовує
+	    дескриптор зв’язку <PYTHONINLINE>"return"</PYTHONINLINE>
+	    для свого виразу-повернення. Отже, всі тіла функцій закінчуватимуться
+	    зв’язком <PYTHONINLINE>"return"</PYTHONINLINE>,
+	    а не тим <PYTHONINLINE>"next"</PYTHONINLINE>, який ми
+	    передаємо як аргумент-зв’язок до <PYTHONINLINE>compile</PYTHONINLINE> у
+	    <PYTHONINLINE>compile_lambda_body</PYTHONINLINE>.</FOOTNOTE>
+	    Оскільки аргумент-зв’язок обов’язковий, ми довільно вибираємо <PYTHONINLINE>"next"</PYTHONINLINE>.
+	  </PYTHON>
+	</SPLIT>
+	<SNIPPET EVAL="no">
+	  <INDEX><DECLARATION>compile_lambda_body</DECLARATION></INDEX>
+	  <NAME>compile_lambda_body</NAME>
+	  <REQUIRES>append_return_undefined</REQUIRES>
+	  <SCHEME>
+(define (compile-lambda-body exp proc-entry)
+  (let ((formals (lambda-parameters exp)))
+    (append-instruction-sequences
+     (make-instruction-sequence '(env proc argl) '(env)
+      `(,proc-entry
+        (assign env (op compiled-procedure-env) (reg proc))
+        (assign env
+                (op extend-environment)
+                (const ,formals)
+                (reg argl)
+                (reg env))))
+     (compile-sequence (lambda-body exp) 'val 'return))))
+	  </SCHEME>
+	  <PYTHON>
+function compile_lambda_body(exp, fun_entry) {
+    const params  = lambda_parameter_symbols(exp);
+    return append_instruction_sequences(
+        make_instruction_sequence(list("env", "fun", "argl"),
+                                  list("env"),
+            list(fun_entry,
+                 assign("env",
+                        list(op("compiled_function_env"),
+                             reg("fun"))),
+                 assign("env",
+                        list(op("extend_environment"),
+                             constant(params),
+                             reg("argl"),
+                             reg("env"))))),
+        compile(append_return_undefined(lambda_body(exp)),
+                "val", "next"));
+}
+	  </PYTHON>
+	</SNIPPET>
+      </TEXT>
+
+      <SPLIT>
+	<PYTHON>
+	  <TEXT>
+	    Щоб гарантувати, що всі функції завершуються виконанням інструкції return,
+	    <PYTHONINLINE>compile_@lambda_@body</PYTHONINLINE>
+	    приєднує до тіла лямбда-виразу інструкцію return, вираз-повернення якої — літерал
+	    <PYTHONINLINE>undefined</PYTHONINLINE>.
+	    Для цього вона користується функцією <PYTHONINLINE>append_@return_@undefined</PYTHONINLINE>,
+	    яка будує подання послідовності у вигляді списку з міткою (як це робить парсер; див.
+	    підрозділ<SPACE/><REF NAME="sec:representing-expressions"/>), що складається з тіла та інструкції <PYTHONINLINE>return undefined;</PYTHONINLINE>.
+	    <SNIPPET EVAL="no">
+	      <NAME>append_return_undefined</NAME>
+	      <PYTHON>
+function append_return_undefined(body) {
+    return list("sequence", list(body,
+                                 list("return_statement",
+                                      list("literal", undefined))));
+}
+	      </PYTHON>
+	    </SNIPPET>
+	    Це просте перетворення тіл лямбда-виразів — третій спосіб гарантувати, що
+	    функція, яка не повертає значення явно, має поверненим значенням
+	    <INDEX>повернене значення<SUBINDEX><USE>undefined</USE> як</SUBINDEX></INDEX>
+	    <PYTHONINLINE>undefined</PYTHONINLINE>.
+	    У метациклічному обчислювачі ми користувалися об’єктом поверненого значення, який також
+	    відігравав роль у зупиненні обчислення послідовності.
+	    В обчислювачі з явним керуванням функції, що не повертали значення явно, продовжували
+	    до точки входу, яка зберігала <PYTHONINLINE>undefined</PYTHONINLINE>
+	    у <PYTHONINLINE>val</PYTHONINLINE>.
+	    Див. вправу<SPACE/><REF NAME="ex:append_return_undefined"/>, де описано елегантніший спосіб
+	    опрацьовувати вставлення інструкцій return.
+	    <LABEL NAME="sec:append_return_undefined"/>
+	  </TEXT>
+
+      <EXERCISE>
+	<LABEL NAME="ex:dead-code"/>
+	Виноска<SPACE/><REF NAME="foot:dead-code"/> зауважила, що компілятор не
+	виявляє всіх випадків
+	<INDEX>компілятор для Python<SUBINDEX>аналіз мертвого коду</SUBINDEX></INDEX>
+	мертвого коду. Що вимагалося б від компілятора, щоб
+	виявляти всі випадки мертвого коду?
+	<TEXT>
+	  Підказка: відповідь залежить від того, як ми означимо мертвий код. Одне можливе (і корисне)
+	  означення — <QUOTE>код після інструкції return у послідовності</QUOTE><EMDASH/>але
+	  як щодо коду в гілці-наслідку
+	  <PYTHONINLINE>if (false) </PYTHONINLINE><LATEXINLINE>$\ldots$</LATEXINLINE> або
+	  коду після
+	  виклику <PYTHONINLINE>run_forever()</PYTHONINLINE> з вправи<SPACE/><REF NAME="ex:halting-theorem"/>?
+	</TEXT>
+      </EXERCISE>
+
+      <EXERCISE>
+        Поточний проєкт <PYTHONINLINE>append_return_undefined</PYTHONINLINE>
+        трохи грубий: він завжди приєднує
+        <PYTHONINLINE>return undefined;</PYTHONINLINE> до тіла лямбда-виразу, навіть якщо інструкція return уже є на кожному шляху
+	виконання цього тіла. Перепишіть
+        <PYTHONINLINE>append_return_undefined</PYTHONINLINE> так, щоб він вставляв
+        <PYTHONINLINE>return undefined;</PYTHONINLINE> лише в кінці
+	тих шляхів, які не містять інструкції return. Перевірте своє
+        розв’язання на наведених далі функціях, підставивши будь-які вирази замість
+        <LATEXINLINE>$e_1$</LATEXINLINE> та
+        <LATEXINLINE>$e_2$</LATEXINLINE>
+        і будь-які (не-return) інструкції замість
+        <LATEXINLINE>$s_1$</LATEXINLINE> та
+	<LATEXINLINE>$s_2$</LATEXINLINE>.
+        У <PYTHONINLINE>t</PYTHONINLINE> інструкцію return слід
+	додати або на обох <PYTHONINLINE>(*)</PYTHONINLINE>, або лише на
+	<PYTHONINLINE>(**)</PYTHONINLINE>.
+        У <PYTHONINLINE>w</PYTHONINLINE> та
+	<PYTHONINLINE>h</PYTHONINLINE> інструкцію return слід додати
+	на одному з <PYTHONINLINE>(*)</PYTHONINLINE>.
+        У <PYTHONINLINE>m</PYTHONINLINE> жодної інструкції return додавати не слід.
+	<SNIPPET EVAL="no" LATEX="yes" POSTPADDING="no">
+	  <PYTHON>
+function t(b) {   function w(b) {    function m(b) {    function h(b1, b2) {
+   if (b) {          if (b) {           if (b) {           if (b1) {
+      $s_1~~$              return $e_1;~$         return $e_1;~$         return $e_1$;
+      (*)                                                  } else {
+   } else {          } else {           } else {              if (b2) {
+      $s_2~~$               $s_1~~$               return $e_2$;             $s_1$
+      (*)               (*)                                      (*)
+   }                 }                  }                     } else {
+   (**)              (*)                                         return $e_2$;
+}                 }                  }                        }
+                                                              (*)
+                                                           }
+                                                           (*)
+                                                        }
+	  </PYTHON>
+	</SNIPPET>
+	<LABEL NAME="ex:append_return_undefined"/>
+      </EXERCISE>
+	</PYTHON>
+      </SPLIT>
+</SUBSECTION>

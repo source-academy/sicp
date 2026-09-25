@@ -1,0 +1,90 @@
+# Publishes the Ukrainian translation of SICPy (comparison web edition + PDF)
+# on this repository's own GitHub Pages site, independently of upstream's
+# deploy-pages.yml (which publishes sicp.sourceacademy.org and is skipped on
+# forks). See i18n/README.md.
+#
+# One-time setup in the repository:
+#   Settings > Pages > Build and deployment > Source: "GitHub Actions"
+#   (optional) same page > Custom domain, for your own subdomain
+#   (optional) Settings > Secrets and variables > Actions > Variables:
+#     UK_PUBLISHED_CHAPTERS  chapters 1..N to publish, default 3 (chapters
+#                            4-5 are not translated yet)
+name: Deploy Ukrainian edition
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - "i18n/**"
+      - "xml_py/**"
+      - "javascript/**"
+      - "scripts/**"
+      - "mitpress/**"
+      - "static/**"
+      - "package.json"
+      - "yarn.lock"
+      - ".github/workflows/deploy-uk.yml"
+  workflow_dispatch:
+
+# only the newest run may deploy
+concurrency:
+  group: deploy-uk-pages
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      SICP_EDITION: py
+      SICP_LOCALE: uk
+      SICP_PUBLISHED_CHAPTERS: ${{ vars.UK_PUBLISHED_CHAPTERS || '3' }}
+    steps:
+      - uses: actions/checkout@v6
+      - name: Use Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: yarn
+      - name: Install TeX Live (with Cyrillic support)
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y texlive texlive-fonts-extra texlive-lang-cyrillic latexmk
+      - name: Fetch Yarn dependencies
+        run: yarn install --frozen-lockfile
+      - name: Build
+        run: |
+          set -euxo pipefail
+          # xml_py_uk/ = English sources overlaid with the translations in i18n/uk/
+          yarn run i18n merge uk
+          yarn run split
+          yarn run pdf || (cat latex_pdf_py_uk/sicpy_uk.log && false)
+      - name: Package
+        run: |
+          set -euxo pipefail
+          yarn run prepare
+          cp i18n/uk/site/index.html docs_out/index.html
+          touch docs_out/.nojekyll
+          test -f docs_out/sicpy_uk.pdf
+          test -f docs_out/split_py_uk/index.html
+          find docs_out -name .gitignore -delete
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs_out
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

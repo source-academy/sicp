@@ -1,0 +1,1390 @@
+<SUBSECTION>
+  <NAME>
+    Ядро обчислювача
+  </NAME>
+
+  <TEXT>
+    <LABEL NAME="sec:core-of-evaluator"/>
+
+    <SPLIT>
+      <SCHEME>
+	<INDEX>метамовний обчислювач для Scheme<SUBINDEX><ORDER>eval</ORDER><SCHEMEINLINE>eval</SCHEMEINLINE> і <SCHEMEINLINE>apply</SCHEMEINLINE><OPEN/></SUBINDEX></INDEX>
+
+	<FIGURE>
+	  <FIGURE scale="0.65" src="img_original/ch4-Z-G-1.svg"></FIGURE>
+	  <LABEL NAME="fig:eval-apply_scheme"/>
+	  <CAPTION>
+	    Цикл
+	    <SCHEMEINLINE>eval</SCHEMEINLINE><ENDASH/><SCHEMEINLINE>apply</SCHEMEINLINE> 
+	    розкриває суть мови програмування.
+	  </CAPTION>
+	</FIGURE>
+      </SCHEME>
+      <PYTHON>
+	<FIGURE>
+	  <FIGURE scale="0.65" src="img_javascript/ch4-Z-G-1.svg"></FIGURE>
+	  <LABEL NAME="fig:eval-apply"/>
+	  <CAPTION>
+	    Цикл
+	    <INDEX>метамовний обчислювач для Python<SUBINDEX><ORDER>evaluate</ORDER><PYTHONINLINE>evaluate</PYTHONINLINE><ENDASH/><PYTHONINLINE>apply</PYTHONINLINE> цикл</SUBINDEX></INDEX>
+	    <SCHEMEINLINE>evaluate</SCHEMEINLINE><ENDASH/><SCHEMEINLINE>apply</SCHEMEINLINE> 
+	    розкриває суть мови програмування.
+	  </CAPTION>
+	</FIGURE>
+      </PYTHON>
+    </SPLIT>
+    Процес
+    <INDEX>метамовний обчислювач для Python<SUBINDEX><ORDER>evaluate</ORDER><SCHEMEINLINE>evaluate</SCHEMEINLINE> і <SCHEMEINLINE>apply</SCHEMEINLINE><OPEN/></SUBINDEX></INDEX>
+    обчислення можна описати як взаємодію між двома
+    <SPLITINLINE>
+      <SCHEME>процедурами:</SCHEME>
+      <PYTHON>функціями:</PYTHON>
+    </SPLITINLINE>
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>eval</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>evaluate</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    та <SCHEMEINLINE>apply</SCHEMEINLINE>.
+  </TEXT>
+  
+  <SUBHEADING>
+    <NAME><SPLITINLINE>
+      <SCHEME>Eval</SCHEME>
+      <PYTHON>Функція 
+      <PYTHONINLINE>evaluate</PYTHONINLINE></PYTHON></SPLITINLINE>
+    </NAME>
+  </SUBHEADING>
+
+  <TEXT>
+    <COMMENT>
+      У суворому режимі Python<EMDASH/>нашому улюбленому способі запускати
+      програми Python<EMDASH/>ім’я <PYTHONINLINE>eval</PYTHONINLINE> не можна
+      оголосити в програмах користувача. Його зарезервовано для спорідненої, але
+      геть іншої наперед оголошеної функції. Ми обираємо повне слово
+      <PYTHONINLINE>evaluate</PYTHONINLINE> як заміну.
+    </COMMENT>
+  </TEXT>
+  <TEXT>
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>Eval</SCHEMEINLINE></SCHEME>
+      <PYTHON>Функція <PYTHONINLINE>evaluate</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    бере як аргументи
+    <SPLITINLINE>
+      <PYTHON>
+	<EM>компонент</EM> програми<EMDASH/>інструкцію або
+	вираз<FOOTNOTE>У нашому обчислювачі немає
+	потреби розрізняти інструкції та вирази.
+	Наприклад, ми не розрізняємо вирази та
+	інструкції-вирази; ми подаємо їх однаково, і тому
+	функція <PYTHONINLINE>evaluate</PYTHONINLINE>
+	поводиться з ними однаково. Так само наш обчислювач не
+	нав’язує синтаксичного обмеження Python, що інструкції
+	не можуть траплятися всередині виразів, крім
+	лямбда-виразів.</FOOTNOTE><EMDASH/>та середовище.
+      </PYTHON>
+      <SCHEME>
+	і середовище.
+      </SCHEME>
+    </SPLITINLINE>
+    Він класифікує
+    <SPLITINLINE>
+      <SCHEME>вираз</SCHEME>
+      <PYTHON>компонент</PYTHON>
+    </SPLITINLINE> 
+    і скеровує його обчислення.  
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>Eval</SCHEMEINLINE></SCHEME>
+      <PYTHON>Функція <PYTHONINLINE>evaluate</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    структурована як аналіз випадків за синтаксичним типом
+    <SPLITINLINE>
+      <SCHEME>виразу</SCHEME>
+      <PYTHON>компоненти</PYTHON>
+    </SPLITINLINE>,
+    яку треба обчислити. Щоб зберегти
+    <SPLITINLINE><SCHEME>процедуру</SCHEME>
+    <PYTHON>функцію</PYTHON></SPLITINLINE>
+    загальною, ми виражаємо
+    визначення типу
+    <SPLITINLINE><SCHEME>виразу</SCHEME>
+    <PYTHON>компоненти</PYTHON></SPLITINLINE>
+    абстрактно, не
+    зобов’язуючись до якогось конкретного
+    <INDEX>метамовний обчислювач для Python<SUBINDEX>подання компонентів</SUBINDEX></INDEX>
+    подання для різних типів
+    <SPLITINLINE><SCHEME>виразів.</SCHEME>
+    <PYTHON>компонент.</PYTHON></SPLITINLINE>
+    Кожен тип
+    <SPLITINLINE><SCHEME>виразу</SCHEME>
+    <PYTHON>компоненти</PYTHON></SPLITINLINE>
+    має
+    <SPLITINLINE>
+      <SCHEME>предикат</SCHEME>
+      <PYTHON><EM>синтаксичний предикат</EM></PYTHON>
+    </SPLITINLINE>
+    який його перевіряє, та абстрактний засіб вибору його частин. Цей
+    <INDEX>метамовний обчислювач для Python<SUBINDEX>абстракція даних у</SUBINDEX></INDEX>
+    <INDEX>абстрактний синтаксис<SUBINDEX>у метамовному обчислювачі</SUBINDEX></INDEX>
+    <EM>абстрактний синтаксис</EM>
+    дає змогу легко побачити, як ми можемо змінити синтаксис мови,
+    користуючись тим самим обчислювачем, але з іншим набором синтаксичних
+    <SPLITINLINE>
+      <SCHEME>
+	процедур.
+      </SCHEME>
+      <PYTHON>
+	функцій.
+      </PYTHON>
+    </SPLITINLINE>
+  </TEXT>
+
+	<SUBSUBHEADING>
+	  <NAME>Примітивні вирази</NAME>
+	</SUBSUBHEADING>
+
+  <TEXT>
+    <SPLIT>
+      <SCHEME>
+	
+	<UL>
+	  <LI>
+	    <SPLITINLINE>
+	      <SCHEME>
+		Для
+		<INDEX>вираз<SUBINDEX>самообчислюваний</SUBINDEX></INDEX>
+		<INDEX>самообчислюваний вираз</INDEX>
+		самообчислюваних виразів, як-от числа,
+		<SCHEMEINLINE>eval</SCHEMEINLINE>
+		повертає сам вираз.
+	      </SCHEME>
+	      <PYTHON>
+		Для
+		<INDEX>вираз<SUBINDEX>літерал</SUBINDEX></INDEX>
+		<INDEX>літеральний вираз</INDEX>
+		літеральних виразів, як-от числа,
+		<PYTHONINLINE>evaluate</PYTHONINLINE>
+		повертає їхнє значення.
+	      </PYTHON>
+	    </SPLITINLINE>
+	  </LI>
+	  <LI>
+	    <SPLITINLINE>
+	      <SCHEME><SCHEMEINLINE>Eval</SCHEMEINLINE></SCHEME>
+	      <PYTHON>Функція
+	      <PYTHONINLINE>evaluate</PYTHONINLINE></PYTHON>
+	    </SPLITINLINE>
+	    має шукати
+	    <SPLITINLINE>
+	      <SCHEME>змінні</SCHEME>
+	      <PYTHON>імена</PYTHON>
+	    </SPLITINLINE>
+	    в середовищі, щоб знайти їхні значення.
+	  </LI>
+	</UL>
+      
+	<SUBSUBHEADING>
+	  <NAME>Особливі форми</NAME>
+	</SUBSUBHEADING>
+	
+          <UL>
+	    <LI>
+	      Для цитованих виразів
+	      <SCHEMEINLINE>eval</SCHEMEINLINE>
+	      повертає вираз, який було
+	      цитовано.
+	    </LI>
+	    <LI>
+	      Присвоєння змінній (або означення змінної)
+	      мусить рекурсивно викликати
+	      <SCHEMEINLINE>eval</SCHEMEINLINE>
+	      щоб обчислити нове значення, яке треба зв’язати зі змінною.
+	      Середовище треба змінити, щоб змінити (або створити)
+	      зв’язування змінної.
+	    </LI>
+	    <LI>
+	      Вираз if вимагає особливого опрацювання своїх частин, щоб
+	      обчислити наслідок, якщо предикат істинний, і інакше
+	      обчислити альтернативу.
+	    </LI>
+	    <LI>
+	      Вираз <SCHEMEINLINE>lambda</SCHEMEINLINE>
+	      треба перетворити на застосовну
+	      процедуру, спакувавши разом параметри й тіло, задані
+	      виразом
+	      <SCHEMEINLINE>lambda</SCHEMEINLINE>,
+	      із середовищем обчислення.
+	    </LI>
+	    <LI>
+	      Вираз <SCHEMEINLINE>begin</SCHEMEINLINE>
+	      вимагає обчислення своєї послідовності
+	      виразів у тому порядку, у якому вони з’являються.
+	    </LI>
+	    <LI>
+	      Аналіз випадків (<SCHEMEINLINE>cond</SCHEMEINLINE>) перетворюють
+	      на гніздо виразів <SCHEMEINLINE>if</SCHEMEINLINE>
+	      і потім обчислюють.
+	    </LI>
+          </UL>
+
+      <SUBSUBHEADING>
+	<NAME>Комбінації</NAME>
+      </SUBSUBHEADING>
+      
+      <UL>
+	<LI>
+	  Для застосування процедури <SCHEMEINLINE>eval</SCHEMEINLINE>
+	  мусить рекурсивно обчислити частину-оператор і операнди
+	  комбінації. Отримані процедуру
+	  та аргументи передають до <SCHEMEINLINE>apply</SCHEMEINLINE>,
+	  яка виконує власне застосування процедури.
+	</LI>
+      </UL>
+    Ось означення <SCHEMEINLINE>eval</SCHEMEINLINE>:
+    <SNIPPET PAGE="365">
+      <INDEX><DECLARATION>evaluate</DECLARATION> (metacircular)</INDEX>
+      <NAME>eval_scheme</NAME>
+      <SCHEME>
+(define (eval exp env)
+  (cond ((self-evaluating? exp) exp)
+        ((variable? exp) (lookup-variable-value exp env))
+        ((quoted? exp) (text-of-quotation exp))
+        ((assignment? exp) (eval-assignment exp env))
+        ((definition? exp) (eval-definition exp env))
+        ((if? exp) (eval-if exp env))
+        ((lambda? exp)
+         (make-procedure (lambda-parameters exp)
+                         (lambda-body exp)
+                         env))
+        ((begin? exp) 
+         (eval-sequence (begin-actions exp) env))
+        ((cond? exp) (eval (cond->if exp) env))
+        ((application? exp)
+         (apply (eval (operator exp) env)
+                (list-of-values (operands exp) env)))
+        (else
+         (error "Unknown expression type - - EVAL" exp))))
+      </SCHEME>
+    </SNIPPET>
+	  
+      </SCHEME>
+
+      <PYTHON>
+	
+	<UL>
+	  <LI>
+	    Для
+	    <INDEX>вираз<SUBINDEX>літерал</SUBINDEX></INDEX>
+	    <INDEX>літеральний вираз</INDEX>
+	    літеральних виразів, як-от числа,
+	    <PYTHONINLINE>evaluate</PYTHONINLINE>
+	    повертає їхнє значення.
+	  </LI>
+	  <LI>
+	    Функція
+	    <PYTHONINLINE>evaluate</PYTHONINLINE>
+	    мусить шукати імена в середовищі, щоб знайти їхні значення.
+	  </LI>
+	</UL>
+	
+
+	<SUBSUBHEADING>
+	  <NAME>Комбінації</NAME>
+	</SUBSUBHEADING>
+      
+        <UL>
+	  <LI>
+	    Для застосування функції
+	    <PYTHONINLINE>evaluate</PYTHONINLINE> мусить рекурсивно
+	    обчислити вираз функції та вирази аргументів
+	    застосування. Отримані функцію та аргументи передають до
+	    <SCHEMEINLINE>apply</SCHEMEINLINE>, яка виконує власне
+	    застосування функції.
+	  </LI>
+	  <LI>
+	    Комбінація операторів перетворюється на застосування функції
+	    і потім обчислюється.
+	  </LI>
+        </UL>
+
+	<SUBSUBHEADING>	
+	  <NAME>Синтаксичні форми</NAME>
+	</SUBSUBHEADING>
+	
+        <UL>
+	  <LI>
+	    Умовний вираз або інструкція вимагає особливого опрацювання
+	    своїх частин,
+	    щоб обчислити наслідок, якщо предикат істинний, і
+	    інакше обчислити альтернативу.
+	  </LI>
+	  <LI>
+	    Лямбда-вираз треба перетворити на застосовну
+	    функцію, спакувавши разом параметри й тіло, задані
+	    лямбда-виразом, із середовищем обчислення.
+	  </LI>
+	  <LI>
+	    Послідовність інструкцій вимагає обчислення її
+	    компонент у тому порядку, у якому вони з’являються.
+	  </LI>
+	  <LI>
+	    Блок вимагає обчислення свого тіла в новому середовищі,
+	    яке відображає всі імена, оголошені в блоці.
+	  </LI>
+	  <LI>
+	    Інструкція return мусить породити значення, яке стане
+	    результатом виклику функції, що спричинив
+	    обчислення цієї інструкції return.
+	  </LI>
+	  <LI>
+	    Означення функції перетворюється на
+	    оголошення константи і потім обчислюється.
+	  </LI>
+	  <LI>
+	    Оголошення константи чи змінної або присвоєння мусить
+	    викликати
+	    <PYTHONINLINE>evaluate</PYTHONINLINE>
+	    рекурсивно, щоб обчислити нове
+	    значення, яке треба зв’язати з іменем, що оголошують або якому присвоюють.
+	    Середовище треба
+	    змінити, щоб відобразити нове значення цього імені.
+	  </LI>
+        </UL>
+	Ось оголошення
+	<PYTHONINLINE>evaluate</PYTHONINLINE>:
+	<SNIPPET PAGE="365" HIDE="yes">
+	  <NAME>headline_4_1_1</NAME>
+	  <PYTHON>
+# functions from SICP Python 4.1.1
+	  </PYTHON>
+	</SNIPPET>
+	<SNIPPET PAGE="365">
+	  <INDEX><DECLARATION>evaluate</DECLARATION> (metacircular)</INDEX>
+	  <NAME>eval</NAME>
+	  <EXAMPLE>eval_example</EXAMPLE>
+	  <EXPECTED>3</EXPECTED>
+	  <PYTHON>
+def evaluate(component, env):
+  if is_literal(component):
+    return literal_value(component)
+  elif is_name(component):
+    return lookup_symbol_value(symbol_of_name(component), env)
+  elif is_application(component):
+    return apply(evaluate(function_expression(component), env),
+                          llist_of_values(arg_expressions(component),
+                                          env))
+  elif is_operator_combination(component):
+    return evaluate(operator_combination_to_application(component),
+                    env)
+  elif is_conditional(component):
+    return eval_conditional(component, env)
+  elif is_lambda_expression(component):
+    return make_function(lambda_parameter_symbols(component),
+                         make_return_statement(lambda_body(component)),
+                         env)
+  elif is_sequence(component):
+    return eval_sequence(sequence_statements(component), env)
+  elif is_return_statement(component):
+    return eval_return_statement(component, env)
+  elif is_function_definition(component):
+    return evaluate(function_def_to_assignment(component), env)
+  elif is_assignment(component):
+    return eval_assignment(component, env)
+  else:	return error("unknown syntax -- evaluate", component)
+	  </PYTHON>
+	</SNIPPET>
+	<SNIPPET PAGE="365" HIDE="yes">
+	  <NAME>eval_example</NAME>
+	  <REQUIRES>functions_4_1_1</REQUIRES>
+	  <REQUIRES>functions_4_1_2</REQUIRES>
+	  <REQUIRES>functions_4_1_3</REQUIRES>
+	  <REQUIRES>functions_4_1_4</REQUIRES>
+	  <PYTHON>
+my_program = parse("1\nTrue\n3")
+evaluate(my_program, the_empty_environment)
+	  </PYTHON>
+	</SNIPPET>
+	
+      </PYTHON>
+    </SPLIT>
+  </TEXT>
+
+  <TEXT>
+    Для ясності
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>eval</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>evaluate</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    реалізовано як
+    <INDEX>програмування, кероване даними<SUBINDEX>аналіз випадків проти</SUBINDEX></INDEX>
+    <INDEX>аналіз випадків<SUBINDEX>програмування, кероване даними, проти</SUBINDEX></INDEX>
+    аналіз випадків, користуючись
+    <SPLITINLINE><SCHEME><SCHEMEINLINE>cond</SCHEMEINLINE>.</SCHEME>
+    <PYTHON>умовними інструкціями.</PYTHON></SPLITINLINE>
+    Недолік цього в тому, що наша
+    <SPLITINLINE>
+      <SCHEME>процедура</SCHEME>
+      <PYTHON>функція</PYTHON>
+    </SPLITINLINE>
+    працює лише з кількома розрізнюваними типами
+    <SPLITINLINE>
+      <PYTHON>інструкцій та</PYTHON>
+    </SPLITINLINE>
+    виразів, і жодного нового не можна означити без редагування
+    <SPLITINLINE>
+      <SCHEME>
+	означення
+	<SCHEMEINLINE>eval</SCHEMEINLINE>.
+      </SCHEME>
+      <PYTHON>
+	оголошення
+	<PYTHONINLINE>evaluate</PYTHONINLINE>.
+      </PYTHON>
+    </SPLITINLINE>
+    У більшості реалізацій
+    <SPLITINLINE>
+      <SCHEME>Lisp</SCHEME>
+      <PYTHON>інтерпретаторів</PYTHON>
+    </SPLITINLINE>
+    диспетчеризацію за типом
+    <SPLITINLINE>
+      <SCHEME>виразу</SCHEME>
+      <PYTHON>компоненти</PYTHON>
+    </SPLITINLINE>
+    роблять у стилі, керованому даними. Це дає користувачеві змогу додавати нові типи
+    <SPLITINLINE>
+      <SCHEME>виразів, які <SCHEMEINLINE>eval</SCHEMEINLINE></SCHEME>
+      <PYTHON>компонент, які
+      <PYTHONINLINE>evaluate</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    може розрізняти, не змінюючи
+    <SPLITINLINE>
+      <SCHEME>
+	означення <SCHEMEINLINE>eval</SCHEMEINLINE>
+      </SCHEME>
+      <PYTHON>
+	оголошення
+	<PYTHONINLINE>evaluate</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    як такого. (Див. вправу<SPACE/><REF NAME="ex:data-directed-eval"/>.)
+  </TEXT>
+  <TEXT>
+    Подання імен опрацьовують синтаксичні абстракції. Внутрішньо
+    обчислювач користується рядками для подання імен, і ми називаємо такі рядки
+    <INDEX>символ(и)<SUBINDEX><ORDER>in representing</ORDER>подання імен у метамовному обчислювачі</SUBINDEX></INDEX>
+    <EM>символами</EM>. Функція
+    <PYTHONINLINE>symbol_of_name</PYTHONINLINE>, уживана в
+    <PYTHONINLINE>evaluate</PYTHONINLINE>, видобуває з
+    імені символ, яким його подано.
+  </TEXT>
+  
+  <SUBHEADING>
+    <NAME>Застосування</NAME>
+  </SUBHEADING>
+
+  <TEXT>
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>Apply</SCHEMEINLINE></SCHEME>
+      <PYTHON>Функція <PYTHONINLINE>apply</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    бере два аргументи:
+    <SPLITINLINE>
+      <SCHEME>процедуру</SCHEME>
+      <PYTHON>функцію</PYTHON>
+    </SPLITINLINE>
+    та зв’язаний список аргументів, до яких
+    <SPLITINLINE>
+      <SCHEME>процедуру</SCHEME>
+      <PYTHON>функцію</PYTHON>
+    </SPLITINLINE>
+    треба застосувати.  
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>Apply</SCHEMEINLINE></SCHEME>
+      <PYTHON>Функція <PYTHONINLINE>apply</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    класифікує
+    <SPLITINLINE>
+      <SCHEME>процедури</SCHEME>
+      <PYTHON>функції</PYTHON>
+    </SPLITINLINE>
+    на два різновиди: вона викликає
+    <INDEX><USE>apply_primitive_function</USE></INDEX> 
+    <SPLITINLINE>
+      <SCHEME>
+	<SCHEMEINLINE>apply-primitive-procedure</SCHEMEINLINE>
+      </SCHEME>
+      <PYTHON>
+	<PYTHONINLINE>apply_primitive_function</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    щоб застосувати примітиви; вона застосовує складені
+    <SPLITINLINE>
+      <SCHEME>процедури</SCHEME>
+      <PYTHON>функції</PYTHON>
+    </SPLITINLINE>
+    <SPLITINLINE>
+      <SCHEME>
+	послідовно обчислюючи
+	вирази, які складають тіло процедури.
+      </SCHEME>
+      <PYTHON>
+	обчислюючи тіло функції.
+      </PYTHON>
+    </SPLITINLINE>
+    Середовище для обчислення тіла складеної
+    <SPLITINLINE>
+      <SCHEME>процедури</SCHEME>
+      <PYTHON>функції</PYTHON>
+    </SPLITINLINE>
+    будують, розширюючи базове середовище, яке несе
+    <SPLITINLINE>
+      <SCHEME>процедура</SCHEME>
+      <PYTHON>функція</PYTHON>
+    </SPLITINLINE>,
+    щоб включити фрейм, який зв’язує параметри
+    <SPLITINLINE>
+      <SCHEME>процедури</SCHEME>
+      <PYTHON>функції</PYTHON>
+    </SPLITINLINE>
+    з аргументами, до яких
+    <SPLITINLINE>
+      <SCHEME>процедуру</SCHEME>
+      <PYTHON>функцію</PYTHON>
+    </SPLITINLINE>
+    треба застосувати. 
+    Ось
+    <SPLITINLINE>
+      <SCHEME>
+	означення
+      </SCHEME>
+      <PYTHON>
+	оголошення
+      </PYTHON>
+    </SPLITINLINE>
+    <SCHEMEINLINE>apply</SCHEMEINLINE>:
+    <SNIPPET PAGE="366">
+      <INDEX><DECLARATION>apply</DECLARATION> (metacircular)</INDEX>
+      <NAME>apply</NAME>
+      <EXAMPLE>apply_example</EXAMPLE>
+      <EXPECTED>3</EXPECTED>
+      <SCHEME>
+(define (apply procedure arguments)
+  (cond ((primitive-procedure? procedure)
+         (apply-primitive-procedure procedure arguments))
+        ((compound-procedure? procedure)
+         (eval-sequence
+           (procedure-body procedure)
+           (extend-environment
+             (procedure-parameters procedure)
+             arguments
+             (procedure-environment procedure))))
+        (else
+         (error
+          "Unknown procedure type - - APPLY" procedure))))
+      </SCHEME>
+      <PYTHON>
+def apply(fun, arguments):
+    if is_primitive_function(fun):
+        return apply_primitive_function(fun, arguments)
+    elif is_compound_function(fun):
+        body = function_body(fun)
+        locals = local_variables(body)
+	unassigneds = llist_of_unassigned(locals)
+        result = evaluate(body,
+                          extend_environment(
+                              append(function_parameters(fun),
+			             locals),
+                              append(arguments,
+			             unassigneds),
+                              function_environment(fun)))
+        return (return_value_content(result)
+                if is_return_value(result)
+                else None)
+    else:
+        return error("unknown function type -- apply", fun)
+      </PYTHON>
+    </SNIPPET>
+    <SNIPPET PAGE="366" HIDE="yes">
+      <NAME>apply_example</NAME>
+      <REQUIRES>functions_4_1_1</REQUIRES>
+      <REQUIRES>functions_4_1_2</REQUIRES>
+      <REQUIRES>functions_4_1_3</REQUIRES>
+      <REQUIRES>functions_4_1_4</REQUIRES>
+      <PYTHON>
+plus = llist("primitive", lambda x, y: x + y)
+apply(plus, llist(1, 2))
+      </PYTHON>
+    </SNIPPET>
+    
+    <SPLIT>
+      <PYTHON>
+	Щоб повернути значення, функції Python треба обчислити
+	<INDEX>метамовний обчислювач для Python<SUBINDEX>повернене значення</SUBINDEX></INDEX>
+	<INDEX>повернене значення<SUBINDEX>подання в метамовному обчислювачі</SUBINDEX></INDEX>
+	інструкцію return. Якщо функція завершується, не обчисливши інструкцію
+	return, повертається значення
+	<INDEX>повернене значення<SUBINDEX><USE>None</USE> як</SUBINDEX></INDEX>
+	<PYTHONINLINE>None</PYTHONINLINE>.
+	Щоб розрізняти ці два випадки, обчислення інструкції return
+	загортає результат обчислення її виразу-повернення в
+	<EM>повернене значення</EM>. Якщо
+	обчислення тіла функції дає таке повернене значення, вміст
+	поверненого значення добувають; інакше повертають значення
+	<PYTHONINLINE>None</PYTHONINLINE>.<FOOTNOTE>
+	<LABEL NAME="foot:apply"/>
+	Ця перевірка є відкладеною операцією, і тому наш обчислювач породжуватиме
+	рекурсивний процес, навіть якщо інтерпретована програма мала б породжувати
+	ітеративний процес згідно з описом у
+	підрозділі<SPACE/><REF  NAME="sec:recursion-and-iteration"/>. Іншими
+	словами, наша реалізація метамовного обчислювача для Python
+	<INDEX><USE>apply</USE> (метамовний)<SUBINDEX>хвостова рекурсія і</SUBINDEX></INDEX>
+	<INDEX>метамовний обчислювач для Python<SUBINDEX>хвостова рекурсія і</SUBINDEX></INDEX>
+	<INDEX>хвостова рекурсія<SUBINDEX>метамовний обчислювач і</SUBINDEX></INDEX>
+	не є хвостово-рекурсивною.
+	Підрозділи<SPACE/><REF NAME="sec:tail-recursion-return"/>
+	та<SPACE/><REF NAME="sec:compiling-combinations"/>
+	показують, як досягти хвостової рекурсії, користуючись регістровою машиною.
+      </FOOTNOTE>
+
+	Функція <PYTHONINLINE>scan_out_declarations</PYTHONINLINE>
+        <INDEX>сканування оголошень<SUBINDEX>у метамовному обчислювачі</SUBINDEX></INDEX>
+	збирає список усіх символів, що подають імена, оголошені в тілі.
+	Вона користується
+	<PYTHONINLINE>declaration_symbol</PYTHONINLINE>
+	щоб добути символ, що подає ім’я,
+	з інструкцій-оголошень, які вона знаходить.
+	<SNIPPET>
+	  <INDEX><DECLARATION>scan_out_declarations</DECLARATION></INDEX>
+          <NAME>scan_out_declarations</NAME>
+          <REQUIRES>append</REQUIRES>
+          <REQUIRES>map</REQUIRES>
+          <REQUIRES>accumulate</REQUIRES>
+          <REQUIRES>definition</REQUIRES>
+          <REQUIRES>declaration_symbol</REQUIRES>
+	  <EXAMPLE>scan_out_declarations_example</EXAMPLE>
+	  <EXPECTED>[ 'x', [ 'y', None ] ]</EXPECTED>
+          <PYTHON>
+def scan_out_declarations(component):
+    if is_sequence(component):
+        return reduce(append,
+                      None,
+                      map(scan_out_declarations,
+                          sequence_statements(component)))
+    elif is_declaration(component):
+        return llist(declaration_symbol(component))
+    else:
+        return None
+          </PYTHON>
+	</SNIPPET>
+	<SNIPPET HIDE="yes">
+          <NAME>scan_out_declarations_example</NAME>
+	  <REQUIRES>functions_4_1_1</REQUIRES>
+	  <REQUIRES>functions_4_1_2</REQUIRES>
+	  <REQUIRES>functions_4_1_3</REQUIRES>
+	  <REQUIRES>functions_4_1_4</REQUIRES>
+          <PYTHON>
+scan_out_declarations(parse("x = 1\ny = 2"))
+	  </PYTHON>
+	</SNIPPET>
+	Ми ігноруємо оголошення, вкладені в означення функцій,
+	бо обчислення цього означення функції подбає про них.
+	<SNIPPET PAGE="367" HIDE="yes">
+          <NAME>list_of_unassigned</NAME>
+          <REQUIRES>map</REQUIRES>
+          <PYTHON>
+def llist_of_unassigned(symbols):
+    return map(lambda symbol: "*unassigned*", symbols)
+	  </PYTHON>
+	</SNIPPET>
+      </PYTHON>
+    </SPLIT>
+  </TEXT>
+
+  <SUBHEADING>
+    <NAME>
+    <SPLITINLINE>
+      <SCHEME>Аргументи процедури</SCHEME>
+      <PYTHON>Аргументи функції</PYTHON>
+    </SPLITINLINE>
+    </NAME>
+  </SUBHEADING>
+
+  <TEXT>
+    Коли
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>eval</SCHEMEINLINE></SCHEME>
+      <PYTHON><SCHEMEINLINE>evaluate</SCHEMEINLINE></PYTHON>
+    </SPLITINLINE>
+    опрацьовує застосування
+    <SPLITINLINE>
+      <SCHEME>процедури</SCHEME>
+      <PYTHON>функції</PYTHON>
+    </SPLITINLINE>,
+    вона користується
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>list-of-values</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>llist_of_values</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    щоб утворити список аргументів, до яких
+    <SPLITINLINE>
+      <SCHEME>процедуру</SCHEME>
+      <PYTHON>функцію</PYTHON>
+    </SPLITINLINE>
+    треба застосувати.
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>List-of-values</SCHEMEINLINE></SCHEME>
+      <PYTHON>Функція
+      <PYTHONINLINE>llist_of_values</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    бере як аргумент
+    <SPLITINLINE>
+      <SCHEME>операнди комбінації.</SCHEME>
+      <PYTHON>вирази аргументів застосування.</PYTHON>
+    </SPLITINLINE>
+    Вона обчислює кожен
+    <SPLITINLINE>
+      <SCHEME>операнд</SCHEME>
+      <PYTHON>вираз аргументу</PYTHON>
+    </SPLITINLINE>
+    і повертає
+    список відповідних значень:<SPLITINLINE><SCHEME><FOOTNOTE>Ми могли б
+    спростити
+    <SCHEMEINLINE>application?</SCHEMEINLINE>
+    у гілці
+    <SCHEMEINLINE>eval</SCHEMEINLINE>,
+    скориставшись
+    <SCHEMEINLINE>map</SCHEMEINLINE> (і приписавши, що
+    <SCHEMEINLINE>operands</SCHEMEINLINE>
+    повертає список), замість того, щоб писати
+    окрему
+    <SCHEMEINLINE>list-of-values</SCHEMEINLINE> процедуру.
+    Ми обрали не користуватися <SCHEMEINLINE>map</SCHEMEINLINE> тут, щоб наголосити
+    на тому, що
+    <INDEX>метамовний обчислювач для Scheme<SUBINDEX>процедури вищого порядку в</SUBINDEX></INDEX>
+    <INDEX>процедури вищого порядку<SUBINDEX>у метамовному обчислювачі</SUBINDEX></INDEX>
+    обчислювач можна реалізувати без жодного використання процедур вищого
+    порядку
+    (і тому його можна було б написати мовою без зв’язку з процедурами
+    вищого порядку),
+    навіть якщо мова, яку він підтримує,
+    включатиме процедури вищого
+    порядку.
+    <LABEL NAME="foot:mceval-higher-order-scheme"/></FOOTNOTE></SCHEME><PYTHON><FOOTNOTE>Ми
+    обрали реалізацію <PYTHONINLINE>llist_of_values</PYTHONINLINE>
+    за допомогою
+    <INDEX>метамовний обчислювач для Python<SUBINDEX>функції вищого порядку в</SUBINDEX></INDEX>
+    <INDEX>функції вищого порядку<SUBINDEX><ORDER>metacircular</ORDER>у метамовному обчислювачі</SUBINDEX></INDEX>
+    функції вищого порядку <PYTHONINLINE>map</PYTHONINLINE>, і ми будемо користуватися
+    звичайними функціями вищого порядку й в інших місцях.
+    Проте обчислювач можна реалізувати без жодного використання функцій вищого
+    порядку (і тому його можна було б написати мовою, яка не має
+    функцій вищого порядку), навіть якщо мова, яку він підтримує,
+    включатиме функції вищого порядку. Наприклад,
+    <PYTHONINLINE>llist_of_values</PYTHONINLINE> можна
+    написати без <PYTHONINLINE>map</PYTHONINLINE> так:
+    <SNIPPET PAGE="367">
+      <INDEX><DECLARATION>llist_of_values</DECLARATION><SUBINDEX><ORDER>higherorder</ORDER>without higher-order functions</SUBINDEX></INDEX>
+      <NAME>llist_of_values_without_map</NAME>
+      <EXAMPLE>llist_of_values_example</EXAMPLE>
+      <PYTHON>
+def llist_of_values(exps, env):
+    if is_null(exps):
+        return None
+    else: pair(evaluate(head(exps), env),
+                        llist_of_values(tail(exps), env)))
+      </PYTHON>
+    </SNIPPET>
+    <LABEL NAME="foot:mceval-higher-order"/></FOOTNOTE></PYTHON></SPLITINLINE>
+    <SNIPPET PAGE="367" POSTPADDING="no">
+      <INDEX><DECLARATION>llist_of_values</DECLARATION></INDEX>
+      <NAME>llist_of_values</NAME>
+      <REQUIRES>map</REQUIRES>
+      <EXAMPLE>llist_of_values_example</EXAMPLE>
+      <SCHEME>
+(define (list-of-values exps env)
+  (if (no-operands? exps)
+      '()
+      (cons (eval (first-operand exps) env)
+            (list-of-values (rest-operands exps) env))))
+      </SCHEME>
+      <PYTHON>
+def llist_of_values(exps, env):
+    return map(lambda arg: evaluate(arg, env), exps)
+      </PYTHON>
+    </SNIPPET>
+    <SNIPPET PAGE="365" HIDE="yes">
+      <NAME>llist_of_values_example</NAME>
+      <REQUIRES>functions_4_1_1</REQUIRES>
+      <REQUIRES>functions_4_1_2</REQUIRES>
+      <REQUIRES>functions_4_1_3</REQUIRES>
+      <REQUIRES>functions_4_1_4</REQUIRES>
+      <SCHEME>
+(define the-global-environment (setup-environment))
+(eval (read) the-global-environment)
+      </SCHEME>
+      <PYTHON>
+my_addition_expression = parse("1 + 2")
+llist_of_values(llist(parse("1"), my_addition_expression, parse("7")),
+               the_global_environment)
+      </PYTHON>
+    </SNIPPET>
+  </TEXT>
+
+  <SUBHEADING>
+    <NAME>
+      Умовні вирази
+    </NAME>
+  </SUBHEADING>
+
+  <TEXT>
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>Eval-if</SCHEMEINLINE></SCHEME>
+      <PYTHON>Функція
+      <PYTHONINLINE>eval_conditional</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    обчислює частину-предикат
+    <SPLITINLINE>
+      <SCHEME>виразу <SCHEMEINLINE>if</SCHEMEINLINE></SCHEME>
+      <PYTHON>умовного компонента</PYTHON>
+    </SPLITINLINE>
+    в заданому середовищі. Якщо результат істинний,
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>eval-if</SCHEMEINLINE>
+      обчислює наслідок, інакше обчислює альтернативу:
+      </SCHEME>
+      <PYTHON>
+	обчислюють наслідок, інакше обчислюють альтернативу:
+      </PYTHON>
+    </SPLITINLINE>
+    <SNIPPET PAGE="367">
+      <INDEX><DECLARATION>eval_conditional</DECLARATION> (metacircular)</INDEX>
+      <NAME>eval_if</NAME>
+      <EXAMPLE>eval_if_example</EXAMPLE>
+      <EXPECTED>1</EXPECTED>
+      <SCHEME>
+(define (eval-if exp env)
+  (if (true? (eval (if-predicate exp) env))
+      (eval (if-consequent exp) env)
+      (eval (if-alternative exp) env)))
+      </SCHEME>
+      <PYTHON>
+def eval_conditional(component, env):
+    if is_truthy(evaluate(conditional_predicate(component), env)):
+        return (evaluate(conditional_consequent(component), env)            
+    else: return evaluate(conditional_alternative(component), env))
+      </PYTHON>
+    </SNIPPET>
+    <SNIPPET PAGE="367" HIDE="yes">
+      <NAME>eval_if_example</NAME>
+      <REQUIRES>functions_4_1_1</REQUIRES>
+      <REQUIRES>functions_4_1_2</REQUIRES>
+      <REQUIRES>functions_4_1_3</REQUIRES>
+      <REQUIRES>functions_4_1_4</REQUIRES>
+      <PYTHON>
+my_cond_expr = parse("1 if True else 2")
+eval_conditional(my_cond_expr, the_empty_environment)
+      </PYTHON>
+    </SNIPPET>
+    <SPLITINLINE>
+      <PYTHON>
+	Зауважте, що обчислювачу не треба розрізняти
+	умовні вирази та умовні інструкції.
+      </PYTHON>
+    </SPLITINLINE>
+  </TEXT>
+
+  <TEXT>
+    Використання
+    <INDEX><USE>is_truthy</USE></INDEX>
+    <INDEX>істинність</INDEX>
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>true?</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>is_truthy</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    в
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>eval-if</SCHEMEINLINE></SCHEME>
+      <PYTHON>
+	<PYTHONINLINE>eval_conditional</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    висвітлює питання зв’язку між мовою, яку реалізують, і
+    мовою реалізації.
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>if-predicate</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>conditional_predicate</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    обчислюють у мові, яку реалізують, і тому він дає значення в
+    цій мові. Предикат інтерпретатора
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>true?</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>is_truthy</PYTHONINLINE></PYTHON>
+    </SPLITINLINE> 
+    <INDEX>метамовний обчислювач для Python<SUBINDEX>реалізована мова проти<SPACE/>мови реалізації</SUBINDEX></INDEX>
+    перетворює це значення на значення, яке можна перевірити
+    <SPLITINLINE><SCHEME><SCHEMEINLINE>if</SCHEMEINLINE></SCHEME>
+    <PYTHON>умовним виразом</PYTHON></SPLITINLINE>
+    у мові реалізації: метамовне подання істини
+    може не бути таким самим, як у базовій
+    <SPLITINLINE><SCHEME>Scheme</SCHEME><PYTHON>Python</PYTHON></SPLITINLINE>.<FOOTNOTE>У цьому випадку мова, яку реалізують, і
+    мова реалізації ті самі. Роздуми про значення
+    <SPLITINLINE><SCHEME><SCHEMEINLINE>true?</SCHEMEINLINE></SCHEME>
+    <PYTHON><PYTHONINLINE>is_truthy</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    тут дають
+    <INDEX>свідомість, розширення</INDEX>
+    розширення свідомості без зловживання
+    речовиною.</FOOTNOTE>
+  </TEXT>
+
+  <SUBHEADING>
+    <NAME>    
+	Послідовності
+    </NAME>
+  </SUBHEADING>
+
+  <SPLIT>
+    <SCHEME>
+      <TEXT>
+	<SCHEMEINLINE>Eval-sequence</SCHEMEINLINE> використовує
+	<SCHEMEINLINE>apply</SCHEMEINLINE>, щоб обчислити послідовність
+	виразів у тілі процедури, і <SCHEMEINLINE>eval</SCHEMEINLINE>,
+	щоб обчислити послідовність виразів у виразі
+	<SCHEMEINLINE>begin</SCHEMEINLINE>. Вона бере як аргументи
+	послідовність виразів і середовище й обчислює
+	вирази в тому порядку, у якому вони з’являються. Повернене значення —
+	значення останнього виразу.
+	<SNIPPET PAGE="367">
+          <NAME>eval_sequence</NAME>
+          <SCHEME>
+(define (eval-sequence exps env)
+  (cond ((last-exp? exps) (eval (first-exp exps) env))
+        (else (eval (first-exp exps) env)
+              (eval-sequence (rest-exps exps) env))))
+          </SCHEME>
+	</SNIPPET>
+      </TEXT>
+    </SCHEME>
+    <PYTHON>
+      <TEXT>
+	Функція <PYTHONINLINE>eval_sequence</PYTHONINLINE>
+	використовується <PYTHONINLINE>evaluate</PYTHONINLINE>
+	щоб обчислити послідовність інструкцій на верхньому рівні, в
+	тілі функції або у гілці умовної інструкції.
+	Вона бере як аргументи послідовність інструкцій та
+	середовище й обчислює інструкції в тому порядку, у якому вони
+	з’являються. Повернене значення — <PYTHONINLINE>None</PYTHONINLINE>,
+	хіба що якщо обчислення якоїсь інструкції в послідовності дає
+	повернене значення, тоді повертають те значення, а наступні інструкції
+	ігнорують.
+	<SNIPPET PAGE="367" POSTPADDING="no">
+	  <INDEX><DECLARATION>eval_sequence</DECLARATION></INDEX>
+	  <NAME>eval_sequence</NAME>
+	  <EXAMPLE>eval_sequence_example</EXAMPLE>
+	  <EXPECTED>3</EXPECTED>
+          <PYTHON>
+def eval_sequence(stmts, env):
+    for_each(lambda stmt: evaluate(stmt, env), stmts)	    
+    return None
+          </PYTHON>
+	</SNIPPET>
+	<SNIPPET PAGE="367" HIDE="yes" POSTPADDING="no">
+	  <NAME>eval_sequence_example</NAME>
+	  <REQUIRES>functions_4_1_1</REQUIRES>
+	  <REQUIRES>functions_4_1_2</REQUIRES>
+	  <REQUIRES>functions_4_1_3</REQUIRES>
+	  <REQUIRES>functions_4_1_4</REQUIRES>
+	  <PYTHON>
+my_sequence = head(tail(parse("1\nTrue\n3")))
+eval_sequence(my_sequence, the_empty_environment)
+	  </PYTHON>
+	</SNIPPET>
+      </TEXT>
+      <TEXT>
+	<SUBHEADING>
+	  <NAME>Інструкції return</NAME>
+	</SUBHEADING>
+
+	Функція <PYTHONINLINE>eval_return_statement</PYTHONINLINE>
+	використовується для обчислення
+	<INDEX>інструкція return<SUBINDEX>опрацювання в метамовному обчислювачі</SUBINDEX></INDEX>
+	інструкцій return. Як видно з
+	<PYTHONINLINE>apply</PYTHONINLINE> і
+	обчислення
+	послідовностей, результат обчислення інструкції return
+	мусить бути ідентифіковним, щоб обчислення тіла функції
+	могло повернутися негайно, навіть якщо після інструкції return є ще
+	інструкції. Для цього
+	обчислення інструкції return загортає результат обчислення
+	виразу-повернення в об’єкт поверненого значення.<FOOTNOTE>
+	<INDEX>метамовний обчислювач для Python<SUBINDEX>хвостова рекурсія і</SUBINDEX></INDEX>
+	<INDEX>хвостова рекурсія<SUBINDEX>метамовний обчислювач і</SUBINDEX></INDEX>
+	Застосування функції
+	<PYTHONINLINE>make_return_value</PYTHONINLINE> до результату
+	обчислення виразу-повернення створює відкладену операцію,
+	додатково до відкладеної операції, створеної
+	<PYTHONINLINE>apply</PYTHONINLINE>. Докладніше див.
+	виноску<SPACE/><REF NAME="foot:apply"/>.</FOOTNOTE>
+	<SNIPPET PAGE="367" POSTPADDING="no">
+	  <INDEX><DECLARATION>eval_return_statement</DECLARATION></INDEX>
+          <NAME>eval_return</NAME>
+	  <EXAMPLE>eval_return_example</EXAMPLE>
+	  <EXPECTED>1</EXPECTED>
+          <PYTHON>
+def eval_return_statement(component, env):
+    return make_return_value(evaluate(return_expression(component),
+                                      env))
+          </PYTHON>
+	</SNIPPET>
+	<SNIPPET PAGE="367" HIDE="yes" POSTPADDING="no">
+          <NAME>eval_return_example</NAME>
+	  <REQUIRES>functions_4_1_1</REQUIRES>
+	  <REQUIRES>functions_4_1_2</REQUIRES>
+	  <REQUIRES>functions_4_1_3</REQUIRES>
+	  <REQUIRES>functions_4_1_4</REQUIRES>
+          <PYTHON>
+my_program = make_block(parse("def f():\n    return 1\nf()"))
+evaluate(my_program, the_global_environment)
+	  </PYTHON>
+	</SNIPPET>
+      </TEXT>
+    </PYTHON>
+  </SPLIT>
+
+  <SUBHEADING>
+    <NAME>Присвоєння та
+    <SPLITINLINE>
+      <SCHEME>означення</SCHEME>
+      <PYTHON>оголошення</PYTHON>
+    </SPLITINLINE></NAME>
+  </SUBHEADING>
+
+  <TEXT>
+    <SPLITINLINE>
+      <SCHEME>наступна процедура</SCHEME>
+      <PYTHON>
+	функція <PYTHONINLINE>eval_assignment</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    опрацьовує присвоєння
+    <SPLITINLINE>
+      <SCHEME>змінним.</SCHEME>
+      <PYTHON>
+	іменам.
+	(Щоб спростити виклад нашого обчислювача,
+	ми дозволяємо присвоєння не лише змінним, а й<EMDASH/>помилково<EMDASH/>константам.
+	Вправа<SPACE/><REF NAME="ex:mutable"/>
+	пояснює, як ми могли б
+	розрізняти константи та змінні й забороняти
+	присвоєння константам.)
+      </PYTHON>
+    </SPLITINLINE>
+    <SPLITINLINE>
+      <SCHEME>
+	Вона викликає
+	<SCHEMEINLINE>eval</SCHEMEINLINE>
+	щоб знайти значення, яке треба присвоїти, і передає змінну
+	та отримане значення до
+	<SCHEMEINLINE>set-variable-value!</SCHEMEINLINE>
+	щоб установити їх у позначеному середовищі.
+      </SCHEME>
+      <PYTHON>
+	Функція
+	<PYTHONINLINE>eval_assignment</PYTHONINLINE>
+	викликає
+	<SCHEMEINLINE>evaluate</SCHEMEINLINE>
+	на виразі-значенні,
+	щоб знайти значення, яке треба присвоїти, і викликає
+	<PYTHONINLINE>assignment_symbol</PYTHONINLINE>
+	щоб добути символ, що подає ім’я,
+	з присвоєння. Функція
+	<PYTHONINLINE>eval_assignment</PYTHONINLINE>	
+	передає символ і значення до
+	<PYTHONINLINE>assign_symbol_value</PYTHONINLINE>
+	щоб установити їх у позначеному середовищі.
+	Обчислення присвоєння повертає значення,
+	яке було присвоєно.
+      </PYTHON>
+    </SPLITINLINE>
+    <SNIPPET PAGE="368">
+      <INDEX><DECLARATION>eval_assignment</DECLARATION></INDEX>
+      <NAME>eval_assignment</NAME>
+      <EXAMPLE>eval_assignment_example</EXAMPLE>
+      <EXPECTED>2</EXPECTED>
+      <SCHEME>
+(define (eval-assignment exp env)
+  (set-variable-value! (assignment-variable exp)
+                       (eval (assignment-value exp) env)
+                       env)
+  'ok)
+      </SCHEME>
+      <PYTHON>
+def eval_assignment(component, env):
+    value = evaluate(assignment_value_expression(component), env)
+    assign_symbol_value(assignment_symbol(component), value, env)
+    return value
+      </PYTHON>
+    </SNIPPET>
+    <SNIPPET PAGE="368" HIDE="yes">
+      <NAME>eval_assignment_example</NAME>
+      <REQUIRES>functions_4_1_1</REQUIRES>
+      <REQUIRES>functions_4_1_2</REQUIRES>
+      <REQUIRES>functions_4_1_3</REQUIRES>
+      <REQUIRES>functions_4_1_4</REQUIRES>
+      <PYTHON>
+my_program = make_block(parse("x = 1\nx = 2"))
+evaluate(my_program, the_global_environment)
+      </PYTHON>
+    </SNIPPET>
+  </TEXT>
+
+  <SPLIT>
+    <SCHEME>
+      <TEXT>
+	Означення змінних опрацьовують подібним чином.<FOOTNOTE>Ця
+	реалізація <SCHEMEINLINE>define</SCHEMEINLINE> ігнорує тонке
+	питання в опрацюванні внутрішніх означень, хоч вона й працює
+	правильно в більшості випадків. Ми побачимо, у чому проблема і як її
+	розв’язати, у
+	підрозділі<SPACE/><REF NAME="sec:internal-definitions"/>.</FOOTNOTE>
+	<SNIPPET PAGE="368">
+	  <NAME>eval_definition</NAME>
+	  <REQUIRES>define_variable</REQUIRES>
+	  <REQUIRES>definition</REQUIRES>
+	  <REQUIRES>eval</REQUIRES>
+	  <SCHEME>
+(define (eval-definition exp env)
+  (define-variable! (definition-variable exp)
+                    (eval (definition-value exp) env)
+                    env)
+  'ok)
+	  </SCHEME>
+	</SNIPPET>
+      </TEXT>
+
+      <TEXT>
+	Ми обрали тут повертати символ <SCHEMEINLINE>ok</SCHEMEINLINE>
+	як значення присвоєння або означення.<FOOTNOTE>Як ми казали, коли
+	вводили <SCHEMEINLINE>define</SCHEMEINLINE> та 
+        <SCHEMEINLINE>set!</SCHEMEINLINE>, ці значення
+        залежать від реалізації в Scheme<EMDASH/>тобто реалізатор
+        може обрати, яке значення повертати.</FOOTNOTE>
+	<INDEX>метамовний обчислювач для Scheme<SUBINDEX><ORDER>eval</ORDER><SCHEMEINLINE>eval</SCHEMEINLINE> і <SCHEMEINLINE>apply</SCHEMEINLINE><CLOSE/></SUBINDEX></INDEX>
+      </TEXT>
+    </SCHEME>
+    <PYTHON>
+      <TEXT>
+	Оголошення констант і змінних розпізнає той самий
+	синтаксичний предикат
+	<PYTHONINLINE>is_declaration</PYTHONINLINE>. 
+	З ними поводяться подібно до
+	присвоєнь, бо <PYTHONINLINE>eval_block</PYTHONINLINE>
+	вже зв’язала їхні символи з <PYTHONINLINE>"*unassigned*"</PYTHONINLINE>
+	у поточному середовищі.
+	Їхнє обчислення замінює <PYTHONINLINE>"*unassigned*"</PYTHONINLINE>
+	на результат обчислення виразу-значення.
+	<SNIPPET PAGE="368">
+	  <INDEX><DECLARATION>eval_declaration</DECLARATION></INDEX>
+	  <NAME>eval_definition</NAME>
+	  <EXAMPLE>eval_definition_example</EXAMPLE>
+	  <EXPECTED>3</EXPECTED>
+	  <PYTHON>
+def eval_declaration(component, env):
+    assign_symbol_value(
+        declaration_symbol(component),
+        evaluate(declaration_value_expression(component), env),
+        env)
+    return None
+	  </PYTHON>
+	</SNIPPET>
+	Результат обчислення тіла функції визначають
+	інструкції return, і тому повернене значення
+	<PYTHONINLINE>undefined</PYTHONINLINE> у
+	<PYTHONINLINE>eval_declaration</PYTHONINLINE> має
+	значення лише тоді, коли оголошення трапляється на верхньому рівні,
+	поза будь-яким тілом функції. Тут ми користуємося поверненим значенням
+	<PYTHONINLINE>undefined</PYTHONINLINE>, щоб спростити
+	виклад; вправа<SPACE/><REF NAME="ex:value_producing"/>
+	описує справжній результат обчислення компонент верхнього рівня
+	в Python.
+
+	<LABEL NAME="foot:value_producing_2"/>	
+
+	<SNIPPET PAGE="368" HIDE="yes">
+	  <NAME>eval_definition_example</NAME>
+	  <REQUIRES>functions_4_1_1</REQUIRES>
+	  <REQUIRES>functions_4_1_2</REQUIRES>
+	  <REQUIRES>functions_4_1_3</REQUIRES>
+	  <REQUIRES>functions_4_1_4</REQUIRES>
+	  <PYTHON>
+my_program = make_block(parse("x = 1\ny = 2\nx + y"))
+evaluate(my_program, the_global_environment)
+	  </PYTHON>
+	</SNIPPET>
+      </TEXT>
+      <TEXT>
+	<INDEX>метамовний обчислювач для Python<SUBINDEX><ORDER>evaluate</ORDER><SCHEMEINLINE>evaluate</SCHEMEINLINE> and <SCHEMEINLINE>apply</SCHEMEINLINE><CLOSE/></SUBINDEX></INDEX>
+      </TEXT>
+    </PYTHON>
+  </SPLIT>
+  <SNIPPET PAGE="383" HIDE="yes">
+    <NAME>functions_4_1_1</NAME>
+    <REQUIRES>headline_4_1_1</REQUIRES>
+    <REQUIRES>eval</REQUIRES>
+    <REQUIRES>apply</REQUIRES>
+    <REQUIRES>llist_of_values</REQUIRES>
+    <REQUIRES>eval_if</REQUIRES>
+    <REQUIRES>eval_sequence</REQUIRES>
+    <REQUIRES>eval_block</REQUIRES>
+    <REQUIRES>eval_return</REQUIRES>
+    <REQUIRES>eval_assignment</REQUIRES>
+    <REQUIRES>eval_definition</REQUIRES>
+    <PYTHON></PYTHON>
+  </SNIPPET>
+
+  <SPLIT>
+    <SCHEME>
+      <EXERCISE>
+	Зауважте, що ми не можемо сказати, чи метамовний обчислювач
+	<INDEX>порядок обчислення<SUBINDEX><ORDER>metacircular</ORDER>у метамовному обчислювачі</SUBINDEX></INDEX>
+	<INDEX>метамовний обчислювач для Scheme<SUBINDEX>порядок обчислення операндів</SUBINDEX></INDEX>
+	обчислює операнди зліва направо чи справа наліво. Його
+	порядок обчислення успадковано від базового Lisp: якщо
+	аргументи <SCHEMEINLINE>cons</SCHEMEINLINE> у
+	<SCHEMEINLINE>list-of-values</SCHEMEINLINE> обчислюють зліва
+	направо, то <SCHEMEINLINE>list-of-values</SCHEMEINLINE> обчислюватиме
+	операнди зліва направо; а якщо аргументи
+	<SCHEMEINLINE>cons</SCHEMEINLINE> обчислюють справа наліво, то
+	<SCHEMEINLINE>list-of-values</SCHEMEINLINE> обчислюватиме операнди
+	справа наліво.
+	<P/>
+	Напишіть версію <SCHEMEINLINE>list-of-values</SCHEMEINLINE>, яка
+	обчислює <SCHEME>операнди</SCHEME> зліва направо незалежно від
+	порядку обчислення в базовому Lisp. Також напишіть версію
+	<SCHEMEINLINE>list-of-values</SCHEMEINLINE>, яка обчислює
+	операнди справа наліво.
+	<LABEL NAME="ex:arg-eval-order_scheme"/>
+      </EXERCISE>
+    </SCHEME>
+    <PYTHON>
+      <EXERCISE>
+	Зауважте, що ми не можемо сказати, чи метамовний обчислювач
+	<INDEX>порядок обчислення<SUBINDEX><ORDER>metacircular</ORDER>у метамовному обчислювачі</SUBINDEX></INDEX>
+	<INDEX>метамовний обчислювач для Python<SUBINDEX>порядок обчислення аргументів</SUBINDEX></INDEX>
+	обчислює вирази аргументів зліва направо чи справа наліво.
+	Його порядок обчислення успадковано від базового JavaScript:
+	якщо аргументи <PYTHONINLINE>pair</PYTHONINLINE> в
+	<PYTHONINLINE>map</PYTHONINLINE> обчислюють зліва
+	направо, то <PYTHONINLINE>llist_of_values</PYTHONINLINE>
+	обчислюватиме вирази аргументів зліва направо; а якщо
+	аргументи <PYTHONINLINE>pair</PYTHONINLINE>
+	обчислюють справа наліво, то
+	<PYTHONINLINE>llist_of_values</PYTHONINLINE> обчислюватиме
+	вирази аргументів справа наліво.
+	<P/>
+	Напишіть версію <PYTHONINLINE>llist_of_values</PYTHONINLINE>,
+	яка обчислює вирази аргументів зліва направо незалежно від
+	порядку обчислення в базовому JavaScript. Також напишіть версію
+	<PYTHONINLINE>llist_of_values</PYTHONINLINE>, яка обчислює
+	вирази аргументів справа наліво.
+	<LABEL NAME="ex:arg-eval-order"/>
+	<SOLUTION>
+	  Порядок, у якому обчислюють вирази аргументів, не повинен
+	  залежати від порядку, у якому <PYTHONINLINE>pair</PYTHONINLINE>
+	  обчислює свої аргументи. Тому ми називаємо проміжні результати
+	  оголошеннями констант і розташовуємо їх у потрібному порядку, бо
+	  оголошення обчислюють згори донизу. Для обчислення зліва направо
+	  ми обчислюємо перший вираз аргументу перед рештою:
+	  <SNIPPET EVAL="no">
+	    <PYTHON>
+def llist_of_values_left_to_right(exps, env):
+    if is_none(exps):
+        return None
+    else:
+        first = evaluate(head(exps), env)
+        rest = llist_of_values_left_to_right(tail(exps), env)
+        return pair(first, rest)
+	    </PYTHON>
+	  </SNIPPET>
+	  Для обчислення справа наліво ми обчислюємо решту виразів аргументів
+	  перед першим:
+	  <SNIPPET EVAL="no">
+	    <PYTHON>
+def llist_of_values_right_to_left(exps, env):
+    if is_none(exps):
+        return None
+    else:
+        rest = llist_of_values_right_to_left(tail(exps), env)
+        first = evaluate(head(exps), env)
+        return pair(first, rest)
+	    </PYTHON>
+	  </SNIPPET>
+	</SOLUTION>
+      </EXERCISE>
+    </PYTHON>
+  </SPLIT>
+
+  <!-- test cases -->
+  
+  <SNIPPET HIDE="yes">
+    <NAME>parse_and_evaluate</NAME>
+    <REQUIRES>functions_4_1_1</REQUIRES>
+    <REQUIRES>functions_4_1_2</REQUIRES>
+    <REQUIRES>functions_4_1_3</REQUIRES>
+    <REQUIRES>functions_4_1_4</REQUIRES>
+    <PYTHON>
+def parse_and_evaluate(user_program):
+    program = parse(user_program)
+    implicit_top_level_block = make_block(program)
+    return evaluate(implicit_top_level_block,
+                    the_global_environment)
+    </PYTHON>
+  </SNIPPET>
+
+  <SNIPPET HIDE="yes">
+    <NAME>parse_and_evaluate_test_factorial</NAME>
+    <REQUIRES>parse_and_evaluate</REQUIRES>
+    <EXPECTED>120</EXPECTED>
+    <PYTHON>
+parse_and_evaluate("""
+def factorial(n):
+    return 1 if n == 1 else n * factorial(n - 1)
+factorial(5)
+""")
+    </PYTHON>
+  </SNIPPET>
+  <SNIPPET HIDE="yes">
+    <NAME>parse_and_evaluate_test_append</NAME>
+    <REQUIRES>parse_and_evaluate</REQUIRES>
+    <EXPECTED>[ 'b', [ 'c', [ 'd', None ] ] ]</EXPECTED>
+    <PYTHON>
+parse_and_evaluate("""
+def append(xs, ys):
+    return ys if is_null(xs) else pair(head(xs), append(tail(xs), ys))
+tail(append(list("a", "b"), list("c", "d")))
+""")
+    </PYTHON>
+  </SNIPPET>
+  <SNIPPET HIDE="yes">
+    <NAME>parse_and_evaluate_test_map</NAME>
+    <REQUIRES>parse_and_evaluate</REQUIRES>
+    <EXPECTED>[ 3, [ 4, [ 5, None ] ] ]</EXPECTED>
+    <PYTHON>
+parse_and_evaluate("""
+def map(f, xs):
+    return None if is_null(xs) else pair(f(head(xs)), map(f, tail(xs)))
+tail(map(lambda x: x + 1, list(1, 2, 3, 4)))
+""")
+    </PYTHON>
+  </SNIPPET>
+</SUBSECTION>

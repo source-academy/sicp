@@ -1,0 +1,1635 @@
+<SUBSECTION>
+  <NAME>
+    Сполучення скомпільованого коду з обчислювачем
+  </NAME>
+
+  <LABEL NAME="sec:interfacing-compiled-code"/>
+
+  <INDEX>компілятор для Python<SUBINDEX>сполучення з обчислювачем<OPEN/></SUBINDEX></INDEX>
+  <INDEX>компілятор для Python<SUBINDEX>запуск скомпільованого коду<OPEN/></SUBINDEX></INDEX>
+  <INDEX>обчислювач із явним керуванням для Python<SUBINDEX>змінений для скомпільованого коду<OPEN/></SUBINDEX></INDEX>
+
+  <TEXT>
+    Ми ще не пояснили, як завантажити скомпільований код у машину
+    обчислювача і як його запускати.  Припускатимемо, що машину
+    обчислювача з явним керуванням визначено, як у
+    підрозділі<SPACE/><REF NAME="sec:running-evaluator"/>, з додатковими
+    операціями, указаними у виносці<SPACE/><REF NAME="foot:compiler-ops"/> (підрозділ<SPACE/><REF NAME="sec:compiling-components"/>).
+    Ми реалізуємо
+    <SPLITINLINE>
+      <SCHEME>процедуру</SCHEME>
+      <PYTHON>функцію</PYTHON>
+    </SPLITINLINE>
+    <INDEX><USE>compile_and_go</USE></INDEX> 
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>compile-and-go</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>compile_and_go</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    яка компілює
+    <SPLITINLINE>
+      <SCHEME>вираз Scheme,</SCHEME>
+      <PYTHON>програму Python,</PYTHON>
+    </SPLITINLINE>
+    завантажує отриманий об’єктний код у машину обчислювача
+    і змушує машину виконати цей код у
+    глобальному середовищі обчислювача, надрукувати результат і
+    увійти в керівний цикл обчислювача.  Ми також змінимо обчислювач
+    так, щоб інтерпретовані
+    <SPLITINLINE>
+      <SCHEME>
+	вирази
+      </SCHEME>
+      <PYTHON>
+	складові
+      </PYTHON>
+    </SPLITINLINE>
+    могли викликати скомпільовані
+    <SPLITINLINE>
+      <SCHEME>процедури</SCHEME>
+      <PYTHON>функції</PYTHON>
+    </SPLITINLINE>
+    так само, як інтерпретовані.  Тоді ми можемо покласти скомпільовану
+    <SPLITINLINE>
+      <SCHEME>процедуру</SCHEME>
+      <PYTHON>функцію</PYTHON>
+    </SPLITINLINE>
+    в машину й викликати<SPACE/>її з обчислювача:
+
+    <SNIPPET>
+      <NAME>compile_and_go_example</NAME>
+      <REQUIRES>compile_and_go</REQUIRES>
+      <SCHEME>
+(compile-and-go
+ '(define (factorial n)
+    (if (= n 1)
+        1
+        (* (factorial (- n 1)) n))))
+      </SCHEME>
+      <SCHEMEOUTPUT>
+;;; EC-Eval value:
+ok
+      </SCHEMEOUTPUT>
+      <PYTHON>
+compile_and_go(parse(`
+function factorial(n) {
+    return n === 1
+           ? 1
+           : factorial(n - 1) * n;
+}
+                     `));
+      </PYTHON>
+      <PYTHON_OUTPUT>
+EC-evaluate value:
+undefined
+      </PYTHON_OUTPUT>
+    </SNIPPET>
+    <SNIPPET EVAL="no">
+      <SCHEMEPROMPT>
+;;; EC-Eval input:
+      </SCHEMEPROMPT>
+      <SCHEME>
+(factorial 5)
+      </SCHEME>
+      <SCHEMEOUTPUT>
+;;; EC-Eval value:
+120
+      </SCHEMEOUTPUT>
+      <PYTHON_PROMPT>
+EC-evaluate input:
+      </PYTHON_PROMPT>
+      <PYTHON>
+factorial(5);
+      </PYTHON>
+      <PYTHON_OUTPUT>
+EC-evaluate value:
+120
+      </PYTHON_OUTPUT>
+    </SNIPPET>
+  </TEXT>
+
+  <TEXT>
+    Щоб дати обчислювачеві раду зі скомпільованими
+    <SPLITINLINE>
+      <SCHEME>процедурами</SCHEME>
+      <PYTHON>функціями</PYTHON>
+    </SPLITINLINE>
+    (наприклад,
+    щоб обчислити виклик <SCHEMEINLINE>factorial</SCHEMEINLINE>, наведений вище),
+    нам треба змінити код за міткою
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>apply-dispatch</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>apply_dispatch</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    (підрозділ<SPACE/><REF NAME="sec:procedure-application"/>) так, щоб він
+    розпізнавав скомпільовані
+    <SPLITINLINE>
+      <SCHEME>процедури</SCHEME>
+      <PYTHON>функції</PYTHON>
+    </SPLITINLINE>
+    (на відміну від складених чи примітивних
+    <SPLITINLINE>
+      <SCHEME>процедур)</SCHEME>
+      <PYTHON>функцій)</PYTHON>
+    </SPLITINLINE>
+    і передавав керування безпосередньо точці входу
+    скомпільованого коду:<FOOTNOTE>Звісно, скомпільовані
+    <SPLITINLINE>
+      <SCHEME>процедури</SCHEME>
+      <PYTHON>функції</PYTHON>
+    </SPLITINLINE>
+    так само, як інтерпретовані
+    <SPLITINLINE>
+      <SCHEME>процедури</SCHEME>
+      <PYTHON>функції</PYTHON>
+    </SPLITINLINE>
+    , є складеними (непримітивними).  Для узгодженості з термінологією,
+    ужитою в обчислювачі з явним керуванням, у цьому підрозділі ми вживатимемо
+    слово <QUOTE>складений</QUOTE> в значенні «інтерпретований» (на противагу
+    «скомпільований»).</FOOTNOTE>
+
+    <SNIPPET EVAL="no">
+      <INDEX><DECLARATION>apply_dispatch</DECLARATION><SUBINDEX>modified for compiled code</SUBINDEX></INDEX>
+      <INDEX><DECLARATION>compiled_apply</DECLARATION></INDEX> 
+      <SCHEME>
+apply-dispatch
+  (test (op primitive-procedure?) (reg proc))
+  (branch (label primitive-apply))
+  (test (op compound-procedure?) (reg proc))  
+  (branch (label compound-apply))
+  (test (op compiled-procedure?) (reg proc))  
+  (branch (label compiled-apply))
+  (goto (label unknown-procedure-type))
+
+compiled-apply
+  (restore continue)
+  (assign val (op compiled-procedure-entry) (reg proc))
+  (goto (reg val))
+  </SCHEME>
+  <PYTHON>
+"apply_dispatch",
+  test(list(op("is_primitive_function"), reg("fun"))),
+  branch(label("primitive_apply")),
+  test(list(op("is_compound_function"), reg("fun"))),
+  branch(label("compound_apply")),
+  test(list(op("is_compiled_function"), reg("fun"))),
+  branch(label("compiled_apply")),
+  go_to(label("unknown_function_type")),
+
+"compiled_apply",
+  push_marker_to_stack(),
+  assign("val", list(op("compiled_function_entry"), reg("fun"))),
+  go_to(reg("val")),
+      </PYTHON>
+    </SNIPPET>
+    <SPLIT>
+      <SCHEME>
+        Зауважте відновлення <SCHEMEINLINE>continue</SCHEMEINLINE> за міткою
+        <SPLITINLINE>
+          <SCHEME>
+          <SCHEMEINLINE>compiled-apply</SCHEMEINLINE>.</SCHEME>
+          <PYTHON>
+	          <PYTHONINLINE>compiled_apply</PYTHONINLINE>.
+          </PYTHON>
+        </SPLITINLINE>
+        Пригадайте, що обчислювач було влаштовано так, що за міткою
+        <SPLITINLINE>
+          <SCHEME><SCHEMEINLINE>apply-dispatch</SCHEMEINLINE>,</SCHEME>
+          <PYTHON><PYTHONINLINE>apply_dispatch</PYTHONINLINE>,
+          </PYTHON>
+        </SPLITINLINE>
+        продовження було на верхівці стека.  Точка входу скомпільованого коду,
+        навпаки, очікує, що продовження лежить у
+        <SCHEMEINLINE>continue</SCHEMEINLINE>, тож
+        <SCHEMEINLINE>continue</SCHEMEINLINE> треба
+        відновити, перш ніж виконувати скомпільований код.
+      </SCHEME>
+      <PYTHON>
+        За міткою
+	<PYTHONINLINE>compiled_apply</PYTHONINLINE>, як і за міткою
+	<PYTHONINLINE>compound_apply</PYTHONINLINE>, ми кладемо мітку на стек,
+        щоб інструкція return у скомпільованій функції
+        могла повернути стек до цього стану.
+
+        Зауважте, що за міткою
+        <PYTHONINLINE>compiled_apply</PYTHONINLINE> немає збереження
+        <PYTHONINLINE>continue</PYTHONINLINE> перед
+        позначенням стека, бо обчислювач було
+        влаштовано так, що за міткою
+        <PYTHONINLINE>apply_dispatch</PYTHONINLINE>
+        продовження було на верхівці стека.
+      </PYTHON>
+    </SPLIT>
+  </TEXT>
+
+  <TEXT>
+    Щоб мати змогу виконати якийсь скомпільований код, коли ми запускаємо машину
+    обчислювача, ми додаємо на початку машини обчислювача інструкцію
+    <SCHEMEINLINE>branch</SCHEMEINLINE>, яка змушує машину
+    перейти до нової точки входу, якщо встановлено регістр <SCHEMEINLINE>flag</SCHEMEINLINE>
+    .<FOOTNOTE>Тепер, коли машина обчислювача починається
+    з <SCHEMEINLINE>branch</SCHEMEINLINE>, ми завжди мусимо ініціалізувати
+    регістр <SCHEMEINLINE>flag</SCHEMEINLINE>, перш ніж запускати машину
+    обчислювача.  Щоб запустити машину в її звичайному
+    циклі
+    <SPLITINLINE>
+      <SCHEME>
+	читання-обчислення-друк
+      </SCHEME>
+      <PYTHON>
+	читання-обчислення-друк
+      </PYTHON>
+    </SPLITINLINE>
+    , ми
+    могли б скористатися
+
+    <SNIPPET POSTPADDING="no">
+      <INDEX><DECLARATION>start_eceval</DECLARATION></INDEX> 
+      <NAME>start_eceval</NAME>
+      <REQUIRES>compile_and_go</REQUIRES>
+      <EXAMPLE>compile_and_go_example</EXAMPLE>
+      <SCHEME>
+(define (start-eceval)
+  (set! the-global-environment (setup-environment))
+  (set-register-contents! eceval 'flag false)
+  (start eceval))
+      </SCHEME>
+      <PYTHON>
+function start_eceval() {
+    set_register_contents(eceval, "flag", false);
+    return start(eceval);
+}
+      </PYTHON>
+      <PYTHON_RUN>
+      </PYTHON_RUN>
+    </SNIPPET></FOOTNOTE>
+    <SNIPPET LATEX="yes">
+      <SCHEME>
+  (branch (label external-entry))      ; branches if $\texttt{flag}$ is set
+read-eval-print-loop
+  (perform (op initialize-stack))
+  $\ldots$
+      </SCHEME>
+      <PYTHON>
+$\texttt{ }\texttt{ }$branch(label("external_entry")), // branches if flag is set    
+"read_evaluate_print_loop",
+  perform(list(op("initialize_stack"))),
+  $\ldots$
+      </PYTHON>
+    </SNIPPET>
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>External-entry</SCHEMEINLINE></SCHEME>
+      <PYTHON>Код за міткою <PYTHONINLINE>external_entry</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    припускає, що машина запускається з <SCHEMEINLINE>val</SCHEMEINLINE>,
+    який містить місце послідовності інструкцій, що кладе результат у
+    <SCHEMEINLINE>val</SCHEMEINLINE> і завершується
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>(goto (reg continue))</SCHEMEINLINE>.</SCHEME>
+      <PYTHON><PYTHONINLINE>go_to(reg("continue"))</PYTHONINLINE>.
+      </PYTHON>
+    </SPLITINLINE>
+    Запуск із цієї точки входу перестрибує на місце, позначене
+    <SCHEMEINLINE>val</SCHEMEINLINE>, але спершу присвоює
+    <SCHEMEINLINE>continue</SCHEMEINLINE> так, щоб виконання повернулося до
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>print-result</SCHEMEINLINE>,</SCHEME>
+      <PYTHON><PYTHONINLINE>print_result</PYTHONINLINE>,
+      </PYTHON>
+    </SPLITINLINE>
+    який друкує значення в <SCHEMEINLINE>val</SCHEMEINLINE> і далі переходить
+    на початок
+    <SPLITINLINE>
+      <SCHEME>
+	читання-обчислення-друку
+      </SCHEME>
+      <PYTHON>
+	читання-обчислення-друку
+      </PYTHON>
+    </SPLITINLINE>
+    обчислювача.<FOOTNOTE>Оскільки
+    скомпільована
+    <SPLITINLINE>
+      <SCHEME>процедура</SCHEME>
+      <PYTHON>функція</PYTHON>
+    </SPLITINLINE>
+    є об’єктом, який система може спробувати надрукувати, ми також змінюємо
+    системну операцію друку
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>user-print</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>user_print</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    (з підрозділу<SPACE/><REF NAME="sec:running-eval"/>) так, щоб вона не
+    намагалася друкувати складники скомпільованої
+    <SPLITINLINE>
+      <SCHEME>процедури:</SCHEME>
+      <PYTHON>функції:</PYTHON>
+      </SPLITINLINE>
+
+      <SNIPPET EVAL="no">
+	<INDEX><DECLARATION>user_print</DECLARATION><SUBINDEX>modified for compiled code</SUBINDEX></INDEX>
+	<NAME>user_print_2</NAME>
+	<SCHEME>
+        (define (user-print object)
+        (cond ((compound-procedure? object)
+              (display (list 'compound-procedure
+              (procedure-parameters object)
+              (procedure-body object)
+              '&lt;procedure-env&gt;)))
+              ((compiled-procedure? object)
+              (display '&lt;compiled-procedure&gt;))
+              (else (display object))))
+      </SCHEME>
+      <PYTHON>
+function user_print(string, object) {
+    function prepare(object) {
+        return is_compound_function(object)
+               ? "&lt; compound function &gt;"
+               : is_primitive_function(object)
+               ? "&lt; primitive function &gt;"
+               : is_compiled_function(object)
+               ? "&lt; compiled function &gt;"
+               : is_pair(object)
+               ? pair(prepare(head(object)),
+                      prepare(tail(object)))
+               : object;
+    }
+    display(string + " " + stringify(prepare(object)));
+}
+      </PYTHON>
+      <PYTHON_RUN>
+function user_print(prompt_string, object) {
+   function to_string(object) {
+       return is_compound_function(object)
+              ? "&lt;compound-function&gt;"
+              : is_compiled_function(object)
+              ? "&lt;compiled-function&gt;"
+              : is_primitive_function(object)
+              ? "&lt;primitive-function&gt;"
+              : is_pair(object)
+              ? "[" + to_string(head(object)) + ", "
+                    + to_string(tail(object)) + "]"
+              : stringify(object);
+    }
+    display(prompt_string + "\n" + to_string(object) + "\n----------------------------");
+}
+      </PYTHON_RUN>
+    </SNIPPET></FOOTNOTE>
+    <SNIPPET EVAL="no">
+      <INDEX><DECLARATION>external_entry</DECLARATION></INDEX> 
+      <SCHEME>
+external-entry
+  (perform (op initialize-stack))
+  (assign env (op get-global-environment))
+  (assign continue (label print-result))
+  (goto (reg val))
+      </SCHEME>
+      <PYTHON>
+"external_entry",
+  perform(list(op("initialize_stack"))),
+  assign("env", list(op("get_current_environment"))),
+  assign("continue", label("print_result")),
+  go_to(reg("val")),
+      </PYTHON>
+    </SNIPPET>
+  </TEXT>
+
+  <INDEX>обчислювач із явним керуванням для Python<SUBINDEX>змінений для скомпільованого коду<CLOSE/></SUBINDEX></INDEX>
+  
+  <TEXT>
+    Тепер ми можемо скористатися наступною
+    <SPLITINLINE>
+      <SCHEME>процедурою</SCHEME>
+      <PYTHON>функцією</PYTHON>
+    </SPLITINLINE>
+    щоб скомпілювати
+    <SPLITINLINE>
+      <SCHEME>означення процедури,</SCHEME>
+      <PYTHON>означення функції,</PYTHON>
+    </SPLITINLINE>
+    виконати скомпільований код і запустити цикл
+    <SPLITINLINE>
+      <SCHEME>
+	читання-обчислення-друк
+      </SCHEME>
+      <PYTHON>
+	читання-обчислення-друк
+      </PYTHON>
+    </SPLITINLINE>
+    , щоб ми могли спробувати
+    <SPLITINLINE>
+      <SCHEME>процедуру.</SCHEME>
+      <PYTHON>функцію.</PYTHON>
+    </SPLITINLINE>
+    Оскільки ми хочемо, щоб скомпільований код
+    <SPLITINLINE>
+      <SCHEME>повернувся</SCHEME>
+      <PYTHON>перейшов</PYTHON>
+    </SPLITINLINE>
+    до місця в
+    <SCHEMEINLINE>continue</SCHEMEINLINE> зі своїм результатом у
+    <SCHEMEINLINE>val</SCHEMEINLINE>, ми компілюємо
+    <SPLITINLINE>
+      <SCHEME>вираз</SCHEME>
+      <PYTHON>програму</PYTHON>
+    </SPLITINLINE>
+    з ціллю <SCHEMEINLINE>val</SCHEMEINLINE> і
+    зв’язком
+    <SPLITINLINE>
+      <SCHEME>
+	<SCHEMEINLINE>return</SCHEMEINLINE>.
+      </SCHEME>
+      <PYTHON>
+	      <PYTHONINLINE>"return"</PYTHONINLINE>.
+      </PYTHON>
+    </SPLITINLINE>
+    Щоб перетворити об’єктний код, який породив компілятор, на виконувані інструкції
+    для регістрової машини обчислювача, ми користуємося
+    <SPLITINLINE>
+      <SCHEME>процедурою</SCHEME>
+      <PYTHON>функцією</PYTHON>
+    </SPLITINLINE>
+    <SCHEMEINLINE>assemble</SCHEMEINLINE> з
+    симулятора регістрових машин
+    (підрозділ<SPACE/><REF NAME="sec:assembler"/>).  
+    <SPLIT>
+      <PYTHON>
+	Щоб інтерпретована програма могла посилатися на імена, які
+	оголошено на верхньому рівні скомпільованої програми, ми
+        <INDEX>вибирання оголошень<SUBINDEX>у компіляторі</SUBINDEX></INDEX>	
+	вибираємо імена верхнього рівня й
+	розширюємо глобальне середовище, зв’язавши ці імена з
+	<PYTHONINLINE>"*unassigned*"</PYTHONINLINE>,
+	знаючи, що скомпільований код присвоїть їм
+	правильні значення.
+      </PYTHON>
+    </SPLIT>
+Тоді ми ініціалізуємо
+    регістр <SCHEMEINLINE>val</SCHEMEINLINE> так, щоб він указував на список
+    інструкцій, установлюємо
+    <SCHEMEINLINE>flag</SCHEMEINLINE> так, щоб обчислювач перейшов до
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>external-entry</SCHEMEINLINE>,</SCHEME>
+      <PYTHON><PYTHONINLINE>external_entry</PYTHONINLINE>,
+      </PYTHON>
+    </SPLITINLINE>
+    і запускаємо обчислювач.
+
+    <SNIPPET HIDE="yes">
+      <NAME>display_instructions</NAME>
+      <PYTHON>
+function stringify_list(xs) {
+    return is_null(member(head(xs),
+                   list("assign", "perform", "op", "label", "branch",
+                        "go_to", "save", "restore", "reg", "constant")))
+           ? "list(" + comma_separated(xs) + ")"
+           : head(xs) + "(" + comma_separated(tail(xs)) + ")";
+}
+function comma_separated(elements) {
+    return reduce((s, acc) => (stringify_instruction(s) +
+                               (acc === "" ? "" : ", " + acc)),
+                  "", elements);
+}
+function stringify_instruction(x) {
+    return is_string(x) || is_number(x) || is_undefined(x) || is_null(x)
+           ? stringify(x)
+           : stringify_list(x);
+}
+function display_instructions(instructions) {
+    return for_each(i => {display(stringify_instruction(i) + ","); },
+                    instructions);
+}
+      </PYTHON>
+    </SNIPPET>
+    <!-- FIXME: remove no_args, first_arg etc -->
+    <SNIPPET HIDE="yes">
+      <NAME>eceval_2</NAME>
+      <REQUIRES>prompt_for_input</REQUIRES>
+      <REQUIRES>the_global</REQUIRES>
+      <PYTHON>
+
+const eceval_operations = 
+    list(
+      // args
+      list("arg_expressions"      , arg_expressions),
+      list("function_expression"  , function_expression),
+      list("is_null"
+                                  , is_null),
+      list("head"        , head),
+      list("is_last_argument_expression"
+                                  , a => is_null(tail(a))),
+      list("tail"        , tail),
+
+      //arg
+      list("empty_arglist"        , () => null),
+      list("adjoin_arg"           , (val, argl) => append(argl,
+                                                      list(val))),
+
+      // comp (sequence)
+      list("first_statement"     , first_statement),
+      list("rest_statements"     , rest_statements),
+      list("is_last_statement"   , is_last_statement),
+      list("sequence_statements" , sequence_statements),
+
+      // eval functions from meta-circular evaluator
+      list("is_literal"  , is_literal),
+      list("literal_value"       , literal_value),
+      list("is_name"             , is_name),
+      list("symbol_of_name"      , symbol_of_name),
+      list("is_assignment"       , is_assignment),
+      list("assignment_symbol"   , assignment_symbol),
+      list("assignment_value_expression"
+                                 , assignment_value_expression),
+      list("assign_symbol_value" , assign_symbol_value),
+      list("is_declaration"      , is_declaration),
+      list("declaration_symbol"  , declaration_symbol),
+      list("declaration_value_expression"
+                                 , declaration_value_expression),
+      list("assign_symbol_value" , assign_symbol_value),
+      list("is_lambda_expression", is_lambda_expression),
+      list("lambda_parameter_symbols"
+                                 , lambda_parameter_symbols),
+      list("lambda_body"         , lambda_body),
+      list("is_return_statement" , is_return_statement),
+      list("return_expression"   , return_expression),
+      list("is_conditional"
+                                 , is_conditional),
+      list("conditional_predicate"
+				 , conditional_predicate),
+      list("conditional_consequent"
+                                 , conditional_consequent),
+      list("conditional_alternative"
+                                 , conditional_alternative),
+      list("is_sequence"         , is_sequence),
+      list("is_block"            , is_block),
+      list("block_body"          , block_body),
+      list("scan_out_declarations"
+                                 , scan_out_declarations),
+      list("list_of_unassigned"  , list_of_unassigned),
+      list("is_application"      , is_application),
+      list("is_primitive_function"
+                                 , is_primitive_function),
+      list("apply_primitive_function"
+                                 , apply_primitive_function),
+      list("is_compound_function", is_compound_function),
+      list("function_parameters" , function_parameters),
+      list("function_environment", function_environment),
+      list("function_body"       , function_body),
+      list("extend_environment"  , extend_environment),
+      list("make_function"       , make_function),
+
+      list("get_current_environment"
+                                 , get_current_environment),
+      list("set_current_environment"
+                                 , set_current_environment),
+
+      // Unsorted
+      list("is_function_definition"  , is_function_definition),
+      list("function_definition_body"  , function_definition_body),
+      list("function_definition_parameters"  , function_definition_parameters),
+      list("function_definition_name"  , function_definition_name),
+      list("function_decl_to_constant_decl", function_decl_to_constant_decl),
+      list("declaration_symbol"  , declaration_symbol),
+      list("is_operator_combination", is_operator_combination),
+      list("operator_combination_to_application", operator_combination_to_application),
+
+      // generic helpers
+      list("is_truthy", is_truthy),
+      list("is_falsy"                , x => ! is_truthy(x)), 
+      list("is_null", is_null),
+      list("is_pair"                 , is_pair),
+      list("is_number"               , is_number),
+      list("append"                  , append),
+      list("pair"                    , pair),
+
+      list(
+        "lookup_symbol_value"        , lookup_symbol_value),
+      list("get_current_environment" , get_current_environment),
+      list("set_current_environment" , set_current_environment),
+
+      list("user_read"               , prompt),
+      list("user_print"              , user_print),
+      list("parse"                   , parse),
+      list("display"                 , display),
+      list("make_compiled_function"  , make_compiled_function),
+      list("is_compiled_function"    , is_compiled_function),
+      list("compiled_function_env"   , compiled_function_env),
+      list("compiled_function_entry" , compiled_function_entry),
+      list("list"                    , list)
+      
+    );
+
+const eceval_controller =
+list(
+      branch(label("external_entry")), // branches if flag is set    
+
+      "read_evaluate_print_loop",
+      perform(list(op("initialize_stack"))),
+      assign("comp", list(op("user_read"), constant("EC-evaluate input:"))),
+      test(list(op("is_null"), reg("comp"))),
+      branch(label("evaluator_done")),
+      assign("comp", list(op("parse"), reg("comp"))),
+      assign("env", list(op("get_current_environment"))),
+
+      assign("val", list(op("scan_out_declarations"), reg("comp"))),
+      save("comp"), // temporarily store to comp
+      assign("comp", list(op("list_of_unassigned"), reg("val"))),
+      assign("env", list(op("extend_environment"), 
+                         reg("val"), reg("comp"), reg("env"))),
+      perform(list(op("set_current_environment"), reg("env"))),
+      restore("comp"),
+      assign("continue", label("print_result")),
+      go_to(label("eval_dispatch")),
+
+      "external_entry",
+      perform(list(op("initialize_stack"))),
+      assign("env", list(op("get_current_environment"))),
+      assign("continue", label("print_result")),
+      go_to(reg("val")),
+
+      "print_result",
+      perform(list(op("user_print"),
+                   constant("EC-evaluate value:"), reg("val"))),
+      go_to(label("read_evaluate_print_loop")), 
+
+      "eval_dispatch",
+      test(list(op("is_literal"), reg("comp"))),
+      branch(label("ev_literal")),
+      test(list(op("is_name"), reg("comp"))),
+      branch(label("ev_name")),
+      test(list(op("is_operator_combination"), reg("comp"))),
+      branch(label("ev_operator_combination")),
+      test(list(op("is_function_definition"), reg("comp"))),
+      branch(label("ev_function_definition")),
+      test(list(op("is_operator_combination"), reg("comp"))),
+      branch(label("ev_operator_combination")),
+      test(list(op("is_declaration"), reg("comp"))),
+      branch(label("ev_declaration")),
+      test(list(op("is_assignment"), reg("comp"))),
+      branch(label("ev_assignment")),
+      test(list(op("is_return_statement"), reg("comp"))),
+      branch(label("ev_return")),
+      test(list(op("is_conditional"), reg("comp"))),
+      branch(label("ev_conditional")),
+      test(list(op("is_lambda_expression"), reg("comp"))),
+      branch(label("ev_lambda")),
+      test(list(op("is_sequence"), reg("comp"))),
+      branch(label("ev_sequence_start")),
+      test(list(op("is_block"), reg("comp"))),
+      branch(label("ev_block")),
+      test(list(op("is_application"), reg("comp"))),
+      branch(label("ev_application")),
+      go_to(label("unknown_component_type")),
+
+      "ev_return",
+      revert_stack_to_marker(),
+      restore("continue"),
+      assign("comp", list(op("return_expression"), reg("comp"))),
+      go_to(label("eval_dispatch")),
+
+      "ev_literal",
+      assign("val", list(op("literal_value"), reg("comp"))),
+      go_to(reg("continue")),
+      
+      "ev_name",
+      assign("comp", list(op("symbol_of_name"), reg("comp"))),
+      assign("val", list(op("lookup_symbol_value"), reg("comp"), reg("env"))),
+      go_to(reg("continue")),
+      
+      "ev_lambda",
+      assign("unev", list(op("lambda_parameter_symbols"), reg("comp"))),
+      assign("comp", list(op("lambda_body"), reg("comp"))),
+      assign("val", list(op("make_function"),
+                         reg("unev"), reg("comp"), reg("env"))),
+      go_to(reg("continue")),
+
+      "ev_operator_combination",
+      assign("comp", list(op("operator_combination_to_application"),
+                          reg("comp"), reg("env"))),
+      
+      "ev_application",
+      save("continue"),
+      save("env"),
+      assign("unev", list(op("arg_expressions"), reg("comp"))),
+      save("unev"),
+      assign("comp", list(op("function_expression"), reg("comp"))),
+      assign("continue", label("ev_appl_did_function_expression")),
+      go_to(label("eval_dispatch")),
+      
+      "ev_appl_did_function_expression",
+      restore("unev"), // the args
+      restore("env"),
+      assign("argl", list(op("empty_arglist"))),
+      assign("fun", reg("val")), // the function_expression
+      test(list(op("is_null"),
+                reg("unev"))),
+      branch(label("apply_dispatch")),
+      save("fun"),
+      
+      "ev_appl_argument_expression_loop",
+      save("argl"),
+      assign("comp", list(op("head"), reg("unev"))),
+      test(list(op("is_last_argument_expression"),
+                reg("unev"))),
+      branch(label("ev_appl_last_arg")),
+      save("env"),
+      save("unev"),
+      assign("continue", label("ev_appl_accumulate_arg")),
+      go_to(label("eval_dispatch")),
+      
+      "ev_appl_accumulate_arg",
+      restore("unev"),
+      restore("env"),
+      restore("argl"),
+      assign("argl", list(op("adjoin_arg"),
+                          reg("val"), reg("argl"))),
+      assign("unev", list(op("tail"), reg("unev"))),
+      go_to(label("ev_appl_argument_expression_loop")),
+      
+      "ev_appl_last_arg",
+      assign("continue", label("ev_appl_accum_last_arg")),
+      go_to(label("eval_dispatch")),
+      
+      "ev_appl_accum_last_arg",
+      restore("argl"),
+      assign("argl", list(op("adjoin_arg"),
+                          reg("val"), reg("argl"))),
+      restore("fun"),
+      go_to(label("apply_dispatch")),
+
+"compiled_apply",
+  push_marker_to_stack(),
+  assign("val", list(op("compiled_function_entry"), reg("fun"))),
+  go_to(reg("val")),
+      
+      "apply_dispatch",
+  test(list(op("is_compiled_function"), reg("fun"))),
+  branch(label("compiled_apply")),
+      test(list(op("is_primitive_function"),
+                reg("fun"))),
+      branch(label("primitive_apply")),
+      test(list(op("is_compound_function"),
+                reg("fun"))),
+      branch(label("compound_apply")),
+      go_to(label("unknown_function_type")),
+
+      "primitive_apply",
+      assign("val", list(op("apply_primitive_function"), 
+                         reg("fun"), 
+                         reg("argl"))),
+      restore("continue"),
+      go_to(reg("continue")),
+
+      "compound_apply",
+      assign("unev", list(op("function_parameters"), reg("fun"))),
+      assign("env", list(op("function_environment"), reg("fun"))),
+      assign("env", list(op("extend_environment"), 
+                         reg("unev"), reg("argl"), reg("env"))),
+      assign("comp", list(op("function_body"), reg("fun"))),
+      push_marker_to_stack(),
+      assign("continue", label("return_undefined")),
+      go_to(label("eval_dispatch")),
+
+      "return_undefined",
+      assign("val", constant(undefined)),
+      revert_stack_to_marker(),
+      restore("continue"),
+      go_to(reg("continue")),
+
+      "ev_block",
+      assign("comp", list(op("block_body"), reg("comp"))),
+      assign("val", list(op("scan_out_declarations"), reg("comp"))),
+
+      save("comp"), // temporarily store to comp
+      assign("comp", list(op("list_of_unassigned"), reg("val"))),
+      assign("env", list(op("extend_environment"), 
+                         reg("val"), 
+                         reg("comp"), 
+                         reg("env"))),
+      restore("comp"),
+      go_to(label("eval_dispatch")),
+
+"ev_sequence_start",
+      assign("unev", list(op("sequence_statements"), reg("comp"))),
+      save("continue"),
+
+"ev_sequence",
+      assign("comp", list(op("first_statement"), reg("unev"))),
+      test(list(op("is_last_statement"), reg("unev"))),
+      branch(label("ev_sequence_last_statement")),
+      save("unev"),
+      save("env"),
+      assign("continue", label("ev_sequence_continue")),
+      go_to(label("eval_dispatch")),
+      
+"ev_sequence_continue",
+      restore("env"),
+      restore("unev"),
+      assign("unev", list(op("rest_statements"), reg("unev"))),
+      go_to(label("ev_sequence")),
+ 
+"ev_sequence_last_statement",
+      restore("continue"),
+      go_to(label("eval_dispatch")),
+
+      "ev_conditional",
+      save("comp"), // save expression for later
+      save("env"),
+      save("continue"),
+      assign("continue", label("ev_conditional_decide")),
+      assign("comp", list(op("conditional_predicate"), reg("comp"))),
+      go_to(label("eval_dispatch")), // evaluate the predicate
+      
+      "ev_conditional_decide",
+      restore("continue"),
+      restore("env"),
+      restore("comp"),
+      test(list(op("is_falsy"), reg("val"))),
+      branch(label("ev_conditional_alternative")),
+      
+      "ev_conditional_consequent",
+      assign("comp", list(op("conditional_consequent"), reg("comp"))),
+      go_to(label("eval_dispatch")),
+      
+      "ev_conditional_alternative",
+      assign("comp", list(op("conditional_alternative"), reg("comp"))),
+      go_to(label("eval_dispatch")),
+      
+      "ev_assignment",
+      assign("unev", list(op("assignment_symbol"), reg("comp"))),
+      save("unev"), // save variable for later
+      assign("comp", list(op("assignment_value_expression"), reg("comp"))),
+      save("env"),
+      save("continue"),
+      assign("continue", label("ev_assignment_1")),
+      go_to(label("eval_dispatch")), // evaluate assignment value
+      
+      "ev_assignment_1",
+      restore("continue"),
+      restore("env"),
+      restore("unev"),
+      perform(list(op("assign_symbol_value"),
+                   reg("unev"), reg("val"), reg("env"))),
+      go_to(reg("continue")),
+      
+      "ev_function_definition",
+      assign("comp", list(op("function_decl_to_constant_decl"), reg("comp"))),
+      
+      "ev_declaration",
+      assign("unev", list(op("declaration_symbol"),
+                          reg("comp"))),
+      save("unev"), // save variable for later
+      assign("comp", list(op("declaration_value_expression"),
+                          reg("comp"))),
+      save("env"),
+      save("continue"),
+      assign("continue", label("ev_declaration_assign")),
+      go_to(label("eval_dispatch")), // evaluate declaration value
+      
+      "ev_declaration_assign",
+      restore("continue"),
+      restore("env"),
+      restore("unev"),
+      perform(list(op("assign_symbol_value"),
+                   reg("unev"), reg("val"), reg("env"))),
+      assign("val", constant(undefined)),
+      go_to(reg("continue")),
+      
+      // Error handling
+      "unknown_component_type",
+      assign("val", constant("Unknown expression type")),
+      go_to(label("signal_error")),
+      
+      "unknown_function_type",
+      restore("continue"), /// clean up stack (from apply_dispatch)
+      assign("val", constant("Unknown function type")),
+      go_to(label("signal_error")),
+      
+      "signal_error",
+      perform(list(op("user_print"),
+                   constant("EC-evaluator error:"), reg("comp"))),
+      go_to(label("read_evaluate_print_loop")),
+      
+      "evaluator_done"
+     );
+
+const eceval =
+    make_machine(list("comp", "env", "val", "fun",
+                      "argl", "continue", "unev"),
+                 eceval_operations,
+                 eceval_controller);
+      </PYTHON>
+    </SNIPPET>
+    <SNIPPET>
+      <INDEX><DECLARATION>compile_and_go</DECLARATION></INDEX>
+      <NAME>compile_and_go</NAME>
+      <EXAMPLE>compile_and_go_example</EXAMPLE>
+      <REQUIRES>headline_4_1_1</REQUIRES>
+      <REQUIRES>scan_out_declarations</REQUIRES>
+      <REQUIRES>list_of_unassigned</REQUIRES>
+      <REQUIRES>functions_4_1_2</REQUIRES>
+      <REQUIRES>functions_4_1_2</REQUIRES>
+      <REQUIRES>functions_4_1_3</REQUIRES>
+      <REQUIRES>functions_4_1_4</REQUIRES>
+      <REQUIRES>make_machine</REQUIRES>
+      <REQUIRES>start</REQUIRES>
+      <REQUIRES>compile</REQUIRES>
+      <REQUIRES>make_instruction_sequence</REQUIRES>
+      <REQUIRES>compile_linkage</REQUIRES>
+      <REQUIRES>end_with_linkage</REQUIRES>
+      <REQUIRES>compile_literal</REQUIRES>
+      <REQUIRES>compile_assignment</REQUIRES>
+      <REQUIRES>make_label</REQUIRES>
+      <REQUIRES>compile_conditional</REQUIRES>
+      <REQUIRES>compile_sequence</REQUIRES>
+      <REQUIRES>make_compiled_function</REQUIRES>
+      <REQUIRES>compile_lambda</REQUIRES>
+      <REQUIRES>compile_lambda_body</REQUIRES>
+      <REQUIRES>compile_return</REQUIRES>
+      <REQUIRES>compile_block</REQUIRES>
+      <REQUIRES>compile_application</REQUIRES>
+      <REQUIRES>construct_arglist</REQUIRES>
+      <REQUIRES>compile_function_call</REQUIRES>
+      <REQUIRES>all_regs</REQUIRES>
+      <REQUIRES>compile_fun_appl</REQUIRES>
+      <REQUIRES>registers_needed</REQUIRES>
+      <REQUIRES>needs_register</REQUIRES>
+      <REQUIRES>append_instruction_sequences</REQUIRES>
+      <REQUIRES>list_union</REQUIRES>
+      <REQUIRES>preserving</REQUIRES>
+      <REQUIRES>tack_on_instruction_sequence</REQUIRES>
+      <REQUIRES>parallel_instruction_sequences</REQUIRES>
+      <REQUIRES>user_print_2</REQUIRES>
+      <REQUIRES>eceval_2</REQUIRES>
+      <REQUIRES>display_instructions</REQUIRES>
+      <SCHEME>
+(define (compile-and-go expression)
+  (let ((instructions
+        (assemble (statements
+                   (compile expression 'val 'return))
+                  eceval)))
+    (set! the-global-environment (setup-environment))
+    (set-register-contents! eceval 'val instructions)
+    (set-register-contents! eceval 'flag true)
+    (start eceval)))
+      </SCHEME>
+      <!-- // display_instructions(
+           //      instructions(compile(program, "val", "return")));
+	   -->
+      <PYTHON>
+function compile_and_go(program) {
+    const instrs = assemble(instructions(compile(program,
+                                                 "val", "return")),
+                            eceval);
+    const toplevel_names = scan_out_declarations(program);
+    const unassigneds = list_of_unassigned(toplevel_names);
+    set_current_environment(extend_environment(
+                               toplevel_names,
+                               unassigneds, 
+                               the_global_environment));
+    set_register_contents(eceval, "val", instrs);
+    set_register_contents(eceval, "flag", true);
+    return start(eceval);
+}
+      </PYTHON>
+    </SNIPPET>
+  </TEXT>
+
+  <TEXT>
+    Якщо ми увімкнули стеження
+    <INDEX>компілятор для Python<SUBINDEX>вимірювання швидкодії (використання стека) скомпільованого коду</SUBINDEX></INDEX>
+    за стеком, як у кінці
+    підрозділу<SPACE/><REF NAME="sec:running-evaluator"/>, ми можемо дослідити
+    використання стека скомпільованим кодом:
+
+    <SNIPPET EVAL="no">
+      <NAME>compile_and_go_example_2</NAME>
+      <REQUIRES>compile_and_go</REQUIRES>
+      <SCHEME>
+(compile-and-go
+ '(define (factorial n)
+    (if (= n 1)
+        1
+        (* (factorial (- n 1)) n))))
+      </SCHEME>
+      <SCHEMEOUTPUT>
+(total-pushes = 0 maximum-depth = 0)
+;;; EC-Eval value:
+ok
+      </SCHEMEOUTPUT>
+      <PYTHON>
+compile_and_go(parse(`
+function factorial(n) {
+    return n === 1
+           ? 1
+           : factorial(n - 1) * n;
+}
+                     `));
+      </PYTHON>
+      <PYTHON_OUTPUT>
+total pushes = 0 
+maximum depth = 0
+EC-evaluate value:
+undefined
+      </PYTHON_OUTPUT>
+    </SNIPPET>
+    <SNIPPET EVAL="no">
+      <SCHEMEPROMPT>
+;;; EC-Eval input:
+      </SCHEMEPROMPT>
+      <SCHEME>
+(factorial 5)
+      </SCHEME>
+      <SCHEMEOUTPUT>
+(total-pushes = 31 maximum-depth = 14)
+;;; EC-Eval value:
+120
+      </SCHEMEOUTPUT>
+      <PYTHON_PROMPT>
+EC-evaluate input:
+     </PYTHON_PROMPT>
+      <PYTHON>
+factorial(5);
+      </PYTHON>
+      <PYTHON_OUTPUT>
+total pushes = 36 
+maximum depth = 14
+EC-evaluate value:
+120
+      </PYTHON_OUTPUT>
+    </SNIPPET>
+    Порівняйте
+    <INDEX>компілятор для Python<SUBINDEX>обчислювач із явним керуванням проти</SUBINDEX></INDEX>
+    цей приклад з обчисленням
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>(factorial 5)</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>factorial(5)</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    з використанням інтерпретованої версії тієї самої
+    <SPLITINLINE>
+      <SCHEME>процедури,</SCHEME>
+      <PYTHON>функції,</PYTHON>
+    </SPLITINLINE>
+    показаної в кінці підрозділу<SPACE/><REF NAME="sec:running-evaluator"/>.
+    <SPLITINLINE>
+      <SCHEME>
+        Інтерпретована версія потребувала 144 стекових операцій і максимальної глибини стека 28.
+      </SCHEME>
+      <PYTHON>
+        Інтерпретована версія потребувала 151 стекової операції і максимальної глибини стека 28.
+      </PYTHON>
+    </SPLITINLINE>
+    Це ілюструє оптимізацію, яку дає наша стратегія компіляції.
+  </TEXT>
+
+  <SUBHEADING>
+    <NAME>Інтерпретація і компіляція</NAME>
+  </SUBHEADING>
+
+  <INDEX>інтерпретатор<SUBINDEX>компілятор проти</SUBINDEX></INDEX>
+  <INDEX>компілятор<SUBINDEX>інтерпретатор проти</SUBINDEX></INDEX>
+
+  <TEXT>
+    З програмами з цього підрозділу ми тепер можемо поекспериментувати з
+    альтернативними стратегіями виконання — інтерпретацією і
+    компіляцією.<FOOTNOTE>Ми могли б зробити ще краще, розширивши компілятор
+    так, щоб скомпільований код міг викликати інтерпретовані
+    <SPLITINLINE>
+      <SCHEME>процедури.</SCHEME>
+      <PYTHON>функції.</PYTHON>
+    </SPLITINLINE>
+    Див. вправу<SPACE/><REF NAME="ex:compiled-call-interpreted"/>.</FOOTNOTE>
+    Інтерпретатор підносить машину до рівня програми користувача; а
+    компілятор опускає програму користувача до рівня машинної мови.
+    Ми можемо розглядати мову
+    <SPLITINLINE>
+      <SCHEME>
+        Scheme
+      </SCHEME>
+      <PYTHON>
+        Python
+      </PYTHON>
+    </SPLITINLINE>
+    (чи будь-яку мову програмування) як
+    цілісну родину абстракцій, зведених на машинній мові.
+    Інтерпретатори добрі для інтерактивної розробки програм і
+    зневадження, бо кроки виконання програми впорядковано в
+    термінах цих абстракцій, і тому вони зрозуміліші
+    програмістові.
+    Скомпільований код може виконуватися швидше, бо кроки виконання програми
+    впорядковано в термінах машинної мови, і компілятор вільний
+    робити оптимізації, які перетинають межі вищих за
+    рівнем абстракцій.<FOOTNOTE>Незалежно від стратегії виконання, нам
+    доводиться платити значні накладні витрати, якщо ми наполягаємо, щоб
+    <INDEX>опрацювання помилок<SUBINDEX>у скомпільованому коді</SUBINDEX></INDEX>
+    помилки, які трапляються під час
+    виконання програми користувача, було виявлено й повідомлено, а не
+    дозволено вбити систему чи дати хибні відповіді.  Наприклад,
+    вихід за межі масиву можна виявити, перевіривши допустимість
+    посилання, перш ніж його виконувати.  Проте накладні витрати перевірки
+    можуть багаторазово перевищувати вартість самого посилання на масив, і
+    програміст має зважити швидкість проти безпеки, вирішуючи, чи
+    така перевірка бажана.  Добрий компілятор має вміти породжувати
+    код із такими перевірками, має уникати надлишкових перевірок і має давати
+    програмістам змогу керувати обсягом і типом перевірок помилок у
+    скомпільованому коді.
+    <P/>
+      Компілятори популярних мов, як-от
+      <INDEX>C<SUBINDEX>опрацювання помилок</SUBINDEX></INDEX>
+      C та C++,
+      майже не вставляють операцій перевірки помилок у
+      робочий код, щоб усе виконувалося якнайшвидше.  Як
+      наслідок, явно забезпечувати перевірку помилок доводиться
+      програмістам.
+      На жаль, люди часто нехтують цим, навіть у
+      критичних застосунках, де швидкість не є обмеженням.  Їхні програми
+      живуть швидким і небезпечним життям.  Наприклад, сумнозвісний
+      <INDEX>Інтернет-<QUOTE>хробак</QUOTE></INDEX>
+      <QUOTE>хробак</QUOTE>,
+      який паралізував Інтернет 1988 року, скористався з того, що
+      <INDEX>UNIX</INDEX>
+      операційна система UNIX<LATEXINLINE>$^{\textrm{TM}}$</LATEXINLINE>
+      не перевіряла, чи не переповнився вхідний буфер у
+      демоні finger. (Див.
+      <INDEX>Spafford, Eugene H.</INDEX>
+      <CITATION NAME="SPA89">Spafford 1989</CITATION>.)
+  </FOOTNOTE>
+  </TEXT>
+
+  <TEXT>
+    Альтернативи інтерпретації та компіляції також ведуть до
+    різних стратегій
+    <INDEX>перенесення мови</INDEX>
+    перенесення мов на нові комп’ютери. Припустімо,
+    що ми хочемо реалізувати
+    <SPLITINLINE>
+      <SCHEME>Lisp</SCHEME>
+      <PYTHON>Python</PYTHON>
+    </SPLITINLINE>
+    для нової машини.  Одна стратегія — 
+    почати з обчислювача з явним керуванням із
+    підрозділу<SPACE/><REF NAME="sec:eceval"/>
+    і перекласти його інструкції на інструкції для
+    нової машини.  Інша стратегія — почати з компілятора і
+    змінити генератори коду так, щоб вони породжували код для нової
+    машини.  Друга стратегія дає нам змогу виконувати будь-яку
+    програму
+    <SPLITINLINE><SCHEME>Lisp</SCHEME>
+    <PYTHON>Python</PYTHON>
+    </SPLITINLINE>
+    на новій машині, спершу скомпілювавши її компілятором, який працює
+    в нашій
+    початковій системі <SPLITINLINE><SCHEME>Lisp</SCHEME><PYTHON>Python</PYTHON></SPLITINLINE>, і злінкувавши її зі скомпільованою версією бібліотеки
+    часу виконання.<FOOTNOTE>Звісно, і зі стратегією інтерпретації, і
+    зі стратегією компіляції ми мусимо також реалізувати для нової машини
+    виділення пам’яті, введення й виведення та всі різні операції, які ми
+    вважали <QUOTE>примітивними</QUOTE> в нашому обговоренні
+    обчислювача й компілятора.  Одна стратегія зменшення роботи тут —
+    написати якнайбільше цих операцій мовою
+    <SPLITINLINE>
+      <SCHEME>Lisp</SCHEME>
+      <PYTHON>Python</PYTHON>
+    </SPLITINLINE>
+    і тоді скомпілювати їх для нової машини.  Зрештою все зводиться
+    до невеликого ядра (як-от збирання сміття й механізм
+    застосування власне машинних примітивів), яке вручну закодовано для нової
+    машини.</FOOTNOTE>  Ще краще, ми можемо скомпілювати сам компілятор і запустити
+    його на новій машині, щоб компілювати інші програми
+    <SPLITINLINE><SCHEME>Lisp</SCHEME><PYTHON>Python</PYTHON></SPLITINLINE>.<FOOTNOTE>
+    Ця стратегія веде до кумедних перевірок правильності
+    компілятора, як-от перевірка того,
+    чи компіляція програми на новій машині за допомогою
+    скомпільованого компілятора ідентична до
+    компіляції цієї програми в початковій системі
+    <SPLITINLINE>
+      <SCHEME>Lisp</SCHEME>
+      <PYTHON>Python</PYTHON>
+    </SPLITINLINE>
+    .  Відшукування джерела розбіжностей — це забавка, але часто
+    прикра, бо результати надзвичайно чутливі до найменших
+    подробиць.</FOOTNOTE>  Або ми можемо скомпілювати один з інтерпретаторів із
+    підрозділу<SPACE/><REF NAME="sec:mc-eval"/>, щоб отримати інтерпретатор, який
+    працює на новій машині.
+  </TEXT>
+
+  <EXERCISE>
+    <LABEL NAME="ex:measure-factorial-ratio"/>
+    <INDEX>компілятор для Python<SUBINDEX>вимірювання швидкодії (використання стека) скомпільованого коду</SUBINDEX></INDEX>
+    <INDEX><USE>factorial</USE><SUBINDEX>використання стека, скомпільовано</SUBINDEX></INDEX>
+    Порівнюючи стекові операції, які використовує скомпільований код, зі стековими
+    операціями, які використовує обчислювач для того самого обчислення, ми можемо
+    визначити, якою мірою компілятор оптимізує використання стека,
+    і за швидкістю (зменшуючи загальну кількість стекових операцій), і за
+    обсягом пам’яті (зменшуючи максимальну глибину стека).  Порівняння цього оптимізованого
+    використання стека зі швидкодією спеціалізованої машини для того самого
+    обчислення дає певне уявлення про якість компілятора.
+    <OL>
+      <LI>
+	Вправа<SPACE/><REF NAME="ex:rec-fact"/> просила вас визначити як
+	функцію від <LATEXINLINE>$n$</LATEXINLINE> кількість стекових операцій і
+	максимальну глибину стека, потрібні обчислювачеві, щоб обчислити
+	<LATEXINLINE>$n!$</LATEXINLINE> за допомогою рекурсивної
+	<SPLITINLINE>
+	  <SCHEME>процедури</SCHEME>
+	  <PYTHON>функції</PYTHON>
+	</SPLITINLINE>
+	факторіала,
+	наведеної вище.  Вправа<SPACE/><REF NAME="ex:measure-fact"/> просила вас
+	зробити ті самі вимірювання для спеціалізованої машини для факторіала,
+	показаної на рисунку<SPACE/><REF NAME="fig:fact-machine"/>. Тепер виконайте той самий
+	аналіз для скомпільованої
+	<SPLITINLINE>
+	  <SCHEME>процедури</SCHEME>
+	  <PYTHON>функції</PYTHON>
+	</SPLITINLINE>
+	<SCHEMEINLINE>factorial</SCHEMEINLINE>
+	.
+	<TEXT>
+	  <PDF_ONLY>\quad</PDF_ONLY>
+	  Візьміть відношення кількості стекових операцій у скомпільованій версії до
+	  кількості стекових операцій в інтерпретованій версії, і зробіть те саме для
+	  максимальної глибини стека.  Оскільки кількість операцій і глибина
+	  стека, потрібні, щоб обчислити <LATEXINLINE>$n!$</LATEXINLINE>, лінійні за
+	  <LATEXINLINE>$n$</LATEXINLINE>, ці відношення мають
+	  прямувати до сталих, коли <LATEXINLINE>$n$</LATEXINLINE> зростає.
+	  Які це сталі? Так само знайдіть відношення використання стека
+	  спеціалізованою машиною до використання в інтерпретованій версії.
+	</TEXT>
+	<TEXT>
+	  <PDF_ONLY>\quad</PDF_ONLY>
+	Порівняйте відношення для спеціалізованого проти інтерпретованого коду з
+	відношеннями для скомпільованого проти інтерпретованого коду.  Ви маєте виявити, що
+	спеціалізована машина набагато ефективніша за скомпільований код, бо
+	вручну припасований код контролера має бути набагато кращим за те, що
+	породжує наш початковий компілятор загального призначення.
+	</TEXT>
+      </LI>
+      <LI>
+	Чи можете ви запропонувати вдосконалення компілятора, які допомогли б йому
+	породжувати код, ближчий за швидкодією до
+	вручну припасованої версії?
+      </LI>
+    </OL>
+  </EXERCISE>
+
+  <EXERCISE>
+    Виконайте аналіз, як у
+    вправі<SPACE/><REF NAME="ex:measure-factorial-ratio"/>, щоб визначити
+    ефективність компіляції деревно-рекурсивної
+    <INDEX>компілятор для Python<SUBINDEX>вимірювання швидкодії (використання стека) скомпільованого коду</SUBINDEX></INDEX>
+    <INDEX><USE>fib</USE><SUBINDEX>використання стека, скомпільовано</SUBINDEX></INDEX>
+    <SPLITINLINE>
+      <SCHEME>процедури</SCHEME>
+      <PYTHON>функції</PYTHON>
+    </SPLITINLINE>
+    для чисел Фібоначчі
+
+    <SNIPPET>
+      <SCHEME>
+(define (fib n)
+  (if (&lt; n 2)
+      n
+      (+ (fib (- n 1)) (fib (- n 2)))))
+      </SCHEME>
+      <PYTHON>
+function fib(n) { 
+    return n &lt; 2 ? n : fib(n - 1) + fib(n - 2); 
+}
+      </PYTHON>
+    </SNIPPET>
+    порівняно з ефективністю використання спеціалізованої машини для чисел Фібоначчі
+    з рисунка<SPACE/><REF NAME="fig:fib-machine"/>.  (Про вимірювання
+    швидкодії інтерпретованої версії див. вправу<SPACE/><REF NAME="ex:rec-fib"/>.)
+    Для чисел Фібоначчі витрачений час не лінійний за
+    <LATEXINLINE>$n$</LATEXINLINE>; отже відношення стекових операцій не
+    прямуватиме до граничного значення, незалежного від
+    <LATEXINLINE>$n$</LATEXINLINE>.
+    <LABEL NAME="ex:measure-fib-ratio"/>
+  </EXERCISE>
+
+  <EXERCISE>
+    У цьому підрозділі описано, як змінити обчислювач із явним керуванням так,
+    щоб інтерпретований код міг викликати скомпільовані
+    <SPLITINLINE>
+      <SCHEME>процедури.</SCHEME>
+    <PYTHON>функції.</PYTHON></SPLITINLINE>
+    Покажіть, як змінити компілятор так, щоб скомпільовані
+    <SPLITINLINE>
+      <SCHEME>процедури</SCHEME>
+      <PYTHON>функції</PYTHON>
+    </SPLITINLINE>
+    могли викликати не лише примітивні
+    <SPLITINLINE>
+      <SCHEME>процедури</SCHEME>
+      <PYTHON>функції</PYTHON>
+    </SPLITINLINE>
+    та скомпільовані
+    <SPLITINLINE>
+      <SCHEME>процедури,</SCHEME>
+      <PYTHON>функції,</PYTHON>
+    </SPLITINLINE>
+    а й інтерпретовані
+    <SPLITINLINE>
+      <SCHEME>процедури</SCHEME>
+      <PYTHON>функції</PYTHON>
+    </SPLITINLINE>
+    також.  Для цього треба змінити
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>compile-procedure-call</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>compile_function_call</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    так, щоб вона опрацьовувала випадок складених (інтерпретованих)
+    <SPLITINLINE>
+      <SCHEME>процедур.</SCHEME>
+      <PYTHON>функцій.</PYTHON>
+    </SPLITINLINE>
+    Обов’язково опрацюйте всі ті самі комбінації <SCHEMEINLINE>target</SCHEMEINLINE> і
+    <SCHEMEINLINE>linkage</SCHEMEINLINE>,
+    як у
+    <SPLITINLINE>
+      <SCHEME>
+	<SCHEMEINLINE>compile-proc-appl</SCHEMEINLINE>.
+      </SCHEME>
+      <PYTHON><PYTHONINLINE>compile_fun_appl</PYTHONINLINE>.
+      </PYTHON>
+    </SPLITINLINE>
+    Щоб виконати власне застосування
+    <SPLITINLINE>
+      <SCHEME>процедури</SCHEME>
+      <PYTHON>функції</PYTHON>
+    </SPLITINLINE>
+    , код має перестрибнути до точки входу
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>compound-apply</SCHEMEINLINE></SCHEME>
+      <PYTHON>
+	<PYTHONINLINE>compound_apply</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    обчислювача. На цю мітку не можна посилатися безпосередньо з об’єктного коду
+    (бо компонувальник вимагає, щоб усі мітки, на які посилається код,
+    який він компонує, було там означено), тож ми додамо до машини обчислювача регістр
+    <SCHEMEINLINE>compapp</SCHEMEINLINE>, щоб
+    зберігати цю точку входу, і додамо інструкцію для його ініціалізації:
+
+    <SNIPPET LATEX="yes">
+      <SCHEME>
+  (assign compapp (label compound-apply))
+  (branch (label external-entry))      ; branches if $\texttt{flag}$ is set
+read-eval-print-loop
+  $\ldots$
+      </SCHEME>
+      <PYTHON latex="yes"><!-- The $\texttt{ }\texttt{ }$ below is a hack to ensure the leading spaces are not consumed-->
+$\texttt{ }\texttt{ }$assign("compapp", label("compound_apply")),
+  branch(label("external_entry")),     // branches if flag is set
+"read_evaluate_print_loop",
+  $\ldots$
+      </PYTHON>
+    </SNIPPET>
+    Щоб перевірити свій код, почніть з
+    <SPLITINLINE>
+      <SCHEME>
+	означення
+      </SCHEME>
+      <PYTHON>
+	оголошення
+      </PYTHON>
+    </SPLITINLINE>
+    <SPLITINLINE>
+      <SCHEME>
+	процедури
+      </SCHEME>
+      <PYTHON>
+	функції
+      </PYTHON>
+    </SPLITINLINE>
+    <SCHEMEINLINE>f</SCHEMEINLINE>, яка викликає
+    <SPLITINLINE>
+      <SCHEME>
+	процедуру
+      </SCHEME>
+      <PYTHON>
+	функцію
+      </PYTHON>
+    </SPLITINLINE>
+    <SCHEMEINLINE>g</SCHEMEINLINE>.  Скористайтеся
+    <SPLITINLINE>
+      <SCHEME>
+	<SCHEMEINLINE>compile-and-go</SCHEMEINLINE>
+      </SCHEME>
+      <PYTHON>
+	<PYTHONINLINE>compile_@and_@go</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    щоб скомпілювати
+    <SPLITINLINE>
+      <SCHEME>
+	означення
+      </SCHEME>
+      <PYTHON>
+	оголошення
+      </PYTHON>
+    </SPLITINLINE>
+    <SCHEMEINLINE>f</SCHEMEINLINE>
+    і запустити обчислювач.  Тепер, набираючи в обчислювачі,
+    <SPLITINLINE>
+      <SCHEME>
+	означте
+	<SCHEMEINLINE>g</SCHEMEINLINE> і спробуйте викликати
+	<SCHEMEINLINE>f</SCHEMEINLINE>.
+      </SCHEME>
+      <PYTHON>
+	оголосіть 
+	<SCHEMEINLINE>g</SCHEMEINLINE> і спробуйте викликати
+	<SCHEMEINLINE>f</SCHEMEINLINE>.
+      </PYTHON>
+    </SPLITINLINE>
+    <LABEL NAME="ex:compiled-call-interpreted"/>
+  </EXERCISE>
+
+  <EXERCISE>
+    Інтерфейс
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>compile-and-go</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>compile_and_go</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    , реалізований у цьому підрозділі, є
+    незручним, бо компілятор можна викликати лише раз (коли
+    запускають машину обчислювача).  Доповніть інтерфейс
+    компілятор<ENDASH/><PDF_ONLY>\linebreak[2]</PDF_ONLY>обчислювач,
+    додавши примітив
+    <INDEX><USE>compile_and_run</USE></INDEX> 
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>compile-and-run</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>compile_and_run</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    який можна викликати зсередини обчислювача
+    з явним керуванням так:
+
+    <SNIPPET EVAL="no" POSTPADDING="no">
+      <SCHEMEPROMPT>
+;;; EC-Eval input:
+      </SCHEMEPROMPT>
+      <SCHEME>
+(compile-and-run
+ '(define (factorial n)
+    (if (= n 1)
+        1
+        (* (factorial (- n 1)) n))))
+      </SCHEME>
+      <SCHEMEOUTPUT>
+;;; EC-Eval value:
+ok
+      </SCHEMEOUTPUT>
+      <PYTHON_PROMPT>
+EC-evaluate input:
+     </PYTHON_PROMPT>
+      <PYTHON>
+compile_and_run(parse(`
+function factorial(n) {
+    return n === 1
+           ? 1
+           : factorial(n - 1) * n;
+}
+                      `));
+      </PYTHON>
+      <PYTHON_OUTPUT>
+EC-evaluate value:
+undefined
+      </PYTHON_OUTPUT>
+    </SNIPPET>
+    <SNIPPET POSTPADDING="no">
+      <SCHEMEPROMPT>
+;;; EC-Eval input:
+      </SCHEMEPROMPT>
+      <SCHEME>
+(factorial 5)
+      </SCHEME>
+      <SCHEMEOUTPUT>
+;;; EC-Eval value:
+120
+      </SCHEMEOUTPUT>
+      <PYTHON_PROMPT>
+EC-evaluate input:
+     </PYTHON_PROMPT>
+      <PYTHON>
+factorial(5)
+      </PYTHON>
+      <PYTHON_OUTPUT>
+EC-Eval value:
+120
+      </PYTHON_OUTPUT>
+    </SNIPPET>
+    <LABEL NAME="ex:5_51"/>
+  </EXERCISE>
+
+  <EXERCISE>
+    Як альтернативу до використання циклу
+    <SPLITINLINE>
+      <SCHEME>
+	читання-обчислення-друк
+      </SCHEME>
+      <PYTHON>
+	читання-обчислення-друк
+      </PYTHON>
+    </SPLITINLINE>
+    обчислювача з явним керуванням, спроєктуйте регістрову машину, яка виконує цикл
+    читання-компіляція-виконання-друк.  Тобто машина має виконувати
+    цикл, який читає
+    <SPLITINLINE>
+      <SCHEME>
+	вираз,
+      </SCHEME>
+      <PYTHON>
+	програму,
+      </PYTHON>
+    </SPLITINLINE>
+    компілює його, компонує та
+    виконує отриманий код, і друкує результат.  Це легко
+    запустити в нашій симульованій конфігурації, бо ми можемо організувати виклик
+    <SPLITINLINE>
+      <SCHEME>процедур</SCHEME>
+      <PYTHON>функцій</PYTHON>
+    </SPLITINLINE>
+    <SCHEMEINLINE>compile</SCHEMEINLINE> і
+    <SCHEMEINLINE>assemble</SCHEMEINLINE> як <QUOTE>операцій
+    регістрової машини</QUOTE>.
+    <LABEL NAME="ex:read-compile-execute"/>
+  </EXERCISE>
+
+  <EXERCISE>
+    Скористайтеся компілятором, щоб скомпілювати
+    <INDEX>метамовний обчислювач для Python<SUBINDEX>компіляція</SUBINDEX></INDEX>
+    метамовний обчислювач із
+    підрозділу<SPACE/><REF NAME="sec:mc-eval"/>, і запустіть цю програму за допомогою
+    симулятора регістрових машин.
+    <SPLIT>
+      <SCHEME>
+	      (Щоб скомпілювати кілька означень за раз,
+	      можете спакувати означення в
+	      <SCHEMEINLINE>begin</SCHEMEINLINE>.)
+      </SCHEME>
+      <PYTHON>
+        Оскільки синтаксичний аналізатор бере на вході рядок, вам доведеться
+        перетворити програму на рядок. Найпростіший спосіб зробити це —
+        скористатися зворотними лапками (<PYTHONINLINE>`</PYTHONINLINE>),
+        як ми робили для прикладів входу до
+	<PYTHONINLINE>compile_and_go</PYTHONINLINE> і
+        <PYTHONINLINE>compile_and_run</PYTHONINLINE>. 
+      </PYTHON>
+    </SPLIT>
+    Отриманий інтерпретатор працюватиме дуже повільно через множинні
+    рівні інтерпретації, але примусити всі подробиці працювати — це
+    повчальна вправа.
+    <LABEL NAME="ex:5_53"/>
+  </EXERCISE>
+
+  <EXERCISE>
+    Розробіть початкову реалізацію
+    <SPLITINLINE>
+      <SCHEME>Scheme</SCHEME>
+      <PYTHON>Python</PYTHON>
+    </SPLITINLINE>
+    мовою
+    <INDEX>C<SUBINDEX>інтерпретатор Python, написаний</SUBINDEX></INDEX>
+    C (або якоюсь іншою низькорівневою мовою на ваш вибір), переклавши
+    обчислювач із явним керуванням із підрозділу<SPACE/><REF NAME="sec:eceval"/>
+    на C.  Щоб запустити цей код, вам доведеться також
+    надати відповідні процедури виділення пам’яті та іншу підтримку
+    часу виконання.
+    <LABEL NAME="ex:interp-in-C"/>
+  </EXERCISE>
+
+  <EXERCISE>
+    Як противагу до вправи<SPACE/><REF NAME="ex:interp-in-C"/>, змініть
+    компілятор так, щоб він компілював
+    <SPLITINLINE>
+      <SCHEME>процедури Scheme</SCHEME>
+      <PYTHON>функції Python</PYTHON>
+    </SPLITINLINE>
+    у послідовності
+    <INDEX>C<SUBINDEX>компіляція Python у</SUBINDEX></INDEX>
+    <INDEX>C<SUBINDEX>інтерпретатор Python, написаний</SUBINDEX></INDEX>
+    <INDEX>метамовний обчислювач для Python<SUBINDEX>компіляція</SUBINDEX></INDEX>
+    інструкцій C.  Скомпілюйте метамовний обчислювач із
+    підрозділу<SPACE/><REF NAME="sec:mc-eval"/>, щоб отримати
+    інтерпретатор
+    <SPLITINLINE>
+      <SCHEME>Scheme</SCHEME>
+      <PYTHON>Python</PYTHON>
+    </SPLITINLINE>  
+    , написаний мовою C.
+    <LABEL NAME="ex:compiler-in-C"/>
+  </EXERCISE>
+
+  <INDEX>компілятор для Python<SUBINDEX>сполучення з обчислювачем<CLOSE/></SUBINDEX></INDEX>
+  <INDEX>компілятор для Python<SUBINDEX>запуск скомпільованого коду<CLOSE/></SUBINDEX></INDEX>
+  <INDEX>компілятор для Python<CLOSE/></INDEX>
+
+</SUBSECTION>
+

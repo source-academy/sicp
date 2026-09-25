@@ -1,0 +1,264 @@
+<SECTION>
+  <NAME>Проєктування регістрових машин</NAME>
+
+  <SECTIONCONTENT/>
+
+  <LABEL NAME="sec:designing-register-machines"/>
+
+  <INDEX>регістрова машина<SUBINDEX>проєктування<OPEN/></SUBINDEX></INDEX>
+  <INDEX>регістрова машина<SUBINDEX>шляхи даних<OPEN/></SUBINDEX></INDEX>
+  <INDEX>регістрова машина<SUBINDEX>контролер<OPEN/></SUBINDEX></INDEX>
+  <INDEX>шляхи даних регістрової машини<OPEN/></INDEX>
+  <INDEX>контролер регістрової машини<OPEN/></INDEX>
+  <INDEX>операція<SUBINDEX>у регістровій машині<OPEN/></SUBINDEX></INDEX>
+
+  <TEXT>
+    Щоб спроєктувати регістрову машину, ми мусимо спроєктувати її <EM>шляхи даних</EM>
+    (регістри та операції) і <EM>контролер</EM>, який упорядковує
+    ці операції.  Щоб проілюструвати проєктування простої регістрової
+    машини, розгляньмо алгоритм Евкліда, який використовують для обчислення
+    <INDEX><USE>gcd</USE><SUBINDEX>регістрова машина для<OPEN/></SUBINDEX></INDEX>
+    найбільшого спільного дільника (НСД) двох цілих чисел.  Як ми бачили в
+    підрозділі<SPACE/><REF NAME="sec:gcd"/>,
+    <INDEX>алгоритм Евкліда</INDEX>
+    алгоритм Евкліда можна
+    подати як ітеративний процес, заданий такою
+    <SPLITINLINE>
+      <SCHEME>процедурою:</SCHEME>
+      <PYTHON>функцією:</PYTHON>
+      </SPLITINLINE>
+    <SNIPPET>
+      <EXAMPLE>gcd_example</EXAMPLE>	
+      <SCHEME>
+(define (gcd a b)
+  (if (= b 0)
+      a
+      (gcd b (remainder a b))))
+      </SCHEME>
+      <PYTHON>
+def gcd(a, b):
+    return a if b == 0 else gcd(b, a % b)
+</PYTHON>
+    </SNIPPET>
+  </TEXT>
+
+  <TEXT>
+    Машина, яка виконує цей алгоритм, має відстежувати два числа,
+    <LATEXINLINE>$a$</LATEXINLINE> та<SPACE/><LATEXINLINE>$b$</LATEXINLINE>, тож припустімо,
+    що ці числа зберігаються в пам’яті двох регістрів із тими самими іменами.
+    Базові операції, які потрібні, — це перевірка, чи вміст регістра
+    <SCHEMEINLINE>b</SCHEMEINLINE> дорівнює нулю, і обчислення остачі від ділення
+    вмісту регістра <SCHEMEINLINE>a</SCHEMEINLINE> на вміст
+    регістра <SCHEMEINLINE>b</SCHEMEINLINE>.
+
+    Операція взяття остачі — це складний процес, але припустімо на мить, що
+    у нас є примітивний пристрій, який обчислює остачі. На кожному циклі
+    алгоритму НСД вміст регістра <SCHEMEINLINE>a</SCHEMEINLINE> треба
+    замінити вмістом регістра <SCHEMEINLINE>b</SCHEMEINLINE>, а
+    вміст <SCHEMEINLINE>b</SCHEMEINLINE> треба замінити остачею
+    від ділення старого вмісту <SCHEMEINLINE>a</SCHEMEINLINE> на
+    старий вміст <SCHEMEINLINE>b</SCHEMEINLINE>. Було б зручно,
+    якби ці заміни можна було робити одночасно, але в нашій моделі
+    регістрових машин ми припускатимемо, що на кожному кроці нове значення
+    можна присвоїти лише одному регістру. Щоб виконати ці заміни, наша машина
+    використає третій, <QUOTE>тимчасовий</QUOTE>, регістр, який ми назвемо
+    <SCHEMEINLINE>t</SCHEMEINLINE>. (Спершу остачу буде покладено в
+    <SCHEMEINLINE>t</SCHEMEINLINE>, потім вміст
+    <SCHEMEINLINE>b</SCHEMEINLINE> буде покладено в
+    <SCHEMEINLINE>a</SCHEMEINLINE>, і нарешті остачу, збережену в
+    <SCHEMEINLINE>t</SCHEMEINLINE>, буде покладено в
+    <SCHEMEINLINE>b</SCHEMEINLINE>.)
+  </TEXT>
+
+  <TEXT>
+    Регістри й операції, потрібні цій машині, ми можемо проілюструвати
+    за допомогою
+    <INDEX>шляхи даних регістрової машини<SUBINDEX>діаграма шляхів даних</SUBINDEX></INDEX>
+    <INDEX>регістрова машина<SUBINDEX>діаграма шляхів даних</SUBINDEX></INDEX>
+    діаграми шляхів даних, показаної на
+    рисунку<SPACE/><REF NAME="fig:gcd-machine"/>.  На цій
+    діаграмі регістри (<SCHEMEINLINE>a</SCHEMEINLINE>,
+    <SCHEMEINLINE>b</SCHEMEINLINE> і <SCHEMEINLINE>t</SCHEMEINLINE>)
+    подано прямокутниками.  Кожен спосіб присвоїти значення регістру
+    позначено стрілкою, яка має <SPLITINLINE><SCHEME>позначку <SCHEMEINLINE>X</SCHEMEINLINE></SCHEME><PYTHON>кнопку<EMDASH/>намальовану як <LATEXINLINE>$\otimes$</LATEXINLINE><EMDASH/></PYTHON></SPLITINLINE> позаду 
+    вістря і вказує від джерела даних до регістра.  
+    <SPLITINLINE><SCHEME>Позначку <SCHEMEINLINE>X</SCHEMEINLINE> можна уявити як кнопку, натиснувши яку,</SCHEME><PYTHON>Коли кнопку натиснуто, вона</PYTHON></SPLITINLINE> ми
+    даємо значенню в джерелі <QUOTE>перетекти</QUOTE> до призначеного регістра.
+    Напис біля кожної кнопки — це ім’я, яким ми називатимемо
+    кнопку.  Назви довільні, і їх можна вибрати так, щоб вони мали мнемонічне
+    значення (наприклад, <SCHEMEINLINE>a&lt;-b</SCHEMEINLINE> позначає натискання
+    кнопки, яка присвоює вміст регістра <SCHEMEINLINE>b</SCHEMEINLINE>
+    регістру <SCHEMEINLINE>a</SCHEMEINLINE>).  Джерелом даних для
+    регістра може бути інший регістр (як у присвоєнні
+    <SCHEMEINLINE>a&lt;-b</SCHEMEINLINE>), результат операції (як у
+    присвоєнні <SCHEMEINLINE>t&lt;-r</SCHEMEINLINE>) або константа
+    (вбудоване значення, яке не можна змінити; на діаграмі шляхів даних
+    його подають трикутником, що містить константу).
+  </TEXT>
+
+  <TEXT>
+    Операцію, яка обчислює значення з констант і вмісту
+    регістрів, на діаграмі шляхів даних подають трапецією,
+    що містить назву операції.  Наприклад, блок із позначкою
+    <SCHEMEINLINE>rem</SCHEMEINLINE> на
+    рисунку<SPACE/><REF NAME="fig:gcd-machine"/> подає операцію, яка
+    обчислює остачу від ділення вмісту регістрів
+    <SCHEMEINLINE>a</SCHEMEINLINE> і <SCHEMEINLINE>b</SCHEMEINLINE>, до яких
+    її приєднано.  Стрілки (без кнопок) ведуть від вхідних регістрів і
+    констант до блоку, а стрілки з’єднують вихідне значення операції
+    з регістрами. Перевірку подають кругом, що містить назву
+    перевірки.  Наприклад, наша машина для НСД має операцію, яка перевіряє, чи
+    вміст регістра <SCHEMEINLINE>b</SCHEMEINLINE> дорівнює нулю.  У
+    <INDEX>операція перевірки в регістровій машині</INDEX>
+    <INDEX>регістрова машина<SUBINDEX>операція перевірки</SUBINDEX></INDEX>
+    перевірки теж є стрілки від її вхідних
+    регістрів і констант, але немає вихідних
+    стрілок; її значення використовує контролер, а не шляхи
+    даних.  Загалом діаграма шляхів даних показує регістри та
+    операції, потрібні машині, і те, як їх треба зв’язати між собою.  Якщо ми
+    розглянемо стрілки як проводи, а
+    <SPLITINLINE><SCHEME><SCHEMEINLINE>X</SCHEMEINLINE></SCHEME><PYTHON><LATEXINLINE>$\otimes$</LATEXINLINE></PYTHON></SPLITINLINE> кнопки як перемикачі, то діаграма шляхів даних
+    дуже схожа на монтажну схему машини, яку можна було б зібрати
+    з електричних компонентів.
+    <FIGURE>
+      <FIGURE split_scale="0.3" web_scale="0.6" src="img_original/Fig5.1a.std.svg"/>
+      <LABEL NAME="fig:gcd-machine"/>
+      <CAPTION>Шляхи даних машини для НСД. </CAPTION>
+    </FIGURE>
+  </TEXT>
+
+  <TEXT>
+    Щоб шляхи даних справді обчислювали НСД, кнопки треба
+    натискати в правильній послідовності.  Ми опишемо цю послідовність
+    у термінах
+    <INDEX>регістрова машина<SUBINDEX>діаграма контролера</SUBINDEX></INDEX>
+    <INDEX>контролер регістрової машини<SUBINDEX>діаграма контролера</SUBINDEX></INDEX>
+    діаграми контролера, як показано на
+    рисунку<SPACE/><REF NAME="fig:gcd-controller"/>.  Елементи
+    діаграми контролера вказують, як треба задіяти компоненти шляхів даних.
+    Прямокутні блоки на діаграмі контролера позначають кнопки шляхів даних,
+    які треба натиснути, а стрілки описують перехід від одного кроку до
+    наступного.  Ромб на діаграмі подає рішення.  Буде вибрано одну з двох
+    стрілок переходу, залежно від значення перевірки шляхів даних,
+    позначеної в ромбі.  Контролер можна витлумачити
+    через фізичну аналогію: уявіть цю діаграму як лабіринт, у якому котиться
+    кулька.  Коли кулька вкочується в блок, вона натискає кнопку шляхів даних,
+    названу цим блоком.  Коли кулька вкочується у вузол рішення (як-от
+    перевірка на
+    <SCHEMEINLINE>b</SCHEMEINLINE><LATEXINLINE>$\, =0$</LATEXINLINE>), вона виходить
+    з вузла шляхом, визначеним результатом зазначеної перевірки.
+    Взяті разом, шляхи даних і контролер повністю описують
+    машину для обчислення НСД.  Ми запускаємо контролер (кульку, що котиться)
+    у місці, позначеному <SCHEMEINLINE>start</SCHEMEINLINE>, після того як
+    покладемо числа в регістри <SCHEMEINLINE>a</SCHEMEINLINE> і
+    <SCHEMEINLINE>b</SCHEMEINLINE>.  Коли контролер дійде до
+    <SCHEMEINLINE>done</SCHEMEINLINE>, ми знайдемо значення НСД у
+    регістрі <SCHEMEINLINE>a</SCHEMEINLINE>.
+    <WEB_ONLY>
+      <!-- Figure code is duplicated in subsection1.xml in a PDF_ONLY -->
+    <FIGURE>
+      <FIGURE split_scale="0.2" web_scale="0.4" src="img_original/Fig5.2.std.svg"/>
+      <LABEL NAME="fig:gcd-controller"/>
+      <CAPTION>Контролер машини для НСД.</CAPTION>
+    </FIGURE>
+    </WEB_ONLY>
+  </TEXT>
+
+  <INDEX><USE>gcd</USE><SUBINDEX>регістрова машина для<CLOSE/></SUBINDEX></INDEX>
+  
+  <EXERCISE>
+    <LABEL NAME="ex:iterative-fact"/>
+    Спроєктуйте регістрову машину для обчислення
+    <INDEX><USE>factorial</USE><SUBINDEX>регістрова машина для (ітеративна)</SUBINDEX></INDEX>
+    факторіалів за ітеративним
+    алгоритмом, заданим такою
+    <SPLITINLINE POSTPADDING="no">
+      <SCHEME>процедурою.</SCHEME>
+      <PYTHON>функцією.</PYTHON>
+    </SPLITINLINE>
+    Намалюйте діаграми шляхів даних і
+    контролера для цієї машини.
+    <SNIPPET POSTPADDING="no">
+      <EXAMPLE>factorial_example</EXAMPLE>
+      <SCHEME>
+(define (factorial n)
+  (define (iter product counter)
+    (if (&gt; counter n)
+        product
+        (iter (* counter product)
+              (+ counter 1))))
+  (iter 1 1))
+      </SCHEME>
+      <PYTHON>
+def factorial(n):
+    def iter(product, counter):
+        return product if counter &gt; n else iter(counter * product, counter + 1)
+    return iter(1, 1)
+</PYTHON>
+    </SNIPPET>
+    <SOLUTION>
+      (Розв’язок користувача GitHub escolmebartlebooth)
+      У <PYTHONINLINE>factorial(n)</PYTHONINLINE> функція
+      <PYTHONINLINE>iter(product, counter)</PYTHONINLINE> отримує початкові
+      значення з аргументів <PYTHONINLINE>(1, 1)</PYTHONINLINE> і працює, доки
+      <PYTHONINLINE>counter > n</PYTHONINLINE>, після чого повертає добуток.
+      На відміну від <PYTHONINLINE>gcd(a, b)</PYTHONINLINE>, регістрова
+      машина не потребує тимчасового регістра, якщо дотримуватися
+      правильного порядку присвоєння регістрам.
+
+      На шляхах даних ми бачимо три регістри:
+      <PYTHONINLINE>product</PYTHONINLINE>,
+      <PYTHONINLINE>counter</PYTHONINLINE> та
+      <PYTHONINLINE>n</PYTHONINLINE>. Є дві операції:
+      <PYTHONINLINE>multiply</PYTHONINLINE> і
+      <PYTHONINLINE>plus</PYTHONINLINE> з двома присвоєннями.
+      Є одна перевірка: <PYTHONINLINE>greater than</PYTHONINLINE>.
+
+      <FIGURE src="img_javascript/ex5-1-solution-1.png">
+	<LABEL NAME= "ex:5-1"/>
+      </FIGURE>
+
+      Що ж до контролера, то ми починаємо з того, що наповнюємо три регістри
+      потрібним факторіалом <PYTHONINLINE>n</PYTHONINLINE> і значенням
+      <PYTHONINLINE>1</PYTHONINLINE> (задаємо початкові значення
+      <PYTHONINLINE>product</PYTHONINLINE> і
+      <PYTHONINLINE>counter</PYTHONINLINE>). Функція
+      <PYTHONINLINE>iter</PYTHONINLINE> працює й перевіряє, чи
+      <PYTHONINLINE>counter > n</PYTHONINLINE>. Якщо
+      <PYTHONINLINE>counter &lt;= n</PYTHONINLINE>, то
+      <PYTHONINLINE>product</PYTHONINLINE> оновлюють до
+      <PYTHONINLINE>product * counter</PYTHONINLINE>, після чого counter
+      оновлюють до
+      <PYTHONINLINE>counter + 1</PYTHONINLINE> і процес повторюють, доки
+      <PYTHONINLINE>counter > n</PYTHONINLINE>. Щойно counter стане > n, добуток
+      і є
+      <PYTHONINLINE>factorial(n)</PYTHONINLINE> і його можна повернути.
+
+      <FIGURE src="img_javascript/ex5-1-solution-2.png">
+	<LABEL NAME= "ex:5-1-2"/>
+      </FIGURE>
+    </SOLUTION>
+  </EXERCISE>
+
+  <INDEX>шляхи даних регістрової машини<CLOSE/></INDEX>
+  <INDEX>контролер регістрової машини<CLOSE/></INDEX>
+  <INDEX>регістрова машина<SUBINDEX>шляхи даних<CLOSE/></SUBINDEX></INDEX>
+  <INDEX>регістрова машина<SUBINDEX>контролер<CLOSE/></SUBINDEX></INDEX>
+  <INDEX>операція<SUBINDEX>у регістровій машині<CLOSE/></SUBINDEX></INDEX>
+
+  <!-- Subsection 1 : A Language for Describing Register Machines -->
+  &amp;subsection5.1.1;
+
+  <!-- Subsection 2 : Abstraction in Machine Design -->
+  &amp;subsection5.1.2;
+
+  <!-- Subsection 3 : Subroutines -->
+  &amp;subsection5.1.3;
+
+  <!-- Subsection 4 : Using a Stack to Implement Recursion -->
+  &amp;subsection5.1.4;
+
+  <!-- Subsection 5 : Instruction Summary -->
+  &amp;subsection5.1.5;
+
+</SECTION>

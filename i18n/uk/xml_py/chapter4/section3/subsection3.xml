@@ -1,0 +1,2293 @@
+<SUBSECTION>
+  <NAME>
+    Реалізація обчислювача
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>Amb</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>amb</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+  </NAME>
+
+  <LABEL NAME="sec:amb-implementation"/>
+
+  <INDEX>недетермінований обчислювач<OPEN/></INDEX>
+
+  <TEXT>
+    Обчислення звичайного
+    <SPLITINLINE>
+      <SCHEME>виразу Scheme</SCHEME>
+      <PYTHON>програми Python</PYTHON>
+    </SPLITINLINE>
+    може повернути значення, може ніколи не завершитися, а може повідомити про помилку.
+    У недетермінованій
+    <SPLITINLINE>
+      <SCHEME>Scheme</SCHEME>
+      <PYTHON>Python</PYTHON>
+    </SPLITINLINE>
+    обчислення
+    <SPLITINLINE>
+      <SCHEME>виразу</SCHEME>
+      <PYTHON>програми</PYTHON>
+    </SPLITINLINE>
+    може додатково призвести до виявлення
+    глухого кута, і тоді обчислення мусить повернутися до попередньої точки
+    вибору.  Інтерпретацію недетермінованої
+    <SPLITINLINE>
+      <SCHEME>Scheme</SCHEME>
+      <PYTHON>Python</PYTHON>
+    </SPLITINLINE>
+    ускладнює цей додатковий випадок.
+  </TEXT>
+
+  <TEXT>
+    Ми побудуємо обчислювач <SCHEMEINLINE>amb</SCHEMEINLINE> для недетермінованої
+    <SPLITINLINE>
+      <SCHEME>Scheme</SCHEME>
+      <PYTHON>Python</PYTHON>
+    </SPLITINLINE>
+    , змінивши
+    <INDEX>аналізний обчислювач<SUBINDEX>як основа для недетермінованого обчислювача</SUBINDEX></INDEX>
+    аналізний обчислювач із
+    підрозділу<SPACE/><REF NAME="sec:separating-analysis"/>.<FOOTNOTE>Ми вирішили
+    реалізувати лінивий обчислювач у
+    підрозділі<SPACE/><REF NAME="sec:lazy-evaluation"/> як зміну
+    звичайного метамовного обчислювача з
+    підрозділу<SPACE/><REF NAME="sec:core-of-evaluator"/>.  Натомість ми
+    за основу обчислювача <SCHEMEINLINE>amb</SCHEMEINLINE> візьмемо аналізний
+    обчислювач із підрозділу<SPACE/><REF NAME="sec:separating-analysis"/>, бо
+    виконавчі
+    <SPLITINLINE>
+      <SCHEME>процедури</SCHEME>
+      <PYTHON>функції</PYTHON>
+    </SPLITINLINE>
+    у тому обчислювачі дають зручний каркас для реалізації
+    повернення.</FOOTNOTE> Як і в аналізному обчислювачі, обчислення
+    <SPLITINLINE>
+      <SCHEME>виразу</SCHEME>
+      <PYTHON>складової</PYTHON>
+    </SPLITINLINE>
+    виконують, викликавши
+    <INDEX>виконавча <SPLITINLINE> <SCHEME>procedure</SCHEME><PYTHON>function</PYTHON></SPLITINLINE><SUBINDEX>у недетермінованому обчислювачі</SUBINDEX></INDEX>
+    виконавчу
+    <SPLITINLINE>
+      <SCHEME>процедуру</SCHEME>
+      <PYTHON>функцію</PYTHON>
+    </SPLITINLINE>
+    , породжену аналізом цього
+    <SPLITINLINE>
+      <SCHEME>виразу.</SCHEME>
+      <PYTHON>складової.</PYTHON>
+    </SPLITINLINE>
+    Різниця між інтерпретацією звичайної
+    <SPLITINLINE>
+      <SCHEME>Scheme</SCHEME>
+      <PYTHON>Python</PYTHON>
+    </SPLITINLINE>
+    та інтерпретацією недетермінованої
+    <SPLITINLINE>
+      <SCHEME>Scheme</SCHEME>
+      <PYTHON>Python</PYTHON>
+    </SPLITINLINE>
+    буде цілком
+    у виконавчих
+    <SPLITINLINE>
+      <SCHEME>процедурах.</SCHEME>
+      <PYTHON>функціях.</PYTHON>
+    </SPLITINLINE>
+  </TEXT>
+
+  <SUBHEADING>
+    <NAME>
+      Виконавчі
+      <SPLITINLINE>
+	<SCHEME>процедури</SCHEME>
+	<PYTHON>функції</PYTHON>
+      </SPLITINLINE>
+      та продовження
+    </NAME>
+  </SUBHEADING>
+
+  <INDEX>продовження<SUBINDEX>у недетермінованому обчислювачі<OPEN/></SUBINDEX></INDEX>
+
+  <TEXT>
+    Пригадайте, що
+    <INDEX>виконавча <SPLITINLINE><SCHEME>procedure</SCHEME><PYTHON>function</PYTHON></SPLITINLINE><SUBINDEX>у недетермінованому обчислювачі</SUBINDEX></INDEX>
+    виконавчі
+    <SPLITINLINE>
+      <SCHEME>процедури</SCHEME>
+      <PYTHON>функції</PYTHON>
+    </SPLITINLINE>
+    звичайного обчислювача беруть один аргумент: середовище виконання.
+    Натомість виконавчі
+    <SPLITINLINE>
+      <SCHEME>процедури</SCHEME>
+      <PYTHON>функції</PYTHON>
+    </SPLITINLINE>
+    в обчислювачі <SCHEMEINLINE>amb</SCHEMEINLINE> беруть три аргументи:
+    середовище і дві
+    <SPLITINLINE>
+      <SCHEME>процедури</SCHEME>
+      <PYTHON>функції</PYTHON>
+    </SPLITINLINE>
+    , які звуть
+    <SPLITINLINE>
+      <SCHEME><EM>процедурами-продовженнями</EM>.</SCHEME>
+      <PYTHON><EM>функціями-продовженнями</EM>.</PYTHON>
+    </SPLITINLINE>
+    Обчислення
+    <SPLITINLINE>
+      <SCHEME>виразу</SCHEME>
+      <PYTHON>складової</PYTHON>
+    </SPLITINLINE>
+    завершиться викликом одного з цих двох
+    продовжень: якщо обчислення дає значення, викликають
+    <INDEX>продовження успіху (недетермінований обчислювач)</INDEX>
+    <EM>продовження успіху</EM> з цим значенням; якщо обчислення
+    призводить до виявлення глухого кута, викликають
+    <INDEX>продовження невдачі (недетермінований обчислювач)</INDEX>
+    <EM>продовження невдачі</EM>.  Створення й виклик
+    відповідних продовжень — це той механізм, яким недетермінований
+    обчислювач реалізує повернення.
+  </TEXT>
+
+  <TEXT>
+    Завдання продовження успіху — прийняти значення й продовжити
+    обчислення.  Разом із цим значенням продовженню успіху
+    передають ще одне продовження невдачі, яке мають викликати згодом, якщо
+    використання цього значення призведе до глухого кута.
+  </TEXT>
+
+  <TEXT>
+    Завдання продовження невдачі — спробувати іншу гілку
+    недетермінованого процесу.  Суть недетермінованої
+    мови в тому, що
+    <SPLITINLINE>
+      <SCHEME>вирази</SCHEME>
+      <PYTHON>складові</PYTHON>
+    </SPLITINLINE>
+    можуть подавати вибір серед
+    альтернатив.  Обчислення такого
+    <SPLITINLINE>
+      <SCHEME>виразу</SCHEME>
+      <PYTHON>складової</PYTHON>
+    </SPLITINLINE>
+    має продовжитися з
+    однією із зазначених альтернатив, хоча наперед невідомо,
+    які з виборів приведуть до прийнятних результатів.  Щоб дати
+    цьому раду, обчислювач вибирає одну з альтернатив і передає це
+    значення продовженню успіху.  Разом із цим значенням
+    обчислювач будує й передає далі продовження невдачі, яке можна
+    викликати згодом, щоб вибрати іншу альтернативу.
+  </TEXT>
+
+  <TEXT>
+    Невдача спрацьовує під час обчислення (тобто викликають продовження
+    невдачі), коли програма користувача явно відкидає
+    поточний напрям пошуку (наприклад, виклик
+    <SCHEMEINLINE>require</SCHEMEINLINE> може призвести до виконання
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>(amb)</SCHEMEINLINE>,</SCHEME>
+      <PYTHON><PYTHONINLINE>amb()</PYTHONINLINE>,</PYTHON>
+    </SPLITINLINE>
+    виразу, який завжди
+    зазнає невдачі<EMDASH/>див. підрозділ<SPACE/><REF NAME="sec:amb"/>).  Продовження
+    невдачі, наявне в цей момент, змусить найсвіжішу точку вибору
+    вибрати іншу альтернативу.  Якщо в цій точці вибору більше немає альтернатив для
+    розгляду, спрацьовує невдача в ранішій точці вибору,
+    і так далі.  Продовження невдачі також викликає
+    керівний цикл у відповідь на запит
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>try-again</SCHEMEINLINE></SCHEME>
+      <PYTHON>
+	<PYTHONINLINE>retry</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    , щоб знайти інше значення
+    <SPLITINLINE>
+      <SCHEME>виразу.</SCHEME>
+      <PYTHON>програми.</PYTHON>
+    </SPLITINLINE>
+  </TEXT>
+
+  <TEXT>
+    Крім того, якщо на гілці процесу, що виникла з вибору, трапляється
+    операція з побічним ефектом (як-от присвоєння
+    змінній), може виникнути потреба, коли процес натрапляє на глухий кут,
+    скасувати побічний ефект, перш ніж робити новий вибір.  Це роблять так:
+    операція з побічним ефектом породжує продовження невдачі, яке
+    скасовує побічний ефект і передає далі невдачу.
+  </TEXT>
+
+  <TEXT>
+    Підсумовуючи, продовження невдачі будують
+    <UL>
+      <LI>
+	вирази <SCHEMEINLINE>amb</SCHEMEINLINE><EMDASH/>щоб дати
+	механізм вибору альтернатив, якщо поточний вибір, зроблений виразом
+	<SCHEMEINLINE>amb</SCHEMEINLINE>, веде до глухого кута;
+      </LI>
+      <LI>
+	керівний цикл верхнього рівня<EMDASH/>щоб дати механізм повідомлення про невдачу,
+	коли всі вибори вичерпано;
+      </LI>
+      <LI>
+	присвоєння<EMDASH/>щоб перехоплювати невдачі й скасовувати присвоєння
+	під час повернення.
+      </LI>
+    </UL>
+  </TEXT>
+
+  <TEXT>
+    Невдачі починаються лише тоді, коли трапляється глухий кут. Це стається
+    <UL>
+      <LI>
+	якщо програма користувача виконує
+	<SPLITINLINE>
+	  <SCHEME><SCHEMEINLINE>(amb)</SCHEMEINLINE>;</SCHEME>
+	  <PYTHON><PYTHONINLINE>amb()</PYTHONINLINE></PYTHON>
+	  </SPLITINLINE>
+      </LI>
+      <LI>
+	якщо користувач набирає
+	<SPLITINLINE>
+	  <SCHEME>
+	    <SCHEMEINLINE>try-again</SCHEMEINLINE>
+	  </SCHEME>
+	  <PYTHON>
+	    <PYTHONINLINE>retry</PYTHONINLINE>
+	  </PYTHON>
+	</SPLITINLINE>
+	у керівному циклі верхнього рівня.
+      </LI>
+
+    </UL>
+  </TEXT>
+
+  <TEXT>
+    Продовження невдачі також викликають під час опрацювання невдачі:
+    <UL>
+      <LI>Коли продовження невдачі, створене присвоєнням, завершує
+      скасування побічного ефекту, воно викликає продовження невдачі, яке перехопило,
+      щоб передати невдачу назад до точки вибору, яка
+      привела до цього присвоєння, або на верхній рівень.
+
+      </LI>
+      <LI>Коли в продовження невдачі для <SCHEMEINLINE>amb</SCHEMEINLINE>
+      закінчуються вибори, воно викликає продовження невдачі, яке спочатку
+      було передано <SCHEMEINLINE>amb</SCHEMEINLINE>, щоб передати
+      невдачу назад до попередньої точки вибору або на верхній рівень.
+      </LI>
+    </UL>
+  </TEXT>
+
+  <INDEX>продовження<SUBINDEX>у недетермінованому обчислювачі<CLOSE/></SUBINDEX></INDEX>
+  
+  <SUBHEADING>
+    <NAME>Структура обчислювача</NAME>
+  </SUBHEADING>
+
+  <TEXT>
+    Синтаксичні та
+    <SPLITINLINE>
+      <SCHEME>процедури</SCHEME>
+      <PYTHON>функції</PYTHON>
+    </SPLITINLINE>
+    подання даних
+    для обчислювача <SCHEMEINLINE>amb</SCHEMEINLINE>, а також основна
+    <INDEX><USE>analyze</USE><SUBINDEX>недетермінований</SUBINDEX></INDEX>
+    <SCHEMEINLINE>analyze</SCHEMEINLINE>
+    <SPLITINLINE>
+      <SCHEME>процедура,</SCHEME>
+      <PYTHON>функція,</PYTHON>
+    </SPLITINLINE>
+    ідентичні до тих, що в обчислювачі з
+    підрозділу<SPACE/><REF NAME="sec:separating-analysis"/>, за тим винятком,
+    що нам потрібні додаткові синтаксичні
+    <SPLITINLINE>
+      <SCHEME>процедури</SCHEME>
+      <PYTHON>функції</PYTHON>
+    </SPLITINLINE>
+    , щоб розпізнавати
+    <SPLITINLINE>
+      <SCHEME>
+	особливу форму <SCHEMEINLINE>amb</SCHEMEINLINE>:<FOOTNOTE>Ми
+	припускаємо, що обчислювач підтримує <SCHEMEINLINE>let</SCHEMEINLINE>
+	(див. вправу<SPACE/><REF NAME="ex:implement-analyze-let"/>),
+	який ми використовували в наших недетермінованих програмах.</FOOTNOTE>
+      </SCHEME>
+      <PYTHON>
+	синтаксичну форму <PYTHONINLINE>amb</PYTHONINLINE>:
+      </PYTHON>
+    </SPLITINLINE>
+
+    <SNIPPET>
+      <INDEX><DECLARATION>is_amb</DECLARATION></INDEX>
+      <NAME>is_amb_amb</NAME>
+      <REQUIRES>functions_4_1_2</REQUIRES>
+      <SCHEME>
+(define (amb? exp) (tagged-list? exp 'amb))
+
+(define (amb-choices exp) (cdr exp))
+      </SCHEME>
+      <PYTHON>
+def is_amb(component):
+    return is_tagged_list(component, "application") and is_name(function_expression(component)) and symbol_of_name(function_expression(component)) == "amb"
+def amb_choices(component):
+    return arg_expressions(component)
+</PYTHON>
+    </SNIPPET>
+    <SPLIT>
+      <SCHEME>
+      </SCHEME>
+      <PYTHON>
+<PDF_ONLY>\newpage\noindent </PDF_ONLY>
+	Ми й далі користуємося функцією parse із
+	підрозділу<SPACE/><REF NAME="sec:representing-expressions"/>, яка
+	не підтримує <PYTHONINLINE>amb</PYTHONINLINE> як синтаксичну
+	форму, а натомість трактує <PYTHONINLINE>amb(</PYTHONINLINE><LATEX>$\ldots$</LATEX><PYTHONINLINE>)</PYTHONINLINE> як
+	застосування функції. Функція
+	<PYTHONINLINE>is_amb</PYTHONINLINE> гарантує, що
+	коли ім’я
+	<PYTHONINLINE>amb</PYTHONINLINE> з’являється як вираз
+	функції в застосуванні, обчислювач трактує
+	<QUOTE>застосування</QUOTE> як
+	точку недетермінованого вибору.<FOOTNOTE>За такого трактування
+	<PYTHONINLINE>amb</PYTHONINLINE> більше не є іменем із
+	належною областю видимості.	Щоб уникнути плутанини, ми мусимо
+	утриматися від оголошення <PYTHONINLINE>amb</PYTHONINLINE>
+	як імені в наших недетермінованих програмах.</FOOTNOTE>
+      </PYTHON>
+    </SPLIT>
+  </TEXT>
+
+  <TEXT>
+    Ми також мусимо додати до диспетчеризації в <SCHEMEINLINE>analyze</SCHEMEINLINE>
+    гілку, яка розпізнає
+    <SPLITINLINE>
+      <SCHEME>цю особливу форму й породжує відповідну виконавчу процедуру:
+      </SCHEME>
+      <PYTHON>такі вирази й породжує відповідну виконавчу
+      функцію:</PYTHON>
+    </SPLITINLINE>
+
+    <SNIPPET LATEX="yes">
+      <NAME>is_amb_case_amb</NAME>
+      <EXAMPLE>all_solutions_test_5</EXAMPLE>
+      <SCHEME>
+((amb? exp) (analyze-amb exp))
+      </SCHEME>
+      <PYTHON>
+$\ldots$
+: is_amb(component)
+? analyze_amb(component)
+: is_application(component)
+$\ldots$
+      </PYTHON>
+      <PYTHON_RUN>
+      </PYTHON_RUN>
+    </SNIPPET>
+  </TEXT>
+
+  <TEXT>
+    Функція верхнього рівня
+    <SPLITINLINE>
+      <SCHEME>процедура</SCHEME>
+      <PYTHON>функція</PYTHON>
+    </SPLITINLINE>
+    <SCHEMEINLINE>ambeval</SCHEMEINLINE> (подібна до версії
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>eval</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>evaluate</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    , наведеної в підрозділі<SPACE/><REF NAME="sec:separating-analysis"/>) аналізує
+    задану
+    <SPLITINLINE>
+      <SCHEME>вираз</SCHEME>
+      <PYTHON>складову</PYTHON>
+    </SPLITINLINE>
+    і застосовує отриману виконавчу
+    <SPLITINLINE>
+      <SCHEME>процедуру</SCHEME>
+      <PYTHON>функцію</PYTHON>
+    </SPLITINLINE>
+    до заданого середовища разом із двома заданими продовженнями:
+
+    <SNIPPET HIDE="yes">
+      <NAME>analyze_amb_headline</NAME>
+      <PYTHON>
+# functions from SICP JS 4.3.3
+</PYTHON>
+    </SNIPPET>
+    <SNIPPET HIDE="yes">
+      <NAME>analyze_amb</NAME>
+      <REQUIRES>functions_4_1_2</REQUIRES>
+      <REQUIRES>functions_4_1_3</REQUIRES>
+      <REQUIRES>functions_4_1_4</REQUIRES>
+      <REQUIRES>analyze_amb_headline</REQUIRES>
+      <REQUIRES>is_amb_amb</REQUIRES>
+      <REQUIRES>analyze_literal_amb</REQUIRES>
+      <REQUIRES>analyze_variable_amb</REQUIRES>
+      <REQUIRES>analyze_lambda_amb</REQUIRES>
+      <REQUIRES>analyze_sequence_amb</REQUIRES>
+      <REQUIRES>analyze_declaration_amb</REQUIRES>
+      <REQUIRES>analyze_assignment_amb</REQUIRES>
+      <REQUIRES>analyze_if_amb</REQUIRES>
+      <REQUIRES>scan_out_declarations</REQUIRES>
+      <REQUIRES>analyze_block_amb</REQUIRES>
+      <REQUIRES>analyze_return_statement_amb</REQUIRES>
+      <REQUIRES>analyze_application_amb</REQUIRES>
+      <REQUIRES>analyze_amb_amb</REQUIRES>
+      <SCHEME>
+      (define (analyze exp)
+      (cond ((self-evaluating? exp) 
+            (analyze-self-evaluating exp))
+            ((quoted? exp) (analyze-quoted exp))
+            ((variable? exp) (analyze-variable exp))
+            ((assignment? exp) (analyze-assignment exp))
+            ((definition? exp) (analyze-definition exp))
+            ((if? exp) (analyze-if exp))
+            ((lambda? exp) (analyze-lambda exp))
+            ((begin? exp) (analyze-sequence (begin-actions exp)))
+            ((cond? exp) (analyze (cond-&gt;if exp)))
+            ((application? exp) (analyze-application exp))
+            (else
+            (error "Unknown expression type - - ANALYZE" exp))))
+      </SCHEME>
+      <PYTHON>
+def analyze(component):
+    return analyze_literal(component) if is_literal(component) else analyze_name(component) if is_name(component) else analyze_amb(component) if is_amb(component) else analyze_application(component) if is_application(component) else analyze(operator_combination_to_application(component)) if is_operator_combination(component) else analyze_conditional(component) if is_conditional(component) else analyze_lambda_expression(component) if is_lambda_expression(component) else analyze_sequence(sequence_statements(component)) if is_sequence(component) else analyze_block(component) if is_block(component) else analyze_return_statement(component) if is_return_statement(component) else analyze(function_decl_to_constant_decl(component)) if is_function_definition(component) else analyze_declaration(component) if is_declaration(component) else analyze_assignment(component) if is_assignment(component) else error("unknown syntax -- analyze", component)
+</PYTHON>
+    </SNIPPET>
+    <SNIPPET>
+      <INDEX><DECLARATION>ambeval</DECLARATION></INDEX> 
+      <NAME>ambeval</NAME>
+      <REQUIRES>analyze_amb</REQUIRES>
+      <EXAMPLE>all_solutions_test_4</EXAMPLE>
+      <SCHEME>
+(define (ambeval exp env succeed fail)
+  ((analyze exp) env succeed fail))
+      </SCHEME>
+      <PYTHON>
+def ambeval(component, env, succeed, fail):
+    return analyze(component)(env, succeed, fail)
+</PYTHON>
+    </SNIPPET>
+  </TEXT>
+
+  <TEXT>
+    Продовження
+    <INDEX>продовження успіху (недетермінований обчислювач)</INDEX>
+    <INDEX>продовження<SUBINDEX>у недетермінованому обчислювачі</SUBINDEX></INDEX>
+    успіху — це
+    <SPLITINLINE>
+      <SCHEME>процедура</SCHEME>
+      <PYTHON>функція</PYTHON>
+    </SPLITINLINE>
+    з двома аргументами: щойно отримане значення і ще одне продовження невдачі, яке
+    слід використати, якщо це значення приведе до подальшої невдачі. А
+    <INDEX>продовження невдачі (недетермінований обчислювач)</INDEX>
+    продовження невдачі
+    — це
+    <SPLITINLINE>
+      <SCHEME>процедура</SCHEME>
+      <PYTHON>функція</PYTHON>
+    </SPLITINLINE>
+    без аргументів.  Отже
+    загальна форма
+    <INDEX>виконавча <SPLITINLINE><SCHEME>procedure</SCHEME><PYTHON>function</PYTHON></SPLITINLINE><SUBINDEX>у недетермінованому обчислювачі</SUBINDEX></INDEX>
+    виконавчої
+    <SPLITINLINE>
+      <SCHEME>процедури</SCHEME>
+      <PYTHON>функції</PYTHON>
+    </SPLITINLINE>
+    така:
+
+    <SNIPPET EVAL="no" LATEX="yes">
+      <SCHEME>
+(lambda (env succeed fail)
+  ;; succeed is (lambda (value fail) $\ldots$)
+  ;; fail is (lambda () $\ldots$)
+  $\ldots$)
+      </SCHEME>
+      <PYTHON>
+# $\texttt{succeed}\,$ is $\texttt{lambda value, fail:}~\ldots$
+# $\texttt{fail}\,$ is $\texttt{lambda:}~\ldots$
+lambda env, succeed, fail: $\ldots$
+      </PYTHON>
+    </SNIPPET>
+  </TEXT>
+  <TEXT>
+    Наприклад, виконання
+    <SPLIT>
+      <SCHEME>
+
+	<SNIPPET EVAL="no">
+	  <SCHEME>
+(ambeval exp
+         the-global-environment
+         (lambda (value fail) value)
+         (lambda () 'failed))
+	  </SCHEME>
+	</SNIPPET>
+      </SCHEME>
+      <PYTHON>
+
+	<SNIPPET EVAL="no" LATEX="yes">
+	  <PYTHON>
+ambeval(<META>component</META>,
+        the_global_environment,
+        lambda value, fail: value,
+        lambda: "failed")
+	  </PYTHON>
+	</SNIPPET>
+      </PYTHON>
+    </SPLIT>
+    спробує обчислити задану
+    <SPLITINLINE>
+      <SCHEME>вираз</SCHEME>
+      <PYTHON>складову</PYTHON>
+    </SPLITINLINE>
+    і поверне або значення
+    <SPLITINLINE>
+      <SCHEME>виразу</SCHEME>
+      <PYTHON>складової</PYTHON>
+    </SPLITINLINE>
+    (якщо обчислення успішне), або
+    <SPLITINLINE>
+      <SCHEME>
+	символ <SCHEMEINLINE>failed</SCHEMEINLINE>
+      </SCHEME>
+      <PYTHON>
+	рядок <PYTHONINLINE>"failed"</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    (якщо обчислення зазнає невдачі).
+    Виклик <SCHEMEINLINE>ambeval</SCHEMEINLINE> у керівному циклі, показаному
+    нижче, користується значно складнішими
+    <SPLITINLINE>
+      <SCHEME>процедурами-продовженнями,</SCHEME>
+      <PYTHON>функціями-продовженнями,</PYTHON>
+    </SPLITINLINE>
+    які продовжують цикл і підтримують запит
+    <SPLITINLINE>
+      <SCHEME>
+	<SCHEMEINLINE>try-again</SCHEMEINLINE>
+      </SCHEME>
+      <PYTHON>
+	<PYTHONINLINE>retry</PYTHONINLINE>	
+      </PYTHON>
+    </SPLITINLINE>
+    .
+  </TEXT>
+
+  <TEXT>
+    Більшість складності обчислювача <SCHEMEINLINE>amb</SCHEMEINLINE>
+    випливає з механіки передавання продовжень, коли виконавчі
+    <SPLITINLINE>
+      <SCHEME>процедури</SCHEME>
+      <PYTHON>функції</PYTHON>
+    </SPLITINLINE>
+    викликають одна одну.  Проходячи наведений далі код, вам слід порівняти
+    кожну з виконавчих
+    <SPLITINLINE>
+      <SCHEME>процедур</SCHEME>
+      <PYTHON>функцій</PYTHON>
+    </SPLITINLINE>
+    з відповідною
+    <SPLITINLINE>
+      <SCHEME>процедурою</SCHEME>
+      <PYTHON>функцією</PYTHON>
+    </SPLITINLINE>
+    для звичайного обчислювача, наведеною в
+    підрозділі<SPACE/><REF NAME="sec:separating-analysis"/>.
+  </TEXT>
+
+  <SUBHEADING>
+    <NAME>Прості вирази</NAME>
+  </SUBHEADING>
+
+  <INDEX><USE>analyze_...</USE><SUBINDEX>недетермінований</SUBINDEX><OPEN/></INDEX>
+  
+  <TEXT>
+    Виконавчі
+    <SPLITINLINE>
+      <SCHEME>процедури</SCHEME>
+      <PYTHON>функції</PYTHON>
+    </SPLITINLINE>
+    для найпростіших видів виразів по суті
+    ті самі, що й для звичайного обчислювача, за винятком
+    потреби керувати продовженнями.  Виконавчі
+    <SPLITINLINE>
+      <SCHEME>процедури</SCHEME>
+      <PYTHON>функції</PYTHON>
+    </SPLITINLINE>
+    просто досягають успіху зі значенням виразу, передаючи далі
+    продовження невдачі, яке їм передали.
+
+    <SNIPPET>
+      <NAME>analyze_literal_amb</NAME>
+      <EXAMPLE>all_solutions_test_4</EXAMPLE>
+      <SCHEME>
+(define (analyze-self-evaluating exp)
+  (lambda (env succeed fail)
+    (succeed exp fail)))
+      </SCHEME>
+      <PYTHON>
+def analyze_literal(component):
+    return lambda env, succeed, fail: (succeed(literal_value(component), fail))
+</PYTHON>
+    </SNIPPET>
+    <SNIPPET>
+      <NAME>analyze_variable_amb</NAME>
+      <EXAMPLE>all_solutions_test_4</EXAMPLE>
+      <SCHEME>
+(define (analyze-variable exp)
+  (lambda (env succeed fail)
+    (succeed (lookup-variable-value exp env)
+             fail)))
+      </SCHEME>
+      <PYTHON>
+def analyze_name(component):
+    return lambda env, succeed, fail: (succeed(lookup_symbol_value(symbol_of_name(component), env), fail))
+</PYTHON>
+    </SNIPPET>
+    <SNIPPET>
+      <NAME>analyze_lambda_amb</NAME>
+      <EXAMPLE>all_solutions_test_4</EXAMPLE>
+      <SCHEME>
+(define (analyze-lambda exp)
+  (let ((vars (lambda-parameters exp))
+        (bproc (analyze-sequence (lambda-body exp))))
+    (lambda (env succeed fail)
+      (succeed (make-procedure vars bproc env)
+               fail))))
+      </SCHEME>
+      <PYTHON>
+def analyze_lambda_expression(component):
+    params = lambda_parameter_symbols(component)
+    bfun = analyze(lambda_body(component))
+    return lambda env, succeed, fail: (succeed(make_function(params, bfun, env), fail))
+</PYTHON>
+    </SNIPPET>
+  </TEXT>
+
+  <TEXT>
+    Зауважте, що пошук
+    <SPLITINLINE>
+      <SCHEME>змінної</SCHEME>
+      <PYTHON>імені</PYTHON>
+    </SPLITINLINE>
+    завжди <QUOTE>успішний</QUOTE>.
+    <INDEX>невдача, у недетермінованому обчисленні<SUBINDEX>помилка в програмі проти</SUBINDEX></INDEX>
+    Якщо
+    <SPLITINLINE>
+      <SCHEME>
+	<SCHEMEINLINE>lookup-variable-value</SCHEMEINLINE>
+      </SCHEME>
+      <PYTHON>
+	<PYTHONINLINE>lookup_symbol_value</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    не знаходить
+    <SPLITINLINE>
+      <SCHEME>змінну,</SCHEME>
+      <PYTHON>ім’я,</PYTHON>
+    </SPLITINLINE>
+    він, як звично, повідомляє
+    про помилку.  Така <QUOTE>невдача</QUOTE> вказує на помилку
+    в програмі<EMDASH/>посилання на незв’язане
+    <SPLITINLINE>
+      <SCHEME>змінну;</SCHEME>
+      <PYTHON>ім’я</PYTHON>
+    </SPLITINLINE>
+    вона не є вказівкою на те,
+    що нам слід спробувати інший недетермінований вибір замість того, який
+    зараз пробують.
+  </TEXT>
+
+  <SUBHEADING>
+    <NAME>Умовні вирази та послідовності</NAME>
+  </SUBHEADING>
+
+  <TEXT>
+    Умовні вирази також опрацьовують подібно до того, як у звичайному
+    обчислювачі.  Виконавча
+    <SPLITINLINE>
+      <SCHEME>процедура</SCHEME>
+      <PYTHON>функція</PYTHON>
+    </SPLITINLINE>
+    яку породжує
+    <SPLITINLINE>
+      <SCHEME>
+	<SCHEMEINLINE>analyze-if</SCHEMEINLINE>
+      </SCHEME>
+      <PYTHON>
+	<PYTHONINLINE>analyze_conditional</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    викликає виконавчу
+    <SPLITINLINE>
+      <SCHEME>процедуру
+      <SCHEMEINLINE>pproc</SCHEMEINLINE>
+      </SCHEME>
+      <PYTHON>функцію
+      <PYTHONINLINE>pfun</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    предиката
+    з продовженням успіху, яке перевіряє, чи істинне значення предиката,
+    і далі виконує або консеквент, або альтернативу.  Якщо
+    виконання
+    <SPLITINLINE>
+      <SCHEME>
+	<SCHEMEINLINE>pproc</SCHEMEINLINE>
+      </SCHEME>
+      <PYTHON>
+	<PYTHONINLINE>pfun</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    зазнає невдачі, викликають початкове продовження невдачі для
+    <SPLITINLINE>
+      <SCHEME>
+	<SCHEMEINLINE>if</SCHEMEINLINE>
+      </SCHEME>
+      <PYTHON>
+	умовного виразу
+      </PYTHON>
+    </SPLITINLINE>
+    .
+
+    <SNIPPET LATEX="yes">
+      <NAME>analyze_if_amb</NAME>
+      <EXAMPLE>all_solutions_test_4</EXAMPLE>
+      <SCHEME>
+(define (analyze-if exp)
+  (let ((pproc (analyze (if-predicate exp)))
+        (cproc (analyze (if-consequent exp)))
+        (aproc (analyze (if-alternative exp))))
+   (lambda (env succeed fail)
+           (pproc env
+                  <EM>;; success continuation for evaluating the predicate</EM>
+                  <EM>;; to obtain <SCHEMEINLINE>pred-value</SCHEMEINLINE></EM>
+                  (lambda (pred-value fail2)
+                    (if (true? pred-value)
+                        (cproc env succeed fail2)
+                        (aproc env succeed fail2)))
+                  <EM>;; failure continuation for evaluating the predicate</EM>
+                  fail))))
+      </SCHEME>
+      <PYTHON>
+def analyze_conditional(component):
+    pfun = analyze(conditional_predicate(component))
+    cfun = analyze(conditional_consequent(component))
+    afun = analyze(conditional_alternative(component))
+    return lambda env, succeed, fail: (pfun(env, lambda pred_value, fail2: (cfun(env, succeed, fail2) if is_truthy(pred_value) else afun(env, succeed, fail2)), fail))
+</PYTHON>
+    </SNIPPET>
+  </TEXT>
+
+  <TEXT>
+    <SPLIT>
+      <SCHEME>
+	Послідовності також опрацьовують так само, як у попередньому
+	обчислювачі, за винятком хитрощів у
+	внутрішній процедурі
+	<SCHEMEINLINE>sequentially</SCHEMEINLINE>, потрібних для передавання
+	продовжень. А саме, щоб послідовно виконати <SCHEMEINLINE>a</SCHEMEINLINE>
+	а тоді <SCHEMEINLINE>b</SCHEMEINLINE>, ми викликаємо
+	<SCHEMEINLINE>a</SCHEMEINLINE> з продовженням успіху, яке викликає
+	<SCHEMEINLINE>b</SCHEMEINLINE>.
+
+	<SNIPPET>
+	  <SCHEME>
+	    (define (analyze-sequence exps)
+	    (define (sequentially a b)
+	    (lambda (env succeed fail)
+	    (a env
+            ;; success continuation for calling a
+            (lambda (a-value fail2)
+            (b env succeed fail2))
+            ;; failure continuation for calling a
+            fail)))
+	    (define (loop first-proc rest-procs)
+	    (if (null? rest-procs)
+            first-proc
+            (loop (sequentially first-proc (car rest-procs))
+            (cdr rest-procs))))
+	    (let ((procs (map analyze exps)))
+	    (if (null? procs)
+            (error "Empty sequence - - ANALYZE"))
+	    (loop (car procs) (cdr procs))))
+	  </SCHEME>
+	</SNIPPET>
+      </SCHEME>
+      <PYTHON>
+	Послідовності також опрацьовують так само, як у попередньому
+	обчислювачі, за винятком хитрощів у
+	внутрішній функції
+	<SCHEMEINLINE>sequentially</SCHEMEINLINE>, потрібних для передавання
+	продовжень. А саме, щоб послідовно виконати <SCHEMEINLINE>a</SCHEMEINLINE>
+	а тоді <SCHEMEINLINE>b</SCHEMEINLINE>, ми викликаємо
+	<SCHEMEINLINE>a</SCHEMEINLINE> з продовженням успіху, яке викликає
+	<SCHEMEINLINE>b</SCHEMEINLINE>.
+
+	<SNIPPET POSTPADDING="no" LATEX="yes">
+	  <NAME>analyze_sequence_amb</NAME>
+	  <REQUIRES>map</REQUIRES>
+	  <EXAMPLE>all_solutions_test_4</EXAMPLE>
+	  <PYTHON>
+def analyze_sequence(stmts):
+    def sequentially(a, b):
+        return lambda env, succeed, fail: (a(env, lambda a_value, fail2: (succeed(a_value, fail2) if is_return_value(a_value) else b(env, succeed, fail2)), fail))
+    def loop(first_fun, rest_funs):
+        return first_fun if is_none(rest_funs) else loop(sequentially(first_fun, head(rest_funs)), tail(rest_funs))
+    funs = map(analyze, stmts)
+    return lambda env: (None) if is_none(funs) else loop(head(funs), tail(funs))
+</PYTHON>
+	</SNIPPET>
+      </PYTHON>
+    </SPLIT>
+  </TEXT>
+
+  <SUBHEADING>
+    <NAME>
+      <SPLITINLINE>
+	<SCHEME>Означення</SCHEME>
+	<PYTHON>Оголошення</PYTHON>
+      </SPLITINLINE>
+      та присвоєння
+    </NAME>
+  </SUBHEADING>
+
+  <TEXT>
+    <SPLITINLINE>
+      <SCHEME>Означення</SCHEME>
+      <PYTHON>Оголошення</PYTHON>
+    </SPLITINLINE>
+    — ще один випадок, де нам доводиться докладати зусиль, щоб
+    керувати продовженнями, бо потрібно обчислити
+    <SPLITINLINE>
+      <SCHEME>
+	вираз значення означення, перш ніж власне означити нову змінну.
+      </SCHEME>
+      <PYTHON>
+	вираз значення оголошення, перш ніж власне оголосити нове ім’я.
+      </PYTHON>
+    </SPLITINLINE>
+    Щоб цього досягти,
+    <SPLITINLINE>
+      <SCHEME>значення означення</SCHEME>
+      <PYTHON>значення оголошення</PYTHON>
+    </SPLITINLINE>
+    виконавчу
+    <SPLITINLINE>
+      <SCHEME>процедуру
+      <SCHEMEINLINE>vproc</SCHEMEINLINE>
+      </SCHEME>
+      <PYTHON>функцію
+      <SCHEMEINLINE>vfun</SCHEMEINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    викликають із середовищем, продовженням успіху та
+    продовженням невдачі.  Якщо виконання
+    <SPLITINLINE>
+      <SCHEME>
+	<SCHEMEINLINE>vproc</SCHEMEINLINE>
+      </SCHEME>
+      <PYTHON>
+	<SCHEMEINLINE>vfun</SCHEMEINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    успішне й дає значення <SCHEMEINLINE>val</SCHEMEINLINE> для
+    <SPLITINLINE>
+      <SCHEME>
+	означуваної змінної, змінну означують, а успіх передають далі:
+      </SCHEME>
+      <PYTHON>
+	оголошуваного імені, ім’я оголошують, а успіх передають далі:
+      </PYTHON>
+    </SPLITINLINE>
+
+    <SNIPPET>
+      <NAME>analyze_declaration_amb</NAME>
+      <EXAMPLE>all_solutions_test_4</EXAMPLE>
+      <SCHEME>
+(define (analyze-definition exp)
+  (let ((var (definition-variable exp))
+        (vproc (analyze (definition-value exp))))
+    (lambda (env succeed fail)
+      (vproc env                        
+             (lambda (val fail2)
+               (define-variable! var val env)
+               (succeed 'ok fail2))
+             fail))))
+      </SCHEME>
+      <PYTHON>
+def analyze_declaration(component):
+    symbol = declaration_symbol(component)
+    vfun = analyze(declaration_value_expression(component))
+    def the_declaration(env, succeed, fail):
+        def success(val, fail2):
+            assign_symbol_value(symbol, val, env)
+            return succeed(None, fail2)
+        return vfun(env, success, fail)
+    return the_declaration
+      </PYTHON>
+    </SNIPPET>
+  </TEXT>
+
+  <TEXT>
+    Присвоєння
+    <INDEX>продовження невдачі (недетермінований обчислювач)<SUBINDEX>створене присвоєнням</SUBINDEX></INDEX>
+    цікавіші.  Це перше місце, де ми
+    справді використовуємо продовження, а не лише передаємо їх туди-сюди.
+    Виконавча
+    <SPLITINLINE>
+      <SCHEME>процедура</SCHEME>
+      <PYTHON>функція</PYTHON>
+    </SPLITINLINE>
+    для присвоєнь починається так само, як для
+    <SPLITINLINE>
+      <SCHEME>означень.</SCHEME>
+      <PYTHON>оголошень.</PYTHON>
+    </SPLITINLINE>
+    Спершу вона намагається
+    отримати нове значення, яке треба присвоїти
+    <SPLITINLINE>
+      <SCHEME>змінній.</SCHEME>
+      <PYTHON>імені.</PYTHON>
+    </SPLITINLINE>
+    Якщо це обчислення
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>vproc</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>vfun</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>  
+    зазнає невдачі, присвоєння зазнає невдачі.
+  </TEXT>
+
+  <TEXT>
+    Якщо ж
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>vproc</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>vfun</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>  
+    досягає успіху, і ми переходимо до власне присвоєння, ми мусимо зважити на
+    можливість, що ця гілка обчислення згодом зазнає невдачі, а це
+    вимагатиме від нас повернутися з присвоєння назад.  Отже, нам треба подбати, щоб
+    скасувати присвоєння як частину процесу повернення.<FOOTNOTE>Ми
+    <SPLITINLINE>
+      <SCHEME>
+	не турбувалися про скасування означень,
+	бо можемо
+	припускати, що
+	<INDEX>внутрішнє означення<SUBINDEX><ORDER>nondeterministic</ORDER>у недетермінованому обчислювачі</SUBINDEX></INDEX>
+	внутрішні означення
+	вибрано
+	(підрозділ<SPACE/><REF NAME="sec:internal-definitions"/>).
+      </SCHEME>
+      <PYTHON>
+	не турбувалися про скасування оголошень, бо припускаємо, що
+	ім’я не можна використати раніше за обчислення його оголошення,
+	<INDEX>внутрішнє оголошення<SUBINDEX><ORDER>nondeterministic</ORDER>у недетермінованому обчислювачі</SUBINDEX></INDEX>
+	тож його попереднє значення не має значення.
+      </PYTHON>
+    </SPLITINLINE></FOOTNOTE>
+  </TEXT>
+
+  <TEXT>
+    Це роблять так: дають
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>vproc</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>vfun</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>  
+    продовження успіху (позначене нижче коментарем <QUOTE>*1*</QUOTE>),
+    яке зберігає старе значення змінної, перш ніж присвоїти змінній нове значення
+    і продовжити від присвоєння.  Продовження невдачі,
+    яке передають разом зі значенням присвоєння (позначене
+    коментарем <QUOTE>*2*</QUOTE> нижче), відновлює старе значення змінної,
+    перш ніж продовжити невдачу. Тобто успішне присвоєння дає
+    продовження невдачі, яке перехопить наступну невдачу; яка б
+    невдача інакше викликала <SCHEMEINLINE>fail2</SCHEMEINLINE>, тепер викликає
+    цю
+    <SPLITINLINE>
+      <SCHEME>процедуру</SCHEME>
+      <PYTHON>функцію</PYTHON>
+    </SPLITINLINE>
+    , щоб скасувати присвоєння, перш ніж власне викликати
+    <SCHEMEINLINE>fail2</SCHEMEINLINE>.
+
+    <SNIPPET POSTPADDING="no">
+      <NAME>analyze_assignment_amb</NAME>
+      <EXAMPLE>all_solutions_test_4</EXAMPLE>
+      <SCHEME>
+(define (analyze-assignment exp)
+  (let ((var (assignment-variable exp))
+        (vproc (analyze (assignment-value exp))))
+    (lambda (env succeed fail)
+      (vproc env
+             (lambda (val fail2)        <EM>; *1*</EM>
+               (let ((old-value
+                     (lookup-variable-value var env))) 
+                 (set-variable-value! var val env)
+                 (succeed 'ok
+                          (lambda ()    <EM>; *2*</EM>
+                            (set-variable-value! var
+                                                 old-value
+                                                 env)
+                            (fail2)))))
+             fail))))
+      </SCHEME>
+      <PYTHON>
+def analyze_assignment(component):
+    symbol = assignment_symbol(component)
+    vfun = analyze(assignment_value_expression(component))
+    def the_assignment(env, succeed, fail):
+        def success(val, fail2):              # *1*
+            old_value = lookup_symbol_value(symbol, env)
+            assign_symbol_value(symbol, val, env)
+            def restore():                    # *2*
+                assign_symbol_value(symbol, old_value, env)
+                return fail2()
+            return succeed(val, restore)
+        return vfun(env, success, fail)
+    return the_assignment
+      </PYTHON>
+    </SNIPPET>
+  </TEXT>
+
+  <SPLIT>
+    <SCHEME>
+    </SCHEME>
+    <PYTHON>
+      <SUBHEADING>
+	<NAME>Інструкції return і блоки</NAME>
+      </SUBHEADING>
+
+      <TEXT>
+	Аналіз інструкцій return простий.
+	Вираз return аналізують, щоб породити виконавчу функцію.
+	Виконавча функція для інструкції return викликає цю виконавчу
+	функцію з продовженням успіху, яке загортає значення, що повертається,
+	в об’єкт значення, яке повертають, і передає його початковому продовженню успіху.
+
+	<SNIPPET>
+	  <NAME>analyze_return_statement_amb</NAME>
+	  <EXAMPLE>all_solutions_test_4</EXAMPLE>
+	  <PYTHON>
+def analyze_return_statement(component):
+    rfun = analyze(return_expression(component))
+    return lambda env, succeed, fail: (rfun(env, lambda val, fail2: (succeed(make_return_value(val), fail2)), fail))
+</PYTHON>
+	</SNIPPET>
+      </TEXT>
+      <TEXT>
+	Виконавча функція для блоків викликає виконавчу
+	функцію тіла в розширеному середовищі, не змінюючи продовжень
+	успіху чи невдачі.
+
+	<SNIPPET POSTPADDING="no">
+	  <NAME>analyze_block_amb</NAME>
+	  <REQUIRES>list_of_unassigned</REQUIRES>
+	  <EXAMPLE>all_solutions_test_4</EXAMPLE>
+	  <PYTHON>
+def analyze_block(component):
+    body = block_body(component)
+    locals = scan_out_declarations(body)
+    unassigneds = list_of_unassigned(locals)
+    bfun = analyze(body)
+    return lambda env, succeed, fail: (bfun(extend_environment(locals, unassigneds, env), succeed, fail))
+</PYTHON>
+	</SNIPPET>
+      </TEXT>
+    </PYTHON>
+  </SPLIT>
+  
+  <SUBHEADING>
+    <NAME>
+      <SPLITINLINE>
+	<SCHEME>Застосування процедур</SCHEME>
+	<PYTHON>Застосування функцій</PYTHON>
+      </SPLITINLINE>
+    </NAME>
+  </SUBHEADING>
+
+  <TEXT>
+    Виконавча
+    <SPLITINLINE>
+      <SCHEME>процедура</SCHEME>
+      <PYTHON>функція</PYTHON>
+    </SPLITINLINE>
+    для застосувань не містить нових ідей, крім технічної складності
+    керування продовженнями.  Ця складність виникає в
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>analyze-application</SCHEMEINLINE>,</SCHEME>
+      <PYTHON>
+      <PYTHONINLINE>analyze_@application</PYTHONINLINE>,</PYTHON>
+    </SPLITINLINE>  
+    через потребу відстежувати продовження успіху й невдачі, поки
+    ми обчислюємо
+    <SPLITINLINE>
+      <SCHEME>операнди.</SCHEME>
+      <PYTHON>вирази аргументів.</PYTHON>
+    </SPLITINLINE>
+    Ми користуємося
+    <SPLITINLINE>
+      <SCHEME>процедурою <SCHEMEINLINE>get-args</SCHEMEINLINE></SCHEME>
+      <PYTHON>функцією <PYTHONINLINE>get_args</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>  
+    щоб обчислити список
+    <SPLITINLINE>
+      <SCHEME>операндів,</SCHEME>
+      <PYTHON>виразів аргументів,</PYTHON>
+    </SPLITINLINE>
+    а не простим
+    <SCHEMEINLINE>map</SCHEMEINLINE>, як у звичайному обчислювачі.
+
+    <SNIPPET>
+      <NAME>analyze_application_amb</NAME>
+      <REQUIRES>map</REQUIRES>
+      <REQUIRES>get_args_amb</REQUIRES>
+      <REQUIRES>execute_application_amb</REQUIRES>
+      <EXAMPLE>all_solutions_test_4</EXAMPLE>
+      <SCHEME>
+(define (analyze-application exp)
+  (let ((fproc (analyze (operator exp)))
+        (aprocs (map analyze (operands exp))))
+    (lambda (env succeed fail)
+      (fproc env
+             (lambda (proc fail2)
+               (get-args aprocs
+                         env
+                         (lambda (args fail3)
+                           (execute-application
+                            proc args succeed fail3))
+                         fail2))
+             fail))))
+      </SCHEME>
+      <PYTHON>
+def analyze_application(component):
+    ffun = analyze(function_expression(component))
+    afuns = map(analyze, arg_expressions(component))
+    return lambda env, succeed, fail: (ffun(env, lambda fun, fail2: (get_args(afuns, env, lambda args, fail3: (execute_application(fun, args, succeed, fail3)), fail2)), fail))
+</PYTHON>
+    </SNIPPET>
+  </TEXT>
+
+  <INDEX><USE>analyze_...</USE><SUBINDEX>недетермінований</SUBINDEX><CLOSE/></INDEX>
+  
+  <TEXT>
+    <SPLITINLINE>
+      <SCHEME>
+	У <SCHEMEINLINE>get-args</SCHEMEINLINE> зауважте, як
+	<SCHEMEINLINE>cdr</SCHEMEINLINE> просування списком
+	<SCHEMEINLINE>aproc</SCHEMEINLINE>
+	виконавчих процедур і
+	нарощування результатного списку
+	<SCHEMEINLINE>args</SCHEMEINLINE> за допомогою
+	<SCHEMEINLINE>cons</SCHEMEINLINE> виконують, викликаючи кожну
+	<SCHEMEINLINE>aproc</SCHEMEINLINE>
+	у списку з продовженням успіху, яке рекурсивно викликає
+	<SCHEMEINLINE>get-args</SCHEMEINLINE>.
+      </SCHEME>
+      <PYTHON>
+	У <PYTHONINLINE>get_args</PYTHONINLINE> зауважте, як
+	просування списком
+	<PYTHONINLINE>afun</PYTHONINLINE>
+	виконавчих функцій і
+	побудову результатного списку
+	<SCHEMEINLINE>args</SCHEMEINLINE>
+	виконують, викликаючи кожну
+	<PYTHONINLINE>afun</PYTHONINLINE>
+	у списку з продовженням успіху, яке рекурсивно викликає
+	<PYTHONINLINE>get_args</PYTHONINLINE>.
+      </PYTHON>
+    </SPLITINLINE>
+    Кожен із цих рекурсивних викликів
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>get-args</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>get_args</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>  
+    має продовження успіху, значенням якого є
+    <SPLITINLINE>
+      <SCHEME>
+	<SCHEMEINLINE>cons</SCHEMEINLINE>
+	від щойно отриманого аргументу до списку накопичених аргументів:
+      </SCHEME>
+      <PYTHON>
+	новий список, який постає від використання
+	<PYTHONINLINE>pair</PYTHONINLINE>
+	щоб долучити щойно отриманий аргумент
+	до списку накопичених аргументів:
+      </PYTHON>
+    </SPLITINLINE>
+
+    <SNIPPET LATEX="yes">
+      <NAME>get_args_amb</NAME>
+      <EXAMPLE>all_solutions_test_4</EXAMPLE>
+      <SCHEME>
+(define (get-args aprocs env succeed fail)
+  (if (null? aprocs)
+      (succeed '() fail)
+      ((car aprocs) env
+                    <EM>;; success continuation for this <SCHEMEINLINE>aproc</SCHEMEINLINE></EM>
+                    (lambda (arg fail2)
+                      (get-args (cdr aprocs)
+                                env
+                                <EM>;; success continuation for recursive</EM>
+                                <EM>;; call to <SCHEMEINLINE>get-args</SCHEMEINLINE></EM>
+                                (lambda (args fail3)
+                                  (succeed (cons arg args)
+                                           fail3))
+                                fail2))
+                    fail)))
+      </SCHEME>
+      <PYTHON>
+def get_args(afuns, env, succeed, fail):
+    return succeed(None, fail) if is_none(afuns) else head(afuns)(env, lambda arg, fail2: (get_args(tail(afuns), env, lambda args, fail3: (succeed(pair(arg, args), fail3)), fail2)), fail)
+</PYTHON>
+    </SNIPPET>
+  </TEXT>
+
+  <TEXT>
+    Власне
+    <SPLITINLINE>
+      <SCHEME>процедуру</SCHEME>
+      <PYTHON>функцію</PYTHON>
+    </SPLITINLINE>
+    застосування, яке виконує
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>execute-application</SCHEMEINLINE>,</SCHEME>
+      <PYTHON><PYTHONINLINE>execute_application</PYTHONINLINE>,
+      </PYTHON>
+    </SPLITINLINE>  
+    виконують так само, як у звичайному обчислювачі, за винятком
+    потреби керувати продовженнями.
+
+    <SNIPPET POSTPADDING="no">
+      <INDEX><DECLARATION>execute_application</DECLARATION><SUBINDEX>nondeterministic</SUBINDEX></INDEX>
+      <NAME>execute_application_amb</NAME>
+      <EXAMPLE>all_solutions_test_4</EXAMPLE>
+      <SCHEME>
+(define (execute-application proc args succeed fail)
+  (cond ((primitive-procedure? proc)
+         (succeed (apply-primitive-procedure proc args)
+                  fail))
+        ((compound-procedure? proc)
+         ((procedure-body proc)
+          (extend-environment (procedure-parameters proc)
+                              args
+                              (procedure-environment proc))
+          succeed
+          fail))
+        (else
+         (error
+          "Unknown procedure type - - EXECUTE-APPLICATION"
+          proc))))
+      </SCHEME>
+      <PYTHON>
+def execute_application(fun, args, succeed, fail):
+    return succeed(apply_primitive_function(fun, args), fail) if is_primitive_function(fun) else function_body(fun)(extend_environment(function_parameters(fun), args, function_environment(fun)), lambda body_result, fail2: (succeed(return_value_content(body_result) if is_return_value(body_result) else None, fail2)), fail) if is_compound_function(fun) else error("unknown function type - execute_application", fun)
+</PYTHON>
+    </SNIPPET>
+  </TEXT>
+
+  <SUBHEADING>
+    <NAME>Обчислення виразів <SCHEMEINLINE>amb</SCHEMEINLINE></NAME>
+  </SUBHEADING>
+
+  <TEXT>
+    <SCHEMEINLINE>amb</SCHEMEINLINE>
+    <SPLITINLINE>
+      <SCHEME>Особлива</SCHEME>
+      <PYTHON>Синтаксична</PYTHON>
+    </SPLITINLINE>
+    форма
+    — ключовий елемент недетермінованої мови.  Тут ми бачимо
+    суть процесу інтерпретації й причину відстеження
+    продовжень.  Виконавча
+    <SPLITINLINE>
+      <SCHEME>процедура</SCHEME>
+      <PYTHON>функція</PYTHON>
+    </SPLITINLINE>
+    для <SCHEMEINLINE>amb</SCHEMEINLINE> визначає цикл
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>try-next</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>try_next</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    , який перебирає виконавчі
+    <SPLITINLINE>
+      <SCHEME>процедури</SCHEME>
+      <PYTHON>функції</PYTHON>
+    </SPLITINLINE>
+    для всіх можливих значень виразу <SCHEMEINLINE>amb</SCHEMEINLINE>
+    .  Кожну виконавчу
+    <SPLITINLINE>
+      <SCHEME>процедуру</SCHEME>
+      <PYTHON>функцію</PYTHON>
+    </SPLITINLINE>
+    викликають із
+    <INDEX>продовження невдачі (недетермінований обчислювач)<SUBINDEX><ORDER>constructed by amb</ORDER>створене <SCHEMEINLINE>amb</SCHEMEINLINE></SUBINDEX></INDEX>
+    продовженням невдачі, яке спробує наступну.  Коли
+    більше немає альтернатив для спроби, весь вираз
+    <SCHEMEINLINE>amb</SCHEMEINLINE> зазнає невдачі.
+
+    <SNIPPET POSTPADDING="no">
+      <INDEX><DECLARATION>analyze_amb</DECLARATION></INDEX> 
+      <NAME>analyze_amb_amb</NAME>
+      <REQUIRES>map</REQUIRES>
+      <EXAMPLE>all_solutions_test_4</EXAMPLE>
+      <SCHEME POSTPADDING="no">
+(define (analyze-amb exp)
+  (let ((cprocs (map analyze (amb-choices exp))))
+    (lambda (env succeed fail)
+      (define (try-next choices)
+        (if (null? choices)
+            (fail)
+            ((car choices) env
+             succeed
+             (lambda ()
+               (try-next (cdr choices))))))
+      (try-next cprocs))))
+      </SCHEME>
+      <PYTHON>
+def analyze_amb(component):
+    cfuns = map(analyze, amb_choices(component))
+    def _lambda_1(env, succeed, fail):
+        def try_next(choices):
+            return fail() if is_none(choices) else head(choices)(env, succeed, lambda : (try_next(tail(choices))))
+        return try_next(cfuns)
+    return _lambda_1
+</PYTHON>
+    </SNIPPET>
+  </TEXT>
+
+  <SUBHEADING>
+    <NAME>Керівний цикл</NAME>
+  </SUBHEADING>
+
+  <INDEX>керівний цикл<SUBINDEX><ORDER>nondeterministic</ORDER>у недетермінованому обчислювачі</SUBINDEX></INDEX>
+
+  <TEXT>
+    Керівний цикл для обчислювача <SCHEMEINLINE>amb</SCHEMEINLINE>
+    складний через механізм, який дає користувачеві змогу повторити обчислення
+    <SPLITINLINE>
+      <SCHEME>виразу.</SCHEME>
+      <PYTHON>програми.</PYTHON>
+    </SPLITINLINE>
+    Керівний цикл користується
+    <SPLITINLINE>
+      <SCHEME>процедурою</SCHEME>
+      <PYTHON>функцією</PYTHON>
+    </SPLITINLINE>
+    яка зветься
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>internal-loop</SCHEMEINLINE>,</SCHEME>
+      <PYTHON><PYTHONINLINE>internal_loop</PYTHONINLINE>,
+      </PYTHON>
+    </SPLITINLINE>
+    і бере як аргумент
+    <SPLITINLINE>
+      <SCHEME>процедуру</SCHEME>
+      <PYTHON>функцію</PYTHON>
+    </SPLITINLINE>
+    <INDEX>продовження невдачі (недетермінований обчислювач)<SUBINDEX>створене керівним циклом</SUBINDEX></INDEX>
+    <SPLITINLINE>
+      <SCHEME>  
+	<SCHEMEINLINE>try-again</SCHEMEINLINE>.
+      </SCHEME>
+      <PYTHON>
+	<PYTHONINLINE>retry</PYTHONINLINE>.
+      </PYTHON>
+    </SPLITINLINE>
+    Сенс у тому, що виклик
+    <SPLITINLINE><SCHEME>  
+      <SCHEMEINLINE>try-again</SCHEMEINLINE>
+    </SCHEME>
+    <PYTHON>
+      <PYTHONINLINE>retry</PYTHONINLINE>
+    </PYTHON></SPLITINLINE>
+    має перейти до наступної непробуваної альтернативи в недетермінованому
+    обчисленні.
+    <SPLITINLINE><SCHEME>  
+      <SCHEMEINLINE>Internal-loop</SCHEMEINLINE>
+    </SCHEME>
+    <PYTHON>The function
+    <PYTHONINLINE>internal_loop</PYTHONINLINE>
+    </PYTHON></SPLITINLINE>
+    або викликає
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>try-again</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>retry</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    у відповідь на те, що користувач набрав
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>try-again</SCHEMEINLINE></SCHEME>
+      <PYTHON>
+	<PYTHONINLINE>retry</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    у керівному циклі, або починає нове обчислення, викликавши
+    <SCHEMEINLINE>ambeval</SCHEMEINLINE>.  
+  </TEXT>
+
+  <TEXT>
+    Продовження невдачі для цього виклику
+    <SCHEMEINLINE>ambeval</SCHEMEINLINE>
+    <!-- %(marked <QUOTE>*2*</QUOTE> below)-->
+    повідомляє користувачеві, що більше немає значень, і знову заходить у керівний
+    цикл.
+  </TEXT>
+
+  <TEXT>
+    Продовження успіху для виклику <SCHEMEINLINE>ambeval</SCHEMEINLINE>
+    <!-- %(marked <QUOTE>*1*</QUOTE> below)-->
+    тонше.  Ми друкуємо отримане значення, а тоді
+    <SPLITINLINE>
+      <SCHEME>
+	знову заходимо у внутрішній цикл
+      </SCHEME>
+      <PYTHON>
+	знову заходимо у внутрішній цикл
+      </PYTHON>
+    </SPLITINLINE>
+    із
+    <SPLITINLINE>
+      <SCHEME>  
+	<SCHEMEINLINE>try-again</SCHEMEINLINE>
+      </SCHEME>
+      <PYTHON>
+	<PYTHONINLINE>retry</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    <SPLITINLINE>
+      <SCHEME>процедурою</SCHEME>
+      <PYTHON>функцією</PYTHON>
+    </SPLITINLINE>
+    , яка зможе спробувати наступну альтернативу.  Ця
+    <SPLITINLINE>
+      <SCHEME>  
+	<SCHEMEINLINE>next-alternative</SCHEMEINLINE>
+      </SCHEME>
+      <PYTHON>
+	<PYTHONINLINE>next_alternative</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    <SPLITINLINE>
+      <SCHEME>процедура</SCHEME>
+      <PYTHON>функція</PYTHON>
+    </SPLITINLINE>
+    — це другий аргумент, який передали продовженню успіху.
+    Звично ми думаємо про цей другий аргумент як про продовження невдачі,
+    яке слід ужити, якщо поточна гілка обчислення згодом зазнає невдачі.  У цьому випадку,
+    проте, ми завершили успішне обчислення, тож можемо викликати
+    <QUOTE>невдалу</QUOTE> альтернативну гілку, щоб пошукати додаткові
+    успішні обчислення.
+
+    <SNIPPET HIDE="yes">
+      <NAME>driver_loop_amb_example</NAME>
+      <SCHEME>
+(driver-loop)
+      </SCHEME>
+      <PYTHON>
+driver_loop()
+      </PYTHON>
+    </SNIPPET>
+    <SNIPPET>
+      <INDEX>prompts<SUBINDEX>nondeterministic evaluator</SUBINDEX></INDEX>
+      <INDEX><DECLARATION>driver_loop</DECLARATION><SUBINDEX>for nondeterministic evaluator</SUBINDEX></INDEX>
+      <NAME>driver_loop_amb</NAME>
+      <REQUIRES>ambeval</REQUIRES>      
+      <REQUIRES>user_print</REQUIRES>
+      <REQUIRES>user_read</REQUIRES>
+      <EXAMPLE>driver_loop_amb_example</EXAMPLE>
+      <SCHEME>
+(define input-prompt ";;; Amb-Eval input:")
+(define output-prompt ";;; Amb-Eval value:")
+
+(define (driver-loop)
+  (define (internal-loop try-again)
+    (prompt-for-input input-prompt)
+    (let ((input (read)))
+      (if (eq? input 'try-again)
+          (try-again)
+          (begin
+            (newline)
+            (display ";;; Starting a new problem ")
+            (ambeval input
+                     the-global-environment
+                     <EM>;; <SCHEMEINLINE>ambeval</SCHEMEINLINE> success</EM>
+                     (lambda (val next-alternative)
+                       (announce-output output-prompt)
+                       (user-print val)
+                       (internal-loop next-alternative))
+                    <EM>;; <SCHEMEINLINE>ambeval</SCHEMEINLINE> failure</EM>
+                    (lambda ()
+                      (announce-output
+                       ";;; There are no more values of")
+                      (user-print input)
+                      (driver-loop)))))))
+  (internal-loop
+   (lambda ()
+     (newline)
+     (display ";;; There is no current problem")
+     (driver-loop))))
+      </SCHEME>
+      <PYTHON>
+input_prompt = "amb-evaluate input:"
+output_prompt =  "amb-evaluate value:"
+
+def driver_loop(env):
+    def internal_loop(retry):
+        input = user_read(input_prompt)
+        if is_none(input):
+            print("evaluator terminated")
+        elif input == "retry":
+            return retry()
+        else:
+            print("Starting a new problem")
+            program = parse(input)
+            locals = scan_out_declarations(program)
+            unassigneds = list_of_unassigned(locals)
+            program_env = extend_environment(
+                              locals, unassigneds, env)
+            def on_success(val, next_alternative):
+                user_print(output_prompt, val)
+                return internal_loop(next_alternative)
+            def on_failure():
+                print("There are no more values of")
+                print(input)
+                return driver_loop(program_env)
+            return ambeval(program, program_env, on_success, on_failure)
+    def no_problem():
+        print("There is no current problem")
+        return driver_loop(env)
+    return internal_loop(no_problem)
+      </PYTHON>
+      <PYTHON_RUN>
+input_prompt = "amb-evaluate input:"
+output_prompt =  "amb-evaluate value:"
+def driver_loop():
+    def internal_loop(retry):
+        input = user_read(input_prompt)
+        if is_none(input):
+            print("", "--- evaluator terminated ---")
+        elif input == "retry":
+            print(input_prompt + "\n" + input + "\n",
+                    "----------------------------")
+            return retry()
+        else:
+            print(input_prompt + "\n" + input + "\n",
+                    "--- starting new problem ---")
+            def on_success(val, next_alternative):
+                user_print(output_prompt, val)
+                return internal_loop(next_alternative)
+            def on_failure():
+                print("no more values of:\n" + input + "\n",
+                        "----------------------------")
+                return driver_loop()
+            ambeval(parse("{ " + input + " }"),
+                the_global_environment, on_success, on_failure)
+    def no_problem():
+        print("", "---  no current problem  ---")
+        return driver_loop()
+    return internal_loop(no_problem)
+      </PYTHON_RUN>
+    </SNIPPET>
+    Початковий виклик
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>internal-loop</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>internal_loop</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    користується
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>try-again</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>retry</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    <SPLITINLINE>
+      <SCHEME>процедурою</SCHEME>
+      <PYTHON>функцією</PYTHON>
+    </SPLITINLINE>
+    яка скаржиться, що немає поточної задачі, і перезапускає керівний цикл.
+    Це та поведінка, яка буде, якщо користувач набере
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>try-again</SCHEMEINLINE></SCHEME>
+      <PYTHON>
+	<PYTHONINLINE>retry</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    , коли жодного обчислення не відбувається.
+  </TEXT>
+  <SPLIT>
+    <PYTHON>
+      <TEXT>
+	Керівний цикл ми запускаємо як звично: установлюємо глобальне середовище
+	й передаємо його як охопне середовище для першої ітерації
+	<PYTHONINLINE>driver_loop</PYTHONINLINE>.
+
+	<SNIPPET EVAL="no" POSTPADDING="no">
+	  <PYTHON>
+the_global_environment = setup_environment()
+driver_loop(the_global_environment)
+</PYTHON>
+	</SNIPPET>
+      </TEXT>
+    </PYTHON>
+  </SPLIT>
+  <EXERCISE>
+    Реалізуйте нову
+    <SPLITINLINE>
+      <SCHEME>особливу</SCHEME>
+      <PYTHON>синтаксичну</PYTHON>
+    </SPLITINLINE>
+    форму <SCHEMEINLINE>ramb</SCHEMEINLINE>, подібну до
+    <SCHEMEINLINE>amb</SCHEMEINLINE>, але таку, що шукає альтернативи у
+    випадковому порядку, а не зліва направо.  Покажіть, як це може допомогти
+    з задачею Аліси у вправі<SPACE/><REF NAME="ex:sentence-generate"/>.
+    <LABEL NAME="ex:ramb"/>
+  </EXERCISE>
+
+
+  <EXERCISE>
+    <SPLITINLINE>
+      <SCHEME>
+	Реалізуйте новий різновид присвоєння під назвою
+	<SCHEMEINLINE>permanent-set!</SCHEMEINLINE>, яке
+      </SCHEME>
+      <PYTHON>
+	Змініть реалізацію присвоєння так, щоб воно
+      </PYTHON>
+    </SPLITINLINE>
+    не скасовувалося після невдачі. Наприклад, ми можемо вибрати два різні
+    елементи зі списку й порахувати кількість спроб, потрібних, щоб зробити
+    успішний вибір, так:
+
+    <SNIPPET EVAL="no">
+      <SCHEME>
+(define count 0)
+
+(let ((x (an-element-of '(a b c)))
+      (y (an-element-of '(a b c))))
+  (permanent-set! count (+ count 1))
+  (require (not (eq? x y)))
+  (list x y count))
+      </SCHEME>
+      <SCHEMEOUTPUT>
+;;; Starting a new problem
+;;; Amb-Eval value:
+(a b 2)
+
+;;; Amb-Eval input:
+      </SCHEMEOUTPUT>
+      <PYTHON>
+count = 0
+x = an_element_of("a", "b", "c")
+y = an_element_of("a", "b", "c")
+count = count + 1
+require(x != y)
+llist(x, y, count)
+</PYTHON>
+      <PYTHON_OUTPUT>
+Starting a new problem
+amb-evaluate value:
+["a", ["b", [2, None]]]
+      </PYTHON_OUTPUT>
+    </SNIPPET>
+    <SNIPPET EVAL="no">
+      <SCHEME>
+try-again
+      </SCHEME>
+      <SCHEMEOUTPUT>
+;;; Amb-Eval value:
+(a c 3)
+      </SCHEMEOUTPUT>
+      <PYTHON_PROMPT>
+amb-evaluate input:
+      </PYTHON_PROMPT>
+      <PYTHON>
+retry
+      </PYTHON>
+      <PYTHON_OUTPUT>
+amb-evaluate value:
+["a", ["c", [3, None]]]
+      </PYTHON_OUTPUT>
+    </SNIPPET>
+    <SPLIT>
+      <SCHEME>
+	Які значення були б показані, якби ми використали тут
+	<SCHEMEINLINE>set!</SCHEMEINLINE> замість
+	<SCHEMEINLINE>permanent-set!</SCHEMEINLINE>?
+      </SCHEME>
+      <PYTHON>
+	Які значення були б показані, якби ми використали
+	початкове значення присвоєння замість
+	постійного присвоєння?
+      </PYTHON>
+    </SPLIT>
+    <LABEL NAME="ex:permanent-set"/>
+  </EXERCISE>
+
+  <SPLIT>
+    <SCHEME>
+      <EXERCISE>
+	<LABEL NAME="ex:if-fail_scheme"/>
+	Реалізуйте нову конструкцію під назвою <SCHEMEINLINE>if-fail</SCHEMEINLINE>,
+	яка дає користувачеві змогу перехопити невдачу виразу.
+	<SCHEMEINLINE>If-fail</SCHEMEINLINE> бере два вирази. Він обчислює
+	перший вираз як звично й повертається як звично, якщо обчислення
+	успішне. Якщо ж обчислення зазнає невдачі, повертається значення другого
+	виразу, як у наступному прикладі:
+
+	<SNIPPET EVAL="no">
+	  <SCHEME>
+	  </SCHEME>
+	  <SCHEMEOUTPUT>
+;;; Amb-Eval input:
+	  </SCHEMEOUTPUT>
+	</SNIPPET>
+	<SNIPPET EVAL="no">
+	  <SCHEME>
+(if-fail (let ((x (an-element-of '(1 3 5))))
+           (require (even? x))
+           x)
+         'all-odd)
+	  </SCHEME>
+	  <SCHEMEOUTPUT>
+;;; Starting a new problem
+;;; Amb-Eval value:
+all-odd
+
+;;; Amb-Eval input:
+	  </SCHEMEOUTPUT>
+	</SNIPPET>
+	<SNIPPET EVAL="no">
+	  <SCHEME>
+(if-fail (let ((x (an-element-of '(1 3 5 8))))
+           (require (even? x))
+           x)
+         'all-odd)
+	  </SCHEME>
+	  <SCHEMEOUTPUT>
+;;; Starting a new problem
+;;; Amb-Eval value:
+8
+	  </SCHEMEOUTPUT>
+	</SNIPPET>
+      </EXERCISE>
+    </SCHEME>
+    <PYTHON>
+      <EXERCISE>
+	<LABEL NAME="ex:if-fail"/>
+	Ми страхітливо зловживемо синтаксисом умовних інструкцій,
+	реалізувавши конструкцію такого вигляду:
+
+	<SNIPPET EVAL="no" LATEX="yes">
+	  <PYTHON>
+if (evaluation_succeeds_take) { $statement$ } else { $alternative$ }
+	  </PYTHON>
+	</SNIPPET>
+	Ця конструкція дає користувачеві змогу перехопити невдачу
+	інструкції. Вона обчислює інструкцію як звично й повертається
+	як звично, якщо обчислення успішне. Якщо ж обчислення зазнає невдачі,
+	обчислюється задана альтернативна інструкція,
+	як у наступному прикладі:
+
+	<SNIPPET EVAL="no">
+	  <PYTHON_PROMPT>
+amb-evaluate input:
+	  </PYTHON_PROMPT>
+	  <PYTHON>
+if evaluation_succeeds_take:
+    x = an_element_of(llist(1, 3, 5))
+    require(is_even(x))
+    x
+else:
+    "all odd"
+</PYTHON>
+	  <PYTHON_OUTPUT>
+Starting a new problem
+amb-evaluate value:
+"all odd"
+	  </PYTHON_OUTPUT>
+	</SNIPPET>
+	<SNIPPET EVAL="no">
+	  <PYTHON_PROMPT>
+amb-evaluate input:
+	  </PYTHON_PROMPT>
+	  <PYTHON>
+if evaluation_succeeds_take:
+    x = an_element_of(llist(1, 3, 5, 8))
+    require(is_even(x))
+    x
+else:
+    "all odd"
+</PYTHON>
+	  <PYTHON_OUTPUT>
+Starting a new problem
+amb-evaluate value:
+8
+	  </PYTHON_OUTPUT>
+	</SNIPPET>
+	Реалізуйте цю конструкцію, розширивши обчислювач
+	<PYTHONINLINE>amb</PYTHONINLINE>
+	. Підказка: функція
+	<PYTHONINLINE>is_amb</PYTHONINLINE> показує,
+	як зловживати наявним синтаксисом Python, щоб реалізувати
+	нову синтаксичну форму.
+      </EXERCISE>
+    </PYTHON>
+  </SPLIT>
+
+  <EXERCISE>
+    <LABEL NAME="ex:combine_permanent_if_fail"/>
+    Із
+    <SPLITINLINE>
+      <SCHEME>
+	<SCHEMEINLINE>permanent-set!</SCHEMEINLINE>
+      </SCHEME>
+      <PYTHON>
+	новим різновидом присвоєння
+      </PYTHON>
+    </SPLITINLINE>
+    , як описано у вправі<SPACE/><REF NAME="ex:permanent-set"/>, та
+    <SPLITINLINE>
+      <SCHEME>
+	<SCHEMEINLINE>if-fail</SCHEMEINLINE>
+      </SCHEME>
+      <PYTHON>
+	конструкцією
+	<SNIPPET EVAL="no" LATEX="yes">
+	  <PYTHON>
+if (evaluation_succeeds_take) { $\ldots$ } else { $\ldots$ }
+      </PYTHON>
+	</SNIPPET>
+      </PYTHON>
+    </SPLITINLINE>
+    , як у вправі<SPACE/><REF NAME="ex:if-fail"/>, яким буде результат
+    обчислення
+    <SNIPPET EVAL="no" POSTPADDING="no">
+      <SCHEME>
+(let ((pairs '()))
+  (if-fail (let ((p (prime-sum-pair '(1 3 5 8) '(20 35 110))))
+             (permanent-set! pairs (cons p pairs))
+             (amb))
+           pairs))
+      </SCHEME>
+      <PYTHON>
+pairs = None
+if evaluation_succeeds_take:
+    p = prime_sum_pair(llist(1, 3, 5, 8), llist(20, 35, 110))
+    pairs = pair(p, pairs)
+    amb()
+else:
+    pairs
+</PYTHON>
+    </SNIPPET>
+  </EXERCISE>
+
+  <EXERCISE>
+    <LABEL NAME="ex:require_special"/>
+    Якби ми не зрозуміли, що
+    <INDEX><USE>require</USE><SUBINDEX>як синтаксична форма</SUBINDEX></INDEX>
+    <SCHEMEINLINE>require</SCHEMEINLINE> можна
+    реалізувати як звичайну
+    <SPLITINLINE>
+      <SCHEME>процедуру</SCHEME>
+      <PYTHON>функцію</PYTHON>
+    </SPLITINLINE>
+    , яка використовує <SCHEMEINLINE>amb</SCHEMEINLINE>, а користувач має означити її як
+    частину недетермінованої програми, нам довелося б реалізувати її
+    як
+    <SPLITINLINE>
+      <SCHEME>особливу</SCHEME>
+      <PYTHON>синтаксичну</PYTHON>
+    </SPLITINLINE>
+    форму. Це вимагало б синтаксичних
+    <SPLITINLINE>
+      <SCHEME>процедур</SCHEME>
+      <PYTHON>функцій</PYTHON>
+    </SPLITINLINE>
+
+    <SNIPPET EVAL="no">
+      <SCHEME>
+(define (require? exp) (tagged-list? exp 'require))
+
+(define (require-predicate exp) (cadr exp))
+      </SCHEME>
+      <PYTHON>
+def is_require(component):
+    return is_tagged_list(component, "require")
+def require_predicate(component):
+    return head(tail(component))
+</PYTHON>
+    </SNIPPET>
+    і нової гілки в диспетчеризації в <SCHEMEINLINE>analyze</SCHEMEINLINE>
+
+    <SNIPPET EVAL="no">
+      <SCHEME>
+      ((require? exp) (analyze-require exp))
+      </SCHEME>
+      <PYTHON>
+: is_require(component)
+? analyze_require(component)
+      </PYTHON>
+    </SNIPPET>
+    а також
+    <SPLITINLINE>
+      <SCHEME>процедури</SCHEME>
+      <PYTHON>функції</PYTHON>
+    </SPLITINLINE>
+    <SPLITINLINE>
+      <SCHEME>
+	<SCHEMEINLINE>analyze-require</SCHEMEINLINE>
+      </SCHEME>
+      <PYTHON>
+	<PYTHONINLINE>analyze_require</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    , яка опрацьовує вирази <SCHEMEINLINE>require</SCHEMEINLINE>
+    .  Завершіть наступне означення
+    <SPLITINLINE>
+      <SCHEME>
+	<SCHEMEINLINE>analyze-require</SCHEMEINLINE>.
+      </SCHEME>
+      <PYTHON>
+	<PYTHONINLINE>analyze_require</PYTHONINLINE>.
+      </PYTHON>
+    </SPLITINLINE>
+    <SNIPPET EVAL="no" LATEX="yes" POSTPADDING="no">
+      <SCHEME>
+(define (analyze-require exp)
+  (let ((pproc (analyze (require-predicate exp))))
+    (lambda (env succeed fail)
+      (pproc env
+             (lambda (pred-value fail2)
+               (if ??
+                   ??
+                   (succeed 'ok fail2)))
+             fail))))
+      </SCHEME>
+      <PYTHON>
+def analyze_require(component):
+    pfun = analyze(require_predicate(component))
+    return lambda env, succeed, fail: (pfun(env, lambda pred_value, fail2: (<METAPHRASE>??</METAPHRASE> if <METAPHRASE>??</METAPHRASE> else succeed("ok", fail2)), fail))
+      </PYTHON>
+    </SNIPPET>
+  </EXERCISE>
+
+  <INDEX>недетермінований обчислювач<CLOSE/></INDEX>
+
+  <SNIPPET HIDE="yes">
+    <NAME>all_solutions</NAME>
+    <REQUIRES>reverse</REQUIRES>
+    <REQUIRES>ambeval</REQUIRES>
+      <PYTHON>
+def all_solutions(input):
+    solutions = None
+    def internal_loop(input, retry):
+        if input == "retry":
+            return retry()
+        else:
+            def on_success(val, next_alternative):
+                nonlocal solutions
+                solutions = pair(val, solutions)
+                return internal_loop("retry", next_alternative)
+            return ambeval(parse("{ " + input + " }"),
+                       the_global_environment,
+                       on_success,
+                       lambda: None)
+    def internal_error():
+        print("// internal error")
+    internal_loop(input, internal_error)
+    return reverse(solutions)
+      </PYTHON>
+    </SNIPPET>
+  <SNIPPET HIDE="yes">
+    <NAME>first_solution</NAME>
+    <REQUIRES>ambeval</REQUIRES>
+      <PYTHON>
+def first_solution(input):
+    return ambeval(parse("{ " + input + " }"), the_global_environment, lambda val, next_alternative: (val), lambda : (None))
+</PYTHON>
+    </SNIPPET>
+    <SNIPPET HIDE="yes">
+      <NAME>all_solutions_test_1</NAME>
+      <REQUIRES>first_solution</REQUIRES>
+      <REQUIRES>all_solutions</REQUIRES>
+      <EXPECTED>[ 'apple', [ 'banana', [ 'cranberry', None ] ] ]</EXPECTED>
+      <PYTHON>
+all_solutions("""
+def require(p):
+    return amb() if not p else "Satisfied require"
+def an_element_of(items):
+    require(not is_null(items))
+    return amb(head(items), an_element_of(tail(items)))
+xs = list("apple", "banana", "cranberry")
+an_element_of(xs)
+""")
+      </PYTHON>
+    </SNIPPET>
+    <SNIPPET HIDE="yes">
+      <NAME>all_solutions_test_2</NAME>
+      <REQUIRES>list_ref</REQUIRES>
+      <REQUIRES>first_solution</REQUIRES>
+      <REQUIRES>all_solutions</REQUIRES>
+      <EXPECTED>[ 8, [ 35, None ] ]</EXPECTED>
+      <PYTHON>
+all_solutions("""
+def require(p):
+    return amb() if not p else "Satisfied require"
+def an_element_of(items):
+    require(not is_null(items))
+    return amb(head(items), an_element_of(tail(items)))
+def square(x):
+    return x * x
+def is_divisible(x, y):
+    return x % y == 0
+def integers_starting_from(n):
+    return pair(n, lambda: integers_starting_from(n + 1))
+def is_prime(n):
+    def iter(ps):
+        return True if square(head(ps)) > n else False if is_divisible(n, head(ps)) else iter(stream_tail(ps))
+    return iter(primes)
+def stream_tail(xs):
+    return tail(xs)()
+def stream_filter(pred, s):
+    return None if is_null(s) else pair(head(s), lambda: stream_filter(pred, stream_tail(s))) if pred(head(s)) else stream_filter(pred, stream_tail(s))
+primes = pair(2, lambda: stream_filter(is_prime, integers_starting_from(3)))
+def prime_sum_pair(list1, list2):
+    a = an_element_of(list1)
+    b = an_element_of(list2)
+    require(is_prime(a + b))
+    return list(a, b)
+prime_sum_pair(list(1, 3, 5, 8), list(20, 35, 110))
+""")
+      </PYTHON>
+      <PYTHON_RUN>
+llist_ref(all_solutions("""
+def require(p):
+    return amb() if not p else "Satisfied require"
+def an_element_of(items):
+    require(not is_null(items))
+    return amb(head(items), an_element_of(tail(items)))
+def square(x):
+    return x * x
+def is_divisible(x, y):
+    return x % y == 0
+def integers_starting_from(n):
+    return pair(n, lambda: integers_starting_from(n + 1))
+def is_prime(n):
+    def iter(ps):
+        return True if square(head(ps)) > n else False if is_divisible(n, head(ps)) else iter(stream_tail(ps))
+    return iter(primes)
+def stream_tail(xs):
+    return tail(xs)()
+def stream_filter(pred, s):
+    return None if is_null(s) else pair(head(s), lambda: stream_filter(pred, stream_tail(s))) if pred(head(s)) else stream_filter(pred, stream_tail(s))
+primes = pair(2, lambda: stream_filter(is_prime, integers_starting_from(3)))
+def prime_sum_pair(list1, list2):
+    a = an_element_of(list1)
+    b = an_element_of(list2)
+    require(is_prime(a + b))
+    return list(a, b)
+prime_sum_pair(list(1, 3, 5, 8), list(20, 35, 110))
+"""),
+      4)
+      </PYTHON_RUN>
+    </SNIPPET>
+    <SNIPPET HIDE="yes">
+      <NAME>all_solutions_test_3</NAME>
+      <REQUIRES>list_ref</REQUIRES>
+      <REQUIRES>memq</REQUIRES>
+      <REQUIRES>first_solution</REQUIRES>
+      <REQUIRES>all_solutions</REQUIRES>
+      <EXPECTED>[ 'verb', [ 'eats', None ] ]</EXPECTED>
+      <PYTHON>
+all_solutions("""
+def require(p):
+    return amb() if not p else "Satisfied require"
+def member(item, x):
+    return None if is_null(x) else x if item == head(x) else member(item, tail(x))
+unparsed = None
+nouns = list("noun", "student", "professor", "cat", "class")
+verbs = list("verb", "studies", "lectures", "eats", "sleeps")
+articles = list("article", "the", "a")
+def parse_word(word_list):
+    global unparsed
+    require(not is_null(unparsed))
+    require(not is_null(member(head(unparsed), tail(word_list))))
+    found_word = head(unparsed)
+    unparsed = tail(unparsed)
+    return list(head(word_list), found_word)
+def parse_noun_phrase():
+    return list("noun-phrase", parse_word(articles), parse_word(nouns))
+def parse_sentence():
+    return list("sentence", parse_noun_phrase(), parse_word(verbs))
+def parse_input(input):
+    global unparsed
+    unparsed = input
+    sent = parse_sentence()
+    require(is_null(unparsed))
+    return sent
+parse_input(list("the", "cat", "eats"))
+""")
+      </PYTHON>
+      <PYTHON_RUN>
+llist_ref(llist_ref(all_solutions("""
+def require(p):
+    return amb() if not p else "Satisfied require"
+def member(item, x):
+    return None if is_null(x) else x if item == head(x) else member(item, tail(x))
+unparsed = None
+nouns = list("noun", "student", "professor", "cat", "class")
+verbs = list("verb", "studies", "lectures", "eats", "sleeps")
+articles = list("article", "the", "a")
+def parse_word(word_list):
+    global unparsed
+    require(not is_null(unparsed))
+    require(not is_null(member(head(unparsed), tail(word_list))))
+    found_word = head(unparsed)
+    unparsed = tail(unparsed)
+    return list(head(word_list), found_word)
+def parse_noun_phrase():
+    return list("noun-phrase", parse_word(articles), parse_word(nouns))
+def parse_sentence():
+    return list("sentence", parse_noun_phrase(), parse_word(verbs))
+def parse_input(input):
+    global unparsed
+    unparsed = input
+    sent = parse_sentence()
+    require(is_null(unparsed))
+    return sent
+parse_input(list("the", "cat", "eats"))
+"""),
+                 0),
+        2)
+      </PYTHON_RUN>
+    </SNIPPET>
+    <SNIPPET HIDE="yes">
+      <NAME>full_parser</NAME>
+      <REQUIRES>memq</REQUIRES>
+      <PYTHON>
+full_parser = """
+def require(p):
+    return amb() if not p else "Satisfied require"
+def member(item, x):
+    return None if is_null(x) else x if item == head(x) else member(item, tail(x))
+unparsed = None
+def parse_word(word_list):
+    global unparsed
+    require(not is_null(unparsed))
+    require(not is_null(member(head(unparsed), tail(word_list))))
+    found_word = head(unparsed)
+    unparsed = tail(unparsed)
+    return list(head(word_list), found_word)
+prepositions = list("prep", "for", "to", "in", "by", "with")
+def parse_prepositional_phrase():
+    return list("prep-phrase", parse_word(prepositions), parse_noun_phrase())
+nouns = list("noun", "student", "professor", "cat", "class")
+verbs = list("verb", "studies", "lectures", "eats", "sleeps")
+articles = list("article", "the", "a")
+def parse_simple_noun_phrase():
+    return list("simple-noun-phrase", parse_word(articles), parse_word(nouns))
+def parse_noun_phrase():
+    def maybe_extend(noun_phrase):
+        return amb(noun_phrase, maybe_extend(list("noun-phrase", noun_phrase, parse_prepositional_phrase())))
+    return maybe_extend(parse_simple_noun_phrase())
+def parse_sentence():
+    return list("sentence", parse_noun_phrase(), parse_verb_phrase())
+def parse_verb_phrase():
+    def maybe_extend(verb_phrase):
+        return amb(verb_phrase, maybe_extend(list("verb-phrase", verb_phrase, parse_prepositional_phrase())))
+    return maybe_extend(parse_word(verbs))
+def parse_input(input):
+    global unparsed
+    unparsed = input
+    sent = parse_sentence()
+    require(is_null(unparsed))
+    return sent
+"""
+</PYTHON>
+    </SNIPPET>
+    <SNIPPET HIDE="yes">
+      <NAME>all_solutions_test_4</NAME>
+      <REQUIRES>list_ref</REQUIRES>
+      <REQUIRES>first_solution</REQUIRES>
+      <REQUIRES>all_solutions</REQUIRES>
+      <REQUIRES>full_parser</REQUIRES>
+      <EXPECTED>[ 'article', [ 'the', None ] ]</EXPECTED>
+      <PYTHON>
+all_solutions(full_parser + """
+parse_input(list("the", "student", "with", "the", "cat", "sleeps", "in", "the", "class"))
+""")
+      </PYTHON>
+      <PYTHON_RUN>
+llist_ref(llist_ref(llist_ref(llist_ref(llist_ref(all_solutions(full_parser + """
+parse_input(list("the", "student", "with", "the", "cat", "sleeps", "in", "the", "class"))
+"""),
+                                             0),
+                                    2),
+                           2),
+                  2),
+         1)
+      </PYTHON_RUN>
+    </SNIPPET>
+    <SNIPPET HIDE="yes">
+      <NAME>all_solutions_test_5</NAME>
+      <REQUIRES>list_ref</REQUIRES>
+      <REQUIRES>first_solution</REQUIRES>
+      <REQUIRES>all_solutions</REQUIRES>
+      <REQUIRES>full_parser</REQUIRES>
+      <EXPECTED>[ 'prep', [ 'with', None ] ]</EXPECTED>
+      <PYTHON>
+all_solutions(full_parser + """
+parse_input(list("the", "professor", "lectures", "to", "the", "student", "with", "the", "cat"))
+""")
+      </PYTHON>
+      <PYTHON_TEST>
+llist_ref(llist_ref(llist_ref(llist_ref(llist_ref(llist_ref(all_solutions(full_parser + """
+parse_input(list("the", "professor", "lectures", "to", "the", "student", "with", "the", "cat"))
+"""),
+                                                      1),
+                                             2),
+                                    2),
+                           2),
+                  2),
+         1)
+      </PYTHON_TEST>
+    </SNIPPET>
+    <SNIPPET HIDE="yes">
+      <NAME>first_solutions_test_1</NAME>
+      <REQUIRES>memq</REQUIRES>
+      <REQUIRES>first_solution</REQUIRES>
+      <REQUIRES>all_solutions</REQUIRES>
+      <!-- No test case: command line version seems 
+	   too slow for this puzzle                 
+      <EXPECTED>what</EXPECTED>                         -->
+      <PYTHON>
+first_solution("""
+def require(p):
+    return amb() if not p else "Satisfied require"
+def distinct(items):
+    return True if is_null(items) else True if is_null(tail(items)) else distinct(tail(items)) if is_null(member(head(items), tail(items))) else False
+def member(item, x):
+    return None if is_null(x) else x if item == head(x) else member(item, tail(x))
+def multiple_dwelling():
+    baker = amb(1, 2, 3, 4, 5)
+    cooper = amb(1, 2, 3, 4, 5)
+    fletcher = amb(1, 2, 3, 4, 5)
+    miller = amb(1, 2, 3, 4, 5)
+    smith = amb(1, 2, 3, 4, 5)
+    require(distinct(list(baker, cooper, fletcher, miller, smith)))
+    require(not (baker == 5))
+    require(not (cooper == 1))
+    require(not (fletcher == 5))
+    require(not (fletcher == 1))
+    require(miller > cooper)
+    require(not (math_abs(smith - fletcher) == 1))
+    require(not (math_abs(fletcher - cooper) == 1))
+    return list(list("baker", baker), list("cooper", cooper), list("fletcher", fletcher), list("miller", miller), list("smith", smith))
+multiple_dwelling()
+""")
+      </PYTHON>
+    </SNIPPET>
+</SUBSECTION>

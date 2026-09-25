@@ -6,9 +6,15 @@ set -euo pipefail
 # Select the edition to match javascript/editions.ts (SICP_EDITION env var).
 # Unset or anything unrecognized -> JavaScript edition (default).
 EDITION="$(printf '%s' "${SICP_EDITION:-}" | tr '[:upper:]' '[:lower:]' | tr -d '[:space:]')"
+LOCALE="$(printf '%s' "${SICP_LOCALE:-}" | tr '[:upper:]' '[:lower:]' | tr -d '[:space:]')"
 if [ "${EDITION}" = "py" ]; then
     LANG_KEY="py"
     OUTPUT_BASE="sicpy"
+    if [ -n "${LOCALE}" ]; then
+        # translated edition: json_py_uk/, split_py_uk/, sicpy_uk.pdf, ...
+        LANG_KEY="py_${LOCALE}"
+        OUTPUT_BASE="sicpy_${LOCALE}"
+    fi
 elif [ "${EDITION}" = "scm" ]; then
     LANG_KEY="scm"
     OUTPUT_BASE="sicp"

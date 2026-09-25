@@ -1,0 +1,2327 @@
+<SUBSECTION>
+  <NAME>
+    Дедуктивне відповідання на запитання
+  </NAME>
+
+  <LABEL NAME="sec:deductive-info-retrieval"/>
+
+  <INDEX>мова запитів<OPEN/></INDEX>
+
+  <TEXT>
+    Логічне програмування особливо добре підходить для створення інтерфейсів до
+    <INDEX>база даних<SUBINDEX>логічне програмування і</SUBINDEX></INDEX>
+    баз даних для
+    пошуку інформації.  Мову запитів, яку ми реалізуємо в цьому
+    розділі, розроблено саме для такого використання.
+  </TEXT>
+
+  <TEXT>
+    Щоб проілюструвати, що робить система запитів, ми покажемо, як її
+    можна використати для керування базою даних кадрових записів компанії
+    <INDEX>Gargle</INDEX>
+    Gargle — процвітаючої високотехнологічної компанії в
+    районі Бостона.  Мова забезпечує доступ до кадрової інформації,
+    керований зразком, і може також скористатися загальними правилами,
+    щоб робити логічні висновки.
+  </TEXT>
+
+  <SUBHEADING>
+    <NAME>Приклад бази даних</NAME>
+  </SUBHEADING>
+
+  <INDEX>мова запитів<SUBINDEX>база даних<OPEN/></SUBINDEX></INDEX>
+
+  <TEXT>
+    <INDEX>база даних<SUBINDEX>кадри компанії Gargle<OPEN/></SUBINDEX></INDEX>
+    Кадрова база даних компанії Gargle
+    містить
+    <INDEX>твердження</INDEX>
+    <EM>твердження</EM> про працівників компанії.  Ось
+    інформація про Бена Бітдідла, штатного комп’ютерного чарівника:
+    <SNIPPET>
+      <NAME>sample_data_base_1</NAME>
+      <REQUIRES>process_query</REQUIRES>
+      <EXAMPLE>sample_data_base_1_example</EXAMPLE>
+      <SCHEME>
+(address (Bitdiddle Ben) (Slumerville (Ridge Road) 10))
+(job (Bitdiddle Ben) (computer wizard))
+(salary (Bitdiddle Ben) 60000)
+      </SCHEME>
+      <PYTHON> 
+address(llist("Bitdiddle", "Ben"),
+        llist("Slumerville", llist("Ridge", "Road"), 10))
+job(llist("Bitdiddle", "Ben"), llist("computer", "wizard"))
+salary(llist("Bitdiddle", "Ben"), 122000)
+      </PYTHON>
+      <PYTHON_RUN>
+process_query("""assert(address(list("Bitdiddle", "Ben"),
+                              list("Slumerville", list("Ridge", "Road"), 10)))""")
+process_query("""assert(job(list("Bitdiddle", "Ben"), 
+                          list("computer", "wizard")))""")
+process_query("""assert(salary(list("Bitdiddle", "Ben"), 122000))""")
+</PYTHON_RUN>
+    </SNIPPET>
+    <SNIPPET HIDE="yes">
+      <NAME>sample_data_base_1_example</NAME>
+      <REQUIRES>sample_data_base_1</REQUIRES>
+      <REQUIRES>process_query</REQUIRES>
+      <EXPECTED>'salary(list("Bitdiddle", "Ben"), 122000)'</EXPECTED>
+      <PYTHON>
+process_query('salary(list("Bitdiddle", "Ben"), $x)')
+      </PYTHON>
+      <PYTHON_TEST>
+first_answer('salary(list("Bitdiddle", "Ben"), $x)')
+      </PYTHON_TEST>
+    </SNIPPET>
+    <COMMENT>
+      Ще одним варіантом синтаксичного подання фактів у базі даних
+      було б використовувати просто списки, зокрема й на верхньому рівні,
+      для <QUOTE>предикатів</QUOTE>, як у первісному виданні книжки. Ми не встояли
+      перед спокусою синтаксично ввести <QUOTE>символи предикатів</QUOTE>
+      з таких причин:
+      <UL>
+	<LI>
+		  У Python факти в базі даних datalog виглядають значно природніше,
+		  коли записані як <PYTHONINLINE>p(x, y)</PYTHONINLINE>, а не
+		  як <PYTHONINLINE>list("p", x, y)</PYTHONINLINE>.
+	</LI>
+	<LI>
+		  Аналогія між логічним і функціональним програмуванням
+		  проступає значно ясніше; предикат стоїть на звичному місці,
+		  і читач, читаючи, пригадує означення функцій:
+		  <PYTHONINLINE>append_to_form(list("a", "b"), y, list("a", "b", "c", "d"))</PYTHONINLINE>, а не
+		  <PYTHONINLINE>list("append_to_form", list("a", "b"), y, list("a", "b", "c", "d"))</PYTHONINLINE>.
+	</LI>
+	<LI>
+		  Найвагоміший аргумент — те, що за такого підходу функційні
+		  символи (як у численні предикатів) дістаються безкоштовно: ми можемо писати
+		  предикати, як-от <PYTHONINLINE>plus</PYTHONINLINE>, без
+		  жодних додаткових зусиль в обчислювачі:
+		  <PYTHONINLINE>rule(plus($x, 0, $x)</PYTHONINLINE> та
+		  <PYTHONINLINE>rule(plus($x, s($y), s($z)), plus($x, $y, $z))</PYTHONINLINE>.
+	</LI>
+      </UL>
+    </COMMENT>
+    <SPLIT>
+      <SCHEME>
+		Кожне твердження — це список (у цьому разі трійка), елементи якого
+		самі можуть бути списками.
+      </SCHEME>
+      <PYTHON>
+		Твердження виглядають так само, як застосування функцій у Python, але
+		насправді вони подають інформацію в базі даних. Перші
+		символи<EMDASH/>тут <PYTHONINLINE>address</PYTHONINLINE>, 
+		<PYTHONINLINE>job</PYTHONINLINE> та
+		<PYTHONINLINE>salary</PYTHONINLINE><EMDASH/>описують
+		<EM>вид інформації</EM>, що міститься у відповідному твердженні, а
+		<QUOTE>аргументи</QUOTE> — це списки або примітивні значення, як-от рядки
+		й числа. Перші символи не потрібно оголошувати, на відміну від констант
+		чи змінних у Python; їхня область дії глобальна.
+	<COMMENT>
+		  Ми уникаємо називати ці символи
+		  <QUOTE>символами предикатів</QUOTE> замість
+		  <QUOTE>виду інформації</QUOTE> 
+		  бо термін
+		  <QUOTE>предикат</QUOTE> уже вживано, зокрема й у цьому підрозділі,
+		  для виразів і функцій Python, які повертають булеві значення.
+	</COMMENT>
+      </PYTHON>
+    </SPLIT>
+  </TEXT>
+  
+
+  <TEXT>
+    Як штатний чарівник, Бен очолює комп’ютерний
+    відділ компанії і керує двома програмістами та одним техніком.  Ось
+    інформація про них:
+    <SNIPPET>
+      <NAME>sample_data_base_2</NAME>
+      <REQUIRES>process_query</REQUIRES>
+      <REQUIRES>sample_data_base_1</REQUIRES>
+      <EXPECTED>'supervisor(list("Tweakit", "Lem", "E"), list("Bitdiddle", "Ben"))'</EXPECTED>
+      <EXAMPLE>sample_data_base_2_example</EXAMPLE>
+      <SCHEME>
+(address (Hacker Alyssa P) (Cambridge (Mass Ave) 78))
+(job (Hacker Alyssa P) (computer programmer))
+(salary (Hacker Alyssa P) 40000)
+(supervisor (Hacker Alyssa P) (Bitdiddle Ben))
+
+(address (Fect Cy D) (Cambridge (Ames Street) 3))
+(job (Fect Cy D) (computer programmer))
+(salary (Fect Cy D) 35000)
+(supervisor (Fect Cy D) (Bitdiddle Ben))
+
+(address (Tweakit Lem E) (Boston (Bay State Road) 22))
+(job (Tweakit Lem E) (computer technician))
+(salary (Tweakit Lem E) 25000)
+(supervisor (Tweakit Lem E) (Bitdiddle Ben))
+      </SCHEME>
+      <PYTHON>
+address(llist("Hacker", "Alyssa", "P"), 
+        llist("Cambridge", llist("Mass", "Ave"), 78))
+job(llist("Hacker", "Alyssa", "P"), llist("computer", "programmer"))
+salary(llist("Hacker", "Alyssa", "P"), 81000)
+supervisor(llist("Hacker", "Alyssa", "P"), llist("Bitdiddle", "Ben"))
+
+address(llist("Fect", "Cy", "D"), 
+        llist("Cambridge", llist("Ames", "Street"), 3))
+job(llist("Fect", "Cy", "D"), llist("computer", "programmer"))
+salary(llist("Fect", "Cy", "D"), 70000)
+supervisor(llist("Fect", "Cy", "D"), llist("Bitdiddle", "Ben"))
+
+address(llist("Tweakit", "Lem", "E"), 
+        llist("Boston", llist("Bay", "State", "Road"), 22))
+job(llist("Tweakit", "Lem", "E"), llist("computer", "technician"))
+salary(llist("Tweakit", "Lem", "E"), 51000)
+supervisor(llist("Tweakit", "Lem", "E"), llist("Bitdiddle", "Ben"))
+      </PYTHON>
+      <PYTHON_RUN>
+process_query('assert(address(list("Hacker", "Alyssa", "P"), list("Cambridge", list("Mass", "Ave"), 78)))')
+process_query('assert(job(list("Hacker", "Alyssa", "P"), list("computer", "programmer")))')
+process_query('assert(salary(list("Hacker", "Alyssa", "P"), 81000))')
+process_query('assert(supervisor(list("Hacker", "Alyssa", "P"), list("Bitdiddle", "Ben")))')
+
+process_query('assert(address(list("Fect", "Cy", "D"), list("Cambridge", list("Ames", "Street"), 3)))')
+process_query('assert(job(list("Fect", "Cy", "D"), list("computer", "programmer")))')
+process_query('assert(salary(list("Fect", "Cy", "D"), 70000))')
+process_query('assert(supervisor(list("Fect", "Cy", "D"), list("Bitdiddle", "Ben")))')
+
+process_query('assert(address(list("Tweakit", "Lem", "E"), list("Boston", list("Bay", "State", "Road"), 22)))')
+process_query('assert(job(list("Tweakit", "Lem", "E"), list("computer", "technician")))')
+process_query('assert(salary(list("Tweakit", "Lem", "E"), 51000))')
+process_query('assert(supervisor(list("Tweakit", "Lem", "E"), list("Bitdiddle", "Ben")))')
+      </PYTHON_RUN>
+    </SNIPPET>
+    <SNIPPET HIDE="yes">
+      <NAME>sample_data_base_2_example</NAME>
+      <PYTHON>
+process_query('supervisor($x, list("Bitdiddle", "Ben"))')
+      </PYTHON>
+      <PYTHON_TEST>
+first_answer('supervisor($x, list("Bitdiddle", "Ben"))')
+      </PYTHON_TEST>
+    </SNIPPET>
+    <PDF_ONLY>\newpage\noindent </PDF_ONLY>Є також програміст-стажер, яким керує Алісса:
+    <SNIPPET>
+      <NAME>sample_data_base_3</NAME>
+      <REQUIRES>process_query</REQUIRES>
+      <REQUIRES>sample_data_base_2</REQUIRES>
+      <EXPECTED>'supervisor(list("Reasoner", "Louis"), list("Hacker", "Alyssa", "P"))'</EXPECTED>
+      <EXAMPLE>sample_data_base_3_example</EXAMPLE>
+      <SCHEME>
+(address (Reasoner Louis) (Slumerville (Pine Tree Road) 80))
+(job (Reasoner Louis) (computer programmer trainee))
+(salary (Reasoner Louis) 30000)
+(supervisor (Reasoner Louis) (Hacker Alyssa P))
+      </SCHEME>
+      <PYTHON>
+address(llist("Reasoner", "Louis"), 
+        llist("Slumerville", llist("Pine", "Tree", "Road"), 80))
+job(llist("Reasoner", "Louis"), 
+         llist("computer", "programmer", "trainee"))
+salary(llist("Reasoner", "Louis"), 62000)
+supervisor(llist("Reasoner", "Louis"), llist("Hacker", "Alyssa", "P"))
+      </PYTHON>
+      <PYTHON_RUN>
+process_query('assert(address(list("Reasoner", "Louis"), list("Slumerville", list("Pine", "Tree", "Road"), 80)))')
+process_query('assert(job(list("Reasoner", "Louis"), list("computer", "programmer", "trainee")))')
+process_query('assert(salary(list("Reasoner", "Louis"), 62000))')
+process_query('assert(supervisor(list("Reasoner", "Louis"), list("Hacker", "Alyssa", "P")))')
+      </PYTHON_RUN>
+    </SNIPPET>
+    <SNIPPET HIDE="yes">
+      <NAME>sample_data_base_3_example</NAME>
+      <PYTHON>
+process_query('supervisor(list("Reasoner", $x), $y)')
+      </PYTHON>
+      <PYTHON_TEST>
+first_answer('supervisor(list("Reasoner", $x), $y)')
+      </PYTHON_TEST>
+    </SNIPPET>
+    Усі ці люди — у комп’ютерному відділі, як указує
+    слово
+    <SPLITINLINE>
+      <SCHEME>
+	<SCHEMEINLINE>computer</SCHEMEINLINE>
+      </SCHEME>
+      <PYTHON>
+	<PYTHONINLINE>"computer"</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    як перший елемент в описі
+    їхньої посади.
+  </TEXT>
+  <TEXT>
+    Бен — працівник високого рівня.  Його керівник — сам
+    великий начальник компанії:
+    <SNIPPET>
+      <NAME>sample_data_base_4</NAME>
+      <REQUIRES>process_query</REQUIRES>
+      <REQUIRES>sample_data_base_3</REQUIRES>
+      <EXPECTED>'address(list("Warbucks", "Oliver"), list("Swellesley", list("Top", "Heap", "Road")))'</EXPECTED>
+      <EXAMPLE>sample_data_base_4_example</EXAMPLE>
+      <SCHEME>
+(supervisor (Bitdiddle Ben) (Warbucks Oliver))
+
+(address (Warbucks Oliver) (Swellesley (Top Heap Road)))
+(job (Warbucks Oliver) (administration big wheel))
+(salary (Warbucks Oliver) 150000)
+      </SCHEME>
+      <PYTHON>
+supervisor(llist("Bitdiddle", "Ben"), llist("Warbucks", "Oliver"))
+
+address(llist("Warbucks", "Oliver"), 
+        llist("Swellesley", llist("Top", "Heap", "Road")))
+job(llist("Warbucks", "Oliver"), llist("administration", "big", "wheel"))
+salary(llist("Warbucks", "Oliver"), 314159)
+      </PYTHON>
+      <PYTHON_RUN>
+process_query('assert(supervisor(list("Bitdiddle", "Ben"), list("Warbucks", "Oliver")))')
+
+process_query('assert(address(list("Warbucks", "Oliver"), list("Swellesley", list("Top", "Heap", "Road"))))')
+process_query('assert(job(list("Warbucks", "Oliver"), list("administration", "big", "wheel")))')
+process_query('assert(salary(list("Warbucks", "Oliver"), 314159))')
+      </PYTHON_RUN>
+    </SNIPPET>
+    <SNIPPET HIDE="yes">
+      <NAME>sample_data_base_4_example</NAME>
+      <PYTHON>
+process_query('address($x, list("Swellesley", $y))')
+      </PYTHON>
+      <PYTHON_TEST>
+first_answer('address($x, list("Swellesley", $y))')
+      </PYTHON_TEST>
+    </SNIPPET>
+  </TEXT>
+
+  <TEXT>
+    Крім комп’ютерного відділу, яким керує Бен, компанія має
+    бухгалтерський відділ, що складається з головного бухгалтера та його
+    помічника:
+    <SNIPPET>
+      <NAME>sample_data_base_5</NAME>
+      <REQUIRES>process_query</REQUIRES>
+      <REQUIRES>sample_data_base_4</REQUIRES>
+      <EXPECTED>'job(list("Cratchit", "Robert"), list("accounting", "scrivener"))'</EXPECTED>
+      <EXAMPLE>sample_data_base_5_example</EXAMPLE>
+      <SCHEME>
+(address (Scrooge Eben) (Weston (Shady Lane) 10))
+(job (Scrooge Eben) (accounting chief accountant))
+(salary (Scrooge Eben) 75000)
+(supervisor (Scrooge Eben) (Warbucks Oliver))
+
+(address (Cratchet Robert) (Allston (N Harvard Street) 16))
+(job (Cratchet Robert) (accounting scrivener))
+(salary (Cratchet Robert) 18000)
+(supervisor (Cratchet Robert) (Scrooge Eben))
+      </SCHEME>
+      <PYTHON>
+address(llist("Scrooge", "Eben"),
+        llist("Weston", llist("Shady", "Lane"), 10))
+job(llist("Scrooge", "Eben"), llist("accounting", "chief", "accountant"))
+salary(llist("Scrooge", "Eben"), 141421)
+supervisor(llist("Scrooge", "Eben"), llist("Warbucks", "Oliver"))
+
+address(llist("Cratchit", "Robert"), 
+        llist("Allston", llist("N", "Harvard", "Street"), 16))
+job(llist("Cratchit", "Robert"), llist("accounting", "scrivener"))
+salary(llist("Cratchit", "Robert"), 26100)
+supervisor(llist("Cratchit", "Robert"), llist("Scrooge", "Eben"))
+      </PYTHON>
+      <PYTHON_RUN>
+process_query('assert(address(list("Scrooge", "Eben"), list("Weston", list("Shady", "Lane"), 10)))')
+process_query('assert(job(list("Scrooge", "Eben"), list("accounting", "chief", "accountant")))')
+process_query('assert(salary(list("Scrooge", "Eben"), 141421))')
+process_query('assert(supervisor(list("Scrooge", "Eben"), list("Warbucks", "Oliver")))')
+
+process_query('assert(address(list("Cratchit", "Robert"), list("Allston", list("N", "Harvard", "Street"), 16)))')
+process_query('assert(job(list("Cratchit", "Robert"), list("accounting", "scrivener")))')
+process_query('assert(salary(list("Cratchit", "Robert"), 26100))')
+process_query('assert(supervisor(list("Cratchit", "Robert"), list("Scrooge", "Eben")))')
+      </PYTHON_RUN>
+    </SNIPPET>
+    <SNIPPET HIDE="yes">
+      <NAME>sample_data_base_5_example</NAME>
+      <PYTHON>
+process_query('job($x, pair("accounting", $y))')
+      </PYTHON>
+      <PYTHON_TEST>
+first_answer('job($x, pair("accounting", $y))')
+      </PYTHON_TEST>
+      
+    </SNIPPET>
+    Є також
+    <SPLITINLINE>
+      <SCHEME>
+	секретарка
+      </SCHEME>
+      <PYTHON>
+	адміністративна помічниця
+      </PYTHON>
+    </SPLITINLINE>
+    у великого начальника:
+    <SNIPPET>
+      <NAME>sample_data_base_6</NAME>
+      <REQUIRES>process_query</REQUIRES>
+      <REQUIRES>sample_data_base_5</REQUIRES>
+      <EXPECTED>'address(list("Aull", "DeWitt"), list("Slumerville", list("Onion", "Square"), 5))'</EXPECTED>
+      <EXAMPLE>sample_data_base_6_example</EXAMPLE>
+      <SCHEME>
+(address (Aull DeWitt) (Slumerville (Onion Square) 5))
+(job (Aull DeWitt) (administration secretary))
+(salary (Aull DeWitt) 25000)
+(supervisor (Aull DeWitt) (Warbucks Oliver))
+      </SCHEME>
+      <PYTHON>
+address(llist("Aull", "DeWitt"), 
+        llist("Slumerville", llist("Onion", "Square"), 5))
+job(llist("Aull", "DeWitt"), llist("administration", "assistant"))
+salary(llist("Aull", "DeWitt"), 42195)
+supervisor(llist("Aull", "DeWitt"), llist("Warbucks", "Oliver"))
+      </PYTHON>
+      <PYTHON_RUN>
+process_query('assert(address(list("Aull", "DeWitt"), list("Slumerville", list("Onion", "Square"), 5)))')
+process_query('assert(job(list("Aull", "DeWitt"), list("administration", "assistant")))')
+process_query('assert(salary(list("Aull", "DeWitt"), 42195))')
+process_query('assert(supervisor(list("Aull", "DeWitt"), list("Warbucks", "Oliver")))')
+      </PYTHON_RUN>
+    </SNIPPET>
+    <SNIPPET HIDE="yes">
+      <NAME>sample_data_base_6_example</NAME>
+      <PYTHON>
+process_query('address($x, list(y, list("Onion", "Square"), $n))')
+      </PYTHON>
+      <PYTHON_TEST>
+first_answer('address($x, list(y, list("Onion", "Square"), $n))')
+      </PYTHON_TEST>
+    </SNIPPET>
+  </TEXT>
+
+  <TEXT>
+    База даних також містить твердження про те, які види робіт можуть
+    виконувати люди, що обіймають інші посади.  Наприклад,
+    комп’ютерний чарівник може виконувати роботу і комп’ютерного програміста, і
+    комп’ютерного техніка:
+    <SNIPPET>
+      <NAME>sample_data_base_7</NAME>
+      <REQUIRES>process_query</REQUIRES>
+      <REQUIRES>sample_data_base_6</REQUIRES>
+      <EXPECTED>'can_do_job(list("computer", "wizard"), list("computer", "technician"))'</EXPECTED>
+      <EXAMPLE>sample_data_base_7_example</EXAMPLE>
+      <SCHEME>
+(can-do-job (computer wizard) (computer programmer))
+(can-do-job (computer wizard) (computer technician))
+      </SCHEME>
+      <PYTHON>
+can_do_job(llist("computer", "wizard"), 
+           llist("computer", "programmer"))
+can_do_job(llist("computer", "wizard"), 
+           llist("computer", "technician"))
+      </PYTHON>
+      <PYTHON_RUN>
+process_query('assert(can_do_job(list("computer", "wizard"), list("computer", "programmer")))')
+process_query('assert(can_do_job(list("computer", "wizard"), list("computer", "technician")))')
+      </PYTHON_RUN>
+    </SNIPPET>
+    <SNIPPET HIDE="yes">
+      <NAME>sample_data_base_7_example</NAME>
+      <PYTHON>
+process_query('can_do_job($x, list("computer", $y))')
+      </PYTHON>
+      <PYTHON_TEST>
+first_answer('can_do_job($x, list("computer", $y))')
+      </PYTHON_TEST>
+    </SNIPPET>
+    Комп’ютерний програміст міг би підмінити стажера:
+    <SNIPPET>
+      <NAME>sample_data_base_8</NAME>
+      <REQUIRES>process_query</REQUIRES>
+      <REQUIRES>sample_data_base_7</REQUIRES>
+      <EXPECTED>'can_do_job(list("computer", "programmer"), list("computer", "programmer", "trainee"))'</EXPECTED>
+      <EXAMPLE>sample_data_base_8_example</EXAMPLE>
+      <SCHEME>
+(can-do-job (computer programmer)
+            (computer programmer trainee))
+      </SCHEME>
+      <PYTHON>
+can_do_job(llist("computer", "programmer"),
+           llist("computer", "programmer", "trainee"))
+      </PYTHON>
+      <PYTHON_RUN>
+process_query('assert(can_do_job(list("computer", "programmer"), list("computer", "programmer", "trainee")))')
+      </PYTHON_RUN>
+    </SNIPPET>
+    <SNIPPET HIDE="yes">
+      <NAME>sample_data_base_8_example</NAME>
+      <PYTHON>
+process_query('can_do_job($x, pair("computer", $y))')
+      </PYTHON>
+      <PYTHON_TEST>
+first_answer('can_do_job($x, pair("computer", $y))')
+      </PYTHON_TEST>
+    </SNIPPET>
+    <SPLITINLINE>
+      <SCHEME>
+	<INDEX>секретарка, важливість</INDEX>
+      </SCHEME>
+      <PYTHON>
+	<INDEX>адміністративна помічниця, важливість</INDEX>
+      </PYTHON>
+    </SPLITINLINE>
+    Крім того, як добре відомо,
+    <SNIPPET POSTPADDING="no">
+      <NAME>sample_data_base_9</NAME>
+      <REQUIRES>process_query</REQUIRES>
+      <REQUIRES>sample_data_base_8</REQUIRES>
+      <EXPECTED>'can_do_job(list("administration", "assistant"), list("administration", "big", "wheel"))'</EXPECTED>
+      <EXAMPLE>sample_data_base_9_example</EXAMPLE>
+      <SCHEME>
+(can-do-job (administration secretary)
+            (administration big wheel))
+      </SCHEME>
+      <PYTHON>
+can_do_job(llist("administration", "assistant"),
+           llist("administration", "big", "wheel"))
+      </PYTHON>
+      <PYTHON_RUN>
+process_query('assert(can_do_job(list("administration", "assistant"), list("administration", "big", "wheel")))')
+      </PYTHON_RUN>
+      
+    </SNIPPET>
+    <SNIPPET HIDE="yes">
+      <NAME>sample_data_base_9_example</NAME>
+      <PYTHON>
+process_query('can_do_job(list($x, "assistant"), $y)')
+      </PYTHON>
+      <PYTHON_TEST>
+first_answer('can_do_job(list($x, "assistant"), $y)')
+      </PYTHON_TEST>
+    </SNIPPET>
+  </TEXT>
+
+  <INDEX>база даних<SUBINDEX>кадри компанії Gargle<CLOSE/></SUBINDEX></INDEX>
+  <INDEX>мова запитів<SUBINDEX>база даних<CLOSE/></SUBINDEX></INDEX>
+
+  <SUBHEADING>
+    <NAME>Прості запити</NAME>
+  </SUBHEADING>
+
+  <INDEX>простий запит<OPEN/></INDEX>
+
+  <TEXT>
+    Мова запитів дає користувачам змогу діставати інформацію з бази
+    даних, ставлячи запити у відповідь на запрошення системи.
+    Наприклад, щоб знайти всіх комп’ютерних програмістів, можна сказати
+    <SNIPPET EVAL="no" HIDE="yes">
+      <NAME>simple_queries_input</NAME>
+      <SCHEMEOUTPUT>
+;;; Query input:
+      </SCHEMEOUTPUT>
+    </SNIPPET>
+    <SNIPPET>
+      <NAME>simple_queries_1</NAME>
+      <REQUIRES>process_query</REQUIRES>
+      <REQUIRES>sample_data_base_9</REQUIRES>
+      <REQUIRES>query_driver_loop</REQUIRES>
+      <EXPECTED>'job(list("Fect", "Cy", "D"), list("computer", "programmer"))'</EXPECTED>
+      <EXAMPLE>simple_queries_1_example</EXAMPLE>
+      <SCHEME>
+      (job ?x (computer programmer))
+      </SCHEME>
+      <PYTHON_PROMPT>
+Query input:
+      </PYTHON_PROMPT>
+      <PYTHON>
+job($x, llist("computer", "programmer"))
+      </PYTHON>
+      <PYTHON_RUN>
+      </PYTHON_RUN>
+    </SNIPPET>
+    <SNIPPET HIDE="yes">
+      <NAME>simple_queries_1_example</NAME>
+      <PYTHON_TEST>
+first_answer('job($x, list("computer", "programmer"))')
+      </PYTHON_TEST>
+      <PYTHON>
+process_query('job($x, list("computer", "programmer"))')
+# Query input:	
+# job($x, llist("computer", "programmer"))
+# Query results:
+# job(llist("Hacker", "Alyssa", "P"), llist("computer", "programmer"))
+# job(llist("Fect", "Cy", "D"), llist("computer", "programmer"))
+</PYTHON>
+    </SNIPPET>
+    Система відповість такими елементами:
+    <SNIPPET EVAL="no">
+      <SCHEMEOUTPUT>
+;;; Query results:
+(job (Hacker Alyssa P) (computer programmer))
+(job (Fect Cy D) (computer programmer))
+      </SCHEMEOUTPUT>
+      <PYTHON_OUTPUT>
+Query results:
+job(list("Hacker", "Alyssa", "P"), list("computer", "programmer"))
+job(list("Fect", "Cy", "D"), list("computer", "programmer"))
+      </PYTHON_OUTPUT>
+    </SNIPPET>
+  </TEXT>
+
+  <TEXT>
+    Вхідний запит задає, що ми шукаємо в базі
+    даних елементи, які відповідають певному
+    <INDEX>зразок<OPEN/></INDEX>
+    <EM>зразку</EM>.
+    <SPLIT>
+      <SCHEME>
+	У цьому прикладі зразок
+	задає елементи, що складаються з трьох частин, з яких перша —
+	буквальний символ <SCHEMEINLINE>job</SCHEMEINLINE>, друга може бути
+	будь-чим, а третя — буквальний список
+	<SCHEMEINLINE>(computer programmer)</SCHEMEINLINE>.
+	Те <QUOTE>будь-що</QUOTE>, що може стояти другим елементом у
+	зіставляованому списку, задає 
+	<INDEX>змінна зразка</INDEX>
+	<EM>змінна зразка</EM>,
+	    <SCHEMEINLINE>?x</SCHEMEINLINE>.
+	Загальна форма змінної зразка — це символ, узятий як ім’я
+	змінної, перед яким стоїть знак питання. Нижче ми побачимо, чому
+	корисно задавати імена для змінних зразка, а не просто ставити
+	<SCHEMEINLINE>?</SCHEMEINLINE>
+	у зразки для позначення <QUOTE>будь-чого.</QUOTE>
+      </SCHEME>
+      <PYTHON>
+	У цьому прикладі зразок
+	задає <SCHEMEINLINE>job</SCHEMEINLINE> як вид інформації,
+	який ми шукаємо. Перший елемент може бути
+	будь-чим, а другий — буквальний список
+	<PYTHONINLINE>llist("computer", "programmer")</PYTHONINLINE>.
+	Те <QUOTE>будь-що</QUOTE>, що може стояти першим елементом у
+	зіставляованому твердженні, задає 
+	<INDEX>змінна зразка</INDEX>
+	<EM>змінна зразка</EM>,
+	<PYTHONINLINE>$x</PYTHONINLINE>. Як змінні зразка ми використовуємо
+	<INDEX>угоди про найменування<SUBINDEX><ORDER>;x</ORDER>$\$$ для змінних зразка</SUBINDEX><FRAGILE/></INDEX>
+	<INDEX><ORDER>0a4</ORDER>$\$$, змінні зразка, що починаються з<FRAGILE/></INDEX>
+	імена Python, які починаються зі знака долара.
+	Нижче ми побачимо, чому
+	корисно задавати імена для змінних зразка, а не просто
+	ставити якийсь один символ, як-от <SCHEMEINLINE>$</SCHEMEINLINE>,
+	у зразки для позначення <QUOTE>будь-чого.</QUOTE>
+      </PYTHON>
+    </SPLIT>
+    Система відповідає на простий запит, показуючи всі елементи в базі
+    даних, які відповідають заданому зразку.
+  </TEXT>
+
+  <TEXT>
+    Зразок може мати більше ніж одну змінну.  Наприклад, запит
+    <SNIPPET>
+      <NAME>simple_queries_2</NAME>
+      <REQUIRES>process_query</REQUIRES>
+      <REQUIRES>sample_data_base_9</REQUIRES>
+      <REQUIRES>query_driver_loop</REQUIRES>
+      <EXPECTED>'address(list("Aull", "DeWitt"), list("Slumerville", list("Onion", "Square"), 5))'</EXPECTED>
+      <EXAMPLE>simple_queries_2_example</EXAMPLE>
+      <SCHEME>
+(address ?x ?y)
+      </SCHEME>
+      <PYTHON>
+address($x, $y)
+      </PYTHON>
+      <PYTHON_RUN>
+      </PYTHON_RUN>
+    </SNIPPET>
+    <SNIPPET HIDE="yes">
+      <NAME>simple_queries_2_example</NAME>
+      <PYTHON_TEST>
+first_answer('address($x, $y)')
+      </PYTHON_TEST>
+      <PYTHON>
+process_query('address($x, $y)')
+# query input:	
+# address($x, $y)
+# query results:
+# all employees' addresses
+</PYTHON>
+    </SNIPPET>
+    виведе адреси всіх працівників.
+  </TEXT>
+
+  <TEXT>
+    Зразок може не мати жодної змінної; у такому разі запит просто
+    визначає, чи цей зразок є елементом бази даних.  Якщо так,
+    буде один збіг; якщо ні — збігів не буде.
+  </TEXT>
+
+  <TEXT>
+    Та сама змінна зразка може траплятися в запиті більше ніж один раз,
+    задаючи, що те саме <QUOTE>будь-що</QUOTE> має стояти на кожній
+    позиції. Саме тому змінні мають імена.  Наприклад,
+    <SNIPPET>
+      <NAME>simple_queries_3</NAME>
+      <REQUIRES>process_query</REQUIRES>
+      <REQUIRES>sample_data_base_9</REQUIRES>
+      <REQUIRES>query_driver_loop</REQUIRES>
+      <EXPECTED>'supervisor(list("Julius", "Caesar"), list("Julius", "Caesar"))'</EXPECTED>
+      <EXAMPLE>simple_queries_3_example</EXAMPLE>
+      <SCHEME>
+(supervisor ?x ?x)
+      </SCHEME>
+      <PYTHON>
+supervisor($x, $x)
+      </PYTHON>
+      <PYTHON_RUN>
+      </PYTHON_RUN>
+    </SNIPPET>
+    <SNIPPET HIDE="yes">
+      <NAME>simple_queries_3_example</NAME>
+      <PYTHON_TEST>
+process_query('assert(supervisor(list("Julius", "Caesar"), list("Julius", "Caesar")))')
+first_answer('supervisor($x, $x)')
+      </PYTHON_TEST>
+      <PYTHON>
+process_query('supervisor($x, $x)')
+# query input:	
+# supervisor($x, $x)
+# query results:
+# none
+</PYTHON>
+    </SNIPPET>
+    знаходить усіх людей, які керують самі собою (хоча таких тверджень
+    у нашій прикладній базі даних немає).
+  </TEXT>
+
+  <TEXT>
+    Запит
+    <SNIPPET>
+      <NAME>simple_queries_4</NAME>
+      <REQUIRES>process_query</REQUIRES>
+      <REQUIRES>sample_data_base_9</REQUIRES>
+      <REQUIRES>query_driver_loop</REQUIRES>
+      <EXPECTED>'job(list("Tweakit", "Lem", "E"), list("computer", "technician"))'</EXPECTED>
+      <EXAMPLE>simple_queries_4_example</EXAMPLE>
+      <SCHEME>
+(job ?x (computer ?type))
+      </SCHEME>
+      <PYTHON>
+job($x, llist("computer", $type))
+      </PYTHON>
+      <PYTHON_RUN>
+      </PYTHON_RUN>
+    </SNIPPET>
+    <SNIPPET HIDE="yes">
+      <NAME>simple_queries_4_example</NAME>
+      <PYTHON_TEST>
+first_answer('job($x, list("computer",  $type))')
+      </PYTHON_TEST>
+      <PYTHON>
+process_query('job($x, list("computer",  $type))')
+# query input:	
+# job($x, llist("computer",  $type))
+# query results:
+# job(llist("Bitdiddle", "Ben"), llist("computer", "wizard"))
+# job(llist("Hacker", "Alyssa", "P"), llist("computer", "programmer"))
+# job(llist("Fect", "Cy", "D"), llist("computer", "programmer"))
+# job(llist("Tweakit", "Lem", "E"), llist("computer", "technician"))
+</PYTHON>
+    </SNIPPET>
+    зіставляється з усіма елементами посади, чий
+    <SPLITINLINE>
+      <SCHEME>
+	третій
+      </SCHEME>
+      <PYTHON>
+	другий
+      </PYTHON>
+    </SPLITINLINE>
+    елемент — це список із двох елементів, перший елемент якого
+    такий:
+    <SPLITINLINE>
+      <SCHEME>
+	<SCHEMEINLINE>computer</SCHEMEINLINE>:
+      </SCHEME>
+      <PYTHON>
+	<PYTHONINLINE>"computer"</PYTHONINLINE>:
+      </PYTHON>
+    </SPLITINLINE>
+    <SNIPPET EVAL="no">
+      <SCHEME>
+(job (Bitdiddle Ben) (computer wizard))
+(job (Hacker Alyssa P) (computer programmer))
+(job (Fect Cy D) (computer programmer))
+(job (Tweakit Lem E) (computer technician))
+      </SCHEME>
+      <PYTHON>
+job(llist("Bitdiddle", "Ben"), llist("computer", "wizard"))
+job(llist("Hacker", "Alyssa", "P"), llist("computer", "programmer"))
+job(llist("Fect", "Cy", "D"), llist("computer", "programmer"))
+job(llist("Tweakit", "Lem", "E"), llist("computer", "technician"))
+      </PYTHON>
+    </SNIPPET>
+    <SPLIT>
+      <SCHEME>
+	Цей самий зразок <EM>не</EM> зіставляється з
+	<SNIPPET EVAL="no">
+	  <SCHEME>
+(job (Reasoner Louis) (computer programmer trainee))
+	  </SCHEME>
+	</SNIPPET>
+	бо третій елемент у твердженні — це список із трьох елементів, а
+	третій елемент зразка задає, що їх має бути два.
+	Якби ми хотіли змінити зразок так, щоб третій елемент
+	міг бути будь-яким
+	<INDEX>точкова хвостова нотація<SUBINDEX><ORDER>query</ORDER>у зразку запиту</SUBINDEX></INDEX>
+	списком, що починається з
+	<SCHEMEINLINE>computer</SCHEMEINLINE>,
+	ми могли б
+	задати<SPLITINLINE><SCHEME><FOOTNOTE>Тут використано точкову хвостову
+	нотацію, введену у
+	вправі<SPACE/><REF NAME="ex:dotted-arglist"/>.</FOOTNOTE>
+      </SCHEME></SPLITINLINE>
+      </SCHEME>
+      <PYTHON>
+	Цей самий зразок <EM>не</EM> зіставляється з
+	<SNIPPET EVAL="no">
+	  <PYTHON>
+job(llist("Reasoner", "Louis"),
+    llist("computer", "programmer", "trainee"))
+	  </PYTHON>
+	</SNIPPET>
+	бо другий елемент у твердженні — це список із трьох
+	елементів, а другий елемент зразка задає, що
+	їх має бути два. Якби ми хотіли змінити зразок так, щоб
+	другий елемент міг бути будь-яким
+	списком, що починається з
+	<PYTHONINLINE>"computer"</PYTHONINLINE>,
+	ми могли б 
+	задати
+	<COMMENT>
+	  У виданні для Python немає потреби в <QUOTE>точковій хвостовій нотації</QUOTE>:
+	  ми просто використовуємо
+	  <PYTHONINLINE>pair</PYTHONINLINE> замість
+	  <PYTHONINLINE>list</PYTHONINLINE> там, де потрібно.
+	</COMMENT>
+      </PYTHON>
+    </SPLIT>
+    <SNIPPET>
+      <NAME>simple_queries_5</NAME>
+      <REQUIRES>process_query</REQUIRES>
+      <REQUIRES>sample_data_base_9</REQUIRES>
+      <REQUIRES>query_driver_loop</REQUIRES>
+      <EXPECTED>'job(list("Reasoner", "Louis"), list("computer", "programmer", "trainee"))'</EXPECTED>
+      <EXAMPLE>simple_queries_5_example</EXAMPLE>
+      <SCHEME>
+(job ?x (computer . ?type))
+      </SCHEME>
+      <PYTHON>
+job($x, pair("computer", $type))
+      </PYTHON>
+      <PYTHON_RUN>
+      </PYTHON_RUN>
+    </SNIPPET>
+    <SNIPPET HIDE="yes">
+      <NAME>simple_queries_5_example</NAME>
+      <PYTHON_TEST>
+first_answer('job($x, pair("computer", $type))')
+      </PYTHON_TEST>
+      <PYTHON>
+process_query('job($x, pair("computer", $type))')
+# query input:	
+# job($x, pair("computer", $type))
+# query results:
+# job(llist("Bitdiddle", "Ben"), llist("computer", "wizard"))
+# job(llist("Hacker", "Alyssa", "P"), llist("computer", "programmer"))
+# job(llist("Fect", "Cy", "D"), llist("computer", "programmer"))
+# job(llist("Tweakit", "Lem", "E"), llist("computer", "technician"))
+# job(llist("Reasoner", "Louis"), llist("computer", "programmer", "trainee"))
+</PYTHON>
+    </SNIPPET>
+    Наприклад,
+    <SNIPPET EVAL="no">
+      <SCHEME>
+(computer . ?type)
+      </SCHEME>
+      <PYTHON>
+pair("computer", $type)      
+      </PYTHON>
+    </SNIPPET>
+    зіставляється з даними
+    <SNIPPET EVAL="no">
+      <SCHEME>
+(computer programmer trainee)
+      </SCHEME>
+      <PYTHON>
+llist("computer", "programmer", "trainee")
+      </PYTHON>
+    </SNIPPET>
+    з
+    <SPLITINLINE>
+      <SCHEME>
+	<SCHEMEINLINE>?type</SCHEMEINLINE>
+      </SCHEME>
+      <PYTHON>
+	<PYTHONINLINE>$type</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    як 
+    <SPLITINLINE>
+      <SCHEME>списком <SCHEMEINLINE>(programmer trainee)</SCHEMEINLINE>.</SCHEME>
+      <PYTHON>
+	<PYTHONINLINE>llist("programmer", "trainee")</PYTHONINLINE>.
+      </PYTHON>
+    </SPLITINLINE>
+    Він також зіставляється з даними
+    <SNIPPET EVAL="no">
+      <SCHEME>
+(computer programmer)
+      </SCHEME>
+      <PYTHON>
+llist("computer", "programmer")
+      </PYTHON>
+    </SNIPPET>
+    з
+    <SPLITINLINE>
+      <SCHEME>
+	<SCHEMEINLINE>?type</SCHEMEINLINE>
+      </SCHEME>
+      <PYTHON><PYTHONINLINE>$type</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    як 
+    <SPLITINLINE>
+      <SCHEME>списком <SCHEMEINLINE>(programmer)</SCHEMEINLINE>,</SCHEME>
+      <PYTHON><PYTHONINLINE>llist("programmer")</PYTHONINLINE>,
+      </PYTHON>
+    </SPLITINLINE>
+    і зіставляється з даними
+    <SNIPPET EVAL="no">
+      <SCHEME>
+(computer)
+      </SCHEME>
+      <PYTHON>
+llist("computer")      
+      </PYTHON>
+    </SNIPPET>
+    з
+    <SPLITINLINE>
+      <SCHEME>
+	<SCHEMEINLINE>?type</SCHEMEINLINE>
+      </SCHEME>
+      <PYTHON><PYTHONINLINE>$type</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    як порожнім 
+    <SPLITINLINE>
+      <SCHEME>списком <SCHEMEINLINE>()</SCHEMEINLINE>.</SCHEME>
+      <PYTHON>списком, <PYTHONINLINE>None</PYTHONINLINE>.</PYTHON>
+    </SPLITINLINE>
+  </TEXT>
+
+  <INDEX>зразок<CLOSE/></INDEX>
+  
+  <TEXT>
+    Опрацювання простих запитів мовою запитів можна описати
+    так:
+    <UL>
+      <LI>
+	Система знаходить усі приписування значень змінним у зразку
+	запиту, які
+	<INDEX>задовольняють зразок (простий запит)</INDEX>
+	<EM>задовольняють</EM> зразок<EMDASH/>тобто всі набори
+	значень змінних такі, що якщо змінні зразка 
+	<INDEX>конкретизувати зразок</INDEX>
+	<EM>конкретизувати</EM> (замінити) цими значеннями, результат є
+	в базі даних.
+      </LI>
+      <LI>
+	Система відповідає на запит, перелічуючи всі конкретизації
+	зразка запиту з приписуваннями змінних, які його задовольняють.
+      </LI>
+    </UL>
+    Зауважте, що якщо зразок не має змінних, запит зводиться до
+    визначення того, чи цей зразок є в базі даних.  Якщо так, то
+    порожнє приписування, яке не приписує змінним жодних значень, задовольняє цей
+    зразок для цієї бази даних.
+  </TEXT>
+
+  <EXERCISE>
+    Дайте прості запити, які дістають з бази даних
+    таку інформацію:
+    <OL>
+      <LI>
+	усі люди, якими керує Бен Бітдідл;
+      </LI>
+      <LI>
+	імена та посади всіх людей у бухгалтерському відділі;
+      </LI>
+      <LI>
+	імена та адреси всіх людей, які живуть 
+	у Сламервілі.
+      </LI>
+    </OL>
+    <LABEL NAME="ex:4_53"/>
+  </EXERCISE>
+
+  <INDEX>простий запит<CLOSE/></INDEX>
+
+  <SUBHEADING>
+    <NAME>Складені запити</NAME>
+  </SUBHEADING>
+
+  <INDEX>складений запит<OPEN/></INDEX>
+
+  <TEXT>
+    Прості запити утворюють примітивні операції мови запитів.
+    Щоб утворювати складені операції, мова запитів надає
+    засоби комбінування.  Одне з того, що робить мову запитів мовою
+    логічного програмування, — це те, що засоби комбінування повторюють засоби
+    комбінування, які використовують, утворюючи логічні вирази:
+    <SCHEMEINLINE>and</SCHEMEINLINE>, <SCHEMEINLINE>or</SCHEMEINLINE>, та
+    <SCHEMEINLINE>not</SCHEMEINLINE>.
+    <SPLITINLINE>
+      <SCHEME>
+	(Тут <SCHEMEINLINE>and</SCHEMEINLINE>,	<SCHEMEINLINE>or</SCHEMEINLINE>,
+	та <SCHEMEINLINE>not</SCHEMEINLINE> — не примітиви Lisp, а
+	радше операції, вбудовані в мову запитів.)
+      </SCHEME>
+    </SPLITINLINE>
+  </TEXT>
+
+  <TEXT>
+    Ми можемо використати
+    <INDEX><USE>and</USE> (мова запитів)</INDEX>
+    <SCHEMEINLINE>and</SCHEMEINLINE> так, щоб знайти адреси
+    всіх комп’ютерних програмістів:
+    <SNIPPET>
+      <NAME>compound_queries_1</NAME>
+      <REQUIRES>query_driver_loop</REQUIRES>
+      <REQUIRES>process_query</REQUIRES>
+      <REQUIRES>sample_data_base_9</REQUIRES>
+      <EXAMPLE>compound_queries_1_example</EXAMPLE>
+      <EXPECTED>'and(job(list("Fect", "Cy", "D"), list("computer", "programmer")), address(list("Fect", "Cy", "D"), list("Cambridge", list("Ames", "Street"), 3)))'</EXPECTED>
+      <SCHEME>
+(and (job ?person (computer programmer))
+     (address ?person ?where))
+      </SCHEME>
+      <PYTHON>
+and(job($person, llist("computer", "programmer")),
+    address($person, $where))
+      </PYTHON>
+      <PYTHON_RUN>
+      </PYTHON_RUN>
+    </SNIPPET>
+    <SNIPPET HIDE="yes">
+      <NAME>compound_queries_1_example</NAME>
+      <PYTHON_TEST>
+first_answer('and(job($person, list("computer", "programmer")), address($person, $where))')
+      </PYTHON_TEST>
+      <PYTHON>
+process_query('and(job($person, list("computer", "programmer")), address($person, $where))')
+# query input:	
+# and(job($person, llist("computer", "programmer")), address($person, $where))
+# query results:
+# and(job(llist("Hacker", "Alyssa", "P"), llist("computer", "programmer")),
+#    address(llist("Hacker", "Alyssa", "P"), llist("Cambridge", llist("Mass", "Ave"), 78)))
+# and(job(llist("Fect", "Cy", "D"), llist("computer", "programmer")),
+#    address(llist("Fect", "Cy", "D"), llist("Cambridge", llist("Ames", "Street"), 3)))
+</PYTHON>
+    </SNIPPET>
+    Результатний вивід такий:
+    <SNIPPET EVAL="no">
+      <SCHEME>
+(and (job (Hacker Alyssa P) (computer programmer))
+     (address (Hacker Alyssa P) (Cambridge (Mass Ave) 78)))
+
+(and (job (Fect Cy D) (computer programmer))
+     (address (Fect Cy D) (Cambridge (Ames Street) 3)))
+      </SCHEME>
+      <PYTHON_OUTPUT>
+and(job(list("Hacker", "Alyssa", "P"), list("computer", "programmer")),
+    address(list("Hacker", "Alyssa", "P"), 
+            list("Cambridge", list("Mass", "Ave"), 78)))
+
+and(job(list("Fect", "Cy", "D"), list("computer", "programmer")),
+    address(list("Fect", "Cy", "D"), 
+            list("Cambridge", list("Ames", "Street"), 3)))
+      </PYTHON_OUTPUT>
+    </SNIPPET>
+    <SPLIT>
+      <SCHEME>
+	Загалом,
+	<SNIPPET LATEX="yes">
+	  <SCHEME>
+(and $\langle \textit{query}_{1}\rangle$ $\langle \textit{query}_{2} \rangle$ $\ldots$ $\langle \textit{query}_{n} \rangle$)
+	  </SCHEME>
+	</SNIPPET>
+	є
+	<INDEX>задовольняє складений запит<OPEN/></INDEX>
+	задоволеним усіма наборами значень змінних зразка, які
+	одночасно задовольняють
+	<LATEXINLINE>$\langle\textit{query}_{1}\rangle\ldots \langle\textit{query}_{n}\rangle$</LATEXINLINE>.
+      </SCHEME>
+      <PYTHON>
+	Загалом,
+	<SNIPPET LATEX="yes">
+	  <PYTHON>
+and(<META>query</META>$_{1}$, <META>query</META>$_{2}$, $\ldots$, <META>query</META>$_{n})$
+	  </PYTHON>
+	</SNIPPET>
+	є
+	<INDEX>задовольняє складений запит<OPEN/></INDEX>
+	задоволеним усіма наборами значень змінних зразка, які
+	одночасно задовольняють
+	<META>query</META><LATEXINLINE>$_{1}, \ldots,$</LATEXINLINE> <META>query</META><LATEXINLINE>$_{n}$</LATEXINLINE>.
+      </PYTHON>
+    </SPLIT>
+    </TEXT>
+
+  <TEXT>
+    Як і для простих запитів, система опрацьовує складений запит,
+    знаходячи всі приписування змінним зразка, які задовольняють
+    запит, а тоді показуючи конкретизації запиту з цими значеннями.
+  </TEXT>
+
+  <TEXT>
+    Ще один засіб побудови складених запитів — це
+    <INDEX><USE>or</USE> (мова запитів)</INDEX>
+    <SCHEMEINLINE>or</SCHEMEINLINE>. Наприклад,
+    <SNIPPET>
+      <NAME>compound_queries_2</NAME>
+      <REQUIRES>process_query</REQUIRES>
+      <REQUIRES>query_driver_loop</REQUIRES>
+      <REQUIRES>sample_data_base_9</REQUIRES>
+      <EXAMPLE>compound_queries_2_example</EXAMPLE>
+      <EXPECTED>'or(supervisor(list("Tweakit", "Lem", "E"), list("Bitdiddle", "Ben")), supervisor(list("Tweakit", "Lem", "E"), list("Hacker", "Alyssa", "P")))'</EXPECTED>
+      <SCHEME>
+(or (supervisor ?x (Bitdiddle Ben))
+    (supervisor ?x (Hacker Alyssa P)))
+      </SCHEME>
+      <PYTHON>
+or(supervisor($x, llist("Bitdiddle", "Ben")),
+   supervisor($x, llist("Hacker", "Alyssa", "P")))
+      </PYTHON>
+      <PYTHON_RUN>
+      </PYTHON_RUN>      
+    </SNIPPET>
+    <SNIPPET HIDE="yes">
+      <NAME>compound_queries_2_example</NAME>
+      <PYTHON_TEST>
+first_answer('or(supervisor($x, list("Bitdiddle", "Ben")), supervisor($x, list("Hacker", "Alyssa", "P")))')
+      </PYTHON_TEST>
+      <PYTHON>
+process_query('or(supervisor($x, list("Bitdiddle", "Ben")), supervisor($x, list("Hacker", "Alyssa", "P")))')
+# query input:	
+# or(supervisor($x, llist("Bitdiddle", "Ben")), supervisor($x, llist("Hacker", "Alyssa", "P")))
+# query results:
+# or(supervisor(llist("Hacker", "Alyssa", "P"), llist("Bitdiddle", "Ben")),
+#    supervisor(llist("Hacker", "Alyssa", "P"), llist("Hacker", "Alyssa", "P")))
+# or(supervisor(llist("Fect", "Cy", "D"), llist("Bitdiddle", "Ben")),
+#    supervisor(llist("Fect", "Cy", "D"), llist("Hacker", "Alyssa", "P")))
+# or(supervisor(llist("Tweakit", "Lem", "E"), llist("Bitdiddle", "Ben")),
+#    supervisor(llist("Tweakit", "Lem", "E"), llist("Hacker", "Alyssa", "P")))
+# or(supervisor(llist("Reasoner", "Louis"), llist("Bitdiddle", "Ben")),
+#    supervisor(llist("Reasoner", "Louis"), llist("Hacker", "Alyssa", "P")))
+</PYTHON>
+    </SNIPPET>
+    знайде всіх працівників, якими керує Бен Бітдідл або Алісса П.
+    Хакер:
+    <SNIPPET EVAL="no">
+      <SCHEME>
+(or (supervisor (Hacker Alyssa P) (Bitdiddle Ben))
+    (supervisor (Hacker Alyssa P) (Hacker Alyssa P)))
+
+(or (supervisor (Fect Cy D) (Bitdiddle Ben))
+    (supervisor (Fect Cy D) (Hacker Alyssa P)))
+
+(or (supervisor (Tweakit Lem E) (Bitdiddle Ben))
+    (supervisor (Tweakit Lem E) (Hacker Alyssa P)))
+
+(or (supervisor (Reasoner Louis) (Bitdiddle Ben))
+    (supervisor (Reasoner Louis) (Hacker Alyssa P)))
+      </SCHEME>
+      <PYTHON_OUTPUT>
+or(supervisor(list("Hacker", "Alyssa", "P"), 
+              list("Bitdiddle", "Ben")),
+   supervisor(list("Hacker", "Alyssa", "P"),
+              list("Hacker", "Alyssa", "P")))
+
+or(supervisor(list("Fect", "Cy", "D"), 
+              list("Bitdiddle", "Ben")),
+   supervisor(list("Fect", "Cy", "D"), 
+              list("Hacker", "Alyssa", "P")))
+   
+or(supervisor(list("Tweakit", "Lem", "E"), 
+              list("Bitdiddle", "Ben")),
+   supervisor(list("Tweakit", "Lem", "E"), 
+              list("Hacker", "Alyssa", "P")))
+
+or(supervisor(list("Reasoner", "Louis"),
+              list("Bitdiddle", "Ben")),
+   supervisor(list("Reasoner", "Louis"), 
+              list("Hacker", "Alyssa", "P")))
+      </PYTHON_OUTPUT>
+    </SNIPPET>
+    <SPLIT>
+      <SCHEME>
+	Загалом,
+	<SNIPPET LATEX="yes">
+	  <SCHEME>
+(or $\langle \textit{query}_{1}\rangle$ $\langle \textit{query}_{2}\rangle$ $\ldots$ $\langle \textit{query}_{n}\rangle$)
+	  </SCHEME>
+	</SNIPPET>
+	задоволене всіма наборами значень змінних зразка, які
+	задовольняють принаймні один із
+	<LATEXINLINE>$\langle \textit{query}_{1}\rangle \ldots \langle \textit{query}_{n}\rangle$</LATEXINLINE>.
+      </SCHEME>
+      <PYTHON>
+	Загалом,
+	<SNIPPET LATEX="yes">
+	  <PYTHON>
+or(<META>query</META>$_{1}$, <META>query</META>$_{2}$, $\ldots$, <META>query</META>$_{n}$)
+	  </PYTHON>
+	</SNIPPET>
+	задоволене всіма наборами значень змінних зразка, які
+	задовольняють принаймні один із
+	<META>query</META><LATEXINLINE>$_{1} \ldots$</LATEXINLINE> <META>query</META><LATEXINLINE>$_{n}$</LATEXINLINE>.
+      </PYTHON>
+    </SPLIT>
+  </TEXT>
+
+  <TEXT>
+    Складені запити можна також утворювати за допомогою
+    <INDEX><USE>not</USE> (мова запитів)</INDEX>
+    <SCHEMEINLINE>not</SCHEMEINLINE>.
+    Наприклад,
+    <SNIPPET>
+      <NAME>compound_queries_3</NAME>      
+      <REQUIRES>process_query</REQUIRES>
+      <REQUIRES>sample_data_base_9</REQUIRES>
+      <REQUIRES>query_driver_loop</REQUIRES>
+      <EXPECTED>'and(supervisor(list("Tweakit", "Lem", "E"), list("Bitdiddle", "Ben")), not(job(list("Tweakit", "Lem", "E"), list("computer", "programmer"))))'</EXPECTED>
+      <EXAMPLE>compound_queries_3_example</EXAMPLE>
+      <SCHEME>
+(and (supervisor ?x (Bitdiddle Ben))
+     (not (job ?x (computer programmer))))
+      </SCHEME>
+      <PYTHON>
+and(supervisor($x, llist("Bitdiddle", "Ben")),
+    not(job($x, llist("computer", "programmer"))))
+      </PYTHON>
+      <PYTHON_RUN>
+      </PYTHON_RUN>      
+    </SNIPPET>
+    <SNIPPET HIDE="yes">
+      <NAME>compound_queries_3_example</NAME>
+      <PYTHON_TEST>
+first_answer('and(supervisor($x, list("Bitdiddle", "Ben")), not(job($x, list("computer", "programmer"))))')
+      </PYTHON_TEST>
+      <PYTHON>
+process_query('and(supervisor($x, list("Bitdiddle", "Ben")), not(job($x, list("computer", "programmer"))))')
+# query input:	
+# and(supervisor($x, llist("Bitdiddle", "Ben")), not(job($x, llist("computer", "programmer"))))
+# query results:
+# all people supervised by Ben Bitdiddle who are not computer programmers
+</PYTHON>
+    </SNIPPET>
+    знаходить усіх людей, якими керує Бен Бітдідл і які не є комп’ютерними
+    програмістами.  Загалом,
+    <SPLIT>
+      <SCHEME>
+	<SNIPPET EVAL="no" LATEX="yes">
+	  <SCHEME>
+(not $\langle \textit{query}_{1}\rangle$)
+	  </SCHEME>
+	</SNIPPET>
+      </SCHEME>
+      <PYTHON>
+	<SNIPPET EVAL="no" LATEX="yes">
+	  <PYTHON>
+not(<META>query</META>$_{1}$)
+	  </PYTHON>
+	</SNIPPET>
+      </PYTHON>
+    </SPLIT>
+    задоволене всіма приписуваннями змінним зразка, які не
+    задовольняють
+    <SPLITINLINE><SCHEME><LATEXINLINE>$\langle \textit{query}_{1} \rangle$</LATEXINLINE></SCHEME><PYTHON><META>query</META><LATEXINLINE>$_{1}$</LATEXINLINE></PYTHON></SPLITINLINE>.<FOOTNOTE>Насправді цей опис
+    <SCHEMEINLINE>not</SCHEMEINLINE> чинний лише для простих випадків. Справжня
+    поведінка <SCHEMEINLINE>not</SCHEMEINLINE> складніша.  Ми
+    розглянемо особливості <SCHEMEINLINE>not</SCHEMEINLINE>
+    у підрозділах<SPACE/><REF NAME="sec:how-query-works"/>
+    та<SPACE/><REF NAME="sec:math-logic"/>.</FOOTNOTE>
+  </TEXT>
+
+  <SPLIT>
+    <SCHEME>
+      <TEXT>
+	Остання форма комбінування зветься
+	<INDEX><USE>lisp-value</USE> (мова запитів)</INDEX>
+	<SCHEMEINLINE>lisp-value</SCHEMEINLINE>. Коли
+	<SCHEMEINLINE>lisp-value</SCHEMEINLINE> — перший елемент
+	зразка, вона задає, що наступний елемент — це предикат Lisp, який
+	треба застосувати до решти (конкретизованих) елементів як аргументів.
+	Загалом,
+	<SNIPPET EVAL="no" LATEX="yes">
+	  <SCHEME>
+(lisp-value $\langle \textit{predicate}\rangle$ $\langle \textit{arg}_{1}\rangle$ $\ldots$ $\langle \textit{arg}_{n} \rangle$)
+	  </SCHEME>
+	</SNIPPET>
+	буде задоволена приписуваннями змінним зразка, для яких
+	<LATEXINLINE>$\langle \textit{predicate} \rangle$</LATEXINLINE>, застосований
+	до конкретизованих
+	<LATEXINLINE>$\langle \textit{arg}_{1} \rangle, \ldots, \langle \textit{arg}_{n}\rangle$</LATEXINLINE>
+	істинний.  Наприклад, щоб знайти всіх людей, чия платня більша за
+	<DOLLAR/>30 000, ми могли б написати<FOOTNOTE>Lisp-value
+	варто використовувати лише для виконання операції, не
+	передбаченої в мові запитів.  Зокрема, його не варто
+	використовувати для
+	<INDEX>мова запитів<SUBINDEX>перевірка рівності в</SUBINDEX></INDEX>
+	перевірки рівності (бо саме для цього призначене зіставлення в
+	мові запитів) чи нерівності (бо це можна
+	зробити правилом <SCHEMEINLINE>same</SCHEMEINLINE>, показаним
+	нижче).</FOOTNOTE>
+	<SNIPPET EVAL="no">
+	  <SCHEME>
+(and (salary ?person ?amount)
+     (lisp-value &gt; ?amount 30000))
+	  </SCHEME>
+	</SNIPPET>
+	<INDEX>задовольняє складений запит<CLOSE/></INDEX>
+      </TEXT>
+    </SCHEME>
+    <PYTHON>
+      <TEXT>
+	Остання форма комбінування починається з
+	<INDEX><USE>javascript_predicate</USE> (мова запитів)</INDEX>
+	<PYTHONINLINE>javascript_predicate</PYTHONINLINE> і
+	містить предикат Python. Загалом,
+	<SNIPPET EVAL="no" LATEX="yes">
+	  <PYTHON>
+javascript_predicate(<META>predicate</META>)
+	  </PYTHON>
+	</SNIPPET>
+	буде задоволена приписуваннями змінним зразка
+	у <META>predicate</META>, для яких
+	конкретизований 
+	<META>predicate</META> істинний.
+	Наприклад, щоб знайти всіх людей, чия платня більша за
+	<DOLLAR/>50 000, ми могли б написати<FOOTNOTE>
+	Запит має використовувати
+	<PYTHONINLINE>javascript_predicate</PYTHONINLINE>
+	лише для виконання операції, не
+	передбаченої в мові запитів.  Зокрема,
+	<PYTHONINLINE>javascript_predicate</PYTHONINLINE>
+	не варто використовувати для
+	<INDEX>мова запитів<SUBINDEX>перевірка рівності в</SUBINDEX></INDEX>
+	перевірки рівності (бо саме для цього призначене зіставлення в
+	мові запитів) чи нерівності (бо це можна
+	зробити правилом <SCHEMEINLINE>same</SCHEMEINLINE>, показаним
+	нижче).</FOOTNOTE>
+	<SNIPPET POSTPADDING="no">
+	  <NAME>compound_queries_4</NAME>      
+	  <REQUIRES>process_query</REQUIRES>
+	  <REQUIRES>sample_data_base_9</REQUIRES>
+	  <REQUIRES>query_driver_loop</REQUIRES>
+	  <EXAMPLE>compound_queries_4_example</EXAMPLE>
+	  <EXPECTED>'and(salary(list("Scrooge", "Eben"), 141421), javascript_predicate((141421 > 50000)))'</EXPECTED>
+	  <PYTHON>
+and(salary($person, $amount), javascript_predicate($amount &gt; 50000))
+	  </PYTHON>
+	  <PYTHON_RUN>
+	  </PYTHON_RUN>      
+	</SNIPPET>
+	<SNIPPET HIDE="yes">
+	  <NAME>compound_queries_4_example</NAME>
+	  <PYTHON_TEST>
+first_answer('and(salary($person, $amount), javascript_predicate($amount &gt; 50000))')
+	  </PYTHON_TEST>
+	  <PYTHON>
+process_query('and(salary($person, $amount), javascript_predicate($amount &gt; 50000))')
+# query input:	
+# and(salary($person, $amount), javascript_predicate($amount &gt; 50000))
+# query results:
+# people whose salary is greater than 50000
+</PYTHON>
+	</SNIPPET>
+      </TEXT>
+      <INDEX>задовольняє складений запит<CLOSE/></INDEX>
+    </PYTHON>
+  </SPLIT>
+  <EXERCISE>
+    Сформулюйте складені запити, які дістають таку інформацію:
+    <OL>
+      <LI>
+	імена всіх людей, якими керує Бен Бітдідл, разом
+	з їхніми адресами;
+      </LI>
+      <LI>
+	усі люди, чия платня менша за платню Бена Бітдідла, разом
+	з їхньою платнею та платнею Бена Бітдідла;
+      </LI>
+      <LI>
+	усі люди, якими керує хтось, хто не в комп’ютерному
+	відділі, разом з ім’ям і посадою керівника.
+      </LI>
+    </OL>
+    <LABEL NAME="ex:4_54"/>
+  </EXERCISE>
+
+  <INDEX>складений запит<CLOSE/></INDEX>
+
+  <SUBHEADING>
+    <NAME>Правила</NAME>
+  </SUBHEADING>
+
+  <INDEX>правило (мова запитів)<OPEN/></INDEX>
+
+  <TEXT>
+    Крім примітивних і складених запитів, мова
+    запитів надає засоби
+    <INDEX>мова запитів<SUBINDEX>абстрагування в</SUBINDEX></INDEX>
+    абстрагування запитів.  Їх задають
+    <EM>правила</EM>.  Правило
+    <SNIPPET>
+      <INDEX><DECLARATION>lives_near</DECLARATION> (rule)</INDEX>
+      <NAME>rules_1</NAME>      
+      <REQUIRES>process_query</REQUIRES>
+      <REQUIRES>sample_data_base_9</REQUIRES>
+      <REQUIRES>rule_same</REQUIRES>
+      <EXPECTED>'lives_near(list("Reasoner", "Louis"), list("Aull", "DeWitt"))'</EXPECTED>
+      <EXAMPLE>rules_1_example</EXAMPLE>
+      <SCHEME>
+(rule (lives-near ?person-1 ?person-2)
+      (and (address ?person-1 (?town . ?rest-1))
+           (address ?person-2 (?town . ?rest-2))
+           (not (same ?person-1 ?person-2))))
+      </SCHEME>
+      <PYTHON>
+rule(lives_near($person_1, $person_2),
+     and(address($person_1, pair($town, $rest_1)),
+         address($person_2, pair($town, $rest_2)),
+         not(same($person_1, $person_2))))
+      </PYTHON>
+      <PYTHON_RUN>
+process_query("""assert(
+rule(lives_near($person_1, $person_2),
+     and(address($person_1, pair($town, $rest_1)),
+         address($person_2, pair($town, $rest_2)),
+         not(same($person_1, $person_2)))))""")
+</PYTHON_RUN>
+    </SNIPPET>
+    <SNIPPET HIDE="yes">
+      <NAME>rules_1_example</NAME>
+      <PYTHON_TEST>
+first_answer('lives_near(list("Reasoner", "Louis"), $who)')
+      </PYTHON_TEST>
+      <PYTHON>
+process_query('lives_near(list("Reasoner", "Louis"), $who)')
+      </PYTHON>
+    </SNIPPET>
+    задає, що двоє людей живуть поблизу одне одного, якщо вони живуть в
+    тому самому місті.  Остання клауза <SCHEMEINLINE>not</SCHEMEINLINE> не дає
+    правилу стверджувати, що всі люди живуть поблизу самих себе.
+    Відношення <SCHEMEINLINE>same</SCHEMEINLINE> задає дуже просте
+    правило:<FOOTNOTE>Зауважте, що <SCHEMEINLINE>same</SCHEMEINLINE> нам не потрібне
+    для того, щоб зробити дві речі однаковими: ми просто використовуємо ту саму змінну
+    зразка для обох<EMDASH/>фактично, спочатку в нас одна річ, а не дві.  Наприклад, дивіться
+
+    <SPLITINLINE>
+      <SCHEME>
+	<SCHEMEINLINE>?town</SCHEMEINLINE>
+      </SCHEME>
+      <PYTHON>
+	<PYTHONINLINE>$town</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    у правилі
+    <SPLITINLINE>
+      <SCHEME>
+	<SCHEMEINLINE>lives-near</SCHEMEINLINE>
+      </SCHEME>
+      <PYTHON>
+	<SCHEMEINLINE>lives_near</SCHEMEINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    та
+    <SPLITINLINE>
+      <SCHEME>
+	<SCHEMEINLINE>?middle-manager</SCHEMEINLINE>
+      </SCHEME>
+      <PYTHON>
+	<PYTHONINLINE>$middle_manager</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    у правилі
+    <SCHEMEINLINE>wheel</SCHEMEINLINE>
+    нижче.
+    <SPLITINLINE>
+      <SCHEME>
+	<SCHEMEINLINE>Same</SCHEMEINLINE>
+      </SCHEME>
+      <PYTHON>
+	Відношення <PYTHONINLINE>same</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    корисне, коли ми хочемо змусити дві речі бути
+    різними, як-от
+    <SPLITINLINE>
+      <SCHEME>
+	<SCHEMEINLINE>?person-1</SCHEMEINLINE>
+      </SCHEME>
+      <PYTHON>
+	<PYTHONINLINE>$person_1</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    та
+    <SPLITINLINE>
+      <SCHEME>
+	<SCHEMEINLINE>?person-2</SCHEMEINLINE>
+      </SCHEME>
+      <PYTHON>
+	<PYTHONINLINE>$person_2</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    у правилі
+    <SPLITINLINE>
+      <SCHEME>
+	<SCHEMEINLINE>lives-near</SCHEMEINLINE>
+      </SCHEME>
+      <PYTHON>
+	<PYTHONINLINE>lives_near</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    правилі.  Хоча використання тієї самої змінної зразка у двох
+    частинах запиту змушує те саме значення з’явитися в обох місцях, використання
+    різних змінних зразка не змушує з’явитися різні значення.
+    (Значення, приписані різним змінним зразка, можуть бути однаковими або
+    різними.)</FOOTNOTE>
+    <SNIPPET>
+      <INDEX><DECLARATION>same</DECLARATION> (rule)</INDEX>
+      <NAME>rule_same</NAME>      
+      <REQUIRES>process_query</REQUIRES>
+      <REQUIRES>sample_data_base_9</REQUIRES>
+      <EXPECTED>'same(list("Reasoner", "Louis"), list("Reasoner", "Louis"))'</EXPECTED>
+      <EXAMPLE>rule_same_example</EXAMPLE>
+      <SCHEME>
+(rule (same ?x ?x))
+      </SCHEME>
+      <PYTHON>
+rule(same($x, $x))
+      </PYTHON>
+      <PYTHON_RUN>
+process_query('assert(rule(same($x, $x)))')
+      </PYTHON_RUN>
+    </SNIPPET>
+    <SNIPPET HIDE="yes">
+      <NAME>rule_same_example</NAME>
+      <REQUIRES>rule_same</REQUIRES>
+      <REQUIRES>process_query</REQUIRES>
+      <PYTHON_TEST>
+first_answer('same(list("Reasoner", $first_name), list($surname, "Louis"))')
+      </PYTHON_TEST>
+      <PYTHON>
+process_query('same(list("Reasoner", $first_name), list($surname, "Louis"))')
+      </PYTHON>
+    </SNIPPET>
+  </TEXT>
+
+  <TEXT>
+    Наступне правило оголошує, що людина є <QUOTE>колесом</QUOTE> в
+    організації, якщо вона керує кимось, хто своєю чергою є керівником:
+    <SNIPPET>
+      <INDEX><DECLARATION>wheel</DECLARATION> (rule)</INDEX>
+      <NAME>rules_2</NAME>
+      <REQUIRES>process_query</REQUIRES>
+      <REQUIRES>sample_data_base_9</REQUIRES>
+      <REQUIRES>rule_same</REQUIRES>
+      <EXPECTED>'wheel(list("Warbucks", "Oliver"))'</EXPECTED>
+      <EXAMPLE>rules_2_example</EXAMPLE>
+      <SCHEME>
+(rule (wheel ?person)
+      (and (supervisor ?middle-manager ?person)
+           (supervisor ?x ?middle-manager)))
+      </SCHEME>
+      <PYTHON>
+rule(wheel($person),
+     and(supervisor($middle_manager, $person),
+         supervisor($x, $middle_manager)))
+      </PYTHON>
+      <PYTHON_RUN>
+process_query("""assert(
+rule(wheel($person),
+     and(supervisor($middle_manager, $person),
+         supervisor($x, $middle_manager))))""")
+</PYTHON_RUN>
+    </SNIPPET>
+    <SNIPPET HIDE="yes">
+      <NAME>rules_2_example</NAME>
+      <PYTHON_TEST>
+first_answer('wheel($who)')
+      </PYTHON_TEST>
+      <PYTHON>
+process_query('wheel($who)')
+      </PYTHON>
+    </SNIPPET>
+  </TEXT>
+
+  <TEXT>
+    <SPLIT>
+      <SCHEME>
+	Загальна форма правила така
+	<SNIPPET LATEX="yes">
+	  <SCHEME>
+(rule $\langle \textit{conclusion} \rangle$ $\langle \textit{body} \rangle$)
+	  </SCHEME>
+	</SNIPPET>
+	де <LATEXINLINE>$\langle \textit{conclusion}\rangle$</LATEXINLINE> —
+	зразок, а <LATEXINLINE>$\langle \textit{body} \rangle$</LATEXINLINE>
+	— будь-який запит.<FOOTNOTE>Ми також дозволимо
+	<INDEX>правило (мова запитів)<SUBINDEX>без тіла</SUBINDEX></INDEX>
+	правила без тіл, як-от
+	<SCHEMEINLINE>same</SCHEMEINLINE>, і тлумачитимемо таке правило
+	так, що висновок правила задоволений будь-якими значеннями
+	змінних.</FOOTNOTE>
+      </SCHEME>
+      <PYTHON>
+	Загальна форма правила така
+	<SNIPPET LATEX="yes">
+	  <PYTHON>
+rule(<META>conclusion</META>, <META>body</META>)
+	  </PYTHON>
+	</SNIPPET>
+	де <META>conclusion</META> — зразок, а
+	<META>body</META> — будь-який запит.<FOOTNOTE>Ми
+	також дозволимо
+	<INDEX>правило (мова запитів)<SUBINDEX>без тіла</SUBINDEX></INDEX>
+	правила без тіл, як-от
+	<SCHEMEINLINE>same</SCHEMEINLINE>, і тлумачитимемо таке правило
+	так, що висновок правила задоволений будь-якими значеннями
+	змінних.</FOOTNOTE>
+      </PYTHON>
+    </SPLIT>
+    Правило можна уявляти як подання великої (навіть
+    нескінченної) множини тверджень, а саме всіх конкретизацій висновку правила
+    з приписуваннями змінних, які задовольняють тіло правила.  Коли ми описували
+    прості запити (зразки), ми казали, що приписування значень змінним задовольняє
+    зразок, якщо конкретизований зразок є в базі даних.  Але зразок
+    не мусить бути явно в базі даних як твердження.  Він
+    може бути
+    <INDEX>твердження<SUBINDEX>неявне</SUBINDEX></INDEX>
+    неявним твердженням, що випливає з правила.  Наприклад,
+    запит
+    <SNIPPET>
+      <NAME>rules_3</NAME>
+      <REQUIRES>query_driver_loop</REQUIRES>
+      <REQUIRES>sample_data_base_9</REQUIRES>
+      <REQUIRES>rules_1</REQUIRES>
+      <REQUIRES>process_query</REQUIRES>
+      <EXPECTED>'lives_near(list("Aull", "DeWitt"), list("Bitdiddle", "Ben"))'</EXPECTED>
+      <PYTHON_TEST>
+first_answer('lives_near($x, list("Bitdiddle", "Ben"))')
+      </PYTHON_TEST>
+      <SCHEME>
+      (lives-near ?x (Bitdiddle Ben))
+      </SCHEME>
+      <PYTHON>
+lives_near($x, llist("Bitdiddle", "Ben"))
+      </PYTHON>
+      <PYTHON_RUN>
+process_query('lives_near($x, list("Bitdiddle", "Ben"))')
+# query input:	
+# lives_near($x, llist("Bitdiddle", "Ben"))
+# query results:
+# lives_near(llist("Reasoner", "Louis"), llist("Bitdiddle", "Ben"))            
+# lives_near(llist("Aull", "DeWitt"), llist("Bitdiddle", "Ben"))
+</PYTHON_RUN>
+    </SNIPPET>
+    дає результат
+    <SNIPPET EVAL="no">
+      <SCHEME>
+(lives-near (Reasoner Louis) (Bitdiddle Ben))
+(lives-near (Aull DeWitt) (Bitdiddle Ben))
+      </SCHEME>
+      <PYTHON_OUTPUT>
+lives_near(list("Reasoner", "Louis"), list("Bitdiddle", "Ben"))
+lives_near(list("Aull", "DeWitt"), list("Bitdiddle", "Ben"))            
+      </PYTHON_OUTPUT>
+    </SNIPPET>
+    Щоб знайти всіх комп’ютерних програмістів, які живуть поблизу Бена Бітдідла, ми можемо
+    запитати
+    <SNIPPET>
+      <NAME>rules_4</NAME>
+      <REQUIRES>query_driver_loop</REQUIRES>
+      <REQUIRES>sample_data_base_9</REQUIRES>
+      <REQUIRES>rules_1</REQUIRES>
+      <REQUIRES>process_query</REQUIRES>
+      <EXPECTED>'and(job(list("Reasoner", "Louis"), list("computer", "programmer", "trainee")), lives_near(list("Reasoner", "Louis"), list("Bitdiddle", "Ben")))'</EXPECTED>
+      <PYTHON_TEST>
+first_answer('and(job($x, pair("computer", $something)), lives_near($x, list("Bitdiddle", "Ben")))')
+      </PYTHON_TEST>
+      <SCHEME>
+(and (job ?x (computer programmer))
+     (lives-near ?x (Bitdiddle Ben)))
+      </SCHEME>
+      <PYTHON>
+and(job($x, llist("computer", "programmer")),
+    lives_near($x, llist("Bitdiddle", "Ben")))
+      </PYTHON>
+      <PYTHON_RUN>
+process_query('and(job($x, list("computer", "programmer")), lives_near($x, list("Bitdiddle", "Ben")))')
+# query input:	
+# and(job($x, llist("computer", "programmer")), lives_near($x, llist("Bitdiddle", "Ben")))
+# query results:
+</PYTHON_RUN>
+    </SNIPPET>
+  </TEXT>
+
+  <TEXT>
+    Як і у випадку складених
+    <SPLITINLINE>
+      <SCHEME>процедур,</SCHEME>
+      <PYTHON>функцій,</PYTHON>
+    </SPLITINLINE>
+    правила можна використовувати як частини інших правил (як ми бачили з
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>lives-near</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>lives_near</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    правилом вище) або навіть означати їх
+    <INDEX>рекурсія<SUBINDEX><ORDER>rules</ORDER>у правилах</SUBINDEX></INDEX>
+    рекурсивно.  Наприклад, правило
+    <SNIPPET>
+      <INDEX><DECLARATION>outranked_by</DECLARATION> (rule)</INDEX>
+      <NAME>rules_5</NAME>
+      <REQUIRES>query_driver_loop</REQUIRES>
+      <REQUIRES>sample_data_base_9</REQUIRES>
+      <EXAMPLE>rules_5_example</EXAMPLE>
+      <SCHEME>
+(rule (outranked-by ?staff-person ?boss)
+      (or (supervisor ?staff-person ?boss)
+          (and (supervisor ?staff-person ?middle-manager)
+               (outranked-by ?middle-manager ?boss))))
+      </SCHEME>
+      <PYTHON>
+rule(outranked_by($staff_person, $boss),
+     or(supervisor($staff_person, $boss),
+        and(supervisor($staff_person, $middle_manager),
+            outranked_by($middle_manager, $boss))))
+      </PYTHON>
+      <PYTHON_RUN>
+process_query("""assert(
+rule(outranked_by($staff_person, $boss),
+     or(supervisor($staff_person, $boss),
+        and(supervisor($staff_person, $middle_manager),
+            outranked_by($middle_manager, $boss)))))""")
+</PYTHON_RUN>
+    </SNIPPET>
+    <SNIPPET HIDE="yes">
+      <NAME>rules_5_example</NAME>
+      <REQUIRES>rules_5</REQUIRES>
+      <REQUIRES>process_query</REQUIRES>
+      <EXPECTED>'outranked_by(list("Bitdiddle", "Ben"), list("Warbucks", "Oliver"))'</EXPECTED>
+      <PYTHON_TEST>
+process_query("""assert(
+rule(outranked_by($staff_person, $boss),
+     or(supervisor($staff_person, $boss),
+        and(supervisor($staff_person, $middle_manager),
+            outranked_by($middle_manager, $boss)))))""")
+first_answer('outranked_by(list($who, "Ben"), $the_boss)')
+</PYTHON_TEST>
+      <PYTHON>
+process_query('outranked_by(list($who, "Ben"), $the_boss)')
+# query input:	
+# outranked_by(llist($who, "Ben"), $the_boss)
+# query results:
+# outranked_by(llist("Bitdiddle", "Ben"), llist("Warbucks", "Oliver"))
+</PYTHON>
+    </SNIPPET>
+    каже, що працівника переважає за посадою начальник в організації, якщо
+    цей начальник — керівник працівника або (рекурсивно) якщо
+    <SHRINK_PARAGRAPH lines="1"/>
+    керівника працівника переважає за посадою цей начальник.
+  </TEXT>
+
+  <EXERCISE>
+    Означте правило, яке каже, що особа 1 може замінити особу 2, якщо або
+    особа 1 виконує ту саму роботу, що й особа 2, або хтось, хто виконує роботу
+    особи 1, може також виконувати роботу особи<SPACE/>2, і якщо особа 1 та особа 2
+    — не та сама особа. Використовуючи своє правило, дайте запити, які знаходять
+    таке:
+    <OL>
+      <LI>
+	усі люди, які можуть замінити Сая Д. Фекта;
+      </LI>
+      <LI>
+	усі люди, які можуть замінити когось, кому платять більше, ніж їм,
+	разом з обома платнями.
+      </LI>
+    </OL>
+    <LABEL NAME="ex:4_55"/>
+  </EXERCISE>
+
+  <EXERCISE>
+    Означте правило, яке каже, що людина є <QUOTE>шишкою</QUOTE> у
+    відділі, якщо людина працює у відділі, але не має керівника,
+    який працює у відділі.
+    <LABEL NAME="ex:4_56"/>
+  </EXERCISE>
+
+<!-- %Exercise source: Spring '84 Final - -&gt; manual M4.28 - - &gt; here-->
+
+  <EXERCISE>
+    Бен Бітдідл пропустив одну нараду зайвий раз. Боячись, що його звичка
+    забувати про наради може коштувати йому роботи, Бен вирішує щось із цим
+    зробити.  Він додає всі щотижневі наради фірми до бази даних Gargle,
+    стверджуючи таке:
+    <SNIPPET EVAL="no">
+      <SCHEME>
+(meeting accounting (Monday 9am))
+(meeting administration (Monday 10am))
+(meeting computer (Wednesday 3pm))
+(meeting administration (Friday 1pm))
+      </SCHEME>
+      <PYTHON>
+meeting("accounting", llist("Monday", "9am"))
+meeting("administration", llist("Monday", "10am"))
+meeting("computer", llist("Wednesday", "3pm"))
+meeting("administration", llist("Friday", "1pm"))
+    </PYTHON>
+    </SNIPPET>
+    Кожне з наведених тверджень — про нараду всього відділу.
+    Бен також додає запис про загальнофірмову нараду, що охоплює всі
+    відділи.  Усі працівники компанії відвідують цю нараду.
+    <SNIPPET EVAL="no">
+      <SCHEME>
+(meeting whole-company (Wednesday 4pm))
+      </SCHEME>
+      <PYTHON>
+meeting("whole-company", llist("Wednesday", "4pm"))
+      </PYTHON>
+    </SNIPPET>
+    <OL>
+      <LI>
+	У п’ятницю вранці Бен хоче запитати базу даних про всі наради,
+	які відбуваються того дня.  Який запит йому використати?
+      </LI>
+      <LI>
+	Алісса П. Хакер не вражена.  Вона вважає, що було б значно
+	корисніше мати змогу питати про свої наради, указавши своє ім’я.  Тож
+	вона розробляє правило, яке каже, що наради людини охоплюють усі
+	<SPLITINLINE>
+	  <SCHEME>
+	    <SCHEMEINLINE>whole-company</SCHEMEINLINE>
+	  </SCHEME>
+	  <PYTHON>
+	    <PYTHONINLINE>"whole-company"</PYTHONINLINE>
+	  </PYTHON>
+	</SPLITINLINE>
+	наради цієї категорії плюс усі наради відділу цієї людини.
+	Заповніть тіло правила Алісси.
+	<SPLIT>
+	  <SCHEME>
+	    <SNIPPET EVAL="no" LATEX="yes">
+              <SCHEME>
+(rule (meeting-time ?person ?day-and-time)
+      rule-body)
+              </SCHEME>
+	    </SNIPPET>
+	  </SCHEME>
+	  <PYTHON>
+	    <SNIPPET EVAL="no" LATEX="yes">
+	      <PYTHON>
+rule(meeting_time($\texttt{\$}$person, $\texttt{\$}$day_and_time),
+     $rule$-$body$)
+	      </PYTHON>
+	    </SNIPPET>
+	  </PYTHON>
+	</SPLIT>
+      </LI>
+      <LI>
+	Алісса приходить на роботу в середу вранці й думає, які наради їй
+	треба відвідати того дня.  Маючи означене вище правило, який запит
+	вона має зробити, щоб це з’ясувати?
+      </LI>
+    </OL>
+    <LABEL NAME="ex:4_57"/>
+  </EXERCISE>
+
+  <EXERCISE>
+    Давши запит
+    <SNIPPET EVAL="no">
+      <INDEX><USE>lives_near</USE> (rule)</INDEX>
+      <SCHEME>
+(lives-near ?person (Hacker Alyssa P))
+      </SCHEME>
+      <PYTHON>
+lives_near($person, llist("Hacker", "Alyssa", "P"))
+      </PYTHON>
+    </SNIPPET>
+    Алісса П. Хакер може знайти людей, які живуть поблизу неї і з якими
+    вона могла б їздити на роботу.  З іншого боку, коли вона намагається знайти всі
+    пари людей, які живуть поблизу одне одного, запитуючи
+    <SNIPPET EVAL="no">
+      <SCHEME>
+(lives-near ?person-1 ?person-2)
+      </SCHEME>
+      <PYTHON>
+lives_near($person_1, $person_2)
+      </PYTHON>
+    </SNIPPET>
+    вона помічає, що кожна пара людей, які живуть поблизу одне одного,
+    подана двічі; наприклад,
+    <SNIPPET EVAL="no">
+      <SCHEME>
+(lives-near (Hacker Alyssa P) (Fect Cy D))
+(lives-near (Fect Cy D) (Hacker Alyssa P))
+      </SCHEME>
+      <PYTHON>
+lives_near(llist("Hacker", "Alyssa", "P"), llist("Fect", "Cy", "D"))
+lives_near(llist("Fect", "Cy", "D"), llist("Hacker", "Alyssa", "P"))
+      </PYTHON>
+    </SNIPPET>
+    Чому так відбувається?
+    Чи є спосіб знайти список людей, які живуть поблизу одне одного,
+    у якому кожна пара трапляється лише раз?  Поясніть.
+    <LABEL NAME="ex:lives-near"/>
+  </EXERCISE>
+
+  <SUBHEADING>
+    <NAME>Логіка як програми</NAME>
+  </SUBHEADING>
+
+  <INDEX>мова запитів<SUBINDEX>логічні висновки<OPEN/></SUBINDEX></INDEX>
+
+  <TEXT>
+    Правило можна розглядати як різновид логічної імплікації: <EM>Якщо</EM>
+    приписування значень змінним зразка задовольняє тіло, <EM>
+    то</EM> воно задовольняє висновок.  Отже, мову запитів можна розглядати
+    як таку, що здатна виконувати <EM>логічні
+    висновки</EM> на основі правил.  Як приклад розгляньмо
+    операцію <SCHEMEINLINE>append</SCHEMEINLINE>, описану на початку
+    підрозділу<SPACE/><REF NAME="sec:logic-programming"/>.  Як ми казали,
+    <SCHEMEINLINE>append</SCHEMEINLINE> можна схарактеризувати такими
+    двома правилами:
+    <UL>
+      <LI>
+	Для будь-якого списку <SCHEMEINLINE>y</SCHEMEINLINE> порожній список і
+	<SCHEMEINLINE>y</SCHEMEINLINE> <SCHEMEINLINE>append</SCHEMEINLINE>, щоб
+	утворити <SCHEMEINLINE>y</SCHEMEINLINE>.
+      </LI>
+      <LI>
+	Для будь-яких <SCHEMEINLINE>u</SCHEMEINLINE>, <SCHEMEINLINE>v</SCHEMEINLINE>,
+	<SCHEMEINLINE>y</SCHEMEINLINE> та <SCHEMEINLINE>z</SCHEMEINLINE>
+        <SPLITINLINE>
+	  <SCHEME><SCHEMEINLINE>(cons u v)</SCHEMEINLINE></SCHEME>
+	  <PYTHON><PYTHONINLINE>pair(u, v)</PYTHONINLINE>
+	  </PYTHON>
+	</SPLITINLINE>
+	і <SCHEMEINLINE>y</SCHEMEINLINE> <SCHEMEINLINE>append</SCHEMEINLINE>
+	утворюють
+	<SPLITINLINE>
+	  <SCHEME><SCHEMEINLINE>(cons<SPACE/>u<SPACE/>z)</SCHEMEINLINE></SCHEME>
+	  <PYTHON><PYTHONINLINE>pair(u, z)</PYTHONINLINE>
+	  </PYTHON>
+	</SPLITINLINE>
+	якщо <SCHEMEINLINE>v</SCHEMEINLINE> та <SCHEMEINLINE>y</SCHEMEINLINE>
+	<SCHEMEINLINE>append</SCHEMEINLINE> утворюють
+	<SCHEMEINLINE>z</SCHEMEINLINE>.
+      </LI>
+    </UL>
+  </TEXT>
+
+  <TEXT>
+    Щоб виразити це нашою мовою запитів, ми означуємо два правила для відношення
+    <SNIPPET EVAL="no">
+      <SCHEME>
+(append-to-form x y z)
+      </SCHEME>
+      <PYTHON>
+append_to_form(x, y, z)      
+      </PYTHON>
+    </SNIPPET>
+    які можна тлумачити як <QUOTE><SCHEMEINLINE>x</SCHEMEINLINE> та
+    <SCHEMEINLINE>y</SCHEMEINLINE> <SCHEMEINLINE>append</SCHEMEINLINE>, щоб
+    утворити <SCHEMEINLINE>z</SCHEMEINLINE></QUOTE>:
+    <SNIPPET>
+      <INDEX><DECLARATION>append_to_form</DECLARATION> (rules)</INDEX>
+      <NAME>append_to_form</NAME>
+      <REQUIRES>process_query</REQUIRES>
+      <EXPECTED>'append_to_form(list(1, 2), list(3, 4), list(1, 2, 3, 4))'</EXPECTED>
+      <EXAMPLE>append_to_form_example_1</EXAMPLE>
+      <SCHEME>
+(rule (append-to-form () ?y ?y))
+
+(rule (append-to-form (?u . ?v) ?y (?u . ?z))
+      (append-to-form ?v ?y ?z))
+      </SCHEME>
+      <PYTHON>
+rule(append_to_form(None, $y, $y))
+
+rule(append_to_form(pair($u, $v), $y, pair($u, $z)),
+     append_to_form($v, $y, $z))
+      </PYTHON>
+      <PYTHON_RUN>
+process_query("""assert(
+rule(append_to_form(null, $y, $y)))""")
+process_query("""assert(
+rule(append_to_form(pair($u, $v), $y, pair($u, $z)),
+     append_to_form($v, $y, $z)))""")
+</PYTHON_RUN>
+    </SNIPPET>
+    <SNIPPET HIDE="yes">
+      <NAME>append_to_form_just_the_rules</NAME>
+      <PYTHON>
+process_query("""assert(
+rule(append_to_form(null, $y, $y)))""")
+process_query("""assert(
+rule(append_to_form(pair($u, $v), $y, pair($u, $z)),
+     append_to_form($v, $y, $z)))""")
+</PYTHON>
+    </SNIPPET>
+    <SNIPPET HIDE="yes">
+      <NAME>append_to_form_example_1</NAME>
+      <PYTHON_TEST>
+first_answer('append_to_form(list(1, 2), list(3, 4), $xs)')
+      </PYTHON_TEST>
+      <PYTHON>
+process_query('append_to_form(list(1, 2), list(3, 4), $xs)')
+# query input:	
+# append_to_form(llist(1, 2), llist(3, 4), $xs)
+# query results:
+# append_to_form(llist(1, 2), llist(3, 4), llist(1, 2, 3, 4))
+</PYTHON>
+    </SNIPPET>
+    Перше правило має
+    <INDEX>правило (мова запитів)<SUBINDEX>без тіла</SUBINDEX></INDEX>
+    немає тіла, що означає, що висновок чинний для
+    будь-якого значення
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>?y</SCHEMEINLINE>.</SCHEME>
+      <PYTHON><PYTHONINLINE>$y</PYTHONINLINE>.</PYTHON>
+    </SPLITINLINE>
+    Зауважте, як друге правило використовує
+    <SPLITINLINE>
+      <SCHEME>
+	<INDEX>точкова хвостова нотація<SUBINDEX><ORDER>query</ORDER>у правилі мови запитів</SUBINDEX></INDEX>
+	точкову хвостову нотацію, щоб назвати
+      </SCHEME>
+      <PYTHON>
+	<PYTHONINLINE>pair</PYTHONINLINE>, щоб назвати
+      </PYTHON>
+    </SPLITINLINE>
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>car</SCHEMEINLINE></SCHEME>
+      <PYTHON>head</PYTHON>
+    </SPLITINLINE>
+    та
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>cdr</SCHEMEINLINE></SCHEME>
+      <PYTHON>tail</PYTHON>
+    </SPLITINLINE>
+    списку.
+  </TEXT>
+
+  <TEXT>
+    Маючи ці два правила, ми можемо сформулювати запити, які обчислюють
+    <SCHEMEINLINE>append</SCHEMEINLINE> двох списків:
+    <SNIPPET>
+      <NAME>append_to_form_example_2</NAME>
+      <REQUIRES>process_query</REQUIRES>
+      <REQUIRES>append_to_form_just_the_rules</REQUIRES>
+      <EXPECTED>'append_to_form(list("a", "b"), list("c", "d"), list("a", "b", "c", "d"))'</EXPECTED>
+      <SCHEMEPROMPT>
+;;; Query input:
+      </SCHEMEPROMPT>
+      <PYTHON_PROMPT>
+Query input:
+      </PYTHON_PROMPT>
+      <PYTHON_TEST>
+first_answer('append_to_form(list("a", "b"), list("c", "d"), z)')
+      </PYTHON_TEST>
+      <SCHEME>
+      (append-to-form (a b) (c d) ?z)
+      </SCHEME>
+      <PYTHON>
+append_to_form(llist("a", "b"), llist("c", "d"), $z)
+      </PYTHON>
+      <PYTHON_RUN>
+process_query('append_to_form(list("a", "b"), list("c", "d"), $z)')
+# query input:	
+# append_to_form(llist("a", "b"), llist("c", "d"), $z)
+# query results:
+# append_to_form(llist("a", "b"), llist("c", "d"), llist("a", "b", "c", "d"))
+</PYTHON_RUN>
+      <SCHEMEOUTPUT>
+;;; Query results:
+(append-to-form (a b) (c d) (a b c d))
+      </SCHEMEOUTPUT>
+      <PYTHON_OUTPUT>
+Query results:
+append_to_form(list("a", "b"), list("c", "d"), list("a", "b", "c", "d"))
+      </PYTHON_OUTPUT>
+    </SNIPPET>
+    Що вражає ще більше, ті самі правила можна використати, щоб поставити запитання
+    <SPLITINLINE>
+      <SCHEME>
+	<QUOTE>
+	  Який список, приєднаний через <SCHEMEINLINE>append</SCHEMEINLINE> до
+	  <SCHEMEINLINE>(a b)</SCHEMEINLINE>, дає
+	  <SCHEMEINLINE>(a b c d)</SCHEMEINLINE>?</QUOTE>
+      </SCHEME>
+      <PYTHON>
+	<QUOTE>Який список, приєднаний через <SCHEMEINLINE>append</SCHEMEINLINE> до
+	<PYTHONINLINE>llist("a", "b")</PYTHONINLINE>, дає
+	<PYTHONINLINE>llist("a", "b", "c", "d")</PYTHONINLINE>?
+	</QUOTE>
+      </PYTHON>
+    </SPLITINLINE>
+    Це робиться так:
+    <SNIPPET>
+      <NAME>append_to_form_example_3</NAME>
+      <REQUIRES>process_query</REQUIRES>
+      <REQUIRES>append_to_form_just_the_rules</REQUIRES>
+      <EXPECTED>'append_to_form(list("a", "b"), list("c", "d"), list("a", "b", "c", "d"))'</EXPECTED>
+      <PYTHON_TEST>
+first_answer('append_to_form(list("a", "b"), y, list("a", "b", "c", "d"))')
+      </PYTHON_TEST>
+      <SCHEMEPROMPT>
+;;; Query input:
+      </SCHEMEPROMPT>
+      <PYTHON_PROMPT>
+Query input:
+      </PYTHON_PROMPT>
+      <SCHEME>
+      (append-to-form (a b) ?y (a b c d))
+      </SCHEME>
+      <PYTHON>
+append_to_form(llist("a", "b"), $y, llist("a", "b", "c", "d"))
+      </PYTHON>
+      <PYTHON_RUN>
+process_query('append_to_form(list("a", "b"), $y, list("a", "b", "c", "d"))')
+# query input:	
+# append_to_form(llist("a", "b"), $y, llist("a", "b", "c", "d"))
+# query results:
+# append_to_form(llist("a", "b"), llist("c", "d"), llist("a", "b", "c", "d"))
+</PYTHON_RUN>
+      <SCHEMEOUTPUT>
+      ;;; Query results:
+      (append-to-form (a b) (c d) (a b c d))
+      </SCHEMEOUTPUT>
+      <PYTHON_OUTPUT>
+Query results:
+append_to_form(list("a", "b"), list("c", "d"), list("a", "b", "c", "d"))
+      </PYTHON_OUTPUT>
+    </SNIPPET>
+    Ми можемо
+    <SPLITINLINE>
+      <SCHEME>
+	також
+      </SCHEME>
+    </SPLITINLINE>
+    запитати всі пари списків, які
+    через <SCHEMEINLINE>append</SCHEMEINLINE> утворюють
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>(a b c d)</SCHEMEINLINE>:</SCHEME>
+      <PYTHON><PYTHONINLINE>llist("a", "b", "c", "d")</PYTHONINLINE>:
+      </PYTHON>
+    </SPLITINLINE>
+    <SNIPPET>
+      <NAME>append_to_form_example_4</NAME>
+      <REQUIRES>process_query</REQUIRES>
+      <REQUIRES>append_to_form_just_the_rules</REQUIRES>
+      <EXPECTED>'append_to_form(list("a", "b", "c", "d"), null, list("a", "b", "c", "d"))'</EXPECTED>
+      <PYTHON_TEST>
+first_answer('append_to_form($x, $y, list("a", "b", "c", "d"))')
+      </PYTHON_TEST>
+      <SCHEMEPROMPT>
+;;; Query input:
+      </SCHEMEPROMPT>
+      <PYTHON_PROMPT>
+Query input:
+      </PYTHON_PROMPT>
+      <SCHEME>
+      (append-to-form ?x ?y (a b c d))
+      </SCHEME>
+      <PYTHON>
+append_to_form($x, $y, llist("a", "b", "c", "d"))
+      </PYTHON>
+      <PYTHON_RUN>
+process_query('append_to_form($x, $y, list("a", "b", "c", "d"))')
+# query input:	
+# append_to_form($x, $y, llist("a", "b", "c", "d"))
+# query results:
+# append_to_form(None, llist("a", "b", "c", "d"), llist("a", "b", "c", "d"))
+# append_to_form(llist("a"), llist("b", "c", "d"), llist("a", "b", "c", "d"))
+# append_to_form(llist("a", "b"), llist("c", "d"), llist("a", "b", "c", "d"))
+# append_to_form(llist("a", "b", "c"), llist("d"), llist("a", "b", "c", "d"))
+# append_to_form(llist("a", "b", "c", "d"), None, llist("a", "b", "c", "d"))
+</PYTHON_RUN>
+      <SCHEMEOUTPUT>
+;;; Query results:
+(append-to-form () (a b c d) (a b c d))
+(append-to-form (a) (b c d) (a b c d))
+(append-to-form (a b) (c d) (a b c d))
+(append-to-form (a b c) (d) (a b c d))
+(append-to-form (a b c d) () (a b c d))
+      </SCHEMEOUTPUT>
+      <PYTHON_OUTPUT>
+Query results:
+append_to_form(null, list("a", "b", "c", "d"), list("a", "b", "c", "d"))
+append_to_form(list("a"), list("b", "c", "d"), list("a", "b", "c", "d"))
+append_to_form(list("a", "b"), list("c", "d"), list("a", "b", "c", "d"))
+append_to_form(list("a", "b", "c"), list("d"), list("a", "b", "c", "d"))
+append_to_form(list("a", "b", "c", "d"), null, list("a", "b", "c", "d"))
+      </PYTHON_OUTPUT>
+    </SNIPPET>
+  </TEXT>
+
+  <TEXT>
+    Система запитів може здаватися досить розумною, коли
+    використовує правила, щоб вивести відповіді на наведені вище запити.  Насправді,
+    як ми побачимо в наступному підрозділі, система дотримується
+    цілком визначеного алгоритму, розплутуючи правила.  На жаль,
+    хоча в разі
+    <SCHEMEINLINE>append</SCHEMEINLINE> система працює вражаюче, загальні методи можуть дати збій
+    у складніших випадках, як ми побачимо
+    в підрозділі<SPACE/><REF NAME="sec:math-logic"/>.
+  </TEXT>
+    
+  <!-- %Exercise source: Manual p.147 &amp;&amp; ex M4.30-->
+  <EXERCISE>
+    <LABEL NAME="ex:next-to"/>
+    Наступні правила реалізують
+    <SPLITINLINE>
+      <SCHEME>
+	<SCHEMEINLINE>next-to</SCHEMEINLINE>
+      </SCHEME>
+      <PYTHON>
+	<SCHEMEINLINE>next_to_in</SCHEMEINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    відношення, яке знаходить суміжні елементи списку:
+    <SNIPPET EVAL="no">
+      <INDEX><DECLARATION>next_to_in</DECLARATION> (rules)</INDEX>
+      <SCHEME>
+(rule (?x next-to ?y in (?x ?y . ?u)))
+
+(rule (?x next-to ?y in (?v . ?z))
+      (?x next-to ?y in ?z))
+      </SCHEME>
+      <PYTHON>
+rule(next_to_in($x, $y, pair($x, pair($y, $u))))
+
+rule(next_to_in($x, $y, pair($v, $z)),
+     next_to_in($x, $y, $z))
+      </PYTHON>
+    </SNIPPET>
+    <PDF_ONLY>\newpage\noindent </PDF_ONLY>Якою буде відповідь на такі запити?
+    <SNIPPET EVAL="no" POSTPADDING="no">
+      <SCHEME>
+(?x next-to ?y in (1 (2 3) 4))
+
+(?x next-to 1 in (2 1 3 1))
+      </SCHEME>
+      <PYTHON>
+next_to_in($x, $y, llist(1, llist(2, 3), 4))
+
+next_to_in($x, 1, llist(2, 1, 3, 1))
+      </PYTHON>
+    </SNIPPET>
+  </EXERCISE>
+
+  <EXERCISE>
+    Означте правила, які реалізують
+    <INDEX><USE>last_pair</USE><SUBINDEX>правила</SUBINDEX></INDEX>
+    <SPLITINLINE>
+      <SCHEME>
+	<SCHEMEINLINE>last-pair</SCHEMEINLINE>
+      </SCHEME>
+      <PYTHON>
+	<PYTHONINLINE>last_pair</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    операцію з вправи<SPACE/><REF NAME="ex:last"/>,
+    яка повертає список,
+    що містить останній елемент непорожнього списку.  Перевірте свої правила на
+    <SPLIT>
+      <SCHEME>
+	таких запитах:
+	<SCHEMEINLINE>(last-pair (3) ?x)</SCHEMEINLINE>,
+	<SCHEMEINLINE>(last-pair (1 2 3) ?x)</SCHEMEINLINE>,
+	та
+	<SCHEMEINLINE>(last-pair (2 ?x) (3))</SCHEMEINLINE>.
+      </SCHEME>
+      <PYTHON>
+	таких запитах:
+	<UL>
+	  <LI> <PYTHONINLINE>last_pair(llist(3), $x)</PYTHONINLINE></LI>
+	  <LI> <PYTHONINLINE>last_pair(llist(1, 2, 3), $x)</PYTHONINLINE></LI>
+	  <LI> <PYTHONINLINE>last_pair(llist(2, $x), llist(3))</PYTHONINLINE></LI>
+	</UL>
+	</PYTHON>
+    </SPLIT>
+    Чи працюють ваші правила правильно на таких запитах, як
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>(last-pair ?x (3))</SCHEMEINLINE>?</SCHEME>
+      <PYTHON><PYTHONINLINE>last_pair($x, llist(3))</PYTHONINLINE>?
+      </PYTHON>
+    </SPLITINLINE>
+    <LABEL NAME="ex:last-pair-rules"/>
+  </EXERCISE>
+
+  <EXERCISE>
+    Наступна база даних (див. Книга Буття 4) простежує родовід
+    нащадків
+    <INDEX>Ada</INDEX><INDEX>Genesis</INDEX>
+    Ади аж до Адама, через Каїна:
+
+    <SNIPPET EVAL="no">
+      <SCHEME>
+(son Adam Cain)
+(son Cain Enoch)
+(son Enoch Irad)
+(son Irad Mehujael)
+(son Mehujael Methushael)
+(son Methushael Lamech)
+(wife Lamech Ada)
+(son Ada Jabal)
+(son Ada Jubal)
+      </SCHEME>
+      <PYTHON>
+son("Adam", "Cain")
+son("Cain", "Enoch")
+son("Enoch", "Irad")
+son("Irad", "Mehujael")
+son("Mehujael", "Methushael")
+son("Methushael", "Lamech")
+wife("Lamech", "Ada")
+son("Ada", "Jabal")
+son("Ada", "Jubal")
+      </PYTHON>
+    </SNIPPET>
+    Сформулюйте правила, як-от <QUOTE>Якщо <EM>S</EM> — син <EM>F</EM>, а
+    <EM>F</EM> — син <EM>G</EM>, то <EM>S</EM> — онук
+    <EM>G</EM></QUOTE> та <QUOTE>Якщо <EM>W</EM> — дружина <EM>M</EM>, а
+    <EM>S</EM> — син <EM>W</EM>, то <EM>S</EM> — син
+    <EM>M</EM></QUOTE> (що, як вважають, було правдою в біблійні часи більше, ніж
+    сьогодні), які дадуть системі запитів змогу знайти онука Каїна;
+    синів Ламеха; онуків Метушаїла.
+    (Дивіться
+    <SPLITINLINE>
+      <SCHEME>
+	вправу<SPACE/><REF NAME="ex:great-grandson_scheme"/>
+      </SCHEME>
+      <PYTHON>
+	вправу<SPACE/><REF NAME="ex:great-grandson"/>
+      </PYTHON>
+    </SPLITINLINE>
+    щодо правил для виведення складніших спорідненостей.)
+    <LABEL NAME="ex:genesis"/>
+  </EXERCISE>
+
+  <INDEX>правило (мова запитів)<CLOSE/></INDEX>
+  <INDEX>мова запитів<SUBINDEX>логічні висновки<CLOSE/></SUBINDEX></INDEX>
+  <INDEX>мова запитів<CLOSE/></INDEX>
+
+</SUBSECTION>

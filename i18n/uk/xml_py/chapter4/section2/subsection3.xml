@@ -1,0 +1,499 @@
+<SUBSECTION>
+  <NAME>
+    Потоки як ліниві списки
+  </NAME>
+
+  <LABEL NAME="sec:lazy-cons"/>
+
+  <INDEX>потік(и)<SUBINDEX>реалізовані як ліниві списки<OPEN/></SUBINDEX></INDEX>
+  <INDEX>лінивий список<OPEN/></INDEX>
+  <INDEX>список(и)<SUBINDEX>ліниві<OPEN/></SUBINDEX></INDEX>
+  <INDEX>лінива пара<OPEN/></INDEX>
+  <INDEX>пара(и)<SUBINDEX>ліниві<OPEN/></SUBINDEX></INDEX>
+
+  <TEXT>
+    У підрозділі<SPACE/><REF NAME="sec:delayed-lists"/> ми показали, як
+    реалізувати потоки як відкладені списки.
+    <SPLITINLINE>
+      <SCHEME>
+	<INDEX>спеціальна форма<SUBINDEX><SPLITINLINE><SCHEME>procedure</SCHEME><PYTHON>function</PYTHON></SPLITINLINE> проти</SUBINDEX></INDEX>
+	<INDEX><FUNCTION/><SUBINDEX><SPLITINLINE><SCHEME>special</SCHEME><PYTHON>syntactic</PYTHON></SPLITINLINE> форма проти</SUBINDEX></INDEX>
+      </SCHEME>
+      <PYTHON>
+	<INDEX>відкладений вираз<SUBINDEX>ліниве обчислення і</SUBINDEX></INDEX>
+      </PYTHON>
+    </SPLITINLINE>
+    <SPLITINLINE>
+      <SCHEME>
+	Ми ввели спеціальні форми <SCHEMEINLINE>delay</SCHEMEINLINE> та
+	<SCHEMEINLINE>cons-stream</SCHEMEINLINE>, які дали змогу
+      </SCHEME>
+      <PYTHON>
+	Ми скористалися
+	<INDEX>лямбда-вираз<SUBINDEX>ліниве обчислення і</SUBINDEX></INDEX>
+	лямбда-виразом
+      </PYTHON>
+    </SPLITINLINE>
+    , щоб побудувати
+    <INDEX>обіцянка обчислити<SUBINDEX>ліниве обчислення і</SUBINDEX></INDEX>
+    <QUOTE>обіцянку</QUOTE> обчислити
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>cdr</SCHEMEINLINE></SCHEME>
+      <PYTHON>хвіст</PYTHON>
+    </SPLITINLINE>
+    потоку, не виконуючи насправді цієї обіцянки аж до пізнішого часу.
+    <SPLIT>
+      <SCHEME>
+	Ми могли б застосовувати цю загальну техніку введення спеціальних форм
+	щоразу, коли нам потрібен більший контроль над процесом обчислення, але це
+	незручно.  По-перше, спеціальна форма не є повноправним об’єктом,
+	як процедура, тож ми не можемо використовувати її разом із процедурами
+	вищого порядку.<FOOTNOTE>Саме в цьому проблема з
+	процедурою <SCHEMEINLINE>unless</SCHEMEINLINE>,
+	як у
+	вправі<SPACE/><REF NAME="ex:unless-syntactic-form"/>.</FOOTNOTE>
+	Додатково нас змусили створити потоки як новий різновид об’єктів даних,
+	схожий, але не тотожний спискам, і це вимагало від нас
+    перереалізувати багато звичайних операцій над списками (<SCHEMEINLINE>map</SCHEMEINLINE>,
+    <SCHEMEINLINE>append</SCHEMEINLINE> тощо) для використання з потоками.
+      </SCHEME>
+      <PYTHON>
+	Нас змусили створити потоки як новий різновид об’єктів даних, схожий,
+	але не тотожний спискам, і це вимагало від нас перереалізувати багато
+	звичайних операцій над списками (<SCHEMEINLINE>map</SCHEMEINLINE>,
+	<SCHEMEINLINE>append</SCHEMEINLINE> тощо) для використання з потоками.	
+      </PYTHON>
+    </SPLIT>
+  </TEXT>
+
+  <TEXT>
+    За лінивого обчислення потоки й списки можуть бути тотожними, тож немає
+    потреби <SPLITINLINE><SCHEME>ні в спеціальних формах, ні в</SCHEME></SPLITINLINE>
+    окремих операціях над списками та потоками. Усе, що нам треба зробити, — це влаштувати так,
+    щоб
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>cons</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>pair</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    був нестрогим.  Один спосіб цього досягти — розширити лінивий обчислювач
+    так, щоб він допускав нестрогі примітиви, і реалізувати
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>cons</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>pair</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    як один із них.  Легший спосіб — пригадати
+    (підрозділ<SPACE/><REF NAME="sec:data?"/>), що немає принципової потреби
+    реалізовувати
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>cons</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>pair</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    як примітив узагалі.  Натомість ми можемо подати
+    <INDEX>пара(и)<SUBINDEX>функційне подання</SUBINDEX></INDEX>
+    пари як
+    <SPLITINLINE><SCHEME>процедури</SCHEME><PYTHON>функції</PYTHON></SPLITINLINE>:<FOOTNOTE>Це
+    те
+    <SPLITINLINE>
+      <SCHEME>процедурне</SCHEME>
+      <PYTHON>функційне</PYTHON>
+    </SPLITINLINE>
+    подання, описане у вправі<SPACE/><REF NAME="ex:lambda-cons"/>.
+    По суті, будь-яке
+    <SPLITINLINE>
+      <SCHEME>процедурне</SCHEME>
+      <PYTHON>функційне</PYTHON>
+    </SPLITINLINE>
+    подання (наприклад, реалізація з передаванням повідомлень) також підійшло б.
+    Зауважте, що ці означення можна встановити в лінивому обчислювачі, просто
+    ввівши їх у керівному циклі.  Якби ми спочатку включили
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>cons</SCHEMEINLINE>,</SCHEME>
+      <PYTHON><PYTHONINLINE>pair</PYTHONINLINE>,</PYTHON>
+    </SPLITINLINE>
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>car</SCHEMEINLINE>,</SCHEME>
+      <PYTHON><PYTHONINLINE>head</PYTHONINLINE>,</PYTHON>
+    </SPLITINLINE>
+    та
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>cdr</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>tail</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    як примітиви в глобальному середовищі, їх було б переозначено.  (Див. також
+    вправи<SPACE/><REF NAME="ex:lazy-list-input"/>
+    та<SPACE/><REF NAME="ex:lazy-list-printing"/>.)</FOOTNOTE>
+    <SNIPPET HIDE="yes">
+      <NAME>pair_lazy_header</NAME>
+      <PYTHON>
+my_pair_lazy = """
+      </PYTHON>
+    </SNIPPET>
+    <SNIPPET HIDE="yes">
+      <NAME>pair_lazy_footer</NAME>
+      <PYTHON>
+
+head(tail(pair(1, pair(3, 2))))
+"""
+      </PYTHON>
+    </SNIPPET>
+    <SNIPPET HIDE="yes">
+      <NAME>pair_lazy_example</NAME>
+      <REQUIRES>parse_and_evaluate_lazy</REQUIRES>
+      <REQUIRES>pair_lazy_header</REQUIRES>
+      <REQUIRES>pair_lazy</REQUIRES>
+      <REQUIRES>pair_lazy_footer</REQUIRES>
+      <EXPECTED>3</EXPECTED>
+      <PYTHON>
+parse_and_evaluate(my_pair_lazy)
+      </PYTHON>
+    </SNIPPET>
+    <SNIPPET EVAL="no">
+      <INDEX><DECLARATION>pair</DECLARATION> (primitive function)<SUBINDEX>functional implementation of</SUBINDEX></INDEX>
+      <INDEX><DECLARATION>head</DECLARATION> (primitive function)<SUBINDEX>functional implementation of</SUBINDEX></INDEX>
+      <INDEX><DECLARATION>tail</DECLARATION> (primitive function)<SUBINDEX>functional implementation of</SUBINDEX></INDEX>
+      <NAME>pair_lazy</NAME>
+      <SCHEME>
+(define (cons x y)
+  (lambda (m) (m x y)))
+
+(define (car z)
+  (z (lambda (p q) p)))
+
+(define (cdr z)
+  (z (lambda (p q) q)))
+      </SCHEME>
+      <PYTHON>
+def pair(x, y):
+    return lambda m: (m(x, y))
+def head(z):
+    return z(lambda p, q: (p))
+def tail(z):
+    return z(lambda p, q: (q))
+</PYTHON>
+    </SNIPPET>
+  </TEXT>
+
+  <TEXT>
+    У термінах цих базових операцій стандартні означення операцій
+    над списками працюватимуть і з нескінченними списками (потоками), і зі скінченними,
+    а операції над потоками можна реалізувати як операції над списками. Ось
+    кілька прикладів:
+    <SNIPPET HIDE="yes">
+      <NAME>list_lib_test_header</NAME>
+      <PYTHON>
+my_list_lib_test = """
+      </PYTHON>
+    </SNIPPET>
+    <SNIPPET HIDE="yes">
+      <NAME>list_lib_test_footer</NAME>
+      <REQUIRES>list_ref</REQUIRES>
+      <PYTHON>
+
+llist_ref(integers, 17)
+"""
+      </PYTHON>
+    </SNIPPET>
+    <SNIPPET HIDE="yes">
+      <NAME>list_lib_test</NAME>
+      <REQUIRES>parse_and_evaluate_lazy</REQUIRES>
+      <REQUIRES>list_lib_test_header</REQUIRES>
+      <REQUIRES>pair_lazy</REQUIRES>
+      <REQUIRES>list_library_lazy</REQUIRES>
+      <REQUIRES>list_lib_test_header</REQUIRES>
+      <REQUIRES>list_lib_test_footer</REQUIRES>
+      <EXPECTED>18</EXPECTED>
+      <PYTHON>
+parse_and_evaluate(my_list_lib_test)
+      </PYTHON>
+    </SNIPPET>
+    <SNIPPET EVAL="no">
+      <INDEX><DECLARATION>list_ref</DECLARATION></INDEX> 
+      <INDEX><DECLARATION>map</DECLARATION></INDEX> 
+      <INDEX><DECLARATION>scale_list</DECLARATION></INDEX> 
+      <INDEX><DECLARATION>add_lists</DECLARATION></INDEX> 
+      <INDEX><DECLARATION>ones</DECLARATION> (infinite stream)<SUBINDEX>lazy-list version</SUBINDEX></INDEX>
+      <INDEX><DECLARATION>integers</DECLARATION> (infinite stream)<SUBINDEX>lazy-list version</SUBINDEX></INDEX>
+      <NAME>list_library_lazy</NAME>
+      <SCHEME>
+(define (list-ref items n)
+  (if (= n 0)
+      (car items)
+      (list-ref (cdr items) (- n 1))))
+
+(define (map proc items)
+  (if (null? items)
+      '()
+      (cons (proc (car items))
+            (map proc (cdr items)))))
+
+(define (scale-list items factor)
+  (map (lambda (x) (* x factor))
+       items))
+
+(define (add-lists list1 list2)
+  (cond ((null? list1) list2)
+         ((null? list2) list1)
+         (else (cons (+ (car list1) (car list2))
+                     (add-lists (cdr list1) (cdr list2))))))
+
+(define ones (cons 1 ones))
+
+(define integers (cons 1 (add-lists ones integers)))
+      </SCHEME>
+      <PYTHON>
+def llist_ref(items, n):
+    return head(items) if n == 0 else llist_ref(tail(items), n - 1)
+def map(fun, items):
+    return None if is_none(items) else pair(fun(head(items)), map(fun, tail(items)))
+def scale_list(items, factor):
+    return map(lambda x: (x * factor), items)
+def add_lists(list1, list2):
+    return list2 if is_none(list1) else list1 if is_none(list2) else pair(head(list1) + head(list2), add_lists(tail(list1), tail(list2)))
+ones = pair(1, ones)
+integers = pair(1, add_lists(ones, integers))
+</PYTHON>
+    </SNIPPET>
+    <SNIPPET EVAL="no">
+      <REQUIRES>list_ref</REQUIRES>
+      <SCHEMEPROMPT>
+;;; L-Eval input:
+      </SCHEMEPROMPT>
+      <SCHEME>
+(list-ref integers 17)
+      </SCHEME>
+      <SCHEMEOUTPUT>
+;;; L-Eval value:
+18
+      </SCHEMEOUTPUT>
+      <PYTHON_PROMPT>
+L-evaluate input:
+      </PYTHON_PROMPT>
+      <PYTHON>
+llist_ref(integers, 17)
+      </PYTHON>
+      <PYTHON_OUTPUT>
+L-evaluate value:
+18
+      </PYTHON_OUTPUT>
+    </SNIPPET>
+  </TEXT>
+
+  <TEXT>
+    Зауважте, що ці ліниві списки навіть лінивіші за потоки з
+    розділу<SPACE/><REF NAME="chap:state"></REF>:  І
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>car</SCHEMEINLINE></SCHEME>
+      <PYTHON>голова</PYTHON>
+    </SPLITINLINE>
+    списку, і
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>cdr</SCHEMEINLINE>,</SCHEME>
+      <PYTHON>хвіст,</PYTHON>
+    </SPLITINLINE>
+    відкладені.<FOOTNOTE>Це дає нам змогу створювати відкладені версії
+    загальніших різновидів
+    структур списків, не лише послідовностей.
+    <INDEX>Hughes, R. J. M.</INDEX>
+    <CITATION NAME="HUG90">Hughes 1990</CITATION>
+    обговорює деякі
+    застосування
+    <INDEX>ліниве дерево</INDEX><INDEX>дерево<SUBINDEX>ліниве</SUBINDEX></INDEX>
+    <QUOTE>лінивих дерев.</QUOTE></FOOTNOTE>
+    Насправді навіть доступ до
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>car</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>head</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    або
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>cdr</SCHEMEINLINE></SCHEME>
+      <PYTHON><PYTHONINLINE>tail</PYTHONINLINE></PYTHON>
+    </SPLITINLINE>
+    лінивої пари не потребує змушувати обчислити значення елемента списку.  Значення буде
+    змушене обчислитися лише тоді, коли воно справді потрібне<EMDASH/>наприклад, для використання як аргумент
+    примітива або щоб його надрукувати як відповідь.
+  </TEXT>
+
+  <TEXT>
+    Ліниві пари допомагають також із проблемою, яка виникла з потоками в
+    підрозділі<SPACE/><REF NAME="sec:streams-and-delayed-evaluation"/>, де ми
+    виявили, що формулювання потокових моделей систем із циклами може вимагати від нас
+    присипати наші програми
+    <SPLITINLINE>
+      <SCHEME>
+	<INDEX><DECLARATION>delay</DECLARATION><SUBINDEX>явні проти<SPACE/>автоматичних</SUBINDEX></INDEX>
+	<INDEX>відкладене обчислення<SUBINDEX>явне проти<SPACE/>автоматичного</SUBINDEX></INDEX>
+	явними
+	операціями <SCHEMEINLINE>delay</SCHEMEINLINE>,
+	понад ті, які надає
+	<SCHEMEINLINE>cons-stream</SCHEMEINLINE>.
+      </SCHEME>
+      <PYTHON>
+	додатковими лямбда-виразами для
+	<INDEX>відкладене обчислення<SUBINDEX>явне проти<SPACE/>автоматичного</SUBINDEX></INDEX>
+	<INDEX>відкладений вираз<SUBINDEX>явний проти<SPACE/>автоматичного</SUBINDEX></INDEX>
+	відкладень, понад ті, які потрібні, щоб
+	побудувати пару потоку.
+      </PYTHON>
+    </SPLITINLINE>
+    За лінивого обчислення всі аргументи
+    <SPLITINLINE>
+      <SCHEME>процедур</SCHEME>
+      <PYTHON>функцій</PYTHON>
+    </SPLITINLINE>
+    відкладають однаково.  Наприклад, ми можемо реалізувати
+    <SPLITINLINE>
+      <SCHEME>процедури</SCHEME>
+      <PYTHON>функції</PYTHON>
+    </SPLITINLINE>
+    для інтегрування списків і розв’язування диференціальних рівнянь так, як ми спочатку
+    й мали намір у підрозділі<SPACE/><REF NAME="sec:streams-and-delayed-evaluation"/>:
+    <SNIPPET HIDE="yes">
+      <NAME>lazy_integral_header</NAME>
+      <PYTHON>
+my_integral = """
+      </PYTHON>
+    </SNIPPET>
+    <SNIPPET HIDE="yes">
+      <NAME>lazy_integral_footer</NAME>
+      <REQUIRES>list_ref</REQUIRES>
+      <PYTHON>
+
+llist_ref(solve(lambda x: x, 1, 0.1), 10)
+"""
+      </PYTHON>
+    </SNIPPET>
+    <SNIPPET HIDE="yes">
+      <NAME>lazy_integral_test</NAME>
+      <REQUIRES>parse_and_evaluate_lazy</REQUIRES>
+      <REQUIRES>lazy_integral_header</REQUIRES>
+      <REQUIRES>pair_lazy</REQUIRES>
+      <REQUIRES>list_library_lazy</REQUIRES>
+      <REQUIRES>lazy_integral</REQUIRES>
+      <REQUIRES>lazy_integral_footer</REQUIRES>
+      <EXPECTED>2.5937424601</EXPECTED>
+      <PYTHON>
+parse_and_evaluate(my_integral)
+      </PYTHON>
+    </SNIPPET>
+    <SNIPPET EVAL="no">
+      <INDEX><DECLARATION>integral</DECLARATION><SUBINDEX>lazy-list version</SUBINDEX></INDEX>
+      <INDEX><DECLARATION>solve</DECLARATION> differential equation<SUBINDEX>lazy-list version</SUBINDEX></INDEX>
+      <NAME>lazy_integral</NAME>
+      <REQUIRES>map</REQUIRES>
+      <SCHEME>
+(define (integral integrand initial-value dt)
+  (define int
+          (cons initial-value
+                (add-lists (scale-list integrand dt)
+                           int)))
+  int)
+
+      (define (solve f y0 dt)
+      (define y (integral dy y0 dt))
+      (define dy (map f y))
+      y)
+      </SCHEME>
+      <SCHEMEOUTPUT>
+      ;;; L-Eval input:
+      (list-ref (solve (lambda (x) x) 1 0.001) 1000)
+      ;;; L-Eval value:
+      2.716924
+      </SCHEMEOUTPUT>
+      <PYTHON>
+def integral(integrand, initial_value, dt):
+    int = pair(initial_value, add_lists(scale_list(integrand, dt), int))
+    return int
+def solve(f, y0, dt):
+    y = integral(dy, y0, dt)
+    dy = map(f, y)
+    return y
+</PYTHON>
+    </SNIPPET>
+    <SNIPPET EVAL="no" POSTPADDING="no">
+      <REQUIRES>list_ref</REQUIRES>
+      <PYTHON_PROMPT>
+L-evaluate input:
+      </PYTHON_PROMPT>
+      <PYTHON>
+llist_ref(solve(lambda x: (x), 1, 0.001), 1000)
+</PYTHON>
+      <PYTHON_OUTPUT>
+L-evaluate value:
+2.716924
+      </PYTHON_OUTPUT>
+    </SNIPPET>
+  </TEXT>
+
+  <EXERCISE>
+    <LABEL NAME="ex:lazier"/>
+    Наведіть кілька прикладів, які ілюструють різницю між потоками
+    з розділу<SPACE/><REF NAME="chap:state"></REF> та <QUOTE>лінивішими</QUOTE> лінивими списками, описаними в
+    цьому підрозділі. Як можна скористатися цією додатковою лінивістю?
+  </EXERCISE>
+
+  <EXERCISE>
+    Бен Бітдідл перевіряє наведену вище реалізацію лінивого списку,
+    обчислюючи вираз
+    <SNIPPET EVAL="no">
+      <SCHEME>
+(car '(a b c))
+      </SCHEME>
+      <PYTHON>
+head(llist("a", "b", "c"))
+      </PYTHON>
+    </SNIPPET>
+    На його подив, це породжує помилку.  Подумавши, він усвідомлює,
+    що <QUOTE>списки</QUOTE>, одержані
+    <SPLITINLINE>
+      <SCHEME>
+	читанням узятих у лапки виразів
+      </SCHEME>
+      <PYTHON>
+	з примітивної функції <PYTHONINLINE>list</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    , відрізняються від списків, з якими працюють нові означення
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>cons</SCHEMEINLINE>,</SCHEME>
+      <PYTHON><PYTHONINLINE>pair</PYTHONINLINE>,</PYTHON>
+    </SPLITINLINE>
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>car</SCHEMEINLINE>,</SCHEME>
+      <PYTHON><PYTHONINLINE>head</PYTHONINLINE>,</PYTHON>
+    </SPLITINLINE>
+    та
+    <SPLITINLINE>
+      <SCHEME><SCHEMEINLINE>cdr</SCHEMEINLINE>.</SCHEME>
+      <PYTHON><PYTHONINLINE>tail</PYTHONINLINE>.</PYTHON>
+    </SPLITINLINE>
+    Змініть 
+    <SPLITINLINE>
+      <SCHEME>
+	опрацювання взятих у лапки виразів в обчислювачі так, щоб уведені в лапках списки
+      </SCHEME>
+      <PYTHON>
+	обчислювач так, щоб застосування примітивної
+	функції <PYTHONINLINE>list</PYTHONINLINE>
+      </PYTHON>
+    </SPLITINLINE>
+    , набрані в керівному циклі, породжували справжні ліниві списки.
+    <LABEL NAME="ex:lazy-list-input"/>
+  </EXERCISE>
+
+  <EXERCISE>
+    Змініть керівний цикл обчислювача так, щоб ліниві пари й списки
+    друкувалися якимось розумним способом.  (Що ви робитимете з нескінченними
+    списками?)  Можливо, вам також доведеться змінити подання лінивих пар так,
+    щоб обчислювач міг їх розпізнавати, аби їх надрукувати.
+    <LABEL NAME="ex:lazy-list-printing"/>
+  </EXERCISE>
+
+  <INDEX>відкладене обчислення<SUBINDEX><ORDER>lazy</ORDER>у лінивому обчислювачі<CLOSE/></SUBINDEX></INDEX>
+  <INDEX>потік(и)<SUBINDEX>реалізовані як ліниві списки<CLOSE/></SUBINDEX></INDEX>
+  <INDEX>лінивий список<CLOSE/></INDEX>
+  <INDEX>список(и)<SUBINDEX>ліниві<CLOSE/></SUBINDEX></INDEX>
+  <INDEX>лінива пара<CLOSE/></INDEX>
+  <INDEX>пара(и)<SUBINDEX>ліниві<CLOSE/></SUBINDEX></INDEX>
+
+</SUBSECTION>
