@@ -67,6 +67,19 @@ const isPythonEdition = edition.language.key === "py";
 const pythonExcludedFrontmatter =
   /(02foreword02|03prefaces03|04acknowledgements04)/;
 
+// Sections drafted for the Python edition but held back until their content
+// is ready. Unlike the front matter above these are skipped for *every* build
+// target (web, json, md, programs and pdf), since nothing references them, so
+// the surrounding sections simply renumber around the gap. Matched on the path
+// relative to the edition's xml root, because a bare file name such as
+// subsection6.xml also occurs in other sections. The source file is kept
+// intact: to publish a section, drop its entry from this list.
+const pythonHeldBackSections = new Set([
+  path.join("chapter3", "section2", "subsection6.xml") // 3.2.6 CSE Machine
+]);
+const heldBackSection = (filepath: string, file: string): boolean =>
+  isPythonEdition && pythonHeldBackSections.has(path.join(filepath, file));
+
 // Chapters beyond this cutoff (see getPublishedChapterCount) are skipped
 // wholesale below, for every build target that walks this tree (web, json,
 // md, programs) and every edition, so they never reach the deployed site.
@@ -274,13 +287,15 @@ async function recursiveTranslateXml(filepath, option) {
     if (file.match(/\.xml$/)) {
       // console.log(file + " being processed");
       if (
-        (parseType == "web" || parseType == "json" || parseType == "md") &&
-        (file.match(/indexpreface/) ||
-          (isPythonEdition && file.match(pythonExcludedFrontmatter)))
+        heldBackSection(filepath, file) ||
+        ((parseType == "web" || parseType == "json" || parseType == "md") &&
+          (file.match(/indexpreface/) ||
+            (isPythonEdition && file.match(pythonExcludedFrontmatter))))
       ) {
         // remove index section (and, in the Python edition, the
         // JavaScript-edition foreword/preface/acknowledgments) from the
-        // web textbook
+        // web textbook, plus any section held back via
+        // pythonHeldBackSections
       } else {
         if (option == "generateTOC") {
           allFilepath.push(
