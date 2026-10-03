@@ -258,7 +258,7 @@ defmodule Cadet.Chatbot.SicpyNotesWithIndex.Chapter3 do
   4. Memoizing the Delay:
   - Introduces `memo`, which caches a delayed computation's result after its first forcing, and an optimized `stream_map_optimized` built on it, needed once a stream's tail might be forced more than once.
 
-  Key terms: Algol (call by name argument passing), Algol (thunks), Friedman, Daniel P., Landin, Peter, Wise, David S., call by name argument passing, call by need argument passing, delayed evaluation (assignment and), delayed evaluation (printing and), delayed expression, delayed expression (memoized), display_stream, empty stream, forcing (tail of stream), memo, memoization (in stream tail), order of events (decoupling apparent from actual), programming (demand driven), programming (odious style), promise to evaluate, stream(s) (empty), stream(s) (implemented as delayed lists), stream_enumerate_interval, stream_filter, stream_for_each
+  Key terms: Algol (call by name argument passing), Algol (thunks), Friedman, Daniel P., Landin, Peter, Wise, David S., call by name argument passing, call by need argument passing, delayed evaluation (assignment and), delayed evaluation (printing and), delayed expression, delayed expression (memoized), print_stream, empty stream, forcing (tail of stream), memo, memoization (in stream tail), order of events (decoupling apparent from actual), programming (demand driven), programming (odious style), promise to evaluate, stream(s) (empty), stream(s) (implemented as delayed lists), stream_enumerate_interval, stream_filter, stream_for_each
   """
 
   @summary_3_5_2 """
