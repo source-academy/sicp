@@ -6,24 +6,30 @@
   <SNIPPET PAGE="365" HIDE="yes" EVAL="no">
     <NAME>headline_4_1_1_lazy</NAME>
     <PYTHON>
-# functions from SICP JS 4.1.1
+# functions from SICP Python 4.1.1
 # with modifications for lazy evaluation
-# according to SICP JS 4.2.2
+# according to SICP Python 4.2.2
 </PYTHON>
   </SNIPPET>
   
   <SNIPPET PAGE="383" HIDE="yes">
     <NAME>functions_4_1_1_lazy</NAME>
+      <REQUIRES>memq</REQUIRES>
+      <REQUIRES>filter</REQUIRES>
+      <REQUIRES>declared_symbols</REQUIRES>
+      <REQUIRES>list_of_unassigned</REQUIRES>
+      <REQUIRES>local_variables</REQUIRES>
+      <REQUIRES>eval_function_definition</REQUIRES>
     <REQUIRES>headline_4_1_1_lazy</REQUIRES>
     <REQUIRES>eval_lazy</REQUIRES>
     <REQUIRES>actual_value_lazy</REQUIRES>
     <REQUIRES>apply_lazy</REQUIRES>
     <REQUIRES>eval_if_lazy</REQUIRES>
     <REQUIRES>eval_sequence</REQUIRES>
-    <REQUIRES>eval_block</REQUIRES>
+    
     <REQUIRES>eval_return</REQUIRES>
     <REQUIRES>eval_assignment</REQUIRES>
-    <REQUIRES>eval_definition</REQUIRES>
+    
     <REQUIRES>force_it_lazy</REQUIRES>
     <REQUIRES>delay_it_lazy</REQUIRES>
     <PYTHON>
@@ -42,7 +48,7 @@
       <SCHEME>procedures</SCHEME>
       <PYTHON>functions</PYTHON>
     </SPLITINLINE>
-    are non-strict in each argument.  Primitive
+    are non-strict in each argument.  Built-in
     <SPLITINLINE>
       <SCHEME>procedures</SCHEME>
       <PYTHON>functions</PYTHON>
@@ -110,7 +116,7 @@
     delaying and forcing into the evaluator, and thus making this uniform
     and automatic throughout the language.</FOOTNOTE>
     In general, a thunk will be forced only when its value is needed:
-    when it is passed to a primitive
+    when it is passed to a built-in
     <SPLITINLINE>
       <SCHEME>procedure</SCHEME>
       <PYTHON>function</PYTHON>
@@ -151,7 +157,7 @@
     subtle and confusing in the presence of
     <SPLITINLINE>
       <SCHEME>assignments.</SCHEME>
-      <PYTHON>reassignments.</PYTHON>
+      <PYTHON>assignments.</PYTHON>
     </SPLITINLINE>
     (See
     exercises<SPACE/><REF NAME="ex:delay-side-effects"/>
@@ -179,7 +185,7 @@
       <PYTHON><PYTHONINLINE>evaluate</PYTHONINLINE></PYTHON>
     </SPLITINLINE>
     and
-    <SCHEMEINLINE>apply</SCHEMEINLINE>.
+    <PYTHONINLINE>apply</PYTHONINLINE>.
   </TEXT>
 
   <TEXT>
@@ -194,7 +200,7 @@
 	The <PYTHONINLINE>is_application</PYTHONINLINE>
 	clause of
 	<INDEX><USE>evaluate</USE> (lazy)</INDEX>
-	<SCHEMEINLINE>evaluate</SCHEMEINLINE> becomes
+	<PYTHONINLINE>evaluate</PYTHONINLINE> becomes
       </PYTHON>
     </SPLITINLINE>
     <SNIPPET PAGE="365" HIDE="yes">
@@ -208,8 +214,8 @@
 (eval (read) the-global-environment)
       </SCHEME>
       <PYTHON>
-my_program = parse('1; { true; 3; }')
-evaluate(my_program, the_empty_environment)
+my_program = parse('1\nTrue\n3')
+print(evaluate(my_program, the_empty_environment))
 </PYTHON>
     </SNIPPET>
     <SNIPPET>
@@ -223,13 +229,42 @@ evaluate(my_program, the_empty_environment)
        env))
       </SCHEME>
       <PYTHON>
-: is_application(component)      
-? apply(actual_value(function_expression(component), env),
-        arg_expressions(component), env)
-      </PYTHON>
+    elif is_application(component):
+        return apply(actual_value(function_expression(component), env),
+                     arg_expressions(component), env)
+</PYTHON>
       <PYTHON_RUN>
 def evaluate(component, env):
-    return literal_value(component) if is_literal(component) else lookup_symbol_value(symbol_of_name(component), env) if is_name(component) else apply(actual_value(function_expression(component), env), arg_expressions(component), env) if is_application(component) else evaluate(operator_combination_to_application(component), env) if is_operator_combination(component) else eval_conditional(component, env) if is_conditional(component) else make_function(lambda_parameter_symbols(component), lambda_body(component), env) if is_lambda_expression(component) else eval_sequence(sequence_statements(component), env) if is_sequence(component) else eval_block(component, env) if is_block(component) else eval_return_statement(component, env) if is_return_statement(component) else evaluate(function_decl_to_constant_decl(component), env) if is_function_definition(component) else eval_declaration(component, env) if is_declaration(component) else eval_assignment(component, env) if is_assignment(component) else error('unknown syntax -- evaluate', component)
+    if is_literal(component):
+        return literal_value(component)
+    elif is_name(component):
+        return lookup_symbol_value(symbol_of_name(component), env)
+    elif is_application(component):
+        return apply(actual_value(function_expression(component), env),
+                     arg_expressions(component), env)
+    elif is_operator_combination(component):
+        return evaluate(operator_combination_to_application(component),
+                        env)
+    elif is_conditional(component):
+        return eval_conditional(component, env)
+    elif is_lambda_expression(component):
+        return make_function(lambda_parameter_symbols(component),
+                             make_return_statement(lambda_body(component)),
+                             env)
+    elif is_sequence(component):
+        return eval_sequence(sequence_statements(component), env)
+    elif is_return_statement(component):
+        return eval_return_statement(component, env)
+    elif is_function_definition(component):
+        return eval_function_definition(component, env)
+    elif (is_pass_statement(component) or
+          is_global_statement(component) or
+          is_nonlocal_statement(component)):
+        return None
+    elif is_assignment(component):
+        return eval_assignment(component, env)
+    else:
+        return error('unknown syntax -- evaluate', component)
 </PYTHON_RUN>
     </SNIPPET>
     This is almost the same as the
@@ -248,7 +283,7 @@ def evaluate(component, env):
       </PYTHON>
     </SPLITINLINE>
     in section<SPACE/><REF NAME="sec:core-of-evaluator"/>.  For lazy evaluation,
-    however, we call <SCHEMEINLINE>apply</SCHEMEINLINE> with the
+    however, we call <PYTHONINLINE>apply</PYTHONINLINE> with the
     <SPLITINLINE>
       <SCHEME>operand</SCHEME>
       <PYTHON>argument</PYTHON>
@@ -261,12 +296,12 @@ def evaluate(component, env):
       <PYTHON>function expression,</PYTHON>
     </SPLITINLINE>
     because
-    <SCHEMEINLINE>apply</SCHEMEINLINE> needs the actual
+    <PYTHONINLINE>apply</PYTHONINLINE> needs the actual
     <SPLITINLINE>
       <SCHEME>procedure</SCHEME>
       <PYTHON>function</PYTHON>
     </SPLITINLINE>
-    to be applied in order to dispatch on its type (primitive versus compound)
+    to be applied in order to dispatch on its type (built-in versus compound)
     and apply it.
   </TEXT>
 
@@ -279,8 +314,8 @@ def evaluate(component, env):
       <REQUIRES>functions_4_1_3</REQUIRES>
       <REQUIRES>functions_4_1_4</REQUIRES>
       <PYTHON>
-actual_value(parse('1 + 2;'), the_global_environment)
-      </PYTHON>
+print(actual_value(parse('1 + 2'), the_global_environment))
+</PYTHON>
     </SNIPPET>
     <SNIPPET>
       <INDEX><DECLARATION>actual_value</DECLARATION></INDEX> 
@@ -309,7 +344,7 @@ def actual_value(exp, env):
   </TEXT>
 
   <TEXT>
-    Our new version of <SCHEMEINLINE>apply</SCHEMEINLINE> is also almost the
+    Our new version of <PYTHONINLINE>apply</PYTHONINLINE> is also almost the
     same as the version in section<SPACE/><REF NAME="sec:core-of-evaluator"/>.
     The difference is that
     <SPLITINLINE>
@@ -329,13 +364,13 @@ def actual_value(exp, env):
 	argument
       </PYTHON>
     </SPLITINLINE>
-    expressions: For primitive
+    expressions: For built-in
     <SPLITINLINE>
       <SCHEME>procedures</SCHEME>
       <PYTHON>functions</PYTHON>
     </SPLITINLINE>
     (which are strict), we evaluate all the arguments before applying the
-    primitive; for compound
+    built-in function; for compound
     <SPLITINLINE>
       <SCHEME>procedures</SCHEME>
       <PYTHON>functions</PYTHON>
@@ -351,8 +386,10 @@ def actual_value(exp, env):
       <REQUIRES>functions_4_1_3</REQUIRES>
       <REQUIRES>functions_4_1_4</REQUIRES>
       <PYTHON>
-plus = llist('primitive', lambda x, y: (x + y))
-apply(plus, llist(llist('literal', 1), llist('literal', 2)), the_global_environment)
+plus = llist('built_in', lambda x, y: x + y)
+print(apply(plus,
+            llist(llist('literal', 1), llist('literal', 2)),
+            the_global_environment))
 </PYTHON>
     </SNIPPET>
     <SNIPPET>
@@ -380,13 +417,29 @@ apply(plus, llist(llist('literal', 1), llist('literal', 2)), the_global_environm
       </SCHEME>
       <PYTHON>
 def apply(fun, args, env):
-    if is_primitive_function(fun):
-        return apply_primitive_function(fun, list_of_arg_values(args, env))
+    if is_built_in_function(fun):
+        return apply_built_in_function(fun, list_of_arg_values(args, env))
     elif is_compound_function(fun):
-        result = evaluate(function_body(fun), extend_environment(function_parameters(fun), list_of_delayed_args(args, env), function_environment(fun)))
-        return return_value_content(result) if is_return_value(result) else None
+        body = function_body(fun)
+        global_symbols = global_variables(body)
+        others = append(global_symbols, nonlocal_variables(body))
+        locals = filter(lambda symbol: member(symbol, others) is None,
+                        local_variables(body))
+        unassigneds = llist_of_unassigned(locals)
+        globals_marked = map(lambda symbol: '*global*', global_symbols)
+        result = evaluate(body,
+                          extend_environment(
+                              append(function_parameters(fun),
+                                     append(locals, global_symbols)),
+                              append(list_of_delayed_args(args, env),
+                                     append(unassigneds, globals_marked)),
+                              function_environment(fun)))
+        if is_return_value(result):
+            return return_value_content(result)
+        else:
+            return None
     else:
-        error('unknown function type -- apply', fun)
+        return error('unknown function type -- apply', fun)
 </PYTHON>
     </SNIPPET>
     The
@@ -460,9 +513,9 @@ def apply(fun, args, env):
       </SCHEME>
       <PYTHON>
 def list_of_arg_values(exps, env):
-    return map(lambda exp: (actual_value(exp, env)), exps)
+    return map(lambda exp: actual_value(exp, env), exps)
 def list_of_delayed_args(exps, env):
-    return map(lambda exp: (delay_it(exp, env)), exps)
+    return map(lambda exp: delay_it(exp, env), exps)
 </PYTHON>
     </SNIPPET>
   </TEXT>
@@ -492,7 +545,7 @@ def list_of_delayed_args(exps, env):
 	<SCHEMEINLINE>eval</SCHEMEINLINE>
       </SCHEME>
       <PYTHON>
-	<SCHEMEINLINE>evaluate</SCHEMEINLINE>
+	<PYTHONINLINE>evaluate</PYTHONINLINE>
       </PYTHON>
     </SPLITINLINE>
     to get the value of the predicate
@@ -504,8 +557,8 @@ def list_of_delayed_args(exps, env):
       <REQUIRES>functions_4_1_3</REQUIRES>
       <REQUIRES>functions_4_1_4</REQUIRES>
       <PYTHON>
-my_cond_expr = parse('true ? 1 : 2;')
-eval_conditional(my_cond_expr, the_empty_environment)
+my_cond_expr = parse('1 if True else 2')
+print(eval_conditional(my_cond_expr, the_empty_environment))
 </PYTHON>
     </SNIPPET>
     <SNIPPET>
@@ -521,7 +574,10 @@ eval_conditional(my_cond_expr, the_empty_environment)
       </SCHEME>
       <PYTHON>
 def eval_conditional(component, env):
-    return evaluate(conditional_consequent(component), env) if is_truthy(actual_value(conditional_predicate(component), env)) else evaluate(conditional_alternative(component), env)
+    if is_truthy(actual_value(conditional_predicate(component), env)):
+        return evaluate(conditional_consequent(component), env)
+    else:
+        return evaluate(conditional_alternative(component), env)
 </PYTHON>
     </SNIPPET>
   </TEXT>
@@ -555,7 +611,7 @@ def eval_conditional(component, env):
 	<SCHEMEINLINE>eval</SCHEMEINLINE>,
       </SCHEME>
       <PYTHON>
-	<SCHEMEINLINE>evaluate</SCHEMEINLINE>,
+	<PYTHONINLINE>evaluate</PYTHONINLINE>,
       </PYTHON>
     </SPLITINLINE>
     so that if a delayed value is propagated back to the
@@ -603,29 +659,24 @@ def driver_loop(env):
         print('evaluator terminated')
     else:
         program = parse(input)
-        locals = scan_out_declarations(program)
-        unassigneds = list_of_unassigned(locals)
-        program_env = extend_environment(locals, unassigneds, env)
-        output = actual_value(program, program_env)
+        output = actual_value(program, env)
         user_print(output_prompt, output)
-        return driver_loop(program_env)
+        return driver_loop(env)
 </PYTHON>
       <PYTHON_RUN>
-input_prompt = 'L-evaluate input: '
-output_prompt = 'L-evaluate value: '
-def driver_loop(env):
-    input = user_read(input_prompt)
+input_prompt = '\nL-evaluate input:\n'
+output_prompt = '\nL-evaluate value:\n'
+def driver_loop(env, history):
+    input = user_read(history)
     if is_none(input):
-        print('', '--- evaluator terminated ---')
+        print(history + '\n--- session end ---\n')
     else:
-        print('----------------------------', input_prompt + '\n' + input + '\n')
         program = parse(input)
-        locals = scan_out_declarations(program)
-        unassigneds = list_of_unassigned(locals)
-        program_env = extend_environment(locals, unassigneds, env)
-        output = actual_value(program, program_env)
-        user_print(output_prompt, output)
-        return driver_loop(program_env)
+        output = actual_value(program, env)
+        new_history = (history + input_prompt + input +
+                       output_prompt + to_string(output))
+        return driver_loop(env, new_history)
+'lazy evaluator loaded'
 </PYTHON_RUN>
     </SNIPPET>
   </TEXT>
@@ -657,7 +708,7 @@ the_global_environment = setup_environment()
 driver_loop(the_global_environment)
 </PYTHON>
       <PYTHON_RUN>
-driver_loop(the_global_environment)
+driver_loop(the_global_environment, '--- session start ---')
 # L-evaluate input:
 # def try_me(a, b):
 #     return 1 if a == 0 else b
@@ -740,7 +791,7 @@ L-evaluate value:
 	<SCHEMEINLINE>eval</SCHEMEINLINE>
       </SCHEME>
       <PYTHON>
-	<SCHEMEINLINE>evaluate</SCHEMEINLINE>
+	<PYTHONINLINE>evaluate</PYTHONINLINE>
       </PYTHON>
     </SPLITINLINE>
     so that in case the value of the expression is itself a thunk, we will force
@@ -756,7 +807,10 @@ L-evaluate value:
       </SCHEME>
       <PYTHON>
 def force_it(obj):
-    return actual_value(thunk_exp(obj), thunk_env(obj)) if is_thunk(obj) else obj
+    if is_thunk(obj):
+        return actual_value(thunk_exp(obj), thunk_env(obj))
+    else:
+        return obj
 </PYTHON>
     </SNIPPET>
   </TEXT>
@@ -799,19 +853,19 @@ def thunk_env(thunk):
     rather thunks that have been memoized.
     <!-- this was commented out in the original LaTeX SICP sources:
 	 %  Memoized thunks are created by the same method used with the 
-	 <SCHEMEINLINE>%memo-proc</SCHEMEINLINE>
+	 <PYTHONINLINE>%memo-proc</PYTHONINLINE>
 	 <SPLITINLINE><SCHEME>procedure</SCHEME>
 	 <PYTHON>function</PYTHON></SPLITINLINE>
 	 of section<SPACE/><REF NAME="sec:delayed-lists"/>.
     -->
     When a thunk is forced, we will turn it into an evaluated thunk by replacing
     the stored expression with its value and changing the
-    <SCHEMEINLINE>thunk</SCHEMEINLINE> tag so that it can be recognized as
+    <PYTHONINLINE>thunk</PYTHONINLINE> tag so that it can be recognized as
     already evaluated.<FOOTNOTE>Notice that we also erase the
-    <SCHEMEINLINE>env</SCHEMEINLINE> from the thunk once the expression<APOS/>s
+    <PYTHONINLINE>env</PYTHONINLINE> from the thunk once the expression<APOS/>s
     value has been computed.  This makes no difference in the values returned by
     the interpreter.  It does help save space, however, because removing the
-    reference from the thunk to the <SCHEMEINLINE>env</SCHEMEINLINE> once it is
+    reference from the thunk to the <PYTHONINLINE>env</PYTHONINLINE> once it is
     no longer needed allows this structure to be
     <INDEX>garbage collection<SUBINDEX>memoization and</SUBINDEX></INDEX>
     <INDEX>memoization<SUBINDEX>garbage collection and</SUBINDEX></INDEX>
@@ -833,7 +887,7 @@ def thunk_env(thunk):
       do something like
       <SPLITINLINE>
 	<SCHEME><SCHEMEINLINE>(set! proc '())</SCHEMEINLINE></SCHEME>
-	<PYTHON><PYTHONINLINE>fun = None;</PYTHONINLINE></PYTHON>
+	<PYTHON><PYTHONINLINE>fun = None</PYTHONINLINE></PYTHON>
       </SPLITINLINE>
       to discard the
       <SPLITINLINE>
@@ -922,7 +976,7 @@ def force_it(obj):
       definitions
     </SCHEME>
     <PYTHON>
-      declarations
+      definitions
     </PYTHON>
   </SPLITINLINE>
   to the lazy evaluator:
@@ -959,11 +1013,8 @@ def id(x):
     <PYTHON>
 w = id(id(10))
 </PYTHON>
-    <PYTHON>
-w = id(id(10))
-</PYTHON>
     <PYTHON_RUN>
-driver_loop(the_global_environment)
+driver_loop(the_global_environment, '--- session start ---')
 # L-evaluate input:
 # count = 0
 # def id(x):
@@ -1080,7 +1131,7 @@ L-evaluate value:
       <PYTHON>function expression</PYTHON>
     </SPLITINLINE>
     before passing it to
-    <SCHEMEINLINE>apply</SCHEMEINLINE>, in order to force the value of the
+    <PYTHONINLINE>apply</PYTHONINLINE>, in order to force the value of the
     <SPLITINLINE>
       <SCHEME>operator.</SCHEME>
       <PYTHON>function expression.</PYTHON>
@@ -1092,13 +1143,13 @@ L-evaluate value:
   <EXERCISE>
     Exhibit a program that you would expect to run much more slowly without
     memoization than with memoization.  Also, consider the following
-    interaction, where the <SCHEMEINLINE>id</SCHEMEINLINE>
+    interaction, where the <PYTHONINLINE>id</PYTHONINLINE>
     <SPLITINLINE>
       <SCHEME>procedure</SCHEME>
       <PYTHON>function</PYTHON>
     </SPLITINLINE>
     is defined as in exercise<SPACE/><REF NAME="ex:delay-side-effects"/> and
-    <SCHEMEINLINE>count</SCHEMEINLINE> starts at 0:
+    <PYTHONINLINE>count</PYTHONINLINE> starts at 0:
     <SNIPPET>
       <NAME>exercise_4_29</NAME>
       <REQUIRES>driver_loop_lazy</REQUIRES>
@@ -1121,7 +1172,7 @@ def square(x):
     return x * x
 </PYTHON>
       <PYTHON_RUN>
-driver_loop(the_global_environment)
+driver_loop(the_global_environment, '--- session start ---')
 # L-evaluate input:
 # count = 0
 # def id(x):
@@ -1196,15 +1247,14 @@ L-evaluate value:
 	Cy D. Fect, a reformed C programmer, is worried that some side effects
 	may never take place, because the lazy evaluator doesn<APOS/>t force the
 	statements in a sequence.
-	Since the value of a statement in a sequence
-	may not be used (the statement may be there only for
-	its effect, such as assigning to a variable or printing), there may be
-	no subsequent use of this value (e.g., as an argument to a primitive
-	function) that will cause it to be forced.
+	Since a statement in a sequence may be there only for
+	its effect (such as assigning to a name or printing), the expressions
+	in it may never be used, for example as an argument to a built-in
+	function, in a way that would cause them to be forced.
 	Cy thus thinks that when
 	evaluating sequences, we must force all statements in the sequence.
 	He proposes to modify
-	<PYTHONINLINE>evaluate_sequence</PYTHONINLINE>
+	<PYTHONINLINE>eval_sequence</PYTHONINLINE>
 	from section<SPACE/><REF NAME="sec:core-of-evaluator"/> to use
 	<PYTHONINLINE>actual_value</PYTHONINLINE>
 	rather than
@@ -1270,7 +1320,7 @@ def for_each(fun, items):
         for_each(fun, tail(items))
 </PYTHON>
 	  <PYTHON_RUN>
-driver_loop(the_global_environment)
+driver_loop(the_global_environment, '--- session start ---')
 # L-evaluate input:
 # def for_each(fun, items):
 #     if is_none(items):
@@ -1362,7 +1412,7 @@ done
 	He
 	<SPLITINLINE>
 	  <SCHEME>defines</SCHEME>
-	  <PYTHON>declares</PYTHON>
+	  <PYTHON>defines</PYTHON>
 	</SPLITINLINE>
 	the following two
 	<SPLITINLINE><SCHEME>procedures</SCHEME>
@@ -1390,7 +1440,10 @@ def f2(x):
     def f(e):
         e
         return x
-    return f(x = pair(x, llist(2)))
+    def g():
+        nonlocal x
+        x = pair(x, llist(2))
+    return f(g())
 </PYTHON>
 	</SNIPPET>
 	What are the values of
@@ -1462,7 +1515,7 @@ def f2(x):
       <PYTHON>introducing optional parameter declaration as a new
       syntactic form inside function</PYTHON>
     </SPLITINLINE>
-    declarations to let the user control whether or not arguments are to be
+    definitions to let the user control whether or not arguments are to be
     delayed.  While we<APOS/>re at it, we may as well also give the user the
     choice between delaying with and without memoization.  For example, the
     <SPLITINLINE>
@@ -1470,7 +1523,7 @@ def f2(x):
 	definition
       </SCHEME>
       <PYTHON>
-	declaration
+		definition
       </PYTHON>
     </SPLITINLINE>
     <SNIPPET EVAL="no" LATEX="yes">
@@ -1484,7 +1537,7 @@ def f(a, b, c, d):
     $\ldots$
       </PYTHON>
   </SNIPPET>
-    would define <SCHEMEINLINE>f</SCHEMEINLINE> to be a
+    would define <PYTHONINLINE>f</PYTHONINLINE> to be a
     <SPLITINLINE>
       <SCHEME>procedure</SCHEME>
       <PYTHON>function</PYTHON>
@@ -1534,7 +1587,7 @@ def f(a, b, c, d):
 	<PYTHONINLINE>evaluate</PYTHONINLINE>
       </PYTHON>
     </SPLITINLINE>
-    or <SCHEMEINLINE>apply</SCHEMEINLINE> to determine when arguments are to be
+    or <PYTHONINLINE>apply</PYTHONINLINE> to determine when arguments are to be
     delayed, and to force or delay arguments accordingly, and you must arrange
     for forcing to memoize or not, as appropriate.
     <LABEL NAME="ex:user-controlled-strictness"/>
@@ -1552,11 +1605,9 @@ def f(a, b, c, d):
     <REQUIRES>functions_4_1_4</REQUIRES>
     <PYTHON>
 def parse_and_evaluate(input):
-    program = parse(input)
-    locals = scan_out_declarations(program)
-    unassigneds = list_of_unassigned(locals)
-    program_env = extend_environment(locals, unassigneds, the_global_environment)
-    return actual_value(program, program_env)
+    # a program is executed for its effects: its result is None
+    actual_value(parse(input), the_global_environment)
+    return None
 </PYTHON>
   </SNIPPET>
 
@@ -1568,7 +1619,7 @@ def parse_and_evaluate(input):
 parse_and_evaluate("""
 def factorial(n):
     return 1 if n == 1 else n * factorial(n - 1)
-factorial(5)
+print(factorial(5))
 """)
     </PYTHON>
   </SNIPPET>
@@ -1580,8 +1631,8 @@ factorial(5)
     <PYTHON>
 parse_and_evaluate("""
 def append(xs, ys):
-    return ys if is_null(xs) else pair(head(xs), append(tail(xs), ys))
-tail(append(list("a", "b"), list("c", "d")))
+    return ys if is_none(xs) else pair(head(xs), append(tail(xs), ys))
+print(tail(append(llist("a", "b"), llist("c", "d"))))
 """)
     </PYTHON>
   </SNIPPET>
@@ -1593,8 +1644,8 @@ tail(append(list("a", "b"), list("c", "d")))
     <PYTHON>
 parse_and_evaluate("""
 def map(f, xs):
-    return None if is_null(xs) else pair(f(head(xs)), map(f, tail(xs)))
-tail(map(lambda x: x + 1, list(1, 2, 3, 4)))
+    return None if is_none(xs) else pair(f(head(xs)), map(f, tail(xs)))
+print(tail(map(lambda x: x + 1, llist(1, 2, 3, 4))))
 """)
     </PYTHON>
   </SNIPPET>
@@ -1606,10 +1657,48 @@ tail(map(lambda x: x + 1, list(1, 2, 3, 4)))
 parse_and_evaluate("""
 def try_me(a, b):
     return 1 if a == 0 else b
-try_me(0, head(None))
+print(try_me(0, head(None)))
 """)
     </PYTHON>
   </SNIPPET>
 
   
+  <SNIPPET HIDE="yes">
+    <NAME>parse_and_evaluate_test_global_lazy</NAME>
+    <REQUIRES>parse_and_evaluate_lazy</REQUIRES>
+    <EXPECTED>23</EXPECTED>
+    <PYTHON>
+parse_and_evaluate("""
+x = 1
+def f():
+    x = 2
+    def g():
+        global x
+        x = 3
+    g()
+    return x
+print(f() * 10 + x)
+""")
+    </PYTHON>
+  </SNIPPET>
+  <SNIPPET HIDE="yes">
+    <NAME>parse_and_evaluate_test_nonlocal_lazy</NAME>
+    <REQUIRES>parse_and_evaluate_lazy</REQUIRES>
+    <EXPECTED>2</EXPECTED>
+    <PYTHON>
+parse_and_evaluate("""
+def make_counter():
+    n = 0
+    def increment():
+        nonlocal n
+        n = n + 1
+        return n
+    return increment
+c = make_counter()
+c()
+print(c())
+""")
+    </PYTHON>
+  </SNIPPET>
+
 </SUBSECTION>
