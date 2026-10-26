@@ -668,19 +668,17 @@ print(apply(plus, llist(1, 2)))
 	The function <PYTHONINLINE>declared_symbols</PYTHONINLINE>
         <INDEX>scanning out names<SUBINDEX>in metacircular evaluator</SUBINDEX></INDEX>
 	collects the symbols from all statements that satisfy a given
-	predicate, using a given function to extract the symbols from
-	such a statement.
+	predicate, using the function
+	<PYTHONINLINE>target_symbols</PYTHONINLINE>, which returns the list of
+	symbols that a statement introduces or refers to:
+	the symbols in a global or nonlocal declaration, the symbol on the
+	left-hand side of an assignment, or the name of a defined function.
 	The functions <PYTHONINLINE>global_variables</PYTHONINLINE>
 	and <PYTHONINLINE>nonlocal_variables</PYTHONINLINE>
-	use it with <PYTHONINLINE>declaration_symbols</PYTHONINLINE>
-	to find the symbols in global and nonlocal declarations.
+	use it to find the symbols in global and nonlocal declarations.
 	The function <PYTHONINLINE>assigned_symbols</PYTHONINLINE>
 	uses it to find the symbols that represent the names
 	from the assignments and function definitions.
-	Both kinds of statement have a target name in the same position:
-	the left-hand side of an assignment and the name of the defined function.
-	The function <PYTHONINLINE>target_symbol</PYTHONINLINE> retrieves
-	the symbol of this name.
 	<SNIPPET>
 	  <INDEX><DECLARATION>declared_symbols</DECLARATION></INDEX>
 	  <NAME>declared_symbols</NAME>
@@ -690,45 +688,40 @@ print(apply(plus, llist(1, 2)))
 	  <REQUIRES>declaration</REQUIRES>
 	  <REQUIRES>assignment</REQUIRES>
 	  <REQUIRES>function_definition</REQUIRES>
-	  <REQUIRES>symbol_of_name</REQUIRES>
 	  <EXAMPLE>declared_symbols_example</EXAMPLE>
 	  <EXPECTED>['x', None]</EXPECTED>
 	  <PYTHON>
-def declared_symbols(component, is_declaration, symbols_of):
+def declared_symbols(component, is_declaration):
     if is_sequence(component):
         return reduce(append,
                       None,
                       map(lambda statement: declared_symbols(statement,
-                                                             is_declaration,
-                                                             symbols_of),
+                                                             is_declaration),
                           sequence_statements(component)))
     elif is_conditional(component):
         return append(declared_symbols(conditional_consequent(component),
-                                       is_declaration,
-                                       symbols_of),
+                                       is_declaration),
                       declared_symbols(conditional_alternative(component),
-                                       is_declaration,
-                                       symbols_of))
+                                       is_declaration))
     elif is_declaration(component):
-        return symbols_of(component)
+        return target_symbols(component)
     else:
         return None
+def target_symbols(component):
+    if is_assignment(component):
+        return llist(assignment_symbol(component))
+    elif is_function_definition(component):
+        return llist(function_definition_symbol(component))
+    else:
+        return declaration_symbols(component)
 def global_variables(component):
-    return declared_symbols(component, is_global_statement,
-                            declaration_symbols)
+    return declared_symbols(component, is_global_statement)
 def nonlocal_variables(component):
-    return declared_symbols(component, is_nonlocal_statement,
-                            declaration_symbols)
+    return declared_symbols(component, is_nonlocal_statement)
 def is_assignment_or_function_definition(component):
     return is_assignment(component) or is_function_definition(component)
-def target_symbol(component):
-    return symbol_of_name(head(tail(component)))
-def target_symbols(component):
-    return llist(target_symbol(component))
 def assigned_symbols(component):
-    return declared_symbols(component,
-                            is_assignment_or_function_definition,
-                            target_symbols)
+    return declared_symbols(component, is_assignment_or_function_definition)
 	  </PYTHON>
 	</SNIPPET>
 	<SNIPPET HIDE="yes">
