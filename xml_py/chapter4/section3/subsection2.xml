@@ -6,7 +6,7 @@
   <LABEL NAME="sec:amb-examples"/>
   <TEXT>
     Section<SPACE/><REF NAME="sec:amb-implementation"/> describes the
-    implementation of the <SCHEMEINLINE>amb</SCHEMEINLINE> evaluator.  First,
+    implementation of the <PYTHONINLINE>amb</PYTHONINLINE> evaluator.  First,
     however, we give some examples of how it can be used.  The advantage of
     nondeterministic programming is that we can suppress the details of how
     search is carried out, thereby
@@ -64,25 +64,32 @@
     <SNIPPET HIDE="yes">
       <NAME>distinct_example</NAME>
       <PYTHON>
-distinct(llist(1, 2, 4, 4, 5))
-      </PYTHON>
+print(distinct(llist(1, 2, 4, 4, 5)))
+</PYTHON>
     </SNIPPET>
     <SNIPPET>
       <INDEX><DECLARATION>distinct</DECLARATION></INDEX> 
       <NAME>distinct</NAME>
       <REQUIRES>memq</REQUIRES>
       <EXAMPLE>distinct_example</EXAMPLE>
-      <EXPECTED>false</EXPECTED>
+      <EXPECTED>False</EXPECTED>
       <SCHEME>
 (define (distinct? items)
-  (cond ((null? items) true)
-        ((null? (cdr items)) true)
+  (cond ((None? items) true)
+        ((None? (cdr items)) true)
         ((member (car items) (cdr items)) false)
         (else (distinct? (cdr items)))))
       </SCHEME>
       <PYTHON>
 def distinct(items):
-    return True if is_none(items) else True if is_none(tail(items)) else distinct(tail(items)) if is_none(member(head(items), tail(items))) else False
+    if is_none(items):
+        return True
+    elif is_none(tail(items)):
+        return True
+    elif is_none(member(head(items), tail(items))):
+        return distinct(tail(items))
+    else:
+        return False
 </PYTHON>
     </SNIPPET>
     <SPLITINLINE>
@@ -100,7 +107,6 @@ def distinct(items):
       <NAME>office_move</NAME>
       <REQUIRES>distinct</REQUIRES>
       <EXAMPLE>office_move_example</EXAMPLE>
-      <EXPECTED>[ 'alyssa', [ 3, null ] ]</EXPECTED>
       <SCHEME>
 (define (multiple-dwelling)
   (let ((baker (amb 1 2 3 4 5))
@@ -135,10 +141,11 @@ def office_move():
     require(ben != 1)
     require(cy != 5)
     require(cy != 1)
-    require(lem &gt; ben)
+    require(lem > ben)
     require(abs(louis - cy) != 1)
     require(abs(cy - ben) != 1)
-    return llist(llist('alyssa', alyssa), llist('ben', ben), llist('cy', cy), llist('lem', lem), llist('louis', louis))
+    return llist(llist('alyssa', alyssa), llist('ben', ben),
+                 llist('cy', cy), llist('lem', lem), llist('louis', louis))
 </PYTHON>
     </SNIPPET>
     <SNIPPET HIDE="yes">
@@ -318,7 +325,7 @@ llist(llist('alyssa', 3), llist('ben', 2), llist('cy', 4),
 
   <EXERCISE>
     <LABEL NAME="ex:checking"/>
-    Use the <SCHEMEINLINE>amb</SCHEMEINLINE> evaluator to solve the following
+    Use the <PYTHONINLINE>amb</PYTHONINLINE> evaluator to solve the following
     puzzle (adapted from
     <INDEX>Phillips, Hubert</INDEX>
     <CITATION NAME="PHI61">Phillips 1961</CITATION>):
@@ -458,13 +465,13 @@ llist('sentence',
     </SPLITINLINE>
     for each of the grammatical rules.  To parse a sentence, we identify its
     two constituent pieces and return a list of these two elements, tagged with
-    the symbol <SCHEMEINLINE>sentence</SCHEMEINLINE>:
+    the symbol <PYTHONINLINE>sentence</PYTHONINLINE>:
     <SNIPPET CHAP="3" VARIANT="non-det">
       <NAME>parse_sentence</NAME>
       <REQUIRES>parse_noun_phrase</REQUIRES>
       <REQUIRES>nouns</REQUIRES>
       <EXAMPLE>parse_input_example</EXAMPLE>
-      <EXPECTED>[ "sentence", [ ["noun-phrase", [["article", ["the", null]], [["noun", ["cat", null]], null]]], [["verb", ["eats", null]], null]]]</EXPECTED>   
+         
       <SCHEME>
 (define (parse-sentence)
   (list 'sentence
@@ -555,7 +562,7 @@ def parse_noun_phrase():
       <PYTHON>not-yet-parsed</PYTHON>
     </SPLITINLINE>
     input list.  For this to work, our
-    <SCHEMEINLINE>amb</SCHEMEINLINE> evaluator must undo the effects of
+    <PYTHONINLINE>amb</PYTHONINLINE> evaluator must undo the effects of
     <SPLITINLINE>
       <SCHEME><SCHEMEINLINE>set!</SCHEMEINLINE> operations</SCHEME>
       <PYTHON>reassignments</PYTHON>
@@ -568,7 +575,7 @@ def parse_noun_phrase():
       <EXAMPLE>parse_input_example</EXAMPLE>
       <SCHEME>
 (define (parse-word word-list)
-  (require (not (null? *unparsed*)))
+  (require (not (None? *unparsed*)))
   (require (memq (car *unparsed*) (cdr word-list)))
   (let ((found-word (car *unparsed*)))
     (set! *unparsed* (cdr *unparsed*))
@@ -576,8 +583,9 @@ def parse_noun_phrase():
       </SCHEME>
       <PYTHON>
 def parse_word(word_list):
-    require( not is_none(not_yet_parsed))
-    require( not is_none(member(head(not_yet_parsed), tail(word_list))))
+    global not_yet_parsed
+    require(not is_none(not_yet_parsed))
+    require(not is_none(member(head(not_yet_parsed), tail(word_list))))
     found_word = head(not_yet_parsed)
     not_yet_parsed = tail(not_yet_parsed)
     return llist(head(word_list), found_word)
@@ -616,11 +624,12 @@ not_yet_parsed = None
 (define (parse input)
   (set! *unparsed* input)
   (let ((sent (parse-sentence)))
-    (require (null? *unparsed*))
+    (require (None? *unparsed*))
     sent))
       </SCHEME>
       <PYTHON>
 def parse_input(input):
+    global not_yet_parsed
     not_yet_parsed = input
     sent = parse_sentence()
     require(is_none(not_yet_parsed))
@@ -657,17 +666,54 @@ parse_input(llist('the',  'cat',  'eats'))
       <PYTHON_OUTPUT>
 Starting a new problem
 amb-evaluate value:
-list('sentence',
-     list('noun-phrase', list('article', 'the'), list('noun', 'cat')),
-     list('verb', 'eats'))
+llist('sentence',
+     llist('noun-phrase', llist('article', 'the'), llist('noun', 'cat')),
+     llist('verb', 'eats'))
       </PYTHON_OUTPUT>
+    </SNIPPET>
+    <SNIPPET HIDE="yes">
+      <NAME>show_tree</NAME>
+      <PYTHON>
+def show_tree(t):
+    if is_pair(t):
+        return '(' + show_items(t) + ')'
+    elif is_none(t):
+        return '()'
+    else:
+        return str(t)
+def show_items(t):
+    if is_none(tail(t)):
+        return show_tree(head(t))
+    else:
+        return show_tree(head(t)) + ' ' + show_items(tail(t))
+      </PYTHON>
+    </SNIPPET>
+    <SNIPPET HIDE="yes">
+      <NAME>parse_input_footer</NAME>
+      <PYTHON>
+
+"""
+      </PYTHON>
+    </SNIPPET>
+    <SNIPPET HIDE="yes">
+      <NAME>parse_input_test</NAME>
+    <REQUIRES>first_solution</REQUIRES>
+    <REQUIRES>show_tree</REQUIRES>
+    <REQUIRES>amb_program_header</REQUIRES>
+    <REQUIRES>require_non_det</REQUIRES>
+    <REQUIRES>parse_input_example</REQUIRES>
+    <REQUIRES>parse_input_footer</REQUIRES>
+      <EXPECTED>(sentence (noun-phrase (article the) (noun cat)) (verb eats))</EXPECTED>
+      <PYTHON>
+print(show_tree(first_solution(my_amb_program)))
+      </PYTHON>
     </SNIPPET>
   </TEXT>
 
   <TEXT>
-    The <SCHEMEINLINE>amb</SCHEMEINLINE> evaluator is useful here because it is
+    The <PYTHONINLINE>amb</PYTHONINLINE> evaluator is useful here because it is
     convenient to express the parsing constraints with the aid of
-    <SCHEMEINLINE>require</SCHEMEINLINE>. Automatic search and backtracking
+    <PYTHONINLINE>require</PYTHONINLINE>. Automatic search and backtracking
     really pay off, however, when we consider more complex grammars where there
     are choices for how the units can be decomposed.
   </TEXT>
@@ -691,7 +737,7 @@ prepositions = llist('prep', 'for', 'to', 'in', 'by', 'with')
       <REQUIRES>parse_word</REQUIRES>
       <REQUIRES>prepositions</REQUIRES>
       <EXAMPLE>parse_input_example_2</EXAMPLE>
-      <EXPECTED>[ "sentence", [ [ "noun-phrase", [ [ "simple-noun-phrase", [["article", ["the", null]], [["noun", ["student", null]], null]]], [ [ "prep-phrase", [ ["prep", ["with", null]], [ [ "simple-noun-phrase", [["article", ["the", null]], [["noun", ["cat", null]], null]]], null]]], null]]], [ [ "verb-phrase", [ ["verb", ["sleeps", null]], [ [ "prep-phrase", [ ["prep", ["in", null]], [ [ "simple-noun-phrase", [["article", ["the", null]], [["noun", ["class", null]], null]]], null]]], null]]], null]]]</EXPECTED>   
+         
       <SCHEME>
 (define (parse-prepositional-phrase)
   (list 'prep-phrase
@@ -700,7 +746,8 @@ prepositions = llist('prep', 'for', 'to', 'in', 'by', 'with')
       </SCHEME>
       <PYTHON>
 def parse_prepositional_phrase():
-    return llist('prep-phrase', parse_word(prepositions), parse_noun_phrase())
+    return llist('prep-phrase', parse_word(prepositions),
+                 parse_noun_phrase())
 </PYTHON>
     </SNIPPET>
     Now we can define a sentence to be a noun phrase followed by a verb
@@ -733,7 +780,9 @@ def parse_sentence():
     return llist('sentence', parse_noun_phrase(), parse_verb_phrase())
 def parse_verb_phrase():
     def maybe_extend(verb_phrase):
-        return amb(verb_phrase, maybe_extend(llist('verb-phrase', verb_phrase, parse_prepositional_phrase())))
+        return amb(verb_phrase,
+                   maybe_extend(llist('verb-phrase', verb_phrase,
+                                      parse_prepositional_phrase())))
     return maybe_extend(parse_word(verbs))
 </PYTHON>
     </SNIPPET>
@@ -745,11 +794,12 @@ def parse_verb_phrase():
 (define (parse input)
   (set! *unparsed* input)
   (let ((sent (parse-sentence)))
-    (require (null? *unparsed*))
+    (require (None? *unparsed*))
     sent))
       </SCHEME>
       <PYTHON>
 def parse_input(input):
+    global not_yet_parsed
     not_yet_parsed = input
     sent = parse_sentence()
     require(is_none(not_yet_parsed))
@@ -786,10 +836,13 @@ def parse_input(input):
       </SCHEME>
       <PYTHON>
 def parse_simple_noun_phrase():
-    return llist('simple-noun-phrase', parse_word(articles), parse_word(nouns))
+    return llist('simple-noun-phrase', parse_word(articles),
+                 parse_word(nouns))
 def parse_noun_phrase():
     def maybe_extend(noun_phrase):
-        return amb(noun_phrase, maybe_extend(llist('noun-phrase', noun_phrase, parse_prepositional_phrase())))
+        return amb(noun_phrase,
+                   maybe_extend(llist('noun-phrase', noun_phrase,
+                                      parse_prepositional_phrase())))
     return maybe_extend(parse_simple_noun_phrase())
 </PYTHON>
     </SNIPPET>
@@ -808,6 +861,26 @@ def parse_noun_phrase():
       <PYTHON>
 parse_input(llist('the', 'student', 'with', 'the', 'cat',
                  'sleeps', 'in', 'the', 'class'))
+      </PYTHON>
+    </SNIPPET>
+    <SNIPPET HIDE="yes">
+      <NAME>parse_input_2_footer</NAME>
+      <PYTHON>
+
+"""
+      </PYTHON>
+    </SNIPPET>
+    <SNIPPET HIDE="yes">
+      <NAME>parse_input_2_test</NAME>
+    <REQUIRES>first_solution</REQUIRES>
+    <REQUIRES>show_tree</REQUIRES>
+    <REQUIRES>amb_program_header</REQUIRES>
+    <REQUIRES>require_non_det</REQUIRES>
+    <REQUIRES>parse_input_example_2</REQUIRES>
+    <REQUIRES>parse_input_2_footer</REQUIRES>
+      <EXPECTED>(sentence (noun-phrase (simple-noun-phrase (article the) (noun student)) (prep-phrase (prep with) (simple-noun-phrase (article the) (noun cat)))) (verb-phrase (verb sleeps) (prep-phrase (prep in) (simple-noun-phrase (article the) (noun class)))))</EXPECTED>
+      <PYTHON>
+print(show_tree(first_solution(my_amb_program)))
       </PYTHON>
     </SNIPPET>
   produces
@@ -947,7 +1020,7 @@ llist('sentence',
       <PYTHON>argument expressions</PYTHON>
     </SPLITINLINE>
     are
-    evaluated in. We will see that the <SCHEMEINLINE>amb</SCHEMEINLINE> evaluator
+    evaluated in. We will see that the <PYTHONINLINE>amb</PYTHONINLINE> evaluator
     evaluates them from left to right. Explain why our parsing program
     wouldn<APOS/>t work if the
     <SPLITINLINE>
@@ -987,11 +1060,13 @@ llist('sentence',
       </SCHEME>
       <PYTHON>
 def parse_verb_phrase():
-    return amb(parse_word(verbs), llist('verb-phrase', parse_verb_phrase(), parse_prepositional_phrase()))
+    return amb(parse_word(verbs),
+               llist('verb-phrase', parse_verb_phrase(),
+                     parse_prepositional_phrase()))
 </PYTHON>
     </SNIPPET>
     Does this work?  Does the program<APOS/>s behavior change if we interchange
-    the order of expressions in the <SCHEMEINLINE>amb</SCHEMEINLINE>?
+    the order of expressions in the <PYTHONINLINE>amb</PYTHONINLINE>?
   </EXERCISE>
 
   <EXERCISE>
