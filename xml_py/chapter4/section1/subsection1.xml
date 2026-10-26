@@ -600,15 +600,17 @@ def apply(fun, arguments):
         return apply_built_in_function(fun, arguments)
     elif is_compound_function(fun):
         body = function_body(fun)
-        global_symbols = global_variables(body)
-        locals = assigned_variables(body)
+        globals = global_variables(body)
+        others = append(globals, nonlocal_variables(body))
+        locals = filter(lambda symbol: member(symbol, others) is None,
+                        assigned_variables(body))
         result = evaluate(body,
                           extend_environment(
                               append(function_parameters(fun),
-                                     append(locals, global_symbols)),
+                                     append(locals, globals)),
                               append(arguments,
                                      append(make_unassigneds(locals),
-                                            make_globals(global_symbols))),
+                                            make_globals(globals))),
                               function_environment(fun)))
         if is_return_value(result):
             return return_value_content(result)
@@ -676,7 +678,7 @@ print(apply(plus, llist(1, 2)))
 	The functions <PYTHONINLINE>global_variables</PYTHONINLINE>
 	and <PYTHONINLINE>nonlocal_variables</PYTHONINLINE>
 	use it to find the symbols in global and nonlocal declarations.
-	The function <PYTHONINLINE>assigned_symbols</PYTHONINLINE>
+	The function <PYTHONINLINE>assigned_variables</PYTHONINLINE>
 	uses it to find the symbols that represent the names
 	from the assignments and function definitions.
 	<SNIPPET>
@@ -720,7 +722,7 @@ def nonlocal_variables(component):
     return declared_symbols(component, is_nonlocal_statement)
 def is_assignment_or_function_definition(component):
     return is_assignment(component) or is_function_definition(component)
-def assigned_symbols(component):
+def assigned_variables(component):
     return declared_symbols(component, is_assignment_or_function_definition)
 	  </PYTHON>
 	</SNIPPET>
@@ -734,34 +736,9 @@ def assigned_symbols(component):
 print(global_variables(parse('global x\nnonlocal y\nx = 1')))
 	  </PYTHON>
 	</SNIPPET>
-	The function <PYTHONINLINE>assigned_variables</PYTHONINLINE>
-	collects the names that are assigned or defined in the body,
-	except for those that the body declares as global or nonlocal.
-	<SNIPPET>
-	  <INDEX><DECLARATION>assigned_variables</DECLARATION></INDEX>
-          <NAME>assigned_variables</NAME>
-          <REQUIRES>filter</REQUIRES>
-          <REQUIRES>declared_symbols</REQUIRES>
-	  <EXAMPLE>assigned_variables_example</EXAMPLE>
-	  <EXPECTED>[ 'x', [ 'y', None ] ]</EXPECTED>
-          <PYTHON>
-def assigned_variables(body):
-    others = append(global_variables(body), nonlocal_variables(body))
-    return filter(lambda symbol: member(symbol, others) is None,
-                  assigned_symbols(body))
-          </PYTHON>
-	</SNIPPET>
-	<SNIPPET HIDE="yes">
-          <NAME>assigned_variables_example</NAME>
-	  <REQUIRES>functions_4_1_1</REQUIRES>
-	  <REQUIRES>functions_4_1_2</REQUIRES>
-	  <REQUIRES>functions_4_1_3</REQUIRES>
-	  <REQUIRES>functions_4_1_4</REQUIRES>
-          <PYTHON>
-print(assigned_variables(parse('x = 1\ny = 2')))
-	  </PYTHON>
-	</SNIPPET>
-	In <PYTHONINLINE>apply</PYTHONINLINE>, the frame of a call binds the
+	In <PYTHONINLINE>apply</PYTHONINLINE>, the local names of a call are the
+	assigned variables of the body, except for those that the body declares
+	as global or nonlocal. The frame of a call binds the
 	local names to <PYTHONINLINE>'*unassigned*'</PYTHONINLINE>
 	and the global names to the marker <PYTHONINLINE>'*global*'</PYTHONINLINE>.
 	The marker tells
@@ -1304,7 +1281,6 @@ def eval_function_definition(component, env):
     <REQUIRES>eval_return</REQUIRES>
     <REQUIRES>eval_assignment</REQUIRES>
     <REQUIRES>eval_function_definition</REQUIRES>
-    <REQUIRES>assigned_variables</REQUIRES>
     <REQUIRES>list_of_unassigned</REQUIRES>
     <REQUIRES>declared_symbols</REQUIRES>
     <REQUIRES>filter</REQUIRES>
