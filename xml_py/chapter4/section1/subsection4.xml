@@ -306,6 +306,8 @@ print(is_built_in_function(my_built_in_plus))
       <INDEX><DECLARATION>built_in_function_objects</DECLARATION></INDEX>
       <NAME>primitive_procedures</NAME>
       <REQUIRES>map</REQUIRES>
+      <REQUIRES>primitive_procedure</REQUIRES>
+      <REQUIRES>make_procedure</REQUIRES>
       <EXAMPLE>primitive_procedures_example</EXAMPLE>
       <EXPECTED>26</EXPECTED>
       <SCHEME>
@@ -346,7 +348,18 @@ built_in_function_objects = \
         built_in_functions)
       </PYTHON>
       <PYTHON_RUN>
-built_in_functions = llist(llist('head', head), llist('tail', tail), llist('pair', pair), llist('is_none', is_none), llist('llist', llist), llist('print', print), llist('error', error), llist('abs', abs), llist('+', lambda x, y: x + y), llist('-', lambda x, y: x - y), llist('*', lambda x, y: x * y), llist('/', lambda x, y: x / y), llist('//', lambda x, y: x // y), llist('%', lambda x, y: x % y), llist('**', lambda x, y: x ** y), llist('==', lambda x, y: x == y), llist('!=', lambda x, y: x != y), llist('&lt;', lambda x, y: x &lt; y), llist('&lt;=', lambda x, y: x &lt;= y), llist('&gt;', lambda x, y: x &gt; y), llist('&gt;=', lambda x, y: x &gt;= y), llist('is', lambda x, y: x is y), llist('is not', lambda x, y: x is not y), llist('not', lambda x: not x), llist('-unary', lambda x: -x), llist('+unary', lambda x: +x))
+def print_without_environments(object):
+    def prepare(object):
+        if is_compound_function(object):
+            return '&lt;compound-function&gt;'
+        elif is_built_in_function(object):
+            return '&lt;built-in-function&gt;'
+        elif is_pair(object):
+            return pair(prepare(head(object)), prepare(tail(object)))
+        else:
+            return object
+    return print(prepare(object))
+built_in_functions = llist(llist('head', head), llist('tail', tail), llist('pair', pair), llist('is_none', is_none), llist('llist', llist), llist('print', print_without_environments), llist('error', error), llist('abs', abs), llist('+', lambda x, y: x + y), llist('-', lambda x, y: x - y), llist('*', lambda x, y: x * y), llist('/', lambda x, y: x / y), llist('//', lambda x, y: x // y), llist('%', lambda x, y: x % y), llist('**', lambda x, y: x ** y), llist('==', lambda x, y: x == y), llist('!=', lambda x, y: x != y), llist('&lt;', lambda x, y: x &lt; y), llist('&lt;=', lambda x, y: x &lt;= y), llist('&gt;', lambda x, y: x &gt; y), llist('&gt;=', lambda x, y: x &gt;= y), llist('is', lambda x, y: x is y), llist('is not', lambda x, y: x is not y), llist('not', lambda x: not x), llist('-unary', lambda x: -x), llist('+unary', lambda x: +x))
 built_in_function_symbols = map(head, built_in_functions)
 built_in_function_objects = map(lambda fun: llist('built_in', head(tail(fun))), built_in_functions)
 </PYTHON_RUN>
@@ -567,8 +580,8 @@ print(apply_built_in_function(my_built_in_plus, llist(1, 2)))
 	For convenience in running the metacircular evaluator, we provide a
 	<INDEX>metacircular evaluator for Python<SUBINDEX>driver loop</SUBINDEX></INDEX>
 	<INDEX>driver loop<SUBINDEX><ORDER>metacircular</ORDER>in metacircular evaluator</SUBINDEX></INDEX>
-	<EM>driver loop</EM> that models the read-evaluate-print loop of 
-	the underlying Python system. It prints a
+	<EM>driver loop</EM> that repeatedly reads and evaluates programs.
+	It prints a
 	<INDEX>prompts</INDEX>
 	<INDEX>prompts<SUBINDEX>metacircular evaluator</SUBINDEX></INDEX>
 	<EM>prompt</EM> and reads an input program as a string.
@@ -577,9 +590,8 @@ print(apply_built_in_function(my_built_in_plus, llist(1, 2)))
 	section<SPACE/><REF NAME="sec:representing-expressions"/><EMDASH/>a
 	process called parsing and accomplished by the built-in function
 	<PYTHONINLINE>parse</PYTHONINLINE>.
-	We precede each printed result by
-	an <EM>output prompt</EM> so as to distinguish the value of the
-	program from other output that may be printed. The driver loop gets
+	As when Python runs a program, the only output is what the program
+	prints. The driver loop gets
 	the global environment as argument and evaluates each program with respect
 	to it. Names that the program assigns or defines are added to the global
 	environment and are thus available to the programs that are read in later
@@ -591,33 +603,29 @@ print(apply_built_in_function(my_built_in_plus, llist(1, 2)))
 	  <REQUIRES>functions_4_1_2</REQUIRES>
 	  <REQUIRES>functions_4_1_3</REQUIRES>
 	  <REQUIRES>functions_4_1_4</REQUIRES>
-	  <REQUIRES>user_print</REQUIRES>
 	  <REQUIRES>user_read</REQUIRES>
 	  <EXAMPLE>driver_loop_example</EXAMPLE>
 	  <PYTHON>
 input_prompt = 'M-evaluate input: '
-output_prompt = 'M-evaluate value: '
 def driver_loop(env):
     input = user_read(input_prompt)
     if is_none(input):
         print('evaluator terminated')
     else:
         program = parse(input)
-        output = evaluate(program, env)
-        user_print(output_prompt, output)
+        evaluate(program, env)
         return driver_loop(env)
 </PYTHON>
 	  <PYTHON_RUN>
 input_prompt = '\nM-evaluate input:\n'
-output_prompt = '\nM-evaluate value:\n'
 def driver_loop(env, history):
     input = user_read(history)
     if is_none(input):
         print(history + '\n--- session end ---\n')
     else:
         program = parse(input)
-        output = evaluate(program, env)
-        new_history = history + input_prompt + input + output_prompt + to_string(output)
+        evaluate(program, env)
+        new_history = history + input_prompt + input
         return driver_loop(env, new_history)
 'metacircular evaluator loaded'
 </PYTHON_RUN>
@@ -645,27 +653,14 @@ def user_read(prompt_string):
 	</SNIPPET>
       </PYTHON>
     </SPLIT>
-    The function
-    <INDEX><USE>input</USE> (built-in function)</INDEX>
-    <INDEX><PRIMITIVE/><SUBINDEX><USE>input</USE></SUBINDEX></INDEX>
-    <PYTHONINLINE>input</PYTHONINLINE> returns
-    <PYTHONINLINE>None</PYTHONINLINE> when the user cancels the
-    input. We use a special printing
-    <SPLITINLINE>
-      <SCHEME>procedure <SCHEMEINLINE>user-print</SCHEMEINLINE>,</SCHEME>
-      <PYTHON>function <PYTHONINLINE>user_print</PYTHONINLINE>,
-      </PYTHON>
-    </SPLITINLINE>
-    to avoid printing the environment part of a compound
-    <SPLITINLINE>
-      <SCHEME>procedure,</SCHEME>
-      <PYTHON>function,</PYTHON>
-    </SPLITINLINE>
+    <SPLIT>
+      <SCHEME>
+    We use a special printing procedure <SCHEMEINLINE>user-print</SCHEMEINLINE>,
+    to avoid printing the environment part of a compound procedure,
     which may be a very long list (or may even contain cycles).
     <SNIPPET PAGE="383">
       <INDEX><DECLARATION>user_print</DECLARATION></INDEX>
       <NAME>user_print</NAME>
-      <EXAMPLE>user_print_example</EXAMPLE>
       <SCHEME>
 (define (user-print object)
   (if (compound-procedure? object)
@@ -675,45 +670,9 @@ def user_read(prompt_string):
                      '&lt;-procedure-env-&gt;))
       (display object)))
       </SCHEME>
-      <PYTHON>
-def user_print(string, object):
-    def prepare(object):
-        if is_compound_function(object):
-            return '&lt;compound-function&gt;'
-        elif is_built_in_function(object):
-            return '&lt;built-in-function&gt;'
-        elif is_pair(object):
-            return pair(prepare(head(object)), prepare(tail(object)))
-        else:
-            return object
-    print(string + ' ' + str(prepare(object)))
-</PYTHON>
-      <PYTHON_RUN>
-def to_string(object):
-    if is_compound_function(object):
-        return '&lt;compound-function&gt;'
-    elif is_built_in_function(object):
-        return '&lt;built-in-function&gt;'
-    elif is_pair(object):
-        return '[' + to_string(head(object)) + ', ' + to_string(tail(object)) + ']'
-    else:
-        return str(object)
-def user_print(prompt_string, object):
-    print('----------------------------', prompt_string + '\n' + to_string(object) + '\n')
-</PYTHON_RUN>
     </SNIPPET>
-    <SNIPPET PAGE="383" HIDE="yes">
-      <NAME>user_print_example</NAME>
-      <REQUIRES>functions_4_1_1</REQUIRES>
-      <REQUIRES>functions_4_1_2</REQUIRES>
-      <REQUIRES>functions_4_1_3</REQUIRES>
-      <REQUIRES>functions_4_1_4</REQUIRES>
-      <PYTHON>
-user_print('output: ',
-           evaluate(parse('1 + 2'),
-                    the_global_environment))
-</PYTHON>
-    </SNIPPET>
+      </SCHEME>
+    </SPLIT>
   </TEXT>
   <TEXT>
     Now all we need to do to run the evaluator is to initialize the global
@@ -777,10 +736,6 @@ def append(xs, ys):
 # M-evaluate value:
 # ['a', ['b', ['c', ['d', ['e', ['f', None]]]]]]
 </PYTHON_RUN>
-      <PYTHON_OUTPUT>
-M-evaluate value:
-None
-      </PYTHON_OUTPUT>
     </SNIPPET>
     <SNIPPET POSTPADDING="no">
       <NAME>meta_append_example</NAME>
@@ -801,7 +756,7 @@ None
 M-evaluate input:    
       </PYTHON_PROMPT>
       <PYTHON>
-append(llist('a', 'b', 'c'), llist('d', 'e', 'f'))
+print(append(llist('a', 'b', 'c'), llist('d', 'e', 'f')))
       </PYTHON>
       <PYTHON_RUN>
 # press the Run button to start the driver loop
@@ -811,15 +766,11 @@ append(llist('a', 'b', 'c'), llist('d', 'e', 'f'))
 #         return ys
 #     else:
 #         return pair(head(xs), append(tail(xs), ys))
-# M-evaluate value:
-# None
 # M-evaluate input:
-# append(llist('a', 'b', 'c'), llist('d', 'e', 'f'))
-# M-evaluate value:
+# print(append(llist('a', 'b', 'c'), llist('d', 'e', 'f')))
 # ['a', ['b', ['c', ['d', ['e', ['f', None]]]]]]
 </PYTHON_RUN>
       <PYTHON_OUTPUT>
-M-evaluate value: 
 ['a', ['b', ['c', ['d', ['e', ['f', None]]]]]]
       </PYTHON_OUTPUT>
     </SNIPPET>
