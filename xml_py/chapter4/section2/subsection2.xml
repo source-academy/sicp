@@ -17,8 +17,6 @@
       <REQUIRES>memq</REQUIRES>
       <REQUIRES>filter</REQUIRES>
       <REQUIRES>declared_symbols</REQUIRES>
-      <REQUIRES>list_of_unassigned</REQUIRES>
-      <REQUIRES>local_variables</REQUIRES>
       <REQUIRES>eval_function_definition</REQUIRES>
     <REQUIRES>headline_4_1_1_lazy</REQUIRES>
     <REQUIRES>eval_lazy</REQUIRES>
@@ -421,18 +419,19 @@ def apply(fun, args, env):
         return apply_built_in_function(fun, list_of_arg_values(args, env))
     elif is_compound_function(fun):
         body = function_body(fun)
-        global_symbols = global_variables(body)
-        others = append(global_symbols, nonlocal_variables(body))
-        locals = filter(lambda symbol: member(symbol, others) is None,
-                        local_variables(body))
-        unassigneds = llist_of_unassigned(locals)
-        globals_marked = map(lambda symbol: '*global*', global_symbols)
+        globals = global_variables(body)
+        others = append(globals, nonlocal_variables(body))
+        locals = filter(lambda symbol: is_none(member(symbol, others)),
+                        assigned_variables(body))
+        unassigned_markers = map(lambda symbol: '*unassigned*', locals)
+        global_markers = map(lambda symbol: '*global*', globals)
         result = evaluate(body,
                           extend_environment(
                               append(function_parameters(fun),
-                                     append(locals, global_symbols)),
+                                     append(locals, globals)),
                               append(list_of_delayed_args(args, env),
-                                     append(unassigneds, globals_marked)),
+                                     append(unassigned_markers,
+                                            global_markers)),
                               function_environment(fun)))
         if is_return_value(result):
             return return_value_content(result)
@@ -583,49 +582,26 @@ def eval_conditional(component, env):
   </TEXT>
 
   <TEXT>
+    <SPLIT>
+      <SCHEME>
     Finally, we must change the
     <INDEX>driver loop<SUBINDEX><ORDER>lazy</ORDER>in lazy evaluator</SUBINDEX></INDEX>
-    <SPLITINLINE>
-      <SCHEME>
-	<SCHEMEINLINE>driver-loop</SCHEMEINLINE>
-      </SCHEME>
-      <PYTHON>
-	<PYTHONINLINE>driver_loop</PYTHONINLINE>
-      </PYTHON>
-    </SPLITINLINE>
-    <SPLITINLINE><SCHEME>procedure</SCHEME>
-    <PYTHON>function</PYTHON>
-    </SPLITINLINE>
+    <SCHEMEINLINE>driver-loop</SCHEMEINLINE> procedure
     (from section<SPACE/><REF NAME="sec:running-eval"/>) to use
-    <SPLITINLINE>
-      <SCHEME>
-	<SCHEMEINLINE>actual-value</SCHEMEINLINE>
-      </SCHEME>
-      <PYTHON>
-	<PYTHONINLINE>actual_@value</PYTHONINLINE>
-      </PYTHON>
-    </SPLITINLINE>
-    instead of
-    <SPLITINLINE>
-      <SCHEME>
-	<SCHEMEINLINE>eval</SCHEMEINLINE>,
-      </SCHEME>
-      <PYTHON>
-	<PYTHONINLINE>evaluate</PYTHONINLINE>,
-      </PYTHON>
-    </SPLITINLINE>
+    <SCHEMEINLINE>actual-value</SCHEMEINLINE> instead of
+    <SCHEMEINLINE>eval</SCHEMEINLINE>,
     so that if a delayed value is propagated back to the
-    <SPLITINLINE>
-      <SCHEME>
-	read-eval-print loop,
-      </SCHEME>
-      <PYTHON>
-	read-evaluate-print loop,
-      </PYTHON>
-    </SPLITINLINE>
-    it will be forced before being printed.
+    read-eval-print loop, it will be forced before being printed.
     We also change the prompts to indicate that
     this is the lazy evaluator:
+      </SCHEME>
+      <PYTHON>
+    Finally, we change the prompt of the
+    <INDEX>driver loop<SUBINDEX><ORDER>lazy</ORDER>in lazy evaluator</SUBINDEX></INDEX>
+    driver loop (from section<SPACE/><REF NAME="sec:running-eval"/>)
+    to indicate that this is the lazy evaluator:
+      </PYTHON>
+    </SPLIT>
     <SNIPPET>
       <INDEX>prompts<SUBINDEX>lazy evaluator</SUBINDEX></INDEX>
       <INDEX><DECLARATION>driver_loop</DECLARATION><SUBINDEX>for lazy evaluator</SUBINDEX></INDEX>
@@ -634,7 +610,6 @@ def eval_conditional(component, env):
       <REQUIRES>functions_4_1_2</REQUIRES>
       <REQUIRES>functions_4_1_3</REQUIRES>
       <REQUIRES>functions_4_1_4</REQUIRES>
-      <REQUIRES>user_print</REQUIRES>
       <REQUIRES>user_read</REQUIRES>
       <EXAMPLE>driver_loop_lazy_example</EXAMPLE>
       <SCHEME>
@@ -652,29 +627,25 @@ def eval_conditional(component, env):
       </SCHEME>
       <PYTHON>
 input_prompt = 'L-evaluate input: '
-output_prompt = 'L-evaluate value: '
 def driver_loop(env):
     input = user_read(input_prompt)
-    if is_none(input):
+    if input == '':
         print('evaluator terminated')
     else:
         program = parse(input)
-        output = actual_value(program, env)
-        user_print(output_prompt, output)
+        evaluate(program, env)
         return driver_loop(env)
 </PYTHON>
       <PYTHON_RUN>
 input_prompt = '\nL-evaluate input:\n'
-output_prompt = '\nL-evaluate value:\n'
 def driver_loop(env, history):
     input = user_read(history)
-    if is_none(input):
+    if input == '':
         print(history + '\n--- session end ---\n')
     else:
         program = parse(input)
-        output = actual_value(program, env)
-        new_history = (history + input_prompt + input +
-                       output_prompt + to_string(output))
+        evaluate(program, env)
+        new_history = history + input_prompt + input
         return driver_loop(env, new_history)
 'lazy evaluator loaded'
 </PYTHON_RUN>
@@ -712,11 +683,8 @@ driver_loop(the_global_environment, '--- session start ---')
 # L-evaluate input:
 # def try_me(a, b):
 #     return 1 if a == 0 else b
-# L-evaluate value:
-# None
 # L-evaluate input:
-# try_me(0, head(None))
-# L-evaluate value:
+# print(try_me(0, head(None)))
 # 1
 </PYTHON_RUN>
     </SNIPPET>
@@ -735,10 +703,6 @@ L-evaluate input:
 def try_me(a, b):
     return 1 if a == 0 else b
 </PYTHON>
-      <PYTHON_OUTPUT>
-L-evaluate value:
-undefined
-      </PYTHON_OUTPUT>
     </SNIPPET>
     <SNIPPET EVAL="no" POSTPADDING="no">
       <SCHEMEOUTPUT>
@@ -751,10 +715,9 @@ undefined
 L-evaluate input:
       </PYTHON_PROMPT>
       <PYTHON>
-try_me(0, head(None))
+print(try_me(0, head(None)))
 </PYTHON>
       <PYTHON_OUTPUT>
-L-evaluate value:
 1
       </PYTHON_OUTPUT>
     </SNIPPET>
@@ -1021,23 +984,16 @@ driver_loop(the_global_environment, '--- session start ---')
 #     global count
 #     count = count + 1
 #     return x
-# L-evaluate value: 
-# None
 # L-evaluate input:
 # w = id(id(10))
-# L-evaluate value: 
-# None
 # L-evaluate input:
-# count
-# L-evaluate value:
+# print(count)
 # &lt;response&gt;
 # L-evaluate input:
-# w
-# L-evaluate value:
+# print(w)
 # &lt;response&gt;
 # L-evaluate input:
-# count
-# L-evaluate value:
+# print(count)
 # &lt;response&gt;
 </PYTHON_RUN>
   </SNIPPET>
@@ -1052,10 +1008,9 @@ response
 L-evaluate input:
     </PYTHON_PROMPT>
     <PYTHON>
-count
+print(count)
     </PYTHON>
     <PYTHON_OUTPUT>
-L-evaluate value:
 <METAPHRASE>response</METAPHRASE>
     </PYTHON_OUTPUT>
   </SNIPPET>
@@ -1070,10 +1025,9 @@ response
 L-evaluate input:
     </PYTHON_PROMPT>
     <PYTHON>
-w
+print(w)
     </PYTHON>
     <PYTHON_OUTPUT>
-L-evaluate value:
 <METAPHRASE>response</METAPHRASE>
     </PYTHON_OUTPUT>
   </SNIPPET>
@@ -1088,10 +1042,9 @@ response
 L-evaluate input:
     </PYTHON_PROMPT>
     <PYTHON>
-count
+print(count)
     </PYTHON>
     <PYTHON_OUTPUT>
-L-evaluate value:
 <METAPHRASE>response</METAPHRASE>
     </PYTHON_OUTPUT>
   </SNIPPET>
@@ -1179,20 +1132,14 @@ driver_loop(the_global_environment, '--- session start ---')
 #     global count
 #     count = count + 1
 #     return x
-# L-evaluate value: 
-# None
 # L-evaluate input:
 # def square(x):
 #     return x * x
-# L-evaluate value: 
-# None
 # L-evaluate input:
-# square(id(10))
-# L-evaluate value:
+# print(square(id(10)))
 # &lt;response&gt;
 # L-evaluate input:
-# count
-# L-evaluate value:
+# print(count)
 # &lt;response&gt;
 </PYTHON_RUN>
     </SNIPPET>
@@ -1201,10 +1148,9 @@ driver_loop(the_global_environment, '--- session start ---')
 L-evaluate input:
       </PYTHON_PROMPT>
       <PYTHON>
-square(id(10))
+print(square(id(10)))
       </PYTHON>
       <PYTHON_OUTPUT>
-L-evaluate value:
 <METAPHRASE>response</METAPHRASE>
       </PYTHON_OUTPUT>
     </SNIPPET>
@@ -1213,10 +1159,9 @@ L-evaluate value:
 L-evaluate input:
       </PYTHON_PROMPT>
       <PYTHON>
-count
+print(count)
       </PYTHON>
-      <PYTHON_OUTPUT>    
-L-evaluate value:
+      <PYTHON_OUTPUT>
 <METAPHRASE>response</METAPHRASE>
       </PYTHON_OUTPUT>
     </SNIPPET>
@@ -1328,15 +1273,11 @@ driver_loop(the_global_environment, '--- session start ---')
 #     else:
 #         fun(head(items))
 #         for_each(fun, tail(items))
-# L-evaluate value:
-# None
 # L-evaluate input:
 # for_each(lambda x: print(x), llist(57, 321, 88))
 # 57
 # 321
 # 88
-# L-evaluate value:
-# None
 </PYTHON_RUN>
 	</SNIPPET>
 	He claims that the evaluator in the text (with the original
@@ -1375,8 +1316,6 @@ for_each(print, llist(57, 321, 88))
 57
 321
 88
-L-evaluate value:
-done
           </PYTHON_OUTPUT>
         </SNIPPET>
 	Explain why Ben is right about the behavior of

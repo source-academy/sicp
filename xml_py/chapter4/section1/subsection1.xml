@@ -345,6 +345,12 @@
 	    assigns it to the name of the function in that environment.
 	  </LI>
 	  <LI>
+	    A <PYTHONINLINE>pass</PYTHONINLINE> statement requires no action.
+	    The same holds for global and nonlocal declarations:
+	    their effect is taken care of when a function is applied,
+	    as we will see below.
+	  </LI>
+	  <LI>
 	    An assignment must
 	    call
 	    <PYTHONINLINE>evaluate</PYTHONINLINE>
@@ -600,18 +606,19 @@ def apply(fun, arguments):
         return apply_built_in_function(fun, arguments)
     elif is_compound_function(fun):
         body = function_body(fun)
-        global_symbols = global_variables(body)
-        others = append(global_symbols, nonlocal_variables(body))
-        locals = filter(lambda symbol: member(symbol, others) is None,
-                        local_variables(body))
-        unassigneds = llist_of_unassigned(locals)
-        globals_marked = map(lambda symbol: '*global*', global_symbols)
+        globals = global_variables(body)
+        others = append(globals, nonlocal_variables(body))
+        locals = filter(lambda symbol: is_none(member(symbol, others)),
+                        assigned_variables(body))
+        unassigned_markers = map(lambda symbol: '*unassigned*', locals)
+        global_markers = map(lambda symbol: '*global*', globals)
         result = evaluate(body,
                           extend_environment(
                               append(function_parameters(fun),
-                                     append(locals, global_symbols)),
+                                     append(locals, globals)),
                               append(arguments,
-                                     append(unassigneds, globals_marked)),
+                                     append(unassigned_markers,
+                                            global_markers)),
                               function_environment(fun)))
         if is_return_value(result):
             return return_value_content(result)
@@ -663,66 +670,25 @@ print(apply(plus, llist(1, 2)))
 	show how to achieve tail recursion using a register machine.
       </FOOTNOTE>
 
-	The function <PYTHONINLINE>local_variables</PYTHONINLINE>
+	To find the names that a function body introduces, we scan the body
+	for declarations and assignments, looking into sequences and
+	conditionals but ignoring nested function definitions: their names
+	are taken care of when the evaluation of the nested function definition
+	begins.
+	The function <PYTHONINLINE>declared_symbols</PYTHONINLINE>
         <INDEX>scanning out names<SUBINDEX>in metacircular evaluator</SUBINDEX></INDEX>
-	collects a list of all symbols representing names that are
-	assigned or defined in the body, looking into sequences and
-	conditionals.
-	It uses 
-	<PYTHONINLINE>assignment_symbol</PYTHONINLINE>
-	and
-	<PYTHONINLINE>function_definition_symbol</PYTHONINLINE>
-	to retrieve the symbols that represent the names
-	from the assignments and function definitions it finds.
-	<SNIPPET>
-	  <INDEX><DECLARATION>local_variables</DECLARATION></INDEX>
-          <NAME>local_variables</NAME>
-          <REQUIRES>append</REQUIRES>
-          <REQUIRES>map</REQUIRES>
-          <REQUIRES>accumulate</REQUIRES>
-          <REQUIRES>assignment</REQUIRES>
-          <REQUIRES>function_definition</REQUIRES>
-	  <EXAMPLE>local_variables_example</EXAMPLE>
-	  <EXPECTED>[ 'x', [ 'y', None ] ]</EXPECTED>
-          <PYTHON>
-def local_variables(component):
-    if is_sequence(component):
-        return reduce(append,
-                      None,
-                      map(local_variables, sequence_statements(component)))
-    elif is_conditional(component):
-        return append(local_variables(conditional_consequent(component)),
-                      local_variables(conditional_alternative(component)))
-    elif is_assignment(component):
-        return llist(assignment_symbol(component))
-    elif is_function_definition(component):
-        return llist(function_definition_symbol(component))
-    else:
-        return None
-          </PYTHON>
-	</SNIPPET>
-	<SNIPPET HIDE="yes">
-          <NAME>local_variables_example</NAME>
-	  <REQUIRES>functions_4_1_1</REQUIRES>
-	  <REQUIRES>functions_4_1_2</REQUIRES>
-	  <REQUIRES>functions_4_1_3</REQUIRES>
-	  <REQUIRES>functions_4_1_4</REQUIRES>
-          <PYTHON>
-print(local_variables(parse('x = 1\ny = 2')))
-	  </PYTHON>
-	</SNIPPET>
-	We ignore assignments that are nested in function definitions,
-	because the evaluation of that function definition will take care of them.
-	Names that the body declares as global or nonlocal are not local to
-	the function, even if they are assigned in its body.
-	Similar to <PYTHONINLINE>local_variables</PYTHONINLINE>,
-	the functions <PYTHONINLINE>global_variables</PYTHONINLINE>
+	collects the symbols from all statements that satisfy a given
+	predicate, using the function
+	<PYTHONINLINE>target_symbols</PYTHONINLINE>, which returns the list of
+	symbols that a statement introduces or refers to:
+	the symbols in a global or nonlocal declaration, the symbol on the
+	left-hand side of an assignment, or the name of a defined function.
+	The functions <PYTHONINLINE>global_variables</PYTHONINLINE>
 	and <PYTHONINLINE>nonlocal_variables</PYTHONINLINE>
-	scan a body for the symbols in global and nonlocal declarations,
-	looking into sequences and conditionals but ignoring nested function
-	definitions. Both use the function
-	<PYTHONINLINE>declared_symbols</PYTHONINLINE>, which collects the symbols
-	from the declarations that satisfy a given predicate.
+	use it to find the symbols in global and nonlocal declarations.
+	The function <PYTHONINLINE>assigned_variables</PYTHONINLINE>
+	uses it to find the symbols that represent the names
+	from the assignments and function definitions.
 	<SNIPPET>
 	  <INDEX><DECLARATION>declared_symbols</DECLARATION></INDEX>
 	  <NAME>declared_symbols</NAME>
@@ -730,6 +696,8 @@ print(local_variables(parse('x = 1\ny = 2')))
 	  <REQUIRES>map</REQUIRES>
 	  <REQUIRES>accumulate</REQUIRES>
 	  <REQUIRES>declaration</REQUIRES>
+	  <REQUIRES>assignment</REQUIRES>
+	  <REQUIRES>function_definition</REQUIRES>
 	  <EXAMPLE>declared_symbols_example</EXAMPLE>
 	  <EXPECTED>['x', None]</EXPECTED>
 	  <PYTHON>
@@ -746,13 +714,25 @@ def declared_symbols(component, is_declaration):
                       declared_symbols(conditional_alternative(component),
                                        is_declaration))
     elif is_declaration(component):
-        return declaration_symbols(component)
+        return target_symbols(component)
     else:
         return None
+def target_symbols(component):
+    if is_assignment(component):
+        return llist(assignment_symbol(component))
+    elif is_function_definition(component):
+        return llist(function_definition_symbol(component))
+    else:
+        return declaration_symbols(component)
 def global_variables(component):
     return declared_symbols(component, is_global_statement)
 def nonlocal_variables(component):
     return declared_symbols(component, is_nonlocal_statement)
+def assigned_variables(component):
+    return declared_symbols(
+        component,
+        lambda statement: (is_assignment(statement) or
+                           is_function_definition(statement)))
 	  </PYTHON>
 	</SNIPPET>
 	<SNIPPET HIDE="yes">
@@ -765,20 +745,16 @@ def nonlocal_variables(component):
 print(global_variables(parse('global x\nnonlocal y\nx = 1')))
 	  </PYTHON>
 	</SNIPPET>
-	In <PYTHONINLINE>apply</PYTHONINLINE>, the frame of a call binds the global names
-	to the marker <PYTHONINLINE>'*global*'</PYTHONINLINE>, which tells
+	In <PYTHONINLINE>apply</PYTHONINLINE>, the local names of a call are the
+	assigned variables of the body, except for those that the body declares
+	as global or nonlocal. The frame of a call binds the
+	local names to <PYTHONINLINE>'*unassigned*'</PYTHONINLINE>
+	and the global names to the marker <PYTHONINLINE>'*global*'</PYTHONINLINE>.
+	The marker <PYTHONINLINE>'*global*'</PYTHONINLINE> tells
 	assignments and name lookups to go to the global environment,
 	skipping all intermediate frames.
 	Nonlocal names are left out of the frame, so that the ordinary search
 	through the enclosing frames finds them.
-	<SNIPPET PAGE="367" HIDE="yes">
-          <NAME>list_of_unassigned</NAME>
-          <REQUIRES>map</REQUIRES>
-          <PYTHON>
-def llist_of_unassigned(symbols):
-    return map(lambda symbol: '*unassigned*', symbols)
-	  </PYTHON>
-	</SNIPPET>
       </PYTHON>
     </SPLIT>
   </TEXT>
@@ -1304,8 +1280,6 @@ def eval_function_definition(component, env):
     <REQUIRES>eval_return</REQUIRES>
     <REQUIRES>eval_assignment</REQUIRES>
     <REQUIRES>eval_function_definition</REQUIRES>
-    <REQUIRES>local_variables</REQUIRES>
-    <REQUIRES>list_of_unassigned</REQUIRES>
     <REQUIRES>declared_symbols</REQUIRES>
     <REQUIRES>filter</REQUIRES>
     <REQUIRES>memq</REQUIRES>
