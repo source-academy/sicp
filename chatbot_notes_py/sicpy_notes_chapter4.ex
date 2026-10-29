@@ -131,11 +131,11 @@ defmodule Cadet.Chatbot.SicpyNotesWithIndex.Chapter4 do
   1. Thunks Replace Eager Arguments:
   - Makes compound functions (but not primitives) non-strict: unevaluated argument expressions are packaged into *thunks* (expression + environment), only *forced* (actually evaluated) when their value is genuinely needed.
   2. Reworking `evaluate`/`apply`:
-  - Introduces `actual_value` (evaluate, then force if the result is a thunk) used wherever a real value is required (primitive arguments, conditional predicates, the function position of an application); has `apply` evaluate primitive arguments eagerly via `list_of_arg_values` but delay compound-function arguments via `list_of_delayed_args`.
+  - Introduces `actual_value` (evaluate, then force if the result is a thunk) used wherever a real value is required (primitive arguments, conditional predicates, the function position of an application); has `apply` evaluate primitive arguments eagerly via `llist_of_arg_values` but delay compound-function arguments via `llist_of_delayed_args`.
   3. Memoized Thunks:
   - Implements `force_it`/`delay_it` so a thunk, once forced, mutates itself into an "evaluated thunk" caching its value—avoiding repeated recomputation—while noting the same `delay_it` works whether or not memoization is used.
 
-  Key terms: Algol (call by name argument passing), Algol (thunks), Clinger, William, Ingerman, Peter, actual_value, apply, call by name argument passing, call by need argument passing, delay_it, driver loop (in lazy evaluator), driver_loop (for lazy evaluator), eval_conditional, evaluate, for_each, force_it, force_it (memoized version), forcing (of thunk), garbage collection (memoization and), lazy evaluator, list_of_arg_values, list_of_delayed_args, memoization (garbage collection and), memoization (of thunks), prompts (lazy evaluator), thunk
+  Key terms: Algol (call by name argument passing), Algol (thunks), Clinger, William, Ingerman, Peter, actual_value, apply, call by name argument passing, call by need argument passing, delay_it, driver loop (in lazy evaluator), driver_loop (for lazy evaluator), eval_conditional, evaluate, for_each, force_it, force_it (memoized version), forcing (of thunk), garbage collection (memoization and), lazy evaluator, llist_of_arg_values, llist_of_delayed_args, memoization (garbage collection and), memoization (of thunks), prompts (lazy evaluator), thunk
   """
 
   @summary_4_2_3 """
@@ -145,7 +145,7 @@ defmodule Cadet.Chatbot.SicpyNotesWithIndex.Chapter4 do
   2. Redefining `pair` as a Function:
   - Achieves this without needing new interpreter machinery for non-strict primitives, by using the functional representation of `pair`/`head`/`tail` (section 2.1.3) and simply defining them at the driver loop—since compound functions are already non-strict.
 
-  Key terms: Hughes, R. J. M., add_lists, delayed evaluation (explicit vs.automatic), delayed evaluation (in lazy evaluator), delayed expression (explicit vs.automatic), delayed expression (lazy evaluation and), head (functional implementation of), integers (lazy list version), integral (lazy list version), lambda expression (lazy evaluation and), lazy list, lazy pair, lazy tree, list(s) (lazy), list_ref, map, ones (lazy list version), pair (functional implementation of), pair(s) (functional representation of), pair(s) (lazy), promise to evaluate (lazy evaluation and), scale_list, solve (lazy list version), stream(s) (implemented as lazy lists), tail (functional implementation of)
+  Key terms: Hughes, R. J. M., add_llists, delayed evaluation (explicit vs.automatic), delayed evaluation (in lazy evaluator), delayed expression (explicit vs.automatic), delayed expression (lazy evaluation and), head (functional implementation of), integers (lazy list version), integral (lazy list version), lambda expression (lazy evaluation and), lazy list, lazy pair, lazy tree, list(s) (lazy), list_ref, map, ones (lazy list version), pair (functional implementation of), pair(s) (functional representation of), pair(s) (lazy), promise to evaluate (lazy evaluation and), scale_llist, solve (lazy list version), stream(s) (implemented as lazy lists), tail (functional implementation of)
   """
 
   @summary_4_3 """

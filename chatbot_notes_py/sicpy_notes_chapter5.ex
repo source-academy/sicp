@@ -188,7 +188,7 @@ defmodule Cadet.Chatbot.SicpyNotesWithIndex.Chapter5 do
   @summary_5_4_2 """
   5.4.2 Evaluating Function Applications
   1. Evaluating the Function and Argument Expressions:
-  - Walks through `ev_application`/`ev_appl_did_function_expression`/the argument-evaluation loop, each recursive call to `eval_dispatch` bracketed by careful `save`/`restore` of exactly the registers needed afterward—mirroring, now explicitly, what the metacircular `list_of_values` did implicitly via host-language recursion.
+  - Walks through `ev_application`/`ev_appl_did_function_expression`/the argument-evaluation loop, each recursive call to `eval_dispatch` bracketed by careful `save`/`restore` of exactly the registers needed afterward—mirroring, now explicitly, what the metacircular `llist_of_values` did implicitly via host-language recursion.
   2. `apply_dispatch` and the Return-Statement Problem:
   - Implements `apply_dispatch`/`primitive_apply`/`compound_apply`, introducing `push_marker_to_stack`/`revert_stack_to_marker` to solve the problem that a `return` statement can be arbitrarily deeply nested in a function body yet must still unwind the stack back to the state at the call.
   3. Tail Recursion, Made Concrete:
