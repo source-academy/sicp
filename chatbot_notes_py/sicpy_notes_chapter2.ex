@@ -102,7 +102,7 @@ defmodule Cadet.Chatbot.SicpyNotesWithIndex.Chapter2 do
   - Defines `ref` (nth element) and `length` (via `is_none`) as the archetypal walk-down-the-list recursive functions, then gives an iterative `length` variant.
   - Defines `append` as another recursive walk that rebuilds a linked list by adjoining elements with `pair` while descending with `tail`.
   3. Mapping over Linked Lists:
-  - Introduces `map` as a higher-order abstraction over `scale_linked_list`-style per-element transformations, establishing an abstraction barrier between "what transformation" and "how the list is walked."
+  - Introduces `map` as a higher-order abstraction over `scale_llist`-style per-element transformations, establishing an abstraction barrier between "what transformation" and "how the list is walked."
   - Notes `map` doesn't change the underlying process, just how programmers *think about* it—as a sequence-to-sequence transform rather than an element-by-element recursion.
   4. Exercises' Themes:
   - The exercise track covers `last_pair`, `reverse`, restructuring the change-counting program around a linked list of coin values, currying (`plus_curried`, `brooks`), and `for_each` for side-effecting iteration.

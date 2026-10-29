@@ -188,13 +188,13 @@ defmodule Cadet.Chatbot.SicpyNotesWithIndex.Chapter5 do
   @summary_5_4_2 """
   5.4.2 Evaluating Function Applications
   1. Evaluating the Function and Argument Expressions:
-  - Walks through `ev_application`/`ev_appl_did_function_expression`/the argument-evaluation loop, each recursive call to `eval_dispatch` bracketed by careful `save`/`restore` of exactly the registers needed afterward—mirroring, now explicitly, what the metacircular `list_of_values` did implicitly via host-language recursion.
+  - Walks through `ev_application`/`ev_appl_did_function_expression`/the argument-evaluation loop, each recursive call to `eval_dispatch` bracketed by careful `save`/`restore` of exactly the registers needed afterward—mirroring, now explicitly, what the metacircular `llist_of_values` did implicitly via host-language recursion.
   2. `apply_dispatch` and the Return-Statement Problem:
   - Implements `apply_dispatch`/`primitive_apply`/`compound_apply`, introducing `push_marker_to_stack`/`revert_stack_to_marker` to solve the problem that a `return` statement can be arbitrarily deeply nested in a function body yet must still unwind the stack back to the state at the call.
   3. Tail Recursion, Made Concrete:
   - Shows `ev_return` reverting the stack *before* jumping back to evaluate the return expression (rather than after), which is precisely why this evaluator is tail-recursive: evaluating a tail call leaves the stack exactly as it was before the enclosing call, so no stack builds up across a chain of tail calls.
 
-  Key terms: Wand, Mitchell, adjoin_arg, apply_dispatch, compound_apply, empty_arglist, ev_application, ev_operator_combination, ev_return, evlis tail recursion, explicit control evaluator for Python (argument evaluation), explicit control evaluator for Python (combinations), explicit control evaluator for Python (compound functions), explicit control evaluator for Python (function application), explicit control evaluator for Python (primitive functions), explicit control evaluator for Python (return statements), explicit control evaluator for Python (stack usage), explicit control evaluator for Python (tail recursion), framed stack discipline, is_last_argument_expression, iterative process (implemented by function call), metacircular evaluator for Python (tail recursion and), order of evaluation (in explicit control evaluator), order of evaluation (in metacircular evaluator), primitive_apply, push_marker_to_stack
+  Key terms: Wand, Mitchell, adjoin_arg, apply_dispatch, compound_apply, empty_arg_llist, ev_application, ev_operator_combination, ev_return, evlis tail recursion, explicit control evaluator for Python (argument evaluation), explicit control evaluator for Python (combinations), explicit control evaluator for Python (compound functions), explicit control evaluator for Python (function application), explicit control evaluator for Python (primitive functions), explicit control evaluator for Python (return statements), explicit control evaluator for Python (stack usage), explicit control evaluator for Python (tail recursion), framed stack discipline, is_last_argument_expression, iterative process (implemented by function call), metacircular evaluator for Python (tail recursion and), order of evaluation (in explicit control evaluator), order of evaluation (in metacircular evaluator), primitive_apply, push_marker_to_stack
   """
 
   @summary_5_4_3 """
@@ -256,13 +256,13 @@ defmodule Cadet.Chatbot.SicpyNotesWithIndex.Chapter5 do
   @summary_5_5_3 """
   5.5.3 Compiling Applications and Return Statements
   1. Compiling an Application:
-  - Implements `compile_application`, compiling the function expression to `fun` and each argument expression to `val`, combining them via `construct_arglist` (built back-to-front, last argument first, so `pair`ing produces the arguments in the right order) with careful `preserving` of `env`/`fun`/`continue` around each piece.
+  - Implements `compile_application`, compiling the function expression to `fun` and each argument expression to `val`, combining them via `construct_arg_llist` (built back-to-front, last argument first, so `pair`ing produces the arguments in the right order) with careful `preserving` of `env`/`fun`/`continue` around each piece.
   2. Applying Primitive vs. Compiled Functions:
   - Implements `compile_function_call`, generating a runtime test-and-branch between a `primitive_branch` (calls `apply_primitive_function`) and a `compiled_branch` (jumps to the callee's `compiled_function_entry`), joined afterward via `parallel_instruction_sequences` since only one branch actually executes.
   3. The Four Cases of `compile_fun_appl`, and Why "return"+val Preserves Tail Recursion:
   - Walks through `compile_fun_appl`'s four target/linkage combinations, showing that only when target is `val` *and* linkage is `"return"` can the callee's own final `go_to(reg("continue"))` jump directly to the caller's caller — which is exactly what makes tail calls in compiled code run in constant stack space, just as in the explicit-control evaluator.
 
-  Key terms: Appel, Andrew W., Hanson, Christopher P., Miller, James S., Rozas, Guillermo Juan, all_regs, compile_application, compile_fun_appl, compile_function_call, compile_return_statement, compiler (tail recursion, stack allocation, and garbage collection), compiler for Python (combinations), compiler for Python (function applications), compiler for Python (register use), compiler for Python (return statements), compiler for Python (tail recursive code generated by), construct_arglist, garbage collection (tail recursion and), return statement (handling in compiler), return statement (tail recursion and), return value (undefined as), stack allocation and tail recursion, tail recursion (compiler and), tail recursion (garbage collection and), tail recursion (return statement necessary for)
+  Key terms: Appel, Andrew W., Hanson, Christopher P., Miller, James S., Rozas, Guillermo Juan, all_regs, compile_application, compile_fun_appl, compile_function_call, compile_return_statement, compiler (tail recursion, stack allocation, and garbage collection), compiler for Python (combinations), compiler for Python (function applications), compiler for Python (register use), compiler for Python (return statements), compiler for Python (tail recursive code generated by), construct_arg_llist, garbage collection (tail recursion and), return statement (handling in compiler), return statement (tail recursion and), return value (undefined as), stack allocation and tail recursion, tail recursion (compiler and), tail recursion (garbage collection and), tail recursion (return statement necessary for)
   """
 
   @summary_5_5_4 """
@@ -272,7 +272,7 @@ defmodule Cadet.Chatbot.SicpyNotesWithIndex.Chapter5 do
   2. `append_instruction_sequences`, `preserving`, and `parallel_instruction_sequences`:
   - Defines the three combinators: straightforward concatenation for sequential code, `preserving` for sequential code that must protect a register across a boundary, and a version for combining two sequences that are mutually exclusive branches (like a conditional's two arms), whose combined register-modification set is the union but whose registers-needed must account for both possible paths.
 
-  Key terms: append_instruction_sequences, instruction sequence, instructions, list_difference, list_union, modifies_register, needs_register, parallel_instruction_sequences, preserving, registers_modified, registers_needed, tack_on_instruction_sequence
+  Key terms: append_instruction_sequences, instruction sequence, instructions, llist_difference, llist_union, modifies_register, needs_register, parallel_instruction_sequences, preserving, registers_modified, registers_needed, tack_on_instruction_sequence
   """
 
   @summary_5_5_5 """
