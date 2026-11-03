@@ -419,7 +419,6 @@ $\ldots$
     </SNIPPET>
     <SNIPPET HIDE="yes">
       <NAME>analyze_amb</NAME>
-      <REQUIRES>analyze_function_body_amb</REQUIRES>
       <REQUIRES>analyze_function_definition_amb</REQUIRES>
       <REQUIRES>functions_4_1_2</REQUIRES>
       <REQUIRES>functions_4_1_3</REQUIRES>
@@ -692,9 +691,9 @@ def analyze_name(component):
       <PYTHON>
 def analyze_lambda_expression(component):
     params = lambda_parameter_symbols(component)
-    bfun = analyze_function_body(params,
-                                 make_return_statement(lambda_body(component)))
-    return lambda env, succeed, fail: succeed(make_function(params, bfun, env),
+    bfun = analyze(make_return_statement(lambda_body(component)))
+    return lambda env, succeed, fail: succeed(make_function(params, None, None,
+                                                            bfun, env),
                                               fail)
 </PYTHON>
     </SNIPPET>
@@ -925,7 +924,10 @@ def analyze_sequence(stmts):
       </SCHEME>
       <PYTHON>
 	A function definition, unlike an assignment, has no value expression
-	whose evaluation could succeed or fail. The execution function for a
+	whose evaluation could succeed or fail. As in
+	section<SPACE/><REF NAME="sec:separating-analysis"/>, the local and
+	global names of the function are determined at analysis time.
+	The execution function for a
 	function definition creates the function object, which contains the
 	already analyzed function body, assigns it to the name, and propagates
 	the success:
@@ -933,6 +935,7 @@ def analyze_sequence(stmts):
     </SPLIT>
     <SNIPPET>
       <NAME>analyze_function_definition_amb</NAME>
+      <REQUIRES>declared_symbols</REQUIRES>
       <EXAMPLE>all_solutions_test_4</EXAMPLE>
       <SCHEME>
 (define (analyze-definition exp)
@@ -949,9 +952,12 @@ def analyze_sequence(stmts):
 def analyze_function_definition(component):
     symbol = function_definition_symbol(component)
     params = function_definition_parameter_symbols(component)
-    bfun = analyze_function_body(params, function_definition_body(component))
+    body = function_definition_body(component)
+    locals = local_variables(params, body)
+    globals = global_variables(body)
+    bfun = analyze(body)
     def the_function_definition(env, succeed, fail):
-        fun = make_function(params, bfun, env)
+        fun = make_function(params, locals, globals, bfun, env)
         assign_symbol_value(symbol, fun, env)
         return succeed(None, fail)
     return the_function_definition
@@ -1070,10 +1076,10 @@ def analyze_assignment(component):
                 def restore():                # *2*
                     assign_symbol_value(symbol, old_value, env)
                     return fail2()
-                return succeed(val, restore)
+                return succeed(None, restore)
             else:
                 assign_symbol_value(symbol, val, env)
-                return succeed(val, fail2)
+                return succeed(None, fail2)
         return vfun(env, success, fail)
     return the_assignment
 </PYTHON>
@@ -1113,7 +1119,7 @@ def is_bound(symbol, env):
     </SCHEME>
     <PYTHON>
       <SUBHEADING>
-	<NAME>Return statements and function bodies</NAME>
+	<NAME>Return statements</NAME>
       </SUBHEADING>
 
       <TEXT>
@@ -1133,43 +1139,6 @@ def analyze_return_statement(component):
             return succeed(make_return_value(val), fail2)
         return rfun(env, val_succeed, fail)
     return the_return_statement
-</PYTHON>
-	</SNIPPET>
-      </TEXT>
-      <TEXT>
-	The execution function for a function body is the analog of
-	<PYTHONINLINE>analyze_function_body</PYTHONINLINE> in
-	section<SPACE/><REF NAME="sec:separating-analysis"/>.
-	Each application of the function creates a new frame, and the execution
-	function adds to this frame the bindings for the local names and for the
-	names that the body declares as global. It then calls the execution
-	function of the body, without changing success or failure continuations.
-	<SNIPPET POSTPADDING="no">
-	  <NAME>analyze_function_body_amb</NAME>
-      <REQUIRES>append</REQUIRES>
-      <REQUIRES>memq</REQUIRES>
-      <REQUIRES>filter</REQUIRES>
-      <REQUIRES>declared_symbols</REQUIRES>
-	  
-	  <EXAMPLE>all_solutions_test_4</EXAMPLE>
-	  <PYTHON>
-def analyze_function_body(params, body):
-    bfun = analyze(body)
-    globals = global_variables(body)
-    others = append(params, append(globals, nonlocal_variables(body)))
-    locals = filter(lambda symbol: is_none(member(symbol, others)),
-                    assigned_variables(body))
-    def the_body(env, succeed, fail):
-        add_bindings_to_frame(locals, '*unassigned*', first_frame(env))
-        add_bindings_to_frame(globals, '*global*', first_frame(env))
-        return bfun(env, succeed, fail)
-    return the_body
-def add_bindings_to_frame(symbols, val, frame):
-    if is_none(symbols):
-        return None
-    else:
-        add_binding_to_frame(head(symbols), val, frame)
-        return add_bindings_to_frame(tail(symbols), val, frame)
 </PYTHON>
 	</SNIPPET>
       </TEXT>
@@ -1352,6 +1321,8 @@ def get_args(afuns, env, succeed, fail):
     <SNIPPET POSTPADDING="no">
       <INDEX><DECLARATION>execute_application</DECLARATION><SUBINDEX>nondeterministic</SUBINDEX></INDEX>
       <NAME>execute_application_amb</NAME>
+      <REQUIRES>map</REQUIRES>
+      <REQUIRES>append</REQUIRES>
       <EXAMPLE>all_solutions_test_4</EXAMPLE>
       <SCHEME>
 (define (execute-application proc args succeed fail)
@@ -1380,8 +1351,15 @@ def execute_application(fun, args, succeed, fail):
                 return succeed(return_value_content(body_result), fail2)
             else:
                 return succeed(None, fail2)
-        env = extend_environment(function_parameters(fun),
-                                 args,
+        locals = function_locals(fun)
+        globals = function_globals(fun)
+        unassigned_markers = map(lambda symbol: '*unassigned*', locals)
+        global_markers = map(lambda symbol: '*global*', globals)
+        env = extend_environment(append(function_parameters(fun),
+                                        append(locals, globals)),
+                                 append(args,
+                                        append(unassigned_markers,
+                                               global_markers)),
                                  function_environment(fun))
         return function_body(fun)(env, body_succeed, fail)
     else:
