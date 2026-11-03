@@ -328,7 +328,8 @@
 	    by the lambda expression with the environment of the evaluation.
 	    Since the body of a lambda expression is an expression, whereas
 	    the body of a function is a statement, the body is wrapped in
-	    a return statement.
+	    a return statement. An expression cannot contain assignments or
+	    declarations, and thus the function has no local or global names.
 	  </LI>
 	  <LI>
 	    A sequence of statements requires evaluating its
@@ -340,14 +341,15 @@
 	    evaluation of the return statement.
 	  </LI>
 	  <LI>
-	    A function definition creates a function from its parameters
-	    and body together with the environment of the evaluation, and
+	    A function definition creates a function from its parameters,
+	    its local and global names, and its body together with the
+	    environment of the evaluation, and
 	    assigns it to the name of the function in that environment.
 	  </LI>
 	  <LI>
 	    A <PYTHONINLINE>pass</PYTHONINLINE> statement requires no action.
 	    The same holds for global and nonlocal declarations:
-	    their effect is taken care of when a function is applied,
+	    their effect is taken care of when a function is defined,
 	    as we will see below.
 	  </LI>
 	  <LI>
@@ -389,6 +391,8 @@ def evaluate(component, env):
         return eval_conditional(component, env)
     elif is_lambda_expression(component):
         return make_function(lambda_parameter_symbols(component),
+                             None,
+                             None,
                              make_return_statement(lambda_body(component)),
                              env)
     elif is_sequence(component):
@@ -605,18 +609,14 @@ def apply(fun, arguments):
     if is_built_in_function(fun):
         return apply_built_in_function(fun, arguments)
     elif is_compound_function(fun):
-        body = function_body(fun)
-        globals = global_variables(body)
-        others = append(globals, nonlocal_variables(body))
-        locals = filter(lambda symbol: is_none(member(symbol, others)),
-                        assigned_variables(body))
+        locals = function_locals(fun)
+        globals = function_globals(fun)
         unassigned_markers = map(lambda symbol: '*unassigned*', locals)
         global_markers = map(lambda symbol: '*global*', globals)
-        result = evaluate(body,
+        result = evaluate(function_body(fun),
                           extend_environment(
                               append(function_parameters(fun),
-                                     append(locals,
-                                            globals)),
+                                     append(locals, globals)),
                               append(arguments,
                                      append(unassigned_markers,
                                             global_markers)),
@@ -671,91 +671,19 @@ print(apply(plus, llist(1, 2)))
 	show how to achieve tail recursion using a register machine.
       </FOOTNOTE>
 
-	To find the names that a function body introduces, we scan the body
-	for declarations and assignments, looking into sequences and
-	conditionals but ignoring nested function definitions: their names
-	are taken care of when the evaluation of the nested function definition
-	begins.
-	The function <PYTHONINLINE>declared_symbols</PYTHONINLINE>
-        <INDEX>scanning out names<SUBINDEX>in metacircular evaluator</SUBINDEX></INDEX>
-	collects the symbols from all statements that satisfy a given
-	predicate, using the function
-	<PYTHONINLINE>target_symbols</PYTHONINLINE>, which returns the linked list of
-	symbols that a statement introduces or refers to:
-	the symbols in a global or nonlocal declaration, the symbol on the
-	left-hand side of an assignment, or the name of a defined function.
-	The functions <PYTHONINLINE>global_variables</PYTHONINLINE>
-	and <PYTHONINLINE>nonlocal_variables</PYTHONINLINE>
-	use it to find the symbols in global and nonlocal declarations.
-	The function <PYTHONINLINE>assigned_variables</PYTHONINLINE>
-	uses it to find the symbols that represent the names
-	from the assignments and function definitions.
-	<SNIPPET>
-	  <INDEX><DECLARATION>declared_symbols</DECLARATION></INDEX>
-	  <NAME>declared_symbols</NAME>
-	  <REQUIRES>append</REQUIRES>
-	  <REQUIRES>map</REQUIRES>
-	  <REQUIRES>accumulate</REQUIRES>
-	  <REQUIRES>declaration</REQUIRES>
-	  <REQUIRES>assignment</REQUIRES>
-	  <REQUIRES>function_definition</REQUIRES>
-	  <EXAMPLE>declared_symbols_example</EXAMPLE>
-	  <EXPECTED>['x', None]</EXPECTED>
-	  <PYTHON>
-def declared_symbols(component, is_declaration):
-    if is_sequence(component):
-        return reduce(append,
-                      None,
-                      map(lambda statement: declared_symbols(statement,
-                                                             is_declaration),
-                          sequence_statements(component)))
-    elif is_conditional(component):
-        return append(declared_symbols(conditional_consequent(component),
-                                       is_declaration),
-                      declared_symbols(conditional_alternative(component),
-                                       is_declaration))
-    elif is_declaration(component):
-        return target_symbols(component)
-    else:
-        return None
-def target_symbols(component):
-    if is_assignment(component):
-        return llist(assignment_symbol(component))
-    elif is_function_definition(component):
-        return llist(function_definition_symbol(component))
-    else:
-        return declaration_symbols(component)
-def global_variables(component):
-    return declared_symbols(component, is_global_statement)
-def nonlocal_variables(component):
-    return declared_symbols(component, is_nonlocal_statement)
-def assigned_variables(component):
-    return declared_symbols(
-        component,
-        lambda statement: (is_assignment(statement) or
-                           is_function_definition(statement)))
-	  </PYTHON>
-	</SNIPPET>
-	<SNIPPET HIDE="yes">
-	  <NAME>declared_symbols_example</NAME>
-	  <REQUIRES>functions_4_1_1</REQUIRES>
-	  <REQUIRES>functions_4_1_2</REQUIRES>
-	  <REQUIRES>functions_4_1_3</REQUIRES>
-	  <REQUIRES>functions_4_1_4</REQUIRES>
-	  <PYTHON>
-print(global_variables(parse('global x\nnonlocal y\nx = 1')))
-	  </PYTHON>
-	</SNIPPET>
-	In <PYTHONINLINE>apply</PYTHONINLINE>, the local names of a call are the
-	assigned variables of the body, except for those that the body declares
-	as global or nonlocal. The frame of a call binds the
-	local names to <PYTHONINLINE>'*unassigned*'</PYTHONINLINE>
-	and the global names to the marker <PYTHONINLINE>'*global*'</PYTHONINLINE>.
+	The frame of a call binds the parameters to the arguments,
+	the local names of the function to
+	<PYTHONINLINE>'*unassigned*'</PYTHONINLINE>,
+	and the global names of the function to the marker
+	<PYTHONINLINE>'*global*'</PYTHONINLINE>.
+	The function carries its local and global names, which are
+	determined when the function is defined (see
+	<PYTHONINLINE>eval_function_definition</PYTHONINLINE> below).
 	The marker <PYTHONINLINE>'*global*'</PYTHONINLINE> tells
 	assignments and name lookups to go to the global environment,
 	skipping all intermediate frames.
-	Nonlocal names are left out of the frame, so that the ordinary search
-	through the enclosing frames finds them.
+	Names that the function declares as nonlocal are left out of the frame,
+	so that the ordinary search through the enclosing frames finds them.
       </PYTHON>
     </SPLIT>
   </TEXT>
@@ -1126,10 +1054,8 @@ print(evaluate(parse('def f():\n    return 1\nf()'), the_global_environment))
   </SPLIT>
 
   <SUBHEADING>
-    <NAME>Assignments and
-    <SPLITINLINE>
-      <SCHEME>definitions</SCHEME>
-      <PYTHON>function definitions</PYTHON>
+    <NAME>Assignments<SPLITINLINE>
+      <SCHEME> and definitions</SCHEME>
     </SPLITINLINE></NAME>
   </SUBHEADING>
 
@@ -1171,6 +1097,10 @@ print(evaluate(parse('def f():\n    return 1\nf()'), the_global_environment))
 	transmits the symbol and the value to
 	<PYTHONINLINE>assign_symbol_value</PYTHONINLINE>
 	to be installed in the designated environment.
+	An assignment is a statement, evaluated for its effect: the result
+	of a function body is determined by return statements alone, so
+	<PYTHONINLINE>eval_assignment</PYTHONINLINE> returns the value
+	<PYTHONINLINE>None</PYTHONINLINE>.
       </PYTHON>
     </SPLITINLINE>
     <SNIPPET PAGE="368">
@@ -1189,7 +1119,7 @@ print(evaluate(parse('def f():\n    return 1\nf()'), the_global_environment))
 def eval_assignment(component, env):
     value = evaluate(assignment_value_expression(component), env)
     assign_symbol_value(assignment_symbol(component), value, env)
-    return value
+    return None
       </PYTHON>
     </SNIPPET>
     <SNIPPET PAGE="368" HIDE="yes">
@@ -1200,7 +1130,7 @@ def eval_assignment(component, env):
       <REQUIRES>functions_4_1_3</REQUIRES>
       <REQUIRES>functions_4_1_4</REQUIRES>
       <PYTHON>
-print(evaluate(parse('x = 1\nx = 2'), the_global_environment))
+print(evaluate(parse('x = 1\nx = 2\nx'), the_global_environment))
       </PYTHON>
     </SNIPPET>
   </TEXT>
@@ -1240,24 +1170,118 @@ print(evaluate(parse('x = 1\nx = 2'), the_global_environment))
       </TEXT>
     </SCHEME>
     <PYTHON>
+      <SUBHEADING>
+	<NAME>Function definitions</NAME>
+      </SUBHEADING>
       <TEXT>
 	The function <PYTHONINLINE>eval_function_definition</PYTHONINLINE>
 	creates the function in the current environment and assigns it to the
 	name of the function definition.
-	Like other statements, a function definition is evaluated for its
-	effect: the result of a function body is determined by return
-	statements alone, so the value <PYTHONINLINE>None</PYTHONINLINE>
-	returned here is never used.
+	Like an assignment, a function definition is evaluated for its
+	effect, and <PYTHONINLINE>eval_function_definition</PYTHONINLINE>
+	returns the value <PYTHONINLINE>None</PYTHONINLINE>.
 	<SNIPPET PAGE="368">
 	  <INDEX><DECLARATION>eval_function_definition</DECLARATION></INDEX>
 	  <NAME>eval_function_definition</NAME>
 	  <PYTHON>
 def eval_function_definition(component, env):
-    fun = make_function(function_definition_parameter_symbols(component),
-                        function_definition_body(component),
+    parameters = function_definition_parameter_symbols(component)
+    body = function_definition_body(component)
+    fun = make_function(parameters,
+                        local_variables(parameters, body),
+                        global_variables(body),
+                        body,
                         env)
     assign_symbol_value(function_definition_symbol(component), fun, env)
     return None
+	  </PYTHON>
+	</SNIPPET>
+      </TEXT>
+      <TEXT>
+	To find the names that a function body introduces, we scan the body
+	for declarations and assignments, looking into sequences and
+	conditionals but ignoring nested function definitions: their names
+	are taken care of when the nested function definition is evaluated.
+	The function <PYTHONINLINE>declared_symbols</PYTHONINLINE>
+        <INDEX>scanning out names<SUBINDEX>in metacircular evaluator</SUBINDEX></INDEX>
+	collects the symbols from all statements that satisfy a given
+	predicate, using the function
+	<PYTHONINLINE>target_symbols</PYTHONINLINE>, which returns the linked list of
+	symbols that a statement introduces or refers to:
+	the symbols in a global or nonlocal declaration, the symbol on the
+	left-hand side of an assignment, or the name of a defined function.
+	The functions <PYTHONINLINE>global_variables</PYTHONINLINE>
+	and <PYTHONINLINE>nonlocal_variables</PYTHONINLINE>
+	use it to find the symbols in global and nonlocal declarations.
+	The function <PYTHONINLINE>assigned_variables</PYTHONINLINE>
+	uses it to find the symbols that represent the names
+	from the assignments and function definitions.
+	The local names of a function are its assigned variables, except for
+	its parameters and for the names that the body declares as global or
+	nonlocal; the function <PYTHONINLINE>local_variables</PYTHONINLINE>
+	leaves these out.
+	<SNIPPET>
+	  <INDEX><DECLARATION>declared_symbols</DECLARATION></INDEX>
+	  <INDEX><DECLARATION>local_variables</DECLARATION></INDEX>
+	  <NAME>declared_symbols</NAME>
+	  <REQUIRES>append</REQUIRES>
+	  <REQUIRES>map</REQUIRES>
+	  <REQUIRES>accumulate</REQUIRES>
+	  <REQUIRES>declaration</REQUIRES>
+	  <REQUIRES>assignment</REQUIRES>
+	  <REQUIRES>function_definition</REQUIRES>
+	  <REQUIRES>filter</REQUIRES>
+	  <REQUIRES>memq</REQUIRES>
+	  <EXAMPLE>declared_symbols_example</EXAMPLE>
+	  <EXPECTED>['x', None]</EXPECTED>
+	  <PYTHON>
+def declared_symbols(component, is_declaration):
+    if is_sequence(component):
+        return reduce(append,
+                      None,
+                      map(lambda statement: declared_symbols(statement,
+                                                             is_declaration),
+                          sequence_statements(component)))
+    elif is_conditional(component):
+        return append(declared_symbols(conditional_consequent(component),
+                                       is_declaration),
+                      declared_symbols(conditional_alternative(component),
+                                       is_declaration))
+    elif is_declaration(component):
+        return target_symbols(component)
+    else:
+        return None
+def target_symbols(component):
+    if is_assignment(component):
+        return llist(assignment_symbol(component))
+    elif is_function_definition(component):
+        return llist(function_definition_symbol(component))
+    else:
+        return declaration_symbols(component)
+def global_variables(component):
+    return declared_symbols(component, is_global_statement)
+def nonlocal_variables(component):
+    return declared_symbols(component, is_nonlocal_statement)
+def assigned_variables(component):
+    return declared_symbols(
+        component,
+        lambda statement: (is_assignment(statement) or
+                           is_function_definition(statement)))
+def local_variables(parameters, body):
+    excluded = append(parameters,
+                      append(global_variables(body), nonlocal_variables(body)))
+    return filter(lambda symbol: is_none(member(symbol, excluded)),
+                  assigned_variables(body))
+	  </PYTHON>
+	</SNIPPET>
+	<SNIPPET HIDE="yes">
+	  <NAME>declared_symbols_example</NAME>
+	  <REQUIRES>functions_4_1_1</REQUIRES>
+	  <REQUIRES>functions_4_1_2</REQUIRES>
+	  <REQUIRES>functions_4_1_3</REQUIRES>
+	  <REQUIRES>functions_4_1_4</REQUIRES>
+	  <PYTHON>
+print(global_variables(parse('global x\nnonlocal y\nx = 1')))
 	  </PYTHON>
 	</SNIPPET>
       </TEXT>
