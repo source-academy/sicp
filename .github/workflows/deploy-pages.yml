@@ -53,6 +53,7 @@ jobs:
       # already complete. Bump this number in a PR as each next chapter
       # is ready to publish — no other change needed.
       - name: Build (Python edition)
+        id: build_py
         continue-on-error: true
         env:
           SICP_EDITION: py
@@ -65,6 +66,7 @@ jobs:
           yarn run md
           yarn run pdf || (cat latex_pdf_py/sicpy.log && false)
       - name: Package (Python edition)
+        id: package_py
         continue-on-error: true
         env:
           SICP_EDITION: py
@@ -75,6 +77,7 @@ jobs:
       # comparison would be nonsensical. Best-effort, like Python: a failure
       # here must never block the JavaScript deploy.
       - name: Build (Scheme edition)
+        id: build_scm
         continue-on-error: true
         env:
           SICP_EDITION: scm
@@ -85,6 +88,7 @@ jobs:
           yarn run md
           yarn run pdf || (cat latex_pdf_scm/sicp.log && false)
       - name: Package (Scheme edition)
+        id: package_scm
         continue-on-error: true
         env:
           SICP_EDITION: scm
@@ -106,3 +110,15 @@ jobs:
           publish_dir: ./docs_out
           cname: sicp.sourceacademy.org
           force_orphan: true
+      # The Python and Scheme steps above use continue-on-error so they never
+      # block the JavaScript deploy. Fail the run afterwards so a broken
+      # edition does not go unnoticed.
+      - name: Fail if the Python or Scheme edition failed
+        if: >-
+          steps.build_py.outcome == 'failure' ||
+          steps.package_py.outcome == 'failure' ||
+          steps.build_scm.outcome == 'failure' ||
+          steps.package_scm.outcome == 'failure'
+        run: |
+          echo "::error::Python or Scheme edition failed to build; see the steps above."
+          exit 1
