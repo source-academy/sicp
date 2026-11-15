@@ -1,10 +1,11 @@
 orig_path=$(realpath ../static/img_original/)
 js_path=$(realpath ../static/img_javascript/)
+py_path=$(realpath ../static/img_python/)
 
 %.svg.pdf: %.svg
-	inkscape -D --file=$< --export-pdf=$@
+	inkscape -D --export-filename=$@ $<
 
-svgs: orig_svgs js_svgs
+svgs: orig_svgs js_svgs py_svgs
 
 doublespace:
 	cd .. && ./scripts/do.sh doublespace
@@ -160,3 +161,5 @@ js_svgs: $(js_path)/ch2-Z-G-65.svg.pdf \
 			$(js_path)/Fig2.14b.std.svg.pdf \
 			$(js_path)/ch4-parse-abstraction.svg.pdf \
 			$(js_path)/ch4-syntax-abstraction-logic-programming.svg.pdf
+
+py_svgs: $(patsubst %,%.pdf,$(wildcard $(py_path)/*.svg))
