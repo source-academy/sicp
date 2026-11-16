@@ -45,7 +45,11 @@ import { setupSnippetsJson } from "./processingFunctions/processSnippetJson.js";
 import { createTocJson } from "./generateTocJson.js";
 import { setupReferencesJson } from "./processingFunctions/processReferenceJson.js";
 import { createMain } from "./commands/utils.js";
-import { getEdition, getPublishedChapterCount } from "./editions.js";
+import {
+  getEdition,
+  getPublishedChapterCount,
+  isHeldBackSection
+} from "./editions.js";
 import type { WriteBuffer } from "./types.js";
 
 export let parseType;
@@ -67,18 +71,9 @@ const isPythonEdition = edition.language.key === "py";
 const pythonExcludedFrontmatter =
   /(02foreword02|03prefaces03|04acknowledgements04)/;
 
-// Sections drafted for the Python edition but held back until their content
-// is ready. Unlike the front matter above these are skipped for *every* build
-// target (web, json, md, programs and pdf), since nothing references them, so
-// the surrounding sections simply renumber around the gap. Matched on the path
-// relative to the edition's xml root, because a bare file name such as
-// subsection6.xml also occurs in other sections. The source file is kept
-// intact: to publish a section, drop its entry from this list.
-const pythonHeldBackSections = new Set([
-  path.join("chapter3", "section2", "subsection6.xml") // 3.2.6 CSE Machine
-]);
+// Sections held back from the Python edition: see isHeldBackSection.
 const heldBackSection = (filepath: string, file: string): boolean =>
-  isPythonEdition && pythonHeldBackSections.has(path.join(filepath, file));
+  isHeldBackSection(path.join(filepath, file));
 
 // Chapters beyond this cutoff (see getPublishedChapterCount) are skipped
 // wholesale below, for every build target that walks this tree (web, json,
