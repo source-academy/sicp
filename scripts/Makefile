@@ -1,10 +1,20 @@
 orig_path=$(realpath ../static/img_original/)
 js_path=$(realpath ../static/img_javascript/)
+py_path=$(realpath ../static/img_python/)
 
 %.svg.pdf: %.svg
-	inkscape -D --file=$< --export-pdf=$@
+	inkscape -D --export-filename=$@ $<
 
-svgs: orig_svgs js_svgs
+# Some SICPy SVGs have a full-canvas white background rect, which -D would
+# count as drawing; strip it so the PDF is cropped like the others.
+py_pdfs=$(patsubst %,%.pdf,$(wildcard $(py_path)/*.svg))
+
+$(py_pdfs): $(py_path)/%.svg.pdf: $(py_path)/%.svg
+	perl -0pe 's/<rect\b[^>]*\bwidth="100(\.\d+)?%"[^>]*>//g' $< > $@.tmp.svg
+	inkscape -D --export-filename=$@ $@.tmp.svg
+	rm -f $@.tmp.svg
+
+svgs: orig_svgs js_svgs py_svgs
 
 doublespace:
 	cd .. && ./scripts/do.sh doublespace
@@ -160,3 +170,5 @@ js_svgs: $(js_path)/ch2-Z-G-65.svg.pdf \
 			$(js_path)/Fig2.14b.std.svg.pdf \
 			$(js_path)/ch4-parse-abstraction.svg.pdf \
 			$(js_path)/ch4-syntax-abstraction-logic-programming.svg.pdf
+
+py_svgs: $(py_pdfs)

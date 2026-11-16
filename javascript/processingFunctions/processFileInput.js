@@ -1,3 +1,5 @@
+import { isHeldBackSection } from "../editions.js";
+
 export const processFileInput = (trimedValue, writeTo) => {
   const len = trimedValue.length;
   const front = trimedValue.substring(1, 4);
@@ -11,6 +13,9 @@ export const processFileInput = (trimedValue, writeTo) => {
     pathStr +=
       path[0] + "/section" + path[1] + "/subsection" + path[2] + ".tex";
   }
+  // A held-back section has no .tex file: the section that contains it
+  // must not include it.
+  if (isHeldBackSection(pathStr)) return;
   writeTo.push("\\input{" + pathStr + "}\n");
 };
 

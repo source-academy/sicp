@@ -157,6 +157,30 @@ export function getPublishedChapterCount(): number {
   return n;
 }
 
+// Sections drafted for the Python edition but held back until their content
+// is ready. They are skipped for *every* build target (web, json, md,
+// programs and pdf), since nothing references them, so the surrounding
+// sections simply renumber around the gap. This includes the \input of the
+// section from its parent in the PDF (processFileInput): without that, LaTeX
+// stops at a file that was never written. Paths are relative to the edition's
+// xml root, with "/" as separator, because a bare file name such as
+// subsection6.xml also occurs in other sections. The source file is kept
+// intact: to publish a section, drop its entry from this list.
+const pythonHeldBackSections: ReadonlySet<string> = new Set([
+  "chapter3/section2/subsection6.xml" // 3.2.6 CSE Machine
+]);
+
+// Whether `xmlPath` (such as "chapter3/section2/subsection6.xml", or the same
+// with ".tex") is a section that the edition being built holds back.
+export function isHeldBackSection(
+  xmlPath: string,
+  edition: Edition = getEdition()
+): boolean {
+  if (edition.language.key !== "py") return false;
+  const normalized = xmlPath.replace(/\\/g, "/").replace(/\.tex$/, ".xml");
+  return pythonHeldBackSections.has(normalized);
+}
+
 export function getCompanionLanguage(
   edition: Edition = getEdition()
 ): LanguageDescriptor {
