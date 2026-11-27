@@ -1,5 +1,7 @@
 # SICP: JavaScript, Python, and Scheme Editions
 
+Needs Node 24 (the version in `.node-version`; see the [Node.js version](https://github.com/source-academy/documentation/blob/main/app/docs/developers/node-version.md) page).
+
 This repository contains processing scripts and sources for *Structure and Interpretation of Computer Programs* (SICP), adapted from the original Scheme edition (SICP) into JavaScript (SICP JS) and Python (SICPy), and also publishing the original Scheme edition on its own. See the [SICP JS preface](https://sourceacademy.org/sicpjs/prefaces03) for background on the JavaScript adaptation.
 
 ## Editions
